@@ -8,6 +8,7 @@ import { ClaudeCodeService, ClaudeCodeOptions } from "../../../../services/claud
 import { TaskStore } from "../../../../services/task-store.js";
 import { logger } from "../../../../utils/logger.js";
 import type { AITool, Task, TaskLogEntry } from "../../../../types/task.js";
+import { TASK_STATUS } from "../../../../constants/task-status.js";
 
 export interface AgentStartResult {
   sessionId: string;
@@ -80,8 +81,7 @@ export class AgentOperations {
               timestamp: new Date().toISOString(),
               level: 'info',
               type: 'system',
-              prefix: 'SESSION_LINKED',
-              message: `Claude session ${agentSession.serviceSessionId} linked to task and MCP session`,
+              message: `Session ready`,
               metadata: {
                 sessionId: agentSession.serviceSessionId,
                 mcpSessionId: options.sessionId,
@@ -129,12 +129,41 @@ export class AgentOperations {
       let progressInterval: NodeJS.Timeout | undefined;
 
       if (updateProgress && taskId) {
-        // Update elapsed time every 5 seconds
+        // Log initial progress immediately
+        await this.taskStore.addLog(taskId, {
+          timestamp: new Date().toISOString(),
+          level: "info",
+          type: "progress",
+          message: "Task started, processing instructions..."
+        });
+        
+        // Update progress every 30 seconds with meaningful messages
+        let updateCount = 0;
         progressInterval = setInterval(async () => {
+          updateCount++;
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          // Update progress log instead of elapsed_seconds field
-          await this.taskStore.addLog(taskId, `[PROGRESS] ${elapsed} seconds elapsed`);
-        }, 5000);
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = elapsed % 60;
+          
+          let message = "";
+          if (minutes > 0) {
+            message = `Still processing... (${minutes}m ${seconds}s)`;
+          } else {
+            message = `Processing... (${elapsed}s)`;
+          }
+          
+          // Add different messages based on elapsed time
+          if (elapsed > 120) {
+            message = `Complex task in progress... (${minutes}m ${seconds}s)`;
+          }
+          
+          await this.taskStore.addLog(taskId, {
+            timestamp: new Date().toISOString(),
+            level: "info",
+            type: "progress",
+            message: message
+          });
+        }, 30000); // 30 seconds instead of 5
       }
 
       try {
@@ -200,7 +229,7 @@ export class AgentOperations {
         await this.taskStore.addLog(taskId, `[PROGRESS] ${data.event}: ${data.data}`, sessionId);
 
         if (data.event === "error:occurred") {
-          await this.taskStore.updateTask(taskId, { status: "failed" }, sessionId);
+          await this.taskStore.updateTask(taskId, { status: TASK_STATUS.FAILED }, sessionId);
         }
       }
     };

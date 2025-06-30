@@ -14,6 +14,7 @@ import type {
   UpdateTaskParams,
   TaskLogEntry,
 } from "../../../../types/task.js";
+import { TASK_STATUS } from "../../../../constants/task-status.js";
 
 export interface TaskCreationParams {
   description: string;
@@ -50,7 +51,7 @@ export class TaskOperations {
       id: taskId as ReturnType<typeof createTaskId>,
       description: params.description,
       tool: params.tool,
-      status: "pending",
+      status: TASK_STATUS.PENDING,
       created_at: now,
       updated_at: now,
       logs: [],  // Start with empty logs array
@@ -111,15 +112,19 @@ export class TaskOperations {
 
     // Add status-specific updates
     switch (newStatus) {
-      case "in_progress":
+      case TASK_STATUS.IN_PROGRESS:
         if (!task.started_at) {
           updates.started_at = new Date().toISOString();
         }
         break;
 
-      case "completed":
-      case "failed":
-      case "cancelled":
+      case TASK_STATUS.COMPLETED_ACTIVE:
+        // Task is done but session remains active
+        break;
+        
+      case TASK_STATUS.COMPLETED:
+      case TASK_STATUS.FAILED:
+      case TASK_STATUS.CANCELLED:
         if (!task.completed_at) {
           updates.completed_at = metadata?.completedAt || new Date().toISOString();
         }
@@ -138,8 +143,7 @@ export class TaskOperations {
       timestamp: new Date().toISOString(),
       level: 'info',
       type: 'system',
-      prefix: 'STATUS_CHANGE',
-      message: `Task status changed from ${task.status} to ${newStatus}`,
+      message: `Status: ${newStatus}`,
       metadata: {
         previousStatus: task.status,
         newStatus,
@@ -156,11 +160,12 @@ export class TaskOperations {
    */
   private isValidStatusTransition(from: TaskStatus, to: TaskStatus): boolean {
     const validTransitions: Record<TaskStatus, TaskStatus[]> = {
-      pending: ["in_progress", "cancelled"],
-      in_progress: ["completed", "failed", "cancelled"],
-      completed: [],
-      failed: [],
-      cancelled: [],
+      [TASK_STATUS.PENDING]: [TASK_STATUS.IN_PROGRESS, TASK_STATUS.CANCELLED],
+      [TASK_STATUS.IN_PROGRESS]: [TASK_STATUS.COMPLETED_ACTIVE, TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED],
+      [TASK_STATUS.COMPLETED_ACTIVE]: [TASK_STATUS.COMPLETED],  // Can transition to fully completed when session ends
+      [TASK_STATUS.COMPLETED]: [],
+      [TASK_STATUS.FAILED]: [],
+      [TASK_STATUS.CANCELLED]: [],
     };
 
     return validTransitions[from]?.includes(to) || false;
@@ -208,15 +213,17 @@ export class TaskOperations {
    */
   private generateMarkdownReport(task: Task, logs: TaskLogEntry[], duration: string): string {
     const status =
-      task.status === "completed"
+      task.status === TASK_STATUS.COMPLETED
         ? "✅"
-        : task.status === "failed"
-          ? "❌"
-          : task.status === "cancelled"
-            ? "⏹️"
-            : task.status === "in_progress"
-              ? "🔄"
-              : "⏳";
+        : task.status === TASK_STATUS.COMPLETED_ACTIVE
+          ? "✅🔄"
+          : task.status === TASK_STATUS.FAILED
+            ? "❌"
+            : task.status === TASK_STATUS.CANCELLED
+              ? "⏹️"
+              : task.status === TASK_STATUS.IN_PROGRESS
+                ? "🔄"
+                : "⏳";
 
     let report = `# Task Report\n\n`;
     report += `**ID:** ${task.id}\n`;
@@ -363,7 +370,7 @@ export class TaskOperations {
       {} as Record<string, number>,
     );
 
-    const completedTasks = tasks.filter((t: Task) => t.status === "completed");
+    const completedTasks = tasks.filter((t: Task) => t.status === TASK_STATUS.COMPLETED);
     const totalDuration = completedTasks.reduce((sum: number, task: Task) => {
       if (task.started_at && task.completed_at) {
         const start = new Date(task.started_at).getTime();

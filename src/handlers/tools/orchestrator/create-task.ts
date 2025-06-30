@@ -8,6 +8,7 @@ import { formatToolResponse } from "../types.js";
 import { logger } from "../../../utils/logger.js";
 import { CreateTaskArgsSchema, type CreateTaskArgs, ToolNotAvailableError } from "./utils/index.js";
 import { validateInput, isToolAvailable, agentOperations, taskOperations } from "./utils/index.js";
+import { TASK_STATUS } from "../../../constants/task-status.js";
 
 /**
  * Creates a new task and optionally starts an AI session to execute it
@@ -56,7 +57,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 
     try {
       // Update task status to in_progress
-      await taskOperations.updateTaskStatus(task.id, "in_progress", context?.sessionId, {
+      await taskOperations.updateTaskStatus(task.id, TASK_STATUS.IN_PROGRESS, context?.sessionId, {
         completedAt: undefined,
       });
 
@@ -85,7 +86,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
           logger.error("Background instruction execution failed", { error, taskId: task.id });
           taskOperations.addTaskLog(
             task.id,
-            `[ERROR] Background execution failed: ${error}`,
+            `Error: ${error}`,
             context?.sessionId,
           );
         });
@@ -93,7 +94,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
         // Log that we're starting asynchronously
         await taskOperations.addTaskLog(
           task.id,
-          `[ASYNC_START] Started ${tool} process in background`,
+          `Starting ${tool} agent...`,
           context?.sessionId,
         );
       }
@@ -104,7 +105,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
       });
     } catch (error) {
       // Update task status to failed
-      await taskOperations.updateTaskStatus(task.id, "failed", context?.sessionId, {
+      await taskOperations.updateTaskStatus(task.id, TASK_STATUS.FAILED, context?.sessionId, {
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -122,7 +123,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
       result: {
         task_id: task.id,
         description: task.description,
-        status: "in_progress",
+        status: TASK_STATUS.IN_PROGRESS,
         tool: tool,
         session_id: agentSessionId,
         instructions_started: !!validated.instructions,
@@ -157,7 +158,7 @@ async function executeInitialInstructions(
   try {
     await taskOperations.addTaskLog(
       taskId,
-      `[INSTRUCTIONS_SENDING] Sending instructions to ${tool}...`,
+      `Processing request...`,
       sessionId,
     );
 
@@ -181,14 +182,14 @@ async function executeInitialInstructions(
       taskId,
       {
         timestamp: new Date().toISOString(),
-        level: 'info',
-        type: 'system',
-        prefix: 'EXECUTION_TIME',
+        level: "info",
+        type: "system",
+        prefix: "EXECUTION_TIME",
         message: `${tool} execution took ${durationSeconds} seconds`,
         metadata: {
           tool,
           duration: durationSeconds,
-        }
+        },
       },
       sessionId,
     );
@@ -200,13 +201,12 @@ async function executeInitialInstructions(
         taskId,
         {
           timestamp: new Date().toISOString(),
-          level: 'info',
-          type: 'system',
-          prefix: 'EXECUTION_SUCCESS',
-          message: 'Initial instructions completed successfully',
+          level: "info",
+          type: "system",
+          message: "Task completed successfully",
           metadata: {
             tool,
-          }
+          },
         },
         sessionId,
       );
@@ -216,7 +216,7 @@ async function executeInitialInstructions(
         let parsedOutput: any = null;
         let isJson = false;
         try {
-          if (result.output.trim().startsWith('{') || result.output.trim().startsWith('[')) {
+          if (result.output.trim().startsWith("{") || result.output.trim().startsWith("[")) {
             parsedOutput = JSON.parse(result.output);
             isJson = true;
           }
@@ -228,22 +228,24 @@ async function executeInitialInstructions(
           taskId,
           {
             timestamp: new Date().toISOString(),
-            level: 'info',
-            type: 'output',
+            level: "info",
+            type: "output",
             prefix: `${tool}_OUTPUT`,
-            message: isJson ? 'Tool execution result' : result.output,
+            message: isJson ? "Tool execution result" : result.output,
             metadata: {
               tool,
               outputLength: result.output.length,
               isJson,
-              ...(isJson && parsedOutput ? { data: parsedOutput } : {})
-            }
+              ...(isJson && parsedOutput ? { data: parsedOutput } : {}),
+            },
           },
-          sessionId
+          sessionId,
         );
       }
+      // Mark task as completed_active (session still available for updates)
+      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.COMPLETED_ACTIVE, sessionId);
     } else {
-      await taskOperations.updateTaskStatus(taskId, "failed", sessionId, {
+      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.FAILED, sessionId, {
         error: result.error,
       });
     }
@@ -255,19 +257,22 @@ async function executeInitialInstructions(
       taskId,
       {
         timestamp: new Date().toISOString(),
-        level: 'error',
-        type: 'system',
-        prefix: 'ERROR',
+        level: "error",
+        type: "system",
+        prefix: "ERROR",
         message: `Instructions error: ${error}`,
         metadata: {
-          error: error instanceof Error ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          } : error,
-        }
+          error:
+            error instanceof Error
+              ? {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : error,
+        },
       },
-      sessionId
+      sessionId,
     );
     throw error;
   } finally {

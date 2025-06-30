@@ -123,7 +123,7 @@ export class ClaudeSessionManager {
       if (session.taskId) {
         await this.taskLogger.logError(
           session.taskId,
-          '[COMMAND_ERROR]',
+          'Error:',
           error,
           session.mcpSessionId
         );
@@ -148,7 +148,6 @@ export class ClaudeSessionManager {
         await this.taskLogger.logSessionTermination(
           session.taskId,
           session.id,
-          'Claude',
           true,
           session.mcpSessionId
         );
@@ -163,7 +162,6 @@ export class ClaudeSessionManager {
         await this.taskLogger.logSessionTermination(
           session.taskId,
           session.id,
-          'Claude',
           false
         );
       }

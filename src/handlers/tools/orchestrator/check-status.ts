@@ -18,6 +18,7 @@ import {
 } from "./utils/index.js";
 import { agentToOrchestratorState, type AgentState } from "../../../types/session-states.js";
 import { isToolAvailable, taskOperations, agentOperations } from "./utils/index.js";
+import { TASK_STATUS } from "../../../constants/task-status.js";
 
 /**
  * Internal service status information
@@ -92,7 +93,9 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
     // Get active tasks and sessions
     const tasks = await taskOperations.taskStore.getAllTasks();
     const activeTasks = tasks.filter(
-      (t: any) => t.status === "pending" || t.status === "in_progress",
+      (t: any) => t.status === TASK_STATUS.PENDING || 
+                   t.status === TASK_STATUS.IN_PROGRESS ||
+                   t.status === TASK_STATUS.COMPLETED_ACTIVE,
     );
 
     const sessions = agentOperations.agentManager.getAllSessions();

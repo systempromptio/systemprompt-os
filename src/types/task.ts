@@ -36,7 +36,8 @@ export interface TaskLogEntry {
 export const TaskStatusSchema = z.enum([
   "pending",
   "in_progress",
-  "completed",
+  "completed_active", // Task completed but session still active for updates
+  "completed",        // Task completed and session terminated
   "failed",
   "cancelled",
 ]);

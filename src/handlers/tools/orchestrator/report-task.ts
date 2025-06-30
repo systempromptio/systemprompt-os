@@ -15,6 +15,7 @@ import {
   taskOperations
 } from './utils/index.js';
 import type { Task } from '../../../types/task.js';
+import { TASK_STATUS } from '../../../constants/task-status.js';
 
 /**
  * Generates reports on task(s) - either a single task by ID or all tasks
@@ -173,7 +174,7 @@ function calculateStatistics(tasks: Task[]) {
     byTool[task.tool] = (byTool[task.tool] || 0) + 1;
     
     // Calculate durations for completed tasks
-    if (task.status === 'completed' && task.started_at && task.completed_at) {
+    if (task.status === TASK_STATUS.COMPLETED && task.started_at && task.completed_at) {
       const duration = calculateDuration(task);
       if (duration) {
         totalDuration += duration.seconds;
@@ -189,7 +190,7 @@ function calculateStatistics(tasks: Task[]) {
     average_duration_seconds: completedCount > 0 ? Math.floor(totalDuration / completedCount) : 0,
     total_logs: tasks.reduce((sum, task) => sum + task.logs.length, 0),
     success_rate: tasks.length > 0 
-      ? ((byStatus['completed'] || 0) / tasks.length * 100).toFixed(2) + '%'
+      ? ((byStatus[TASK_STATUS.COMPLETED] || 0) / tasks.length * 100).toFixed(2) + '%'
       : '0%'
   };
 }

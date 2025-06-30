@@ -5,7 +5,7 @@
 
 import type { TaskStore } from '../task-store.js';
 import type { TaskLogEntry } from '../../types/task.js';
-import { LOG_PREFIXES, RESPONSE_PREVIEW_LENGTH } from './constants.js';
+import { RESPONSE_PREVIEW_LENGTH } from './constants.js';
 import { logger } from '../../utils/logger.js';
 
 export class TaskLogger {
@@ -27,8 +27,7 @@ export class TaskLogger {
         timestamp: new Date().toISOString(),
         level: 'info',
         type: 'system',
-        prefix: LOG_PREFIXES.SESSION_CREATED,
-        message: `${type} session created: ${sessionId}, working directory: ${projectPath}`,
+        message: `Agent started`,
         metadata: {
           sessionId,
           agentType: type,
@@ -42,8 +41,7 @@ export class TaskLogger {
           timestamp: new Date().toISOString(),
           level: 'info',
           type: 'system',
-          prefix: LOG_PREFIXES.SESSION_CONTEXT,
-          message: `Initial context provided: ${initialContext.substring(0, 200)}...`,
+          message: `Context loaded`,
           metadata: {
             fullContext: initialContext,
           }
@@ -64,7 +62,6 @@ export class TaskLogger {
         timestamp: new Date().toISOString(),
         level: 'info',
         type: 'agent',
-        prefix: LOG_PREFIXES.COMMAND_SENT,
         message: command,
         metadata: {
           commandLength: command.length,
@@ -91,8 +88,7 @@ export class TaskLogger {
         timestamp: new Date().toISOString(),
         level: 'info',
         type: 'agent',
-        prefix: LOG_PREFIXES.RESPONSE_RECEIVED,
-        message: `Duration: ${duration}ms, Output length: ${outputLength} chars`,
+        message: `Response received (${Math.round(duration/1000)}s)`,
         metadata: {
           duration,
           outputLength,
@@ -118,8 +114,7 @@ export class TaskLogger {
           timestamp: new Date().toISOString(),
           level: 'info',
           type: 'output',
-          prefix: LOG_PREFIXES.RESPONSE_PREVIEW,
-          message: isJson ? 'JSON Response' : output.substring(0, RESPONSE_PREVIEW_LENGTH) + (outputLength > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
+          message: isJson ? 'Result received' : output.substring(0, RESPONSE_PREVIEW_LENGTH) + (outputLength > RESPONSE_PREVIEW_LENGTH ? '...' : ''),
           metadata: {
             isPreview: true,
             fullLength: outputLength,
@@ -145,8 +140,7 @@ export class TaskLogger {
         timestamp: new Date().toISOString(),
         level: 'error',
         type: 'system',
-        prefix,
-        message,
+        message: `${prefix} ${message}`,
         metadata: {
           error: error instanceof Error ? {
             name: error.name,
@@ -167,7 +161,6 @@ export class TaskLogger {
   async logSessionTermination(
     taskId: string,
     sessionId: string,
-    type: string,
     success: boolean,
     mcpSessionId?: string
   ): Promise<void> {
@@ -175,13 +168,13 @@ export class TaskLogger {
       if (success) {
         await this.taskStore.addLog(
           taskId,
-          `${LOG_PREFIXES.SESSION_TERMINATED} ${type} session ended successfully: ${sessionId}`,
+          `Session ended`,
           mcpSessionId
         );
       } else {
         await this.taskStore.addLog(
           taskId,
-          `${LOG_PREFIXES.SESSION_ERROR} Failed to end ${type} session: ${sessionId}`,
+          `Error: Failed to end session`,
           mcpSessionId
         );
       }

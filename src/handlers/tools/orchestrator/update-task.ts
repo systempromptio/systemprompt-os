@@ -11,6 +11,7 @@ import {
   type UpdateTaskArgs
 } from './utils/index.js';
 import { canAcceptCommands, type AgentState } from '../../../types/session-states.js';
+import { TASK_STATUS } from '../../../constants/task-status.js';
 import {
   validateInput,
   taskOperations,
@@ -20,15 +21,22 @@ import {
 /**
  * Sends new instructions to an active AI agent session
  * 
- * @param args - Session ID and instructions to send
+ * @param args - Task ID or Session ID and instructions to send
  * @param context - Execution context containing session information
  * @returns Result of the command execution
  * 
  * @example
  * ```typescript
+ * // Using session ID directly
  * await handleUpdateTask({
  *   id: "session_abc123",
  *   instructions: "Add error handling to the authentication module"
+ * }, { sessionId: "session_123" });
+ * 
+ * // Using task ID (will find associated session)
+ * await handleUpdateTask({
+ *   id: "task_xyz789",
+ *   instructions: "Add unit tests for the new feature"
  * }, { sessionId: "session_123" });
  * ```
  */
@@ -43,23 +51,56 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
     const validated = validateInput(UpdateTaskArgsSchema, args);
     
     logger.info('Updating task with new instructions', {
-      sessionId: validated.id,
+      id: validated.id,
       instructionsLength: validated.instructions.length,
       contextSessionId: context?.sessionId
     });
     
+    // First, check if the ID is a task ID and get the session ID
+    let sessionId = validated.id;
+    let taskId: string | undefined;
+    
+    // Try to get task by ID to see if user passed a task ID instead of session ID
+    const task = await taskOperations.taskStore.getTask(validated.id);
+    if (task) {
+      // User provided a task ID, get the session ID from the task
+      if (task.assigned_to) {
+        sessionId = task.assigned_to;
+        taskId = task.id;
+        logger.info('Found task, using assigned session', {
+          taskId: task.id,
+          sessionId: task.assigned_to
+        });
+      } else {
+        logger.warn('Task has no assigned session', { taskId: task.id });
+        return formatToolResponse({
+          status: 'error',
+          message: `Task ${validated.id} has no active session`,
+          error: { 
+            type: 'no_active_session',
+            details: {
+              taskId: validated.id,
+              suggestion: 'The task may have been completed or the session terminated'
+            }
+          }
+        });
+      }
+    }
+    
     // Get session information
-    const session = agentOperations.agentManager.getSession(validated.id);
+    const session = agentOperations.agentManager.getSession(sessionId);
     if (!session) {
-      logger.warn('Session not found', { sessionId: validated.id });
+      logger.warn('Session not found', { sessionId, originalId: validated.id });
       
       return formatToolResponse({
         status: 'error',
-        message: `Session ${validated.id} not found`,
+        message: `Session ${sessionId} not found${task ? ' for task ' + validated.id : ''}`,
         error: { 
           type: 'session_not_found',
           details: {
             id: validated.id,
+            sessionId: sessionId,
+            isTaskId: !!task,
             suggestion: 'Use check_status to list active sessions'
           }
         }
@@ -83,22 +124,39 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       });
     }
     
-    // Find associated task if any
-    let taskId: string | undefined;
-    if (session.taskId) {
+    // Check if task is in a state that allows updates
+    if (task && task.status === TASK_STATUS.COMPLETED) {
+      return formatToolResponse({
+        status: 'error',
+        message: 'Cannot update a fully completed task. The session has been terminated.',
+        error: {
+          type: 'task_completed',
+          details: {
+            taskId: task.id,
+            status: task.status,
+            suggestion: 'Create a new task to continue'
+          }
+        }
+      });
+    }
+    
+    // Use the taskId we found earlier, or try to get it from the session
+    if (!taskId && session.taskId) {
       taskId = session.taskId;
-      
+    }
+    
+    if (taskId) {
       // Log the new instructions to the task
       await taskOperations.taskStore.addLog(
         taskId,
-        `[UPDATE_INSTRUCTIONS] Sending new instructions: ${validated.instructions.substring(0, 100)}...`,
+        `Updating task with new instructions...`,
         context?.sessionId
       );
     }
     
     // Execute the instructions
     const result = await agentOperations.executeInstructions(
-      validated.id,
+      sessionId,  // Use the actual session ID, not the input ID
       validated.instructions,
       {
         taskId,
@@ -112,8 +170,8 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
     // Log result to task if applicable
     if (taskId) {
       const logMessage = result.success
-        ? `[UPDATE_SUCCESS] Instructions executed in ${Math.floor(executionTime / 1000)}s`
-        : `[UPDATE_FAILED] Instructions failed: ${result.error}`;
+        ? `Update completed (${Math.floor(executionTime / 1000)}s)`
+        : `Update failed: ${result.error}`;
         
       await taskOperations.taskStore.addLog(
         taskId,
@@ -125,14 +183,15 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       if (result.output) {
         await taskOperations.taskStore.addLog(
           taskId,
-          `[UPDATE_OUTPUT]\n${result.output}`,
+          result.output,
           context?.sessionId
         );
       }
     }
     
     logger.info('Task update completed', {
-      sessionId: validated.id,
+      inputId: validated.id,
+      sessionId: sessionId,
       taskId,
       success: result.success,
       executionTimeMs: executionTime
@@ -144,6 +203,7 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
         message: 'Instructions sent successfully',
         result: {
           id: validated.id,
+          session_id: sessionId,
           task_id: taskId,
           instructions_sent: validated.instructions,
           execution_time_ms: executionTime,
@@ -159,6 +219,7 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
           type: 'command_failed',
           details: {
             id: validated.id,
+            session_id: sessionId,
             error: result.error,
             execution_time_ms: executionTime
           }

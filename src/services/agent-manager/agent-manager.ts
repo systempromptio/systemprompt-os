@@ -191,8 +191,8 @@ export class AgentManager extends EventEmitter {
       if (session.taskId) {
         await this.taskLogger.logError(
           session.taskId,
-          '[SESSION_ENDING]',
-          `Terminating ${session.type} session: ${sessionId}`
+          '',
+          `Ending session`
         );
       }
 

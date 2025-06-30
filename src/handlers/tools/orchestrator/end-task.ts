@@ -16,6 +16,7 @@ import {
   taskOperations,
   agentOperations
 } from './utils/index.js';
+import { TASK_STATUS } from '../../../constants/task-status.js';
 
 /**
  * Result of ending a task
@@ -73,7 +74,7 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
     
     // Update task status to completed
     const completedAt = new Date().toISOString();
-    const finalStatus = "completed";
+    const finalStatus = TASK_STATUS.COMPLETED;  // Fully completed when ending task
     await taskOperations.updateTaskStatus(
       task.id,
       finalStatus,
@@ -91,7 +92,7 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
         sessionClosed = true;
         await taskOperations.addTaskLog(
           task.id,
-          `[SESSION_CLOSED] Agent session terminated`,
+          `Task ended`,
           context?.sessionId
         );
       } catch (error) {
@@ -101,7 +102,7 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
         });
         await taskOperations.addTaskLog(
           task.id,
-          `[SESSION_CLOSE_FAILED] Could not terminate agent session`,
+          `Warning: Could not fully terminate agent session`,
           context?.sessionId
         );
       }

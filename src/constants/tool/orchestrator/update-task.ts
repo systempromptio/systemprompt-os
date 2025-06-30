@@ -8,7 +8,7 @@ export const updateTask: Tool = {
     properties: {
       id: {
         type: "string",
-        description: "The process ID (session ID) of the active AI agent"
+        description: "The task ID or session ID. If a task ID is provided, it will automatically find the associated session"
       },
       instructions: {
         type: "string",

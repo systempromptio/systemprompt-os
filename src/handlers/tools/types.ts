@@ -36,12 +36,15 @@ export function formatToolResponse<T>(
     ...(response.error && { error: response.error }),
   };
 
+  // Return the response with structuredContent to avoid double-stringification
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(standardResponse, null, 2),
+        text: response.message, // Just the message as plain text
       },
     ],
+    // Include the full response as structured content
+    structuredContent: standardResponse as any,
   };
 }
