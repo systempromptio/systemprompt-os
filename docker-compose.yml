@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - STATE_PATH=/data/state
+      - PROJECTS_PATH=/data/projects
+      - FILE_ROOT=/workspace
+      - PROJECT_ROOT=/workspace
+      - HOST_FILE_ROOT=${HOST_FILE_ROOT}
+      - CLAUDE_PROXY_HOST=${CLAUDE_PROXY_HOST:-host.docker.internal}
+      - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-9876}
+      - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE:-false}
+      - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
+      - GIT_CURRENT_BRANCH=${GIT_CURRENT_BRANCH:-none}
+      - TUNNEL_URL=${TUNNEL_URL}
+      - TUNNEL_ENABLED=${TUNNEL_ENABLED}
+      - PUBLIC_URL=${PUBLIC_URL}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Commented out - using authenticated user session
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - .env
+      - .env.tools
+    volumes:
+      # Persistent state storage
+      - coding-agent-state:/data/state
+      # Projects directory for code execution
+      - ${PROJECTS_PATH:-./projects}:/data/projects
+      # Mount local workspace for file operations
+      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-coding-agent}:/workspace:rw
+      # Docker socket for container management (optional)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount Claude authentication if it exists
+      - ${HOME}/.claude.json:/home/appuser/.claude.json:ro
+    restart: unless-stopped
+
+
+volumes:
+  coding-agent-state:
+    name: coding-agent-state
+    driver: local
