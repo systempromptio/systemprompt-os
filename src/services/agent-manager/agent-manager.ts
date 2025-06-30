@@ -24,18 +24,27 @@ import { TaskLogger } from './task-logger.js';
 import { ClaudeSessionManager } from './claude-session-manager.js';
 import { logger } from '../../utils/logger.js';
 
+/**
+ * Event types emitted by the AgentManager
+ */
 export interface AgentManagerEvents {
   'session:created': SessionEvent;
   'session:ready': string;
   'task:progress': TaskProgressEvent;
 }
 
+/**
+ * Manages agent sessions and coordinates between different agent types
+ */
 export class AgentManager extends EventEmitter {
   private static instance: AgentManager;
   private readonly sessionStore: SessionStore;
   private taskLogger!: TaskLogger;
   private claudeManager!: ClaudeSessionManager;
 
+  /**
+   * Private constructor for singleton pattern
+   */
   private constructor() {
     super();
     
@@ -69,6 +78,9 @@ export class AgentManager extends EventEmitter {
     );
   }
 
+  /**
+   * Gets the singleton instance of AgentManager
+   */
   static getInstance(): AgentManager {
     if (!AgentManager.instance) {
       AgentManager.instance = new AgentManager();
@@ -253,7 +265,9 @@ export class AgentManager extends EventEmitter {
     return this.sessionStore.getMetrics();
   }
 
-  // Type-safe event emitter methods
+  /**
+   * Type-safe event emitter
+   */
   emit<K extends keyof AgentManagerEvents>(
     event: K,
     ...args: AgentManagerEvents[K] extends void ? [] : [AgentManagerEvents[K]]
@@ -261,6 +275,9 @@ export class AgentManager extends EventEmitter {
     return super.emit(event, ...args);
   }
 
+  /**
+   * Type-safe event listener registration
+   */
   on<K extends keyof AgentManagerEvents>(
     event: K,
     listener: (arg: AgentManagerEvents[K]) => void
@@ -268,6 +285,9 @@ export class AgentManager extends EventEmitter {
     return super.on(event, listener);
   }
 
+  /**
+   * Type-safe event listener removal
+   */
   off<K extends keyof AgentManagerEvents>(
     event: K,
     listener: (arg: AgentManagerEvents[K]) => void

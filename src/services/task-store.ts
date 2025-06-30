@@ -1,3 +1,7 @@
+/**
+ * Task store service for managing task state and persistence
+ */
+
 import { EventEmitter } from "events";
 import { StatePersistence } from "./state-persistence.js";
 import {
@@ -8,6 +12,9 @@ import type { Task, TaskLogEntry } from "../types/task.js";
 import type { ApplicationState, TaskFilter } from "../types/state.js";
 import type { TypedTaskStoreEmitter } from "./task-store-events.js";
 
+/**
+ * Manages task state, persistence, and notifications
+ */
 export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
   private static instance: TaskStore;
   private tasks: Map<string, Task> = new Map();
@@ -18,11 +25,16 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     this.persistence = StatePersistence.getInstance();
     this.loadPersistedTasks();
 
-    // Set up auto-save on state changes
+    /**
+     * Auto-save state on task changes
+     */
     (this as TypedTaskStoreEmitter).on("task:created", () => this.persistState());
     (this as TypedTaskStoreEmitter).on("task:updated", () => this.persistState());
   }
 
+  /**
+   * Gets singleton instance of TaskStore
+   */
   static getInstance(): TaskStore {
     if (!TaskStore.instance) {
       TaskStore.instance = new TaskStore();
@@ -30,6 +42,9 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     return TaskStore.instance;
   }
 
+  /**
+   * Loads persisted tasks from storage on startup
+   */
   private async loadPersistedTasks(): Promise<void> {
     try {
       console.log(`[TaskStore] Loading persisted tasks from disk...`);
@@ -46,6 +61,9 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     }
   }
 
+  /**
+   * Persists current state to storage
+   */
   private async persistState(): Promise<void> {
     try {
       const state = await this.getState();
@@ -55,6 +73,9 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     }
   }
 
+  /**
+   * Gets current application state including all tasks and metrics
+   */
   async getState(): Promise<ApplicationState> {
     const tasks = Array.from(this.tasks.values());
     const metrics = {
@@ -66,12 +87,15 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
 
     return {
       tasks,
-      sessions: [], // Will be populated by AgentManager
+      sessions: [], 
       metrics,
       last_saved: new Date().toISOString(),
     };
   }
 
+  /**
+   * Calculates average completion time across all completed tasks
+   */
   private calculateAverageCompletionTime(): number {
     const completedTasks = Array.from(this.tasks.values()).filter((t) => t.status === "completed");
 
@@ -85,8 +109,10 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     return Math.round(totalTime / completedTasks.length);
   }
 
+  /**
+   * Creates a new task or updates existing one
+   */
   async createTask(task: Task, sessionId?: string): Promise<void> {
-    // Check if task already exists
     const existing = this.tasks.get(task.id);
     if (existing) {
       console.warn(`[TaskStore] Task ${task.id} already exists. Updating instead of creating.`);
@@ -94,20 +120,24 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
       return;
     }
     
-    // Create new task
     this.tasks.set(task.id, task);
     await this.persistence.saveTask(task);
     (this as TypedTaskStoreEmitter).emit("task:created", task);
 
-    // Send MCP notifications to the correct session
     await sendResourcesListChangedNotification(sessionId);
     await sendResourcesUpdatedNotification(`task://${task.id}`, sessionId);
   }
 
+  /**
+   * Retrieves a task by ID
+   */
   async getTask(taskId: string): Promise<Task | null> {
     return this.tasks.get(taskId) || null;
   }
 
+  /**
+   * Updates an existing task with partial updates
+   */
   async updateTask(
     taskId: string,
     updates: Partial<Task>,
@@ -126,12 +156,14 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     await this.persistence.saveTask(updatedTask);
     (this as TypedTaskStoreEmitter).emit("task:updated", updatedTask);
 
-    // Send MCP notification for resource update to the correct session
     await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
 
     return updatedTask;
   }
 
+  /**
+   * Retrieves tasks with optional filtering
+   */
   async getTasks(filter?: TaskFilter): Promise<Task[]> {
     let tasks = Array.from(this.tasks.values());
 
@@ -149,10 +181,12 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     );
   }
 
+  /**
+   * Adds a log entry to a task
+   */
   async addLog(taskId: string, log: string | TaskLogEntry, sessionId?: string): Promise<void> {
     const task = this.tasks.get(taskId);
     if (task) {
-      // Convert string log to structured log entry if needed
       const logEntry: TaskLogEntry = typeof log === 'string' ? {
         timestamp: new Date().toISOString(),
         level: 'info',
@@ -169,11 +203,13 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
       await this.persistence.saveTask(updatedTask);
       (this as TypedTaskStoreEmitter).emit("task:log", { taskId, log: logEntry });
 
-      // Send MCP notification for log update to the correct session
       await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
     }
   }
 
+  /**
+   * Updates elapsed time for a task
+   */
   async updateElapsedTime(
     taskId: string,
     elapsedSeconds: number,
@@ -189,11 +225,13 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
       await this.persistence.saveTask(updatedTask);
       (this as TypedTaskStoreEmitter).emit("task:progress", { taskId, elapsed_seconds: elapsedSeconds });
 
-      // Send MCP notification for progress update
       await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
     }
   }
 
+  /**
+   * Deletes a task from the store
+   */
   async deleteTask(taskId: string): Promise<void> {
     const task = this.tasks.get(taskId);
     if (task) {
@@ -205,15 +243,24 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
     }
   }
 
+  /**
+   * Retrieves all tasks sorted by creation date
+   */
   async getAllTasks(): Promise<Task[]> {
     return this.getTasks();
   }
 
+  /**
+   * Retrieves logs for a specific task
+   */
   async getTaskLogs(taskId: string): Promise<TaskLogEntry[]> {
     const task = this.tasks.get(taskId);
     return task ? task.logs : [];
   }
 
+  /**
+   * Alias for getTaskLogs
+   */
   async getLogs(taskId: string): Promise<TaskLogEntry[]> {
     return this.getTaskLogs(taskId);
   }

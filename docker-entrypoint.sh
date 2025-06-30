@@ -4,7 +4,6 @@ set -e
 # Ensure state directories exist with correct permissions
 echo "Initializing state directories..."
 mkdir -p /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports
-mkdir -p /data/projects
 
 # Check if we can write to the directories
 if ! touch /data/state/.write-test 2>/dev/null; then

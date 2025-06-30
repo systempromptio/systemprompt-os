@@ -8,7 +8,13 @@ import type { TaskLogEntry } from '../../types/task.js';
 import { RESPONSE_PREVIEW_LENGTH } from './constants.js';
 import { logger } from '../../utils/logger.js';
 
+/**
+ * Handles logging of task-related events and messages
+ */
 export class TaskLogger {
+  /**
+   * Creates a new task logger
+   */
   constructor(private readonly taskStore: TaskStore) {}
 
   /**

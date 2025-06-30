@@ -13,6 +13,9 @@ import type {
 import { SESSION_ID_PREFIXES } from './constants.js';
 import { SessionNotFoundError } from './errors.js';
 
+/**
+ * Manages agent session state and metrics
+ */
 export class SessionStore {
   private readonly sessions = new Map<string, AgentSession>();
 

@@ -1,16 +1,25 @@
+/**
+ * State persistence service for managing application state storage
+ */
+
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import type { Task } from '../types/task.js';
 import { validateTaskId } from '../utils/id-validation.js';
+import { ServiceError } from '../types/shared.js';
 
+/**
+ * Configuration options for state persistence
+ */
 export interface PersistenceConfig {
-  type: 'filesystem' | 'redis' | 'postgres';
+  type: 'filesystem';
   basePath?: string;
-  redisUrl?: string;
-  databaseUrl?: string;
 }
 
+/**
+ * Structure of persisted application state
+ */
 export interface PersistedState {
   tasks: Task[];
   sessions: Array<{
@@ -29,6 +38,27 @@ export interface PersistedState {
   last_saved: string;
 }
 
+/**
+ * Node.js error with code property
+ */
+interface NodeError extends Error {
+  code?: string;
+}
+
+/**
+ * Report structure for persistence
+ */
+export interface Report {
+  id: string;
+  type: string;
+  timestamp: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Manages state persistence for the application
+ * Currently supports filesystem storage
+ */
 export class StatePersistence extends EventEmitter {
   private static instance: StatePersistence;
   private config: PersistenceConfig;
@@ -42,11 +72,13 @@ export class StatePersistence extends EventEmitter {
       basePath: process.env.STATE_PATH || './coding-agent-state'
     };
     
-    // Use the configured base path directly
     this.statePath = this.config.basePath || process.env.STATE_PATH || './coding-agent-state';
     this.initializeStorage();
   }
   
+  /**
+   * Gets singleton instance of StatePersistence
+   */
   static getInstance(config?: PersistenceConfig): StatePersistence {
     if (!StatePersistence.instance) {
       StatePersistence.instance = new StatePersistence(config);
@@ -54,173 +86,185 @@ export class StatePersistence extends EventEmitter {
     return StatePersistence.instance;
   }
   
+  /**
+   * Initializes storage directories and auto-save
+   */
   private async initializeStorage(): Promise<void> {
-    if (this.config.type === 'filesystem') {
-      try {
-        await fs.mkdir(this.statePath, { recursive: true });
-        
-        // Create subdirectories
-        await fs.mkdir(path.join(this.statePath, 'tasks'), { recursive: true });
-        await fs.mkdir(path.join(this.statePath, 'sessions'), { recursive: true });
-        await fs.mkdir(path.join(this.statePath, 'logs'), { recursive: true });
-        await fs.mkdir(path.join(this.statePath, 'reports'), { recursive: true });
-        
-        console.log(`State persistence initialized at: ${this.statePath}`);
-      } catch (error) {
-        console.error('Failed to initialize state storage:', error);
-      }
+    try {
+      await fs.mkdir(this.statePath, { recursive: true });
+      
+      await Promise.all([
+        fs.mkdir(path.join(this.statePath, 'tasks'), { recursive: true }),
+        fs.mkdir(path.join(this.statePath, 'sessions'), { recursive: true }),
+        fs.mkdir(path.join(this.statePath, 'logs'), { recursive: true }),
+        fs.mkdir(path.join(this.statePath, 'reports'), { recursive: true })
+      ]);
+      
+      console.log(`State persistence initialized at: ${this.statePath}`);
+    } catch (error) {
+      console.error('Failed to initialize state storage:', error);
     }
     
-    // Start auto-save interval (every 30 seconds)
     this.saveInterval = setInterval(() => {
-      this.autoSave().catch(console.error);
+      this.autoSave().catch((error) => 
+        console.error('Auto-save failed:', error)
+      );
     }, 30000);
   }
   
+  /**
+   * Saves application state to storage
+   */
   async saveState(state: PersistedState): Promise<void> {
-    if (this.config.type === 'filesystem') {
-      const stateFile = path.join(this.statePath, 'state.json');
-      const backupFile = path.join(this.statePath, `state.backup.${Date.now()}.json`);
-      
+    const stateFile = path.join(this.statePath, 'state.json');
+    const backupFile = path.join(this.statePath, `state.backup.${Date.now()}.json`);
+    
+    try {
       try {
-        // Create backup of existing state
-        try {
-          const existing = await fs.readFile(stateFile, 'utf-8');
-          await fs.writeFile(backupFile, existing);
-          
-          // Keep only last 10 backups
-          await this.cleanupBackups();
-        } catch (error) {
-          // No existing state file
-        }
-        
-        // Save new state
-        await fs.writeFile(
-          stateFile,
-          JSON.stringify(state, null, 2),
-          'utf-8'
-        );
-        
-        this.emit('state:saved', { timestamp: new Date().toISOString() });
+        const existing = await fs.readFile(stateFile, 'utf-8');
+        await fs.writeFile(backupFile, existing);
+        await this.cleanupBackups();
       } catch (error) {
-        console.error('Failed to save state:', error);
-        this.emit('state:save-error', error);
+        /** No existing state file, continue */
       }
+      
+      await fs.writeFile(
+        stateFile,
+        JSON.stringify(state, null, 2),
+        'utf-8'
+      );
+      
+      this.emit('state:saved', { timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error('Failed to save state:', error);
+      this.emit('state:save-error', error);
     }
-    // TODO: Implement Redis and PostgreSQL persistence
   }
   
+  /**
+   * Loads application state from storage
+   */
   async loadState(): Promise<PersistedState | null> {
-    if (this.config.type === 'filesystem') {
-      const stateFile = path.join(this.statePath, 'state.json');
+    const stateFile = path.join(this.statePath, 'state.json');
+    
+    try {
+      const data = await fs.readFile(stateFile, 'utf-8');
+      const state = JSON.parse(data) as PersistedState;
       
-      try {
-        const data = await fs.readFile(stateFile, 'utf-8');
-        const state = JSON.parse(data) as PersistedState;
-        
-        this.emit('state:loaded', { timestamp: new Date().toISOString() });
-        return state;
-      } catch (error) {
-        if ((error as any).code !== 'ENOENT') {
-          console.error('Failed to load state:', error);
-        }
-        return null;
+      this.emit('state:loaded', { timestamp: new Date().toISOString() });
+      return state;
+    } catch (error) {
+      const nodeError = error as NodeError;
+      if (nodeError.code !== 'ENOENT') {
+        console.error('Failed to load state:', error);
       }
+      return null;
     }
-    // TODO: Implement Redis and PostgreSQL loading
-    return null;
   }
   
+  /**
+   * Saves a single task to storage
+   */
   async saveTask(task: Task): Promise<void> {
-    if (this.config.type === 'filesystem') {
-      // Validate task ID for security
-      const safeId = validateTaskId(task.id);
-      
-      // Use validated task ID as filename (with .json extension)
-      const taskFile = path.join(this.statePath, 'tasks', `${safeId}.json`);
-      
-      try {
-        await fs.writeFile(
-          taskFile,
-          JSON.stringify(task, null, 2),
-          'utf-8'
-        );
-      } catch (error) {
-        console.error(`Failed to save task ${task.id}:`, error);
-      }
+    const safeId = validateTaskId(task.id);
+    const taskFile = path.join(this.statePath, 'tasks', `${safeId}.json`);
+    
+    try {
+      await fs.writeFile(
+        taskFile,
+        JSON.stringify(task, null, 2),
+        'utf-8'
+      );
+    } catch (error) {
+      console.error(`Failed to save task ${task.id}:`, error);
+      throw new ServiceError(
+        `Failed to save task ${task.id}`,
+        'TASK_SAVE_ERROR',
+        500,
+        error
+      );
     }
   }
   
+  /**
+   * Loads all tasks from storage
+   */
   async loadTasks(): Promise<Task[]> {
-    if (this.config.type === 'filesystem') {
-      const tasksDir = path.join(this.statePath, 'tasks');
+    const tasksDir = path.join(this.statePath, 'tasks');
+    
+    try {
+      const files = await fs.readdir(tasksDir);
+      const tasks: Task[] = [];
       
-      try {
-        const files = await fs.readdir(tasksDir);
-        const tasks: Task[] = [];
-        
-        for (const file of files) {
-          if (file.endsWith('.json')) {
-            try {
-              const data = await fs.readFile(
-                path.join(tasksDir, file),
-                'utf-8'
-              );
-              tasks.push(JSON.parse(data));
-            } catch (error) {
-              console.error(`Failed to load task ${file}:`, error);
-            }
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          try {
+            const data = await fs.readFile(
+              path.join(tasksDir, file),
+              'utf-8'
+            );
+            tasks.push(JSON.parse(data));
+          } catch (error) {
+            console.error(`Failed to load task ${file}:`, error);
           }
         }
-        
-        return tasks;
-      } catch (error) {
-        console.error('Failed to load tasks:', error);
-        return [];
       }
+      
+      return tasks;
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+      return [];
     }
-    return [];
   }
   
+  /**
+   * Saves session log to storage
+   */
   async saveSessionLog(sessionId: string, log: string): Promise<void> {
-    if (this.config.type === 'filesystem') {
-      const logFile = path.join(
-        this.statePath,
-        'logs',
-        `session_${sessionId}_${Date.now()}.log`
-      );
-      
-      try {
-        await fs.appendFile(logFile, log + '\n', 'utf-8');
-      } catch (error) {
-        console.error(`Failed to save session log:`, error);
-      }
+    const logFile = path.join(
+      this.statePath,
+      'logs',
+      `session_${sessionId}_${Date.now()}.log`
+    );
+    
+    try {
+      await fs.appendFile(logFile, log + '\n', 'utf-8');
+    } catch (error) {
+      console.error(`Failed to save session log:`, error);
     }
   }
   
-  async saveReport(reportId: string, report: any): Promise<string> {
-    if (this.config.type === 'filesystem') {
-      const reportFile = path.join(
-        this.statePath,
-        'reports',
-        `report_${reportId}_${Date.now()}.json`
+  /**
+   * Saves report to storage
+   */
+  async saveReport(reportId: string, report: Report): Promise<string> {
+    const reportFile = path.join(
+      this.statePath,
+      'reports',
+      `report_${reportId}_${Date.now()}.json`
+    );
+    
+    try {
+      await fs.writeFile(
+        reportFile,
+        JSON.stringify(report, null, 2),
+        'utf-8'
       );
-      
-      try {
-        await fs.writeFile(
-          reportFile,
-          JSON.stringify(report, null, 2),
-          'utf-8'
-        );
-        return reportFile;
-      } catch (error) {
-        console.error(`Failed to save report:`, error);
-        throw error;
-      }
+      return reportFile;
+    } catch (error) {
+      console.error(`Failed to save report:`, error);
+      throw new ServiceError(
+        'Failed to save report',
+        'REPORT_SAVE_ERROR',
+        500,
+        error
+      );
     }
-    return '';
   }
   
+  /**
+   * Cleans up old backup files, keeping only the last 10
+   */
   private async cleanupBackups(): Promise<void> {
     try {
       const files = await fs.readdir(this.statePath);
@@ -229,7 +273,6 @@ export class StatePersistence extends EventEmitter {
         .sort()
         .reverse();
       
-      // Keep only last 10 backups
       for (let i = 10; i < backups.length; i++) {
         await fs.unlink(path.join(this.statePath, backups[i]));
       }
@@ -238,40 +281,43 @@ export class StatePersistence extends EventEmitter {
     }
   }
   
+  /**
+   * Triggers auto-save event
+   */
   private async autoSave(): Promise<void> {
-    // This will be called by TaskStore and AgentManager
     this.emit('autosave:triggered');
   }
   
+  /**
+   * Deletes a task from storage
+   */
   async deleteTask(taskId: string): Promise<void> {
-    if (this.config.type === 'filesystem') {
-      // Validate task ID for security
-      const safeId = validateTaskId(taskId);
-      
-      // Use validated task ID as filename
-      const taskFile = path.join(this.statePath, 'tasks', `${safeId}.json`);
-      
-      console.log(`[StatePersistence] Deleting task file: ${taskFile}`);
-      
-      try {
-        await fs.unlink(taskFile);
-        console.log(`[StatePersistence] Successfully deleted task file: ${taskId}.json`);
-      } catch (error: any) {
-        if (error.code === 'ENOENT') {
-          console.log(`[StatePersistence] Task file not found: ${taskFile}`);
-        } else {
-          console.error(`[StatePersistence] Failed to delete task ${taskId}:`, error);
-        }
+    const safeId = validateTaskId(taskId);
+    const taskFile = path.join(this.statePath, 'tasks', `${safeId}.json`);
+    
+    console.log(`[StatePersistence] Deleting task file: ${taskFile}`);
+    
+    try {
+      await fs.unlink(taskFile);
+      console.log(`[StatePersistence] Successfully deleted task file: ${taskId}.json`);
+    } catch (error) {
+      const nodeError = error as NodeError;
+      if (nodeError.code === 'ENOENT') {
+        console.log(`[StatePersistence] Task file not found: ${taskFile}`);
+      } else {
+        console.error(`[StatePersistence] Failed to delete task ${taskId}:`, error);
       }
     }
   }
   
+  /**
+   * Shuts down the persistence service
+   */
   async shutdown(): Promise<void> {
     if (this.saveInterval) {
       clearInterval(this.saveInterval);
     }
     
-    // Final save before shutdown
     this.emit('shutdown:save');
   }
 }

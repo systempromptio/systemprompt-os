@@ -3,8 +3,8 @@
  * @module handlers/tools/orchestrator/utils/agent
  */
 
-import { AgentManager } from "../../../services/agent-manager.js";
-import { ClaudeCodeService, ClaudeCodeOptions } from "../../../services/claude-code-service.js";
+import { AgentManager } from "../../../services/agent-manager/index.js";
+import { ClaudeCodeService, ClaudeCodeOptions } from "../../../services/claude-code/index.js";
 import { TaskStore } from "../../../services/task-store.js";
 import { logger } from "../../../utils/logger.js";
 import type { AITool, Task, TaskLogEntry } from "../../../types/task.js";

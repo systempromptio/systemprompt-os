@@ -10,7 +10,13 @@ import type { TaskLogger } from './task-logger.js';
 import { DEFAULT_MAX_TURNS } from './constants.js';
 import { logger } from '../../utils/logger.js';
 
+/**
+ * Manages Claude Code sessions and their lifecycle
+ */
 export class ClaudeSessionManager {
+  /**
+   * Creates a new Claude session manager
+   */
   constructor(
     private readonly claudeService: ClaudeCodeService,
     private readonly sessionStore: SessionStore,

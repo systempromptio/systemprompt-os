@@ -1,7 +1,7 @@
 import { Resource } from "@modelcontextprotocol/sdk/types.js";
 import { TaskStore } from "../../services/task-store.js";
-import { ClaudeCodeService } from "../../services/claude-code-service.js";
-import { AgentManager } from "../../services/agent-manager.js";
+import { ClaudeCodeService } from "../../services/claude-code/index.js";
+import { AgentManager } from "../../services/agent-manager/index.js";
 import { logger } from "../../utils/logger.js";
 
 export async function getTaskOutputResource(uri: URL): Promise<Resource> {

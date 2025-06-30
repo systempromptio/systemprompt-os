@@ -5,6 +5,9 @@
 
 import type { SDKMessage, Options } from '@anthropic-ai/claude-code';
 import type { ClaudeCodeState } from '../../types/session-states.js';
+import type { SessionMetrics } from '../../types/shared.js';
+
+export type { SessionMetrics };
 
 export type SessionStatus = ClaudeCodeState;
 
@@ -56,12 +59,6 @@ export interface QueryResult {
   messages: SDKMessage[];
 }
 
-export interface SessionMetrics {
-  totalSessions: number;
-  activeSessions: number;
-  errorSessions: number;
-  averageSessionDuration: number;
-}
 
 export interface ProgressEvent {
   taskId: string;

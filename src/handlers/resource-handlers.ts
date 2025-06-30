@@ -111,7 +111,7 @@ export async function handleResourceCall(
 
       // Get session information if available
       const { AgentManager } = await import("../services/agent-manager/index.js");
-      const { ClaudeCodeService } = await import("../services/claude-code-service.js");
+      const { ClaudeCodeService } = await import("../services/claude-code/index.js");
       
       const agentManager = AgentManager.getInstance();
       const claudeService = ClaudeCodeService.getInstance();
