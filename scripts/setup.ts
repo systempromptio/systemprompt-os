@@ -193,7 +193,7 @@ class ProjectSetup {
   async createDirectories(): Promise<void> {
     this.header('Creating project directories');
     
-    const dirs = ['logs', '.tmp', 'e2e-test/results'];
+    const dirs = ['.tmp', 'e2e-test/results', 'daemon/logs'];
     
     for (const dir of dirs) {
       const fullPath = path.join(projectRoot, dir);

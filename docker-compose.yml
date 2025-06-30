@@ -32,8 +32,6 @@ services:
     volumes:
       # Persistent state storage
       - coding-agent-state:/data/state
-      # Projects directory for code execution
-      - ${PROJECTS_PATH:-./projects}:/data/projects
       # Mount local workspace for file operations
       - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-coding-agent}:/workspace:rw
       # Docker socket for container management (optional)

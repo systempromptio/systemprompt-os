@@ -37,7 +37,7 @@ class DaemonController {
   private config: DaemonConfig;
 
   constructor() {
-    const logsDir = path.join(projectRoot, 'logs');
+    const logsDir = path.join(projectRoot, 'daemon', 'logs');
     
     this.config = {
       port: parseInt(process.env.HOST_BRIDGE_DAEMON_PORT || '9876', 10),
@@ -47,7 +47,7 @@ class DaemonController {
       logsDir
     };
 
-    // Ensure logs directory exists
+    // Ensure daemon logs directory exists
     if (!fs.existsSync(this.config.logsDir)) {
       fs.mkdirSync(this.config.logsDir, { recursive: true });
     }
