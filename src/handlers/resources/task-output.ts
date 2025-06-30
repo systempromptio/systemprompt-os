@@ -25,7 +25,7 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
     const sessions = agentManager.getAllSessions();
     const taskSession = sessions.find(s => s.taskId === taskId);
     
-    let streamOutput = "";
+    let streamOutput: string | any = "";
     let progressEvents: any[] = [];
     
     if (taskSession && taskSession.type === 'claude') {
@@ -33,7 +33,20 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
       const claudeSession = claudeService.getSession(taskSession.serviceSessionId);
       if (claudeSession) {
         // Get streaming output
-        streamOutput = claudeSession.streamBuffer.join("\n");
+        const rawOutput = claudeSession.streamBuffer.join("\n");
+        
+        // Try to parse as JSON if it looks like JSON
+        if (rawOutput.trim().startsWith('{') || rawOutput.trim().startsWith('[')) {
+          try {
+            // Parse the JSON to validate it, then store as parsed object
+            streamOutput = JSON.parse(rawOutput);
+          } catch (e) {
+            // If parsing fails, keep as string
+            streamOutput = rawOutput;
+          }
+        } else {
+          streamOutput = rawOutput;
+        }
         
         // TODO: Get progress events from a proper store
         // For now, we'll just show the stream buffer

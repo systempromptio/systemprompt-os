@@ -120,7 +120,7 @@ export async function handleResourceCall(
       const taskSession = sessions.find(s => s.taskId === taskId);
       
       let sessionInfo = null;
-      let streamOutput = "";
+      let streamOutput: string | any = "";
       
       if (taskSession) {
         sessionInfo = {
@@ -136,7 +136,21 @@ export async function handleResourceCall(
         if (taskSession.type === 'claude' && taskSession.serviceSessionId) {
           const claudeSession = claudeService.getSession(taskSession.serviceSessionId);
           if (claudeSession && claudeSession.streamBuffer) {
-            streamOutput = claudeSession.streamBuffer.join("\n");
+            // Join the stream buffer lines
+            const rawOutput = claudeSession.streamBuffer.join("\n");
+            
+            // Try to parse as JSON if it looks like JSON
+            if (rawOutput.trim().startsWith('{') || rawOutput.trim().startsWith('[')) {
+              try {
+                // Parse the JSON to validate it, then store as parsed object
+                streamOutput = JSON.parse(rawOutput);
+              } catch (e) {
+                // If parsing fails, keep as string
+                streamOutput = rawOutput;
+              }
+            } else {
+              streamOutput = rawOutput;
+            }
           }
         }
       }
