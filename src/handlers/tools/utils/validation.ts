@@ -6,7 +6,7 @@
 import { z, ZodError } from "zod";
 import { ValidationError } from "./types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { formatToolResponse } from "../../types.js";
+import { formatToolResponse } from "../types.js";
 
 /**
  * Validates input against a Zod schema with detailed error reporting

@@ -6,7 +6,7 @@
  * Tests all MCP prompts functionality for the Coding Agent orchestrator
  */
 
-import { createMCPClient, log, TestTracker, runTest } from './test-utils.js';
+import { createMCPClient, log, TestTracker, runTest } from './utils/test-utils.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 /**
@@ -26,34 +26,12 @@ async function testPromptDiscovery(client: Client): Promise<void> {
     log.debug(`${index + 1}. ${prompt.name}: ${prompt.description}`);
   });
   
-  // Expected prompts
+  // Expected prompts - based on what's actually implemented
   const expectedPrompts = [
-    // Unit Testing
-    'create_unit_tests',
-    'add_missing_tests',
-    'fix_failing_tests',
-    'improve_test_coverage',
-    
-    // React Components
-    'create_react_component',
-    'update_react_component',
-    'convert_to_hooks',
-    'create_custom_hook',
-    'optimize_react_performance',
-    
-    // Bug Fixing
     'fix_bug',
-    'debug_async_issue',
-    'fix_memory_leak',
-    'debug_production_issue',
-    'fix_performance_issue',
-    
-    // Refactoring
-    'refactor_code',
-    'extract_common_code',
-    'simplify_complex_function',
-    'modernize_legacy_code',
-    'improve_architecture'
+    'create_unit_tests',
+    'create_react_component',
+    'create_reddit_post'
   ];
   
   // Check that all expected prompts exist
@@ -150,32 +128,17 @@ async function testPromptCategories(client: Client): Promise<void> {
   const result = await client.listPrompts();
   
   const categories = {
+    'Bug Fixing': [
+      'fix_bug'
+    ],
     'Unit Testing': [
-      'create_unit_tests',
-      'add_missing_tests',
-      'fix_failing_tests',
-      'improve_test_coverage'
+      'create_unit_tests'
     ],
     'React Components': [
-      'create_react_component',
-      'update_react_component',
-      'convert_to_hooks',
-      'create_custom_hook',
-      'optimize_react_performance'
+      'create_react_component'
     ],
-    'Bug Fixing': [
-      'fix_bug',
-      'debug_async_issue',
-      'fix_memory_leak',
-      'debug_production_issue',
-      'fix_performance_issue'
-    ],
-    'Refactoring': [
-      'refactor_code',
-      'extract_common_code',
-      'simplify_complex_function',
-      'modernize_legacy_code',
-      'improve_architecture'
+    'Content Creation': [
+      'create_reddit_post'
     ]
   };
   

@@ -7,13 +7,13 @@
  * with resource change notifications and comprehensive reporting
  */
 
-import { createMCPClient, log, TestTracker, runTest } from './test-utils.js';
+import { createMCPClient, log, TestTracker, runTest } from './utils/test-utils.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { 
   ResourceListChangedNotificationSchema,
   ResourceUpdatedNotificationSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import { TestReporter } from './test-reporter.js';
+import { TestReporter } from './utils/test-reporter.js';
 import * as path from 'path';
 
 async function sleep(ms: number): Promise<void> {
@@ -79,10 +79,12 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
           // Show recent logs and add them to reporter
           if (taskInfo.logs && taskInfo.logs.length > 0) {
             const recentLogs = taskInfo.logs.slice(-2);
-            recentLogs.forEach((logLine: string) => {
+            recentLogs.forEach((logEntry: string | Record<string, unknown>) => {
+              // Handle both string and object log entries
+              const logLine = typeof logEntry === 'string' ? logEntry : JSON.stringify(logEntry);
               log.debug(`  📝 ${logLine}`);
               // Parse and add to reporter if it's a new log
-              if (!logLine.includes('[STATUS_UPDATE]') && taskId) {
+              if (typeof logLine === 'string' && !logLine.includes('[STATUS_UPDATE]') && taskId) {
                 reporter.addLog(taskId, logLine, 'TASK_LOG');
               }
             });
@@ -114,16 +116,21 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
     }
   });
   
-  const content = createResult.content as any[];
-  if (!content?.[0]?.text) {
-    throw new Error('create_task returned invalid response');
-  }
-  
+  // Check for structuredContent first (new format), then fall back to parsing text
   let taskData;
-  try {
-    taskData = JSON.parse(content[0].text as string);
-  } catch (e) {
-    throw new Error(`Failed to parse create_task response: ${content[0].text}`);
+  if (createResult.structuredContent) {
+    taskData = createResult.structuredContent as any;
+  } else {
+    const content = createResult.content as any[];
+    if (!content?.[0]?.text) {
+      throw new Error('create_task returned invalid response');
+    }
+    
+    try {
+      taskData = JSON.parse(content[0].text as string);
+    } catch (e) {
+      throw new Error(`Failed to parse create_task response: ${content[0].text}`);
+    }
   }
   
   if (!taskData.result?.task_id) {
@@ -246,7 +253,9 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
       // Add all logs to reporter
       if (final.logs && final.logs.length > 0) {
         log.info('Task logs:');
-        final.logs.forEach((logLine: string, idx: number) => {
+        final.logs.forEach((logEntry: string | Record<string, unknown>, idx: number) => {
+          // Handle both string and object log entries
+          const logLine = typeof logEntry === 'string' ? logEntry : JSON.stringify(logEntry);
           log.debug(`  ${idx + 1}. ${logLine}`);
           // Add to reporter if not already added
           if (taskId) {

@@ -3,9 +3,9 @@
  * @module handlers/tools/orchestrator/end-task
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from '../types.js';
-import { formatToolResponse } from '../types.js';
-import { logger } from '../../../utils/logger.js';
+import type { ToolHandler, CallToolResult, ToolHandlerContext } from './types.js';
+import { formatToolResponse } from './types.js';
+import { logger } from '../../utils/logger.js';
 import {
   EndTaskArgsSchema,
   type EndTaskArgs,
@@ -16,7 +16,7 @@ import {
   taskOperations,
   agentOperations
 } from './utils/index.js';
-import { TASK_STATUS } from '../../../constants/task-status.js';
+import { TASK_STATUS } from '../../constants/task-status.js';
 
 /**
  * Result of ending a task

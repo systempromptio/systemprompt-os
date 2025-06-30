@@ -14,45 +14,32 @@ Services manage the core functionality of the coding agent orchestrator:
 
 ### Agent Services
 
-#### `agent-manager.ts`
+#### `agent-manager/`
 Central manager for all coding agents:
-- Manages Claude Code and Gemini CLI instances
+- Manages Claude Code sessions via abstraction layer
 - Handles agent allocation for tasks
 - Monitors agent health and availability
 - Provides failover and retry logic
+- Implements agent interface for future multi-agent support
 
-#### `claude-code-service.ts`
+#### `claude-code/`
 Claude Code CLI integration:
 - Spawns and manages Claude Code processes
-- Handles command execution
-- Parses Claude Code output
+- Handles command execution via SDK or host proxy
+- Parses Claude Code output with progress tracking
 - Manages Claude-specific configurations
-
-#### `gemini-cli-service.ts`
-Gemini CLI integration:
-- Manages Gemini CLI processes
-- Executes Gemini commands
-- Handles Gemini-specific features
-
-#### `claude-code-host-executor.ts`
-Host executor for Claude Code:
-- Manages Claude Code execution environment
-- Handles host-specific operations
+- Provides session management and query execution
 
 ### Task Management
 
-#### `task-manager.ts`
-Orchestrates task execution:
-- Creates and assigns tasks to agents
-- Monitors task progress
-- Handles task cancellation
-- Manages task queuing
 
 #### `task-store.ts`
-In-memory task storage:
-- Stores active tasks
-- Provides task queries
+In-memory task storage with type safety:
+- Stores active tasks with full persistence
+- Provides typed task queries and filters
 - Manages task state transitions
+- Emits typed events for task lifecycle
+- Integrates with MCP notifications
 
 ### State Management
 

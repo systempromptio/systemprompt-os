@@ -1,10 +1,10 @@
 export * from './types.js';
 
 // Export only the core orchestrator tools
-export * from './orchestrator/create-task.js';
-export * from './orchestrator/update-task.js';
-export * from './orchestrator/end-task.js';
-export * from './orchestrator/report-task.js';
+export * from './create-task.js';
+export * from './update-task.js';
+export * from './end-task.js';
+export * from './report-task.js';
 
 export type {
   ToolHandler,
@@ -12,7 +12,7 @@ export type {
 } from './types.js';
 
 // Export handlers
-export { handleCreateTask } from './orchestrator/create-task.js';
-export { handleUpdateTask } from './orchestrator/update-task.js';
-export { handleEndTask } from './orchestrator/end-task.js';
-export { handleReportTask } from './orchestrator/report-task.js';
+export { handleCreateTask } from './create-task.js';
+export { handleUpdateTask } from './update-task.js';
+export { handleEndTask } from './end-task.js';
+export { handleReportTask } from './report-task.js';

@@ -3,12 +3,12 @@
  * @module handlers/tools/orchestrator/create-task
  */
 
-import type { ToolHandler, ToolHandlerContext, CallToolResult } from "../types.js";
-import { formatToolResponse } from "../types.js";
-import { logger } from "../../../utils/logger.js";
+import type { ToolHandler, ToolHandlerContext, CallToolResult } from "./types.js";
+import { formatToolResponse } from "./types.js";
+import { logger } from "../../utils/logger.js";
 import { CreateTaskArgsSchema, type CreateTaskArgs, ToolNotAvailableError } from "./utils/index.js";
 import { validateInput, isToolAvailable, agentOperations, taskOperations } from "./utils/index.js";
-import { TASK_STATUS } from "../../../constants/task-status.js";
+import { TASK_STATUS } from "../../constants/task-status.js";
 
 /**
  * Creates a new task and optionally starts an AI session to execute it

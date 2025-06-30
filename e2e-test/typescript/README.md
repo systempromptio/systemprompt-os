@@ -2,13 +2,20 @@
 
 This directory contains end-to-end tests for the SystemPrompt MCP Server using TypeScript and the MCP SDK.
 
-## Test Structure
+## Directory Structure
 
-- **test-prompts.ts**: Tests MCP prompt discovery and retrieval
-- **test-tools.ts**: Tests the `create_task` tool functionality
-- **test-resources.ts**: Tests MCP resource discovery and reading
-- **test-e2e.ts**: Tests the complete flow of creating and monitoring a task
-- **test-all.ts**: Main test runner that executes all test suites
+```
+e2e-test/typescript/
+├── utils/                    # Test utilities and helpers
+│   ├── test-utils.ts        # Common test utilities (client creation, logging, etc.)
+│   └── test-reporter.ts     # Test reporting with HTML/Markdown output
+├── test-prompts.ts          # Tests MCP prompt discovery and retrieval
+├── test-tools.ts            # Tests the `create_task` tool functionality
+├── test-resources.ts        # Tests MCP resource discovery and reading
+├── test-e2e.ts              # Tests the complete flow with notifications
+├── test-tunnel.ts           # Tests tunnel connectivity
+├── test-all.ts              # Main test runner that executes all test suites
+└── test-reports/            # Generated test reports (HTML/Markdown)
 
 ## Running Tests
 

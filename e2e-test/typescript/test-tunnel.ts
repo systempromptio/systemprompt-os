@@ -6,7 +6,7 @@
  * Test to verify connection to MCP server via tunnel URL
  */
 
-import { createMCPClient, log, MCP_BASE_URL } from './test-utils.js';
+import { createMCPClient, log, MCP_BASE_URL } from './utils/test-utils.js';
 
 async function testTunnelConnection(): Promise<void> {
   log.section('🌍 Testing Tunnel Connection');

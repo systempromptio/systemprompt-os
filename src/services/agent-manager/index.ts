@@ -9,6 +9,7 @@ export type { AgentManagerEvents } from './agent-manager.js';
 export * from './types.js';
 export * from './errors.js';
 export * from './constants.js';
+export * from './agent-interface.js';
 
 // Export singleton instance for backward compatibility
 import { AgentManager } from './agent-manager.js';

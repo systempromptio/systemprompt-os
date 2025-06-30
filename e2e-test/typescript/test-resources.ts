@@ -6,7 +6,7 @@
  * Tests all MCP resources functionality for the Coding Agent orchestrator
  */
 
-import { createMCPClient, log, TestTracker, runTest } from './test-utils.js';
+import { createMCPClient, log, TestTracker, runTest } from './utils/test-utils.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 /**

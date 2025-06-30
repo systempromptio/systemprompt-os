@@ -3,15 +3,15 @@
  * @module handlers/tools/orchestrator/update-task
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from '../types.js';
-import { formatToolResponse } from '../types.js';
-import { logger } from '../../../utils/logger.js';
+import type { ToolHandler, CallToolResult, ToolHandlerContext } from './types.js';
+import { formatToolResponse } from './types.js';
+import { logger } from '../../utils/logger.js';
 import {
   UpdateTaskArgsSchema,
   type UpdateTaskArgs
 } from './utils/index.js';
-import { canAcceptCommands, type AgentState } from '../../../types/session-states.js';
-import { TASK_STATUS } from '../../../constants/task-status.js';
+import { canAcceptCommands, type AgentState } from '../../types/session-states.js';
+import { TASK_STATUS } from '../../constants/task-status.js';
 import {
   validateInput,
   taskOperations,

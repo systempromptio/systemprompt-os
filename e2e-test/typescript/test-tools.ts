@@ -6,7 +6,7 @@
  * Tests all MCP tools functionality for the Coding Agent orchestrator
  */
 
-import { createMCPClient, log, TestTracker, runTest } from './test-utils.js';
+import { createMCPClient, log, TestTracker, runTest } from './utils/test-utils.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 /**
@@ -50,17 +50,22 @@ async function testCreateTask(client: Client): Promise<string> {
     }
   });
   
-  const content = result.content as any[];
-  if (!content?.[0]?.text) {
-    throw new Error('create_task returned invalid response');
-  }
-  
-  // Parse the response to get task ID
+  // Check for structuredContent first (new format), then fall back to parsing text
   let taskData;
-  try {
-    taskData = JSON.parse(content[0].text);
-  } catch (e) {
-    throw new Error(`Failed to parse create_task response: ${content[0].text}`);
+  if (result.structuredContent) {
+    taskData = result.structuredContent as any;
+  } else {
+    const content = result.content as any[];
+    if (!content?.[0]?.text) {
+      throw new Error('create_task returned invalid response');
+    }
+    
+    // Parse the response to get task ID
+    try {
+      taskData = JSON.parse(content[0].text);
+    } catch (e) {
+      throw new Error(`Failed to parse create_task response: ${content[0].text}`);
+    }
   }
   
   if (!taskData.result?.task_id) {

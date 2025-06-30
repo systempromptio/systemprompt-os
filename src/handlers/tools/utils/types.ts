@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { Task } from "../../../../types/task.js";
+import { Task } from "../../../types/task.js";
 
 // ==================== Tool Argument Schemas ====================
 

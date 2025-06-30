@@ -6,7 +6,7 @@
  * Runs all E2E tests for the MCP server
  */
 
-import { log } from './test-utils.js';
+import { log } from './utils/test-utils.js';
 import { testPrompts } from './test-prompts.js';
 import { testTools } from './test-tools.js';
 import { testResources } from './test-resources.js';

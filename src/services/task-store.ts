@@ -5,8 +5,10 @@ import {
   sendResourcesListChangedNotification,
 } from "../handlers/notifications.js";
 import type { Task, TaskLogEntry } from "../types/task.js";
+import type { ApplicationState, TaskFilter } from "../types/state.js";
+import type { TypedTaskStoreEmitter } from "./task-store-events.js";
 
-export class TaskStore extends EventEmitter {
+export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
   private static instance: TaskStore;
   private tasks: Map<string, Task> = new Map();
   private persistence: StatePersistence;
@@ -17,8 +19,8 @@ export class TaskStore extends EventEmitter {
     this.loadPersistedTasks();
 
     // Set up auto-save on state changes
-    this.on("task:created", () => this.persistState());
-    this.on("task:updated", () => this.persistState());
+    (this as TypedTaskStoreEmitter).on("task:created", () => this.persistState());
+    (this as TypedTaskStoreEmitter).on("task:updated", () => this.persistState());
   }
 
   static getInstance(): TaskStore {
@@ -53,7 +55,7 @@ export class TaskStore extends EventEmitter {
     }
   }
 
-  async getState(): Promise<any> {
+  async getState(): Promise<ApplicationState> {
     const tasks = Array.from(this.tasks.values());
     const metrics = {
       total_tasks: tasks.length,
@@ -95,7 +97,7 @@ export class TaskStore extends EventEmitter {
     // Create new task
     this.tasks.set(task.id, task);
     await this.persistence.saveTask(task);
-    this.emit("task:created", task);
+    (this as TypedTaskStoreEmitter).emit("task:created", task);
 
     // Send MCP notifications to the correct session
     await sendResourcesListChangedNotification(sessionId);
@@ -122,7 +124,7 @@ export class TaskStore extends EventEmitter {
 
     this.tasks.set(taskId, updatedTask);
     await this.persistence.saveTask(updatedTask);
-    this.emit("task:updated", updatedTask);
+    (this as TypedTaskStoreEmitter).emit("task:updated", updatedTask);
 
     // Send MCP notification for resource update to the correct session
     await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
@@ -130,7 +132,7 @@ export class TaskStore extends EventEmitter {
     return updatedTask;
   }
 
-  async getTasks(filter?: { status?: Task["status"]; assigned_to?: string }): Promise<Task[]> {
+  async getTasks(filter?: TaskFilter): Promise<Task[]> {
     let tasks = Array.from(this.tasks.values());
 
     if (filter) {
@@ -165,7 +167,7 @@ export class TaskStore extends EventEmitter {
       };
       this.tasks.set(taskId, updatedTask);
       await this.persistence.saveTask(updatedTask);
-      this.emit("task:log", { taskId, log: logEntry });
+      (this as TypedTaskStoreEmitter).emit("task:log", { taskId, log: logEntry });
 
       // Send MCP notification for log update to the correct session
       await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
@@ -185,7 +187,7 @@ export class TaskStore extends EventEmitter {
       };
       this.tasks.set(taskId, updatedTask);
       await this.persistence.saveTask(updatedTask);
-      this.emit("task:progress", { taskId, elapsed_seconds: elapsedSeconds });
+      (this as TypedTaskStoreEmitter).emit("task:progress", { taskId, elapsed_seconds: elapsedSeconds });
 
       // Send MCP notification for progress update
       await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
@@ -198,7 +200,7 @@ export class TaskStore extends EventEmitter {
       this.tasks.delete(taskId);
       await this.persistence.deleteTask(taskId);
       await this.persistState();
-      this.emit("task:deleted", { taskId });
+      (this as TypedTaskStoreEmitter).emit("task:deleted", { taskId });
       await sendResourcesListChangedNotification();
     }
   }

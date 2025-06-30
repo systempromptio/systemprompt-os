@@ -4,8 +4,8 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { TaskStore } from "../../../../services/task-store.js";
-import { logger } from "../../../../utils/logger.js";
+import { TaskStore } from "../../../services/task-store.js";
+import { logger } from "../../../utils/logger.js";
 import type {
   Task,
   TaskStatus,
@@ -13,8 +13,8 @@ import type {
   createTaskId,
   UpdateTaskParams,
   TaskLogEntry,
-} from "../../../../types/task.js";
-import { TASK_STATUS } from "../../../../constants/task-status.js";
+} from "../../../types/task.js";
+import { TASK_STATUS } from "../../../constants/task-status.js";
 
 export interface TaskCreationParams {
   description: string;

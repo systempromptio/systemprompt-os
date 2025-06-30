@@ -3,12 +3,12 @@
  * @module handlers/tools/orchestrator/utils/agent
  */
 
-import { AgentManager } from "../../../../services/agent-manager.js";
-import { ClaudeCodeService, ClaudeCodeOptions } from "../../../../services/claude-code-service.js";
-import { TaskStore } from "../../../../services/task-store.js";
-import { logger } from "../../../../utils/logger.js";
-import type { AITool, Task, TaskLogEntry } from "../../../../types/task.js";
-import { TASK_STATUS } from "../../../../constants/task-status.js";
+import { AgentManager } from "../../../services/agent-manager.js";
+import { ClaudeCodeService, ClaudeCodeOptions } from "../../../services/claude-code-service.js";
+import { TaskStore } from "../../../services/task-store.js";
+import { logger } from "../../../utils/logger.js";
+import type { AITool, Task, TaskLogEntry } from "../../../types/task.js";
+import { TASK_STATUS } from "../../../constants/task-status.js";
 
 export interface AgentStartResult {
   sessionId: string;

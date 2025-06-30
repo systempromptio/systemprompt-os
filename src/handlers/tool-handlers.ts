@@ -16,22 +16,22 @@ import { jsonSchemaToZod } from '../utils/json-schema-to-zod.js';
 import type { MCPToolContext } from '../types/request-context.js';
 
 // Import tool definitions for schema extraction
-import { createTask } from '../constants/tool/orchestrator/create-task.js';
-import { updateTask } from '../constants/tool/orchestrator/update-task.js';
-import { endTask } from '../constants/tool/orchestrator/end-task.js';
-import { reportTask } from '../constants/tool/orchestrator/report-task.js';
-import { checkStatus } from '../constants/tool/orchestrator/check-status.js';
-import { cleanState } from '../constants/tool/orchestrator/clean-state.js';
-import { getPrompt } from '../constants/tool/orchestrator/get-prompt.js';
+import { createTask } from '../constants/tool/create-task.js';
+import { updateTask } from '../constants/tool/update-task.js';
+import { endTask } from '../constants/tool/end-task.js';
+import { reportTask } from '../constants/tool/report-task.js';
+import { checkStatus } from '../constants/tool/check-status.js';
+import { cleanState } from '../constants/tool/clean-state.js';
+import { getPrompt } from '../constants/tool/get-prompt.js';
 
 // Import tool handlers
-import { handleCreateTask } from './tools/orchestrator/create-task.js';
-import { handleUpdateTask } from './tools/orchestrator/update-task.js';
-import { handleEndTask } from './tools/orchestrator/end-task.js';
-import { handleReportTask } from './tools/orchestrator/report-task.js';
-import { handleCheckStatus } from './tools/orchestrator/check-status.js';
-import { handleCleanState } from './tools/orchestrator/clean-state.js';
-import { handleGetPrompt } from './tools/orchestrator/get-prompt.js';
+import { handleCreateTask } from './tools/create-task.js';
+import { handleUpdateTask } from './tools/update-task.js';
+import { handleEndTask } from './tools/end-task.js';
+import { handleReportTask } from './tools/report-task.js';
+import { handleCheckStatus } from './tools/check-status.js';
+import { handleCleanState } from './tools/clean-state.js';
+import { handleGetPrompt } from './tools/get-prompt.js';
 
 /**
  * Zod schemas derived from tool definitions

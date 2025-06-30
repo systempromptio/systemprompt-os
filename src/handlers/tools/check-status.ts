@@ -3,9 +3,9 @@
  * @module handlers/tools/orchestrator/check-status
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from "../types.js";
-import { formatToolResponse } from "../types.js";
-import { logger } from "../../../utils/logger.js";
+import type { ToolHandler, CallToolResult, ToolHandlerContext } from "./types.js";
+import { formatToolResponse } from "./types.js";
+import { logger } from "../../utils/logger.js";
 import { execSync } from "child_process";
 import * as net from "net";
 import { 
@@ -16,9 +16,9 @@ import {
   SessionStatus,
   type CheckStatusResponse
 } from "./utils/index.js";
-import { agentToOrchestratorState, type AgentState } from "../../../types/session-states.js";
+import { agentToOrchestratorState, type AgentState } from "../../types/session-states.js";
 import { isToolAvailable, taskOperations, agentOperations } from "./utils/index.js";
-import { TASK_STATUS } from "../../../constants/task-status.js";
+import { TASK_STATUS } from "../../constants/task-status.js";
 
 /**
  * Internal service status information

@@ -3,9 +3,9 @@
  * @module handlers/tools/orchestrator/report-task
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from '../types.js';
-import { formatToolResponse } from '../types.js';
-import { logger } from '../../../utils/logger.js';
+import type { ToolHandler, CallToolResult, ToolHandlerContext } from './types.js';
+import { formatToolResponse } from './types.js';
+import { logger } from '../../utils/logger.js';
 import {
   ReportTaskArgsSchema,
   type ReportTaskArgs
@@ -14,8 +14,8 @@ import {
   validateInput,
   taskOperations
 } from './utils/index.js';
-import type { Task } from '../../../types/task.js';
-import { TASK_STATUS } from '../../../constants/task-status.js';
+import type { Task } from '../../types/task.js';
+import { TASK_STATUS } from '../../constants/task-status.js';
 
 /**
  * Generates reports on task(s) - either a single task by ID or all tasks

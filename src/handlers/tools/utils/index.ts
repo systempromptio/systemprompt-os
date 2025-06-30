@@ -5,7 +5,7 @@
 
 // Export types
 export * from './types.js';
-export { Task, TaskStatus, AITool, createTaskId } from '../../../../types/task.js';
+export { Task, TaskStatus, AITool, createTaskId } from '../../../types/task.js';
 
 // Export validation utilities
 export * from './validation.js';

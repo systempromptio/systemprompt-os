@@ -26,7 +26,6 @@ services:
       - TUNNEL_ENABLED=${TUNNEL_ENABLED}
       - PUBLIC_URL=${PUBLIC_URL}
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Commented out - using authenticated user session
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
     env_file:
       - .env
       - .env.tools

@@ -50,17 +50,9 @@ const colors = {
 class StartupManager {
   private proxyProcess: ChildProcess | null = null;
   private dockerProcess: ChildProcess | null = null;
-  private logDir: string;
   
   constructor() {
-    this.logDir = path.join(projectRoot, 'logs');
-    this.ensureLogDirectory();
-  }
-  
-  private ensureLogDirectory(): void {
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
-    }
+    // Logs are managed by the daemon itself
   }
   
   private log(message: string, color: string = colors.reset): void {
@@ -129,10 +121,16 @@ class StartupManager {
       this.success('Docker found');
     }
     
-    // Check docker-compose
+    // Check docker-compose (or docker compose v2)
     const dockerComposeCommand = await this.findCommand('docker-compose');
     if (!dockerComposeCommand) {
-      errors.push('docker-compose not found. Please install docker-compose.');
+      // Check for Docker Compose V2
+      try {
+        await execAsync('docker compose version', { timeout: 5000 });
+        this.success('Docker Compose V2 found');
+      } catch {
+        errors.push('docker-compose not found. Please install docker-compose.');
+      }
     } else {
       this.success('docker-compose found');
     }
@@ -244,7 +242,8 @@ class StartupManager {
       SHELL_PATH: env.SHELL_PATH,
       CLAUDE_AVAILABLE: env.CLAUDE_AVAILABLE,
       GEMINI_AVAILABLE: env.GEMINI_AVAILABLE || 'false',
-      CLAUDE_PROXY_PORT: env.CLAUDE_PROXY_PORT
+      CLAUDE_PROXY_PORT: env.CLAUDE_PROXY_PORT,
+      PATH: process.env.PATH // Ensure PATH is passed so 'which claude' works
     };
     
     // Daemon manages its own logs in daemon/logs/
@@ -402,14 +401,18 @@ class StartupManager {
       this.info('  To enable Claude: export CLAUDE_PATH=$(which claude)');
     }
     
-    // Check write permissions
+    // Check write permissions in daemon logs directory
     try {
-      const testFile = path.join(this.logDir, '.test-write');
+      const daemonLogsDir = path.join(projectRoot, 'daemon', 'logs');
+      if (!fs.existsSync(daemonLogsDir)) {
+        fs.mkdirSync(daemonLogsDir, { recursive: true });
+      }
+      const testFile = path.join(daemonLogsDir, '.test-write');
       fs.writeFileSync(testFile, 'test');
       fs.unlinkSync(testFile);
       this.success('Write permissions verified');
     } catch {
-      this.error('No write permissions in logs directory');
+      this.error('No write permissions in daemon logs directory');
       allChecksPass = false;
     }
     
@@ -442,7 +445,7 @@ class StartupManager {
         // Rebuild the Docker image to ensure latest code
         this.info('Building Docker image with latest code...');
         this.info('(Set SKIP_DOCKER_BUILD=true to skip this step)');
-        await execAsync('docker-compose build mcp-server', {
+        await execAsync('docker compose build mcp-server', {
           cwd: projectRoot,
           env: dockerEnv,
           shell: '/bin/bash'
@@ -454,7 +457,7 @@ class StartupManager {
       
       // Now start the services
       this.info('Starting Docker services...');
-      await execAsync('docker-compose up -d', {
+      await execAsync('docker compose up -d', {
         cwd: projectRoot,
         env: dockerEnv,
         shell: '/bin/bash'

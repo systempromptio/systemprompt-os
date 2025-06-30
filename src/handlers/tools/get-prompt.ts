@@ -3,10 +3,10 @@
  * @module handlers/tools/orchestrator/get-prompt
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from "../types.js";
-import { formatToolResponse } from "../types.js";
-import { logger } from "../../../utils/logger.js";
-import { CODING_PROMPTS } from "../../prompts/index.js";
+import type { ToolHandler, CallToolResult, ToolHandlerContext } from "./types.js";
+import { formatToolResponse } from "./types.js";
+import { logger } from "../../utils/logger.js";
+import { CODING_PROMPTS } from "../../handlers/prompts/index.js";
 import type { Prompt } from "@modelcontextprotocol/sdk/types.js";
 
 /**
