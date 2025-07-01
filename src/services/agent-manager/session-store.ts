@@ -1,6 +1,29 @@
 /**
- * @file Session storage for Agent Manager
+ * @fileoverview Session storage for Agent Manager
  * @module services/agent-manager/session-store
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This module provides in-memory storage and management for agent sessions.
+ * It handles session lifecycle, state tracking, and metrics collection for
+ * all active agent sessions in the system.
+ * 
+ * @example
+ * ```typescript
+ * import { SessionStore } from './session-store';
+ * 
+ * const store = new SessionStore();
+ * 
+ * const session = store.createSession(
+ *   'claude',
+ *   'service-123',
+ *   '/path/to/project',
+ *   'task-456'
+ * );
+ * 
+ * store.updateStatus(session.id, 'busy');
+ * store.addOutput(session.id, 'Processing...');
+ * ```
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -15,12 +38,42 @@ import { SessionNotFoundError } from './errors.js';
 
 /**
  * Manages agent session state and metrics
+ * 
+ * @class SessionStore
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This class provides:
+ * - Session creation with unique IDs
+ * - Session state management (status, activity tracking)
+ * - Output and error buffering
+ * - Session queries by ID, service ID, or type
+ * - Metrics collection for monitoring
  */
 export class SessionStore {
   private readonly sessions = new Map<string, AgentSession>();
 
   /**
    * Creates a new session
+   * 
+   * @param type - The agent type (e.g., 'claude')
+   * @param serviceSessionId - The underlying service session ID
+   * @param projectPath - Path to the project directory
+   * @param taskId - Optional task ID to associate
+   * @param mcpSessionId - Optional MCP session ID
+   * @returns The created agent session
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const session = store.createSession(
+   *   'claude',
+   *   'claude-service-123',
+   *   '/home/user/project',
+   *   'task-456',
+   *   'mcp-789'
+   * );
+   * ```
    */
   createSession(
     type: AgentType,
@@ -51,6 +104,11 @@ export class SessionStore {
 
   /**
    * Gets a session by ID
+   * 
+   * @param sessionId - The session ID to retrieve
+   * @returns The agent session
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @since 1.0.0
    */
   getSession(sessionId: string): AgentSession {
     const session = this.sessions.get(sessionId);
@@ -62,6 +120,10 @@ export class SessionStore {
 
   /**
    * Finds a session by ID
+   * 
+   * @param sessionId - The session ID to find
+   * @returns The session if found, null otherwise
+   * @since 1.0.0
    */
   findSession(sessionId: string): AgentSession | null {
     return this.sessions.get(sessionId) || null;
@@ -69,6 +131,10 @@ export class SessionStore {
 
   /**
    * Finds a session by service ID
+   * 
+   * @param serviceSessionId - The service session ID to search for
+   * @returns The session if found, undefined otherwise
+   * @since 1.0.0
    */
   findSessionByServiceId(serviceSessionId: string): AgentSession | undefined {
     for (const session of this.sessions.values()) {
@@ -81,6 +147,11 @@ export class SessionStore {
 
   /**
    * Updates session status
+   * 
+   * @param sessionId - The session ID to update
+   * @param status - The new status
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @since 1.0.0
    */
   updateStatus(sessionId: string, status: AgentSessionStatus): void {
     const session = this.getSession(sessionId);
@@ -90,6 +161,10 @@ export class SessionStore {
 
   /**
    * Updates session activity
+   * 
+   * @param sessionId - The session ID to update
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @since 1.0.0
    */
   updateActivity(sessionId: string): void {
     const session = this.getSession(sessionId);
@@ -98,6 +173,11 @@ export class SessionStore {
 
   /**
    * Adds output to session buffer
+   * 
+   * @param sessionId - The session ID
+   * @param output - The output to add
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @since 1.0.0
    */
   addOutput(sessionId: string, output: string): void {
     const session = this.getSession(sessionId);
@@ -107,6 +187,11 @@ export class SessionStore {
 
   /**
    * Adds error to session buffer
+   * 
+   * @param sessionId - The session ID
+   * @param error - The error message to add
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @since 1.0.0
    */
   addError(sessionId: string, error: string): void {
     const session = this.getSession(sessionId);
@@ -116,6 +201,10 @@ export class SessionStore {
 
   /**
    * Deletes a session
+   * 
+   * @param sessionId - The session ID to delete
+   * @returns True if session was deleted, false if not found
+   * @since 1.0.0
    */
   deleteSession(sessionId: string): boolean {
     return this.sessions.delete(sessionId);
@@ -123,6 +212,9 @@ export class SessionStore {
 
   /**
    * Gets all sessions
+   * 
+   * @returns Array of all agent sessions
+   * @since 1.0.0
    */
   getAllSessions(): AgentSession[] {
     return Array.from(this.sessions.values());
@@ -130,6 +222,10 @@ export class SessionStore {
 
   /**
    * Gets sessions by type
+   * 
+   * @param type - The agent type to filter by
+   * @returns Array of sessions for the specified type
+   * @since 1.0.0
    */
   getSessionsByType(type: AgentType): AgentSession[] {
     return Array.from(this.sessions.values()).filter(s => s.type === type);
@@ -137,6 +233,17 @@ export class SessionStore {
 
   /**
    * Gets session metrics
+   * 
+   * @returns Current session metrics
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const metrics = store.getMetrics();
+   * console.log(`Total sessions: ${metrics.totalSessions}`);
+   * console.log(`Active: ${metrics.activeSessions}`);
+   * console.log(`By type:`, metrics.sessionsByType);
+   * ```
    */
   getMetrics(): SessionMetrics {
     const sessions = this.getAllSessions();

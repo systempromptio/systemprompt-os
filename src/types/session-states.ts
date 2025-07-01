@@ -1,53 +1,87 @@
 /**
- * @file Shared session state definitions and mappings
+ * @fileoverview Shared session state definitions and mappings
  * @module types/session-states
+ * @since 1.0.0
  * 
+ * @remarks
  * This file provides a unified interface for session states across the system,
  * mapping between Claude Code CLI states and internal system states.
  */
 
 /**
  * Claude Code Service session states
+ * @remarks
  * These states directly correspond to the Claude Code CLI's internal states
+ * @since 1.0.0
  */
 export const CLAUDE_CODE_STATES = {
+  /** Session is initializing */
   INITIALIZING: 'initializing',
+  /** Session is ready to accept commands */
   READY: 'ready',
+  /** Session is processing a command */
   BUSY: 'busy',
+  /** Session encountered an error */
   ERROR: 'error',
+  /** Session has been terminated */
   TERMINATED: 'terminated'
 } as const;
 
+/**
+ * Claude Code state type
+ * @since 1.0.0
+ */
 export type ClaudeCodeState = typeof CLAUDE_CODE_STATES[keyof typeof CLAUDE_CODE_STATES];
 
 /**
  * Agent Manager session states
+ * @remarks
  * These states represent the system's view of agent sessions
+ * @since 1.0.0
  */
 export const AGENT_STATES = {
+  /** Agent is starting up */
   STARTING: 'starting',
+  /** Agent is active and ready */
   ACTIVE: 'active',
+  /** Agent is processing a request */
   BUSY: 'busy',
+  /** Agent encountered an error */
   ERROR: 'error',
+  /** Agent has been terminated */
   TERMINATED: 'terminated'
 } as const;
 
+/**
+ * Agent state type
+ * @since 1.0.0
+ */
 export type AgentState = typeof AGENT_STATES[keyof typeof AGENT_STATES];
 
 /**
  * Orchestrator session states
+ * @remarks
  * Simplified states for external API reporting
+ * @since 1.0.0
  */
 export const ORCHESTRATOR_STATES = {
+  /** Session is active */
   ACTIVE: 'active',
+  /** Session is busy */
   BUSY: 'busy',
+  /** Session is terminated */
   TERMINATED: 'terminated'
 } as const;
 
+/**
+ * Orchestrator state type
+ * @since 1.0.0
+ */
 export type OrchestratorState = typeof ORCHESTRATOR_STATES[keyof typeof ORCHESTRATOR_STATES];
 
 /**
  * Maps Claude Code states to Agent Manager states
+ * @since 1.0.0
  */
 export const CLAUDE_TO_AGENT_STATE_MAP: Record<ClaudeCodeState, AgentState> = {
   [CLAUDE_CODE_STATES.INITIALIZING]: AGENT_STATES.STARTING,
@@ -59,6 +93,7 @@ export const CLAUDE_TO_AGENT_STATE_MAP: Record<ClaudeCodeState, AgentState> = {
 
 /**
  * Maps Agent Manager states to Orchestrator states
+ * @since 1.0.0
  */
 export const AGENT_TO_ORCHESTRATOR_STATE_MAP: Record<AgentState, OrchestratorState | null> = {
   [AGENT_STATES.STARTING]: null, // Not exposed in orchestrator
@@ -70,6 +105,7 @@ export const AGENT_TO_ORCHESTRATOR_STATE_MAP: Record<AgentState, OrchestratorSta
 
 /**
  * States that can accept new commands
+ * @since 1.0.0
  */
 export const COMMAND_ACCEPTING_STATES: readonly AgentState[] = [
   AGENT_STATES.ACTIVE,
@@ -78,6 +114,7 @@ export const COMMAND_ACCEPTING_STATES: readonly AgentState[] = [
 
 /**
  * Terminal states that cannot transition further
+ * @since 1.0.0
  */
 export const TERMINAL_STATES: readonly AgentState[] = [
   AGENT_STATES.ERROR,
@@ -86,6 +123,9 @@ export const TERMINAL_STATES: readonly AgentState[] = [
 
 /**
  * Type guard to check if a state can accept commands
+ * @param {AgentState} state - State to check
+ * @returns {boolean} True if state can accept commands
+ * @since 1.0.0
  */
 export function canAcceptCommands(state: AgentState): boolean {
   return COMMAND_ACCEPTING_STATES.includes(state);
@@ -93,6 +133,9 @@ export function canAcceptCommands(state: AgentState): boolean {
 
 /**
  * Type guard to check if a state is terminal
+ * @param {AgentState} state - State to check
+ * @returns {boolean} True if state is terminal
+ * @since 1.0.0
  */
 export function isTerminalState(state: AgentState): boolean {
   return TERMINAL_STATES.includes(state);
@@ -100,6 +143,9 @@ export function isTerminalState(state: AgentState): boolean {
 
 /**
  * Convert Claude Code state to Agent Manager state
+ * @param {ClaudeCodeState} claudeState - Claude Code state
+ * @returns {AgentState} Corresponding Agent state
+ * @since 1.0.0
  */
 export function claudeToAgentState(claudeState: ClaudeCodeState): AgentState {
   return CLAUDE_TO_AGENT_STATE_MAP[claudeState];
@@ -107,6 +153,9 @@ export function claudeToAgentState(claudeState: ClaudeCodeState): AgentState {
 
 /**
  * Convert Agent Manager state to Orchestrator state
+ * @param {AgentState} agentState - Agent Manager state
+ * @returns {OrchestratorState | null} Corresponding Orchestrator state or null
+ * @since 1.0.0
  */
 export function agentToOrchestratorState(agentState: AgentState): OrchestratorState | null {
   return AGENT_TO_ORCHESTRATOR_STATE_MAP[agentState];
@@ -114,6 +163,16 @@ export function agentToOrchestratorState(agentState: AgentState): OrchestratorSt
 
 /**
  * Session state transition validation
+ * @param {AgentState} from - Current state
+ * @param {AgentState} to - Target state
+ * @returns {boolean} True if transition is valid
+ * @since 1.0.0
+ * @example
+ * ```typescript
+ * if (isValidStateTransition(currentState, newState)) {
+ *   // Perform transition
+ * }
+ * ```
  */
 export function isValidStateTransition(from: AgentState, to: AgentState): boolean {
   // Terminal states cannot transition

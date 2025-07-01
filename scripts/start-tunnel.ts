@@ -80,6 +80,22 @@ class TunnelStarter {
     return addresses;
   }
   
+  private checkClaudeHooks(): boolean {
+    try {
+      const homeDir = os.homedir();
+      const claudeSettingsPath = path.join(homeDir, '.config', 'claude', 'settings.json');
+      
+      if (!fs.existsSync(claudeSettingsPath)) {
+        return false;
+      }
+      
+      const settings = JSON.parse(fs.readFileSync(claudeSettingsPath, 'utf8'));
+      return settings.hooks && Object.keys(settings.hooks).length > 0;
+    } catch {
+      return false;
+    }
+  }
+  
   async startTunnel(): Promise<string> {
     return new Promise((resolve, reject) => {
       const port = process.env.PORT || '3000';
@@ -221,6 +237,19 @@ class TunnelStarter {
         process.exit(1);
       }
       
+      // Check if Claude hooks are installed
+      if (!this.checkClaudeHooks()) {
+        this.warning('Claude hooks not configured!');
+        console.log('');
+        this.info('To enable Claude logging, run:');
+        console.log(`  ${colors.cyan}./claude-hooks.sh install${colors.reset}`);
+        console.log('');
+        this.info('Without hooks, Claude tool usage won\'t be logged to tasks.');
+        console.log('');
+      } else {
+        this.success('Claude hooks are configured');
+      }
+      
       // Start the tunnel
       const tunnelUrl = await this.startTunnel();
       
@@ -235,6 +264,11 @@ class TunnelStarter {
       this.success('🌍 Your server is now accessible from the internet!');
       this.info(`🔗 Public URL: ${colors.cyan}${tunnelUrl}${colors.reset}`);
       this.info(`📡 MCP Endpoint: ${colors.cyan}${tunnelUrl}/mcp${colors.reset}`);
+      
+      // Show create_log endpoint for hooks
+      console.log('');
+      this.info('📝 Claude Hooks endpoint:');
+      console.log(`   POST ${colors.cyan}${tunnelUrl}/tools/create_log${colors.reset}`);
       console.log('='.repeat(60) + '\n');
       
       // Display local network info

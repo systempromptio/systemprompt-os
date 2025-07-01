@@ -1,31 +1,37 @@
+/**
+ * @fileoverview Main type definitions export aggregator
+ * @module types
+ * @since 1.0.0
+ */
+
 // Export unified task types
-export * from "./task";
+export * from "./task.js";
 
 // Session state types
-export * from "./session-states";
+export * from "./session-states.js";
 
 // Core types
-export * from "./core/agent";
-export * from "./core/session";
-export * from "./core/context";
+export * from "./core/agent.js";
+export * from "./core/session.js";
+export * from "./core/context.js";
 
 // Provider types
-export * from "./providers/base";
-export * from "./providers/claude";
+export * from "./providers/base.js";
+export * from "./providers/claude.js";
 
 // API types
-export * from "./api/errors";
-export * from "./api/requests";
-export * from "./api/responses";
+export * from "./api/errors.js";
+export * from "./api/requests.js";
+export * from "./api/responses.js";
 
 // Event types
-export * from "./events/base";
-export * from "./events/agent";
-export * from "./events/task";
+export * from "./events/base.js";
+export * from "./events/agent.js";
+export * from "./events/task.js";
 
 // Utility types
-export * from "./utils/guards";
-export * from "./utils/transformers";
+export * from "./utils/guards.js";
+export * from "./utils/transformers.js";
 
 // Validation
-export * from "./validation";
+export * from "./validation/index.js";

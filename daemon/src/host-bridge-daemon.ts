@@ -32,12 +32,15 @@ interface BridgeMessage {
   tool: 'claude' | string;
   command: string;
   workingDirectory?: string;
+  env?: Record<string, string>;
 }
 
 interface BridgeResponse {
-  type: 'stream' | 'error' | 'complete';
+  type: 'stream' | 'error' | 'complete' | 'pid';
   data?: string;
   code?: number;
+  exitCode?: number;
+  pid?: number;
 }
 
 // Environment validation
@@ -274,7 +277,7 @@ class HostBridgeDaemon {
     
     const options = {
       cwd: message.workingDirectory || process.cwd(),
-      env: process.env,
+      env: message.env ? { ...process.env, ...message.env } : process.env,
       shell: this.config.shellPath,
       stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe']
     };
@@ -282,6 +285,18 @@ class HostBridgeDaemon {
     const childProcess = spawn(command, [], options);
     
     this.logger.log(`[Host Bridge Daemon] Spawned ${message.tool} process with PID: ${childProcess.pid}`);
+    
+    // Send PID event
+    if (childProcess.pid) {
+      const pidResponse: BridgeResponse = {
+        type: 'pid',
+        pid: childProcess.pid
+      };
+      
+      if (socket.writable && !socket.destroyed) {
+        socket.write(JSON.stringify(pidResponse) + '\n');
+      }
+    }
     
     // Close stdin immediately since we're not sending any input
     if (childProcess.stdin) {
@@ -332,7 +347,7 @@ class HostBridgeDaemon {
       
       const completeResponse: BridgeResponse = {
         type: 'complete',
-        code: code || 0
+        exitCode: code || 0
       };
       
       if (socket.writable && !socket.destroyed) {

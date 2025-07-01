@@ -34,10 +34,8 @@ interface TestRun {
 
 export class TestReporter {
   private tests: Map<string, TestRun> = new Map();
-  private projectRoot: string;
 
-  constructor(projectRoot: string) {
-    this.projectRoot = projectRoot;
+  constructor(_projectRoot: string) {
   }
 
   startTest(name: string, taskId: string, metadata: Record<string, any> = {}): void {
@@ -78,7 +76,7 @@ export class TestReporter {
     if (!test) return;
 
     test.endTime = new Date();
-    test.status = summary.errors && summary.errors > 0 ? 'failed' : 'success';
+    test.status = summary?.errors && summary.errors > 0 ? 'failed' : 'success';
     test.summary = {
       duration: test.endTime.getTime() - test.startTime.getTime(),
       totalLogs: test.events.filter(e => e.type === 'TASK_LOG').length,

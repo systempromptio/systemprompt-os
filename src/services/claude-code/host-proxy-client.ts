@@ -1,6 +1,32 @@
 /**
- * @file Host proxy client for Claude Code service
+ * @fileoverview Host proxy client for Claude Code service
  * @module services/claude-code/host-proxy-client
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This module provides a TCP client for communicating with the host proxy daemon.
+ * The host proxy allows the Docker container to execute Claude commands on the
+ * host machine where the actual Claude installation resides. It handles:
+ * - Path mapping between Docker and host filesystems
+ * - Streaming output from Claude processes
+ * - Event parsing and emission
+ * - Process lifecycle management
+ * 
+ * @example
+ * ```typescript
+ * import { HostProxyClient } from './host-proxy-client';
+ * 
+ * const client = new HostProxyClient({
+ *   host: 'host.docker.internal',
+ *   port: 8899
+ * });
+ * 
+ * const result = await client.execute(
+ *   'Implement user authentication',
+ *   '/workspace/project',
+ *   (data) => console.log('Stream:', data)
+ * );
+ * ```
  */
 
 import * as net from 'net';
@@ -17,18 +43,59 @@ import {
   ENV_VARS
 } from './constants.js';
 import { logger } from '../../utils/logger.js';
+import { ClaudeEventParser } from './event-parser.js';
+import {
+  ClaudeEvent,
+  createProcessStart,
+  createProcessEnd
+} from '../../types/claude-events.js';
 
+/**
+ * Configuration options for the host proxy client
+ * 
+ * @interface HostProxyConfig
+ * @since 1.0.0
+ */
 export interface HostProxyConfig {
+  /**
+   * Host to connect to (defaults to host.docker.internal)
+   */
   host?: string;
+  
+  /**
+   * Port to connect to (defaults to 8899)
+   */
   port?: number;
+  
+  /**
+   * Connection timeout in milliseconds
+   */
   timeout?: number;
 }
 
+/**
+ * Client for communicating with the host proxy daemon
+ * 
+ * @class HostProxyClient
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This client establishes TCP connections to the host proxy daemon,
+ * sends commands, and handles streaming responses. It also provides
+ * event parsing capabilities for detailed process tracking.
+ */
 export class HostProxyClient {
   private readonly host: string;
   private readonly port: number;
   private readonly timeout: number;
+  private eventParser?: ClaudeEventParser;
 
+  /**
+   * Creates a new host proxy client
+   * 
+   * @param config - Configuration options
+   * @since 1.0.0
+   */
   constructor(config: HostProxyConfig = {}) {
     this.host = config.host || process.env[ENV_VARS.CLAUDE_PROXY_HOST] || DEFAULT_PROXY_HOST;
     this.port = config.port || parseInt(process.env[ENV_VARS.CLAUDE_PROXY_PORT] || String(DEFAULT_PROXY_PORT), 10);
@@ -37,6 +104,15 @@ export class HostProxyClient {
 
   /**
    * Maps Docker paths to host paths
+   * 
+   * @private
+   * @param workingDirectory - The Docker workspace path
+   * @returns The mapped host path
+   * @since 1.0.0
+   * 
+   * @remarks
+   * Converts paths from Docker container namespace to host namespace.
+   * For example: /workspace -> /var/www/html/systemprompt-coding-agent
    */
   private mapDockerPath(workingDirectory: string): string {
     if (workingDirectory.startsWith('/workspace')) {
@@ -50,11 +126,41 @@ export class HostProxyClient {
 
   /**
    * Executes a command via the host proxy
+   * 
+   * @param prompt - The prompt to send to Claude
+   * @param workingDirectory - The working directory for execution
+   * @param onStream - Optional callback for streaming data
+   * @param env - Optional environment variables
+   * @param sessionId - Optional session ID for event tracking
+   * @param taskId - Optional task ID for event tracking
+   * @param onEvent - Optional callback for Claude events
+   * @returns The complete response from Claude
+   * @throws {HostProxyConnectionError} If connection fails
+   * @throws {HostProxyTimeoutError} If execution times out
+   * @throws {HostProxyError} If host proxy returns an error
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const response = await client.execute(
+   *   'Add error handling to the login function',
+   *   '/workspace/src',
+   *   (data) => process.stdout.write(data),
+   *   { DEBUG: 'true' },
+   *   'session-123',
+   *   'task-456',
+   *   (event) => console.log('Event:', event.type)
+   * );
+   * ```
    */
   async execute(
     prompt: string, 
     workingDirectory: string,
-    onStream?: (data: string) => void
+    onStream?: (data: string) => void,
+    env?: Record<string, string>,
+    sessionId?: string,
+    taskId?: string,
+    onEvent?: (event: ClaudeEvent) => void
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       logger.info('Connecting to host proxy', { host: this.host, port: this.port });
@@ -65,13 +171,20 @@ export class HostProxyClient {
       let hasCompleted = false;
       let timeoutId: NodeJS.Timeout;
 
+      if (onEvent && sessionId) {
+        this.eventParser = new ClaudeEventParser(sessionId, taskId);
+      }
+      
+      const processStartTime = Date.now();
+      
       const client = net.createConnection({ port: this.port, host: this.host }, () => {
         logger.info('Connected to host proxy');
         
         const message: HostProxyMessage = {
           tool: 'claude',
           command: prompt,
-          workingDirectory: hostWorkingDirectory
+          workingDirectory: hostWorkingDirectory,
+          env: env
         };
         
         client.write(JSON.stringify(message));
@@ -97,6 +210,25 @@ export class HostProxyClient {
                   if (response.data) {
                     chunks.push(response.data);
                     onStream?.(response.data);
+                    
+                    if (this.eventParser && onEvent) {
+                      const events = this.eventParser.parseLine(response.data);
+                      events.forEach(event => onEvent(event));
+                    }
+                  }
+                  break;
+                  
+                case 'pid':
+                  if (sessionId && onEvent) {
+                    const startEvent = createProcessStart(
+                      sessionId,
+                      response.pid!,
+                      prompt,
+                      hostWorkingDirectory,
+                      taskId,
+                      env
+                    );
+                    onEvent(startEvent);
                   }
                   break;
                   
@@ -107,6 +239,28 @@ export class HostProxyClient {
                   
                 case 'complete':
                   hasCompleted = true;
+                  
+                  let fullOutput = chunks.join('');
+                  
+                  if (this.eventParser && onEvent) {
+                    const { events, output } = this.eventParser.endParsing();
+                    events.forEach(event => onEvent(event));
+                    fullOutput = output || fullOutput;
+                  }
+                  
+                  if (sessionId && onEvent) {
+                    const duration = Date.now() - processStartTime;
+                    const endEvent = createProcessEnd(
+                      sessionId,
+                      response.exitCode ?? 0,
+                      null,
+                      duration,
+                      fullOutput,
+                      taskId
+                    );
+                    onEvent(endEvent);
+                  }
+                  
                   cleanup();
                   resolve(chunks.join(''));
                   break;
@@ -138,7 +292,6 @@ export class HostProxyClient {
         }
       });
 
-      // Set timeout
       timeoutId = setTimeout(() => {
         if (!hasCompleted) {
           cleanup();

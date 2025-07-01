@@ -1,6 +1,28 @@
 /**
- * @file Task logging utilities for Agent Manager
+ * @fileoverview Task logging utilities for Agent Manager
  * @module services/agent-manager/task-logger
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This module provides structured logging for task-related events in the agent
+ * manager. It creates detailed log entries that are stored in the task store,
+ * enabling comprehensive tracking of agent activities and debugging.
+ * 
+ * @example
+ * ```typescript
+ * import { TaskLogger } from './task-logger';
+ * 
+ * const taskLogger = new TaskLogger(taskStore);
+ * 
+ * await taskLogger.logSessionCreated(
+ *   'task-123',
+ *   'session-456',
+ *   'claude',
+ *   '/path/to/project'
+ * );
+ * 
+ * await taskLogger.logCommandSent('task-123', 'Build a login form');
+ * ```
  */
 
 import type { TaskStore } from '../task-store.js';
@@ -10,15 +32,41 @@ import { logger } from '../../utils/logger.js';
 
 /**
  * Handles logging of task-related events and messages
+ * 
+ * @class TaskLogger
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This class provides methods for logging:
+ * - Session lifecycle events (creation, termination)
+ * - Command and response pairs
+ * - Errors and exceptions
+ * - Structured metadata for analysis
  */
 export class TaskLogger {
   /**
    * Creates a new task logger
+   * 
+   * @param taskStore - The task store for persisting logs
+   * @since 1.0.0
    */
   constructor(private readonly taskStore: TaskStore) {}
 
   /**
    * Logs session creation
+   * 
+   * @param taskId - The task ID
+   * @param sessionId - The session ID
+   * @param type - The agent type
+   * @param projectPath - The project directory path
+   * @param initialContext - Optional initial context/instructions
+   * @param mcpSessionId - Optional MCP session ID
+   * @since 1.0.0
+   * 
+   * @remarks
+   * Creates two log entries:
+   * 1. Agent started event with session metadata
+   * 2. Context loaded event if initial context is provided
    */
   async logSessionCreated(
     taskId: string,
@@ -61,6 +109,11 @@ export class TaskLogger {
 
   /**
    * Logs command being sent
+   * 
+   * @param taskId - The task ID
+   * @param command - The command text
+   * @param mcpSessionId - Optional MCP session ID
+   * @since 1.0.0
    */
   async logCommandSent(taskId: string, command: string, mcpSessionId?: string): Promise<void> {
     try {
@@ -81,6 +134,18 @@ export class TaskLogger {
 
   /**
    * Logs response received
+   * 
+   * @param taskId - The task ID
+   * @param duration - Response time in milliseconds
+   * @param outputLength - Length of the output
+   * @param output - The full output text
+   * @param mcpSessionId - Optional MCP session ID
+   * @since 1.0.0
+   * 
+   * @remarks
+   * Creates two log entries:
+   * 1. Response metadata with timing information
+   * 2. Output preview or parsed JSON if applicable
    */
   async logResponseReceived(
     taskId: string,
@@ -104,7 +169,6 @@ export class TaskLogger {
       await this.taskStore.addLog(taskId, responseEntry, mcpSessionId);
 
       if (outputLength > 0) {
-        // Try to parse JSON output
         let parsedOutput: any = null;
         let isJson = false;
         try {
@@ -138,6 +202,16 @@ export class TaskLogger {
 
   /**
    * Logs error
+   * 
+   * @param taskId - The task ID
+   * @param prefix - Error message prefix
+   * @param error - The error object or message
+   * @param mcpSessionId - Optional MCP session ID
+   * @since 1.0.0
+   * 
+   * @remarks
+   * Extracts error details including name, message, and stack trace
+   * if the error is an Error instance.
    */
   async logError(taskId: string, prefix: string, error: any, mcpSessionId?: string): Promise<void> {
     try {
@@ -163,6 +237,12 @@ export class TaskLogger {
 
   /**
    * Logs session termination
+   * 
+   * @param taskId - The task ID
+   * @param sessionId - The session ID
+   * @param success - Whether termination was successful
+   * @param mcpSessionId - Optional MCP session ID
+   * @since 1.0.0
    */
   async logSessionTermination(
     taskId: string,

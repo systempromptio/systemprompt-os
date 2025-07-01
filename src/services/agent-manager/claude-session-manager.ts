@@ -1,6 +1,29 @@
 /**
- * @file Claude session management for Agent Manager
+ * @fileoverview Claude session management for Agent Manager
  * @module services/agent-manager/claude-session-manager
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This module provides specialized management for Claude Code sessions within
+ * the agent manager. It handles session lifecycle, command execution, and
+ * coordination between the Claude service and the agent session store.
+ * 
+ * @example
+ * ```typescript
+ * import { ClaudeSessionManager } from './claude-session-manager';
+ * 
+ * const manager = new ClaudeSessionManager(
+ *   claudeService,
+ *   sessionStore,
+ *   taskLogger
+ * );
+ * 
+ * const sessionId = await manager.startSession({
+ *   task_id: 'task-123',
+ *   project_path: '/path/to/project',
+ *   initial_context: 'Build a REST API'
+ * });
+ * ```
  */
 
 import type { ClaudeSessionConfig, AgentSession, AgentCommandResult } from './types.js';
@@ -12,10 +35,25 @@ import { logger } from '../../utils/logger.js';
 
 /**
  * Manages Claude Code sessions and their lifecycle
+ * 
+ * @class ClaudeSessionManager
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This class provides:
+ * - Session creation with task and MCP session linking
+ * - Command execution with automatic logging
+ * - Session termination with cleanup
+ * - Event forwarding from Claude service
  */
 export class ClaudeSessionManager {
   /**
    * Creates a new Claude session manager
+   * 
+   * @param claudeService - The Claude Code service instance
+   * @param sessionStore - The session store for managing sessions
+   * @param taskLogger - The task logger for logging events
+   * @since 1.0.0
    */
   constructor(
     private readonly claudeService: ClaudeCodeService,
@@ -25,6 +63,30 @@ export class ClaudeSessionManager {
 
   /**
    * Starts a Claude session
+   * 
+   * @param config - Configuration for the Claude session
+   * @returns The agent session ID
+   * @since 1.0.0
+   * 
+   * @remarks
+   * This method:
+   * 1. Creates a Claude service session with the provided options
+   * 2. Links it with task and MCP session if provided
+   * 3. Creates an agent session in the session store
+   * 4. Logs the session creation event
+   * 
+   * @example
+   * ```typescript
+   * const sessionId = await manager.startSession({
+   *   task_id: 'task-123',
+   *   project_path: '/home/user/project',
+   *   initial_context: 'Implement user authentication',
+   *   mcp_session_id: 'mcp-456',
+   *   options: {
+   *     branch: 'feature/auth'
+   *   }
+   * });
+   * ```
    */
   async startSession(config: ClaudeSessionConfig): Promise<string> {
     const claudeOptions: ClaudeCodeOptions = {
@@ -33,20 +95,15 @@ export class ClaudeSessionManager {
       ...config.options
     };
 
-    // Create Claude service session
     const serviceSessionId = await this.claudeService.createSession(claudeOptions);
 
-    // Link with task if provided
     if (config.task_id) {
       this.claudeService.setTaskId(serviceSessionId, config.task_id);
     }
 
-    // Link with MCP session if provided
     if (config.mcp_session_id) {
       this.claudeService.setMcpSessionId(serviceSessionId, config.mcp_session_id);
     }
-
-    // Create agent session
     const session = this.sessionStore.createSession(
       'claude',
       serviceSessionId,
@@ -55,7 +112,6 @@ export class ClaudeSessionManager {
       config.mcp_session_id
     );
 
-    // Log session creation
     if (config.task_id) {
       await this.taskLogger.logSessionCreated(
         config.task_id,
@@ -79,6 +135,32 @@ export class ClaudeSessionManager {
 
   /**
    * Sends a command to Claude
+   * 
+   * @param session - The agent session
+   * @param command - The command to send
+   * @param timeout - Optional timeout in milliseconds
+   * @returns Result of the command execution
+   * @since 1.0.0
+   * 
+   * @remarks
+   * This method:
+   * 1. Logs the command being sent
+   * 2. Executes the command via Claude service
+   * 3. Stores the output in session store
+   * 4. Logs the response or error
+   * 
+   * @example
+   * ```typescript
+   * const result = await manager.sendCommand(
+   *   session,
+   *   'Add input validation to the login form',
+   *   30000
+   * );
+   * 
+   * if (result.success) {
+   *   console.log('Output:', result.output);
+   * }
+   * ```
    */
   async sendCommand(
     session: AgentSession,
@@ -88,12 +170,10 @@ export class ClaudeSessionManager {
     const startTime = Date.now();
 
     try {
-      // Log command
       if (session.taskId) {
         await this.taskLogger.logCommandSent(session.taskId, command, session.mcpSessionId);
       }
 
-      // Execute command
       const output = await this.claudeService.querySync(
         session.serviceSessionId,
         command,
@@ -103,7 +183,6 @@ export class ClaudeSessionManager {
       const duration = Date.now() - startTime;
       this.sessionStore.addOutput(session.id, output);
 
-      // Log response
       if (session.taskId) {
         await this.taskLogger.logResponseReceived(
           session.taskId,
@@ -125,7 +204,6 @@ export class ClaudeSessionManager {
       
       this.sessionStore.addError(session.id, errorMessage);
 
-      // Log error
       if (session.taskId) {
         await this.taskLogger.logError(
           session.taskId,
@@ -145,6 +223,21 @@ export class ClaudeSessionManager {
 
   /**
    * Ends a Claude session
+   * 
+   * @param session - The agent session to end
+   * @throws Error if session termination fails
+   * @since 1.0.0
+   * 
+   * @remarks
+   * This method:
+   * 1. Ends the Claude service session
+   * 2. Logs successful or failed termination
+   * 3. Re-throws any errors after logging
+   * 
+   * @example
+   * ```typescript
+   * await manager.endSession(session);
+   * ```
    */
   async endSession(session: AgentSession): Promise<void> {
     try {
@@ -178,6 +271,20 @@ export class ClaudeSessionManager {
 
   /**
    * Sets up event listeners
+   * 
+   * @param onSessionReady - Callback for when a session becomes ready
+   * @since 1.0.0
+   * 
+   * @remarks
+   * Forwards session:ready events from the Claude service to the
+   * provided callback, allowing the agent manager to update session status.
+   * 
+   * @example
+   * ```typescript
+   * manager.setupEventListeners((serviceSessionId) => {
+   *   console.log(`Session ${serviceSessionId} is ready`);
+   * });
+   * ```
    */
   setupEventListeners(onSessionReady: (serviceSessionId: string) => void): void {
     this.claudeService.on('session:ready', ({ sessionId }) => {

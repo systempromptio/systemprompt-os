@@ -47,11 +47,14 @@ export interface HostProxyMessage {
   tool: 'claude';
   command: string;
   workingDirectory: string;
+  env?: Record<string, string>;
 }
 
 export interface HostProxyResponse {
-  type: 'stream' | 'error' | 'complete';
+  type: 'stream' | 'error' | 'complete' | 'pid';
   data?: string;
+  pid?: number;
+  exitCode?: number;
 }
 
 export interface QueryResult {

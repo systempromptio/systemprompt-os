@@ -1,28 +1,50 @@
+/**
+ * @fileoverview MCP resource definitions and server information
+ * @module constants/resources
+ * @since 1.0.0
+ */
+
 import type { Resource } from "@modelcontextprotocol/sdk/types.js";
 
+/**
+ * Available MCP resources
+ * @since 1.0.0
+ */
 export const RESOURCES: Resource[] = [
   {
     uri: "agent://status",
-    name: "Agent Status",
+    name: "Status",
     mimeType: "application/json",
-    description: "Current status and capabilities of the coding agent"
+    description: "Current status and capabilities of the coding agent",
   },
   {
     uri: "agent://tasks",
-    name: "Task List",
-    mimeType: "application/json", 
-    description: "List of all managed tasks"
-  },
-  {
-    uri: "agent://sessions",
-    name: "Active Sessions",
+    name: "Tasks",
     mimeType: "application/json",
-    description: "Currently active Claude and Gemini sessions"
-  }
+    description: "List of all managed tasks",
+  },
 ];
 
+/**
+ * MCP server information
+ * @since 1.0.0
+ */
 export const SERVER_INFO = {
+  /**
+   * Server display name
+   * @since 1.0.0
+   */
   name: "Coding Agent MCP Server",
+  
+  /**
+   * Server version
+   * @since 1.0.0
+   */
   version: "1.0.0",
-  description: "Orchestrator for Claude Code and Gemini CLI"
+  
+  /**
+   * Server description
+   * @since 1.0.0
+   */
+  description: "Orchestrator for Claude Code and Gemini CLI",
 };

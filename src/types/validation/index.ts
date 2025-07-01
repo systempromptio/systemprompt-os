@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Central validation registry and middleware
+ * @module types/validation
+ * @since 1.0.0
+ */
+
 import { z } from "zod";
 import {
   AgentProviderSchema,
@@ -13,7 +19,9 @@ import {
 } from "../index.js";
 
 /**
- * Central validation registry
+ * Central validation registry for managing Zod schemas
+ * @class
+ * @since 1.0.0
  */
 export class ValidationRegistry {
   private static schemas = new Map<string, z.ZodSchema<unknown>>();
@@ -34,6 +42,10 @@ export class ValidationRegistry {
 
   /**
    * Register a schema
+   * @template T - Schema type
+   * @param {string} name - Schema name
+   * @param {z.ZodSchema<T>} schema - Zod schema
+   * @since 1.0.0
    */
   static register<T>(name: string, schema: z.ZodSchema<T>): void {
     this.schemas.set(name, schema);
@@ -41,6 +53,9 @@ export class ValidationRegistry {
 
   /**
    * Get a schema by name
+   * @param {string} name - Schema name
+   * @returns {z.ZodSchema<unknown> | undefined} Schema if found
+   * @since 1.0.0
    */
   static get(name: string): z.ZodSchema<unknown> | undefined {
     return this.schemas.get(name);
@@ -48,6 +63,13 @@ export class ValidationRegistry {
 
   /**
    * Validate data against a schema
+   * @template T - Expected type
+   * @param {string} name - Schema name
+   * @param {unknown} data - Data to validate
+   * @returns {T} Validated data
+   * @throws {Error} If schema not found
+   * @throws {z.ZodError} If validation fails
+   * @since 1.0.0
    */
   static validate<T>(name: string, data: unknown): T {
     const schema = this.get(name);
@@ -59,6 +81,11 @@ export class ValidationRegistry {
 
   /**
    * Safe validate (returns result instead of throwing)
+   * @template T - Expected type
+   * @param {string} name - Schema name
+   * @param {unknown} data - Data to validate
+   * @returns {z.SafeParseReturnType<unknown, T>} Validation result
+   * @since 1.0.0
    */
   static safeValidate<T>(name: string, data: unknown): z.SafeParseReturnType<unknown, T> {
     const schema = this.get(name);
@@ -79,29 +106,75 @@ export class ValidationRegistry {
 
   /**
    * List all registered schemas
+   * @returns {string[]} Sorted list of schema names
+   * @since 1.0.0
    */
   static list(): string[] {
     return Array.from(this.schemas.keys()).sort();
   }
 }
 
-// For middleware, we'll use a generic interface instead of Express types
-// to avoid coupling to a specific framework
+/**
+ * Generic request interface for framework-agnostic middleware
+ * @interface
+ * @since 1.0.0
+ * @private
+ */
 interface Request {
+  /**
+   * Request body
+   * @since 1.0.0
+   */
   body?: unknown;
+  
+  /**
+   * Query parameters
+   * @since 1.0.0
+   */
   query?: unknown;
+  
+  /**
+   * Path parameters
+   * @since 1.0.0
+   */
   params?: unknown;
 }
 
+/**
+ * Generic response interface for framework-agnostic middleware
+ * @interface
+ * @since 1.0.0
+ * @private
+ */
 interface Response {
+  /**
+   * Set response status code
+   * @param {number} code - HTTP status code
+   * @returns {Response} Response for chaining
+   * @since 1.0.0
+   */
   status(code: number): Response;
+  
+  /**
+   * Send JSON response
+   * @param {unknown} data - Response data
+   * @since 1.0.0
+   */
   json(data: unknown): void;
 }
 
+/**
+ * Next function for middleware chain
+ * @since 1.0.0
+ * @private
+ */
 type NextFunction = () => void;
 
 /**
- * Validation middleware for body
+ * Creates validation middleware for request body
+ * @param {string} schemaName - Name of schema to validate against
+ * @returns {Function} Middleware function
+ * @since 1.0.0
  */
 export function validateBody(schemaName: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -130,7 +203,10 @@ export function validateBody(schemaName: string) {
 }
 
 /**
- * Validation middleware for query parameters
+ * Creates validation middleware for query parameters
+ * @param {string} schemaName - Name of schema to validate against
+ * @returns {Function} Middleware function
+ * @since 1.0.0
  */
 export function validateQuery(schemaName: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -159,7 +235,10 @@ export function validateQuery(schemaName: string) {
 }
 
 /**
- * Validation middleware for path parameters
+ * Creates validation middleware for path parameters
+ * @param {string} schemaName - Name of schema to validate against
+ * @returns {Function} Middleware function
+ * @since 1.0.0
  */
 export function validateParams(schemaName: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -188,21 +267,75 @@ export function validateParams(schemaName: string) {
 }
 
 /**
- * Combined validation middleware
+ * Options for combined validation middleware
+ * @interface
+ * @since 1.0.0
  */
 export interface ValidationOptions {
+  /**
+   * Schema name for body validation
+   * @since 1.0.0
+   */
   body?: string;
+  
+  /**
+   * Schema name for query validation
+   * @since 1.0.0
+   */
   query?: string;
+  
+  /**
+   * Schema name for params validation
+   * @since 1.0.0
+   */
   params?: string;
 }
 
+/**
+ * Validation error details
+ * @interface
+ * @since 1.0.0
+ * @private
+ */
 interface ValidationError {
+  /**
+   * Error location (body, query, params)
+   * @since 1.0.0
+   */
   location: string;
+  
+  /**
+   * Field path that failed validation
+   * @since 1.0.0
+   */
   field: string;
+  
+  /**
+   * Error message
+   * @since 1.0.0
+   */
   message: string;
+  
+  /**
+   * Validation constraint that failed
+   * @since 1.0.0
+   */
   constraint: string;
 }
 
+/**
+ * Creates combined validation middleware
+ * @param {ValidationOptions} options - Validation options
+ * @returns {Function} Middleware function
+ * @since 1.0.0
+ * @example
+ * ```typescript
+ * app.post('/api/tasks', validate({
+ *   body: 'api.request.createTask',
+ *   query: 'pagination.params'
+ * }), handler);
+ * ```
+ */
 export function validate(options: ValidationOptions) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const errors: ValidationError[] = [];
@@ -271,5 +404,8 @@ export function validate(options: ValidationOptions) {
   };
 }
 
-// Export validation utilities
+/**
+ * Re-export zod for convenience
+ * @since 1.0.0
+ */
 export { z } from "zod";

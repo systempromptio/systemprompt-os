@@ -9,7 +9,7 @@
 import { testTools } from './typescript/test-tools.js';
 import { testPrompts } from './typescript/test-prompts.js';
 import { testResources } from './typescript/test-resources.js';
-import { MCP_BASE_URL } from './typescript/test-utils.js';
+import { MCP_BASE_URL } from './typescript/utils/test-utils.js';
 
 const log = {
   title: (msg: string) => console.log(`\n\x1b[1m\x1b[35m${msg}\x1b[0m`),

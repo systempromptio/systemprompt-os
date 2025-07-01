@@ -14,6 +14,7 @@ import cors from 'cors';
 import { CONFIG } from './server/config.js';
 import { MCPHandler } from './server/mcp.js';
 import { setMCPHandlerInstance } from './server/mcp.js';
+import { TaskStore } from './services/task-store.js';
 
 
 /**
@@ -105,6 +106,9 @@ export async function startServer(port?: number): Promise<ReturnType<express.App
   const app = await createApp();
   const serverPort = port || parseInt(CONFIG.PORT, 10);
   
+  // Initialize services
+  TaskStore.getInstance();
+  
   return app.listen(serverPort, '0.0.0.0', () => {
     console.log(`🚀 Coding Agent MCP Server running on port ${serverPort}`);
     console.log(`📡 MCP endpoint: http://localhost:${serverPort}/mcp`);
@@ -113,12 +117,12 @@ export async function startServer(port?: number): Promise<ReturnType<express.App
 }
 
 // Handle graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');  
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully');
   process.exit(0);
 });

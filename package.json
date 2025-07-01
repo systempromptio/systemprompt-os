@@ -33,6 +33,7 @@
     "test:tunnel": "node build/scripts/test-tunnel-integrated.js",
     "test:interactive": "cd e2e-test/typescript && npm run test:interactive",
     "test:docs": "cd e2e-test/typescript && npx tsx test-docs-task.ts",
+    "send-push": "tsx scripts/send-push-notification.ts",
     "logs": "tail -f logs/*.log",
     "build": "npm run build:main && npm run build:daemon && npm run build:scripts",
     "build:main": "tsc && tsc-alias && chmod +x build/index.js && echo \"export * from './config.js';\nexport * from './mcp.js';\" > build/server/index.js",

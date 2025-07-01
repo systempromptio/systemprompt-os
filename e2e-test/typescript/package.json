@@ -8,7 +8,7 @@
     "test:prompts": "tsx test-prompts.ts",
     "test:tools": "tsx test-tools.ts",
     "test:resources": "tsx test-resources.ts",
-    "test:e2e": "tsx test-e2e.ts",
+    "test:e2e": "tsx test-e2e-with-hooks.ts",
     "test:interactive": "tsx test-interactive.ts",
     "test:docker": "cd ../.. && docker-compose up -d mcp-server && cd e2e-test/typescript && sleep 5 && MCP_BASE_URL=http://localhost:3000 npm test"
   },

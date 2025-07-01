@@ -348,8 +348,7 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
   // Complete test report
   if (taskId) {
     await reporter.completeTest(taskId, {
-      success: taskComplete,
-      output: `Task ${taskComplete ? 'completed' : 'did not complete'} successfully`
+      errors: taskComplete ? 0 : 1
     });
   }
 }
@@ -387,6 +386,16 @@ async function testCreateTaskErrorHandling(client: Client, _reporter: TestReport
   } catch (error) {
     log.debug('Missing required fields correctly rejected');
   }
+}
+
+/**
+ * Test that intentionally fails
+ */
+async function testIntentionalFailure(client: Client, reporter: TestReporter): Promise<void> {
+  log.info('Starting test that should fail...');
+  
+  // This test will always fail
+  throw new Error('This test is designed to fail as requested');
 }
 
 /**

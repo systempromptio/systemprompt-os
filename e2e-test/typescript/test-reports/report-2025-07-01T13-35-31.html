@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>E2E Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; }
+        .success { background-color: #e7f5e7; }
+        .failed { background-color: #ffe7e7; }
+        .event { margin: 5px 0; padding: 5px; background: #f5f5f5; }
+        .notification { background: #e7e7ff; }
+        pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>E2E Test Report</h1>
+    <p>Generated: 2025-07-01T13:35:31.792Z</p>
+    
+    
+        <div class="test failed">
+            <h2>Create Hello World HTML</h2>
+            <p><strong>Task ID:</strong> f42e3cd2-bc26-4967-9fb3-4c40e57f37f5</p>
+            <p><strong>Status:</strong> failed</p>
+            
+                <p><strong>Duration:</strong> 33045ms</p>
+                <p><strong>Logs:</strong> 28</p>
+                <p><strong>Resource Updates:</strong> 14</p>
+            
+            
+            <h3>Events</h3>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.725Z</strong> [TASK_CREATED] Task created successfully with ID: f42e3cd2-bc26-4967-9fb3-4c40e57f37f5
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.725Z</strong> [SESSION_INFO] Session ID: agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.725Z</strong> [BRANCH_INFO] Branch: e2e-test-1751376898700
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:34:58.726Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:34:58.731Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.735Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.735Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:34:58.721Z","level":"info","type":"progress","message":"Task started, processing instructions..."}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.735Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:34:58.724Z","level":"info","type":"agent","message":"Create a file named hello.html with a basic HTML page that displays \"Hello World\" as a heading","metadata":{"commandLength":94}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.737Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.737Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:34:58.721Z","level":"info","type":"progress","message":"Task started, processing instructions..."}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:34:58.737Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:34:58.724Z","level":"info","type":"agent","message":"Create a file named hello.html with a basic HTML page that displays \"Hello World\" as a heading","metadata":{"commandLength":94}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:06.563Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.567Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.567Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:34:58.724Z","level":"info","type":"agent","message":"Create a file named hello.html with a basic HTML page that displays \"Hello World\" as a heading","metadata":{"commandLength":94}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.567Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:06.560Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.560Z","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:06.579Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.583Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.583Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:06.560Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.560Z","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.583Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:06.577Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.577Z","filePath":"","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:06.601Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.605Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.605Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:06.577Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.577Z","filePath":"","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:06.605Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:06.599Z","level":"info","type":"system","message":"Claude PostToolUse (0ms)","prefix":"HOOK:PostToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PostToolUse","tool":"","duration":"0","timestamp":"2025-07-01T13:35:06.599Z","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.687Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.691Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.691Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.684Z","level":"info","type":"system","message":"Claude Stop","prefix":"HOOK:Stop","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"Stop","timestamp":"2025-07-01T13:35:10.684Z","transcriptPath":"","stopHookActive":false}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.691Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.688Z","level":"info","type":"output","message":"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11138,\"duration_api_ms\":20380,\"num_turns\":4,\"result\":\"Done. Created hello.html with a basic HTML page displaying \\\"Hello World\\\" as a heading.\",\"session_id\":\"f981dfae-ee53-4139-9328-a4c85218f651\",\"total_cost_usd\":0.12645879999999998,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":3338,\"cache_read_input_tokens\":30115,\"output_tokens\":219,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}"}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.692Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.695Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.695Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.684Z","level":"info","type":"system","message":"Claude Stop","prefix":"HOOK:Stop","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"Stop","timestamp":"2025-07-01T13:35:10.684Z","transcriptPath":"","stopHookActive":false}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.695Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.688Z","level":"info","type":"output","message":"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11138,\"duration_api_ms\":20380,\"num_turns\":4,\"result\":\"Done. Created hello.html with a basic HTML page displaying \\\"Hello World\\\" as a heading.\",\"session_id\":\"f981dfae-ee53-4139-9328-a4c85218f651\",\"total_cost_usd\":0.12645879999999998,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":3338,\"cache_read_input_tokens\":30115,\"output_tokens\":219,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}"}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.697Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.698Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.700Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.700Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.696Z","level":"info","type":"output","message":"Result received","metadata":{"isPreview":true,"fullLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.700Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.697Z","level":"info","type":"system","prefix":"EXECUTION_TIME","message":"CLAUDECODE execution took 11 seconds","metadata":{"tool":"CLAUDECODE","duration":11}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.701Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.703Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.703Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.697Z","level":"info","type":"system","prefix":"EXECUTION_TIME","message":"CLAUDECODE execution took 11 seconds","metadata":{"tool":"CLAUDECODE","duration":11}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.703Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.700Z","level":"info","type":"system","message":"Task completed successfully","metadata":{"tool":"CLAUDECODE"}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.703Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.706Z</strong> [STATUS_UPDATE] Task Status: in_progress, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.706Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.700Z","level":"info","type":"system","message":"Task completed successfully","metadata":{"tool":"CLAUDECODE"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.706Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.706Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.707Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.709Z</strong> [STATUS_UPDATE] Task Status: completed_active, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.709Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.700Z","level":"info","type":"system","message":"Task completed successfully","metadata":{"tool":"CLAUDECODE"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.709Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:10.710Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"
+}</pre>
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.712Z</strong> [STATUS_UPDATE] Task Status: completed_active, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.712Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.712Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.707Z","level":"info","type":"system","message":"Status: completed_active","metadata":{"previousStatus":"in_progress","newStatus":"completed_active","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.713Z</strong> [STATUS_UPDATE] Task Status: completed_active, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.713Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.713Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.707Z","level":"info","type":"system","message":"Status: completed_active","metadata":{"previousStatus":"in_progress","newStatus":"completed_active","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.715Z</strong> [STATUS_UPDATE] Task Status: completed_active, Progress: undefined%
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.715Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:10.715Z</strong> [TASK_LOG] {"timestamp":"2025-07-01T13:35:10.707Z","level":"info","type":"system","message":"Status: completed_active","metadata":{"previousStatus":"in_progress","newStatus":"completed_active","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.708Z","level":"info","type":"system","message":"Task created with CLAUDECODE tool","metadata":{"tool":"CLAUDECODE","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.711Z","level":"info","type":"system","message":"Status: in_progress","metadata":{"previousStatus":"pending","newStatus":"in_progress","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.713Z","level":"info","type":"system","message":"Agent started","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","agentType":"Claude Code","projectPath":"/workspace"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.716Z","level":"info","type":"system","message":"Session ready","metadata":{"sessionId":"claude_8589bf73-a32a-46a6-891b-8ea5c6392e51","mcpSessionId":"session_1751376898670_1oli722lr"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.720Z","level":"info","type":"system","message":"Processing request..."}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.720Z","level":"info","type":"system","message":"Starting CLAUDECODE agent..."}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.721Z","level":"info","type":"progress","message":"Task started, processing instructions..."}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:34:58.724Z","level":"info","type":"agent","message":"Create a file named hello.html with a basic HTML page that displays \"Hello World\" as a heading","metadata":{"commandLength":94}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:06.560Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.560Z","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:06.577Z","level":"info","type":"system","message":"Claude PreToolUse","prefix":"HOOK:PreToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PreToolUse","tool":"","timestamp":"2025-07-01T13:35:06.577Z","filePath":"","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:06.599Z","level":"info","type":"system","message":"Claude PostToolUse (0ms)","prefix":"HOOK:PostToolUse","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"PostToolUse","tool":"","duration":"0","timestamp":"2025-07-01T13:35:06.599Z","transcriptPath":""}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.684Z","level":"info","type":"system","message":"Claude Stop","prefix":"HOOK:Stop","metadata":{"sessionId":"agent_claude_1d98962e-19e4-4be6-a415-82bc38609b2d","event":"Stop","timestamp":"2025-07-01T13:35:10.684Z","transcriptPath":"","stopHookActive":false}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.757Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.688Z","level":"info","type":"output","message":"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11138,\"duration_api_ms\":20380,\"num_turns\":4,\"result\":\"Done. Created hello.html with a basic HTML page displaying \\\"Hello World\\\" as a heading.\",\"session_id\":\"f981dfae-ee53-4139-9328-a4c85218f651\",\"total_cost_usd\":0.12645879999999998,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":3338,\"cache_read_input_tokens\":30115,\"output_tokens\":219,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}"}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.695Z","level":"info","type":"agent","message":"Response received (12s)","metadata":{"duration":11971,"outputLength":487,"fullOutput":"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11138,\"duration_api_ms\":20380,\"num_turns\":4,\"result\":\"Done. Created hello.html with a basic HTML page displaying \\\"Hello World\\\" as a heading.\",\"session_id\":\"f981dfae-ee53-4139-9328-a4c85218f651\",\"total_cost_usd\":0.12645879999999998,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":3338,\"cache_read_input_tokens\":30115,\"output_tokens\":219,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}\n"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.696Z","level":"info","type":"output","message":"Result received","metadata":{"isPreview":true,"fullLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.697Z","level":"info","type":"system","prefix":"EXECUTION_TIME","message":"CLAUDECODE execution took 11 seconds","metadata":{"tool":"CLAUDECODE","duration":11}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.700Z","level":"info","type":"system","message":"Task completed successfully","metadata":{"tool":"CLAUDECODE"}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.702Z","level":"info","type":"output","prefix":"CLAUDECODE_OUTPUT","message":"Tool execution result","metadata":{"tool":"CLAUDECODE","outputLength":487,"isJson":true,"data":{"type":"result","subtype":"success","is_error":false,"duration_ms":11138,"duration_api_ms":20380,"num_turns":4,"result":"Done. Created hello.html with a basic HTML page displaying \"Hello World\" as a heading.","session_id":"f981dfae-ee53-4139-9328-a4c85218f651","total_cost_usd":0.12645879999999998,"usage":{"input_tokens":11,"cache_creation_input_tokens":3338,"cache_read_input_tokens":30115,"output_tokens":219,"server_tool_use":{"web_search_requests":0},"service_tier":"standard"}}}}
+                    
+                </div>
+            
+                <div class="event ">
+                    <strong>2025-07-01T13:35:31.758Z</strong> [FINAL_LOG] {"timestamp":"2025-07-01T13:35:10.707Z","level":"info","type":"system","message":"Status: completed_active","metadata":{"previousStatus":"in_progress","newStatus":"completed_active","taskId":"f42e3cd2-bc26-4967-9fb3-4c40e57f37f5"}}
+                    
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.774Z</strong> [NOTIFICATION_ResourceListChanged] Received ResourceListChanged notification
+                    <pre>{
+  "method": "notifications/resources/list_changed",
+  "params": {}
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.775Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.775Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.776Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.778Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.780Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.781Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.783Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.784Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.785Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.788Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+                <div class="event notification">
+                    <strong>2025-07-01T13:35:31.788Z</strong> [NOTIFICATION_ResourceUpdated] Received ResourceUpdated notification
+                    <pre>{
+  "uri": "task://6ff9917b-0a57-47eb-ad90-a9e5ac165bd0"
+}</pre>
+                </div>
+            
+        </div>
+    
+</body>
+</html>

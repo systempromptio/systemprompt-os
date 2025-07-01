@@ -1,6 +1,7 @@
 /**
- * @file MCP Server configuration and capabilities - Example Implementation
+ * @fileoverview MCP Server configuration and capabilities - Example Implementation
  * @module constants/server/server-config
+ * @since 1.0.0
  *
  * @remarks
  * This module defines the server metadata and capabilities for this example MCP server
@@ -73,31 +74,49 @@ export const serverConfig: Implementation = {
  * - logging: Server-side logging capability
  * 
  * This example implements ALL capabilities to serve as a complete reference.
+ * 
+ * @since 1.0.0
  */
 export const serverCapabilities: { capabilities: ServerCapabilities } = {
   capabilities: {
-    tools: {},      // Full tool support with type-safe handlers
-    prompts: {},    // Dynamic prompt generation
-    resources: {},  // Resource listing and reading
-    logging: {},    // Client-requested logging support
-    roots: {        // Filesystem roots support
-      listChanged: true  // We support roots/list_changed notifications
+    /** Full tool support with type-safe handlers */
+    tools: {},
+    /** Dynamic prompt generation */
+    prompts: {},
+    /** Resource listing and reading */
+    resources: {},
+    /** Client-requested logging support */
+    logging: {},
+    /** Filesystem roots support */
+    roots: {
+      /** We support roots/list_changed notifications */
+      listChanged: true
     },
-    resourceTemplates: {},  // Resource templates support for dynamic URIs
+    /** Resource templates support for dynamic URIs */
+    resourceTemplates: {},
   },
 };
 
 /**
  * Additional server configuration constants
+ * @since 1.0.0
  */
 export const SERVER_CONFIG = {
+  /** Session timeout in milliseconds (30 minutes) */
   SESSION_TIMEOUT: 30 * 60 * 1000,
+  /** Maximum concurrent sessions */
   MAX_SESSIONS: 100,
+  /** Rate limiting configuration */
   RATE_LIMIT: {
-    windowMs: 60000, // 1 minute
+    /** Rate limit window in milliseconds (1 minute) */
+    windowMs: 60000,
+    /** Maximum requests per window */
     maxRequests: 100,
   },
-  MAX_REQUEST_SIZE: 10 * 1024 * 1024, // 10MB
+  /** Maximum request body size (10MB) */
+  MAX_REQUEST_SIZE: 10 * 1024 * 1024,
+  /** MCP protocol version */
   PROTOCOL_VERSION: "2025-06-18",
+  /** MCP SDK version */
   SDK_VERSION: "@modelcontextprotocol/sdk@1.13.0",
 } as const;

@@ -56,8 +56,11 @@ export const MCP_BASE_URL = getMCPBaseUrl();
  */
 export const log = {
   section: (title: string) => console.log(`\n\x1b[1m\x1b[34m${title}\x1b[0m`),
+  title: (title: string) => console.log(`\n\x1b[1m\x1b[35m${title}\x1b[0m`),
+  subsection: (title: string) => console.log(`\n\x1b[36m${title}\x1b[0m`),
   success: (msg: string) => console.log(`\x1b[32m✅\x1b[0m ${msg}`),
   warning: (msg: string) => console.log(`\x1b[33m⚠️\x1b[0m ${msg}`),
+  warn: (msg: string) => console.log(`\x1b[33m⚠️\x1b[0m ${msg}`),
   error: (msg: string) => console.log(`\x1b[31m❌\x1b[0m ${msg}`),
   info: (msg: string) => console.log(`\x1b[34mℹ\x1b[0m ${msg}`),
   debug: (msg: string) => console.log(`\x1b[36m  🔍\x1b[0m ${msg}`)

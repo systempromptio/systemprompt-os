@@ -38,6 +38,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount Claude authentication if it exists
       - ${HOME}/.claude.json:/home/appuser/.claude.json:ro
+      # Mount daemon logs for Claude hooks
+      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-coding-agent}/daemon/logs:/workspace/daemon/logs:rw
     restart: unless-stopped
 
 

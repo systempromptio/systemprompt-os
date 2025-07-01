@@ -8,6 +8,7 @@ import { RESOURCES } from "../constants/resources.js";
 import { TaskStore } from "../services/task-store.js";
 import { logger } from "../utils/logger.js";
 import { matchResourceTemplate } from "./resource-templates-handler.js";
+import { createTaskResourceContent, type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
 
 export async function handleListResources(): Promise<ListResourcesResult> {
   try {
@@ -109,94 +110,43 @@ export async function handleResourceCall(
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Get session information if available
+      // Get session info
       const { AgentManager } = await import("../services/agent-manager/index.js");
-      const { ClaudeCodeService } = await import("../services/claude-code/index.js");
-      
       const agentManager = AgentManager.getInstance();
-      const claudeService = ClaudeCodeService.getInstance();
-      
       const sessions = agentManager.getAllSessions();
       const taskSession = sessions.find(s => s.taskId === taskId);
       
-      let sessionInfo = null;
-      let streamOutput: string | any = "";
+      let session: TaskSession | undefined;
+      let metadata: TaskMetadata | undefined;
       
       if (taskSession) {
-        sessionInfo = {
+        session = {
           id: taskSession.id,
           type: taskSession.type,
-          status: taskSession.status,
-          created_at: taskSession.created_at,
-          last_activity: taskSession.last_activity,
-          service_session_id: taskSession.serviceSessionId
+          status: taskSession.status
         };
-        
-        // Get streaming output if Claude session
-        if (taskSession.type === 'claude' && taskSession.serviceSessionId) {
-          const claudeSession = claudeService.getSession(taskSession.serviceSessionId);
-          if (claudeSession && claudeSession.streamBuffer) {
-            // Join the stream buffer lines
-            const rawOutput = claudeSession.streamBuffer.join("\n");
-            
-            // Try to parse as JSON if it looks like JSON
-            if (rawOutput.trim().startsWith('{') || rawOutput.trim().startsWith('[')) {
-              try {
-                // Parse the JSON to validate it, then store as parsed object
-                streamOutput = JSON.parse(rawOutput);
-              } catch (e) {
-                // If parsing fails, keep as string
-                streamOutput = rawOutput;
-              }
-            } else {
-              streamOutput = rawOutput;
-            }
-          }
-        }
+      }
+      
+      // Extract metadata from result if available
+      if (task.result && typeof task.result === 'object' && 'duration_ms' in task.result) {
+        const result = task.result as any;
+        metadata = {
+          duration_ms: result.duration_ms,
+          cost_usd: result.total_cost_usd,
+          tokens: result.usage ? {
+            input: result.usage.input_tokens || 0,
+            output: result.usage.output_tokens || 0,
+            cached: (result.usage.cache_creation_input_tokens || 0) + (result.usage.cache_read_input_tokens || 0)
+          } : undefined
+        };
       }
 
-      // Calculate duration
-      let duration_seconds = 0;
-      if (task.started_at) {
-        const endTime = task.completed_at ? new Date(task.completed_at) : new Date();
-        duration_seconds = Math.floor((endTime.getTime() - new Date(task.started_at).getTime()) / 1000);
-      }
-
-      // Build complete process resource
-      const processResource = {
-        id: task.id,
-        description: task.description,
-        tool: task.tool,
-        status: task.status,
-        created_at: task.created_at,
-        started_at: task.started_at,
-        completed_at: task.completed_at,
-        updated_at: task.updated_at,
-        duration_seconds,
-        
-        // Complete execution log with proper formatting
-        logs: task.logs || [],
-        
-        // Process information
-        process: {
-          assigned_to: task.assigned_to,
-          session: sessionInfo,
-          working_directory: "/workspace",
-          stream_output: streamOutput
-        },
-        
-        // Execution results
-        result: task.result || null,
-        error: task.error || null,
-        
-        // Metadata
-        metadata: {
-          log_count: task.logs?.length || 0,
-          has_error: !!task.error,
-          has_output: !!streamOutput,
-          last_updated: task.updated_at || task.created_at
-        }
-      };
+      // Build clean resource
+      const processResource: TaskResourceContent = createTaskResourceContent(
+        task,
+        session,
+        metadata
+      );
 
       return {
         contents: [

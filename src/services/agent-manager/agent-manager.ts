@@ -1,6 +1,32 @@
 /**
- * @file Modern Agent Manager implementation
+ * @fileoverview Modern Agent Manager implementation
  * @module services/agent-manager/agent-manager
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This module provides a centralized manager for AI agent sessions,
+ * supporting Claude Code and potentially other AI agents. It handles
+ * session lifecycle, command routing, and event coordination.
+ * 
+ * @example
+ * ```typescript
+ * import { AgentManager } from './services/agent-manager';
+ * 
+ * const manager = AgentManager.getInstance();
+ * 
+ * // Start a Claude session
+ * const sessionId = await manager.startClaudeSession({
+ *   task_id: 'task-123',
+ *   project_path: '/path/to/project',
+ *   instructions: 'Build a login form'
+ * });
+ * 
+ * // Send a command
+ * const result = await manager.sendCommand(sessionId, {
+ *   command: 'Add validation to the form',
+ *   timeout: 30000
+ * });
+ * ```
  */
 
 import { EventEmitter } from 'events';
@@ -26,15 +52,41 @@ import { logger } from '../../utils/logger.js';
 
 /**
  * Event types emitted by the AgentManager
+ * 
+ * @interface AgentManagerEvents
+ * @since 1.0.0
  */
 export interface AgentManagerEvents {
+  /**
+   * Emitted when a new session is created
+   */
   'session:created': SessionEvent;
+  
+  /**
+   * Emitted when a session becomes ready
+   */
   'session:ready': string;
+  
+  /**
+   * Emitted when task progress is reported
+   */
   'task:progress': TaskProgressEvent;
 }
 
 /**
  * Manages agent sessions and coordinates between different agent types
+ * 
+ * @class AgentManager
+ * @extends EventEmitter
+ * @since 1.0.0
+ * 
+ * @remarks
+ * This class implements a singleton pattern and provides:
+ * - Session lifecycle management (create, send commands, end)
+ * - Support for multiple agent types (currently Claude)
+ * - Event-driven architecture for session and task updates
+ * - Thread-safe session storage and state management
+ * - Automatic cleanup of terminated sessions
  */
 export class AgentManager extends EventEmitter {
   private static instance: AgentManager;
@@ -44,13 +96,16 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Private constructor for singleton pattern
+   * 
+   * @private
+   * @since 1.0.0
    */
   private constructor() {
     super();
     
     this.sessionStore = new SessionStore();
     
-    // Lazy load dependencies
+    // Lazy load dependencies to avoid circular imports
     const getTaskStore = async () => {
       const { TaskStore } = await import('../task-store.js');
       return TaskStore.getInstance();
@@ -60,7 +115,6 @@ export class AgentManager extends EventEmitter {
       const { ClaudeCodeService } = await import('../claude-code/index.js');
       return ClaudeCodeService.getInstance();
     };
-
 
     // Initialize managers with lazy-loaded dependencies
     Promise.all([getTaskStore(), getClaudeService()]).then(
@@ -80,6 +134,14 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Gets the singleton instance of AgentManager
+   * 
+   * @returns The singleton AgentManager instance
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const manager = AgentManager.getInstance();
+   * ```
    */
   static getInstance(): AgentManager {
     if (!AgentManager.instance) {
@@ -90,9 +152,11 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Sets up service event listeners
+   * 
+   * @private
+   * @since 1.0.0
    */
   private setupServiceListeners(): void {
-    // Handle session ready events
     const handleSessionReady = (serviceSessionId: string) => {
       const session = this.sessionStore.findSessionByServiceId(serviceSessionId);
       if (session) {
@@ -103,13 +167,11 @@ export class AgentManager extends EventEmitter {
 
     this.claudeManager.setupEventListeners(handleSessionReady);
 
-    // Handle Claude task progress events
     import('../claude-code/index.js').then(({ ClaudeCodeService }) => {
       const claudeService = ClaudeCodeService.getInstance();
       claudeService.on('task:progress', (progress: TaskProgressEvent) => {
         this.emit('task:progress', progress);
         
-        // Update session activity
         const sessions = this.sessionStore.getAllSessions();
         const session = sessions.find(s => s.taskId === progress.taskId);
         if (session) {
@@ -121,6 +183,20 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Starts a Claude session
+   * 
+   * @param config - Configuration for the Claude session
+   * @returns The session ID
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const sessionId = await manager.startClaudeSession({
+   *   task_id: 'task-123',
+   *   project_path: '/home/user/project',
+   *   instructions: 'Implement user authentication',
+   *   branch: 'feature/auth'
+   * });
+   * ```
    */
   async startClaudeSession(config: ClaudeSessionConfig): Promise<string> {
     const sessionId = await this.claudeManager.startSession(config);
@@ -142,6 +218,27 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Sends a command to an agent
+   * 
+   * @param sessionId - The session ID to send the command to
+   * @param command - The command to send
+   * @returns Result of the command execution
+   * @throws {SessionNotFoundError} If session doesn't exist
+   * @throws {UnknownSessionTypeError} If session type is not supported
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const result = await manager.sendCommand(sessionId, {
+   *   command: 'Add form validation',
+   *   timeout: 30000
+   * });
+   * 
+   * if (result.success) {
+   *   console.log('Command executed successfully');
+   * } else {
+   *   console.error('Command failed:', result.error);
+   * }
+   * ```
    */
   async sendCommand(
     sessionId: string, 
@@ -193,13 +290,24 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Ends an agent session
+   * 
+   * @param sessionId - The session ID to end
+   * @returns True if session was ended successfully, false otherwise
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const ended = await manager.endSession(sessionId);
+   * if (ended) {
+   *   console.log('Session ended successfully');
+   * }
+   * ```
    */
   async endSession(sessionId: string): Promise<boolean> {
     const session = this.sessionStore.findSession(sessionId);
     if (!session) return false;
 
     try {
-      // Log session ending
       if (session.taskId) {
         await this.taskLogger.logError(
           session.taskId,
@@ -208,7 +316,6 @@ export class AgentManager extends EventEmitter {
         );
       }
 
-      // End the appropriate service session
       switch (session.type) {
         case 'claude':
           await this.claudeManager.endSession(session);
@@ -239,6 +346,18 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Gets a session by ID
+   * 
+   * @param sessionId - The session ID to retrieve
+   * @returns The session if found, null otherwise
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const session = manager.getSession(sessionId);
+   * if (session) {
+   *   console.log(`Session status: ${session.status}`);
+   * }
+   * ```
    */
   getSession(sessionId: string): AgentSession | null {
     return this.sessionStore.findSession(sessionId);
@@ -246,6 +365,15 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Gets all sessions
+   * 
+   * @returns Array of all active sessions
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const sessions = manager.getAllSessions();
+   * console.log(`Active sessions: ${sessions.length}`);
+   * ```
    */
   getAllSessions(): AgentSession[] {
     return this.sessionStore.getAllSessions();
@@ -253,6 +381,16 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Gets sessions by type
+   * 
+   * @param type - The agent type to filter by
+   * @returns Array of sessions for the specified type
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const claudeSessions = manager.getSessionsByType('claude');
+   * console.log(`Claude sessions: ${claudeSessions.length}`);
+   * ```
    */
   getSessionsByType(type: AgentType): AgentSession[] {
     return this.sessionStore.getSessionsByType(type);
@@ -260,6 +398,16 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Gets session metrics
+   * 
+   * @returns Object containing session metrics
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * const metrics = manager.getMetrics();
+   * console.log(`Total sessions: ${metrics.total}`);
+   * console.log(`Active sessions: ${metrics.active}`);
+   * ```
    */
   getMetrics() {
     return this.sessionStore.getMetrics();
@@ -267,6 +415,12 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Type-safe event emitter
+   * 
+   * @template K - Event name from AgentManagerEvents
+   * @param event - The event to emit
+   * @param args - Event arguments
+   * @returns True if the event had listeners, false otherwise
+   * @since 1.0.0
    */
   emit<K extends keyof AgentManagerEvents>(
     event: K,
@@ -277,6 +431,19 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Type-safe event listener registration
+   * 
+   * @template K - Event name from AgentManagerEvents
+   * @param event - The event to listen for
+   * @param listener - The callback function
+   * @returns This instance for method chaining
+   * @since 1.0.0
+   * 
+   * @example
+   * ```typescript
+   * manager.on('session:created', (event) => {
+   *   console.log(`New ${event.type} session: ${event.sessionId}`);
+   * });
+   * ```
    */
   on<K extends keyof AgentManagerEvents>(
     event: K,
@@ -287,6 +454,12 @@ export class AgentManager extends EventEmitter {
 
   /**
    * Type-safe event listener removal
+   * 
+   * @template K - Event name from AgentManagerEvents
+   * @param event - The event to stop listening for
+   * @param listener - The callback function to remove
+   * @returns This instance for method chaining
+   * @since 1.0.0
    */
   off<K extends keyof AgentManagerEvents>(
     event: K,
