@@ -19,7 +19,7 @@ services:
       - HOST_FILE_ROOT=${HOST_FILE_ROOT}
       - CLAUDE_PROXY_HOST=${CLAUDE_PROXY_HOST:-host.docker.internal}
       - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-9876}
-      - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE:-false}
+      - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE}
       - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
       - GIT_CURRENT_BRANCH=${GIT_CURRENT_BRANCH:-none}
       - TUNNEL_URL=${TUNNEL_URL}
@@ -28,7 +28,6 @@ services:
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Commented out - using authenticated user session
     env_file:
       - .env
-      - .env.tools
     volumes:
       # Persistent state storage
       - coding-agent-state:/data/state

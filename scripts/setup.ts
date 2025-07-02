@@ -65,6 +65,18 @@ const OPTIONAL_ENV_VARS: EnvVariable[] = [
 ];
 
 /**
+ * Tool-related environment variables that are auto-detected
+ * @const {EnvVariable[]}
+ */
+const TOOL_ENV_VARS: EnvVariable[] = [
+  { name: 'CLAUDE_PATH', description: 'Path to Claude CLI executable' },
+  { name: 'GEMINI_PATH', description: 'Path to Gemini CLI executable' },
+  { name: 'SHELL_PATH', default: '/bin/bash', description: 'Shell path for command execution' },
+  { name: 'CLAUDE_AVAILABLE', default: 'false', description: 'Whether Claude CLI is available' },
+  { name: 'GEMINI_AVAILABLE', default: 'false', description: 'Whether Gemini CLI is available' }
+];
+
+/**
  * @class ProjectSetup
  * @description Manages the complete setup process for the SystemPrompt Coding Agent
  */
@@ -239,8 +251,12 @@ class ProjectSetup {
     
     if (!claudePath) {
       this.warning('Claude CLI not found. Install from: https://github.com/anthropics/claude-cli');
+      this.updateToolEnvVar('CLAUDE_PATH', '');
+      this.updateToolEnvVar('CLAUDE_AVAILABLE', 'false');
       return { path: null, available: false };
     }
+    
+    this.updateToolEnvVar('CLAUDE_PATH', claudePath);
     
     try {
       execSync(`${claudePath} --version`, { 
@@ -248,10 +264,109 @@ class ProjectSetup {
         stdio: 'pipe'
       });
       this.success(`Claude CLI found at: ${claudePath}`);
-      return { path: claudePath, available: true };
+      
+      // Check if authenticated
+      try {
+        execSync(`${claudePath} auth status`, { stdio: 'pipe' });
+        this.success('Claude is authenticated');
+        this.updateToolEnvVar('CLAUDE_AVAILABLE', 'true');
+        return { path: claudePath, available: true };
+      } catch {
+        this.warning('Claude is not authenticated');
+        this.info('Run "claude auth" to authenticate');
+        this.updateToolEnvVar('CLAUDE_AVAILABLE', 'false');
+        return { path: claudePath, available: false };
+      }
     } catch {
       this.warning(`Claude found at ${claudePath} but not working properly`);
+      this.updateToolEnvVar('CLAUDE_AVAILABLE', 'false');
       return { path: claudePath, available: false };
+    }
+  }
+  
+  /**
+   * Updates a tool environment variable in .env file
+   * @param {string} name - Variable name
+   * @param {string} value - Variable value
+   */
+  private updateToolEnvVar(name: string, value: string): void {
+    const envPath = path.join(projectRoot, '.env');
+    if (!fs.existsSync(envPath)) {
+      return;
+    }
+    
+    let envContent = fs.readFileSync(envPath, 'utf-8');
+    const regex = new RegExp(`^${name}=.*$`, 'gm');
+    
+    if (envContent.match(regex)) {
+      envContent = envContent.replace(regex, `${name}=${value}`);
+    } else {
+      // Add in the tool section if it exists, otherwise at the end
+      const toolSectionRegex = /^# Tool paths and availability.*$/gm;
+      if (envContent.match(toolSectionRegex)) {
+        // Add after the tool section header
+        envContent = envContent.replace(toolSectionRegex, (match) => `${match}\n${name}=${value}`);
+      } else {
+        // Add at the end with a tool section
+        envContent += `\n# Tool paths and availability (detected by setup/start scripts)\n${name}=${value}`;
+      }
+    }
+    
+    fs.writeFileSync(envPath, envContent);
+  }
+  
+  /**
+   * Checks Gemini CLI availability
+   * @returns {Promise<void>}
+   */
+  async checkGemini(): Promise<void> {
+    this.header('Checking Gemini CLI');
+    
+    const geminiPath = this.checkCommand('gemini');
+    
+    if (!geminiPath) {
+      this.info('Gemini CLI not found (optional)');
+      this.updateToolEnvVar('GEMINI_PATH', '');
+      this.updateToolEnvVar('GEMINI_AVAILABLE', 'false');
+      return;
+    }
+    
+    this.updateToolEnvVar('GEMINI_PATH', geminiPath);
+    
+    try {
+      execSync(`${geminiPath} --version`, { 
+        timeout: 5000,
+        stdio: 'pipe'
+      });
+      this.success(`Gemini CLI found at: ${geminiPath}`);
+      this.updateToolEnvVar('GEMINI_AVAILABLE', 'true');
+    } catch {
+      this.warning(`Gemini found at ${geminiPath} but not working properly`);
+      this.updateToolEnvVar('GEMINI_AVAILABLE', 'false');
+    }
+  }
+  
+  /**
+   * Checks Shell availability
+   * @returns {Promise<void>}
+   */
+  async checkShell(): Promise<void> {
+    const shellPaths = ['/bin/bash', '/usr/bin/bash', 'bash'];
+    let foundShell = '';
+    
+    for (const shell of shellPaths) {
+      const shellPath = this.checkCommand(shell);
+      if (shellPath && fs.existsSync(shellPath)) {
+        foundShell = shellPath;
+        break;
+      }
+    }
+    
+    if (foundShell) {
+      this.updateToolEnvVar('SHELL_PATH', foundShell);
+    } else {
+      this.warning('Bash shell not found, using default /bin/bash');
+      this.updateToolEnvVar('SHELL_PATH', '/bin/bash');
     }
   }
   
@@ -505,6 +620,8 @@ class ProjectSetup {
     }
     
     const claude = await this.checkClaude();
+    await this.checkGemini();
+    await this.checkShell();
     const cloudflaredAvailable = await this.checkCloudflared();
     
     await this.createDirectories();

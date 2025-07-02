@@ -138,6 +138,7 @@ function getNestedValue(obj: unknown, path: (string | number)[]): unknown {
 export function isToolAvailable(tool: "CLAUDECODE"): boolean {
   switch (tool) {
     case "CLAUDECODE":
+      // Check if Claude is available and authenticated on the host
       return process.env.CLAUDE_AVAILABLE === "true";
     default:
       return false;

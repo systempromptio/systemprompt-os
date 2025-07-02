@@ -543,6 +543,8 @@ class StartupManager {
       DAEMON_HOST: 'host.docker.internal', // Always use host.docker.internal for Docker
       DAEMON_PORT: env.CLAUDE_PROXY_PORT,
       CLAUDE_PROXY_PORT: env.CLAUDE_PROXY_PORT, // Pass the port
+      CLAUDE_AVAILABLE: env.CLAUDE_AVAILABLE, // Pass Claude availability
+      CLAUDE_PATH: env.CLAUDE_PATH, // Pass Claude path for reference
       PROJECT_ROOT: projectRoot,
       COMPOSE_PROJECT_NAME: process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent'
     };
