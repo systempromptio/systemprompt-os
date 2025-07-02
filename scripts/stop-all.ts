@@ -4,10 +4,13 @@
  * stop-all.ts - Stop all services gracefully
  */
 
-import { spawn } from 'child_process';
+import { spawn, exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,18 +59,61 @@ async function stopDaemon(): Promise<void> {
   const pidFile = path.join(projectRoot, 'daemon', 'logs', 'daemon.pid');
   
   if (fs.existsSync(pidFile)) {
-    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8'));
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
     try {
-      process.kill(pid, 'SIGTERM');
-      log(`✓ Daemon stopped (PID: ${pid})`, colors.green);
-      fs.unlinkSync(pidFile);
+      // Check if this PID is actually our daemon
+      const { stdout } = await execAsync(`ps -p ${pid} -o command=`);
+      const command = stdout.trim();
+      
+      // Verify it's our daemon by checking if it contains our project path
+      if (command && command.includes(`${projectRoot}/daemon/dist/host-bridge-daemon.js`)) {
+        process.kill(pid, 'SIGTERM');
+        log(`✓ Daemon stopped (PID: ${pid})`, colors.green);
+        fs.unlinkSync(pidFile);
+      } else {
+        // PID exists but it's not our daemon
+        fs.unlinkSync(pidFile);
+        log('⚠ Daemon PID file was stale (removed)', colors.yellow);
+        
+        // Try to find any daemon process for this installation
+        await findAndStopDaemon();
+      }
     } catch (e) {
-      // Process doesn't exist, remove stale PID file
+      // Process doesn't exist or we can't check it, remove stale PID file
       fs.unlinkSync(pidFile);
-      log('⚠ Daemon was not running (stale PID file removed)', colors.red);
+      log('⚠ Daemon was not running (stale PID file removed)', colors.yellow);
+      
+      // Try to find any daemon process for this installation
+      await findAndStopDaemon();
     }
   } else {
-    log('⚠ Daemon was not running', colors.red);
+    // No PID file, but check if daemon is running anyway
+    await findAndStopDaemon();
+  }
+}
+
+async function findAndStopDaemon(): Promise<void> {
+  try {
+    // Find any daemon process for this specific installation
+    const { stdout } = await execAsync(
+      `ps aux | grep "node.*${projectRoot}/daemon/dist/host-bridge-daemon.js" | grep -v grep || true`
+    );
+    
+    if (stdout.trim()) {
+      const lines = stdout.trim().split('\n');
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        const pid = parseInt(parts[1]);
+        if (pid) {
+          process.kill(pid, 'SIGTERM');
+          log(`✓ Found and stopped daemon (PID: ${pid})`, colors.green);
+        }
+      }
+    } else {
+      log('⚠ No daemon process found for this installation', colors.yellow);
+    }
+  } catch (e) {
+    log('⚠ Could not check for daemon processes', colors.yellow);
   }
 }
 

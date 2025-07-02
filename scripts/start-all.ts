@@ -13,12 +13,16 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { promisify } from 'util';
 import * as net from 'net';
+import * as dotenv from 'dotenv';
 
 const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+
+// Load environment variables from .env file
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 /**
  * @interface ValidatedEnvironment
@@ -442,12 +446,44 @@ class StartupManager {
     
     if (await this.isPortOpen(parseInt(env.CLAUDE_PROXY_PORT))) {
       this.error(`Port ${env.CLAUDE_PROXY_PORT} is already in use`);
+      
+      // Check if it's our daemon or another process
+      try {
+        const { stdout } = await execAsync(
+          `lsof -i :${env.CLAUDE_PROXY_PORT} -t 2>/dev/null || netstat -tlnp 2>/dev/null | grep :${env.CLAUDE_PROXY_PORT} | awk '{print $7}' | cut -d'/' -f1`
+        );
+        const pid = stdout.trim();
+        
+        if (pid) {
+          const { stdout: cmdOutput } = await execAsync(`ps -p ${pid} -o command= 2>/dev/null || true`);
+          const command = cmdOutput.trim();
+          
+          if (command && command.includes('host-bridge-daemon.js')) {
+            this.info(`  Daemon is already running (PID: ${pid})`);
+            
+            // Check if it's from this installation
+            if (command.includes(projectRoot)) {
+              this.info(`  This is our daemon - run "npm run stop" first`);
+            } else {
+              this.info(`  This is from another installation`);
+              this.info(`  Consider using different ports in .env file`);
+            }
+          } else {
+            this.info(`  Another process is using this port`);
+          }
+        }
+      } catch (e) {
+        // Couldn't determine what's using the port
+        this.info(`  Could not determine what process is using the port`);
+      }
+      
       const pidFile = path.join(projectRoot, 'daemon', 'logs', 'daemon.pid');
       if (fs.existsSync(pidFile)) {
         const pid = fs.readFileSync(pidFile, 'utf-8').trim();
         this.info(`  Found daemon PID file with PID: ${pid}`);
-        this.info(`  Run "npm run stop" to stop existing services`);
       }
+      
+      this.info(`  Run "npm run stop" to stop existing services`);
       allChecksPass = false;
     } else {
       this.success(`Port ${env.CLAUDE_PROXY_PORT} is available`);

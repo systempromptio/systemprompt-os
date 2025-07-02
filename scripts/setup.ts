@@ -7,12 +7,15 @@
  * including environment validation, dependency installation, and project building.
  */
 
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
 import * as readline from 'readline';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -427,6 +430,40 @@ class ProjectSetup {
     }
     
     this.info('\nOptional environment variables:');
+    
+    // Check for port conflicts with other installations
+    const portsToCheck = [
+      { name: 'PORT', default: '3000' },
+      { name: 'CLAUDE_PROXY_PORT', default: '9876' }
+    ];
+    
+    for (const { name, default: defaultValue } of portsToCheck) {
+      const currentValue = envVars[name] || defaultValue;
+      try {
+        const { stdout } = await execAsync(
+          `lsof -i :${currentValue} -t 2>/dev/null || netstat -tlnp 2>/dev/null | grep :${currentValue} 2>/dev/null || true`
+        );
+        if (stdout.trim()) {
+          this.warning(`  ${name}=${currentValue} - Port is already in use!`);
+          const suggestedPort = parseInt(currentValue) + 1;
+          const useAlt = await this.prompt(`    Would you like to use port ${suggestedPort} instead? (y/N): `);
+          if (useAlt.toLowerCase() === 'y') {
+            let envContent = fs.readFileSync(envPath, 'utf-8');
+            const regex = new RegExp(`^${name}=.*$`, 'gm');
+            if (envContent.match(regex)) {
+              envContent = envContent.replace(regex, `${name}=${suggestedPort}`);
+            } else {
+              envContent += `\n${name}=${suggestedPort}\n`;
+            }
+            fs.writeFileSync(envPath, envContent);
+            this.success(`  Updated ${name} to ${suggestedPort}`);
+          }
+        }
+      } catch (e) {
+        // Ignore errors checking ports
+      }
+    }
+    
     for (const { name, default: defaultValue, description } of OPTIONAL_ENV_VARS) {
       const value = envVars[name] || process.env[name];
       
