@@ -9,10 +9,14 @@
 ---
 
 <div align="center">
-  <h3>🎁 This MCP Server is 100% Free and Open Source</h3>
-  <p>Transform your local development machine into a remotely-accessible MCP server that any MCP client can connect to</p>
+  <h3>100% Free and Open Source</h3>
+  <p><strong>We appreciate your support!</strong> If you find this project useful, please consider:</p>
+  <p><strong>Star</strong> this repo • <strong>Share</strong> with your network • <strong>Report issues</strong> • <strong>Contribute</strong> code</p>
+  <p>Every star, share, and contribution helps us improve this tool for the community!</p>
   
-  <h3>📱 Works with systemprompt Mobile Client</h3>
+  <hr>
+  
+  <h3>Works with systemprompt Mobile Client</h3>
   <p>Built for mobile-first workflows but compatible with any MCP client. If you felt like supporting our (very early) Native Mobile MCP client we are designing it to be a first class client for voice interactions with this server.</p>
   <a href="https://apps.apple.com/us/app/systemprompt-mcp-client/id6746670168">
     <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us" alt="Download on App Store" height="50">
@@ -378,6 +382,6 @@ MIT License - see [LICENSE](LICENSE)
 ---
 
 <div align="center">
-  <strong>Built with ❤️ by <a href="https://systemprompt.io">SystemPrompt.io</a></strong><br>
+  <strong>Built with love by <a href="https://systemprompt.io">SystemPrompt.io</a></strong><br>
   <em>AI-Powered Development from Anywhere</em>
 </div>
