@@ -61,7 +61,8 @@ const OPTIONAL_ENV_VARS: EnvVariable[] = [
   { name: 'CLOUDFLARE_TOKEN', description: 'Cloudflare tunnel token for HTTPS' },
   { name: 'PUSH_TOKEN', description: 'Device push token for notifications' },
   { name: 'UID', default: '1000', description: 'User ID for Docker' },
-  { name: 'GID', default: '1000', description: 'Group ID for Docker' }
+  { name: 'GID', default: '1000', description: 'Group ID for Docker' },
+  { name: 'COMPOSE_PROJECT_NAME', default: 'systemprompt-coding-agent', description: 'Docker Compose project name' }
 ];
 
 /**

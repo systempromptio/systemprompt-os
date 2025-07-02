@@ -64,9 +64,21 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
     }
 
     const projectPath = process.env.PROJECT_ROOT || "/workspace";
+    
+    // Limit description to 2555 characters
+    const truncatedDescription = validated.instructions.length > 2555
+      ? validated.instructions.substring(0, 2552) + '...'
+      : validated.instructions;
+    
+    logger.debug("Creating task with description", {
+      originalLength: validated.instructions.length,
+      truncated: validated.instructions.length > 2555,
+      finalLength: truncatedDescription.length,
+    });
+    
     const task = await taskOperations.createTask(
       {
-        description: validated.instructions,
+        description: truncatedDescription,
         tool: tool,
         projectPath,
       },
@@ -199,6 +211,16 @@ async function executeInitialInstructions(
       taskId,
       updateProgress: true,
     });
+    
+    // Debug logging to trace the result structure
+    logger.info("executeInstructions result", {
+      taskId,
+      success: result.success,
+      hasOutput: !!result.output,
+      outputType: typeof result.output,
+      outputLength: result.output?.length || 0,
+      resultKeys: Object.keys(result || {}),
+    });
 
     const durationSeconds = Math.floor(result.duration / 1000);
     await taskOperations.addTaskLog(
@@ -261,7 +283,16 @@ async function executeInitialInstructions(
           sessionId,
         );
       }
-      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.COMPLETED_ACTIVE, sessionId);
+      // Add debug logging to trace output capture
+      logger.info("Updating task to WAITING with output", {
+        taskId,
+        hasOutput: !!result.output,
+        outputLength: result.output?.length || 0,
+      });
+      
+      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.WAITING, sessionId, {
+        result: result.output || null,
+      });
     } else {
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.FAILED, sessionId, {
         error: result.error,

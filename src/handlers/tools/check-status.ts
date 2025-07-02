@@ -86,7 +86,7 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
     const activeTasks = tasks.filter(
       (t: any) => t.status === TASK_STATUS.PENDING || 
                    t.status === TASK_STATUS.IN_PROGRESS ||
-                   t.status === TASK_STATUS.COMPLETED_ACTIVE,
+                   t.status === TASK_STATUS.WAITING,
     );
 
     const sessions = agentOperations.agentManager.getAllSessions();

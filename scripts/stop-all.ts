@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..', '..');
+const projectRoot = path.resolve(__dirname, '..');
 
 const colors = {
   reset: '\x1b[0m',
@@ -28,10 +28,14 @@ async function stopDocker(): Promise<void> {
   log('Stopping Docker services...', colors.blue);
   
   return new Promise((resolve) => {
-    const docker = spawn('docker-compose', ['down'], {
+    const docker = spawn('docker', ['compose', 'down'], {
       cwd: projectRoot,
       stdio: 'inherit',
-      shell: true
+      shell: true,
+      env: {
+        ...process.env,
+        COMPOSE_PROJECT_NAME: process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent'
+      }
     });
     
     docker.on('close', (code: number | null) => {

@@ -15,8 +15,8 @@ export const TASK_STATUS = {
   PENDING: 'pending',
   /** Task is currently being processed */
   IN_PROGRESS: 'in_progress',
-  /** Task completed but session still active for updates */
-  COMPLETED_ACTIVE: 'completed_active',
+  /** Task completed but session still active, waiting for potential updates */
+  WAITING: 'waiting',
   /** Task completed and session terminated */
   COMPLETED: 'completed',
   /** Task execution failed */

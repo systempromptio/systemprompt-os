@@ -130,7 +130,11 @@ export class TaskOperations {
         }
         break;
 
-      case TASK_STATUS.COMPLETED_ACTIVE:
+      case TASK_STATUS.WAITING:
+        // Store the result for waiting tasks
+        if (metadata?.result !== undefined) {
+          updates.result = metadata.result;
+        }
         break;
         
       case TASK_STATUS.COMPLETED:
@@ -176,8 +180,8 @@ export class TaskOperations {
   private isValidStatusTransition(from: TaskStatus, to: TaskStatus): boolean {
     const validTransitions: Record<TaskStatus, TaskStatus[]> = {
       [TASK_STATUS.PENDING]: [TASK_STATUS.IN_PROGRESS, TASK_STATUS.CANCELLED],
-      [TASK_STATUS.IN_PROGRESS]: [TASK_STATUS.COMPLETED_ACTIVE, TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED],
-      [TASK_STATUS.COMPLETED_ACTIVE]: [TASK_STATUS.COMPLETED],
+      [TASK_STATUS.IN_PROGRESS]: [TASK_STATUS.WAITING, TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED],
+      [TASK_STATUS.WAITING]: [TASK_STATUS.COMPLETED],
       [TASK_STATUS.COMPLETED]: [],
       [TASK_STATUS.FAILED]: [],
       [TASK_STATUS.CANCELLED]: [],
@@ -239,8 +243,8 @@ export class TaskOperations {
     const status =
       task.status === TASK_STATUS.COMPLETED
         ? "✅"
-        : task.status === TASK_STATUS.COMPLETED_ACTIVE
-          ? "✅🔄"
+        : task.status === TASK_STATUS.WAITING
+          ? "⏳✅"
           : task.status === TASK_STATUS.FAILED
             ? "❌"
             : task.status === TASK_STATUS.CANCELLED

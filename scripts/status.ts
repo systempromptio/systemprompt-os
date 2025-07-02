@@ -104,7 +104,7 @@ class SystemStatus {
       execSync('docker info', { stdio: 'pipe' });
       
       // Check our containers
-      const containers = execSync('docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep systemprompt || true', { 
+      const containers = execSync('docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(mcp-server|cloudflared)" || true', { 
         encoding: 'utf-8' 
       }).trim();
       
@@ -139,12 +139,31 @@ class SystemStatus {
       
       // Check Docker logs for recent activity
       try {
-        const recentLogs = execSync('docker logs systemprompt-coding-agent-mcp-server-1 --tail 1 2>&1', {
-          encoding: 'utf-8'
-        }).trim();
+        const projectName = process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent';
+        const expectedContainerName = `${projectName}-mcp-server-1`;
         
-        if (recentLogs) {
-          this.info('Recent Docker log: ' + recentLogs.substring(0, 80) + '...');
+        // First try the expected name, then fall back to grep
+        let containerName = '';
+        try {
+          execSync(`docker ps --format "{{.Names}}" | grep -q "^${expectedContainerName}$"`, {
+            encoding: 'utf-8'
+          });
+          containerName = expectedContainerName;
+        } catch {
+          // Fall back to grep for any mcp-server container
+          containerName = execSync('docker ps --format "{{.Names}}" | grep mcp-server | head -1', {
+            encoding: 'utf-8'
+          }).trim();
+        }
+        
+        if (containerName) {
+          const recentLogs = execSync(`docker logs ${containerName} --tail 1 2>&1`, {
+            encoding: 'utf-8'
+          }).trim();
+        
+          if (recentLogs) {
+            this.info('Recent Docker log: ' + recentLogs.substring(0, 80) + '...');
+          }
         }
       } catch {
         // Ignore log errors

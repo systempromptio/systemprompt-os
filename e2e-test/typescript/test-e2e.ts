@@ -391,7 +391,7 @@ async function testCreateTaskErrorHandling(client: Client, _reporter: TestReport
 /**
  * Test that intentionally fails
  */
-async function testIntentionalFailure(client: Client, reporter: TestReporter): Promise<void> {
+async function testIntentionalFailure(_client: Client, _reporter: TestReporter): Promise<void> {
   log.info('Starting test that should fail...');
   
   // This test will always fail

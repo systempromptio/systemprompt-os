@@ -101,7 +101,7 @@ export interface TaskLogEntry {
 export const TaskStatusSchema = z.enum([
   "pending",
   "in_progress",
-  "completed_active", // Task completed but session still active for updates
+  "waiting",          // Task completed but session still active for updates
   "completed",        // Task completed and session terminated
   "failed",
   "cancelled",
@@ -229,7 +229,7 @@ export interface Task {
  */
 export const TaskSchema = z.object({
   id: z.string(),
-  description: z.string().min(1).max(5000),
+  description: z.string().min(1).max(2555),
   status: TaskStatusSchema,
   tool: AIToolSchema,
   created_at: z.string(),

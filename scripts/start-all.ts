@@ -496,7 +496,8 @@ class StartupManager {
       HOST_FILE_ROOT: projectRoot,
       DAEMON_HOST: 'host.docker.internal',
       DAEMON_PORT: env.CLAUDE_PROXY_PORT,
-      PROJECT_ROOT: projectRoot
+      PROJECT_ROOT: projectRoot,
+      COMPOSE_PROJECT_NAME: process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent'
     };
     
     try {
