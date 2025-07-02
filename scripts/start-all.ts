@@ -17,7 +17,7 @@ const execAsync = promisify(exec);
 // Get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '..', '..');
+const projectRoot = path.resolve(__dirname, '..');
 
 // Types
 interface ValidatedEnvironment {
