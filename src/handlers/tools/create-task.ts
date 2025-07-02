@@ -290,8 +290,22 @@ async function executeInitialInstructions(
         outputLength: result.output?.length || 0,
       });
       
+      // Parse the result if it's JSON
+      let parsedResult = result.output || null;
+      if (parsedResult && typeof parsedResult === 'string') {
+        try {
+          const trimmed = parsedResult.trim();
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            parsedResult = JSON.parse(trimmed);
+          }
+        } catch (e) {
+          // Keep as string if parsing fails
+          logger.debug('Result is not valid JSON, keeping as string', { error: e });
+        }
+      }
+      
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.WAITING, sessionId, {
-        result: result.output || null,
+        result: parsedResult,
       });
     } else {
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.FAILED, sessionId, {

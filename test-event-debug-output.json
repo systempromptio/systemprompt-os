@@ -1,0 +1,71 @@
+{
+  "result": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11047,\"duration_api_ms\":21639,\"num_turns\":7,\"result\":\"The file already exists with the exact content you requested: \\\"Hello from Claude!\\\"\",\"session_id\":\"96fdf092-14b4-4805-9915-780c24178205\",\"total_cost_usd\":0.21018634999999997,\"usage\":{\"input_tokens\":19,\"cache_creation_input_tokens\":6373,\"cache_read_input_tokens\":42630,\"output_tokens\":215,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}\n",
+  "events": [
+    {
+      "type": "process:start",
+      "timestamp": "2025-07-02T08:38:48.052Z",
+      "sessionId": "test-session-123",
+      "taskId": "test-task-456",
+      "content": "Starting Claude process (PID: 72807)",
+      "metadata": {
+        "pid": 72807,
+        "command": "Create a simple hello.txt file with the content \"Hello from Claude!\"",
+        "workingDirectory": "/var/www/html/systemprompt-coding-agent",
+        "environment": {}
+      }
+    },
+    {
+      "type": "stream",
+      "timestamp": "2025-07-02T08:38:59.894Z",
+      "sessionId": "test-session-123",
+      "taskId": "test-task-456",
+      "content": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11047,\"duration_api_ms\":21639,\"num_turns\":7,\"result\":\"The file already exists with the exact content you requested: \\\"Hello from Claude!\\\"\",\"session_id\":\"96fdf092-14b4-4805-9915-780c24178205\",\"total_cost_usd\":0.21018634999999997,\"usage\":{\"input_tokens\":19,\"cache_creation_input_tokens\":6373,\"cache_read_input_tokens\":42630,\"output_tokens\":215,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}\n",
+      "metadata": {
+        "streamType": "stdout"
+      }
+    },
+    {
+      "type": "result",
+      "timestamp": "2025-07-02T08:38:59.894Z",
+      "sessionId": "test-session-123",
+      "taskId": "test-task-456",
+      "content": "The file already exists with the exact content you requested: \"Hello from Claude!\"",
+      "metadata": {
+        "success": true,
+        "duration": 11047,
+        "cost": 0.21018634999999997,
+        "usage": {
+          "inputTokens": 19,
+          "outputTokens": 215,
+          "cacheTokens": 49003
+        }
+      }
+    },
+    {
+      "type": "process:end",
+      "timestamp": "2025-07-02T08:38:59.901Z",
+      "sessionId": "test-session-123",
+      "taskId": "test-task-456",
+      "content": "Process ended (exit: 0, 11852ms)",
+      "metadata": {
+        "exitCode": 0,
+        "signal": null,
+        "duration": 11852,
+        "output": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":11047,\"duration_api_ms\":21639,\"num_turns\":7,\"result\":\"The file already exists with the exact content you requested: \\\"Hello from Claude!\\\"\",\"session_id\":\"96fdf092-14b4-4805-9915-780c24178205\",\"total_cost_usd\":0.21018634999999997,\"usage\":{\"input_tokens\":19,\"cache_creation_input_tokens\":6373,\"cache_read_input_tokens\":42630,\"output_tokens\":215,\"server_tool_use\":{\"web_search_requests\":0},\"service_tier\":\"standard\"}}\n"
+      }
+    }
+  ],
+  "summary": {
+    "totalEvents": 4,
+    "eventTypes": [
+      "process:start",
+      "stream",
+      "result",
+      "process:end"
+    ],
+    "hasProcessStart": true,
+    "hasProcessEnd": true,
+    "toolEventCount": 0,
+    "messageEventCount": 0
+  }
+}

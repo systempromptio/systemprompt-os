@@ -33,6 +33,7 @@ import { TaskStore } from "../services/task-store.js";
 import { logger } from "../utils/logger.js";
 import { matchResourceTemplate } from "./resource-templates-handler.js";
 import { createTaskResourceContent, type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
+import { enhanceTask } from "../types/enhanced-task.js";
 
 /**
  * Lists all available MCP resources including static and dynamic task resources
@@ -165,13 +166,15 @@ export async function handleResourceCall(
         throw new Error(`Task not found: ${taskId}`);
       }
 
+      // Enhance the task to parse stringified JSON and extract metrics
+      const enhancedTask = enhanceTask(task);
+      
       const { AgentManager } = await import("../services/agent-manager/index.js");
       const agentManager = AgentManager.getInstance();
       const sessions = agentManager.getAllSessions();
       const taskSession = sessions.find(s => s.taskId === taskId);
       
       let session: TaskSession | undefined;
-      let metadata: TaskMetadata | undefined;
       
       if (taskSession) {
         session = {
@@ -181,24 +184,43 @@ export async function handleResourceCall(
         };
       }
       
-      if (task.result && typeof task.result === 'object' && 'duration_ms' in task.result) {
-        const result = task.result as any;
-        metadata = {
-          duration_ms: result.duration_ms,
-          cost_usd: result.total_cost_usd,
-          tokens: result.usage ? {
-            input: result.usage.input_tokens || 0,
-            output: result.usage.output_tokens || 0,
-            cached: (result.usage.cache_creation_input_tokens || 0) + (result.usage.cache_read_input_tokens || 0)
-          } : undefined
-        };
-      }
+      // Get metadata from enhanced task
+      const metadata: TaskMetadata | undefined = enhancedTask.claudeMetrics ? {
+        duration_ms: enhancedTask.claudeMetrics.duration,
+        cost_usd: enhancedTask.claudeMetrics.cost,
+        tokens: {
+          input: enhancedTask.claudeMetrics.usage.inputTokens,
+          output: enhancedTask.claudeMetrics.usage.outputTokens,
+          cached: enhancedTask.claudeMetrics.usage.cacheCreationTokens + enhancedTask.claudeMetrics.usage.cacheReadTokens
+        }
+      } : undefined;
 
-      const processResource: TaskResourceContent = createTaskResourceContent(
-        task,
+      // Create resource content with parsed result
+      const processResource: TaskResourceContent & {
+        logs?: typeof enhancedTask.logs;
+        tool_invocations?: typeof enhancedTask.toolInvocations;
+        tool_usage_summary?: typeof enhancedTask.toolUsageSummary;
+        files_affected?: typeof enhancedTask.filesAffected;
+        commands_executed?: typeof enhancedTask.commandsExecuted;
+      } = {
+        id: enhancedTask.id,
+        description: enhancedTask.description,
+        tool: enhancedTask.tool,
+        status: enhancedTask.status,
+        created_at: enhancedTask.created_at,
+        updated_at: enhancedTask.updated_at,
         session,
-        metadata
-      );
+        result: enhancedTask.result, // This is now properly parsed
+        error: enhancedTask.error,
+        metadata,
+        log_count: enhancedTask.logs.length,
+        // Include full enhanced data
+        logs: enhancedTask.logs,
+        tool_invocations: enhancedTask.toolInvocations,
+        tool_usage_summary: enhancedTask.toolUsageSummary,
+        files_affected: enhancedTask.filesAffected,
+        commands_executed: enhancedTask.commandsExecuted
+      };
 
       return {
         contents: [
