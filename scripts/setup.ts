@@ -177,62 +177,32 @@ class ProjectSetup {
   }
   
   async checkCloudflared(): Promise<boolean> {
-    this.header('Checking Cloudflare Tunnel (cloudflared)');
+    // Load environment variables to check if cloudflare is configured
+    const envPath = path.join(projectRoot, '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      const hasCloudflareToken = envContent.includes('CLOUDFLARE_TOKEN=') && 
+                                 !envContent.includes('CLOUDFLARE_TOKEN=your_cloudflare_tunnel_token_here');
+      
+      if (!hasCloudflareToken) {
+        // Cloudflare not configured, skip check
+        return false;
+      }
+    }
+    
+    this.header('Checking Cloudflare Tunnel (cloudflared) - Optional');
     
     const cloudflaredPath = this.checkCommand('cloudflared');
     
     if (!cloudflaredPath) {
-      this.info('Cloudflared not found. Installing...');
-      
-      // Detect OS and install cloudflared
-      const platform = process.platform;
-      const arch = process.arch;
-      
-      try {
-        if (platform === 'darwin') {
-          // macOS
-          if (this.checkCommand('brew')) {
-            this.execCommand('brew install cloudflared');
-          } else {
-            this.error('Please install Homebrew first or manually install cloudflared');
-            return false;
-          }
-        } else if (platform === 'linux') {
-          // Linux
-          const downloadUrl = arch === 'arm64' 
-            ? 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64'
-            : 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64';
-          
-          // Try without sudo first (for environments where user has write access)
-          if (!this.execCommand(`wget -q ${downloadUrl} -O /usr/local/bin/cloudflared 2>/dev/null`)) {
-            // If that fails, try with sudo
-            this.info('Attempting installation with sudo...');
-            this.execCommand(`sudo wget -q ${downloadUrl} -O /usr/local/bin/cloudflared`);
-            this.execCommand('sudo chmod +x /usr/local/bin/cloudflared');
-          } else {
-            this.execCommand('chmod +x /usr/local/bin/cloudflared');
-          }
-        } else if (platform === 'win32') {
-          this.error('Windows detected. Please install cloudflared manually from https://github.com/cloudflare/cloudflared/releases');
-          return false;
-        }
-        
-        // Verify installation
-        if (this.checkCommand('cloudflared')) {
-          this.success('Cloudflared installed successfully');
-          return true;
-        }
-      } catch (error) {
-        this.warning('Failed to install cloudflared automatically. Please install manually.');
-        this.info('Visit: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/');
-        return false;
-      }
+      this.info('Cloudflared not found (optional)');
+      this.info('If you want to use Cloudflare tunnels, install cloudflared manually:');
+      this.info('Visit: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/');
+      return false;
     } else {
       this.success(`Cloudflared found at: ${cloudflaredPath}`);
       return true;
     }
-    
-    return false;
   }
   
   async createDirectories(): Promise<void> {
@@ -249,54 +219,8 @@ class ProjectSetup {
   }
   
   async installHooks(): Promise<boolean> {
-    this.header('Installing Claude hooks for clean logging');
-    
-    // Check if Claude settings directory exists
-    const homeDir = process.platform === 'win32' 
-      ? process.env.USERPROFILE || process.env.HOME 
-      : process.env.HOME;
-    
-    if (!homeDir) {
-      this.error('Could not determine home directory');
-      return false;
-    }
-    
-    const claudeConfigDir = path.join(homeDir, '.config', 'claude');
-    const claudeSettingsPath = path.join(claudeConfigDir, 'settings.json');
-    
-    // Check if Claude config directory exists
-    if (!fs.existsSync(claudeConfigDir)) {
-      this.info(`Claude config directory not found at: ${claudeConfigDir}`);
-      this.info('Creating Claude config directory...');
-      try {
-        fs.mkdirSync(claudeConfigDir, { recursive: true });
-        this.success('Claude config directory created');
-      } catch (err) {
-        this.error(`Failed to create Claude config directory: ${err}`);
-        return false;
-      }
-    }
-    
-    // Check if settings.json exists
-    if (fs.existsSync(claudeSettingsPath)) {
-      this.info(`Found existing Claude settings at: ${claudeSettingsPath}`);
-    } else {
-      this.info('No existing Claude settings found');
-    }
-    
-    try {
-      execSync('npm run install-hooks', {
-        cwd: projectRoot,
-        stdio: 'inherit'
-      });
-      this.success('Claude hooks installed successfully');
-      this.success(`Hooks configured at: ${claudeSettingsPath}`);
-      return true;
-    } catch {
-      this.warning('Failed to install Claude hooks');
-      this.info('You can install hooks manually with: npm run install-hooks');
-      return false;
-    }
+    // Hooks are no longer used - removed
+    return true;
   }
   
   async installDependencies(): Promise<boolean> {
@@ -489,8 +413,7 @@ class ProjectSetup {
       process.exit(1);
     }
     
-    // Install hooks
-    await this.installHooks();
+    // Hooks are no longer used - removed
     
     // Final summary
     this.log('\n✨ Setup completed successfully!', colors.green);
@@ -518,7 +441,11 @@ class ProjectSetup {
     }
     
     if (cloudflaredAvailable) {
-      this.success('\n✨ Cloudflare tunnel is available! Use "npm run tunnel" to expose your server.');
+      this.info('\n✨ Cloudflare tunnel is available! Use "npm run tunnel" to expose your server.');
+    } else {
+      this.info('\nCloudflare tunnel not configured. To use tunnels:');
+      this.info('1. Set CLOUDFLARE_TOKEN in .env');
+      this.info('2. Install cloudflared from https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/');
     }
     
     this.info('\nFor more information, see README.md');
