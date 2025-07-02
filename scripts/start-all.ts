@@ -499,9 +499,53 @@ class StartupManager {
       await execAsync('docker info', { timeout: 5000 });
       this.success('Docker daemon is running');
     } catch {
-      this.error('Docker daemon is not running');
-      this.info('  Start Docker Desktop or run: sudo systemctl start docker');
-      allChecksPass = false;
+      this.warning('Docker daemon is not running');
+      this.info('Attempting to start Docker Desktop...');
+      
+      // Try to start Docker based on platform
+      const platform = process.platform;
+      try {
+        if (platform === 'darwin') {
+          // macOS
+          await execAsync('open -a Docker');
+          this.info('Starting Docker Desktop on macOS...');
+        } else if (platform === 'win32') {
+          // Windows
+          await execAsync('start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
+          this.info('Starting Docker Desktop on Windows...');
+        } else {
+          // Linux
+          await execAsync('sudo systemctl start docker');
+          this.info('Starting Docker service on Linux...');
+        }
+        
+        // Wait for Docker to start (up to 30 seconds)
+        this.info('Waiting for Docker daemon to start...');
+        let dockerStarted = false;
+        for (let i = 0; i < 30; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          try {
+            await execAsync('docker info', { timeout: 2000 });
+            dockerStarted = true;
+            this.success('Docker daemon started successfully!');
+            break;
+          } catch {
+            if (i % 5 === 0) {
+              this.info(`Still waiting for Docker... (${i}s)`);
+            }
+          }
+        }
+        
+        if (!dockerStarted) {
+          this.error('Docker failed to start after 30 seconds');
+          this.info('Please start Docker Desktop manually and try again');
+          allChecksPass = false;
+        }
+      } catch (startError) {
+        this.error('Failed to start Docker automatically');
+        this.info('Please start Docker Desktop manually and try again');
+        allChecksPass = false;
+      }
     }
     
     if (env.CLAUDE_AVAILABLE === 'false') {

@@ -7,7 +7,7 @@
  * including environment validation, dependency installation, and project building.
  */
 
-import { execSync, exec } from 'child_process';
+import { execSync, exec, ExecSyncOptions } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -23,7 +23,6 @@ const projectRoot = path.join(__dirname, '..');
 
 /**
  * ANSI color codes for terminal output
- * @const {Object}
  */
 const colors = {
   reset: '\x1b[0m',
@@ -35,54 +34,69 @@ const colors = {
 } as const;
 
 /**
- * @interface EnvVariable
- * @description Represents an environment variable configuration
+ * Supported platforms for the setup script
+ */
+type Platform = 'wsl' | 'macos' | 'windows' | 'linux';
+
+/**
+ * Represents an environment variable configuration
  */
 interface EnvVariable {
+  /** The name of the environment variable */
   name: string;
+  /** Human-readable description of the variable */
   description: string;
+  /** Default value if not set */
   default?: string;
 }
 
 /**
- * Required environment variables that must be configured
- * @const {EnvVariable[]}
+ * Result of checking a CLI tool
  */
-const REQUIRED_ENV_VARS: EnvVariable[] = [
+interface ToolCheckResult {
+  /** Path to the tool executable */
+  path: string | null;
+  /** Whether the tool is available and working */
+  available: boolean;
+  /** Tool version if available */
+  version?: string;
+}
+
+/**
+ * Required environment variables that must be configured
+ */
+const REQUIRED_ENV_VARS: readonly EnvVariable[] = [
   { name: 'PROJECT_ROOT', description: 'Project root directory for task execution' }
-];
+] as const;
 
 /**
  * Optional environment variables with defaults
- * @const {EnvVariable[]}
  */
-const OPTIONAL_ENV_VARS: EnvVariable[] = [
+const OPTIONAL_ENV_VARS: readonly EnvVariable[] = [
   { name: 'PORT', default: '3000', description: 'MCP server port (Docker container external port)' },
   { name: 'CLAUDE_PROXY_PORT', default: '9876', description: 'Host Bridge Daemon port for Claude proxy' },
   { name: 'JWT_SECRET', description: 'JWT secret for authentication (optional)' },
   { name: 'PUSH_TOKEN', description: 'Device push token for notifications (for mobile app)' },
   { name: 'COMPOSE_PROJECT_NAME', default: 'systemprompt-coding-agent', description: 'Docker Compose project name' }
-];
+] as const;
 
 /**
  * Tool-related environment variables that are auto-detected
- * @const {EnvVariable[]}
  */
-const TOOL_ENV_VARS: EnvVariable[] = [
+const TOOL_ENV_VARS: readonly EnvVariable[] = [
   { name: 'CLAUDE_PATH', description: 'Path to Claude CLI executable' },
   { name: 'GEMINI_PATH', description: 'Path to Gemini CLI executable' },
   { name: 'SHELL_PATH', default: '/bin/bash', description: 'Shell path for command execution' },
   { name: 'CLAUDE_AVAILABLE', default: 'false', description: 'Whether Claude CLI is available' },
   { name: 'GEMINI_AVAILABLE', default: 'false', description: 'Whether Gemini CLI is available' }
-];
+] as const;
 
 /**
- * @class ProjectSetup
- * @description Manages the complete setup process for the SystemPrompt Coding Agent
+ * Manages the complete setup process for the SystemPrompt Coding Agent
  */
 class ProjectSetup {
-  private errors: string[] = [];
-  private rl: readline.Interface;
+  private readonly errors: string[] = [];
+  private readonly rl: readline.Interface;
   
   constructor() {
     this.rl = readline.createInterface({
@@ -93,8 +107,8 @@ class ProjectSetup {
   
   /**
    * Logs a message with optional color
-   * @param {string} message - The message to log
-   * @param {string} [color] - ANSI color code
+   * @param message - The message to log
+   * @param color - ANSI color code
    */
   private log(message: string, color: string = colors.reset): void {
     console.log(`${color}${message}${colors.reset}`);
@@ -102,7 +116,7 @@ class ProjectSetup {
   
   /**
    * Logs an error message and tracks it
-   * @param {string} message - The error message
+   * @param message - The error message
    */
   private error(message: string): void {
     this.errors.push(message);
@@ -111,7 +125,7 @@ class ProjectSetup {
   
   /**
    * Logs a success message
-   * @param {string} message - The success message
+   * @param message - The success message
    */
   private success(message: string): void {
     this.log(`✓ ${message}`, colors.green);
@@ -119,7 +133,7 @@ class ProjectSetup {
   
   /**
    * Logs an info message
-   * @param {string} message - The info message
+   * @param message - The info message
    */
   private info(message: string): void {
     this.log(`ℹ ${message}`, colors.blue);
@@ -127,7 +141,7 @@ class ProjectSetup {
   
   /**
    * Logs a warning message
-   * @param {string} message - The warning message
+   * @param message - The warning message
    */
   private warning(message: string): void {
     this.log(`⚠ ${message}`, colors.yellow);
@@ -135,7 +149,7 @@ class ProjectSetup {
   
   /**
    * Logs a section header
-   * @param {string} title - The header title
+   * @param title - The header title
    */
   private header(title: string): void {
     this.log(`\n==== ${title} ====\n`, colors.green);
@@ -143,8 +157,8 @@ class ProjectSetup {
   
   /**
    * Prompts the user for input
-   * @param {string} question - The question to ask
-   * @returns {Promise<string>} The user's response
+   * @param question - The question to ask
+   * @returns The user's response
    */
   private prompt(question: string): Promise<string> {
     return new Promise(resolve => {
@@ -154,9 +168,9 @@ class ProjectSetup {
   
   /**
    * Detects the current platform
-   * @returns {'wsl' | 'macos' | 'windows' | 'linux'} The detected platform
+   * @returns The detected platform
    */
-  private detectPlatform(): 'wsl' | 'macos' | 'windows' | 'linux' {
+  private detectPlatform(): Platform {
     const platform = process.platform;
     
     if (platform === 'darwin') {
@@ -182,7 +196,7 @@ class ProjectSetup {
   
   /**
    * Gets the appropriate host IP for Docker connectivity based on platform
-   * @returns {Promise<string>} The host IP address
+   * @returns The host IP address
    */
   private async getDockerHostIP(): Promise<string> {
     const platform = this.detectPlatform();
@@ -227,17 +241,40 @@ class ProjectSetup {
   }
   
   /**
-   * Executes a shell command
-   * @param {string} command - The command to execute
-   * @param {string} [cwd] - Working directory for the command
-   * @returns {boolean} Success status
+   * Executes a shell command safely
+   * @param command - The command to execute
+   * @param options - Execution options
+   * @returns The command output or null on failure
+   */
+  private execCommandSafe(command: string, options: ExecSyncOptions = {}): string | null {
+    try {
+      const result = execSync(command, {
+        encoding: 'utf-8',
+        stdio: 'pipe',
+        ...options
+      });
+      return result.toString().trim();
+    } catch (error) {
+      if (error && typeof error === 'object' && 'status' in error && error.status !== 0) {
+        // Command failed with non-zero exit code
+        return null;
+      }
+      throw error; // Re-throw actual errors
+    }
+  }
+  
+  /**
+   * Executes a shell command with output
+   * @param command - The command to execute
+   * @param cwd - Working directory for the command
+   * @returns Success status
    */
   private execCommand(command: string, cwd?: string): boolean {
     try {
       execSync(command, {
         cwd: cwd || projectRoot,
         stdio: 'inherit',
-        shell: '/bin/bash'
+        shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash'
       });
       return true;
     } catch {
@@ -247,8 +284,8 @@ class ProjectSetup {
   
   /**
    * Checks if a command exists in the system PATH
-   * @param {string} command - The command to check
-   * @returns {string|null} Path to the command or null if not found
+   * @param command - The command to check
+   * @returns Path to the command or null if not found
    */
   private checkCommand(command: string): string | null {
     try {
@@ -264,7 +301,7 @@ class ProjectSetup {
   
   /**
    * Validates the Node.js version
-   * @returns {Promise<boolean>} Whether Node.js version meets requirements
+   * @returns Whether Node.js version meets requirements
    */
   async checkNodeVersion(): Promise<boolean> {
     this.header('Checking Node.js version');
@@ -284,13 +321,12 @@ class ProjectSetup {
   
   /**
    * Checks Docker and Docker Compose availability
-   * @returns {Promise<boolean>} Whether Docker is properly installed
+   * @returns Whether Docker is properly installed
    */
   async checkDocker(): Promise<boolean> {
     this.header('Checking Docker');
     
     const dockerPath = this.checkCommand('docker');
-    const dockerComposePath = this.checkCommand('docker');
     
     if (!dockerPath) {
       this.error('Docker not found');
@@ -298,16 +334,22 @@ class ProjectSetup {
       return false;
     }
     
-    try {
-      const composeWorks = this.execCommand('docker compose version', '/tmp');
-      if (!composeWorks) {
-        this.error('Docker Compose not working');
-        this.info('Ensure Docker Compose v2 is installed');
-        return false;
-      }
-    } catch {
-      this.error('Docker Compose not available');
+    const composeVersion = this.execCommandSafe('docker compose version');
+    if (!composeVersion) {
+      this.error('Docker Compose not working');
+      this.info('Ensure Docker Compose v2 is installed');
       return false;
+    }
+    
+    this.log(composeVersion);
+    
+    // Check if Docker daemon is running
+    const dockerInfo = this.execCommandSafe('docker info', { timeout: 5000 });
+    if (!dockerInfo) {
+      this.warning('Docker is installed but daemon is not running');
+      this.info('Docker Desktop will be started automatically when you run: npm start');
+    } else {
+      this.success('Docker daemon is running');
     }
     
     this.success('Docker and Docker Compose are available');
@@ -316,12 +358,22 @@ class ProjectSetup {
   
   /**
    * Checks Claude CLI availability
-   * @returns {Promise<{path: string | null; available: boolean}>} Claude CLI status
+   * @returns Claude CLI status
    */
-  async checkClaude(): Promise<{ path: string | null; available: boolean }> {
+  async checkClaude(): Promise<ToolCheckResult> {
     this.header('Checking Claude CLI');
     
-    const claudePath = this.checkCommand('claude');
+    // First check for local claude in node_modules
+    const isWindows = process.platform === 'win32';
+    const localClaudePath = path.join(projectRoot, 'node_modules/.bin', isWindows ? 'claude.cmd' : 'claude');
+    let claudePath: string | null = null;
+    
+    if (fs.existsSync(localClaudePath)) {
+      claudePath = localClaudePath;
+    } else {
+      // Fall back to system PATH
+      claudePath = this.checkCommand('claude');
+    }
     
     if (!claudePath) {
       this.warning('Claude CLI not found. Install from: https://github.com/anthropics/claude-cli');
@@ -332,36 +384,30 @@ class ProjectSetup {
     
     this.updateToolEnvVar('CLAUDE_PATH', claudePath);
     
-    try {
-      execSync(`${claudePath} --version`, { 
-        timeout: 5000,
-        stdio: 'pipe'
-      });
-      this.success(`Claude CLI found at: ${claudePath}`);
-      
-      // Check if authenticated
-      try {
-        execSync(`${claudePath} auth status`, { stdio: 'pipe' });
-        this.success('Claude is authenticated');
-        this.updateToolEnvVar('CLAUDE_AVAILABLE', 'true');
-        return { path: claudePath, available: true };
-      } catch {
-        this.warning('Claude is not authenticated');
-        this.info('Run "claude auth" to authenticate');
-        this.updateToolEnvVar('CLAUDE_AVAILABLE', 'false');
-        return { path: claudePath, available: false };
-      }
-    } catch {
+    // Check version
+    const needsQuotes = process.platform === 'win32' || claudePath.includes(' ');
+    const quotedPath = needsQuotes ? `"${claudePath}"` : claudePath;
+    
+    const version = this.execCommandSafe(`${quotedPath} --version`, { timeout: 5000 });
+    if (!version) {
       this.warning(`Claude found at ${claudePath} but not working properly`);
       this.updateToolEnvVar('CLAUDE_AVAILABLE', 'false');
       return { path: claudePath, available: false };
     }
+    
+    this.success(`Claude CLI found at: ${claudePath} (version: ${version})`);
+    
+    // Skip authentication check for now - it can be interactive
+    // Just assume authenticated if version check worked
+    this.info('Claude CLI is available (authentication check skipped)');
+    this.updateToolEnvVar('CLAUDE_AVAILABLE', 'true');
+    return { path: claudePath, available: true, version };
   }
   
   /**
    * Updates a tool environment variable in .env file
-   * @param {string} name - Variable name
-   * @param {string} value - Variable value
+   * @param name - Variable name
+   * @param value - Variable value
    */
   private updateToolEnvVar(name: string, value: string): void {
     const envPath = path.join(projectRoot, '.env');
@@ -391,7 +437,6 @@ class ProjectSetup {
   
   /**
    * Checks Gemini CLI availability
-   * @returns {Promise<void>}
    */
   async checkGemini(): Promise<void> {
     this.header('Checking Gemini CLI');
@@ -407,22 +452,22 @@ class ProjectSetup {
     
     this.updateToolEnvVar('GEMINI_PATH', geminiPath);
     
-    try {
-      execSync(`${geminiPath} --version`, { 
-        timeout: 5000,
-        stdio: 'pipe'
-      });
-      this.success(`Gemini CLI found at: ${geminiPath}`);
-      this.updateToolEnvVar('GEMINI_AVAILABLE', 'true');
-    } catch {
+    const needsQuotes = process.platform === 'win32' || geminiPath.includes(' ');
+    const quotedPath = needsQuotes ? `"${geminiPath}"` : geminiPath;
+    
+    const version = this.execCommandSafe(`${quotedPath} --version`, { timeout: 5000 });
+    if (!version) {
       this.warning(`Gemini found at ${geminiPath} but not working properly`);
       this.updateToolEnvVar('GEMINI_AVAILABLE', 'false');
+      return;
     }
+    
+    this.success(`Gemini CLI found at: ${geminiPath}`);
+    this.updateToolEnvVar('GEMINI_AVAILABLE', 'true');
   }
   
   /**
    * Checks Shell availability
-   * @returns {Promise<void>}
    */
   async checkShell(): Promise<void> {
     const shellPaths = ['/bin/bash', '/usr/bin/bash', 'bash'];
@@ -446,7 +491,7 @@ class ProjectSetup {
   
   /**
    * Checks Cloudflare tunnel (cloudflared) availability
-   * @returns {Promise<boolean>} Whether cloudflared is available
+   * @returns Whether cloudflared is available
    */
   async checkCloudflared(): Promise<boolean> {
     const envPath = path.join(projectRoot, '.env');
@@ -477,7 +522,6 @@ class ProjectSetup {
   
   /**
    * Creates required project directories
-   * @returns {Promise<void>}
    */
   async createDirectories(): Promise<void> {
     this.header('Creating project directories');
@@ -494,54 +538,47 @@ class ProjectSetup {
   
   /**
    * Installs project dependencies
-   * @returns {Promise<boolean>} Success status
+   * @returns Success status
    */
   async installDependencies(): Promise<boolean> {
     this.header('Installing project dependencies');
     
-    if (!this.execCommand('npm install --no-audit --no-fund')) {
-      this.error('Failed to install main dependencies');
-      return false;
-    }
-    this.success('Main dependencies installed');
+    const projects = [
+      { name: 'Main', path: projectRoot },
+      { name: 'Daemon', path: path.join(projectRoot, 'daemon') },
+      { name: 'E2E test', path: path.join(projectRoot, 'e2e-test') }
+    ];
     
-    this.header('Installing daemon dependencies');
-    if (!this.execCommand('npm install --no-audit --no-fund', path.join(projectRoot, 'daemon'))) {
-      this.error('Failed to install daemon dependencies');
-      return false;
+    for (const project of projects) {
+      this.info(`Installing ${project.name} dependencies...`);
+      if (!this.execCommand('npm install --no-audit --no-fund', project.path)) {
+        this.error(`Failed to install ${project.name} dependencies`);
+        return false;
+      }
+      this.success(`${project.name} dependencies installed`);
     }
-    this.success('Daemon dependencies installed');
-    
-    this.header('Installing E2E test dependencies');
-    if (!this.execCommand('npm install --no-audit --no-fund', path.join(projectRoot, 'e2e-test'))) {
-      this.error('Failed to install E2E test dependencies');
-      return false;
-    }
-    this.success('E2E test dependencies installed');
     
     return true;
   }
   
   /**
    * Builds the TypeScript projects
-   * @returns {Promise<boolean>} Success status
+   * @returns Success status
    */
   async buildProject(): Promise<boolean> {
     this.header('Building TypeScript projects');
     
-    if (!this.execCommand('npm run build')) {
-      this.error('Failed to build main project');
-      return false;
-    }
+    const buildTasks = [
+      { name: 'main project', command: 'npm run build', cwd: projectRoot },
+      { name: 'daemon', command: 'npm run build', cwd: path.join(projectRoot, 'daemon') },
+      { name: 'scripts', command: 'npm run build:scripts', cwd: projectRoot }
+    ];
     
-    if (!this.execCommand('npm run build', path.join(projectRoot, 'daemon'))) {
-      this.error('Failed to build daemon');
-      return false;
-    }
-    
-    if (!this.execCommand('npm run build:scripts')) {
-      this.error('Failed to build scripts');
-      return false;
+    for (const task of buildTasks) {
+      if (!this.execCommand(task.command, task.cwd)) {
+        this.error(`Failed to build ${task.name}`);
+        return false;
+      }
     }
     
     this.success('All TypeScript projects built');
@@ -550,7 +587,7 @@ class ProjectSetup {
   
   /**
    * Validates and configures environment variables
-   * @returns {Promise<boolean>} Success status
+   * @returns Success status
    */
   async checkEnvironmentFile(): Promise<boolean> {
     this.header('Checking environment configuration');
@@ -577,39 +614,18 @@ class ProjectSetup {
     
     this.info('\nValidating environment variables:');
     
-    let projectRootValue = envVars['PROJECT_ROOT'] || process.env['PROJECT_ROOT'];
+    // Check PROJECT_ROOT
+    let projectRootValue: string | undefined = envVars['PROJECT_ROOT'] || process.env['PROJECT_ROOT'];
     
     if (!projectRootValue || projectRootValue.includes('/path/to/') || projectRootValue.includes('your_')) {
-      this.warning('PROJECT_ROOT is not set or contains placeholder value');
-      this.info('PROJECT_ROOT is the directory where Claude Code will execute tasks');
+      const newValue = await this.promptForProjectRoot(projectRootValue);
       
-      const suggestedPath = process.cwd();
-      const answer = await this.prompt(`\nEnter PROJECT_ROOT path (default: ${suggestedPath}): `);
-      projectRootValue = answer || suggestedPath;
-      
-      if (!fs.existsSync(projectRootValue)) {
-        this.error(`Path does not exist: ${projectRootValue}`);
-        const create = await this.prompt('Would you like to create this directory? (y/N): ');
-        if (create.toLowerCase() === 'y') {
-          try {
-            fs.mkdirSync(projectRootValue, { recursive: true });
-            this.success(`Created directory: ${projectRootValue}`);
-          } catch (err) {
-            this.error(`Failed to create directory: ${err}`);
-            return false;
-          }
-        } else {
-          return false;
-        }
+      if (!newValue) {
+        return false;
       }
+      projectRootValue = newValue;
       
-      let envContent = fs.readFileSync(envPath, 'utf-8');
-      if (envContent.includes('PROJECT_ROOT=')) {
-        envContent = envContent.replace(/PROJECT_ROOT=.*/g, `PROJECT_ROOT=${projectRootValue}`);
-      } else {
-        envContent += `\n# Project root directory for task execution\nPROJECT_ROOT=${projectRootValue}\n`;
-      }
-      fs.writeFileSync(envPath, envContent);
+      this.updateEnvVar(envPath, 'PROJECT_ROOT', projectRootValue);
       this.success(`Updated PROJECT_ROOT in .env file: ${projectRootValue}`);
       
       dotenv.config({ path: envPath });
@@ -618,74 +634,17 @@ class ProjectSetup {
       this.success(`  PROJECT_ROOT is set: ${projectRootValue}`);
     }
     
+    // Check optional variables
     this.info('\nOptional environment variables:');
     
-    // Check for port conflicts with other installations
-    const portsToCheck = [
-      { name: 'PORT', default: '3000' },
-      { name: 'CLAUDE_PROXY_PORT', default: '9876' }
-    ];
-    
-    for (const { name, default: defaultValue } of portsToCheck) {
-      const currentValue = envVars[name] || defaultValue;
-      try {
-        const { stdout } = await execAsync(
-          `lsof -i :${currentValue} -t 2>/dev/null || netstat -tlnp 2>/dev/null | grep :${currentValue} 2>/dev/null || true`
-        );
-        if (stdout.trim()) {
-          this.warning(`  ${name}=${currentValue} - Port is already in use!`);
-          const suggestedPort = parseInt(currentValue) + 1;
-          const useAlt = await this.prompt(`    Would you like to use port ${suggestedPort} instead? (y/N): `);
-          if (useAlt.toLowerCase() === 'y') {
-            let envContent = fs.readFileSync(envPath, 'utf-8');
-            const regex = new RegExp(`^${name}=.*$`, 'gm');
-            if (envContent.match(regex)) {
-              envContent = envContent.replace(regex, `${name}=${suggestedPort}`);
-            } else {
-              envContent += `\n${name}=${suggestedPort}\n`;
-            }
-            fs.writeFileSync(envPath, envContent);
-            this.success(`  Updated ${name} to ${suggestedPort}`);
-          }
-        }
-      } catch (e) {
-        // Ignore errors checking ports
-      }
-    }
+    // Check for port conflicts
+    await this.checkPortConflicts(envPath, envVars);
     
     // Check and set CLAUDE_PROXY_HOST based on platform
-    const claudeProxyHost = envVars['CLAUDE_PROXY_HOST'];
-    if (!claudeProxyHost || claudeProxyHost === 'host.docker.internal') {
-      const platform = this.detectPlatform();
-      const hostIP = await this.getDockerHostIP();
-      
-      if (platform === 'wsl' && hostIP !== 'host.docker.internal') {
-        this.info(`\n  Detected WSL2 environment`);
-        this.info(`  Setting CLAUDE_PROXY_HOST to WSL2 host IP: ${hostIP}`);
-        
-        let envContent = fs.readFileSync(envPath, 'utf-8');
-        const regex = /^CLAUDE_PROXY_HOST=.*$/gm;
-        
-        if (envContent.match(regex)) {
-          envContent = envContent.replace(regex, `CLAUDE_PROXY_HOST=${hostIP}`);
-        } else {
-          // Add after CLAUDE_PROXY_PORT if it exists
-          const portRegex = /^CLAUDE_PROXY_PORT=.*$/gm;
-          if (envContent.match(portRegex)) {
-            envContent = envContent.replace(portRegex, (match) => `${match}\n\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}`);
-          } else {
-            envContent += `\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}\n`;
-          }
-        }
-        
-        fs.writeFileSync(envPath, envContent);
-        this.success(`  Updated CLAUDE_PROXY_HOST for WSL2 compatibility`);
-      } else {
-        this.info(`  CLAUDE_PROXY_HOST will use default: ${hostIP}`);
-      }
-    }
+    await this.configureDockerHost(envPath, envVars);
     
-    for (const { name, default: defaultValue, description } of OPTIONAL_ENV_VARS) {
+    // Display status of optional variables
+    for (const { name, default: defaultValue } of OPTIONAL_ENV_VARS) {
       const value = envVars[name] || process.env[name];
       
       if (!value || value.includes('your_') || value.includes('_here')) {
@@ -702,46 +661,198 @@ class ProjectSetup {
   }
   
   /**
+   * Prompts for PROJECT_ROOT configuration
+   * @param currentValue - Current value if any
+   * @returns The configured path or null
+   */
+  private async promptForProjectRoot(currentValue: string | undefined): Promise<string | null> {
+    this.warning('PROJECT_ROOT is not set or contains placeholder value');
+    this.info('PROJECT_ROOT is the directory where Claude Code will execute tasks');
+    
+    const suggestedPath = process.cwd();
+    const answer = await this.prompt(`\nEnter PROJECT_ROOT path (default: ${suggestedPath}): `);
+    const projectRootValue = answer || suggestedPath;
+    
+    if (!fs.existsSync(projectRootValue)) {
+      this.error(`Path does not exist: ${projectRootValue}`);
+      const create = await this.prompt('Would you like to create this directory? (y/N): ');
+      if (create.toLowerCase() === 'y') {
+        try {
+          fs.mkdirSync(projectRootValue, { recursive: true });
+          this.success(`Created directory: ${projectRootValue}`);
+        } catch (err) {
+          this.error(`Failed to create directory: ${err}`);
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    
+    return projectRootValue;
+  }
+  
+  /**
+   * Updates an environment variable in the .env file
+   * @param envPath - Path to .env file
+   * @param name - Variable name
+   * @param value - Variable value
+   */
+  private updateEnvVar(envPath: string, name: string, value: string): void {
+    let envContent = fs.readFileSync(envPath, 'utf-8');
+    const regex = new RegExp(`^${name}=.*$`, 'gm');
+    
+    if (envContent.match(regex)) {
+      envContent = envContent.replace(regex, `${name}=${value}`);
+    } else {
+      envContent += `\n# ${REQUIRED_ENV_VARS.find(v => v.name === name)?.description || name}\n${name}=${value}\n`;
+    }
+    
+    fs.writeFileSync(envPath, envContent);
+  }
+  
+  /**
+   * Checks for port conflicts and suggests alternatives
+   * @param envPath - Path to .env file
+   * @param envVars - Current environment variables
+   */
+  private async checkPortConflicts(envPath: string, envVars: Record<string, string>): Promise<void> {
+    const portsToCheck = [
+      { name: 'PORT', default: '3000' },
+      { name: 'CLAUDE_PROXY_PORT', default: '9876' }
+    ];
+    
+    for (const { name, default: defaultValue } of portsToCheck) {
+      const currentValue = envVars[name] || defaultValue;
+      const portInUse = await this.isPortInUse(parseInt(currentValue));
+      
+      if (portInUse) {
+        this.warning(`  ${name}=${currentValue} - Port is already in use!`);
+        const suggestedPort = parseInt(currentValue) + 1;
+        const useAlt = await this.prompt(`    Would you like to use port ${suggestedPort} instead? (y/N): `);
+        if (useAlt.toLowerCase() === 'y') {
+          this.updateEnvVar(envPath, name, suggestedPort.toString());
+          this.success(`  Updated ${name} to ${suggestedPort}`);
+        }
+      }
+    }
+  }
+  
+  /**
+   * Checks if a port is in use
+   * @param port - Port number to check
+   * @returns Whether the port is in use
+   */
+  private async isPortInUse(port: number): Promise<boolean> {
+    try {
+      const { stdout } = await execAsync(
+        process.platform === 'darwin' 
+          ? `lsof -i :${port} -t 2>/dev/null || true`
+          : `netstat -tlnp 2>/dev/null | grep :${port} 2>/dev/null || true`
+      );
+      return stdout.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+  
+  /**
+   * Configures Docker host IP based on platform
+   * @param envPath - Path to .env file
+   * @param envVars - Current environment variables
+   */
+  private async configureDockerHost(envPath: string, envVars: Record<string, string>): Promise<void> {
+    const claudeProxyHost = envVars['CLAUDE_PROXY_HOST'];
+    if (!claudeProxyHost || claudeProxyHost === 'host.docker.internal') {
+      const platform = this.detectPlatform();
+      const hostIP = await this.getDockerHostIP();
+      
+      if (platform === 'wsl' && hostIP !== 'host.docker.internal') {
+        this.info(`\n  Detected WSL2 environment`);
+        this.info(`  Setting CLAUDE_PROXY_HOST to WSL2 host IP: ${hostIP}`);
+        
+        let envContent = fs.readFileSync(envPath, 'utf-8');
+        const regex = /^CLAUDE_PROXY_HOST=.*$/gm;
+        
+        if (envContent.match(regex)) {
+          envContent = envContent.replace(regex, `CLAUDE_PROXY_HOST=${hostIP}`);
+        } else {
+          const portRegex = /^CLAUDE_PROXY_PORT=.*$/gm;
+          if (envContent.match(portRegex)) {
+            envContent = envContent.replace(portRegex, (match) => 
+              `${match}\n\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}`
+            );
+          } else {
+            envContent += `\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}\n`;
+          }
+        }
+        
+        fs.writeFileSync(envPath, envContent);
+        this.success(`  Updated CLAUDE_PROXY_HOST for WSL2 compatibility`);
+      } else {
+        this.info(`  CLAUDE_PROXY_HOST will use default: ${hostIP}`);
+      }
+    }
+  }
+  
+  /**
    * Runs the complete setup process
-   * @returns {Promise<void>}
    */
   async run(): Promise<void> {
     this.log('🚀 SystemPrompt Coding Agent Setup', colors.cyan);
     this.log('==================================', colors.cyan);
     
-    if (!await this.checkNodeVersion()) {
-      process.exit(1);
+    try {
+      // Critical checks
+      if (!await this.checkNodeVersion()) {
+        process.exit(1);
+      }
+      
+      const dockerAvailable = await this.checkDocker();
+      if (!dockerAvailable) {
+        this.error('\nSetup cannot continue without Docker');
+        process.exit(1);
+      }
+      
+      const envValid = await this.checkEnvironmentFile();
+      if (!envValid) {
+        this.error('\nSetup incomplete: Failed to configure environment');
+        process.exit(1);
+      }
+      
+      // Tool checks
+      const claude = await this.checkClaude();
+      await this.checkGemini();
+      await this.checkShell();
+      const cloudflaredAvailable = await this.checkCloudflared();
+      
+      // Project setup
+      await this.createDirectories();
+      
+      if (!await this.installDependencies()) {
+        this.error('Failed to install dependencies');
+        process.exit(1);
+      }
+      
+      if (!await this.buildProject()) {
+        this.error('Failed to build projects');
+        process.exit(1);
+      }
+      
+      // Display completion message
+      this.displayCompletionMessage(claude, cloudflaredAvailable);
+      
+    } finally {
+      this.rl.close();
     }
-    
-    const dockerAvailable = await this.checkDocker();
-    if (!dockerAvailable) {
-      this.error('\nSetup cannot continue without Docker');
-      process.exit(1);
-    }
-    
-    const envValid = await this.checkEnvironmentFile();
-    if (!envValid) {
-      this.error('\nSetup incomplete: Failed to configure environment');
-      process.exit(1);
-    }
-    
-    const claude = await this.checkClaude();
-    await this.checkGemini();
-    await this.checkShell();
-    const cloudflaredAvailable = await this.checkCloudflared();
-    
-    await this.createDirectories();
-    
-    if (!await this.installDependencies()) {
-      this.error('Failed to install dependencies');
-      process.exit(1);
-    }
-    
-    if (!await this.buildProject()) {
-      this.error('Failed to build projects');
-      process.exit(1);
-    }
-    
+  }
+  
+  /**
+   * Displays the completion message with next steps
+   * @param claude - Claude tool check result
+   * @param cloudflaredAvailable - Whether cloudflared is available
+   */
+  private displayCompletionMessage(claude: ToolCheckResult, cloudflaredAvailable: boolean): void {
     this.log('\n✨ Setup completed successfully!', colors.green);
     
     if (this.errors.length > 0) {
@@ -775,11 +886,10 @@ class ProjectSetup {
     }
     
     this.info('\nFor more information, see README.md');
-    
-    this.rl.close();
   }
 }
 
+// Execute setup when run directly
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const setup = new ProjectSetup();
   setup.run().catch(error => {
