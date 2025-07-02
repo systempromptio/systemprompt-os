@@ -1,59 +1,85 @@
 /**
- * @file Orchestrator tool type definitions
+ * @fileoverview Orchestrator tool type definitions and schemas
  * @module handlers/tools/orchestrator/utils/types
  */
 
 import { z } from "zod";
 import { Task } from "../../../types/task.js";
 
-// ==================== Tool Argument Schemas ====================
-
+/**
+ * Schema for create task arguments
+ */
 export const CreateTaskArgsSchema = z.object({
   instructions: z.string().min(1).max(10000),
 });
 export type CreateTaskArgs = z.infer<typeof CreateTaskArgsSchema>;
 
+/**
+ * Schema for update task arguments
+ */
 export const UpdateTaskArgsSchema = z.object({
   id: z.string(),
   instructions: z.string().min(1).max(10000),
 });
 export type UpdateTaskArgs = z.infer<typeof UpdateTaskArgsSchema>;
 
+/**
+ * Schema for end task arguments
+ */
 export const EndTaskArgsSchema = z.object({
   id: z.string(),
 });
 export type EndTaskArgs = z.infer<typeof EndTaskArgsSchema>;
 
+/**
+ * Schema for report task arguments
+ */
 export const ReportTaskArgsSchema = z.object({
   id: z.string().optional(),
 });
 export type ReportTaskArgs = z.infer<typeof ReportTaskArgsSchema>;
 
+/**
+ * Schema for clean state arguments
+ */
 export const CleanStateArgsSchema = z.object({});
 export type CleanStateArgs = z.infer<typeof CleanStateArgsSchema>;
 
+/**
+ * Schema for check status arguments
+ */
 export const CheckStatusArgsSchema = z.object({});
 export type CheckStatusArgs = z.infer<typeof CheckStatusArgsSchema>;
 
-// ==================== Status Types ====================
-
+/**
+ * System status enumeration
+ */
 export enum SystemStatus {
   ACTIVE = "active",
   PARTIAL = "partial",
   NOT_ACTIVE = "not_active"
 }
 
+/**
+ * Service status enumeration
+ */
 export enum ServiceStatus {
   ACTIVE = "active",
   NOT_ACTIVE = "not_active"
 }
 
+/**
+ * Session status enumeration
+ */
 export enum SessionStatus {
   ACTIVE = "active",
   BUSY = "busy",
   TERMINATED = "terminated"
 }
 
+/**
+ * Task status enumeration
+ */
 export enum TaskStatus {
   PENDING = "pending",
   IN_PROGRESS = "in_progress",
@@ -62,6 +88,9 @@ export enum TaskStatus {
   CANCELLED = "cancelled"
 }
 
+/**
+ * Response structure for check status operation
+ */
 export interface CheckStatusResponse {
   status: SystemStatus;
   services: {
@@ -91,8 +120,9 @@ export interface CheckStatusResponse {
   }>;
 }
 
-// ==================== Response Types ====================
-
+/**
+ * Generic tool response structure
+ */
 export interface ToolResponse<T = unknown> {
   readonly success: boolean;
   readonly message: string;
@@ -103,16 +133,18 @@ export interface ToolResponse<T = unknown> {
   };
 }
 
-// ==================== Session Types ====================
-
+/**
+ * Session context information
+ */
 export interface SessionContext {
   readonly sessionId?: string;
   readonly userId?: string;
   readonly requestId?: string;
 }
 
-// ==================== Error Types ====================
-
+/**
+ * Validation error with field information
+ */
 export class ValidationError extends Error {
   constructor(
     message: string,
@@ -124,6 +156,9 @@ export class ValidationError extends Error {
   }
 }
 
+/**
+ * Task not found error
+ */
 export class TaskNotFoundError extends Error {
   constructor(taskId: string) {
     super(`Task not found: ${taskId}`);
@@ -131,6 +166,9 @@ export class TaskNotFoundError extends Error {
   }
 }
 
+/**
+ * Tool not available error
+ */
 export class ToolNotAvailableError extends Error {
   constructor(tool: string) {
     super(`Tool not available: ${tool}`);
@@ -138,6 +176,9 @@ export class ToolNotAvailableError extends Error {
   }
 }
 
+/**
+ * Git operation error
+ */
 export class GitOperationError extends Error {
   constructor(
     operation: string,
@@ -148,6 +189,9 @@ export class GitOperationError extends Error {
   }
 }
 
+/**
+ * Status check error
+ */
 export class StatusCheckError extends Error {
   constructor(
     message: string,
@@ -158,8 +202,9 @@ export class StatusCheckError extends Error {
   }
 }
 
-// ==================== Task Report Types ====================
-
+/**
+ * Task report structure
+ */
 export interface TaskReport {
   readonly task: Task;
   readonly duration: string;

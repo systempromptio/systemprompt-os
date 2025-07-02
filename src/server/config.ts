@@ -1,5 +1,6 @@
 /**
- * @file Server configuration management
+ * @fileoverview Server configuration management for environment variables and settings.
+ * Provides centralized configuration for server ports and security keys.
  * @module server/config
  *
  * @remarks
@@ -26,6 +27,11 @@ export interface ServerConfig {
 
 /**
  * Server configuration object
+ * @example
+ * ```typescript
+ * import { CONFIG } from './server/config.js';
+ * const port = parseInt(CONFIG.PORT, 10);
+ * ```
  */
 export const CONFIG: ServerConfig = {
   PORT: process.env.PORT || "3000",

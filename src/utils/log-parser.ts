@@ -1,7 +1,6 @@
 /**
  * @fileoverview Log parser utility for extracting structured information from agent outputs
  * @module utils/log-parser
- * @since 1.0.0
  * 
  * @remarks
  * This module provides utilities for parsing output from AI agents (Claude and Gemini)
@@ -32,7 +31,6 @@ import type { TaskLogEntry } from "../types/task.js";
  * Represents a tool usage event extracted from agent output
  * 
  * @interface ToolUsage
- * @since 1.0.0
  */
 interface ToolUsage {
   /**
@@ -75,7 +73,6 @@ interface ToolUsage {
  * Utility class for parsing AI agent outputs into structured log entries
  * 
  * @class LogParser
- * @since 1.0.0
  * 
  * @remarks
  * This parser currently supports:
@@ -93,7 +90,6 @@ export class LogParser {
    * @param output - Raw output string from the AI agent
    * @param source - The source agent ('claude' or 'gemini')
    * @returns Array of structured log entries
-   * @since 1.0.0
    * 
    * @example
    * ```typescript

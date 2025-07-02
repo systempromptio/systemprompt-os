@@ -1,5 +1,6 @@
 /**
- * @file Check status orchestrator tool
+ * @fileoverview Check status orchestrator tool handler that inspects system health,
+ * service availability, and active tasks/sessions across the orchestration platform
  * @module handlers/tools/orchestrator/check-status
  */
 
@@ -53,13 +54,10 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    // No validation needed - check-status accepts no arguments
-
     logger.info("Checking system status", {
       sessionId: context?.sessionId,
     });
 
-    // Initialize internal status structure
     const claudeStatus = createEmptyServiceStatus("Claude Code");
     const daemonHost = process.env.CLAUDE_PROXY_HOST ||
       process.env.HOST_BRIDGE_DAEMON_HOST ||
@@ -69,28 +67,21 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
       10,
     );
 
-    // Check daemon connectivity first
     const daemonStatus = await checkDaemonConnectivity();
     
-    // Check tool availability - prefer daemon status over environment
     if (daemonStatus.reachable) {
       claudeStatus.daemon_reachable = true;
       claudeStatus.daemon_has_tool = daemonStatus.tools.includes("claude");
 
-      // Use daemon status if available
       claudeStatus.available = claudeStatus.daemon_has_tool;
 
-      // Get tool paths from environment
       claudeStatus.cli_path = process.env.CLAUDE_PATH || null;
     } else {
-      // Fall back to environment variables
       claudeStatus.available = isToolAvailable("CLAUDECODE");
     }
 
-    // Perform detailed checks
     await checkClaudeCodeVersion(claudeStatus);
 
-    // Get active tasks and sessions
     const tasks = await taskOperations.taskStore.getAllTasks();
     const activeTasks = tasks.filter(
       (t: any) => t.status === TASK_STATUS.PENDING || 
@@ -103,7 +94,6 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
       (s: any) => s.status === "active" || s.status === "busy",
     );
 
-    // Determine overall system status
     const claudeActive = claudeStatus.available;
     let systemStatus: SystemStatus;
 
@@ -120,7 +110,6 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
       activeSessions: activeSessions.length,
     });
 
-    // Build clean response
     const response: CheckStatusResponse = {
       status: systemStatus,
       services: {
@@ -144,7 +133,6 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
       },
       processes: activeSessions.map((s: any) => {
         const orchestratorState = agentToOrchestratorState(s.status as AgentState);
-        // Default to TERMINATED if state is not mapped (e.g., error, starting)
         const status = orchestratorState === 'active' ? SessionStatus.ACTIVE :
                       orchestratorState === 'busy' ? SessionStatus.BUSY :
                       SessionStatus.TERMINATED;
@@ -189,6 +177,9 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
 
 /**
  * Creates an empty service status object
+ * 
+ * @param cliName - Name of the CLI service
+ * @returns Empty internal service status structure
  */
 function createEmptyServiceStatus(cliName: string): InternalServiceStatus {
   return {
@@ -202,6 +193,8 @@ function createEmptyServiceStatus(cliName: string): InternalServiceStatus {
 
 /**
  * Checks daemon connectivity and available tools
+ * 
+ * @returns Daemon status with reachability and available tools
  */
 async function checkDaemonConnectivity(): Promise<{
   reachable: boolean;
@@ -225,7 +218,6 @@ async function checkDaemonConnectivity(): Promise<{
 
     client.on("connect", () => {
       clearTimeout(timeout);
-      // Send a status request
       const message = JSON.stringify({
         tool: "status",
         command: "check",
@@ -235,7 +227,6 @@ async function checkDaemonConnectivity(): Promise<{
       let responseData = "";
       client.on("data", (data) => {
         responseData += data.toString();
-        // Simple check for available tools in response
         if (responseData.includes("Available tools:")) {
           const tools: string[] = [];
           if (responseData.includes("claude")) tools.push("claude");
@@ -244,10 +235,8 @@ async function checkDaemonConnectivity(): Promise<{
         }
       });
 
-      // Fallback if no proper response
       setTimeout(() => {
         client.destroy();
-        // Assume daemon is reachable but couldn't parse tools
         resolve({ reachable: true, tools: [] });
       }, 2000);
     });
@@ -265,6 +254,8 @@ async function checkDaemonConnectivity(): Promise<{
 
 /**
  * Checks Claude Code CLI version
+ * 
+ * @param claudeStatus - Service status object to update with version info
  */
 async function checkClaudeCodeVersion(claudeStatus: InternalServiceStatus): Promise<void> {
   try {
@@ -273,7 +264,6 @@ async function checkClaudeCodeVersion(claudeStatus: InternalServiceStatus): Prom
       return;
     }
 
-    // If daemon has the tool, we can try to get version through it
     if (claudeStatus.daemon_reachable && claudeStatus.daemon_has_tool) {
       logger.info("Claude available through daemon");
       claudeStatus.version = "Available via daemon";
@@ -294,5 +284,3 @@ async function checkClaudeCodeVersion(claudeStatus: InternalServiceStatus): Prom
     logger.error("Claude Code version check failed", { error });
   }
 }
-
-

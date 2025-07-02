@@ -1,10 +1,27 @@
 /**
- * @file MCP Resource Templates handlers
+ * @fileoverview MCP Resource Templates handlers for dynamic resource discovery
  * @module handlers/resource-templates-handler
  * 
  * @remarks
  * This module implements resource templates functionality from the MCP specification.
  * Resource templates allow dynamic resource discovery with parameterized URIs.
+ * Templates define patterns like `task://{taskId}` that clients can use to
+ * construct URIs for specific resources.
+ * 
+ * @example
+ * ```typescript
+ * import { handleListResourceTemplates, matchResourceTemplate } from './handlers/resource-templates-handler';
+ * 
+ * // List available templates
+ * const { resourceTemplates } = await handleListResourceTemplates({});
+ * 
+ * // Match a URI against templates
+ * const match = matchResourceTemplate('task://123/logs');
+ * if (match) {
+ *   console.log('Matched template:', match.template.name);
+ *   console.log('Parameters:', match.params); // { taskId: '123' }
+ * }
+ * ```
  */
 
 import type { 
@@ -14,7 +31,10 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { logger } from "../utils/logger.js";
 
-// Define resource templates for the coding agent
+/**
+ * Available resource templates for dynamic resource discovery
+ * @constant
+ */
 const RESOURCE_TEMPLATES: ResourceTemplate[] = [
   {
     uriTemplate: "task://{taskId}",
@@ -61,11 +81,20 @@ const RESOURCE_TEMPLATES: ResourceTemplate[] = [
 ];
 
 /**
- * Handle resources/templates/list request
+ * Handles MCP resources/templates/list requests
+ * 
+ * @param _request - The list resource templates request (unused)
+ * @returns List of available resource templates
  * 
  * @remarks
  * Returns the list of available resource templates that clients can use
  * to construct dynamic resource URIs.
+ * 
+ * @example
+ * ```typescript
+ * const result = await handleListResourceTemplates({});
+ * console.log(`Available templates: ${result.resourceTemplates.length}`);
+ * ```
  */
 export async function handleListResourceTemplates(
   _request: ListResourceTemplatesRequest
@@ -80,17 +109,27 @@ export async function handleListResourceTemplates(
 }
 
 /**
- * Get current resource templates
+ * Gets the current resource templates
+ * 
+ * @returns Array of resource templates
  */
 export function getResourceTemplates(): ResourceTemplate[] {
   return RESOURCE_TEMPLATES;
 }
 
 /**
- * Validate if a URI matches any template
+ * Validates if a URI matches any template and extracts parameters
  * 
  * @param uri - The URI to validate
- * @returns Object with matched template and extracted parameters, or null
+ * @returns Object with matched template and extracted parameters, or null if no match
+ * 
+ * @example
+ * ```typescript
+ * const match = matchResourceTemplate('task://abc123/logs');
+ * if (match) {
+ *   console.log(match.params.taskId); // 'abc123'
+ * }
+ * ```
  */
 export function matchResourceTemplate(uri: string): { template: ResourceTemplate; params: Record<string, string> } | null {
   for (const template of RESOURCE_TEMPLATES) {
@@ -109,23 +148,31 @@ export function matchResourceTemplate(uri: string): { template: ResourceTemplate
 }
 
 /**
- * Convert URI template to regex for matching
+ * Converts URI template to regex for matching
+ * 
+ * @param template - The URI template string
+ * @returns Regular expression for matching URIs
  */
 function createTemplateRegex(template: string): RegExp {
-  // Convert {param} to named capture groups
   const pattern = template
-    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
-    .replace(/\\{(\w+)\\}/g, '(?<$1>[^/]+)'); // Convert {param} to (?<param>[^/]+)
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\\{(\w+)\\}/g, '(?<$1>[^/]+)')
   
   return new RegExp(`^${pattern}$`);
 }
 
 /**
- * Expand a URI template with provided parameters
+ * Expands a URI template with provided parameters
  * 
  * @param template - The URI template string
  * @param params - Parameters to substitute
- * @returns Expanded URI
+ * @returns Expanded URI with parameters replaced
+ * 
+ * @example
+ * ```typescript
+ * const uri = expandTemplate('task://{taskId}/logs', { taskId: '123' });
+ * console.log(uri); // 'task://123/logs'
+ * ```
  */
 export function expandTemplate(template: string, params: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => {

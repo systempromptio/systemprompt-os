@@ -1,7 +1,6 @@
 /**
  * @fileoverview Type guard utility functions
  * @module types/utils/guards
- * @since 1.0.0
  */
 
 import { AgentStatus, AgentProvider } from "../core/agent.js";
@@ -12,7 +11,6 @@ import { TaskStatus, TaskType } from "../task.js";
  * Type guard for AgentStatus
  * @param {unknown} value - Value to check
  * @returns {value is AgentStatus} True if value is a valid AgentStatus
- * @since 1.0.0
  */
 export function isAgentStatus(value: unknown): value is AgentStatus {
   return (
@@ -25,7 +23,6 @@ export function isAgentStatus(value: unknown): value is AgentStatus {
  * Type guard for AgentProvider
  * @param {unknown} value - Value to check
  * @returns {value is AgentProvider} True if value is a valid AgentProvider
- * @since 1.0.0
  */
 export function isAgentProvider(value: unknown): value is AgentProvider {
   return typeof value === "string" && ["claude", "gemini", "custom"].includes(value);
@@ -35,7 +32,6 @@ export function isAgentProvider(value: unknown): value is AgentProvider {
  * Type guard for SessionStatus
  * @param {unknown} value - Value to check
  * @returns {value is SessionStatus} True if value is a valid SessionStatus
- * @since 1.0.0
  */
 export function isSessionStatus(value: unknown): value is SessionStatus {
   return (
@@ -48,7 +44,6 @@ export function isSessionStatus(value: unknown): value is SessionStatus {
  * Type guard for TaskStatus
  * @param {unknown} value - Value to check
  * @returns {value is TaskStatus} True if value is a valid TaskStatus
- * @since 1.0.0
  */
 export function isTaskStatus(value: unknown): value is TaskStatus {
   return (
@@ -61,7 +56,6 @@ export function isTaskStatus(value: unknown): value is TaskStatus {
  * Type guard for TaskType
  * @param {unknown} value - Value to check
  * @returns {value is TaskType} True if value is a valid TaskType
- * @since 1.0.0
  */
 export function isTaskType(value: unknown): value is TaskType {
   return (
@@ -82,7 +76,6 @@ export function isTaskType(value: unknown): value is TaskType {
  * Type guard for Record objects
  * @param {unknown} value - Value to check
  * @returns {value is Record<string, unknown>} True if value is a Record
- * @since 1.0.0
  */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -92,7 +85,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * Type guard for non-empty strings
  * @param {unknown} value - Value to check
  * @returns {value is string} True if value is a non-empty string
- * @since 1.0.0
  */
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -102,7 +94,6 @@ export function isNonEmptyString(value: unknown): value is string {
  * Type guard for positive numbers
  * @param {unknown} value - Value to check
  * @returns {value is number} True if value is a positive number
- * @since 1.0.0
  */
 export function isPositiveNumber(value: unknown): value is number {
   return typeof value === "number" && value > 0;
@@ -112,7 +103,6 @@ export function isPositiveNumber(value: unknown): value is number {
  * Type guard for Date objects
  * @param {unknown} value - Value to check
  * @returns {value is Date} True if value is a valid Date
- * @since 1.0.0
  */
 export function isDate(value: unknown): value is Date {
   return value instanceof Date && !isNaN(value.getTime());
@@ -122,7 +112,6 @@ export function isDate(value: unknown): value is Date {
  * Type guard for Error objects
  * @param {unknown} value - Value to check
  * @returns {value is Error} True if value is an Error
- * @since 1.0.0
  */
 export function isError(value: unknown): value is Error {
   return value instanceof Error;
@@ -135,7 +124,6 @@ export function isError(value: unknown): value is Error {
  * @param {T} obj - Object to check
  * @param {K} key - Property key
  * @returns {obj is T & Record<K, unknown>} True if object has property
- * @since 1.0.0
  */
 export function hasProperty<T extends object, K extends PropertyKey>(
   obj: T,
@@ -150,7 +138,6 @@ export function hasProperty<T extends object, K extends PropertyKey>(
  * @param {T | null | undefined} value - Value to check
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is null or undefined
- * @since 1.0.0
  */
 export function assertDefined<T>(
   value: T | null | undefined,
@@ -166,7 +153,6 @@ export function assertDefined<T>(
  * @param {unknown} value - Value to check
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is not a string
- * @since 1.0.0
  */
 export function assertString(value: unknown, message?: string): asserts value is string {
   if (typeof value !== "string") {
@@ -179,7 +165,6 @@ export function assertString(value: unknown, message?: string): asserts value is
  * @param {unknown} value - Value to check
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is not a number
- * @since 1.0.0
  */
 export function assertNumber(value: unknown, message?: string): asserts value is number {
   if (typeof value !== "number") {
@@ -192,7 +177,6 @@ export function assertNumber(value: unknown, message?: string): asserts value is
  * @param {unknown} value - Value to check
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is not a boolean
- * @since 1.0.0
  */
 export function assertBoolean(value: unknown, message?: string): asserts value is boolean {
   if (typeof value !== "boolean") {
@@ -207,7 +191,6 @@ export function assertBoolean(value: unknown, message?: string): asserts value i
  * @param {(item: unknown) => item is T} [itemGuard] - Type guard for array items
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is not an array or items fail type guard
- * @since 1.0.0
  */
 export function assertArray<T>(
   value: unknown,
@@ -232,7 +215,6 @@ export function assertArray<T>(
  * @param {unknown} value - Value to check
  * @param {string} [message] - Custom error message
  * @throws {Error} If value is not an object
- * @since 1.0.0
  */
 export function assertObject(
   value: unknown,

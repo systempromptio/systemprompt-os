@@ -1,5 +1,5 @@
 /**
- * @file MCP Roots handlers
+ * @fileoverview MCP Roots handlers for filesystem access boundaries
  * @module handlers/roots-handlers
  * 
  * @remarks
@@ -13,6 +13,17 @@
  * 4. Temporary directories for intermediate operations
  * 
  * These roots represent the actual host filesystem paths, not Docker container paths.
+ * 
+ * @example
+ * ```typescript
+ * import { handleListRoots, notifyRootsChanged } from './handlers/roots-handlers';
+ * 
+ * // List available roots
+ * const { roots } = await handleListRoots({});
+ * 
+ * // Notify clients of roots change
+ * await notifyRootsChanged();
+ * ```
  */
 
 import type { 
@@ -26,29 +37,30 @@ import * as path from "path";
 import * as os from "os";
 
 /**
- * Get the server roots dynamically based on environment configuration
- * These represent the actual host directories that the daemon has access to
+ * Gets the server roots dynamically based on environment configuration
+ * 
+ * @returns Array of root directories accessible to the daemon
+ * 
+ * @remarks
+ * These represent the actual host directories that the daemon has access to.
+ * The roots are calculated dynamically based on environment variables.
  */
 function getServerRoots(): Root[] {
   const roots: Root[] = [];
   
-  // Main project root - this is where the daemon executes commands
   const hostFileRoot = process.env.HOST_FILE_ROOT || "/var/www/html/systemprompt-coding-agent";
   roots.push({
     uri: `file://${hostFileRoot}`,
     name: "Main Project Root (Working Directory)"
   });
   
-  // Additional projects directory if configured
   const projectsPath = process.env.PROJECTS_PATH;
   if (projectsPath && !projectsPath.startsWith("./")) {
-    // Only add if it's an absolute path
     roots.push({
       uri: `file://${projectsPath}`,
       name: "Additional Projects Directory"
     });
   } else if (projectsPath) {
-    // Convert relative path to absolute based on HOST_FILE_ROOT
     const absoluteProjectsPath = path.resolve(hostFileRoot, projectsPath);
     roots.push({
       uri: `file://${absoluteProjectsPath}`,
@@ -56,20 +68,17 @@ function getServerRoots(): Root[] {
     });
   }
   
-  // User's home directory (for accessing .claude.json and other configs)
   const homeDir = process.env.HOME || os.homedir();
   roots.push({
     uri: `file://${homeDir}`,
     name: "User Home Directory"
   });
   
-  // Temporary directory for operations
   roots.push({
     uri: "file:///tmp",
     name: "Temporary Files"
   });
   
-  // System directories that might be needed
   roots.push({
     uri: "file:///usr/local",
     name: "System Local Directory"
@@ -79,12 +88,21 @@ function getServerRoots(): Root[] {
 }
 
 /**
- * Handle roots/list request
+ * Handles MCP roots/list requests
+ * 
+ * @param _request - The list roots request (unused)
+ * @returns List of available filesystem roots
  * 
  * @remarks
  * Returns the list of filesystem roots that the daemon has access to on the host.
  * These are the actual host filesystem paths, not Docker container paths.
  * The daemon runs on the host and can access these directories directly.
+ * 
+ * @example
+ * ```typescript
+ * const result = await handleListRoots({});
+ * console.log(`Available roots: ${result.roots.length}`);
+ * ```
  */
 export async function handleListRoots(
   _request: ListRootsRequest
@@ -102,20 +120,28 @@ export async function handleListRoots(
 }
 
 /**
- * Get current roots for notifications
- * Returns the dynamically calculated roots based on current environment
+ * Gets current roots for notifications
+ * 
+ * @returns The dynamically calculated roots based on current environment
  */
 export function getCurrentRoots(): Root[] {
   return getServerRoots();
 }
 
 /**
- * Notify clients about roots changes
+ * Notifies clients about roots changes
+ * 
  * 
  * @remarks
  * Since roots are calculated dynamically from environment variables,
  * this function just sends a notification that roots may have changed.
  * Clients will re-fetch the roots list to get the updated values.
+ * 
+ * @example
+ * ```typescript
+ * // After environment change
+ * await notifyRootsChanged();
+ * ```
  */
 export async function notifyRootsChanged(): Promise<void> {
   logger.info("🔄 Notifying clients about roots change");

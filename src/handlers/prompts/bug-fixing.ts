@@ -1,10 +1,13 @@
 /**
- * @file Bug fixing prompts
+ * @fileoverview Bug fixing prompts for systematic debugging and error resolution
  * @module handlers/prompts/bug-fixing
  */
 
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * Prompt for diagnosing and fixing bugs
+ */
 export const FIX_BUG_PROMPT: Prompt = {
   name: 'fix_bug',
   description: 'Diagnose and fix a bug in the code',
@@ -98,4 +101,7 @@ You are tasked with diagnosing and fixing this bug. Follow this systematic appro
   ],
 };
 
+/**
+ * Collection of bug fixing prompts
+ */
 export const BUG_FIXING_PROMPTS = [FIX_BUG_PROMPT];

@@ -1,7 +1,6 @@
 /**
  * @fileoverview Host proxy client for Claude Code service
  * @module services/claude-code/host-proxy-client
- * @since 1.0.0
  * 
  * @remarks
  * This module provides a TCP client for communicating with the host proxy daemon.
@@ -54,7 +53,6 @@ import {
  * Configuration options for the host proxy client
  * 
  * @interface HostProxyConfig
- * @since 1.0.0
  */
 export interface HostProxyConfig {
   /**
@@ -77,7 +75,6 @@ export interface HostProxyConfig {
  * Client for communicating with the host proxy daemon
  * 
  * @class HostProxyClient
- * @since 1.0.0
  * 
  * @remarks
  * This client establishes TCP connections to the host proxy daemon,
@@ -94,7 +91,6 @@ export class HostProxyClient {
    * Creates a new host proxy client
    * 
    * @param config - Configuration options
-   * @since 1.0.0
    */
   constructor(config: HostProxyConfig = {}) {
     this.host = config.host || process.env[ENV_VARS.CLAUDE_PROXY_HOST] || DEFAULT_PROXY_HOST;
@@ -108,7 +104,6 @@ export class HostProxyClient {
    * @private
    * @param workingDirectory - The Docker workspace path
    * @returns The mapped host path
-   * @since 1.0.0
    * 
    * @remarks
    * Converts paths from Docker container namespace to host namespace.
@@ -138,7 +133,6 @@ export class HostProxyClient {
    * @throws {HostProxyConnectionError} If connection fails
    * @throws {HostProxyTimeoutError} If execution times out
    * @throws {HostProxyError} If host proxy returns an error
-   * @since 1.0.0
    * 
    * @example
    * ```typescript

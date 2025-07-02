@@ -1,7 +1,6 @@
 /**
  * @fileoverview State persistence service for managing application state storage
  * @module services/state-persistence
- * @since 1.0.0
  * 
  * @remarks
  * This service handles all state persistence operations including saving and loading
@@ -39,7 +38,6 @@ import { logger } from '../utils/logger.js';
  * Configuration options for state persistence
  * 
  * @interface PersistenceConfig
- * @since 1.0.0
  */
 export interface PersistenceConfig {
   /**
@@ -57,7 +55,6 @@ export interface PersistenceConfig {
  * Structure of persisted application state
  * 
  * @interface PersistedState
- * @since 1.0.0
  */
 export interface PersistedState {
   /**
@@ -104,7 +101,6 @@ interface NodeError extends Error {
  * Report structure for persistence
  * 
  * @interface Report
- * @since 1.0.0
  */
 export interface Report {
   /**
@@ -133,7 +129,6 @@ export interface Report {
  * 
  * @class StatePersistence
  * @extends EventEmitter
- * @since 1.0.0
  * 
  * @remarks
  * This class implements a singleton pattern and provides methods for:
@@ -172,7 +167,6 @@ export class StatePersistence extends EventEmitter {
    * 
    * @param config - Optional configuration for persistence
    * @returns The singleton StatePersistence instance
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -193,7 +187,6 @@ export class StatePersistence extends EventEmitter {
    * Initializes storage directories and auto-save
    * 
    * @private
-   * @since 1.0.0
    */
   private async initializeStorage(): Promise<void> {
     try {
@@ -222,7 +215,6 @@ export class StatePersistence extends EventEmitter {
    * Saves application state to storage
    * 
    * @param state - The application state to save
-   * @since 1.0.0
    * 
    * @remarks
    * Creates a backup of existing state before saving.
@@ -268,7 +260,6 @@ export class StatePersistence extends EventEmitter {
    * Loads application state from storage
    * 
    * @returns The loaded state or null if no state exists
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -301,7 +292,6 @@ export class StatePersistence extends EventEmitter {
    * 
    * @param task - The task to save
    * @throws {ServiceError} If task save fails
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -338,7 +328,6 @@ export class StatePersistence extends EventEmitter {
    * Loads all tasks from storage
    * 
    * @returns Array of loaded tasks
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -379,7 +368,6 @@ export class StatePersistence extends EventEmitter {
    * 
    * @param sessionId - The session ID
    * @param log - The log content to append
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -407,7 +395,6 @@ export class StatePersistence extends EventEmitter {
    * @param report - The report data to save
    * @returns The path to the saved report file
    * @throws {ServiceError} If report save fails
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -448,7 +435,6 @@ export class StatePersistence extends EventEmitter {
    * Cleans up old backup files, keeping only the last 10
    * 
    * @private
-   * @since 1.0.0
    */
   private async cleanupBackups(): Promise<void> {
     try {
@@ -470,7 +456,6 @@ export class StatePersistence extends EventEmitter {
    * Triggers auto-save event
    * 
    * @private
-   * @since 1.0.0
    */
   private async autoSave(): Promise<void> {
     this.emit('autosave:triggered');
@@ -480,7 +465,6 @@ export class StatePersistence extends EventEmitter {
    * Deletes a task from storage
    * 
    * @param taskId - The ID of the task to delete
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -509,7 +493,6 @@ export class StatePersistence extends EventEmitter {
   /**
    * Shuts down the persistence service
    * 
-   * @since 1.0.0
    * 
    * @remarks
    * Clears the auto-save interval and emits a shutdown event.

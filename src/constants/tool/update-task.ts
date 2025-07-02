@@ -1,14 +1,12 @@
 /**
  * @fileoverview Update task tool definition
  * @module constants/tool/update-task
- * @since 1.0.0
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * Tool for sending instructions to active AI processes
- * @since 1.0.0
  */
 export const updateTask: Tool = {
   name: "update_task",

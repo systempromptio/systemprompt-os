@@ -1,6 +1,10 @@
+/**
+ * @fileoverview Main export file for orchestrator tool handlers
+ * @module handlers/tools
+ */
+
 export * from './types.js';
 
-// Export only the core orchestrator tools
 export * from './create-task.js';
 export * from './update-task.js';
 export * from './end-task.js';
@@ -11,7 +15,6 @@ export type {
   ToolHandlerContext,
 } from './types.js';
 
-// Export handlers
 export { handleCreateTask } from './create-task.js';
 export { handleUpdateTask } from './update-task.js';
 export { handleEndTask } from './end-task.js';

@@ -1,7 +1,6 @@
 /**
  * @fileoverview Type utility exports
  * @module types/utils
- * @since 1.0.0
  */
 
 // Type guard utilities

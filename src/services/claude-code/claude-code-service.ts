@@ -1,7 +1,6 @@
 /**
  * @fileoverview Modern Claude Code service implementation
  * @module services/claude-code/claude-code-service
- * @since 1.0.0
  * 
  * @remarks
  * This service provides the main interface for interacting with Claude Code CLI.
@@ -37,6 +36,7 @@ import type {
   ProgressEvent,
   StreamEvent 
 } from './types.js';
+import type { SDKMessage } from '@anthropic-ai/claude-code';
 import { ClaudeEvent, ClaudeEventType } from '../../types/claude-events.js';
 import { SessionNotReadyError } from './errors.js';
 import { ENV_VARS } from './constants.js';
@@ -50,7 +50,6 @@ import { logger } from '../../utils/logger.js';
  * Event types emitted by ClaudeCodeService
  * 
  * @interface ClaudeCodeServiceEvents
- * @since 1.0.0
  */
 export interface ClaudeCodeServiceEvents {
   /**
@@ -89,7 +88,6 @@ export interface ClaudeCodeServiceEvents {
  * 
  * @class ClaudeCodeService
  * @extends EventEmitter
- * @since 1.0.0
  * 
  * @remarks
  * This service implements a singleton pattern and provides:
@@ -111,7 +109,6 @@ export class ClaudeCodeService extends EventEmitter {
    * Private constructor for singleton pattern
    * 
    * @private
-   * @since 1.0.0
    */
   private constructor() {
     super();
@@ -119,7 +116,6 @@ export class ClaudeCodeService extends EventEmitter {
     this.hostProxyClient = new HostProxyClient();
     this.queryExecutor = new QueryExecutor();
     
-    // Check if we should use host proxy
     this.useHostProxy = !process.env[ENV_VARS.ANTHROPIC_API_KEY];
     
     logger.info('Claude Code service initialized', { 
@@ -131,7 +127,6 @@ export class ClaudeCodeService extends EventEmitter {
    * Gets the singleton instance of ClaudeCodeService
    * 
    * @returns The singleton instance
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -150,7 +145,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @private
    * @returns The progress tracker instance
-   * @since 1.0.0
    */
   private async getProgressTracker(): Promise<ProgressTracker> {
     if (!this.progressTracker) {
@@ -165,7 +159,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param options - Options for the Claude session
    * @returns The session ID
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -190,7 +183,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param sessionId - The session ID
    * @param taskId - The task ID to associate
-   * @since 1.0.0
    */
   setTaskId(sessionId: string, taskId: string): void {
     this.sessionManager.setTaskId(sessionId, taskId);
@@ -201,7 +193,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param sessionId - The session ID
    * @param mcpSessionId - The MCP session ID to associate
-   * @since 1.0.0
    */
   setMcpSessionId(sessionId: string, mcpSessionId: string): void {
     this.sessionManager.setMcpSessionId(sessionId, mcpSessionId);
@@ -212,7 +203,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param sessionId - The session ID to find
    * @returns The session if found, undefined otherwise
-   * @since 1.0.0
    */
   findSession(sessionId: string): ClaudeCodeSession | undefined {
     return this.sessionManager.findSession(sessionId);
@@ -226,7 +216,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @param options - Optional query options
    * @returns The response from Claude
    * @throws {SessionNotReadyError} If session is not ready
-   * @since 1.0.0
    * 
    * @remarks
    * This method will:
@@ -307,7 +296,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @param session - The Claude session
    * @param prompt - The prompt to execute
    * @returns The response from Claude
-   * @since 1.0.0
    * 
    * @remarks
    * This method handles execution through the host proxy when
@@ -367,10 +355,13 @@ export class ClaudeCodeService extends EventEmitter {
       }
     );
 
-    session.outputBuffer.push({
-      type: 'assistant',
-      message: { content: [{ type: 'text', text: result }] }
-    } as any);
+    const sdkMessage = {
+      type: 'assistant' as const,
+      message: { content: [{ type: 'text', text: result }] },
+      session_id: session.id,
+      parent_tool_use_id: null
+    };
+    session.outputBuffer.push(sdkMessage as SDKMessage);
 
     return result;
   }
@@ -379,7 +370,6 @@ export class ClaudeCodeService extends EventEmitter {
    * Ends a session
    * 
    * @param sessionId - The session ID to end
-   * @since 1.0.0
    */
   async endSession(sessionId: string): Promise<void> {
     this.sessionManager.endSession(sessionId);
@@ -391,7 +381,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param sessionId - The session ID to retrieve
    * @returns The session if found, undefined otherwise
-   * @since 1.0.0
    */
   getSession(sessionId: string): ClaudeCodeSession | undefined {
     return this.sessionManager.findSession(sessionId);
@@ -401,7 +390,6 @@ export class ClaudeCodeService extends EventEmitter {
    * Gets all sessions
    * 
    * @returns Array of all Claude sessions
-   * @since 1.0.0
    */
   getAllSessions(): ClaudeCodeSession[] {
     return this.sessionManager.getAllSessions();
@@ -411,7 +399,6 @@ export class ClaudeCodeService extends EventEmitter {
    * Gets service metrics
    * 
    * @returns Service metrics including session counts
-   * @since 1.0.0
    */
   getMetrics() {
     return this.sessionManager.getMetrics();
@@ -422,7 +409,6 @@ export class ClaudeCodeService extends EventEmitter {
    * 
    * @param maxAgeMs - Maximum age in milliseconds
    * @returns Number of sessions cleaned up
-   * @since 1.0.0
    */
   cleanupOldSessions(maxAgeMs?: number): number {
     return this.sessionManager.cleanupOldSessions(maxAgeMs);
@@ -435,7 +421,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @param event - The event to emit
    * @param args - Event arguments
    * @returns True if event had listeners
-   * @since 1.0.0
    */
   emit<K extends keyof ClaudeCodeServiceEvents>(
     event: K,
@@ -451,7 +436,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @param event - The event to listen for
    * @param listener - The callback function
    * @returns This instance for chaining
-   * @since 1.0.0
    */
   on<K extends keyof ClaudeCodeServiceEvents>(
     event: K,
@@ -467,7 +451,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @param event - The event to stop listening for
    * @param listener - The callback function to remove
    * @returns This instance for chaining
-   * @since 1.0.0
    */
   off<K extends keyof ClaudeCodeServiceEvents>(
     event: K,
@@ -482,7 +465,6 @@ export class ClaudeCodeService extends EventEmitter {
    * @private
    * @param session - The Claude session
    * @param event - The Claude event to log
-   * @since 1.0.0
    * 
    * @remarks
    * Maps Claude event types to task log entries with appropriate

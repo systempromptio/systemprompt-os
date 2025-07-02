@@ -1,7 +1,6 @@
 /**
  * @fileoverview Event type definitions export aggregator
  * @module types/events
- * @since 1.0.0
  */
 
 // Base event types and utilities

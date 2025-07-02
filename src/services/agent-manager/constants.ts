@@ -1,7 +1,6 @@
 /**
  * @fileoverview Constants for Agent Manager service
  * @module services/agent-manager/constants
- * @since 1.0.0
  * 
  * @remarks
  * This module contains constant values used throughout the agent manager service,
@@ -12,7 +11,6 @@
  * Session ID prefixes for different agent types
  * 
  * @constant
- * @since 1.0.0
  * 
  * @remarks
  * Used to generate unique session IDs with type-specific prefixes
@@ -28,7 +26,6 @@ export const SESSION_ID_PREFIXES = {
  * Log message prefixes for consistent formatting
  * 
  * @constant
- * @since 1.0.0
  * 
  * @remarks
  * Empty strings indicate no prefix needed for that log type
@@ -84,7 +81,6 @@ export const LOG_PREFIXES = {
  * Default maximum number of turns for Claude conversations
  * 
  * @constant
- * @since 1.0.0
  */
 export const DEFAULT_MAX_TURNS = 30;
 
@@ -92,7 +88,6 @@ export const DEFAULT_MAX_TURNS = 30;
  * Maximum length of response preview in characters
  * 
  * @constant
- * @since 1.0.0
  */
 export const RESPONSE_PREVIEW_LENGTH = 500;
 
@@ -100,7 +95,6 @@ export const RESPONSE_PREVIEW_LENGTH = 500;
  * Standard error codes for agent manager operations
  * 
  * @constant
- * @since 1.0.0
  * 
  * @remarks
  * Used for programmatic error handling and logging

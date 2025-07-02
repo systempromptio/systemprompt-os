@@ -1,7 +1,6 @@
 /**
  * @fileoverview Agent Manager service exports
  * @module services/agent-manager
- * @since 1.0.0
  * 
  * @remarks
  * This module serves as the main entry point for the agent manager service.
@@ -43,7 +42,6 @@ export * from './agent-interface.js';
  * Singleton instance of AgentManager for backward compatibility
  * 
  * @constant
- * @since 1.0.0
  * @deprecated Use AgentManager.getInstance() instead
  */
 import { AgentManager } from './agent-manager.js';

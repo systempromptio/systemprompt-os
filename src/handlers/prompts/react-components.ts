@@ -1,10 +1,13 @@
 /**
- * @file React component prompts
+ * @fileoverview React component creation prompts for building production-ready components
  * @module handlers/prompts/react-components
  */
 
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * Prompt for creating React components
+ */
 export const CREATE_REACT_COMPONENT_PROMPT: Prompt = {
   name: 'create_react_component',
   description: 'Create a new React component with specified functionality',
@@ -176,4 +179,7 @@ interface ComponentProps {
   ],
 };
 
+/**
+ * Collection of React component prompts
+ */
 export const REACT_COMPONENT_PROMPTS = [CREATE_REACT_COMPONENT_PROMPT];

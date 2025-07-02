@@ -1,6 +1,27 @@
 /**
- * @file MCP Prompt request handlers
+ * @fileoverview MCP Prompt request handlers for coding assistant prompts
  * @module handlers/prompt-handlers
+ * 
+ * @remarks
+ * This module provides handlers for MCP prompt operations including:
+ * - Listing available coding prompts
+ * - Retrieving prompts with variable substitution
+ * 
+ * @example
+ * ```typescript
+ * import { handleListPrompts, handleGetPrompt } from './handlers/prompt-handlers';
+ * 
+ * // List available prompts
+ * const { prompts } = await handleListPrompts();
+ * 
+ * // Get a specific prompt with variables
+ * const result = await handleGetPrompt({
+ *   params: {
+ *     name: 'bug_fix',
+ *     arguments: { error_message: 'TypeError', file_path: 'src/app.ts' }
+ *   }
+ * });
+ * ```
  */
 
 import type {
@@ -13,20 +34,45 @@ import type {
 import { CODING_PROMPTS } from './prompts/index.js';
 
 /**
- * Handles MCP prompt listing requests.
+ * Handles MCP prompt listing requests
  * 
- * @returns Promise resolving to the list of available prompts
+ * @returns List of available coding prompts
+ * 
+ * @example
+ * ```typescript
+ * const { prompts } = await handleListPrompts();
+ * console.log(`Available prompts: ${prompts.length}`);
+ * ```
  */
 export async function handleListPrompts(): Promise<ListPromptsResult> {
   return { prompts: CODING_PROMPTS };
 }
 
 /**
- * Handles MCP prompt retrieval requests.
+ * Handles MCP prompt retrieval requests with variable substitution
  * 
  * @param request - The prompt retrieval request with name and arguments
- * @returns Promise resolving to the prompt with variables replaced
- * @throws Error if the requested prompt is not found
+ * @returns The processed prompt with variables replaced
+ * @throws {Error} If the requested prompt is not found
+ * 
+ * @remarks
+ * This function:
+ * 1. Looks up the prompt by name
+ * 2. Replaces template variables ({{variable}}) with provided arguments
+ * 3. Returns the processed prompt messages
+ * 
+ * @example
+ * ```typescript
+ * const result = await handleGetPrompt({
+ *   params: {
+ *     name: 'react_component',
+ *     arguments: {
+ *       component_name: 'UserProfile',
+ *       requirements: 'Display user avatar and bio'
+ *     }
+ *   }
+ * });
+ * ```
  */
 export async function handleGetPrompt(
   request: GetPromptRequest,
@@ -36,20 +82,24 @@ export async function handleGetPrompt(
     throw new Error(`Prompt not found: ${request.params.name}`);
   }
 
-  // Type guard for text content
+  /**
+   * Type guard to check if prompt content is text type
+   * 
+   * @param content - Prompt message content to check
+   * @returns True if content is text type
+   */
   function isTextContent(content: PromptMessage['content']): content is TextContent {
     return content.type === 'text';
   }
 
-  // Process messages and replace template variables
-  const messages = (prompt as any).messages.map((message: PromptMessage) => {
+  const promptWithMessages = prompt as unknown as { messages: PromptMessage[] };
+  const messages = promptWithMessages.messages.map((message: PromptMessage) => {
     if (!isTextContent(message.content)) {
       return message;
     }
 
     let text = String(message.content.text);
 
-    // Replace template variables with provided arguments
     if (request.params.arguments) {
       Object.entries(request.params.arguments).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;

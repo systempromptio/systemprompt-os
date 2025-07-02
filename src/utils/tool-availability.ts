@@ -1,7 +1,6 @@
 /**
  * @fileoverview Utility to check if AI tools are available based on environment variables
  * @module utils/tool-availability
- * @since 1.0.0
  * 
  * @remarks
  * This module provides utilities for checking the availability of AI tools
@@ -30,7 +29,6 @@
  * Represents the availability status of AI tools
  * 
  * @interface ToolAvailability
- * @since 1.0.0
  */
 export interface ToolAvailability {
   /**
@@ -48,7 +46,6 @@ export interface ToolAvailability {
  * Get the availability status of AI tools from environment variables
  * 
  * @returns Object indicating which tools are available
- * @since 1.0.0
  * 
  * @remarks
  * Checks the following environment variables:
@@ -75,7 +72,6 @@ export function getToolAvailability(): ToolAvailability {
  * 
  * @param tool - The tool identifier to check
  * @returns True if the tool is available, false otherwise
- * @since 1.0.0
  * 
  * @example
  * ```typescript
@@ -103,7 +99,6 @@ export function isToolAvailable(tool: 'CLAUDECODE' | 'GEMINICLI'): boolean {
  * Get available tools as an array
  * 
  * @returns Array of available tool identifiers
- * @since 1.0.0
  * 
  * @example
  * ```typescript
@@ -131,7 +126,6 @@ export function getAvailableTools(): Array<'CLAUDECODE' | 'GEMINICLI'> {
  * Validate that at least one tool is available
  * 
  * @throws {Error} If no AI tools are available
- * @since 1.0.0
  * 
  * @remarks
  * This function should be called during application startup to ensure

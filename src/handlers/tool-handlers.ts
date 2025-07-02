@@ -1,6 +1,28 @@
 /**
- * @file MCP Tool request handlers for Coding Agent Orchestrator
+ * @fileoverview MCP Tool request handlers for Coding Agent Orchestrator
  * @module handlers/tool-handlers
+ * 
+ * @remarks
+ * This module provides request handlers for MCP tool operations.
+ * It handles tool listing and invocation, including validation of
+ * tool arguments using Zod schemas derived from JSON Schema definitions.
+ * All tool invocations are routed to their specific handlers.
+ * 
+ * @example
+ * ```typescript
+ * import { handleListTools, handleToolCall } from './handlers/tool-handlers';
+ * 
+ * // List available tools
+ * const tools = await handleListTools(request);
+ * 
+ * // Call a specific tool
+ * const result = await handleToolCall({
+ *   params: {
+ *     name: 'create_task',
+ *     arguments: { tool: 'CLAUDECODE', instructions: 'Build API' }
+ *   }
+ * }, context);
+ * ```
  */
 
 import type {
@@ -15,7 +37,6 @@ import { logger } from '../utils/logger.js';
 import { jsonSchemaToZod } from '../utils/json-schema-to-zod.js';
 import type { MCPToolContext } from '../types/request-context.js';
 
-// Import tool definitions for schema extraction
 import { createTask } from '../constants/tool/create-task.js';
 import { updateTask } from '../constants/tool/update-task.js';
 import { endTask } from '../constants/tool/end-task.js';
@@ -24,7 +45,6 @@ import { checkStatus } from '../constants/tool/check-status.js';
 import { cleanState } from '../constants/tool/clean-state.js';
 import { getPrompt } from '../constants/tool/get-prompt.js';
 
-// Import tool handlers
 import { handleCreateTask } from './tools/create-task.js';
 import { handleUpdateTask } from './tools/update-task.js';
 import { handleEndTask } from './tools/end-task.js';
@@ -34,7 +54,9 @@ import { handleCleanState } from './tools/clean-state.js';
 import { handleGetPrompt } from './tools/get-prompt.js';
 
 /**
- * Zod schemas derived from tool definitions
+ * Zod schemas derived from tool JSON Schema definitions
+ * 
+ * @constant
  */
 const ToolSchemas = {
   create_task: jsonSchemaToZod(createTask.inputSchema),
@@ -48,6 +70,15 @@ const ToolSchemas = {
 
 /**
  * Handles MCP tool listing requests
+ * 
+ * @param _request - The list tools request (unused)
+ * @returns List of available tools sorted alphabetically
+ * 
+ * @example
+ * ```typescript
+ * const { tools } = await handleListTools({});
+ * console.log(`Available tools: ${tools.length}`);
+ * ```
  */
 export async function handleListTools(_request: ListToolsRequest): Promise<ListToolsResult> {
   try {
@@ -62,7 +93,29 @@ export async function handleListTools(_request: ListToolsRequest): Promise<ListT
 }
 
 /**
- * Handles MCP tool invocation requests
+ * Handles MCP tool invocation requests with validation and routing
+ * 
+ * @param request - The tool call request with name and arguments
+ * @param context - The MCP context including session information
+ * @returns The tool execution result
+ * @throws {Error} If tool is unknown or arguments are invalid
+ * 
+ * @remarks
+ * This function:
+ * 1. Validates that the requested tool exists
+ * 2. Validates arguments using the tool's Zod schema
+ * 3. Routes to the appropriate handler function
+ * 4. Provides comprehensive error handling and logging
+ * 
+ * @example
+ * ```typescript
+ * const result = await handleToolCall({
+ *   params: {
+ *     name: 'check_status',
+ *     arguments: { context: 'tasks' }
+ *   }
+ * }, { sessionId: 'mcp123', sessionConfig: {} });
+ * ```
  */
 export async function handleToolCall(
   request: CallToolRequest,
@@ -71,7 +124,6 @@ export async function handleToolCall(
   
   try {
     logger.info(`🔧 handleToolCall called for tool: ${request.params.name}`);
-    logger.info('Full request:', JSON.stringify(request, null, 2));
     logger.debug('Tool arguments:', JSON.stringify(request.params.arguments, null, 2));
     
     if (!request.params.arguments) {
@@ -85,7 +137,6 @@ export async function handleToolCall(
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
 
-    // Validate arguments using Zod schema
     const toolName = request.params.name as keyof typeof ToolSchemas;
     const schema = ToolSchemas[toolName];
     
@@ -94,7 +145,7 @@ export async function handleToolCall(
       throw new Error(`No validation schema found for tool: ${toolName}`);
     }
     
-    let args: any;
+    let args: unknown;
     try {
       args = schema.parse(request.params.arguments);
     } catch (error) {
@@ -111,31 +162,29 @@ export async function handleToolCall(
 
     let result: CallToolResult;
 
-    // Route to appropriate handler with context
     logger.info(`[HANDLER] Processing ${request.params.name} for session: ${context.sessionId}`);
     
     switch (request.params.name) {
       case "create_task":
-        logger.info('Raw args for create_task:', JSON.stringify(args, null, 2));
-        result = await handleCreateTask(args, context);
+        result = await handleCreateTask(args as Parameters<typeof handleCreateTask>[0], context);
         break;
       case "update_task":
-        result = await handleUpdateTask(args, context);
+        result = await handleUpdateTask(args as Parameters<typeof handleUpdateTask>[0], context);
         break;
       case "end_task":
-        result = await handleEndTask(args, context);
+        result = await handleEndTask(args as Parameters<typeof handleEndTask>[0], context);
         break;
       case "report":
-        result = await handleReportTask(args, context);
+        result = await handleReportTask(args as Parameters<typeof handleReportTask>[0], context);
         break;
       case "check_status":
-        result = await handleCheckStatus(args, context);
+        result = await handleCheckStatus(args as Parameters<typeof handleCheckStatus>[0], context);
         break;
       case "clean_state":
-        result = await handleCleanState(args, context);
+        result = await handleCleanState(args as Parameters<typeof handleCleanState>[0], context);
         break;
       case "get_prompt":
-        result = await handleGetPrompt(args, context);
+        result = await handleGetPrompt(args as Parameters<typeof handleGetPrompt>[0], context);
         break;
       default:
         logger.error("Unsupported tool in switch statement", { toolName: request.params.name });
@@ -152,7 +201,6 @@ export async function handleToolCall(
       stack: error instanceof Error ? error.stack : undefined,
     });
 
-    // Re-throw the error to be handled by MCP framework
     throw error;
   }
 }

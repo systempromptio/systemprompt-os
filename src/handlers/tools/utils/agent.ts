@@ -1,5 +1,6 @@
 /**
- * @file Agent management utilities for orchestrator tools
+ * @fileoverview Agent management utilities for orchestrator tools providing
+ * high-level operations for starting, executing, and managing AI agent sessions
  * @module handlers/tools/orchestrator/utils/agent
  */
 
@@ -10,12 +11,18 @@ import { logger } from "../../../utils/logger.js";
 import type { AITool, Task, TaskLogEntry } from "../../../types/task.js";
 import { TASK_STATUS } from "../../../constants/task-status.js";
 
+/**
+ * Result of starting an agent session
+ */
 export interface AgentStartResult {
   sessionId: string;
   serviceSessionId?: string;
   tool: AITool;
 }
 
+/**
+ * Result of executing agent instructions
+ */
 export interface AgentExecuteResult {
   success: boolean;
   output?: string;
@@ -39,6 +46,7 @@ export class AgentOperations {
 
   /**
    * Starts an agent session for a task
+   * 
    * @param tool The AI tool to use
    * @param task The task to execute
    * @param options Additional options
@@ -68,12 +76,10 @@ export class AgentOperations {
           options: claudeOptions,
         });
 
-        // Link Claude session to task for progress tracking
         const agentSession = this.agentManager.getSession(sessionId);
         if (agentSession?.serviceSessionId) {
           this.claudeService.setTaskId(agentSession.serviceSessionId, task.id);
 
-          // Also set the MCP sessionId to ensure notifications go to the right session
           if (options.sessionId) {
             this.claudeService.setMcpSessionId(agentSession.serviceSessionId, options.sessionId);
 
@@ -107,6 +113,7 @@ export class AgentOperations {
 
   /**
    * Executes instructions with an agent
+   * 
    * @param sessionId The agent session ID
    * @param instructions The instructions to execute
    * @param options Execution options
@@ -125,11 +132,9 @@ export class AgentOperations {
     const { taskId, updateProgress = true, timeout = 300000 } = options;
 
     try {
-      // Set up progress tracking
       let progressInterval: NodeJS.Timeout | undefined;
 
       if (updateProgress && taskId) {
-        // Log initial progress immediately
         await this.taskStore.addLog(taskId, {
           timestamp: new Date().toISOString(),
           level: "info",
@@ -137,7 +142,6 @@ export class AgentOperations {
           message: "Task started, processing instructions..."
         });
         
-        // Update progress every 30 seconds with meaningful messages
         let updateCount = 0;
         progressInterval = setInterval(async () => {
           updateCount++;
@@ -152,7 +156,6 @@ export class AgentOperations {
             message = `Processing... (${elapsed}s)`;
           }
           
-          // Add different messages based on elapsed time
           if (elapsed > 120) {
             message = `Complex task in progress... (${minutes}m ${seconds}s)`;
           }
@@ -163,11 +166,10 @@ export class AgentOperations {
             type: "progress",
             message: message
           });
-        }, 30000); // 30 seconds instead of 5
+        }, 30000);
       }
 
       try {
-        // Execute the command
         const result = await this.agentManager.sendCommand(sessionId, {
           command: instructions,
           timeout,
@@ -214,6 +216,7 @@ export class AgentOperations {
 
   /**
    * Sets up event handlers for Claude progress tracking
+   * 
    * @param taskId The task ID to track
    * @param sessionId The session ID
    * @param agentSessionId The agent session ID
@@ -243,11 +246,9 @@ export class AgentOperations {
       }
     };
 
-    // Attach handlers
     this.claudeService.on("task:progress", progressHandler);
     this.claudeService.on("stream:data", streamHandler);
 
-    // Return cleanup function
     return () => {
       this.claudeService.off("task:progress", progressHandler);
       this.claudeService.off("stream:data", streamHandler);
@@ -256,6 +257,7 @@ export class AgentOperations {
 
   /**
    * Ends an agent session gracefully
+   * 
    * @param sessionId The session ID to end
    * @param reason Optional reason for ending
    */
@@ -274,12 +276,12 @@ export class AgentOperations {
       }
     } catch (error) {
       logger.error("Failed to end agent session", { sessionId, error });
-      // Don't throw - session cleanup should not fail the operation
     }
   }
 
   /**
    * Gets statistics about active agents
+   * 
    * @returns Agent statistics
    */
   async getAgentStats(): Promise<{
@@ -316,5 +318,7 @@ export class AgentOperations {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of agent operations
+ */
 export const agentOperations = new AgentOperations();

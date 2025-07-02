@@ -1,10 +1,13 @@
 /**
- * @file Reddit post creation prompt
+ * @fileoverview Reddit post creation prompt for engaging community announcements
  * @module handlers/prompts/reddit-post
  */
 
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * Prompt for creating Reddit posts
+ */
 export const CREATE_REDDIT_POST_PROMPT: Prompt = {
   name: 'create_reddit_post',
   description: 'Write a playful Reddit post introducing the Systemprompt Coding Agent project',
@@ -145,4 +148,7 @@ Remember: The goal is to share something cool with the community, not to adverti
   ],
 };
 
+/**
+ * Collection of Reddit post prompts
+ */
 export const REDDIT_POST_PROMPTS = [CREATE_REDDIT_POST_PROMPT];

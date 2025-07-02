@@ -1,5 +1,6 @@
 /**
- * @file Clean state orchestrator tool
+ * @fileoverview Clean state orchestrator tool handler that removes all tasks
+ * from the system for cleanup and reset operations
  * @module handlers/tools/orchestrator/clean-state
  */
 
@@ -33,20 +34,16 @@ export const handleCleanState: ToolHandler<CleanStateArgs> = async (
   const startTime = Date.now();
   
   try {
-    // No validation needed - clean-state accepts no arguments
-    
     logger.info('Starting cleanup operation', {
       sessionId: context?.sessionId
     });
     
-    // Delete all tasks
     const tasks = await taskOperations.taskStore.getAllTasks();
     const taskIds = tasks.map(t => t.id);
     
     logger.info(`[CleanState] Found ${tasks.length} tasks to delete`);
     logger.info(`[CleanState] Task IDs: ${taskIds.join(', ')}`);
     
-    // Check task files before deletion
     const fs = await import('fs/promises');
     const path = await import('path');
     const statePath = process.env.STATE_PATH || './coding-agent-state';
@@ -66,7 +63,6 @@ export const handleCleanState: ToolHandler<CleanStateArgs> = async (
       logger.info(`[CleanState] Deleted task: ${taskId}`);
     }
     
-    // Check task files after deletion
     try {
       const filesAfter = await fs.readdir(tasksDir);
       logger.info(`[CleanState] Files in tasks directory AFTER deletion: ${filesAfter.length}`);
@@ -75,7 +71,6 @@ export const handleCleanState: ToolHandler<CleanStateArgs> = async (
       logger.error(`[CleanState] Could not read tasks directory after deletion: ${error}`);
     }
     
-    // Verify tasks are gone from memory
     const remainingTasks = await taskOperations.taskStore.getAllTasks();
     logger.info(`[CleanState] Remaining tasks in memory: ${remainingTasks.length}`);
     

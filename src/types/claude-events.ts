@@ -1,13 +1,11 @@
 /**
  * @fileoverview Simplified, strongly-typed Claude event system
  * @module types/claude-events
- * @since 1.0.0
  */
 
 /**
  * Claude event types enumeration
  * @enum {string}
- * @since 1.0.0
  */
 export enum ClaudeEventType {
   /** Process start event */
@@ -31,42 +29,35 @@ export enum ClaudeEventType {
 /**
  * Base Claude event interface - minimal and consistent
  * @interface
- * @since 1.0.0
  */
 export interface ClaudeEvent {
   /**
    * Event type
-   * @since 1.0.0
    */
   type: ClaudeEventType;
   
   /**
    * ISO timestamp when event occurred
-   * @since 1.0.0
    */
   timestamp: string;
   
   /**
    * Session identifier
-   * @since 1.0.0
    */
   sessionId: string;
   
   /**
    * Optional task identifier
-   * @since 1.0.0
    */
   taskId?: string;
   
   /**
    * Event content/message
-   * @since 1.0.0
    */
   content: string;
   
   /**
    * Event-specific metadata
-   * @since 1.0.0
    */
   metadata?: Record<string, any>;
 }
@@ -74,30 +65,25 @@ export interface ClaudeEvent {
 /**
  * Metadata for process start events
  * @interface
- * @since 1.0.0
  */
 export interface ProcessStartMetadata {
   /**
    * Process ID
-   * @since 1.0.0
    */
   pid: number;
   
   /**
    * Command that was executed
-   * @since 1.0.0
    */
   command: string;
   
   /**
    * Working directory path
-   * @since 1.0.0
    */
   workingDirectory: string;
   
   /**
    * Environment variables
-   * @since 1.0.0
    */
   environment?: Record<string, string>;
 }
@@ -105,30 +91,25 @@ export interface ProcessStartMetadata {
 /**
  * Metadata for process end events
  * @interface
- * @since 1.0.0
  */
 export interface ProcessEndMetadata {
   /**
    * Process exit code (null if terminated by signal)
-   * @since 1.0.0
    */
   exitCode: number | null;
   
   /**
    * Termination signal (null if exited normally)
-   * @since 1.0.0
    */
   signal: string | null;
   
   /**
    * Process duration in milliseconds
-   * @since 1.0.0
    */
   duration: number;
   
   /**
    * Full stdout/stderr output
-   * @since 1.0.0
    */
   output?: string;
 }
@@ -136,24 +117,20 @@ export interface ProcessEndMetadata {
 /**
  * Metadata for tool start events
  * @interface
- * @since 1.0.0
  */
 export interface ToolStartMetadata {
   /**
    * Name of the tool being executed
-   * @since 1.0.0
    */
   toolName: string;
   
   /**
    * Unique tool execution identifier
-   * @since 1.0.0
    */
   toolId: string;
   
   /**
    * Tool parameters
-   * @since 1.0.0
    */
   parameters: Record<string, any>;
 }
@@ -161,42 +138,35 @@ export interface ToolStartMetadata {
 /**
  * Metadata for tool end events
  * @interface
- * @since 1.0.0
  */
 export interface ToolEndMetadata {
   /**
    * Name of the tool that was executed
-   * @since 1.0.0
    */
   toolName: string;
   
   /**
    * Unique tool execution identifier
-   * @since 1.0.0
    */
   toolId: string;
   
   /**
    * Tool execution duration in milliseconds
-   * @since 1.0.0
    */
   duration: number;
   
   /**
    * Whether the tool execution succeeded
-   * @since 1.0.0
    */
   success: boolean;
   
   /**
    * Tool execution result
-   * @since 1.0.0
    */
   result?: any;
   
   /**
    * Error message if tool failed
-   * @since 1.0.0
    */
   error?: string;
 }
@@ -204,24 +174,20 @@ export interface ToolEndMetadata {
 /**
  * Metadata for message events
  * @interface
- * @since 1.0.0
  */
 export interface MessageMetadata {
   /**
    * Message role
-   * @since 1.0.0
    */
   role: 'assistant' | 'user' | 'system';
   
   /**
    * Token count for the message
-   * @since 1.0.0
    */
   tokens?: number;
   
   /**
    * Model used for generation
-   * @since 1.0.0
    */
   model?: string;
 }
@@ -229,12 +195,10 @@ export interface MessageMetadata {
 /**
  * Metadata for stream events
  * @interface
- * @since 1.0.0
  */
 export interface StreamMetadata {
   /**
    * Type of output stream
-   * @since 1.0.0
    */
   streamType: 'stdout' | 'stderr';
 }
@@ -242,18 +206,15 @@ export interface StreamMetadata {
 /**
  * Metadata for error events
  * @interface
- * @since 1.0.0
  */
 export interface ErrorMetadata {
   /**
    * Error code
-   * @since 1.0.0
    */
   code?: string;
   
   /**
    * Error stack trace
-   * @since 1.0.0
    */
   stack?: string;
 }
@@ -261,47 +222,39 @@ export interface ErrorMetadata {
 /**
  * Metadata for result events
  * @interface
- * @since 1.0.0
  */
 export interface ResultMetadata {
   /**
    * Whether the operation succeeded
-   * @since 1.0.0
    */
   success: boolean;
   
   /**
    * Total duration in milliseconds
-   * @since 1.0.0
    */
   duration: number;
   
   /**
    * Estimated cost in USD
-   * @since 1.0.0
    */
   cost?: number;
   
   /**
    * Token usage statistics
-   * @since 1.0.0
    */
   usage?: {
     /**
      * Input tokens consumed
-     * @since 1.0.0
      */
     inputTokens: number;
     
     /**
      * Output tokens generated
-     * @since 1.0.0
      */
     outputTokens: number;
     
     /**
      * Cached tokens used
-     * @since 1.0.0
      */
     cacheTokens?: number;
   };
@@ -311,7 +264,6 @@ export interface ResultMetadata {
  * Type guard for process start events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a process start event
- * @since 1.0.0
  */
 export function isProcessStart(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.ProcessStart;
@@ -321,7 +273,6 @@ export function isProcessStart(event: ClaudeEvent): boolean {
  * Type guard for process end events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a process end event
- * @since 1.0.0
  */
 export function isProcessEnd(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.ProcessEnd;
@@ -331,7 +282,6 @@ export function isProcessEnd(event: ClaudeEvent): boolean {
  * Type guard for tool start events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a tool start event
- * @since 1.0.0
  */
 export function isToolStart(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.ToolStart;
@@ -341,7 +291,6 @@ export function isToolStart(event: ClaudeEvent): boolean {
  * Type guard for tool end events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a tool end event
- * @since 1.0.0
  */
 export function isToolEnd(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.ToolEnd;
@@ -351,7 +300,6 @@ export function isToolEnd(event: ClaudeEvent): boolean {
  * Type guard for message events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a message event
- * @since 1.0.0
  */
 export function isMessage(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.Message;
@@ -361,7 +309,6 @@ export function isMessage(event: ClaudeEvent): boolean {
  * Type guard for stream events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a stream event
- * @since 1.0.0
  */
 export function isStream(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.Stream;
@@ -371,7 +318,6 @@ export function isStream(event: ClaudeEvent): boolean {
  * Type guard for error events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is an error event
- * @since 1.0.0
  */
 export function isError(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.Error;
@@ -381,7 +327,6 @@ export function isError(event: ClaudeEvent): boolean {
  * Type guard for result events
  * @param {ClaudeEvent} event - Event to check
  * @returns {boolean} True if event is a result event
- * @since 1.0.0
  */
 export function isResult(event: ClaudeEvent): boolean {
   return event.type === ClaudeEventType.Result;
@@ -395,7 +340,6 @@ export function isResult(event: ClaudeEvent): boolean {
  * @param {Record<string, any>} [metadata] - Event metadata
  * @param {string} [taskId] - Optional task identifier
  * @returns {ClaudeEvent} Created event
- * @since 1.0.0
  */
 export function createEvent(
   type: ClaudeEventType,
@@ -423,7 +367,6 @@ export function createEvent(
  * @param {string} [taskId] - Optional task identifier
  * @param {Record<string, string>} [environment] - Environment variables
  * @returns {ClaudeEvent} Process start event
- * @since 1.0.0
  */
 export function createProcessStart(
   sessionId: string,
@@ -458,7 +401,6 @@ export function createProcessStart(
  * @param {string} output - Process output
  * @param {string} [taskId] - Optional task identifier
  * @returns {ClaudeEvent} Process end event
- * @since 1.0.0
  */
 export function createProcessEnd(
   sessionId: string,
@@ -492,7 +434,6 @@ export function createProcessEnd(
  * @param {Record<string, any>} parameters - Tool parameters
  * @param {string} [taskId] - Optional task identifier
  * @returns {ClaudeEvent} Tool start event
- * @since 1.0.0
  */
 export function createToolStart(
   sessionId: string,
@@ -527,7 +468,6 @@ export function createToolStart(
  * @param {any} [result] - Tool execution result
  * @param {string} [error] - Error message if failed
  * @returns {ClaudeEvent} Tool end event
- * @since 1.0.0
  */
 export function createToolEnd(
   sessionId: string,
@@ -566,7 +506,6 @@ export function createToolEnd(
  * @param {number} [tokens] - Token count
  * @param {string} [model] - Model used
  * @returns {ClaudeEvent} Message event
- * @since 1.0.0
  */
 export function createMessage(
   sessionId: string,
@@ -598,7 +537,6 @@ export function createMessage(
  * @param {'stdout' | 'stderr'} streamType - Stream type
  * @param {string} [taskId] - Optional task identifier
  * @returns {ClaudeEvent} Stream event
- * @since 1.0.0
  */
 export function createStream(
   sessionId: string,
@@ -627,7 +565,6 @@ export function createStream(
  * @param {string} [code] - Error code
  * @param {string} [stack] - Stack trace
  * @returns {ClaudeEvent} Error event
- * @since 1.0.0
  */
 export function createError(
   sessionId: string,
@@ -660,7 +597,6 @@ export function createError(
  * @param {number} [cost] - Estimated cost in USD
  * @param {{ inputTokens: number; outputTokens: number; cacheTokens?: number }} [usage] - Token usage
  * @returns {ClaudeEvent} Result event
- * @since 1.0.0
  */
 export function createResult(
   sessionId: string,

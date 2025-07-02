@@ -1,5 +1,6 @@
 /**
- * @file End task orchestrator tool
+ * @fileoverview End task orchestrator tool handler that terminates running tasks,
+ * updates their status to completed, and closes associated agent sessions
  * @module handlers/tools/orchestrator/end-task
  */
 
@@ -53,7 +54,6 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
   context?: ToolHandlerContext
 ): Promise<CallToolResult> => {
   try {
-    // Validate input
     const validated = validateInput(EndTaskArgsSchema, args);
     
     logger.info('Ending task', {
@@ -61,20 +61,17 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
       sessionId: context?.sessionId
     });
     
-    // Get the task
     const task = await taskOperations.taskStore.getTask(validated.id);
     if (!task) {
       throw new TaskNotFoundError(validated.id);
     }
     
-    // Calculate duration
     const startTime = task.started_at ? new Date(task.started_at).getTime() : new Date(task.created_at).getTime();
     const endTime = Date.now();
     const duration = endTime - startTime;
     
-    // Update task status to completed
     const completedAt = new Date().toISOString();
-    const finalStatus = TASK_STATUS.COMPLETED;  // Fully completed when ending task
+    const finalStatus = TASK_STATUS.COMPLETED;
     await taskOperations.updateTaskStatus(
       task.id,
       finalStatus,
@@ -84,7 +81,6 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
       }
     );
     
-    // Close the associated process if exists
     let sessionClosed = false;
     if (task.assigned_to) {
       try {
@@ -108,7 +104,6 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
       }
     }
     
-    // Format duration in human-readable format
     const formatDuration = (ms: number): string => {
       const seconds = Math.floor(ms / 1000);
       const minutes = Math.floor(seconds / 60);
@@ -123,7 +118,6 @@ export const handleEndTask: ToolHandler<EndTaskArgs> = async (
       }
     };
     
-    // Create result
     const result: EndTaskResult = {
       id: task.id,
       description: task.description,

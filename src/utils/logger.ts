@@ -1,7 +1,6 @@
 /**
  * @fileoverview Logging utility for the SystemPrompt Coding Agent
  * @module utils/logger
- * @since 1.0.0
  * 
  * @remarks
  * This module provides a simple logging interface with different log levels.
@@ -39,7 +38,6 @@ export const logger = {
    * Logs debug-level messages when DEBUG environment variable is 'true'.
    * 
    * @param {...any} args - Any number of arguments to log
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -56,7 +54,6 @@ export const logger = {
    * Logs informational messages.
    * 
    * @param {...any} args - Any number of arguments to log
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -71,7 +68,6 @@ export const logger = {
    * Logs warning messages for potentially problematic situations.
    * 
    * @param {...any} args - Any number of arguments to log
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -86,7 +82,6 @@ export const logger = {
    * Logs error messages for failures and exceptions.
    * 
    * @param {...any} args - Any number of arguments to log
-   * @since 1.0.0
    * 
    * @example
    * ```typescript

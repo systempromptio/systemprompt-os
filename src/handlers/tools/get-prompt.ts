@@ -1,5 +1,6 @@
 /**
- * @file Get prompt orchestrator tool
+ * @fileoverview Get prompt orchestrator tool handler that retrieves coding prompts
+ * from the system's prompt registry for AI-assisted development tasks
  * @module handlers/tools/orchestrator/get-prompt
  */
 
@@ -50,7 +51,6 @@ export const handleGetPrompt: ToolHandler<GetPromptArgs> = async (
       promptId: args.prompt_id,
     });
 
-    // If no prompt_id is provided, return all prompts
     if (!args.prompt_id) {
       logger.info("Returning all prompts", {
         count: CODING_PROMPTS.length,
@@ -66,7 +66,6 @@ export const handleGetPrompt: ToolHandler<GetPromptArgs> = async (
       });
     }
 
-    // Find the specific prompt by ID
     const prompt = CODING_PROMPTS.find(p => p.name === args.prompt_id);
     
     if (!prompt) {

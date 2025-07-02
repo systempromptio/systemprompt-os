@@ -1,5 +1,6 @@
 /**
- * @file Task management utilities for orchestrator tools
+ * @fileoverview Task management utilities for orchestrator tools providing
+ * high-level operations for creating, updating, and managing tasks
  * @module handlers/tools/orchestrator/utils/task
  */
 
@@ -16,12 +17,18 @@ import type {
 } from "../../../types/task.js";
 import { TASK_STATUS } from "../../../constants/task-status.js";
 
+/**
+ * Parameters for creating a new task
+ */
 export interface TaskCreationParams {
   description: string;
   tool: AITool;
   projectPath: string;
 }
 
+/**
+ * Task report structure
+ */
 export interface TaskReport {
   task: Task;
   duration: string;
@@ -41,9 +48,12 @@ export class TaskOperations {
 
   /**
    * Creates a new task
+   * 
+   * @param params - Task creation parameters
+   * @param sessionId - Optional session ID
+   * @returns Created task object
    */
   async createTask(params: TaskCreationParams, sessionId?: string): Promise<Task> {
-    // Use pure UUID as task ID - no prefix
     const taskId = uuidv4();
     const now = new Date().toISOString();
 
@@ -54,13 +64,12 @@ export class TaskOperations {
       status: TASK_STATUS.PENDING,
       created_at: now,
       updated_at: now,
-      logs: [],  // Start with empty logs array
+      logs: [],
     };
 
     await this.taskStore.createTask(task, sessionId);
     logger.info("Task created", { taskId, tool: params.tool });
     
-    // Add initial log entry
     const logEntry: TaskLogEntry = {
       timestamp: new Date().toISOString(),
       level: 'info',
@@ -78,6 +87,12 @@ export class TaskOperations {
 
   /**
    * Updates task status with validation
+   * 
+   * @param taskId - Task ID to update
+   * @param newStatus - New task status
+   * @param sessionId - Optional session ID
+   * @param metadata - Optional metadata including error, result, etc
+   * @returns Updated task or null if not found
    */
   async updateTaskStatus(
     taskId: string,
@@ -95,7 +110,6 @@ export class TaskOperations {
       return null;
     }
 
-    // Validate state transitions
     if (!this.isValidStatusTransition(task.status, newStatus)) {
       logger.warn("Invalid status transition", {
         taskId,
@@ -105,12 +119,10 @@ export class TaskOperations {
       throw new Error(`Cannot transition from ${task.status} to ${newStatus}`);
     }
 
-    // Build updates object based on status
     const updates: UpdateTaskParams = {
       status: newStatus,
     };
 
-    // Add status-specific updates
     switch (newStatus) {
       case TASK_STATUS.IN_PROGRESS:
         if (!task.started_at) {
@@ -119,7 +131,6 @@ export class TaskOperations {
         break;
 
       case TASK_STATUS.COMPLETED_ACTIVE:
-        // Task is done but session remains active
         break;
         
       case TASK_STATUS.COMPLETED:
@@ -157,12 +168,16 @@ export class TaskOperations {
 
   /**
    * Checks if a status transition is valid
+   * 
+   * @param from - Current status
+   * @param to - Target status
+   * @returns True if transition is valid
    */
   private isValidStatusTransition(from: TaskStatus, to: TaskStatus): boolean {
     const validTransitions: Record<TaskStatus, TaskStatus[]> = {
       [TASK_STATUS.PENDING]: [TASK_STATUS.IN_PROGRESS, TASK_STATUS.CANCELLED],
       [TASK_STATUS.IN_PROGRESS]: [TASK_STATUS.COMPLETED_ACTIVE, TASK_STATUS.COMPLETED, TASK_STATUS.FAILED, TASK_STATUS.CANCELLED],
-      [TASK_STATUS.COMPLETED_ACTIVE]: [TASK_STATUS.COMPLETED],  // Can transition to fully completed when session ends
+      [TASK_STATUS.COMPLETED_ACTIVE]: [TASK_STATUS.COMPLETED],
       [TASK_STATUS.COMPLETED]: [],
       [TASK_STATUS.FAILED]: [],
       [TASK_STATUS.CANCELLED]: [],
@@ -173,6 +188,10 @@ export class TaskOperations {
 
   /**
    * Generates a task report
+   * 
+   * @param taskId - Task ID to report on
+   * @param format - Report format (markdown, json, or summary)
+   * @returns Formatted report string
    */
   async generateTaskReport(
     taskId: string,
@@ -210,6 +229,11 @@ export class TaskOperations {
 
   /**
    * Generates a markdown report
+   * 
+   * @param task - Task object
+   * @param logs - Task log entries
+   * @param duration - Formatted duration string
+   * @returns Markdown formatted report
    */
   private generateMarkdownReport(task: Task, logs: TaskLogEntry[], duration: string): string {
     const status =
@@ -262,6 +286,11 @@ export class TaskOperations {
 
   /**
    * Generates a summary report
+   * 
+   * @param task - Task object
+   * @param logs - Task log entries
+   * @param duration - Formatted duration string
+   * @returns Summary text report
    */
   private generateSummaryReport(task: Task, logs: TaskLogEntry[], duration: string): string {
     const errorCount = logs.filter((log) => log.level === 'error').length;
@@ -280,6 +309,9 @@ export class TaskOperations {
 
   /**
    * Calculates task duration
+   * 
+   * @param task - Task object
+   * @returns Human-readable duration string
    */
   private calculateDuration(task: Task): string {
     if (!task.started_at) {
@@ -310,6 +342,10 @@ export class TaskOperations {
 
   /**
    * Calculates task metrics
+   * 
+   * @param task - Task object
+   * @param logs - Task log entries
+   * @returns Task metrics object
    */
   private calculateTaskMetrics(task: Task, logs: TaskLogEntry[]): Record<string, unknown> {
     return {
@@ -326,6 +362,11 @@ export class TaskOperations {
 
   /**
    * Updates a task
+   * 
+   * @param taskId - Task ID to update
+   * @param updates - Partial task updates
+   * @param sessionId - Optional session ID
+   * @returns Updated task or null
    */
   async updateTask(
     taskId: string,
@@ -337,6 +378,10 @@ export class TaskOperations {
 
   /**
    * Adds a log entry
+   * 
+   * @param taskId - Task ID to add log to
+   * @param log - Log message or entry object
+   * @param sessionId - Optional session ID
    */
   async addTaskLog(taskId: string, log: string | TaskLogEntry, sessionId?: string): Promise<void> {
     await this.taskStore.addLog(taskId, log, sessionId);
@@ -344,6 +389,8 @@ export class TaskOperations {
 
   /**
    * Gets task statistics
+   * 
+   * @returns Task statistics including counts by status and tool
    */
   async getTaskStatistics(): Promise<{
     total: number;
@@ -392,5 +439,7 @@ export class TaskOperations {
   }
 }
 
-// Export singleton instance
+/**
+ * Singleton instance of task operations
+ */
 export const taskOperations = new TaskOperations();

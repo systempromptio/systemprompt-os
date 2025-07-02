@@ -1,6 +1,22 @@
 /**
- * @file Update task orchestrator tool
+ * @fileoverview Update task tool handler for sending new instructions to AI agents
  * @module handlers/tools/orchestrator/update-task
+ * 
+ * @remarks
+ * This handler allows sending new instructions to active AI agent sessions.
+ * It supports both task IDs and session IDs as input, automatically resolving
+ * the appropriate session for task updates.
+ * 
+ * @example
+ * ```typescript
+ * import { handleUpdateTask } from './handlers/tools/update-task';
+ * 
+ * // Update using task ID
+ * const result = await handleUpdateTask({
+ *   id: "task_123",
+ *   instructions: "Add error handling"
+ * }, { sessionId: "mcp_456" });
+ * ```
  */
 
 import type { ToolHandler, CallToolResult, ToolHandlerContext } from './types.js';
@@ -25,19 +41,27 @@ import {
  * @param context - Execution context containing session information
  * @returns Result of the command execution
  * 
+ * @remarks
+ * This handler:
+ * 1. Accepts either task ID or session ID
+ * 2. Validates the session is in a state that can accept commands
+ * 3. Executes the new instructions
+ * 4. Logs progress and results to the task
+ * 5. Returns execution results
+ * 
  * @example
  * ```typescript
  * // Using session ID directly
  * await handleUpdateTask({
- *   id: "session_abc123",
+ *   id: "claude_abc123",
  *   instructions: "Add error handling to the authentication module"
- * }, { sessionId: "session_123" });
+ * }, { sessionId: "mcp_123" });
  * 
  * // Using task ID (will find associated session)
  * await handleUpdateTask({
  *   id: "task_xyz789",
  *   instructions: "Add unit tests for the new feature"
- * }, { sessionId: "session_123" });
+ * }, { sessionId: "mcp_123" });
  * ```
  */
 export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
@@ -47,7 +71,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
   const startTime = Date.now();
   
   try {
-    // Validate input
     const validated = validateInput(UpdateTaskArgsSchema, args);
     
     logger.info('Updating task with new instructions', {
@@ -56,14 +79,11 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       contextSessionId: context?.sessionId
     });
     
-    // First, check if the ID is a task ID and get the session ID
     let sessionId = validated.id;
     let taskId: string | undefined;
     
-    // Try to get task by ID to see if user passed a task ID instead of session ID
     const task = await taskOperations.taskStore.getTask(validated.id);
     if (task) {
-      // User provided a task ID, get the session ID from the task
       if (task.assigned_to) {
         sessionId = task.assigned_to;
         taskId = task.id;
@@ -87,7 +107,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       }
     }
     
-    // Get session information
     const session = agentOperations.agentManager.getSession(sessionId);
     if (!session) {
       logger.warn('Session not found', { sessionId, originalId: validated.id });
@@ -107,7 +126,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       });
     }
     
-    // Validate session state
     const sessionValidation = validateSessionState(session);
     if (!sessionValidation.valid) {
       return formatToolResponse({
@@ -124,7 +142,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       });
     }
     
-    // Check if task is in a state that allows updates
     if (task && task.status === TASK_STATUS.COMPLETED) {
       return formatToolResponse({
         status: 'error',
@@ -140,13 +157,11 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       });
     }
     
-    // Use the taskId we found earlier, or try to get it from the session
     if (!taskId && session.taskId) {
       taskId = session.taskId;
     }
     
     if (taskId) {
-      // Log the new instructions to the task
       await taskOperations.taskStore.addLog(
         taskId,
         `Updating task with new instructions...`,
@@ -154,7 +169,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       );
     }
     
-    // Execute the instructions
     const result = await agentOperations.executeInstructions(
       sessionId,  // Use the actual session ID, not the input ID
       validated.instructions,
@@ -167,7 +181,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
     
     const executionTime = Date.now() - startTime;
     
-    // Log result to task if applicable
     if (taskId) {
       const logMessage = result.success
         ? `Update completed (${Math.floor(executionTime / 1000)}s)`
@@ -179,7 +192,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
         context?.sessionId
       );
       
-      // Log output if present
       if (result.output) {
         await taskOperations.taskStore.addLog(
           taskId,
@@ -197,7 +209,6 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       executionTimeMs: executionTime
     });
     
-    // Return appropriate response based on result
     if (result.success) {
       return formatToolResponse({
         message: 'Instructions sent successfully',
@@ -247,19 +258,18 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
 
 /**
  * Validates that a session is in a valid state for receiving updates
+ * 
+ * @param session - The session to validate
+ * @returns Validation result with status and message
  */
-function validateSessionState(session: any): { valid: boolean; message: string } {
+function validateSessionState(session: { status: AgentState; id: string }): { valid: boolean; message: string } {
   const status = session.status as AgentState;
-  
-  // Check if session can accept commands
   if (canAcceptCommands(status)) {
     return {
       valid: true,
       message: 'Session is ready'
     };
   }
-  
-  // Provide specific messages for different states
   switch (status) {
     case 'terminated':
       return {

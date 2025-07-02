@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * @file Main entry point for the SystemPrompt Coding Agent
+ * @fileoverview Main entry point for the SystemPrompt Coding Agent MCP server.
+ * Initializes the environment and starts the HTTP server on the configured port.
  * @module index
  * 
  * @remarks
@@ -20,18 +21,18 @@ dotenv.config();
 
 import { startServer } from './server.js';
 import { CONFIG } from './server/config.js';
+import { logger } from './utils/logger.js';
 
-// Start the server
 const port = parseInt(CONFIG.PORT, 10);
 (async () => {
   try {
     const server = await startServer(port);
     server.on('error', (error) => {
-      console.error('Failed to start server:', error);
+      logger.error('Failed to start server:', error);
       process.exit(1);
     });
   } catch (error) {
-    console.error('Failed to initialize server:', error);
+    logger.error('Failed to initialize server:', error);
     process.exit(1);
   }
 })();

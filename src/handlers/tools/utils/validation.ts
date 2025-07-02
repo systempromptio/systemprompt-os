@@ -1,5 +1,6 @@
 /**
- * @file Validation utilities for orchestrator tools
+ * @fileoverview Validation utilities for orchestrator tools providing
+ * schema validation, input sanitization, and error handling
  * @module handlers/tools/orchestrator/utils/validation
  */
 
@@ -10,12 +11,19 @@ import { formatToolResponse } from "../types.js";
 
 /**
  * Validates input against a Zod schema with detailed error reporting
+ * 
  * @template T The expected output type
  * @template I The input type
  * @param schema The Zod schema to validate against
  * @param input The input to validate
  * @returns The validated and parsed input
  * @throws ValidationError with detailed field information
+ * 
+ * @example
+ * ```typescript
+ * const schema = z.object({ name: z.string() });
+ * const result = validateInput(schema, { name: "test" });
+ * ```
  */
 export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I): T {
   try {
@@ -35,6 +43,7 @@ export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I):
 
 /**
  * Validates input and returns a formatted error response on failure
+ * 
  * @template T The expected output type
  * @template I The input type
  * @param schema The Zod schema to validate against
@@ -76,6 +85,7 @@ export function validateWithResponse<T, I = unknown>(
 
 /**
  * Creates a safe validator function that returns a result object
+ * 
  * @template T The expected output type
  * @param schema The Zod schema to validate against
  * @returns A validator function that returns a result object
@@ -103,6 +113,7 @@ export function createSafeValidator<T>(schema: z.ZodSchema<T>) {
 
 /**
  * Gets a nested value from an object using a path array
+ * 
  * @param obj The object to traverse
  * @param path The path array
  * @returns The value at the path or undefined
@@ -120,17 +131,17 @@ function getNestedValue(obj: unknown, path: (string | number)[]): unknown {
 
 /**
  * Validates that a string is a valid git branch name
+ * 
  * @param branch The branch name to validate
  * @returns True if valid, false otherwise
+ * 
+ * @example
+ * ```typescript
+ * isValidGitBranch("feature/new-branch"); // true
+ * isValidGitBranch("feature..branch"); // false
+ * ```
  */
 export function isValidGitBranch(branch: string): boolean {
-  // Git branch name rules:
-  // - Cannot start with '.' or end with '.lock'
-  // - Cannot contain: space, ~, ^, :, ?, *, [, ], \, @{, //
-  // - Cannot be the single character @
-  // - Cannot end with a slash /
-  // - Cannot contain consecutive dots ..
-
   if (!branch || branch === "@") return false;
   if (branch.startsWith(".") || branch.endsWith(".lock")) return false;
   if (branch.endsWith("/")) return false;
@@ -142,6 +153,7 @@ export function isValidGitBranch(branch: string): boolean {
 
 /**
  * Validates that a tool is available based on environment
+ * 
  * @param tool The tool name to check
  * @returns True if available, false otherwise
  */
@@ -156,14 +168,19 @@ export function isToolAvailable(tool: "CLAUDECODE"): boolean {
 
 /**
  * Sanitizes a string for safe logging (removes sensitive patterns)
+ * 
  * @param input The string to sanitize
  * @returns The sanitized string
+ * 
+ * @example
+ * ```typescript
+ * sanitizeForLogging("API key: sk-abcd1234..."); // "API key: sk-***"
+ * ```
  */
 export function sanitizeForLogging(input: string): string {
-  // Remove potential API keys, tokens, passwords
   return input
-    .replace(/sk-[a-zA-Z0-9]{48}/g, "sk-***") // OpenAI/Anthropic style keys
-    .replace(/AIza[a-zA-Z0-9-_]{35}/g, "AIza***") // Google style keys
+    .replace(/sk-[a-zA-Z0-9]{48}/g, "sk-***")
+    .replace(/AIza[a-zA-Z0-9-_]{35}/g, "AIza***")
     .replace(/(password|token|secret|key)[\s]*[:=][\s]*["']?([^"'\s]+)["']?/gi, "$1=***")
     .replace(/Bearer\s+[a-zA-Z0-9-._~+/]+/g, "Bearer ***");
 }

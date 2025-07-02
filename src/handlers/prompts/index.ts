@@ -1,5 +1,5 @@
 /**
- * @file Central registry for all coding prompts
+ * @fileoverview Central registry for all coding prompts
  * @module handlers/prompts
  */
 

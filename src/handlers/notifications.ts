@@ -1,18 +1,50 @@
+/**
+ * @fileoverview MCP notification handlers for sending various notification types
+ * @module handlers/notifications
+ * 
+ * @remarks
+ * This module provides functions for sending different types of MCP notifications:
+ * - Operation notifications (task updates)
+ * - Configuration change notifications
+ * - Progress notifications
+ * - Resource update notifications
+ * - Roots list change notifications
+ * 
+ * Notifications can be sent to specific sessions or broadcast to all active sessions.
+ * 
+ * @example
+ * ```typescript
+ * import { sendOperationNotification, sendProgressNotification } from './handlers/notifications';
+ * 
+ * // Send operation notification
+ * await sendOperationNotification('create_task', 'Task created successfully');
+ * 
+ * // Send progress notification
+ * await sendProgressNotification('task-123', 50, 100, 'session-456');
+ * ```
+ */
+
 import type { ServerNotification } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { getMCPHandlerInstance } from '../server/mcp.js';
 
 
+/**
+ * Configuration change notification type
+ */
 type ConfigNotification = {
   method: "server/config/changed";
   params: {
-    _meta: Record<string, any>;
+    _meta: Record<string, unknown>;
     message: string;
     level: "info" | "warning" | "error";
     timestamp: string;
   };
 };
 
+/**
+ * Progress update notification type
+ */
 type ProgressNotification = {
   method: "notifications/progress";
   params: {
@@ -22,11 +54,17 @@ type ProgressNotification = {
   };
 };
 
+/**
+ * Roots list change notification type
+ */
 type RootsListChangedNotification = {
   method: "notifications/roots/list_changed";
   params?: Record<string, never>;
 };
 
+/**
+ * Resource update notification type
+ */
 type ResourcesUpdatedNotification = {
   method: "notifications/resources/updated";
   params: {
@@ -34,11 +72,26 @@ type ResourcesUpdatedNotification = {
   };
 };
 
+/**
+ * Resources list change notification type
+ */
 type ResourcesListChangedNotification = {
   method: "notifications/resources/list_changed";
   params?: Record<string, never>;
 };
 
+/**
+ * Sends an operation notification for task-related events
+ * 
+ * @param operation - The operation type (e.g., 'create_task', 'update_task')
+ * @param message - The notification message
+ * @param sessionId - Optional session ID for targeted notification
+ * 
+ * @example
+ * ```typescript
+ * await sendOperationNotification('end_task', 'Task completed successfully', 'session-123');
+ * ```
+ */
 export async function sendOperationNotification(operation: string, message: string, sessionId?: string): Promise<void> {
   const notification: ServerNotification = {
     method: "notifications/message",
@@ -52,6 +105,11 @@ export async function sendOperationNotification(operation: string, message: stri
   await sendNotification(notification, sessionId);
 }
 
+/**
+ * Sends a JSON result notification
+ * 
+ * @param message - The notification message
+ */
 export async function sendJsonResultNotification(message: string): Promise<void> {
   const notification: ServerNotification = {
     method: "notifications/message",
@@ -66,6 +124,11 @@ export async function sendJsonResultNotification(message: string): Promise<void>
 }
 
 
+/**
+ * Sends a configuration change notification
+ * 
+ * @param message - The configuration change message
+ */
 export async function sendConfigNotification(message: string): Promise<void> {
   const notification: ConfigNotification = {
     method: "server/config/changed",
@@ -79,6 +142,19 @@ export async function sendConfigNotification(message: string): Promise<void> {
   await sendNotification(notification);
 }
 
+/**
+ * Sends a progress update notification
+ * 
+ * @param progressToken - Unique token identifying the operation
+ * @param progress - Current progress value
+ * @param total - Optional total value for percentage calculation
+ * @param sessionId - Optional session ID for targeted notification
+ * 
+ * @example
+ * ```typescript
+ * await sendProgressNotification('task-123', 75, 100, 'session-456');
+ * ```
+ */
 export async function sendProgressNotification(
   progressToken: string | number,
   progress: number,
@@ -96,6 +172,10 @@ export async function sendProgressNotification(
   await sendNotification(notification, sessionId);
 }
 
+/**
+ * Sends a notification that the roots list has changed
+ * 
+ */
 export async function sendRootsListChangedNotification(): Promise<void> {
   const notification: RootsListChangedNotification = {
     method: "notifications/roots/list_changed",
@@ -104,6 +184,17 @@ export async function sendRootsListChangedNotification(): Promise<void> {
   await sendNotification(notification);
 }
 
+/**
+ * Sends a notification that a specific resource has been updated
+ * 
+ * @param uri - The URI of the updated resource
+ * @param sessionId - Optional session ID for targeted notification
+ * 
+ * @example
+ * ```typescript
+ * await sendResourcesUpdatedNotification('task://123', 'session-789');
+ * ```
+ */
 export async function sendResourcesUpdatedNotification(uri: string, sessionId?: string): Promise<void> {
   const notification: ResourcesUpdatedNotification = {
     method: "notifications/resources/updated",
@@ -112,6 +203,11 @@ export async function sendResourcesUpdatedNotification(uri: string, sessionId?: 
   await sendNotification(notification, sessionId);
 }
 
+/**
+ * Sends a notification that the resources list has changed
+ * 
+ * @param sessionId - Optional session ID for targeted notification
+ */
 export async function sendResourcesListChangedNotification(sessionId?: string): Promise<void> {
   const notification: ResourcesListChangedNotification = {
     method: "notifications/resources/list_changed",
@@ -120,46 +216,50 @@ export async function sendResourcesListChangedNotification(sessionId?: string): 
   await sendNotification(notification, sessionId);
 }
 
+/**
+ * Internal function to send notifications to MCP clients
+ * 
+ * @param notification - The notification to send
+ * @param sessionId - Optional session ID for targeted notification
+ * 
+ * @remarks
+ * This function handles both targeted (session-specific) and broadcast
+ * notifications. If sessionId is provided, the notification is sent only
+ * to that session. Otherwise, it's broadcast to all active sessions.
+ */
 async function sendNotification(
   notification: ServerNotification | ConfigNotification | ProgressNotification | RootsListChangedNotification | ResourcesUpdatedNotification | ResourcesListChangedNotification,
   sessionId?: string
 ) {
   const handler = getMCPHandlerInstance();
   if (!handler) {
-    console.warn("MCP handler not initialized, cannot send notification");
     return;
   }
 
-  // If sessionId is provided, send only to that specific session
   if (sessionId) {
     const server = handler.getServerForSession(sessionId);
     if (!server) {
-      console.warn(`No active server found for session: ${sessionId}`);
       return;
     }
     
     try {
-      console.log(`[NOTIFICATION DEBUG] Sending ${notification.method} to session ${sessionId}`);
       await server.notification(notification as ServerNotification);
-      console.log(`[NOTIFICATION DEBUG] Successfully sent ${notification.method} to session ${sessionId}`);
-    } catch (err: any) {
-      console.error(`Failed to send notification to session ${sessionId}`, err);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      throw error;
     }
     return;
   }
   
-  // Otherwise, broadcast to all active sessions (for global notifications)
   const activeServers = handler.getAllServers();
   if (activeServers.length === 0) {
-    console.warn("No active MCP server sessions available for notification");
     return;
   }
   
-  console.log(`[NOTIFICATION] Sending ${notification.method} to ${activeServers.length} active sessions`);
   
   const notificationPromises = activeServers.map((server: Server) => 
-    server.notification(notification as ServerNotification).catch((err: any) => {
-      console.error("Failed to send notification to session", err);
+    server.notification(notification as ServerNotification).catch(() => {
+      // Ignore broadcast failures silently
     })
   );
   

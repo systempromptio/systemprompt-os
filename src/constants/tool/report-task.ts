@@ -1,14 +1,12 @@
 /**
  * @fileoverview Report task tool definition
  * @module constants/tool/report-task
- * @since 1.0.0
  */
 
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 /**
  * Tool for generating reports on tasks
- * @since 1.0.0
  */
 export const reportTask: Tool = {
   name: 'report',

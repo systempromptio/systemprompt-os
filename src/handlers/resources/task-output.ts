@@ -1,9 +1,20 @@
+/**
+ * @fileoverview Task output resource handler for MCP protocol
+ * @module handlers/resources/task-output
+ */
+
 import { Resource } from "@modelcontextprotocol/sdk/types.js";
 import { TaskStore } from "../../services/task-store.js";
 import { ClaudeCodeService } from "../../services/claude-code/index.js";
 import { AgentManager } from "../../services/agent-manager/index.js";
 import { logger } from "../../utils/logger.js";
 
+/**
+ * Gets task output as a resource
+ * 
+ * @param uri - Resource URI containing task ID
+ * @returns Task output resource with logs and session data
+ */
 export async function getTaskOutputResource(uri: URL): Promise<Resource> {
   const taskId = uri.pathname.replace("/task-output/", "");
   
@@ -21,7 +32,6 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
       throw new Error(`Task ${taskId} not found`);
     }
     
-    // Get session information
     const sessions = agentManager.getAllSessions();
     const taskSession = sessions.find(s => s.taskId === taskId);
     
@@ -29,27 +39,19 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
     let progressEvents: any[] = [];
     
     if (taskSession && taskSession.type === 'claude') {
-      // Get Claude session details
       const claudeSession = claudeService.getSession(taskSession.serviceSessionId);
       if (claudeSession) {
-        // Get streaming output
         const rawOutput = claudeSession.streamBuffer.join("\n");
         
-        // Try to parse as JSON if it looks like JSON
         if (rawOutput.trim().startsWith('{') || rawOutput.trim().startsWith('[')) {
           try {
-            // Parse the JSON to validate it, then store as parsed object
             streamOutput = JSON.parse(rawOutput);
           } catch (e) {
-            // If parsing fails, keep as string
             streamOutput = rawOutput;
           }
         } else {
           streamOutput = rawOutput;
         }
-        
-        // TODO: Get progress events from a proper store
-        // For now, we'll just show the stream buffer
       }
     }
     
@@ -58,7 +60,7 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
         id: task.id,
         description: task.description,
         status: task.status,
-        elapsed_seconds: 0, // Calculate from timestamps if needed
+        elapsed_seconds: 0,
         created_at: task.created_at,
         updated_at: task.updated_at
       },
@@ -72,8 +74,8 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
       logs: task.logs || [],
       stream_output: streamOutput,
       progress_events: progressEvents,
-      files_created: [],  // TODO: Track files created
-      commands_executed: [] // TODO: Track commands executed
+      files_created: [],
+      commands_executed: []
     };
     
     return {
@@ -90,16 +92,20 @@ export async function getTaskOutputResource(uri: URL): Promise<Resource> {
   }
 }
 
+/**
+ * Lists available task output resources
+ * 
+ * @returns Array of task output resources for active tasks
+ */
 export async function listTaskOutputResources(): Promise<Resource[]> {
   const taskStore = TaskStore.getInstance();
   const tasks = await taskStore.getTasks();
   
-  // Only show active tasks
   const activeTasks = tasks.filter(t => 
     t.status === 'in_progress' || 
     t.status === 'pending' ||
     (t.status === 'completed' && t.updated_at && 
-     new Date(t.updated_at).getTime() > Date.now() - 3600000) // Last hour
+     new Date(t.updated_at).getTime() > Date.now() - 3600000)
   );
   
   return activeTasks.map(task => ({

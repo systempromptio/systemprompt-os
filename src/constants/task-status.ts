@@ -1,7 +1,6 @@
 /**
  * @fileoverview Task status constants
  * @module constants/task-status
- * @since 1.0.0
  * 
  * @remarks
  * Single source of truth for task status values.
@@ -10,7 +9,6 @@
 
 /**
  * Task status constants matching the TaskStatus type from types/task.ts
- * @since 1.0.0
  */
 export const TASK_STATUS = {
   /** Task is waiting to be started */
@@ -29,6 +27,5 @@ export const TASK_STATUS = {
 
 /**
  * Type representing any valid task status value
- * @since 1.0.0
  */
 export type TaskStatusValue = typeof TASK_STATUS[keyof typeof TASK_STATUS];

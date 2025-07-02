@@ -1,14 +1,12 @@
 /**
  * @fileoverview Clean state tool definition
  * @module constants/tool/clean-state
- * @since 1.0.0
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * Tool for cleaning up system state
- * @since 1.0.0
  */
 export const cleanState: Tool = {
   name: "clean_state",

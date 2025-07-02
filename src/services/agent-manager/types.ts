@@ -1,7 +1,6 @@
 /**
  * @fileoverview Type definitions for Agent Manager service
  * @module services/agent-manager/types
- * @since 1.0.0
  * 
  * @remarks
  * This module contains all type definitions used by the agent manager service.
@@ -16,7 +15,6 @@ import type { AgentState } from '../../types/session-states.js';
  * Represents the type of AI agent available in the system.
  * 
  * @typedef {'claude'} AgentType
- * @since 1.0.0
  * 
  * @remarks
  * Currently only supports 'claude', but designed to be extensible for future agent types.
@@ -28,7 +26,6 @@ export type AgentType = 'claude';
  * Alias for AgentState, representing the current status of an agent session.
  * 
  * @typedef {AgentState} AgentSessionStatus
- * @since 1.0.0
  * 
  * @remarks
  * Use this when you need to track or update the lifecycle state of an agent.
@@ -40,7 +37,6 @@ export type AgentSessionStatus = AgentState;
  * Represents a running agent session with all its associated metadata and state.
  * 
  * @interface AgentSession
- * @since 1.0.0
  * 
  * @remarks
  * This is the primary data structure for tracking active AI agents in the system.
@@ -107,7 +103,6 @@ export interface AgentSession {
  * Represents a command to be executed by an agent.
  * 
  * @interface AgentCommand
- * @since 1.0.0
  * 
  * @remarks
  * Use this when sending instructions or queries to an active agent session.
@@ -129,7 +124,6 @@ export interface AgentCommand {
  * Represents the result of executing a command on an agent.
  * 
  * @interface AgentCommandResult
- * @since 1.0.0
  * 
  * @remarks
  * Contains both success/failure status and any output or error information.
@@ -161,7 +155,6 @@ export interface AgentCommandResult {
  * Structured error information from agent operations.
  * 
  * @interface AgentError
- * @since 1.0.0
  * 
  * @remarks
  * Provides detailed error context and indicates whether the operation can be retried.
@@ -188,7 +181,6 @@ export interface AgentError {
  * Configuration options for creating a new Claude agent session.
  * 
  * @interface ClaudeSessionConfig
- * @since 1.0.0
  * 
  * @remarks
  * Contains all necessary parameters to initialize a Claude AI agent with proper context.
@@ -238,7 +230,6 @@ export interface ClaudeSessionConfig {
  * System-wide metrics for monitoring agent sessions.
  * 
  * @interface SessionMetrics
- * @since 1.0.0
  * 
  * @remarks
  * Provides aggregate statistics about all agent sessions in the system.
@@ -275,7 +266,6 @@ export interface SessionMetrics {
  * Event payload for session-related events in the event system.
  * 
  * @interface SessionEvent
- * @since 1.0.0
  * 
  * @remarks
  * Used for pub/sub notifications about session lifecycle changes.
@@ -297,7 +287,6 @@ export interface SessionEvent {
  * Event payload for task progress updates.
  * 
  * @interface TaskProgressEvent
- * @since 1.0.0
  * 
  * @remarks
  * Emitted when significant progress occurs during task execution.

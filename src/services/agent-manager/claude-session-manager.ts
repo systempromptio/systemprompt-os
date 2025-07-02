@@ -1,7 +1,6 @@
 /**
  * @fileoverview Claude session management for Agent Manager
  * @module services/agent-manager/claude-session-manager
- * @since 1.0.0
  * 
  * @remarks
  * This module provides specialized management for Claude Code sessions within
@@ -37,7 +36,6 @@ import { logger } from '../../utils/logger.js';
  * Manages Claude Code sessions and their lifecycle
  * 
  * @class ClaudeSessionManager
- * @since 1.0.0
  * 
  * @remarks
  * This class provides:
@@ -53,7 +51,6 @@ export class ClaudeSessionManager {
    * @param claudeService - The Claude Code service instance
    * @param sessionStore - The session store for managing sessions
    * @param taskLogger - The task logger for logging events
-   * @since 1.0.0
    */
   constructor(
     private readonly claudeService: ClaudeCodeService,
@@ -66,7 +63,6 @@ export class ClaudeSessionManager {
    * 
    * @param config - Configuration for the Claude session
    * @returns The agent session ID
-   * @since 1.0.0
    * 
    * @remarks
    * This method:
@@ -140,7 +136,6 @@ export class ClaudeSessionManager {
    * @param command - The command to send
    * @param timeout - Optional timeout in milliseconds
    * @returns Result of the command execution
-   * @since 1.0.0
    * 
    * @remarks
    * This method:
@@ -226,7 +221,6 @@ export class ClaudeSessionManager {
    * 
    * @param session - The agent session to end
    * @throws Error if session termination fails
-   * @since 1.0.0
    * 
    * @remarks
    * This method:
@@ -273,7 +267,6 @@ export class ClaudeSessionManager {
    * Sets up event listeners
    * 
    * @param onSessionReady - Callback for when a session becomes ready
-   * @since 1.0.0
    * 
    * @remarks
    * Forwards session:ready events from the Claude service to the

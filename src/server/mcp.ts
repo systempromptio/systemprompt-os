@@ -1,5 +1,7 @@
 /**
- * @file MCP protocol handler with session management (no authentication)
+ * @fileoverview MCP protocol handler with session management and per-session server instances.
+ * Implements the Model Context Protocol SDK patterns for handling multiple concurrent sessions
+ * without authentication requirements.
  * @module server/mcp
  *
  * @remarks
@@ -40,7 +42,6 @@ interface SessionInfo {
   lastAccessed: Date;
 }
 
-// Interface for MCP Handler
 export interface IMCPHandler {
   setupRoutes(app: express.Application): Promise<void>;
   getServerForSession(sessionId: string): Server | undefined;
@@ -57,28 +58,27 @@ export interface IMCPHandler {
 export class MCPHandler implements IMCPHandler {
   private sessions = new Map<string, SessionInfo>();
 
-  // Session cleanup interval (clear sessions older than 1 hour)
   private cleanupInterval: NodeJS.Timeout;
-  private readonly SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+  private readonly SESSION_TIMEOUT_MS = 60 * 60 * 1000;
 
   constructor() {
-    // Start session cleanup interval
     this.cleanupInterval = setInterval(
       () => {
         this.cleanupOldSessions();
       },
       5 * 60 * 1000,
-    ); // Run every 5 minutes
+    );
   }
 
   /**
    * Creates a new server instance with handlers
+   * @param sessionId - The session ID for logging context
+   * @returns Server instance configured with all handlers
+   * @private
    */
   private createServer(sessionId: string): Server {
-    // Create new server instance for this session
     const server = new Server(serverConfig, serverCapabilities);
 
-    // Tools
     server.setRequestHandler(ListToolsRequestSchema, (request) => {
       logger.debug(`📋 [${sessionId}] Listing tools`);
       return handleListTools(request);
@@ -91,7 +91,6 @@ export class MCPHandler implements IMCPHandler {
       return handleToolCall(request, { sessionId });
     });
 
-    // Prompts
     server.setRequestHandler(ListPromptsRequestSchema, () => {
       logger.debug(`📋 [${sessionId}] Listing prompts`);
       return handleListPrompts();
@@ -102,7 +101,6 @@ export class MCPHandler implements IMCPHandler {
       return handleGetPrompt(request);
     });
 
-    // Resources
     server.setRequestHandler(ListResourcesRequestSchema, () => {
       logger.debug(`📋 [${sessionId}] Listing resources`);
       return handleListResources();
@@ -113,13 +111,11 @@ export class MCPHandler implements IMCPHandler {
       return handleResourceCall(request);
     });
 
-    // Roots
     server.setRequestHandler(ListRootsRequestSchema, (request) => {
       logger.debug(`📁 [${sessionId}] Listing roots`);
       return handleListRoots(request);
     });
 
-    // Resource Templates
     server.setRequestHandler(ListResourceTemplatesRequestSchema, (request) => {
       logger.debug(`📋 [${sessionId}] Listing resource templates`);
       logger.info(`Resource templates request:`, JSON.stringify(request, null, 2));
@@ -131,70 +127,67 @@ export class MCPHandler implements IMCPHandler {
 
   /**
    * Sets up routes for the Express app
+   * @param app - Express application instance
+   * @example
+   * ```typescript
+   * const app = express();
+   * const handler = new MCPHandler();
+   * await handler.setupRoutes(app);
+   * ```
    */
   async setupRoutes(app: express.Application): Promise<void> {
-    // Apply middleware stack (no auth required)
     const mcpMiddleware = [
-      rateLimitMiddleware(60000, 100), // 100 requests per minute
+      rateLimitMiddleware(60000, 100),
       validateProtocolVersion,
-      requestSizeLimit(10 * 1024 * 1024), // 10MB max
+      requestSizeLimit(10 * 1024 * 1024),
     ];
 
-    // Main MCP endpoint (public access)
     app.all("/mcp", ...mcpMiddleware, (req, res) => this.handleRequest(req, res));
   }
 
   /**
    * Handles incoming MCP requests with proper session management
+   * @param req - Express request object
+   * @param res - Express response object
+   * @private
    */
   private async handleRequest(req: express.Request, res: express.Response): Promise<void> {
     const startTime = Date.now();
 
     try {
-      // Log request details for debugging
       logger.debug(`MCP ${req.method} request`, {
         headers: req.headers,
         sessionId: req.headers["mcp-session-id"] || req.headers["x-session-id"],
         acceptHeader: req.headers.accept,
       });
 
-      // Set CORS headers
       res.header("Access-Control-Expose-Headers", "mcp-session-id, x-session-id");
 
-      // Extract session ID from headers
       let sessionId =
         (req.headers["mcp-session-id"] as string) || (req.headers["x-session-id"] as string);
 
       logger.info(`[SESSION] Request method: ${req.method}, Session ID: ${sessionId || "none"}`);
 
-      // For init requests, we need to check the request without a session
-      // The transport will handle body parsing
       const isInitRequest = !sessionId;
 
       let sessionInfo: SessionInfo | undefined;
 
       if (isInitRequest) {
-        // Create new session for initialization
         sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
         logger.info(`[SESSION] Creating new session: ${sessionId}`);
 
-        // Create new server instance for this session
         const server = this.createServer(sessionId);
 
-        // Create new transport for this session
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => sessionId!,
           onsessioninitialized: (sid) => {
             logger.info(`🔗 New session initialized: ${sid}`);
           },
-          // Ensure SSE is enabled (default behavior)
-          enableJsonResponse: false, // This ensures SSE is preferred over JSON responses
+          enableJsonResponse: false,
         });
 
-        // Connect server to transport (one-to-one relationship)
         await server.connect(transport);
 
-        // Store session info
         sessionInfo = {
           server,
           transport,
@@ -205,10 +198,8 @@ export class MCPHandler implements IMCPHandler {
 
         logger.debug(`📝 Created new session with dedicated server: ${sessionId}`);
 
-        // Let transport handle the initialization request
         await transport.handleRequest(req, res);
       } else {
-        // Find existing session
         if (!sessionId) {
           res.status(400).json({
             jsonrpc: "2.0",
@@ -239,7 +230,6 @@ export class MCPHandler implements IMCPHandler {
         logger.info(`[SESSION] Found session ${sessionId}, handling ${req.method} request`);
         sessionInfo.lastAccessed = new Date();
 
-        // Let the session's transport handle the request
         await sessionInfo.transport.handleRequest(req, res);
       }
 
@@ -265,7 +255,8 @@ export class MCPHandler implements IMCPHandler {
   }
 
   /**
-   * Clean up old sessions
+   * Clean up old sessions that have exceeded the timeout
+   * @private
    */
   private cleanupOldSessions(): void {
     const now = Date.now();
@@ -274,7 +265,6 @@ export class MCPHandler implements IMCPHandler {
     for (const [sessionId, sessionInfo] of this.sessions.entries()) {
       const age = now - sessionInfo.lastAccessed.getTime();
       if (age > this.SESSION_TIMEOUT_MS) {
-        // Close server and transport
         sessionInfo.server.close();
         sessionInfo.transport.close();
         this.sessions.delete(sessionId);
@@ -289,6 +279,8 @@ export class MCPHandler implements IMCPHandler {
 
   /**
    * Get the server instance for a specific session
+   * @param sessionId - The session ID to look up
+   * @returns Server instance if found, undefined otherwise
    */
   getServerForSession(sessionId: string): Server | undefined {
     const sessionInfo = this.sessions.get(sessionId);
@@ -297,6 +289,7 @@ export class MCPHandler implements IMCPHandler {
 
   /**
    * Get all active servers
+   * @returns Array of all active server instances
    */
   getAllServers(): Server[] {
     return Array.from(this.sessions.values()).map((info) => info.server);
@@ -304,18 +297,19 @@ export class MCPHandler implements IMCPHandler {
 
   /**
    * Get any server instance (for compatibility)
+   * @returns A server instance, creating temporary one if needed
    */
   getServer(): Server {
     const firstSession = this.sessions.values().next().value;
     if (firstSession) {
       return firstSession.server;
     }
-    // Create a temporary server if none exist
     return new Server(serverConfig, serverCapabilities);
   }
 
   /**
-   * Clean up session
+   * Clean up a specific session
+   * @param sessionId - The session ID to clean up
    */
   cleanupSession(sessionId: string): void {
     const sessionInfo = this.sessions.get(sessionId);
@@ -329,20 +323,20 @@ export class MCPHandler implements IMCPHandler {
 
   /**
    * Get active session count
+   * @returns Number of active sessions
    */
   getActiveSessionCount(): number {
     return this.sessions.size;
   }
 
   /**
-   * Shutdown handler
+   * Shutdown handler - closes all sessions and cleans up resources
    */
   shutdown(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
 
-    // Close all sessions
     for (const sessionInfo of this.sessions.values()) {
       sessionInfo.server.close();
       sessionInfo.transport.close();
@@ -353,13 +347,20 @@ export class MCPHandler implements IMCPHandler {
   }
 }
 
-// Global instance for notifications
 let mcpHandlerInstance: MCPHandler | null = null;
 
+/**
+ * Set the global MCP handler instance
+ * @param handler - The MCP handler instance
+ */
 export function setMCPHandlerInstance(handler: MCPHandler): void {
   mcpHandlerInstance = handler;
 }
 
+/**
+ * Get the global MCP handler instance
+ * @returns The MCP handler instance or null if not set
+ */
 export function getMCPHandlerInstance(): MCPHandler | null {
   return mcpHandlerInstance;
 }

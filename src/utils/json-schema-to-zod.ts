@@ -1,7 +1,6 @@
 /**
  * @fileoverview JSON Schema to Zod converter utility
  * @module utils/json-schema-to-zod
- * @since 1.0.0
  * 
  * @remarks
  * This module provides a converter from JSON Schema to Zod schemas, specifically
@@ -29,25 +28,12 @@
 
 import { z } from 'zod';
 
-/**
- * JSON Schema type definition for type safety
- * @internal
- */
-interface JsonSchema {
-  type?: string;
-  properties?: Record<string, JsonSchema>;
-  required?: string[];
-  items?: JsonSchema;
-  enum?: string[];
-  default?: any;
-}
 
 /**
  * Convert JSON Schema to Zod schema
  * 
  * @param schema - The JSON Schema object to convert
  * @returns A Zod schema that validates according to the JSON Schema rules
- * @since 1.0.0
  * 
  * @remarks
  * This converter supports:

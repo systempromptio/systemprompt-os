@@ -1,7 +1,6 @@
 /**
  * @fileoverview API type definitions export aggregator
  * @module types/api
- * @since 1.0.0
  */
 
 // Error types and error handling

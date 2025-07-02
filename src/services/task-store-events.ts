@@ -1,7 +1,6 @@
 /**
  * @fileoverview Type-safe event definitions for TaskStore
  * @module services/task-store-events
- * @since 1.0.0
  * 
  * @remarks
  * This module provides type-safe event definitions for the TaskStore service,
@@ -29,7 +28,6 @@ import type { Task, TaskLogEntry } from "../types/task.js";
  * Type-safe event map for TaskStore
  * 
  * @interface TaskStoreEventMap
- * @since 1.0.0
  * 
  * @remarks
  * Defines all events emitted by the TaskStore and their associated data types.
@@ -66,7 +64,6 @@ export interface TaskStoreEventMap {
  * Type-safe event emitter interface for TaskStore
  * 
  * @interface TypedTaskStoreEmitter
- * @since 1.0.0
  * 
  * @remarks
  * Provides type-safe methods for event handling in the TaskStore.

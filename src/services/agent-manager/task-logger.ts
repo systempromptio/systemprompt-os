@@ -1,7 +1,6 @@
 /**
  * @fileoverview Task logging utilities for Agent Manager
  * @module services/agent-manager/task-logger
- * @since 1.0.0
  * 
  * @remarks
  * This module provides structured logging for task-related events in the agent
@@ -34,7 +33,6 @@ import { logger } from '../../utils/logger.js';
  * Handles logging of task-related events and messages
  * 
  * @class TaskLogger
- * @since 1.0.0
  * 
  * @remarks
  * This class provides methods for logging:
@@ -48,7 +46,6 @@ export class TaskLogger {
    * Creates a new task logger
    * 
    * @param taskStore - The task store for persisting logs
-   * @since 1.0.0
    */
   constructor(private readonly taskStore: TaskStore) {}
 
@@ -61,7 +58,6 @@ export class TaskLogger {
    * @param projectPath - The project directory path
    * @param initialContext - Optional initial context/instructions
    * @param mcpSessionId - Optional MCP session ID
-   * @since 1.0.0
    * 
    * @remarks
    * Creates two log entries:
@@ -113,7 +109,6 @@ export class TaskLogger {
    * @param taskId - The task ID
    * @param command - The command text
    * @param mcpSessionId - Optional MCP session ID
-   * @since 1.0.0
    */
   async logCommandSent(taskId: string, command: string, mcpSessionId?: string): Promise<void> {
     try {
@@ -140,7 +135,6 @@ export class TaskLogger {
    * @param outputLength - Length of the output
    * @param output - The full output text
    * @param mcpSessionId - Optional MCP session ID
-   * @since 1.0.0
    * 
    * @remarks
    * Creates two log entries:
@@ -207,7 +201,6 @@ export class TaskLogger {
    * @param prefix - Error message prefix
    * @param error - The error object or message
    * @param mcpSessionId - Optional MCP session ID
-   * @since 1.0.0
    * 
    * @remarks
    * Extracts error details including name, message, and stack trace
@@ -242,7 +235,6 @@ export class TaskLogger {
    * @param sessionId - The session ID
    * @param success - Whether termination was successful
    * @param mcpSessionId - Optional MCP session ID
-   * @since 1.0.0
    */
   async logSessionTermination(
     taskId: string,

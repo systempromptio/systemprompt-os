@@ -1,7 +1,6 @@
 /**
  * @fileoverview MCP Server configuration and capabilities - Example Implementation
  * @module constants/server/server-config
- * @since 1.0.0
  *
  * @remarks
  * This module defines the server metadata and capabilities for this example MCP server
@@ -75,7 +74,6 @@ export const serverConfig: Implementation = {
  * 
  * This example implements ALL capabilities to serve as a complete reference.
  * 
- * @since 1.0.0
  */
 export const serverCapabilities: { capabilities: ServerCapabilities } = {
   capabilities: {
@@ -99,7 +97,6 @@ export const serverCapabilities: { capabilities: ServerCapabilities } = {
 
 /**
  * Additional server configuration constants
- * @since 1.0.0
  */
 export const SERVER_CONFIG = {
   /** Session timeout in milliseconds (30 minutes) */

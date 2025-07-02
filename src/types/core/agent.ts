@@ -1,7 +1,6 @@
 /**
  * @fileoverview Core agent type definitions for AI agent abstraction
  * @module types/core/agent
- * @since 1.0.0
  */
 
 import { EventEmitter } from 'events';
@@ -9,19 +8,16 @@ import { z } from 'zod';
 
 /**
  * Supported AI agent providers
- * @since 1.0.0
  */
 export type AgentProvider = 'claude' | 'gemini' | 'custom';
 
 /**
  * Represents the current operational status of an AI agent
- * @since 1.0.0
  */
 export type AgentStatus = 'idle' | 'initializing' | 'ready' | 'processing' | 'error' | 'terminated';
 
 /**
  * Branded type for agent identifiers to ensure type safety
- * @since 1.0.0
  */
 export type AgentId = string & { readonly __brand: 'AgentId' };
 
@@ -29,7 +25,6 @@ export type AgentId = string & { readonly __brand: 'AgentId' };
  * Creates a type-safe agent identifier
  * @param {string} id - The raw agent ID string
  * @returns {AgentId} A branded agent ID
- * @since 1.0.0
  * @example
  * ```typescript
  * const agentId = createAgentId('agent_123');
@@ -40,36 +35,30 @@ export const createAgentId = (id: string): AgentId => id as AgentId;
 /**
  * Defines the capabilities supported by an AI agent
  * @interface
- * @since 1.0.0
  */
 export interface AgentCapabilities {
   /**
    * Whether the agent supports streaming responses
-   * @since 1.0.0
    */
   readonly supportsStreaming: boolean;
   
   /**
    * Whether the agent supports tool/function calling
-   * @since 1.0.0
    */
   readonly supportsTools: boolean;
   
   /**
    * Whether the agent supports multimodal inputs (images, etc.)
-   * @since 1.0.0
    */
   readonly supportsMultimodal: boolean;
   
   /**
    * Maximum context length in tokens
-   * @since 1.0.0
    */
   readonly maxContextLength: number;
   
   /**
    * List of supported file types for multimodal inputs
-   * @since 1.0.0
    */
   readonly supportedFileTypes: readonly string[];
 }
@@ -77,30 +66,25 @@ export interface AgentCapabilities {
 /**
  * Metadata about an AI agent instance
  * @interface
- * @since 1.0.0
  */
 export interface AgentMetadata {
   /**
    * The AI provider for this agent
-   * @since 1.0.0
    */
   readonly provider: AgentProvider;
   
   /**
    * Specific model identifier (e.g., 'claude-3-opus')
-   * @since 1.0.0
    */
   readonly model?: string;
   
   /**
    * Version of the agent implementation
-   * @since 1.0.0
    */
   readonly version?: string;
   
   /**
    * Capabilities supported by this agent
-   * @since 1.0.0
    */
   readonly capabilities: AgentCapabilities;
 }
@@ -109,36 +93,30 @@ export interface AgentMetadata {
  * Options for initializing an AI agent
  * @interface
  * @template TConfig - Type of provider-specific configuration
- * @since 1.0.0
  */
 export interface AgentInitOptions<TConfig = unknown> {
   /**
    * Optional agent ID (auto-generated if not provided)
-   * @since 1.0.0
    */
   readonly id?: AgentId;
   
   /**
    * Working directory for the agent's operations
-   * @since 1.0.0
    */
   readonly workingDirectory?: string;
   
   /**
    * Environment variables for the agent process
-   * @since 1.0.0
    */
   readonly environment?: Record<string, string>;
   
   /**
    * Provider-specific configuration
-   * @since 1.0.0
    */
   readonly config: TConfig;
   
   /**
    * Additional metadata for the agent
-   * @since 1.0.0
    */
   readonly metadata?: Record<string, unknown>;
 }
@@ -146,44 +124,37 @@ export interface AgentInitOptions<TConfig = unknown> {
 /**
  * Context for executing a query against an AI agent
  * @interface
- * @since 1.0.0
  */
 export interface QueryContext {
   /**
    * Unique session identifier for this query
-   * @since 1.0.0
    */
   readonly sessionId: string;
   
   /**
    * Parent task ID for hierarchical task tracking
-   * @since 1.0.0
    */
   readonly parentTaskId?: string;
   
   /**
    * Whether to enable tool/function calling for this query
    * @default true
-   * @since 1.0.0
    */
   readonly toolsEnabled?: boolean;
   
   /**
    * Whether to stream the response
    * @default false
-   * @since 1.0.0
    */
   readonly streamResponse?: boolean;
   
   /**
    * Query timeout in milliseconds
-   * @since 1.0.0
    */
   readonly timeout?: number;
   
   /**
    * Additional metadata for the query
-   * @since 1.0.0
    */
   readonly metadata?: Record<string, unknown>;
 }
@@ -192,36 +163,30 @@ export interface QueryContext {
  * Result of an AI agent query
  * @interface
  * @template TResponse - Type of the response data
- * @since 1.0.0
  */
 export interface QueryResult<TResponse = unknown> {
   /**
    * Whether the query executed successfully
-   * @since 1.0.0
    */
   readonly success: boolean;
   
   /**
    * The response data (present if success is true)
-   * @since 1.0.0
    */
   readonly response?: TResponse;
   
   /**
    * Error details (present if success is false)
-   * @since 1.0.0
    */
   readonly error?: AgentError;
   
   /**
    * Query execution duration in milliseconds
-   * @since 1.0.0
    */
   readonly duration: number;
   
   /**
    * Token usage statistics for this query
-   * @since 1.0.0
    */
   readonly tokensUsed?: TokenUsage;
 }
@@ -229,24 +194,20 @@ export interface QueryResult<TResponse = unknown> {
 /**
  * Token usage statistics for an AI query
  * @interface
- * @since 1.0.0
  */
 export interface TokenUsage {
   /**
    * Number of input tokens consumed
-   * @since 1.0.0
    */
   readonly input: number;
   
   /**
    * Number of output tokens generated
-   * @since 1.0.0
    */
   readonly output: number;
   
   /**
    * Total tokens used (input + output)
-   * @since 1.0.0
    */
   readonly total: number;
 }
@@ -254,30 +215,25 @@ export interface TokenUsage {
 /**
  * Structured error information from an AI agent
  * @interface
- * @since 1.0.0
  */
 export interface AgentError {
   /**
    * Categorized error code
-   * @since 1.0.0
    */
   readonly code: AgentErrorCode;
   
   /**
    * Human-readable error message
-   * @since 1.0.0
    */
   readonly message: string;
   
   /**
    * Additional error details or context
-   * @since 1.0.0
    */
   readonly details?: unknown;
   
   /**
    * Whether this error can be retried
-   * @since 1.0.0
    */
   readonly retryable: boolean;
 }
@@ -286,7 +242,6 @@ export interface AgentError {
  * Enumeration of possible agent error codes
  * @enum {string}
  * @readonly
- * @since 1.0.0
  */
 export enum AgentErrorCode {
   /** Agent initialization failed */
@@ -319,24 +274,20 @@ export enum AgentErrorCode {
  * @fires IAgent#error
  * @fires IAgent#initialized
  * @fires IAgent#terminated
- * @since 1.0.0
  */
 export interface IAgent<TConfig = unknown, TResponse = unknown> extends EventEmitter {
   /**
    * Unique identifier for this agent instance
-   * @since 1.0.0
    */
   readonly id: AgentId;
   
   /**
    * Current operational status
-   * @since 1.0.0
    */
   readonly status: AgentStatus;
   
   /**
    * Agent metadata and capabilities
-   * @since 1.0.0
    */
   readonly metadata: AgentMetadata;
   
@@ -346,7 +297,6 @@ export interface IAgent<TConfig = unknown, TResponse = unknown> extends EventEmi
    * @returns {Promise<void>} Resolves when initialization is complete
    * @throws {AgentError} If initialization fails
    * @fires IAgent#initialized
-   * @since 1.0.0
    */
   initialize(options: AgentInitOptions<TConfig>): Promise<void>;
   
@@ -358,7 +308,6 @@ export interface IAgent<TConfig = unknown, TResponse = unknown> extends EventEmi
    * @throws {AgentError} If query execution fails
    * @fires IAgent#query:start
    * @fires IAgent#query:complete
-   * @since 1.0.0
    */
   query(prompt: string, context?: QueryContext): Promise<QueryResult<TResponse>>;
   
@@ -366,47 +315,40 @@ export interface IAgent<TConfig = unknown, TResponse = unknown> extends EventEmi
    * Gracefully terminates the agent
    * @returns {Promise<void>} Resolves when termination is complete
    * @fires IAgent#terminated
-   * @since 1.0.0
    */
   terminate(): Promise<void>;
   
   /**
    * Gets the current agent status
    * @returns {AgentStatus} Current status
-   * @since 1.0.0
    */
   getStatus(): AgentStatus;
   
   /**
    * Gets the agent metadata
    * @returns {AgentMetadata} Agent metadata
-   * @since 1.0.0
    */
   getMetadata(): AgentMetadata;
   
   /**
    * Checks if the agent is ready to accept queries
    * @returns {boolean} True if agent is ready
-   * @since 1.0.0
    */
   isReady(): boolean;
 }
 
 /**
  * Zod schema for validating agent status
- * @since 1.0.0
  */
 export const AgentStatusSchema = z.enum(['idle', 'initializing', 'ready', 'processing', 'error', 'terminated']);
 
 /**
  * Zod schema for validating agent provider
- * @since 1.0.0
  */
 export const AgentProviderSchema = z.enum(['claude', 'gemini', 'custom']);
 
 /**
  * Zod schema for validating agent capabilities
- * @since 1.0.0
  */
 export const AgentCapabilitiesSchema = z.object({
   supportsStreaming: z.boolean(),
@@ -418,7 +360,6 @@ export const AgentCapabilitiesSchema = z.object({
 
 /**
  * Zod schema for validating query context
- * @since 1.0.0
  */
 export const QueryContextSchema = z.object({
   sessionId: z.string(),
@@ -431,7 +372,6 @@ export const QueryContextSchema = z.object({
 
 /**
  * Type-safe event map for agent instance events
- * @since 1.0.0
  */
 export type AgentInstanceEventMap = {
   /**

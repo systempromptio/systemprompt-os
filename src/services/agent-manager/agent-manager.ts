@@ -1,7 +1,6 @@
 /**
  * @fileoverview Modern Agent Manager implementation
  * @module services/agent-manager/agent-manager
- * @since 1.0.0
  * 
  * @remarks
  * This module provides a centralized manager for AI agent sessions,
@@ -54,7 +53,6 @@ import { logger } from '../../utils/logger.js';
  * Event types emitted by the AgentManager
  * 
  * @interface AgentManagerEvents
- * @since 1.0.0
  */
 export interface AgentManagerEvents {
   /**
@@ -78,7 +76,6 @@ export interface AgentManagerEvents {
  * 
  * @class AgentManager
  * @extends EventEmitter
- * @since 1.0.0
  * 
  * @remarks
  * This class implements a singleton pattern and provides:
@@ -98,7 +95,6 @@ export class AgentManager extends EventEmitter {
    * Private constructor for singleton pattern
    * 
    * @private
-   * @since 1.0.0
    */
   private constructor() {
     super();
@@ -136,7 +132,6 @@ export class AgentManager extends EventEmitter {
    * Gets the singleton instance of AgentManager
    * 
    * @returns The singleton AgentManager instance
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -154,7 +149,6 @@ export class AgentManager extends EventEmitter {
    * Sets up service event listeners
    * 
    * @private
-   * @since 1.0.0
    */
   private setupServiceListeners(): void {
     const handleSessionReady = (serviceSessionId: string) => {
@@ -186,7 +180,6 @@ export class AgentManager extends EventEmitter {
    * 
    * @param config - Configuration for the Claude session
    * @returns The session ID
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -224,7 +217,6 @@ export class AgentManager extends EventEmitter {
    * @returns Result of the command execution
    * @throws {SessionNotFoundError} If session doesn't exist
    * @throws {UnknownSessionTypeError} If session type is not supported
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -293,7 +285,6 @@ export class AgentManager extends EventEmitter {
    * 
    * @param sessionId - The session ID to end
    * @returns True if session was ended successfully, false otherwise
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -349,7 +340,6 @@ export class AgentManager extends EventEmitter {
    * 
    * @param sessionId - The session ID to retrieve
    * @returns The session if found, null otherwise
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -367,7 +357,6 @@ export class AgentManager extends EventEmitter {
    * Gets all sessions
    * 
    * @returns Array of all active sessions
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -384,7 +373,6 @@ export class AgentManager extends EventEmitter {
    * 
    * @param type - The agent type to filter by
    * @returns Array of sessions for the specified type
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -400,7 +388,6 @@ export class AgentManager extends EventEmitter {
    * Gets session metrics
    * 
    * @returns Object containing session metrics
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -420,7 +407,6 @@ export class AgentManager extends EventEmitter {
    * @param event - The event to emit
    * @param args - Event arguments
    * @returns True if the event had listeners, false otherwise
-   * @since 1.0.0
    */
   emit<K extends keyof AgentManagerEvents>(
     event: K,
@@ -436,7 +422,6 @@ export class AgentManager extends EventEmitter {
    * @param event - The event to listen for
    * @param listener - The callback function
    * @returns This instance for method chaining
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -459,7 +444,6 @@ export class AgentManager extends EventEmitter {
    * @param event - The event to stop listening for
    * @param listener - The callback function to remove
    * @returns This instance for method chaining
-   * @since 1.0.0
    */
   off<K extends keyof AgentManagerEvents>(
     event: K,

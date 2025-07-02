@@ -1,12 +1,25 @@
 #!/usr/bin/env node
 /**
- * @file Main HTTP server for Coding Agent MCP
+ * @fileoverview Main HTTP server for Coding Agent MCP
  * @module server
  * 
  * @remarks
  * This module provides the Express.js HTTP server that handles:
  * - MCP protocol endpoints (no authentication)
  * - Health checks and metadata endpoints
+ * - CORS configuration for cross-origin requests
+ * - Graceful shutdown handling
+ * 
+ * @example
+ * ```typescript
+ * import { startServer } from './server';
+ * 
+ * // Start server on default port
+ * const server = await startServer();
+ * 
+ * // Start server on custom port
+ * const server = await startServer(8080);
+ * ```
  */
 
 import express from 'express';
@@ -15,23 +28,27 @@ import { CONFIG } from './server/config.js';
 import { MCPHandler } from './server/mcp.js';
 import { setMCPHandlerInstance } from './server/mcp.js';
 import { TaskStore } from './services/task-store.js';
+import { logger } from './utils/logger.js';
 
 
 /**
  * Creates and configures the Express application
  * 
  * @returns Configured Express application with MCP endpoint
+ * 
+ * @remarks
+ * This function:
+ * 1. Initializes the MCP handler
+ * 2. Configures CORS for cross-origin support
+ * 3. Sets up selective body parsing (skips MCP endpoint)
+ * 4. Registers all routes
  */
 export async function createApp(): Promise<express.Application> {
   const app = express();
   
-  // Initialize MCP handler for protocol implementation with proper session support
   const mcpHandler = new MCPHandler();
-  
-  // Set global instance for notifications
   setMCPHandlerInstance(mcpHandler);
 
-  // Configure CORS
   app.use(
     cors({
       origin: true,
@@ -41,10 +58,9 @@ export async function createApp(): Promise<express.Application> {
     })
   );
 
-  // Selective body parsing - skip for MCP streaming endpoints
   app.use((req, res, next) => {
     if (req.path === '/mcp') {
-      next(); // Skip body parsing for MCP
+      next();
     } else {
       express.json()(req, res, (err) => {
         if (err) return next(err);
@@ -53,7 +69,6 @@ export async function createApp(): Promise<express.Application> {
     }
   });
 
-  // Set up routes
   await mcpHandler.setupRoutes(app);
   setupUtilityRoutes(app);
 
@@ -61,10 +76,11 @@ export async function createApp(): Promise<express.Application> {
 }
 
 /**
- * Sets up utility routes (health, metadata)
+ * Sets up utility routes for health checks and metadata
+ * 
+ * @param app - Express application instance
  */
 function setupUtilityRoutes(app: express.Application): void {
-  // Health check
   app.get('/health', (_, res) => {
     res.json({
       status: 'ok',
@@ -76,7 +92,6 @@ function setupUtilityRoutes(app: express.Application): void {
     });
   });
 
-  // Root endpoint with service metadata
   app.get('/', (req, res) => {
     const protocol =
       req.get('x-forwarded-proto') ||
@@ -99,30 +114,32 @@ function setupUtilityRoutes(app: express.Application): void {
 /**
  * Starts the HTTP server
  * 
- * @param port - Port number to listen on
+ * @param port - Port number to listen on (defaults to CONFIG.PORT)
  * @returns Server instance
+ * 
+ * @example
+ * ```typescript
+ * const server = await startServer(3000);
+ * ```
  */
 export async function startServer(port?: number): Promise<ReturnType<express.Application['listen']>> {
   const app = await createApp();
   const serverPort = port || parseInt(CONFIG.PORT, 10);
-  
-  // Initialize services
   TaskStore.getInstance();
   
   return app.listen(serverPort, '0.0.0.0', () => {
-    console.log(`🚀 Coding Agent MCP Server running on port ${serverPort}`);
-    console.log(`📡 MCP endpoint: http://localhost:${serverPort}/mcp`);
-    console.log(`❤️  Health: http://localhost:${serverPort}/health`);
+    logger.info(`🚀 Coding Agent MCP Server running on port ${serverPort}`);
+    logger.info(`📡 MCP endpoint: http://localhost:${serverPort}/mcp`);
+    logger.info(`❤️  Health: http://localhost:${serverPort}/health`);
   });
 }
 
-// Handle graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully');
+  logger.info('SIGINT received, shutting down gracefully');
   process.exit(0);
 });

@@ -1,6 +1,21 @@
 /**
- * @file Create task orchestrator tool
+ * @fileoverview Create task tool handler for spawning AI agent tasks
  * @module handlers/tools/orchestrator/create-task
+ * 
+ * @remarks
+ * This handler creates new tasks and optionally starts AI agent sessions
+ * to execute them. It supports asynchronous task execution with progress
+ * tracking and comprehensive logging.
+ * 
+ * @example
+ * ```typescript
+ * import { handleCreateTask } from './handlers/tools/create-task';
+ * 
+ * const result = await handleCreateTask({
+ *   instructions: "Implement user authentication",
+ *   tool: "CLAUDECODE"
+ * }, { sessionId: "mcp_123" });
+ * ```
  */
 
 import type { ToolHandler, ToolHandlerContext, CallToolResult } from "./types.js";
@@ -17,13 +32,22 @@ import { TASK_STATUS } from "../../constants/task-status.js";
  * @param context - Execution context containing session information
  * @returns Formatted response with task details and session information
  *
+ * @remarks
+ * This handler:
+ * 1. Validates input arguments
+ * 2. Creates a new task in the task store
+ * 3. Starts an AI agent session (always CLAUDECODE)
+ * 4. Executes initial instructions asynchronously
+ * 5. Returns task details immediately
+ *
  * @example
  * ```typescript
- * await handleCreateTask({
- *   title: "Implement user authentication",
- *   tool: "CLAUDECODE",
+ * const result = await handleCreateTask({
  *   instructions: "Add JWT-based authentication to the API"
- * }, { sessionId: "session_123" });
+ * }, { sessionId: "mcp_123" });
+ * 
+ * console.log(result.result.task_id); // Task ID
+ * console.log(result.result.session_id); // Agent session ID
  * ```
  */
 export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
@@ -31,13 +55,10 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    // Validate input
     const validated = validateInput(CreateTaskArgsSchema, args);
 
-    // Always use CLAUDECODE
     const tool = "CLAUDECODE";
 
-    // Check tool availability
     if (!isToolAvailable(tool)) {
       throw new ToolNotAvailableError(tool);
     }
@@ -52,16 +73,13 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
       context?.sessionId,
     );
 
-    // Initialize result
     let agentSessionId: string | null = null;
 
     try {
-      // Update task status to in_progress
       await taskOperations.updateTaskStatus(task.id, TASK_STATUS.IN_PROGRESS, context?.sessionId, {
         completedAt: undefined,
       });
 
-      // Start agent session without git branch setup
       const agentResult = await agentOperations.startAgentForTask(tool, task, {
         workingDirectory: projectPath,
         branch: "", // No branch needed
@@ -70,12 +88,9 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 
       agentSessionId = agentResult.sessionId;
 
-      // Update task with agent assignment
       await taskOperations.updateTask(task.id, { assigned_to: agentSessionId }, context?.sessionId);
 
-      // Execute initial instructions asynchronously if provided
       if (validated.instructions) {
-        // Start execution in background - don't await
         executeInitialInstructions(
           agentSessionId,
           validated.instructions,
@@ -91,7 +106,6 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
           );
         });
 
-        // Log that we're starting asynchronously
         await taskOperations.addTaskLog(
           task.id,
           `Starting ${tool} agent...`,
@@ -104,12 +118,10 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
         agentSessionId,
       });
     } catch (error) {
-      // Update task status to failed
       await taskOperations.updateTaskStatus(task.id, TASK_STATUS.FAILED, context?.sessionId, {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // End agent session if it was started
       if (agentSessionId) {
         await agentOperations.endAgentSession(agentSessionId, "Task creation failed");
       }
@@ -117,7 +129,6 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
       throw error;
     }
 
-    // Return success response
     return formatToolResponse({
       message: `Task spawned successfully with ID ${task.id}`,
       result: {
@@ -144,7 +155,21 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 };
 
 /**
- * Executes initial instructions with the agent
+ * Executes initial instructions with the agent asynchronously
+ * 
+ * @param agentSessionId - The agent session ID
+ * @param instructions - Instructions to execute
+ * @param taskId - The task ID
+ * @param tool - The tool being used (always CLAUDECODE)
+ * @param sessionId - Optional MCP session ID
+ * @returns Execution result
+ * 
+ * @remarks
+ * This function runs asynchronously after task creation to:
+ * 1. Set up progress handlers for real-time updates
+ * 2. Execute the provided instructions
+ * 3. Log execution results and timing
+ * 4. Update task status based on outcome
  */
 async function executeInitialInstructions(
   agentSessionId: string,
@@ -162,7 +187,6 @@ async function executeInitialInstructions(
       sessionId,
     );
 
-    // Set up progress handlers for Claude
     if (tool === "CLAUDECODE") {
       cleanup = agentOperations.setupClaudeProgressHandlers(
         taskId,
@@ -171,7 +195,6 @@ async function executeInitialInstructions(
       );
     }
 
-    // Execute instructions
     const result = await agentOperations.executeInstructions(agentSessionId, instructions, {
       taskId,
       updateProgress: true,
@@ -195,8 +218,6 @@ async function executeInitialInstructions(
     );
 
     if (result.success) {
-      // Don't mark as completed - let end-task handle that
-      // Just log the successful execution
       await taskOperations.addTaskLog(
         taskId,
         {
@@ -212,7 +233,6 @@ async function executeInitialInstructions(
       );
 
       if (result.output) {
-        // Try to parse JSON output
         let parsedOutput: any = null;
         let isJson = false;
         try {
@@ -221,7 +241,6 @@ async function executeInitialInstructions(
             isJson = true;
           }
         } catch (e) {
-          // Not JSON, treat as string
         }
 
         await taskOperations.addTaskLog(
@@ -242,7 +261,6 @@ async function executeInitialInstructions(
           sessionId,
         );
       }
-      // Mark task as completed_active (session still available for updates)
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.COMPLETED_ACTIVE, sessionId);
     } else {
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.FAILED, sessionId, {

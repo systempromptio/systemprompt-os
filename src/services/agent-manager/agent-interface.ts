@@ -1,7 +1,6 @@
 /**
  * @fileoverview Agent interface definitions for AI agent implementations
  * @module services/agent-manager/agent-interface
- * @since 1.0.0
  * 
  * @remarks
  * This module defines the core interfaces and types for implementing AI agents
@@ -33,7 +32,6 @@ import { EventEmitter } from "events";
  * 
  * @interface IAgent
  * @extends EventEmitter
- * @since 1.0.0
  * 
  * @remarks
  * All agent implementations must extend EventEmitter and implement this interface.
@@ -94,7 +92,6 @@ export interface IAgent extends EventEmitter {
  * Agent status enumeration
  * 
  * @enum {string}
- * @since 1.0.0
  */
 export enum AgentStatus {
   /**
@@ -127,7 +124,6 @@ export enum AgentStatus {
  * Agent metadata interface
  * 
  * @interface AgentMetadata
- * @since 1.0.0
  */
 export interface AgentMetadata {
   /**
@@ -170,7 +166,6 @@ export interface AgentMetadata {
  * Agent event types
  * 
  * @interface AgentEvents
- * @since 1.0.0
  * 
  * @remarks
  * Defines the events that agents must emit during their lifecycle
@@ -206,7 +201,6 @@ export interface AgentEvents {
  * Agent output structure
  * 
  * @interface AgentOutput
- * @since 1.0.0
  */
 export interface AgentOutput {
   /**
@@ -229,7 +223,6 @@ export interface AgentOutput {
  * Configuration for creating an agent
  * 
  * @interface AgentConfig
- * @since 1.0.0
  */
 export interface AgentConfig {
   /**
@@ -268,7 +261,6 @@ export interface AgentConfig {
  * 
  * @interface IAgentFactory
  * @template T - The specific agent type this factory creates
- * @since 1.0.0
  */
 export interface IAgentFactory<T extends IAgent = IAgent> {
   /**
@@ -299,7 +291,6 @@ export interface IAgentFactory<T extends IAgent = IAgent> {
  * Registry for agent factories
  * 
  * @interface IAgentRegistry
- * @since 1.0.0
  * 
  * @remarks
  * Provides a central location for registering and retrieving agent factories

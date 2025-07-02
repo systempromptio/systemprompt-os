@@ -1,7 +1,6 @@
 /**
  * @fileoverview Task store service for managing task state and persistence
  * @module services/task-store
- * @since 1.0.0
  * 
  * @remarks
  * This service provides a centralized store for managing task state, persistence,
@@ -46,7 +45,6 @@ import { logger } from "../utils/logger.js";
  * @class TaskStore
  * @extends EventEmitter
  * @implements {TypedTaskStoreEmitter}
- * @since 1.0.0
  * 
  * @remarks
  * This class is responsible for:
@@ -75,7 +73,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Gets singleton instance of TaskStore
    * 
    * @returns The singleton TaskStore instance
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -93,7 +90,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Loads persisted tasks from storage on startup
    * 
    * @private
-   * @since 1.0.0
    */
   private async loadPersistedTasks(): Promise<void> {
     try {
@@ -115,7 +111,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Persists current state to storage
    * 
    * @private
-   * @since 1.0.0
    */
   private async persistState(): Promise<void> {
     try {
@@ -130,7 +125,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Gets current application state including all tasks and metrics
    * 
    * @returns Current application state with tasks and metrics
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -160,7 +154,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @private
    * @returns Average completion time in milliseconds
-   * @since 1.0.0
    */
   private calculateAverageCompletionTime(): number {
     const completedTasks = Array.from(this.tasks.values()).filter((t) => t.status === "completed");
@@ -180,7 +173,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @param task - The task to create
    * @param sessionId - Optional session ID for notifications
-   * @since 1.0.0
    * 
    * @remarks
    * If a task with the same ID already exists, it will be updated instead of created.
@@ -219,7 +211,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @param taskId - The ID of the task to retrieve
    * @returns The task if found, null otherwise
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -240,7 +231,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * @param updates - Partial task updates to apply
    * @param sessionId - Optional session ID for notifications
    * @returns The updated task if found, null otherwise
-   * @since 1.0.0
    * 
    * @remarks
    * The updated_at timestamp is automatically set to the current time.
@@ -282,7 +272,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @param filter - Optional filter criteria
    * @returns Array of tasks sorted by creation date (newest first)
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -319,7 +308,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * @param taskId - The ID of the task to add the log to
    * @param log - The log message or entry to add
    * @param sessionId - Optional session ID for notifications
-   * @since 1.0.0
    * 
    * @remarks
    * Log entries can be either a string message or a structured TaskLogEntry.
@@ -370,7 +358,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * @param taskId - The ID of the task to update
    * @param elapsedSeconds - The elapsed time in seconds
    * @param sessionId - Optional session ID for notifications
-   * @since 1.0.0
    * 
    * @remarks
    * This method emits a 'task:progress' event and sends MCP notifications.
@@ -404,7 +391,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Deletes a task from the store
    * 
    * @param taskId - The ID of the task to delete
-   * @since 1.0.0
    * 
    * @remarks
    * This method removes the task from memory and disk storage.
@@ -430,7 +416,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * Retrieves all tasks sorted by creation date
    * 
    * @returns Array of all tasks sorted by creation date (newest first)
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -447,7 +432,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @param taskId - The ID of the task
    * @returns Array of log entries for the task
-   * @since 1.0.0
    * 
    * @example
    * ```typescript
@@ -467,7 +451,6 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    * 
    * @param taskId - The ID of the task
    * @returns Array of log entries for the task
-   * @since 1.0.0
    * @see {@link getTaskLogs}
    */
   async getLogs(taskId: string): Promise<TaskLogEntry[]> {

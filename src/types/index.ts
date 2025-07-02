@@ -1,7 +1,6 @@
 /**
  * @fileoverview Main type definitions export aggregator
  * @module types
- * @since 1.0.0
  */
 
 // Export unified task types

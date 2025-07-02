@@ -1,7 +1,6 @@
 /**
  * @fileoverview Core type definitions export aggregator
  * @module types/core
- * @since 1.0.0
  */
 
 // Agent-related types

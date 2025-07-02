@@ -1,3 +1,27 @@
+/**
+ * @fileoverview MCP Resource handlers for agent status and task resources
+ * @module handlers/resource-handlers
+ * 
+ * @remarks
+ * This module provides handlers for MCP resource operations including:
+ * - Listing available resources (static and dynamic)
+ * - Reading resource contents (tasks, logs, status)
+ * - Handling resource templates for dynamic URIs
+ * 
+ * @example
+ * ```typescript
+ * import { handleListResources, handleResourceCall } from './handlers/resource-handlers';
+ * 
+ * // List all resources
+ * const { resources } = await handleListResources();
+ * 
+ * // Read a specific task
+ * const result = await handleResourceCall({
+ *   params: { uri: 'task://123' }
+ * });
+ * ```
+ */
+
 import type {
   ListResourcesResult,
   ReadResourceRequest,
@@ -10,12 +34,22 @@ import { logger } from "../utils/logger.js";
 import { matchResourceTemplate } from "./resource-templates-handler.js";
 import { createTaskResourceContent, type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
 
+/**
+ * Lists all available MCP resources including static and dynamic task resources
+ * 
+ * @returns List of available resources with metadata
+ * @throws {Error} If resource listing fails
+ * 
+ * @example
+ * ```typescript
+ * const { resources } = await handleListResources();
+ * console.log(`Available resources: ${resources.length}`);
+ * ```
+ */
 export async function handleListResources(): Promise<ListResourcesResult> {
   try {
-    // Start with static resources
     const resources: Resource[] = [...RESOURCES];
 
-    // Add dynamic task resources
     const taskStore = TaskStore.getInstance();
     const tasks = await taskStore.getTasks();
     tasks.forEach((task) => {
@@ -27,7 +61,6 @@ export async function handleListResources(): Promise<ListResourcesResult> {
       });
     });
 
-    // Task output resources removed - consolidated into main task resources
 
     logger.debug(
       `📚 Listing ${resources.length} resources (${RESOURCES.length} static, ${tasks.length} tasks)`,
@@ -39,15 +72,39 @@ export async function handleListResources(): Promise<ListResourcesResult> {
   }
 }
 
+/**
+ * Handles MCP resource read requests for various resource types
+ * 
+ * @param request - The resource read request with URI
+ * @param _extra - Additional context (unused)
+ * @returns Resource content in appropriate format
+ * @throws {Error} If resource is not found or read fails
+ * 
+ * @remarks
+ * Supports multiple resource URI patterns:
+ * - `agent://status` - Agent status and capabilities
+ * - `task://list` - List of all tasks
+ * - `task://[id]` - Individual task details
+ * - `task://[id]/logs` - Task logs
+ * - `task://[id]/result` - Task result
+ * - Various template-based resources
+ * 
+ * @example
+ * ```typescript
+ * const result = await handleResourceCall({
+ *   params: { uri: 'agent://status' }
+ * });
+ * const status = JSON.parse(result.contents[0].text);
+ * ```
+ */
 export async function handleResourceCall(
   request: ReadResourceRequest,
-  _extra?: any,
+  _extra?: unknown,
 ): Promise<ReadResourceResult> {
   try {
     const { uri } = request.params;
     const taskStore = TaskStore.getInstance();
 
-    // Handle agent status
     if (uri === "agent://status") {
       const tasks = await taskStore.getTasks();
       const activeTasks = tasks.filter((t) => t.status === "in_progress");
@@ -73,7 +130,6 @@ export async function handleResourceCall(
       };
     }
 
-    // Handle task list
     if (uri === "task://list" || uri === "agent://tasks") {
       const tasks = await taskStore.getTasks();
       return {
@@ -101,7 +157,6 @@ export async function handleResourceCall(
     }
 
 
-    // Handle individual task resources
     if (uri.startsWith("task://")) {
       const taskId = uri.replace("task://", "");
       const task = await taskStore.getTask(taskId);
@@ -110,7 +165,6 @@ export async function handleResourceCall(
         throw new Error(`Task not found: ${taskId}`);
       }
 
-      // Get session info
       const { AgentManager } = await import("../services/agent-manager/index.js");
       const agentManager = AgentManager.getInstance();
       const sessions = agentManager.getAllSessions();
@@ -127,7 +181,6 @@ export async function handleResourceCall(
         };
       }
       
-      // Extract metadata from result if available
       if (task.result && typeof task.result === 'object' && 'duration_ms' in task.result) {
         const result = task.result as any;
         metadata = {
@@ -141,7 +194,6 @@ export async function handleResourceCall(
         };
       }
 
-      // Build clean resource
       const processResource: TaskResourceContent = createTaskResourceContent(
         task,
         session,
@@ -159,7 +211,6 @@ export async function handleResourceCall(
       };
     }
 
-    // Handle active sessions (placeholder for now)
     if (uri === "agent://sessions") {
       return {
         contents: [
@@ -179,13 +230,11 @@ export async function handleResourceCall(
       };
     }
 
-    // Try to match against resource templates
     const templateMatch = matchResourceTemplate(uri);
     if (templateMatch) {
       const { template, params } = templateMatch;
       logger.debug(`📋 Matched resource template: ${template.name}`, params);
 
-      // Handle task logs template
       if (uri.match(/^task:\/\/[^\/]+\/logs$/)) {
         const taskId = params.taskId;
         const task = await taskStore.getTask(taskId);
@@ -203,7 +252,6 @@ export async function handleResourceCall(
         };
       }
 
-      // Handle task result template
       if (uri.match(/^task:\/\/[^\/]+\/result$/)) {
         const taskId = params.taskId;
         const task = await taskStore.getTask(taskId);
@@ -221,7 +269,6 @@ export async function handleResourceCall(
         };
       }
 
-      // Handle session template
       if (uri.match(/^session:\/\/[^\/]+\/[^\/]+$/)) {
         const { sessionType, sessionId } = params;
         return {
@@ -244,11 +291,9 @@ export async function handleResourceCall(
         };
       }
 
-      // Handle branch tasks template
       if (uri.match(/^branch:\/\/[^\/]+\/tasks$/)) {
         const { branchName } = params;
         const tasks = await taskStore.getTasks();
-        // Branch filtering removed - returning empty array
         const branchTasks: typeof tasks = [];
         return {
           contents: [
@@ -273,11 +318,9 @@ export async function handleResourceCall(
         };
       }
 
-      // Handle project status template
       if (uri.match(/^project:\/\/[^\/]+\/status$/)) {
         const { projectPath } = params;
         const tasks = await taskStore.getTasks();
-        // Project filtering by branch removed - returning empty array
         const projectTasks: typeof tasks = [];
         return {
           contents: [
@@ -300,7 +343,6 @@ export async function handleResourceCall(
         };
       }
 
-      // Handle log template
       if (uri.match(/^log:\/\/[^\/]+\/[^\/]+$/)) {
         const { logType, date } = params;
         return {

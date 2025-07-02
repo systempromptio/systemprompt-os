@@ -1,7 +1,6 @@
 /**
  * @fileoverview AI provider type definitions export aggregator
  * @module types/providers
- * @since 1.0.0
  */
 
 // Base provider interfaces and classes

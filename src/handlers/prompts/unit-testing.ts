@@ -1,10 +1,13 @@
 /**
- * @file Unit testing prompts
+ * @fileoverview Unit testing prompts for comprehensive test coverage
  * @module handlers/prompts/unit-testing
  */
 
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * Prompt for creating unit tests
+ */
 export const CREATE_UNIT_TESTS_PROMPT: Prompt = {
   name: 'create_unit_tests',
   description: 'Create and run unit tests until achieving 100% pass rate',
@@ -187,4 +190,7 @@ it('should handle callbacks', (done) => {
   ],
 };
 
+/**
+ * Collection of unit testing prompts
+ */
 export const UNIT_TESTING_PROMPTS = [CREATE_UNIT_TESTS_PROMPT];

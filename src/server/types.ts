@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Type definitions for MCP server including session management,
+ * error codes, and request context structures.
+ * @module server/types
+ */
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
@@ -22,7 +28,18 @@ export interface SessionConfig {
 }
 
 /**
- * MCP error codes
+ * MCP error codes following JSON-RPC 2.0 specification
+ * @example
+ * ```typescript
+ * res.status(400).json({
+ *   jsonrpc: '2.0',
+ *   error: {
+ *     code: MCPErrorCode.InvalidRequest,
+ *     message: 'Invalid request format'
+ *   },
+ *   id: null
+ * });
+ * ```
  */
 export enum MCPErrorCode {
   ParseError = -32700,
@@ -34,11 +51,11 @@ export enum MCPErrorCode {
 }
 
 /**
- * MCP request context
+ * MCP request context for tracking and auditing
  */
 export interface MCPRequestContext {
   requestId: string;
   sessionId?: string;
-  auth?: any;
+  auth?: unknown;
   startTime: number;
 }

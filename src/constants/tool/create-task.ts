@@ -1,14 +1,12 @@
 /**
  * @fileoverview Create task tool definition
  * @module constants/tool/create-task
- * @since 1.0.0
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * Tool for creating and starting new tasks
- * @since 1.0.0
  */
 export const createTask: Tool = {
   name: "create_task",

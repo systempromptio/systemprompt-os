@@ -1,5 +1,6 @@
 /**
- * @file Report task orchestrator tool
+ * @fileoverview Report task orchestrator tool handler that generates comprehensive
+ * reports on individual tasks or all tasks with statistics and activity summaries
  * @module handlers/tools/orchestrator/report-task
  */
 
@@ -38,7 +39,6 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
   context?: ToolHandlerContext
 ): Promise<CallToolResult> => {
   try {
-    // Validate input
     const validated = validateInput(ReportTaskArgsSchema, args);
     
     logger.info('Generating task report', {
@@ -46,9 +46,7 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
       sessionId: context?.sessionId
     });
     
-    // Get task(s) based on whether ID is provided
     if (validated.id) {
-      // Get single task
       const task = await taskOperations.taskStore.getTask(validated.id);
       
       if (!task) {
@@ -58,7 +56,6 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
         });
       }
       
-      // Return single task with formatted details
       const taskReport = formatTaskReport(task);
       
       return formatToolResponse({
@@ -67,7 +64,6 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
       });
       
     } else {
-      // Get all tasks
       const tasks = await taskOperations.taskStore.getTasks();
       
       if (tasks.length === 0) {
@@ -77,10 +73,8 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
         });
       }
       
-      // Format all tasks
       const taskReports = tasks.map(task => formatTaskReport(task));
       
-      // Calculate summary statistics
       const statistics = calculateStatistics(tasks);
       
       return formatToolResponse({
@@ -108,6 +102,9 @@ export const handleReportTask: ToolHandler<ReportTaskArgs> = async (
 
 /**
  * Formats a task for the report
+ * 
+ * @param task - Task to format
+ * @returns Formatted task report with duration and statistics
  */
 function formatTaskReport(task: Task) {
   const duration = calculateDuration(task);
@@ -125,7 +122,7 @@ function formatTaskReport(task: Task) {
     error: task.error,
     result: task.result,
     logs_count: task.logs.length,
-    recent_logs: task.logs.slice(-5), // Last 5 logs as structured data
+    recent_logs: task.logs.slice(-5),
     duration_seconds: duration?.seconds,
     duration_human: duration?.human
   };
@@ -133,6 +130,9 @@ function formatTaskReport(task: Task) {
 
 /**
  * Calculates task duration
+ * 
+ * @param task - Task to calculate duration for
+ * @returns Duration in seconds and human-readable format, or null if not started
  */
 function calculateDuration(task: Task): { seconds: number; human: string } | null {
   if (!task.started_at) return null;
@@ -144,7 +144,6 @@ function calculateDuration(task: Task): { seconds: number; human: string } | nul
     
   const seconds = Math.floor((endTime - startTime) / 1000);
   
-  // Format as human readable
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
@@ -159,6 +158,9 @@ function calculateDuration(task: Task): { seconds: number; human: string } | nul
 
 /**
  * Calculates statistics across all tasks
+ * 
+ * @param tasks - Array of tasks to analyze
+ * @returns Statistical summary including counts, durations, and success rates
  */
 function calculateStatistics(tasks: Task[]) {
   const byStatus: Record<string, number> = {};
@@ -167,13 +169,10 @@ function calculateStatistics(tasks: Task[]) {
   let completedCount = 0;
   
   tasks.forEach(task => {
-    // Count by status
     byStatus[task.status] = (byStatus[task.status] || 0) + 1;
     
-    // Count by tool
     byTool[task.tool] = (byTool[task.tool] || 0) + 1;
     
-    // Calculate durations for completed tasks
     if (task.status === TASK_STATUS.COMPLETED && task.started_at && task.completed_at) {
       const duration = calculateDuration(task);
       if (duration) {

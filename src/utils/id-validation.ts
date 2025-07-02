@@ -1,7 +1,6 @@
 /**
  * @fileoverview ID validation utilities to ensure security and consistency
  * @module utils/id-validation
- * @since 1.0.0
  * 
  * @remarks
  * This module provides utilities for validating and sanitizing IDs used throughout
@@ -38,7 +37,6 @@ const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
  * 
  * @param id - The string to validate
  * @returns True if the string is a valid UUID v4, false otherwise
- * @since 1.0.0
  * 
  * @example
  * ```typescript
@@ -56,7 +54,6 @@ export function isValidUUID(id: string): boolean {
  * @param id - The task ID to validate
  * @returns The validated task ID
  * @throws {Error} If the ID is empty, not a valid UUID v4, or contains dangerous characters
- * @since 1.0.0
  * 
  * @remarks
  * This function performs multiple security checks:
@@ -96,7 +93,6 @@ export function validateTaskId(id: string): string {
  * @param id - The task ID to sanitize
  * @returns The sanitized task ID
  * @throws {Error} If the ID fails validation
- * @since 1.0.0
  * 
  * @remarks
  * Currently this function just validates the ID and returns it unchanged,
