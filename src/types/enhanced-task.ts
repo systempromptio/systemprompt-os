@@ -7,7 +7,7 @@
  * tracking, strongly typed logs, and Claude metrics.
  */
 
-import type { Task, TaskLogEntry, TaskStatus, AITool } from './task.js';
+import type { Task, TaskLogEntry } from './task.js';
 
 // ==================== Tool Usage Types ====================
 
@@ -419,7 +419,7 @@ export function extractClaudeMetrics(logs: EnhancedLogEntry[]): ClaudeMetrics | 
     exitCode: processEnd?.data?.process?.exitCode,
     usage: result.usage,
     cost: result.cost,
-    serviceTier: result.usage?.serviceTier,
+    serviceTier: undefined,
     success: !result.isError,
     resultMessage: result.result,
   };

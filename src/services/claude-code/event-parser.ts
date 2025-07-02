@@ -129,6 +129,11 @@ export class ClaudeEventParser {
     
     if (!trimmed) return events;
     
+    // Debug log raw input
+    if (trimmed.includes('Tool') || trimmed.includes('tool') || trimmed.includes('$') || trimmed.includes('Writing') || trimmed.includes('Reading')) {
+      logger.debug('[EventParser] Raw line that might be tool usage:', { line, trimmed });
+    }
+    
     events.push(createStream(this.sessionId, line, streamType, this.taskId));
     this.outputBuffer.push(line);
     try {
@@ -198,10 +203,15 @@ export class ClaudeEventParser {
   private parseToolUsage(line: string): ClaudeEvent[] {
     const events: ClaudeEvent[] = [];
     
+    // Debug log potential tool usage
+    logger.debug('[EventParser] Checking line for tool usage patterns', { line });
+    
     const bashMatch = line.match(this.patterns.bashCommand);
     if (bashMatch) {
       const toolId = `bash_${Date.now()}`;
       const command = bashMatch[1];
+      
+      logger.info('[EventParser] Detected Bash command', { command, toolId });
       
       events.push(createToolStart(
         this.sessionId,

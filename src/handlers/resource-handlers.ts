@@ -32,7 +32,7 @@ import { RESOURCES } from "../constants/resources.js";
 import { TaskStore } from "../services/task-store.js";
 import { logger } from "../utils/logger.js";
 import { matchResourceTemplate } from "./resource-templates-handler.js";
-import { createTaskResourceContent, type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
+import { type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
 import { enhanceTask } from "../types/enhanced-task.js";
 
 /**
