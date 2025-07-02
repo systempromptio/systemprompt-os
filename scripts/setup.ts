@@ -1,8 +1,10 @@
 #!/usr/bin/env tsx
 
 /**
- * Project Setup Script
- * Handles all initial setup required to run the systemprompt-coding-agent
+ * @fileoverview SystemPrompt Coding Agent setup script
+ * @module setup
+ * @description Handles initial setup and configuration for the SystemPrompt Coding Agent,
+ * including environment validation, dependency installation, and project building.
  */
 
 import { execSync } from 'child_process';
@@ -16,7 +18,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
 
-// Colors for output
+/**
+ * ANSI color codes for terminal output
+ * @const {Object}
+ */
 const colors = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
@@ -24,15 +29,31 @@ const colors = {
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
   cyan: '\x1b[36m'
-};
+} as const;
 
-// Required environment variables
-const REQUIRED_ENV_VARS = [
+/**
+ * @interface EnvVariable
+ * @description Represents an environment variable configuration
+ */
+interface EnvVariable {
+  name: string;
+  description: string;
+  default?: string;
+}
+
+/**
+ * Required environment variables that must be configured
+ * @const {EnvVariable[]}
+ */
+const REQUIRED_ENV_VARS: EnvVariable[] = [
   { name: 'PROJECT_ROOT', description: 'Project root directory for task execution' }
 ];
 
-// Optional environment variables
-const OPTIONAL_ENV_VARS = [
+/**
+ * Optional environment variables with defaults
+ * @const {EnvVariable[]}
+ */
+const OPTIONAL_ENV_VARS: EnvVariable[] = [
   { name: 'PORT', default: '3000', description: 'Server port' },
   { name: 'JWT_SECRET', description: 'JWT secret for authentication' },
   { name: 'STATE_PATH', description: 'State persistence path' },
@@ -43,6 +64,10 @@ const OPTIONAL_ENV_VARS = [
   { name: 'GID', default: '1000', description: 'Group ID for Docker' }
 ];
 
+/**
+ * @class ProjectSetup
+ * @description Manages the complete setup process for the SystemPrompt Coding Agent
+ */
 class ProjectSetup {
   private errors: string[] = [];
   private rl: readline.Interface;
@@ -54,53 +79,79 @@ class ProjectSetup {
     });
   }
   
+  /**
+   * Logs a message with optional color
+   * @param {string} message - The message to log
+   * @param {string} [color] - ANSI color code
+   */
   private log(message: string, color: string = colors.reset): void {
     console.log(`${color}${message}${colors.reset}`);
   }
   
-  private async prompt(question: string): Promise<string> {
-    return new Promise((resolve) => {
-      this.rl.question(question, (answer) => {
-        resolve(answer.trim());
-      });
-    });
+  /**
+   * Logs an error message and tracks it
+   * @param {string} message - The error message
+   */
+  private error(message: string): void {
+    this.errors.push(message);
+    console.error(`${colors.red}ERROR: ${message}${colors.reset}`);
   }
   
-  private header(title: string): void {
-    this.log(`\n==== ${title} ====\n`, colors.green);
-  }
-  
+  /**
+   * Logs a success message
+   * @param {string} message - The success message
+   */
   private success(message: string): void {
     this.log(`✓ ${message}`, colors.green);
   }
   
-  private error(message: string): void {
-    this.log(`ERROR: ${message}`, colors.red);
-    this.errors.push(message);
-  }
-  
-  private warning(message: string): void {
-    this.log(`WARNING: ${message}`, colors.yellow);
-  }
-  
+  /**
+   * Logs an info message
+   * @param {string} message - The info message
+   */
   private info(message: string): void {
     this.log(`ℹ ${message}`, colors.blue);
   }
   
-  private checkCommand(command: string): string | null {
-    try {
-      const result = execSync(`which ${command}`, { encoding: 'utf8' }).trim();
-      return result || null;
-    } catch {
-      return null;
-    }
+  /**
+   * Logs a warning message
+   * @param {string} message - The warning message
+   */
+  private warning(message: string): void {
+    this.log(`⚠ ${message}`, colors.yellow);
   }
   
+  /**
+   * Logs a section header
+   * @param {string} title - The header title
+   */
+  private header(title: string): void {
+    this.log(`\n==== ${title} ====\n`, colors.green);
+  }
+  
+  /**
+   * Prompts the user for input
+   * @param {string} question - The question to ask
+   * @returns {Promise<string>} The user's response
+   */
+  private prompt(question: string): Promise<string> {
+    return new Promise(resolve => {
+      this.rl.question(question, resolve);
+    });
+  }
+  
+  /**
+   * Executes a shell command
+   * @param {string} command - The command to execute
+   * @param {string} [cwd] - Working directory for the command
+   * @returns {boolean} Success status
+   */
   private execCommand(command: string, cwd?: string): boolean {
     try {
-      execSync(command, { 
+      execSync(command, {
         cwd: cwd || projectRoot,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: '/bin/bash'
       });
       return true;
     } catch {
@@ -108,6 +159,27 @@ class ProjectSetup {
     }
   }
   
+  /**
+   * Checks if a command exists in the system PATH
+   * @param {string} command - The command to check
+   * @returns {string|null} Path to the command or null if not found
+   */
+  private checkCommand(command: string): string | null {
+    try {
+      const result = execSync(
+        process.platform === 'win32' ? `where ${command}` : `which ${command}`,
+        { encoding: 'utf-8', stdio: 'pipe' }
+      ).trim();
+      return result || null;
+    } catch {
+      return null;
+    }
+  }
+  
+  /**
+   * Validates the Node.js version
+   * @returns {Promise<boolean>} Whether Node.js version meets requirements
+   */
   async checkNodeVersion(): Promise<boolean> {
     this.header('Checking Node.js version');
     
@@ -115,7 +187,8 @@ class ProjectSetup {
     const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
     
     if (majorVersion < 18) {
-      this.error(`Node.js 18+ is required. Current version: ${nodeVersion}`);
+      this.error(`Node.js v18+ required. Found: ${nodeVersion}`);
+      this.info('Please upgrade Node.js: https://nodejs.org/');
       return false;
     }
     
@@ -123,35 +196,42 @@ class ProjectSetup {
     return true;
   }
   
+  /**
+   * Checks Docker and Docker Compose availability
+   * @returns {Promise<boolean>} Whether Docker is properly installed
+   */
   async checkDocker(): Promise<boolean> {
     this.header('Checking Docker');
     
     const dockerPath = this.checkCommand('docker');
+    const dockerComposePath = this.checkCommand('docker');
     
     if (!dockerPath) {
-      this.error('Docker is not installed or not in PATH');
-      this.info('Please install Docker from: https://docs.docker.com/get-docker/');
+      this.error('Docker not found');
+      this.info('Install Docker from: https://docs.docker.com/get-docker/');
       return false;
     }
     
-    // Check if docker compose (v2) is available
     try {
-      execSync('docker compose version', { stdio: 'pipe' });
-      this.success('Docker and Docker Compose are available');
-      return true;
-    } catch {
-      // Fallback to docker-compose (v1)
-      const dockerComposePath = this.checkCommand('docker-compose');
-      if (!dockerComposePath) {
-        this.error('Docker Compose is not available');
-        this.info('Please ensure you have Docker Desktop or Docker Compose installed');
+      const composeWorks = !this.execCommand('docker compose version', '/tmp');
+      if (!composeWorks) {
+        this.error('Docker Compose not working');
+        this.info('Ensure Docker Compose v2 is installed');
         return false;
       }
-      this.success('Docker and docker-compose found');
-      return true;
+    } catch {
+      this.error('Docker Compose not available');
+      return false;
     }
+    
+    this.success('Docker and Docker Compose are available');
+    return true;
   }
   
+  /**
+   * Checks Claude CLI availability
+   * @returns {Promise<{path: string | null; available: boolean}>} Claude CLI status
+   */
   async checkClaude(): Promise<{ path: string | null; available: boolean }> {
     this.header('Checking Claude CLI');
     
@@ -162,7 +242,6 @@ class ProjectSetup {
       return { path: null, available: false };
     }
     
-    // Test if Claude actually works
     try {
       execSync(`${claudePath} --version`, { 
         timeout: 5000,
@@ -176,8 +255,11 @@ class ProjectSetup {
     }
   }
   
+  /**
+   * Checks Cloudflare tunnel (cloudflared) availability
+   * @returns {Promise<boolean>} Whether cloudflared is available
+   */
   async checkCloudflared(): Promise<boolean> {
-    // Load environment variables to check if cloudflare is configured
     const envPath = path.join(projectRoot, '.env');
     if (fs.existsSync(envPath)) {
       const envContent = fs.readFileSync(envPath, 'utf-8');
@@ -185,7 +267,6 @@ class ProjectSetup {
                                  !envContent.includes('CLOUDFLARE_TOKEN=your_cloudflare_tunnel_token_here');
       
       if (!hasCloudflareToken) {
-        // Cloudflare not configured, skip check
         return false;
       }
     }
@@ -205,6 +286,10 @@ class ProjectSetup {
     }
   }
   
+  /**
+   * Creates required project directories
+   * @returns {Promise<void>}
+   */
   async createDirectories(): Promise<void> {
     this.header('Creating project directories');
     
@@ -218,22 +303,19 @@ class ProjectSetup {
     this.success('Directories created');
   }
   
-  async installHooks(): Promise<boolean> {
-    // Hooks are no longer used - removed
-    return true;
-  }
-  
+  /**
+   * Installs project dependencies
+   * @returns {Promise<boolean>} Success status
+   */
   async installDependencies(): Promise<boolean> {
     this.header('Installing project dependencies');
     
-    // Main dependencies
     if (!this.execCommand('npm install --no-audit --no-fund')) {
       this.error('Failed to install main dependencies');
       return false;
     }
     this.success('Main dependencies installed');
     
-    // Daemon dependencies
     this.header('Installing daemon dependencies');
     if (!this.execCommand('npm install --no-audit --no-fund', path.join(projectRoot, 'daemon'))) {
       this.error('Failed to install daemon dependencies');
@@ -241,7 +323,6 @@ class ProjectSetup {
     }
     this.success('Daemon dependencies installed');
     
-    // E2E test dependencies
     this.header('Installing E2E test dependencies');
     if (!this.execCommand('npm install --no-audit --no-fund', path.join(projectRoot, 'e2e-test'))) {
       this.error('Failed to install E2E test dependencies');
@@ -252,22 +333,23 @@ class ProjectSetup {
     return true;
   }
   
+  /**
+   * Builds the TypeScript projects
+   * @returns {Promise<boolean>} Success status
+   */
   async buildProject(): Promise<boolean> {
     this.header('Building TypeScript projects');
     
-    // Build main project
     if (!this.execCommand('npm run build')) {
       this.error('Failed to build main project');
       return false;
     }
     
-    // Build daemon
     if (!this.execCommand('npm run build', path.join(projectRoot, 'daemon'))) {
       this.error('Failed to build daemon');
       return false;
     }
     
-    // Build scripts
     if (!this.execCommand('npm run build:scripts')) {
       this.error('Failed to build scripts');
       return false;
@@ -277,17 +359,19 @@ class ProjectSetup {
     return true;
   }
   
+  /**
+   * Validates and configures environment variables
+   * @returns {Promise<boolean>} Success status
+   */
   async checkEnvironmentFile(): Promise<boolean> {
     this.header('Checking environment configuration');
     
     const envPath = path.join(projectRoot, '.env');
     const envExamplePath = path.join(projectRoot, '.env.example');
     
-    // Check if .env exists
     if (!fs.existsSync(envPath)) {
       this.warning('.env file not found');
       
-      // Copy from .env.example
       if (fs.existsSync(envExamplePath)) {
         fs.copyFileSync(envExamplePath, envPath);
         this.success('Created .env file from .env.example');
@@ -297,7 +381,6 @@ class ProjectSetup {
       }
     }
     
-    // Load and validate environment variables
     dotenv.config({ path: envPath });
     
     let isValid = true;
@@ -305,19 +388,16 @@ class ProjectSetup {
     
     this.info('\nValidating environment variables:');
     
-    // Check PROJECT_ROOT specifically
     let projectRootValue = envVars['PROJECT_ROOT'] || process.env['PROJECT_ROOT'];
     
     if (!projectRootValue || projectRootValue.includes('/path/to/') || projectRootValue.includes('your_')) {
       this.warning('PROJECT_ROOT is not set or contains placeholder value');
       this.info('PROJECT_ROOT is the directory where Claude Code will execute tasks');
       
-      // Prompt for PROJECT_ROOT
       const suggestedPath = process.cwd();
       const answer = await this.prompt(`\nEnter PROJECT_ROOT path (default: ${suggestedPath}): `);
       projectRootValue = answer || suggestedPath;
       
-      // Validate the path exists
       if (!fs.existsSync(projectRootValue)) {
         this.error(`Path does not exist: ${projectRootValue}`);
         const create = await this.prompt('Would you like to create this directory? (y/N): ');
@@ -334,7 +414,6 @@ class ProjectSetup {
         }
       }
       
-      // Update .env file with PROJECT_ROOT
       let envContent = fs.readFileSync(envPath, 'utf-8');
       if (envContent.includes('PROJECT_ROOT=')) {
         envContent = envContent.replace(/PROJECT_ROOT=.*/g, `PROJECT_ROOT=${projectRootValue}`);
@@ -344,14 +423,12 @@ class ProjectSetup {
       fs.writeFileSync(envPath, envContent);
       this.success(`Updated PROJECT_ROOT in .env file: ${projectRootValue}`);
       
-      // Reload env vars
       dotenv.config({ path: envPath });
       envVars['PROJECT_ROOT'] = projectRootValue;
     } else {
       this.success(`  PROJECT_ROOT is set: ${projectRootValue}`);
     }
     
-    // Check optional variables
     this.info('\nOptional environment variables:');
     for (const { name, default: defaultValue, description } of OPTIONAL_ENV_VARS) {
       const value = envVars[name] || process.env[name];
@@ -369,53 +446,45 @@ class ProjectSetup {
     return isValid;
   }
   
+  /**
+   * Runs the complete setup process
+   * @returns {Promise<void>}
+   */
   async run(): Promise<void> {
     this.log('🚀 SystemPrompt Coding Agent Setup', colors.cyan);
     this.log('==================================', colors.cyan);
     
-    // Check Node.js
     if (!await this.checkNodeVersion()) {
       process.exit(1);
     }
     
-    // Check Docker - required
     const dockerAvailable = await this.checkDocker();
     if (!dockerAvailable) {
       this.error('\nSetup cannot continue without Docker');
       process.exit(1);
     }
     
-    // Check environment file first
     const envValid = await this.checkEnvironmentFile();
     if (!envValid) {
       this.error('\nSetup incomplete: Failed to configure environment');
       process.exit(1);
     }
     
-    // Check Claude
     const claude = await this.checkClaude();
-    
-    // Check Cloudflared
     const cloudflaredAvailable = await this.checkCloudflared();
     
-    // Create directories
     await this.createDirectories();
     
-    // Install dependencies
     if (!await this.installDependencies()) {
       this.error('Failed to install dependencies');
       process.exit(1);
     }
     
-    // Build projects
     if (!await this.buildProject()) {
       this.error('Failed to build projects');
       process.exit(1);
     }
     
-    // Hooks are no longer used - removed
-    
-    // Final summary
     this.log('\n✨ Setup completed successfully!', colors.green);
     
     if (this.errors.length > 0) {
@@ -450,12 +519,10 @@ class ProjectSetup {
     
     this.info('\nFor more information, see README.md');
     
-    // Close readline interface
     this.rl.close();
   }
 }
 
-// Main entry point
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const setup = new ProjectSetup();
   setup.run().catch(error => {

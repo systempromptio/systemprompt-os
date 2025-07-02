@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * start-all.ts - Unified startup script
- * Validates environment, starts proxy, and launches Docker with validated env
+ * @fileoverview Unified startup script for SystemPrompt Coding Agent
+ * @module start-all
+ * @description Validates environment, starts proxy daemon, and launches Docker services
+ * with proper environment configuration and health checks.
  */
 
 import { ChildProcess, spawn, exec } from 'child_process';
@@ -14,12 +16,14 @@ import * as net from 'net';
 
 const execAsync = promisify(exec);
 
-// Get __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
-// Types
+/**
+ * @interface ValidatedEnvironment
+ * @description Environment configuration after validation
+ */
 interface ValidatedEnvironment {
   CLAUDE_PATH: string;
   GEMINI_PATH: string;
@@ -38,51 +42,81 @@ interface ValidatedEnvironment {
   errors: string[];
 }
 
-// Colors for output
+/**
+ * ANSI color codes for terminal output
+ * @const {Object}
+ */
 const colors = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m'
-};
+} as const;
 
+/**
+ * @class StartupManager
+ * @description Manages the complete startup process for all services
+ */
 class StartupManager {
   private proxyProcess: ChildProcess | null = null;
   private dockerProcess: ChildProcess | null = null;
   
-  constructor() {
-    // Logs are managed by the daemon itself
-  }
-  
+  /**
+   * Logs a message with optional color
+   * @param {string} message - The message to log
+   * @param {string} [color] - ANSI color code
+   */
   private log(message: string, color: string = colors.reset): void {
     console.log(`${color}${message}${colors.reset}`);
   }
   
+  /**
+   * Logs an error message
+   * @param {string} message - The error message
+   */
   private error(message: string): void {
     console.error(`${colors.red}ERROR: ${message}${colors.reset}`);
   }
   
+  /**
+   * Logs a success message
+   * @param {string} message - The success message
+   */
   private success(message: string): void {
     this.log(`✓ ${message}`, colors.green);
   }
   
+  /**
+   * Logs an info message
+   * @param {string} message - The info message
+   */
   private info(message: string): void {
     this.log(`ℹ ${message}`, colors.blue);
   }
   
+  /**
+   * Logs a warning message
+   * @param {string} message - The warning message
+   */
   private warning(message: string): void {
     this.log(`⚠ ${message}`, colors.yellow);
   }
   
+  /**
+   * Validates the runtime environment
+   * @returns {Promise<ValidatedEnvironment>} Validated environment configuration
+   */
   async validateEnvironment(): Promise<ValidatedEnvironment> {
     this.log('\n==== Validating Environment ====\n', colors.blue);
     
     const errors: string[] = [];
     const env: ValidatedEnvironment = {
       CLAUDE_PATH: '',
+      GEMINI_PATH: '',
       SHELL_PATH: '/bin/bash',
       CLAUDE_AVAILABLE: 'false',
+      GEMINI_AVAILABLE: 'false',
       CLAUDE_PROXY_HOST: 'host.docker.internal',
       CLAUDE_PROXY_PORT: '9876',
       MCP_PORT: '3010',
@@ -90,112 +124,98 @@ class StartupManager {
       GIT_AVAILABLE: 'false',
       GIT_CURRENT_BRANCH: 'none',
       errors: []
-    } as any;
+    };
     
-    // Check Claude
     const claudeCommand = await this.findCommand('claude');
     if (claudeCommand) {
       env.CLAUDE_PATH = claudeCommand;
       env.CLAUDE_AVAILABLE = 'true';
       this.success(`Claude found at: ${claudeCommand}`);
     } else {
-      errors.push('Claude CLI not found. Install from: https://github.com/anthropics/claude-cli');
-      this.warning('Claude CLI not found');
+      this.warning('Claude not found');
+      errors.push('Claude CLI not found - install from: https://github.com/anthropics/claude-cli');
     }
     
-    // Check shell
-    const shellPath = process.env.SHELL || '/bin/bash';
-    if (fs.existsSync(shellPath)) {
+    const geminiCommand = await this.findCommand('gemini');
+    if (geminiCommand) {
+      env.GEMINI_PATH = geminiCommand;
+      env.GEMINI_AVAILABLE = 'true';
+      this.success(`Gemini found at: ${geminiCommand}`);
+    } else {
+      this.info('Gemini not found (optional)');
+    }
+    
+    const shellPath = await this.findCommand('bash');
+    if (shellPath) {
       env.SHELL_PATH = shellPath;
       this.success(`Shell found at: ${shellPath}`);
     } else {
-      env.SHELL_PATH = '/bin/bash';
-      this.warning(`Shell ${shellPath} not found, using /bin/bash`);
+      errors.push('Bash shell not found');
     }
     
-    // Check Docker
-    const dockerCommand = await this.findCommand('docker');
-    if (!dockerCommand) {
-      errors.push('Docker not found. Docker is required to run the MCP server.');
+    const dockerPath = await this.findCommand('docker');
+    if (!dockerPath) {
+      errors.push('Docker not found - install from: https://docs.docker.com/get-docker/');
     } else {
       this.success('Docker found');
     }
     
-    // Check docker-compose (or docker compose v2)
-    const dockerComposeCommand = await this.findCommand('docker-compose');
-    if (!dockerComposeCommand) {
-      // Check for Docker Compose V2
-      try {
-        await execAsync('docker compose version', { timeout: 5000 });
-        this.success('Docker Compose V2 found');
-      } catch {
-        errors.push('docker-compose not found. Please install docker-compose.');
-      }
+    const dockerComposePath = await this.findCommand('docker-compose') || await this.findCommand('docker');
+    if (!dockerComposePath) {
+      errors.push('Docker Compose not found');
     } else {
       this.success('docker-compose found');
     }
     
-    // Check git repository status
     try {
-      const { stdout } = await execAsync('git rev-parse --is-inside-work-tree', { cwd: projectRoot });
-      if (stdout.trim() === 'true') {
-        this.success(`Git repository found at: ${projectRoot}`);
-        env.GIT_AVAILABLE = 'true';
-        
-        // Get current branch
-        const { stdout: branchOut } = await execAsync('git branch --show-current', { cwd: projectRoot });
-        env.GIT_CURRENT_BRANCH = branchOut.trim() || 'main';
-        this.info(`Current git branch: ${env.GIT_CURRENT_BRANCH}`);
+      const { stdout } = await execAsync('git status --porcelain -b', { cwd: projectRoot });
+      env.GIT_AVAILABLE = 'true';
+      const branchMatch = stdout.match(/## (.+?)(?:\.{3}|$)/);
+      if (branchMatch) {
+        env.GIT_CURRENT_BRANCH = branchMatch[1];
       }
-    } catch (e) {
+      this.success(`Git repository detected (branch: ${env.GIT_CURRENT_BRANCH})`);
+    } catch {
       this.warning('Not a git repository - git operations will be disabled');
-      env.GIT_AVAILABLE = 'false';
-      env.GIT_CURRENT_BRANCH = 'none';
     }
     
-    // Load .env if exists
-    const envFile = path.join(projectRoot, '.env');
-    if (fs.existsSync(envFile)) {
-      this.info('Loading .env file');
-      const envContent = fs.readFileSync(envFile, 'utf-8');
-      envContent.split('\n').forEach(line => {
-        const match = line.match(/^([^#=]+)=(.*)$/);
-        if (match) {
-          const [, key, value] = match;
-          if (key.trim() in env) {
-            (env as any)[key.trim()] = value.trim();
-          }
+    if (fs.existsSync(path.join(projectRoot, '.tunnel-url'))) {
+      try {
+        const tunnelUrl = fs.readFileSync(path.join(projectRoot, '.tunnel-url'), 'utf-8').trim();
+        if (tunnelUrl) {
+          env.TUNNEL_URL = tunnelUrl;
+          env.TUNNEL_ENABLED = 'true';
+          env.PUBLIC_URL = tunnelUrl;
+          this.success(`Tunnel URL detected: ${tunnelUrl}`);
         }
-      });
-    }
-    
-    // Check for tunnel environment variables
-    if (process.env.TUNNEL_URL) {
-      env.TUNNEL_URL = process.env.TUNNEL_URL;
-      env.TUNNEL_ENABLED = 'true';
-      env.PUBLIC_URL = process.env.TUNNEL_URL;
-      this.success(`Using tunnel URL: ${env.TUNNEL_URL}`);
-    } else if (process.env.TUNNEL_ENABLED === 'true') {
-      this.info('Tunnel enabled but no URL provided yet');
+      } catch (e) {
+        this.warning('Failed to read tunnel URL');
+      }
     }
     
     env.errors = errors;
     
-    if (errors.length > 0) {
-      this.error('\nValidation failed:');
-      errors.forEach(err => this.error(`  - ${err}`));
-    } else {
+    if (errors.length === 0) {
       this.success('\nAll validations passed!');
+    } else {
+      this.error(`\n${errors.length} validation error(s) found`);
     }
     
     return env;
   }
   
+  /**
+   * Finds a command in the system PATH
+   * @param {string} command - Command to find
+   * @returns {Promise<string|null>} Path to command or null
+   */
   private async findCommand(command: string): Promise<string | null> {
     return new Promise((resolve) => {
       const isWindows = process.platform === 'win32';
-      const shellCommand = isWindows ? 'where' : 'which';
-      const which = spawn(shellCommand, [command], { shell: isWindows });
+      const which = spawn(isWindows ? 'where' : 'which', [command], {
+        stdio: ['ignore', 'pipe', 'ignore']
+      });
+      
       let output = '';
       
       which.stdout.on('data', (data: Buffer) => {
@@ -204,7 +224,6 @@ class StartupManager {
       
       which.on('close', (code: number | null) => {
         if (code === 0 && output.trim()) {
-          // On Windows, 'where' might return multiple lines
           const firstLine = output.trim().split('\n')[0].trim();
           resolve(firstLine);
         } else {
@@ -214,6 +233,10 @@ class StartupManager {
     });
   }
   
+  /**
+   * Builds the daemon if needed
+   * @returns {Promise<boolean>} Success status
+   */
   async buildDaemon(): Promise<boolean> {
     this.log('\n==== Building Daemon ====\n', colors.blue);
     
@@ -230,73 +253,79 @@ class StartupManager {
     }
   }
   
+  /**
+   * Starts the proxy daemon
+   * @param {ValidatedEnvironment} env - Validated environment
+   * @returns {Promise<boolean>} Success status
+   */
   async startProxy(env: ValidatedEnvironment): Promise<boolean> {
     this.log('\n==== Starting Proxy ====\n', colors.blue);
     
-    // Kill any existing proxy
     await this.killExistingProxy();
     
     const proxyEnv = {
       ...process.env,
       CLAUDE_PATH: env.CLAUDE_PATH,
+      GEMINI_PATH: env.GEMINI_PATH || '',
       SHELL_PATH: env.SHELL_PATH,
       CLAUDE_AVAILABLE: env.CLAUDE_AVAILABLE,
       GEMINI_AVAILABLE: env.GEMINI_AVAILABLE || 'false',
       CLAUDE_PROXY_PORT: env.CLAUDE_PROXY_PORT,
-      PATH: process.env.PATH // Ensure PATH is passed so 'which claude' works
+      PATH: process.env.PATH
     };
     
-    // Daemon manages its own logs in daemon/logs/
-    const daemonDir = path.join(projectRoot, 'daemon');
-    const daemonLogsDir = path.join(daemonDir, 'logs');
-    
-    // Ensure daemon logs directory exists
-    if (!fs.existsSync(daemonLogsDir)) {
-      fs.mkdirSync(daemonLogsDir, { recursive: true });
-    }
-    
-    this.proxyProcess = spawn('node', ['dist/host-bridge-daemon.js'], {
-      cwd: daemonDir,
+    this.proxyProcess = spawn('node', [
+      path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js')
+    ], {
       env: proxyEnv,
-      detached: true,
-      stdio: 'ignore'
+      detached: false,
+      stdio: ['ignore', 'pipe', 'pipe']
     });
     
-    if (!this.proxyProcess) {
-      this.error('Failed to spawn proxy process');
-      return false;
-    }
+    this.proxyProcess.on('error', (err) => {
+      this.error(`Failed to start proxy: ${err.message}`);
+    });
     
-    // Daemon will write its own PID to daemon/logs/daemon.pid
-    this.info(`Daemon process spawned with PID: ${this.proxyProcess.pid}`);
-    this.info(`Log file: ${path.join(daemonLogsDir, 'host-bridge.log')}`);
-    
-    // Detach the process so it runs independently
-    this.proxyProcess.unref();
-    
-    // Wait for daemon to be ready
-    const portReady = await this.waitForPort(parseInt(env.CLAUDE_PROXY_PORT), 10);
-    
-    if (!portReady) {
-      // Check if the process is still running
-      try {
-        process.kill(this.proxyProcess.pid as number, 0);
-        this.error('Daemon process is running but not listening on the expected port');
-        this.error(`Check the log file: ${path.join(daemonLogsDir, 'host-bridge.log')}`);
-      } catch (e) {
-        this.error('Daemon process died during startup');
+    this.proxyProcess.on('exit', (code, signal) => {
+      if (code !== null) {
+        this.error(`Proxy exited with code ${code}`);
+      } else if (signal !== null) {
+        this.info(`Proxy terminated by signal ${signal}`);
       }
-      return false;
+    });
+    
+    this.proxyProcess.stdout?.on('data', (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        console.log(`[DAEMON] ${message}`);
+      }
+    });
+    
+    this.proxyProcess.stderr?.on('data', (data: Buffer) => {
+      const message = data.toString().trim();
+      if (message) {
+        console.error(`[DAEMON ERROR] ${message}`);
+      }
+    });
+    
+    const success = await this.waitForPort(parseInt(env.CLAUDE_PROXY_PORT), 10);
+    
+    if (success) {
+      const pidFile = path.join(projectRoot, 'daemon', 'logs', 'daemon.pid');
+      fs.mkdirSync(path.dirname(pidFile), { recursive: true });
+      fs.writeFileSync(pidFile, this.proxyProcess.pid!.toString());
+      this.success(`Daemon started (PID: ${this.proxyProcess.pid})`);
     }
     
-    this.success(`Proxy is running on port ${env.CLAUDE_PROXY_PORT}`);
-    return true;
+    return success;
   }
   
+  /**
+   * Kills any existing proxy daemon
+   * @returns {Promise<void>}
+   */
   private async killExistingProxy(): Promise<void> {
-    // Only check in the daemon logs directory
     const pidFile = path.join(projectRoot, 'daemon', 'logs', 'daemon.pid');
-    
     if (fs.existsSync(pidFile)) {
       const pid = parseInt(fs.readFileSync(pidFile, 'utf-8'));
       try {
@@ -304,14 +333,19 @@ class StartupManager {
         this.info(`Killed existing daemon (PID: ${pid})`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (e) {
-        // Process doesn't exist, remove stale PID file
+        // Process doesn't exist
       }
       fs.unlinkSync(pidFile);
     }
   }
   
+  /**
+   * Waits for a port to become available
+   * @param {number} port - Port number
+   * @param {number} maxAttempts - Maximum attempts
+   * @returns {Promise<boolean>} Success status
+   */
   private async waitForPort(port: number, maxAttempts: number): Promise<boolean> {
-    // Give the daemon a moment to start up before checking
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     for (let i = 0; i < maxAttempts; i++) {
@@ -326,6 +360,11 @@ class StartupManager {
     return false;
   }
   
+  /**
+   * Checks if a port is open
+   * @param {number} port - Port to check
+   * @returns {Promise<boolean>} Whether port is open
+   */
   private isPortOpen(port: number): Promise<boolean> {
     return new Promise((resolve) => {
       const client = new net.Socket();
@@ -346,41 +385,39 @@ class StartupManager {
         resolve(false);
       });
       
-      // Connect to localhost (127.0.0.1)
       client.connect(port, '127.0.0.1');
     });
   }
   
+  /**
+   * Verifies setup has been completed
+   * @returns {Promise<boolean>} Whether setup is complete
+   */
   private async verifySetupComplete(): Promise<boolean> {
-    // Check if .env file exists
     const envPath = path.join(projectRoot, '.env');
     if (!fs.existsSync(envPath)) {
       this.error('.env file not found');
       return false;
     }
     
-    // Check if build directory exists
     const buildPath = path.join(projectRoot, 'build');
     if (!fs.existsSync(buildPath)) {
       this.error('Build directory not found');
       return false;
     }
     
-    // Check if daemon is built
     const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
     if (!fs.existsSync(daemonPath)) {
       this.error('Daemon not built');
       return false;
     }
     
-    // Check if dependencies are installed
     const nodeModulesPath = path.join(projectRoot, 'node_modules');
     if (!fs.existsSync(nodeModulesPath)) {
       this.error('Dependencies not installed');
       return false;
     }
     
-    // Verify PROJECT_ROOT is set in .env
     const envContent = fs.readFileSync(envPath, 'utf-8');
     if (!envContent.includes('PROJECT_ROOT=') || envContent.includes('PROJECT_ROOT=/path/to/')) {
       this.error('PROJECT_ROOT not configured in .env');
@@ -390,13 +427,15 @@ class StartupManager {
     return true;
   }
   
+  /**
+   * Performs pre-flight checks
+   * @param {ValidatedEnvironment} env - Environment configuration
+   * @returns {Promise<boolean>} Whether all checks pass
+   */
   private async performPreChecks(env: ValidatedEnvironment): Promise<boolean> {
     this.log('\n==== Pre-flight Checks ====\n', colors.blue);
     let allChecksPass = true;
     
-    // Daemon check is already done in verifySetupComplete
-    
-    // Check if ports are available
     if (await this.isPortOpen(parseInt(env.CLAUDE_PROXY_PORT))) {
       this.error(`Port ${env.CLAUDE_PROXY_PORT} is already in use`);
       const pidFile = path.join(projectRoot, 'daemon', 'logs', 'daemon.pid');
@@ -416,7 +455,6 @@ class StartupManager {
       this.success(`Port ${env.MCP_PORT} is available`);
     }
     
-    // Check Docker daemon
     try {
       await execAsync('docker info', { timeout: 5000 });
       this.success('Docker daemon is running');
@@ -426,55 +464,45 @@ class StartupManager {
       allChecksPass = false;
     }
     
-    // Check if we need to set up Claude
     if (env.CLAUDE_AVAILABLE === 'false') {
       this.warning('Claude CLI not configured');
-      this.info('  The daemon will start but won\'t be able to execute Claude commands');
-      this.info('  To enable Claude: export CLAUDE_PATH=$(which claude)');
+      this.info('  Coding agent functionality will be limited');
     }
     
-    // Check write permissions in daemon logs directory
+    const testDir = path.join(projectRoot, 'test-write-permissions');
     try {
-      const daemonLogsDir = path.join(projectRoot, 'daemon', 'logs');
-      if (!fs.existsSync(daemonLogsDir)) {
-        fs.mkdirSync(daemonLogsDir, { recursive: true });
-      }
-      const testFile = path.join(daemonLogsDir, '.test-write');
-      fs.writeFileSync(testFile, 'test');
-      fs.unlinkSync(testFile);
+      fs.mkdirSync(testDir);
+      fs.rmdirSync(testDir);
       this.success('Write permissions verified');
-    } catch {
-      this.error('No write permissions in daemon logs directory');
+    } catch (e) {
+      this.error('No write permissions in project directory');
       allChecksPass = false;
     }
     
     return allChecksPass;
   }
   
+  /**
+   * Starts Docker services
+   * @param {ValidatedEnvironment} env - Environment configuration
+   * @returns {Promise<boolean>} Success status
+   */
   async startDocker(env: ValidatedEnvironment): Promise<boolean> {
     this.log('\n==== Starting Docker Services ====\n', colors.blue);
     
     const dockerEnv = {
       ...process.env,
       ...env,
-      // Remove 'errors' from env
-      errors: undefined
+      HOST_FILE_ROOT: projectRoot,
+      DAEMON_HOST: 'host.docker.internal',
+      DAEMON_PORT: env.CLAUDE_PROXY_PORT,
+      PROJECT_ROOT: projectRoot
     };
     
-    // Write environment to .env file for docker-compose
-    const envContent = Object.entries(dockerEnv)
-      .filter(([key, value]) => value !== undefined && key !== 'errors')
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n');
-    
-    fs.writeFileSync(path.join(projectRoot, '.env'), envContent);
-    
     try {
-      // Check if we should skip the build (for development)
       const skipBuild = process.env.SKIP_DOCKER_BUILD === 'true';
       
       if (!skipBuild) {
-        // Rebuild the Docker image to ensure latest code
         this.info('Building Docker image with latest code...');
         this.info('(Set SKIP_DOCKER_BUILD=true to skip this step)');
         await execAsync('docker compose build mcp-server', {
@@ -487,7 +515,6 @@ class StartupManager {
         this.warning('Skipping Docker build (SKIP_DOCKER_BUILD=true)');
       }
       
-      // Now start the services
       this.info('Starting Docker services...');
       await execAsync('docker compose up -d', {
         cwd: projectRoot,
@@ -502,9 +529,12 @@ class StartupManager {
     }
   }
   
+  /**
+   * Runs the complete startup process
+   * @returns {Promise<void>}
+   */
   async start(): Promise<void> {
     try {
-      // Validate environment
       const env = await this.validateEnvironment();
       
       if (env.errors.length > 0) {
@@ -515,44 +545,54 @@ class StartupManager {
         process.exit(1);
       }
       
-      // Additional pre-checks
       if (!await this.performPreChecks(env)) {
         this.error('\nPre-flight checks failed. Cannot continue.');
         process.exit(1);
       }
       
-      // Check if setup has been run
       if (!await this.verifySetupComplete()) {
         this.error('\nSetup has not been completed!');
         this.error('Please run "npm run setup" first to configure the environment.');
         process.exit(1);
       }
       
-      // Daemon should already be built by setup
       const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
       if (!fs.existsSync(daemonPath)) {
         this.error('Daemon not found. Please run "npm run setup" first.');
         process.exit(1);
       }
       
-      // Start proxy
       if (!await this.startProxy(env)) {
         this.error('Failed to start proxy');
         process.exit(1);
       }
       
-      // Start Docker
       if (!await this.startDocker(env)) {
         this.error('Failed to start Docker services');
         process.exit(1);
       }
       
-      this.log('\n==== All Services Started Successfully! ====\n', colors.green);
-      this.info('Quick commands:');
-      this.info('  View daemon logs: tail -f daemon/logs/host-bridge.log');
-      this.info('  View Docker logs: npm run docker:logs');
-      this.info('  Run tests: npm test');
-      this.info('  Stop all: npm run stop')
+      this.log('\n==== Services Started Successfully ====\n', colors.green);
+      this.success('MCP server running at: http://localhost:3010');
+      this.success('Daemon running on port: 9876');
+      
+      if (env.TUNNEL_URL) {
+        this.success(`Tunnel URL: ${env.TUNNEL_URL}`);
+      }
+      
+      this.info('\nTo check status: npm run status');
+      this.info('To view logs: npm run logs');
+      this.info('To stop: npm run stop');
+      
+      this.info('\nPress Ctrl+C to stop all services');
+      
+      process.on('SIGINT', () => {
+        this.info('\nShutting down services...');
+        if (this.proxyProcess) {
+          this.proxyProcess.kill('SIGTERM');
+        }
+        process.exit(0);
+      });
       
     } catch (error) {
       this.error(`Startup failed: ${error}`);
@@ -561,7 +601,6 @@ class StartupManager {
   }
 }
 
-// Main
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const manager = new StartupManager();
   manager.start();
