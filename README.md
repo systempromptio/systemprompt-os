@@ -19,7 +19,7 @@
   <h3>Works with Any MCP Client</h3>
   <p><strong>This server is 100% free and open source</strong> and works with any MCP-compatible client.</p>
   <p>We also offer a <strong>paid subscription</strong> native mobile app (SystemPrompt) designed for voice-first interactions with this server. 
-  The mobile app is still in early development but provides a premium experience for controlling your coding agent from anywhere.</p>
+  The mobile app is still in early development but provides a native mobile experience for controlling your coding agent from anywhere.</p>
   <a href="https://apps.apple.com/us/app/systemprompt-mcp-client/id6746670168">
     <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us" alt="Download on App Store" height="50">
   </a>
