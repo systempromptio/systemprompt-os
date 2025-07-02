@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
-    network_mode: "host"
+    # network_mode: "host"  # Disabled for WSL2 compatibility
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
@@ -20,11 +20,9 @@ services:
       - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-9876}
       - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE}
       - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
-      - GIT_CURRENT_BRANCH=${GIT_CURRENT_BRANCH:-none}
       - TUNNEL_URL=${TUNNEL_URL}
       - TUNNEL_ENABLED=${TUNNEL_ENABLED}
       - PUBLIC_URL=${PUBLIC_URL}
-      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Commented out - using authenticated user session
     env_file:
       - .env
     volumes:

@@ -10,8 +10,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { config } from 'dotenv';
 
-// Load environment configuration
-config({ path: '.env' });
+// Load environment configuration from project root
+config({ path: '../../.env' });
 
 // Check for tunnel URL in multiple places
 function getMCPBaseUrl(): string {
