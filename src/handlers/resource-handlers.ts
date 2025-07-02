@@ -117,7 +117,7 @@ export async function handleResourceCall(
             text: JSON.stringify(
               {
                 status: "ready",
-                version: "1.0.0",
+                version: "0.01",
                 capabilities: ["claude", "gemini", "task-management"],
                 activeTaskCount: activeTasks.length,
                 totalTaskCount: tasks.length,

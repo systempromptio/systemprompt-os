@@ -394,7 +394,7 @@ export function createSuccessResponse<T>(data: T, metadata?: Partial<ResponseMet
       requestId: metadata.requestId || generateRequestId(),
       timestamp: metadata.timestamp || new Date(),
       duration: metadata.duration || 0,
-      version: metadata.version || '1.0.0',
+      version: metadata.version || '0.01',
       warnings: metadata.warnings
     } : undefined
   };
@@ -422,7 +422,7 @@ export function createErrorResponse(error: ApiError, metadata?: Partial<Response
       requestId: metadata.requestId || generateRequestId(),
       timestamp: metadata.timestamp || new Date(),
       duration: metadata.duration || 0,
-      version: metadata.version || '1.0.0',
+      version: metadata.version || '0.01',
       warnings: metadata.warnings
     } : undefined
   };
@@ -456,7 +456,7 @@ export function createPaginatedResponse<T>(
       requestId: metadata.requestId || generateRequestId(),
       timestamp: metadata.timestamp || new Date(),
       duration: metadata.duration || 0,
-      version: metadata.version || '1.0.0',
+      version: metadata.version || '0.01',
       warnings: metadata.warnings
     } : undefined
   };

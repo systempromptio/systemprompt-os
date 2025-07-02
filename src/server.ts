@@ -101,7 +101,7 @@ function setupUtilityRoutes(app: express.Application): void {
     
     res.json({
       service: 'Coding Agent MCP Server',
-      version: '1.0.0',
+      version: '0.01',
       transport: 'http',
       endpoints: {
         mcp: `${baseUrl}${basePath}/mcp`,

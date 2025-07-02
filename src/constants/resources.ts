@@ -35,7 +35,7 @@ export const SERVER_INFO = {
   /**
    * Server version
    */
-  version: "1.0.0",
+  version: "0.01",
   
   /**
    * Server description

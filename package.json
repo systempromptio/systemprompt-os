@@ -1,6 +1,6 @@
 {
   "name": "@systemprompt/systemprompt-mcp-server",
-  "version": "1.0.1",
+  "version": "0.01",
   "description": "Coding Agent MCP server for orchestrating Claude Code CLI sessions to perform coding tasks.",
   "type": "module",
   "exports": {

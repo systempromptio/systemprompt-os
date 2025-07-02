@@ -32,7 +32,7 @@ import type { Implementation, ServerCapabilities } from "@modelcontextprotocol/s
  */
 export const serverConfig: Implementation = {
   name: "systemprompt-coding-agent",
-  version: "1.0.0",
+  version: "0.01",
   metadata: {
     name: "SystemPrompt Coding Agent",
     description:

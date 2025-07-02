@@ -31,9 +31,9 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
   const notifications: Array<{timestamp: string, type: string, data: any}> = [];
   
   // Define test parameters
-  const testName = 'Create Hello World HTML';
+  const testName = 'Create Pirate Welcome';
   const branchName = `e2e-test-${timestamp}`;
-  const instructions = 'Create a file named hello.html with a basic HTML page that displays "Hello World" as a heading';
+  const instructions = 'Load systemprompt.io, read the context about the site and write a hearty pirate welcome to the user, save in IMPORTANT.md in project root';
   
   // Set up notification handlers BEFORE creating the task
   client.setNotificationHandler(ResourceListChangedNotificationSchema, (notification) => {
@@ -193,7 +193,7 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
         name: 'update_task',
         arguments: {
           process: sessionId,
-          instructions: 'Also create a test file called hello.test.js that tests the greet function with at least 3 test cases'
+          instructions: 'Make sure the pirate welcome is extra enthusiastic and includes at least 3 pirate phrases'
         }
       });
       
@@ -414,6 +414,7 @@ export async function testE2E(): Promise<void> {
     
     await runTest('Create Task Flow', () => testCreateTaskFlow(client!, reporter), tracker);
     await runTest('Error Handling', () => testCreateTaskErrorHandling(client!, reporter), tracker);
+    await runTest('Intentional Failure', () => testIntentionalFailure(client!, reporter), tracker);
     
     tracker.printSummary();
     
