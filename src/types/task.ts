@@ -157,7 +157,183 @@ export const createTaskId = (id: string): TaskId => id as TaskId;
 // ==================== Core Task Interface ====================
 
 /**
- * Core Task interface - slim and focused
+ * Tool invocation details
+ * @interface
+ */
+export interface ToolInvocation {
+  /**
+   * Unique identifier for this tool invocation
+   */
+  id: string;
+  
+  /**
+   * Name of the tool
+   */
+  toolName: string;
+  
+  /**
+   * ISO timestamp when tool was invoked
+   */
+  startTime: string;
+  
+  /**
+   * ISO timestamp when tool completed
+   */
+  endTime?: string;
+  
+  /**
+   * Duration in milliseconds
+   */
+  duration?: number;
+  
+  /**
+   * Tool input parameters (strongly typed, no stringified JSON)
+   */
+  parameters: Record<string, any>;
+  
+  /**
+   * Tool result (strongly typed, no stringified JSON)
+   */
+  result?: any;
+  
+  /**
+   * Whether the tool invocation was successful
+   */
+  success?: boolean;
+  
+  /**
+   * Error message if tool failed
+   */
+  error?: string;
+}
+
+/**
+ * Summary of tool usage in a task
+ * @interface
+ */
+export interface ToolUsageSummary {
+  /**
+   * Total number of tool invocations
+   */
+  totalInvocations: number;
+  
+  /**
+   * Number of successful invocations
+   */
+  successfulInvocations: number;
+  
+  /**
+   * Number of failed invocations
+   */
+  failedInvocations: number;
+  
+  /**
+   * Tool invocation counts by tool name
+   */
+  byTool: Record<string, number>;
+  
+  /**
+   * Most used tools (top 5)
+   */
+  mostUsedTools: Array<{
+    toolName: string;
+    count: number;
+  }>;
+  
+  /**
+   * Total duration spent in tool execution (ms)
+   */
+  totalDuration: number;
+}
+
+/**
+ * Claude execution metrics
+ * @interface
+ */
+export interface ClaudeMetrics {
+  /**
+   * Claude session ID
+   */
+  sessionId: string;
+  
+  /**
+   * Process ID of Claude execution
+   */
+  pid?: number;
+  
+  /**
+   * Execution duration in milliseconds
+   */
+  duration: number;
+  
+  /**
+   * API duration in milliseconds
+   */
+  apiDuration?: number;
+  
+  /**
+   * Number of turns/iterations
+   */
+  turns: number;
+  
+  /**
+   * Exit code (0 for success)
+   */
+  exitCode?: number;
+  
+  /**
+   * Token usage
+   */
+  usage: {
+    /**
+     * Input tokens consumed
+     */
+    inputTokens: number;
+    
+    /**
+     * Output tokens generated
+     */
+    outputTokens: number;
+    
+    /**
+     * Cache creation tokens
+     */
+    cacheCreationTokens: number;
+    
+    /**
+     * Cache read tokens
+     */
+    cacheReadTokens: number;
+    
+    /**
+     * Total tokens
+     */
+    totalTokens: number;
+  };
+  
+  /**
+   * Cost in USD
+   */
+  cost: number;
+  
+  /**
+   * Service tier used
+   */
+  serviceTier?: string;
+  
+  /**
+   * Whether execution was successful
+   */
+  success: boolean;
+  
+  /**
+   * The final result message from Claude
+   */
+  resultMessage?: string;
+}
+
+/**
+ * Core Task interface - comprehensive and complete
  * @interface
  */
 export interface Task {
@@ -212,14 +388,68 @@ export interface Task {
   readonly error?: string;
   
   /**
-   * Task execution result
+   * Structured task result (never stringified JSON)
    */
-  readonly result?: unknown;
+  readonly result?: {
+    /**
+     * The final output/result text
+     */
+    output: string;
+    
+    /**
+     * Whether the task was successful
+     */
+    success: boolean;
+    
+    /**
+     * Error message if failed
+     */
+    error?: string;
+    
+    /**
+     * Additional result data
+     */
+    data?: any;
+  };
   
   /**
    * Execution log entries
    */
   readonly logs: TaskLogEntry[];
+  
+  /**
+   * All tool invocations during task execution
+   */
+  readonly toolInvocations?: ToolInvocation[];
+  
+  /**
+   * Tool usage summary
+   */
+  readonly toolUsageSummary?: ToolUsageSummary;
+  
+  /**
+   * Claude execution metrics
+   */
+  readonly claudeMetrics?: ClaudeMetrics;
+  
+  /**
+   * Files created or modified during task
+   */
+  readonly filesAffected?: Array<{
+    path: string;
+    operation: 'created' | 'modified' | 'deleted' | 'read';
+    timestamp: string;
+  }>;
+  
+  /**
+   * Commands executed during task
+   */
+  readonly commandsExecuted?: Array<{
+    command: string;
+    exitCode: number;
+    duration: number;
+    timestamp: string;
+  }>;
 }
 
 // ==================== Task Schema for Validation ====================
@@ -328,7 +558,7 @@ export interface UpdateTaskParams {
   /**
    * Task result data
    */
-  result?: unknown;
+  result?: Task['result'];
 }
 
 // ==================== Process Task for Execution ====================

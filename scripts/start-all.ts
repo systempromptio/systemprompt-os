@@ -138,14 +138,23 @@ class StartupManager {
       errors: []
     };
     
-    const claudeCommand = await this.findCommand('claude');
-    if (claudeCommand) {
-      env.CLAUDE_PATH = claudeCommand;
+    // First check if CLAUDE_PATH is already set in .env
+    const envClaudePath = process.env.CLAUDE_PATH;
+    if (envClaudePath && fs.existsSync(envClaudePath)) {
+      env.CLAUDE_PATH = envClaudePath;
       env.CLAUDE_AVAILABLE = 'true';
-      this.success(`Claude found at: ${claudeCommand}`);
+      this.success(`Claude found at: ${envClaudePath} (from .env)`);
     } else {
-      this.warning('Claude not found');
-      errors.push('Claude CLI not found - install from: https://github.com/anthropics/claude-cli');
+      // Fall back to finding in PATH
+      const claudeCommand = await this.findCommand('claude');
+      if (claudeCommand) {
+        env.CLAUDE_PATH = claudeCommand;
+        env.CLAUDE_AVAILABLE = 'true';
+        this.success(`Claude found at: ${claudeCommand}`);
+      } else {
+        this.warning('Claude not found');
+        errors.push('Claude CLI not found - install from: https://github.com/anthropics/claude-cli');
+      }
     }
     
     const geminiCommand = await this.findCommand('gemini');

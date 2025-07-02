@@ -33,7 +33,7 @@ import { TaskStore } from "../services/task-store.js";
 import { logger } from "../utils/logger.js";
 import { matchResourceTemplate } from "./resource-templates-handler.js";
 import { type TaskResourceContent, type TaskSession, type TaskMetadata } from "../types/resources/task-resource.js";
-import { enhanceTask } from "../types/enhanced-task.js";
+import { enhanceTask } from "../utils/task-helpers.js";
 
 /**
  * Lists all available MCP resources including static and dynamic task resources

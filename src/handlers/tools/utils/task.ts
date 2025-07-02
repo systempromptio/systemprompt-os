@@ -133,8 +133,12 @@ export class TaskOperations {
 
       case TASK_STATUS.WAITING:
         // Store the result for waiting tasks
-        if (metadata?.result !== undefined) {
-          updates.result = metadata.result;
+        if (metadata?.result !== undefined && metadata.result !== null) {
+          // Ensure result has the correct structure
+          const result = metadata.result as any;
+          if (result && typeof result === 'object' && 'output' in result && 'success' in result) {
+            updates.result = result;
+          }
         }
         break;
         
@@ -147,8 +151,12 @@ export class TaskOperations {
         if (metadata?.error) {
           updates.error = metadata.error;
         }
-        if (metadata?.result !== undefined) {
-          updates.result = metadata.result;
+        if (metadata?.result !== undefined && metadata.result !== null) {
+          // Ensure result has the correct structure
+          const result = metadata.result as any;
+          if (result && typeof result === 'object' && 'output' in result && 'success' in result) {
+            updates.result = result;
+          }
         }
         break;
     }

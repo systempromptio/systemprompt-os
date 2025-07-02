@@ -291,7 +291,7 @@ async function executeInitialInstructions(
       });
       
       // Parse the result if it's JSON
-      let parsedResult = result.output || null;
+      let parsedResult = result.output || undefined;
       if (parsedResult && typeof parsedResult === 'string') {
         try {
           const trimmed = parsedResult.trim();
@@ -304,9 +304,18 @@ async function executeInitialInstructions(
         }
       }
       
-      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.WAITING, sessionId, {
-        result: parsedResult,
-      });
+      // Only update result if we have one
+      const updateData: any = {};
+      if (parsedResult !== undefined) {
+        // Structure the result properly
+        updateData.result = {
+          output: typeof parsedResult === 'string' ? parsedResult : JSON.stringify(parsedResult, null, 2),
+          success: true,
+          data: typeof parsedResult === 'object' ? parsedResult : undefined
+        };
+      }
+      
+      await taskOperations.updateTaskStatus(taskId, TASK_STATUS.WAITING, sessionId, updateData);
     } else {
       await taskOperations.updateTaskStatus(taskId, TASK_STATUS.FAILED, sessionId, {
         error: result.error,
