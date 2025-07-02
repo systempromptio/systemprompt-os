@@ -351,18 +351,50 @@ class StartupManager {
     });
   }
   
+  private async verifySetupComplete(): Promise<boolean> {
+    // Check if .env file exists
+    const envPath = path.join(projectRoot, '.env');
+    if (!fs.existsSync(envPath)) {
+      this.error('.env file not found');
+      return false;
+    }
+    
+    // Check if build directory exists
+    const buildPath = path.join(projectRoot, 'build');
+    if (!fs.existsSync(buildPath)) {
+      this.error('Build directory not found');
+      return false;
+    }
+    
+    // Check if daemon is built
+    const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
+    if (!fs.existsSync(daemonPath)) {
+      this.error('Daemon not built');
+      return false;
+    }
+    
+    // Check if dependencies are installed
+    const nodeModulesPath = path.join(projectRoot, 'node_modules');
+    if (!fs.existsSync(nodeModulesPath)) {
+      this.error('Dependencies not installed');
+      return false;
+    }
+    
+    // Verify PROJECT_ROOT is set in .env
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    if (!envContent.includes('PROJECT_ROOT=') || envContent.includes('PROJECT_ROOT=/path/to/')) {
+      this.error('PROJECT_ROOT not configured in .env');
+      return false;
+    }
+    
+    return true;
+  }
+  
   private async performPreChecks(env: ValidatedEnvironment): Promise<boolean> {
     this.log('\n==== Pre-flight Checks ====\n', colors.blue);
     let allChecksPass = true;
     
-    // Check if daemon build exists
-    const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
-    this.info(`Checking for daemon at: ${daemonPath}`);
-    if (!fs.existsSync(daemonPath)) {
-      this.warning('Daemon not built yet - will build during startup');
-    } else {
-      this.success('Daemon build found');
-    }
+    // Daemon check is already done in verifySetupComplete
     
     // Check if ports are available
     if (await this.isPortOpen(parseInt(env.CLAUDE_PROXY_PORT))) {
@@ -489,31 +521,18 @@ class StartupManager {
         process.exit(1);
       }
       
-      // Build main application first
-      this.log('\n==== Building Application ====\n', colors.blue);
-      try {
-        await execAsync('npm run build:main', {
-          cwd: projectRoot,
-          shell: '/bin/bash'
-        });
-        this.success('Application built successfully');
-      } catch (error) {
-        this.error('Failed to build application');
-        this.error(`Build error: ${error}`);
+      // Check if setup has been run
+      if (!await this.verifySetupComplete()) {
+        this.error('\nSetup has not been completed!');
+        this.error('Please run "npm run setup" first to configure the environment.');
         process.exit(1);
       }
       
-      // Build daemon
-      const daemonBuilt = await this.buildDaemon();
-      if (!daemonBuilt) {
-        this.warning('Failed to build daemon, attempting to continue...');
-        // Check if daemon is already built
-        const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
-        if (!fs.existsSync(daemonPath)) {
-          this.error('Daemon not built and build failed. Cannot continue.');
-          process.exit(1);
-        }
-        this.info('Using existing daemon build');
+      // Daemon should already be built by setup
+      const daemonPath = path.join(projectRoot, 'daemon', 'dist', 'host-bridge-daemon.js');
+      if (!fs.existsSync(daemonPath)) {
+        this.error('Daemon not found. Please run "npm run setup" first.');
+        process.exit(1);
       }
       
       // Start proxy
