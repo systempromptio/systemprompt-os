@@ -18,7 +18,7 @@ async function main() {
       }
     });
     
-    const taskId = result.content[0].text.match(/ID ([a-f0-9-]+)/)?.[1];
+    const taskId = (result.content as any)[0].text.match(/ID ([a-f0-9-]+)/)?.[1];
     log.info(`Task ID: ${taskId}`);
     
     // Wait for completion
@@ -28,7 +28,7 @@ async function main() {
     // Read the task
     log.info('Reading task resource...');
     const taskResource = await client.readResource({ uri: `task://${taskId}` });
-    const task = JSON.parse(taskResource.contents[0].text);
+    const task = JSON.parse(taskResource.contents[0].text as string);
     
     // Check what we got
     log.info(`Task status: ${task.status}`);
