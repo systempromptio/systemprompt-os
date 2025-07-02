@@ -1,31 +1,63 @@
-# SystemPrompt Coding Agent
+<div align="center">
+  
+  # 🚀 SystemPrompt Coding Agent
+  
+  ### Turn Your Workstation into a Remotely Accessible AI Coding Assistant
+  
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Twitter Follow](https://img.shields.io/twitter/follow/tyingshoelaces_?style=social)](https://twitter.com/tyingshoelaces_)
+  [![Discord](https://img.shields.io/discord/1255160891062620252?color=7289da&label=discord)](https://discord.com/invite/wkAbSuPWpr)
+  
+  **[Website](https://systemprompt.io)** • **[Documentation](https://docs.systemprompt.io/coding-agent)** • **[Watch Demo Video](https://www.loom.com/share/8e4b8631d1a149d9801f2b96235dcd0b)**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Twitter Follow](https://img.shields.io/twitter/follow/tyingshoelaces_?style=social)](https://twitter.com/tyingshoelaces_)
-[![Discord](https://img.shields.io/discord/1255160891062620252?color=7289da&label=discord)](https://discord.com/invite/wkAbSuPWpr)
-
-**Turn your workstation into a remotely accessible MCP server** • [Website](https://systemprompt.io) • [Documentation](https://docs.systemprompt.io/coding-agent)
+</div>
 
 ---
 
 <div align="center">
-  <h3>100% Free and Open Source</h3>
-  <p><strong>We appreciate your support!</strong> If you find this project useful, please consider:</p>
-  <p><strong>Star</strong> this repo • <strong>Share</strong> with your network • <strong>Report issues</strong> • <strong>Contribute</strong> code</p>
-  <p>Every star, share, and contribution helps us improve this tool for the community!</p>
   
-  <hr>
+  ### 🎥 See It In Action
   
-  <h3>Works with Any MCP Client</h3>
-  <p><strong>This server is 100% free and open source</strong> and works with any MCP-compatible client.</p>
-  <p>We also offer a <strong>paid subscription</strong> native mobile app (SystemPrompt) designed for voice-first interactions with this server. 
-  The mobile app is still in early development but provides a native mobile experience for controlling your coding agent from anywhere.</p>
+  <a href="https://www.loom.com/share/8e4b8631d1a149d9801f2b96235dcd0b">
+    <img src="https://cdn.loom.com/sessions/thumbnails/8e4b8631d1a149d9801f2b96235dcd0b-with-play.gif" alt="Watch Demo Video" width="600">
+  </a>
+  
+  **[Watch the full demo video](https://www.loom.com/share/8e4b8631d1a149d9801f2b96235dcd0b)** to see how SystemPrompt Coding Agent works!
+  
+</div>
+
+---
+
+<div align="center">
+  
+  ### 💯 100% Free and Open Source
+  
+  **We appreciate your support!** If you find this project useful, please consider:
+  
+  ⭐ **Star** this repo • 📢 **Share** with your network • 🐛 **Report issues** • 🤝 **Contribute** code
+  
+  *Every star, share, and contribution helps us improve this tool for the community!*
+  
+</div>
+
+---
+
+<div align="center">
+  
+  ### 📱 Works with Any MCP Client
+  
+  **This server is 100% free and open source** and works with any MCP-compatible client.
+  
+  We also offer a **paid subscription** native mobile app (SystemPrompt) designed for voice-first interactions with this server.  
+  The mobile app is still in early development but provides a native mobile experience for controlling your coding agent from anywhere.
+  
   <a href="https://apps.apple.com/us/app/systemprompt-mcp-client/id6746670168">
     <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us" alt="Download on App Store" height="50">
   </a>
   <a href="https://play.google.com/store/apps/details?id=com.systemprompt.mcp">
     <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="50">
   </a>
+  
 </div>
 
 ---
