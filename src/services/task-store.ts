@@ -331,25 +331,82 @@ export class TaskStore extends EventEmitter implements TypedTaskStoreEmitter {
    */
   async addLog(taskId: string, log: string | TaskLogEntry, sessionId?: string): Promise<void> {
     const task = this.tasks.get(taskId);
-    if (task) {
-      const logEntry: TaskLogEntry = typeof log === 'string' ? {
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        type: 'system',
-        message: log,
-      } : log;
+    if (!task) return;
 
-      const updatedTask = {
-        ...task,
-        logs: [...task.logs, logEntry],
-        updated_at: new Date().toISOString()
-      };
-      this.tasks.set(taskId, updatedTask);
-      await this.persistence.saveTask(updatedTask);
-      (this as TypedTaskStoreEmitter).emit("task:log", { taskId, log: logEntry });
+    const logEntry: TaskLogEntry = typeof log === 'string' ? {
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      type: 'system',
+      message: log,
+    } : log;
 
-      await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
+    let extractedResult: Task['result'] | undefined = undefined;
+    
+    // Extract critical information from specific log types to the parent task level
+    if (logEntry.prefix === 'PROCESS_END' && logEntry.metadata?.output) {
+      try {
+        const parsedOutput = JSON.parse(logEntry.metadata.output);
+        if (parsedOutput.type === 'result') {
+          extractedResult = {
+            output: parsedOutput.result,
+            success: !parsedOutput.is_error,
+            data: parsedOutput
+          };
+        }
+      } catch {
+        // If not JSON, store as plain text result
+        extractedResult = {
+          output: logEntry.metadata.output,
+          success: logEntry.metadata.exitCode === 0
+        };
+      }
     }
+    
+    // Extract structured result from CLAUDE_RESULT logs
+    if (logEntry.prefix === 'CLAUDE_RESULT' && logEntry.metadata) {
+      const metadata = logEntry.metadata as any;
+      extractedResult = {
+        output: logEntry.message,
+        success: metadata.success === true,
+        data: {
+          duration_ms: metadata.duration,
+          api_duration_ms: metadata.apiDuration,
+          turns: metadata.turns,
+          cost_usd: metadata.cost,
+          tokens: metadata.usage,
+          session_id: metadata.sessionId
+        }
+      };
+    }
+    
+    // Extract from simple RESULT logs
+    if (logEntry.prefix === 'RESULT' && logEntry.metadata) {
+      const metadata = logEntry.metadata as any;
+      if (!task.result) {
+        extractedResult = {
+          output: logEntry.message,
+          success: metadata.success === true,
+          data: {
+            duration_ms: metadata.duration,
+            cost_usd: metadata.cost,
+            tokens: metadata.usage
+          }
+        };
+      }
+    }
+
+    const updatedTask: Task = {
+      ...task,
+      ...(extractedResult ? { result: extractedResult } : {}),
+      logs: [...task.logs, logEntry],
+      updated_at: new Date().toISOString()
+    };
+    
+    this.tasks.set(taskId, updatedTask);
+    await this.persistence.saveTask(updatedTask);
+    (this as TypedTaskStoreEmitter).emit("task:log", { taskId, log: logEntry });
+
+    await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
   }
 
   /**

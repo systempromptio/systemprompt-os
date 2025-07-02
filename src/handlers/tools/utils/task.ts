@@ -453,6 +453,31 @@ export class TaskOperations {
 }
 
 /**
- * Singleton instance of task operations
+ * Singleton instance of task operations - initialized lazily to avoid circular dependencies
  */
-export const taskOperations = new TaskOperations();
+let _taskOperations: TaskOperations | null = null;
+
+/**
+ * Export singleton with lazy initialization
+ */
+export const taskOperations = {
+  get instance(): TaskOperations {
+    if (!_taskOperations) {
+      _taskOperations = new TaskOperations();
+    }
+    return _taskOperations;
+  },
+  // Direct property access
+  get taskStore() { return this.instance.taskStore; },
+  // Method delegations
+  createTask: (...args: Parameters<TaskOperations['createTask']>) => taskOperations.instance.createTask(...args),
+  updateTaskStatus: (...args: Parameters<TaskOperations['updateTaskStatus']>) => taskOperations.instance.updateTaskStatus(...args),
+  updateTask: (...args: Parameters<TaskOperations['updateTask']>) => taskOperations.instance.updateTask(...args),
+  addTaskLog: (...args: Parameters<TaskOperations['addTaskLog']>) => taskOperations.instance.addTaskLog(...args),
+  generateTaskReport: (...args: Parameters<TaskOperations['generateTaskReport']>) => taskOperations.instance.generateTaskReport(...args),
+  getTaskStatistics: (...args: Parameters<TaskOperations['getTaskStatistics']>) => taskOperations.instance.getTaskStatistics(...args),
+  // Delegate to taskStore
+  getTask: (taskId: string) => taskOperations.instance.taskStore.getTask(taskId),
+  getAllTasks: () => taskOperations.instance.taskStore.getAllTasks(),
+  deleteTask: (taskId: string) => taskOperations.instance.taskStore.deleteTask(taskId),
+};

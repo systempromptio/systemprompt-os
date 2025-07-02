@@ -318,6 +318,26 @@ export class AgentOperations {
 }
 
 /**
- * Singleton instance of agent operations
+ * Singleton instance of agent operations - initialized lazily to avoid circular dependencies
  */
-export const agentOperations = new AgentOperations();
+let _agentOperations: AgentOperations | null = null;
+
+/**
+ * Export singleton with lazy initialization
+ */
+export const agentOperations = {
+  get instance(): AgentOperations {
+    if (!_agentOperations) {
+      _agentOperations = new AgentOperations();
+    }
+    return _agentOperations;
+  },
+  // Direct property access
+  get agentManager() { return this.instance.agentManager; },
+  // Method delegations
+  startAgentForTask: (...args: Parameters<AgentOperations['startAgentForTask']>) => agentOperations.instance.startAgentForTask(...args),
+  executeInstructions: (...args: Parameters<AgentOperations['executeInstructions']>) => agentOperations.instance.executeInstructions(...args),
+  setupClaudeProgressHandlers: (...args: Parameters<AgentOperations['setupClaudeProgressHandlers']>) => agentOperations.instance.setupClaudeProgressHandlers(...args),
+  endAgentSession: (...args: Parameters<AgentOperations['endAgentSession']>) => agentOperations.instance.endAgentSession(...args),
+  getAgentStats: (...args: Parameters<AgentOperations['getAgentStats']>) => agentOperations.instance.getAgentStats(...args),
+};

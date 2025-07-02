@@ -102,7 +102,7 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 
       await taskOperations.updateTask(task.id, { assigned_to: agentSessionId }, context?.sessionId);
 
-      if (validated.instructions) {
+      if (validated.instructions && agentSessionId) {
         executeInitialInstructions(
           agentSessionId,
           validated.instructions,
