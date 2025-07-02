@@ -389,7 +389,7 @@ class ProjectSetup {
       this.info('PROJECT_ROOT is the directory where Claude Code will execute tasks');
       
       // Prompt for PROJECT_ROOT
-      const suggestedPath = projectRoot;
+      const suggestedPath = process.cwd();
       const answer = await this.prompt(`\nEnter PROJECT_ROOT path (default: ${suggestedPath}): `);
       projectRootValue = answer || suggestedPath;
       
