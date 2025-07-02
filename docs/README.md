@@ -1,0 +1,1 @@
+These docs are auto-genarated by claude based on the code. Use for reference, but remember, robots make booboos. 

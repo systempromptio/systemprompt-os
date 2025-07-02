@@ -4,16 +4,16 @@
 [![Twitter Follow](https://img.shields.io/twitter/follow/tyingshoelaces_?style=social)](https://twitter.com/tyingshoelaces_)
 [![Discord](https://img.shields.io/discord/1255160891062620252?color=7289da&label=discord)](https://discord.com/invite/wkAbSuPWpr)
 
-**Turn your home computer into an MCP server** • [Website](https://systemprompt.io) • [Documentation](https://docs.systemprompt.io/coding-agent)
+**Turn your workstation into a remotely accessible MCP server** • [Website](https://systemprompt.io) • [Documentation](https://docs.systemprompt.io/coding-agent)
 
 ---
 
 <div align="center">
   <h3>🎁 This MCP Server is 100% Free and Open Source</h3>
-  <p>Transform your local machine into a powerful MCP server that can orchestrate AI coding agents</p>
+  <p>Transform your local development machine into a remotely-accessible MCP server that any MCP client can connect to</p>
   
-  <h3>📱 Works with SystemPrompt Mobile Client</h3>
-  <p>Designed for the systemprompt Native Mobile MCP (subscription) but compatible with any MCP client</p>
+  <h3>📱 Works with systemprompt Mobile Client</h3>
+  <p>Built for mobile-first workflows but compatible with any MCP client. If you felt like supporting our (very early) Native Mobile MCP client we are designing it to be a first class client for voice interactions with this server.</p>
   <a href="https://apps.apple.com/us/app/systemprompt-mcp-client/id6746670168">
     <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us" alt="Download on App Store" height="50">
   </a>
@@ -27,48 +27,39 @@
 ## 📋 Quick Navigation
 
 **Getting Started**: [Quick Start](#quick-start) | [Security](#-security-notice) | [Remote Access](#remote-access-options)  
-**Documentation**: [Architecture](#-comprehensive-documentation) | [Tools](#tool-reference) | [Templates](#pre-built-prompts)  
+**Documentation**: [Architecture](#technical-architecture) | [Tools](#tool-reference) | [Templates](#pre-built-prompts)  
 **Components**: [Daemon](docs/daemon.md) | [Docker](docs/docker-architecture.md) | [MCP Server](docs/mcp-server.md) | [Agent Manager](docs/agent-manager.md)  
 **Features**: [Tunnel Access](docs/tunnel-remote-access.md) | [Push Notifications](docs/push-notifications.md) | [State Persistence](docs/state-persistence.md)
 
 ## What is This?
 
-**SystemPrompt Coding Agent** is a free, open-source MCP server that turns your home computer into a powerful AI orchestration platform. It enables AI coding assistants (Claude Code CLI and Gemini CLI) to perform complex programming tasks autonomously on your local machine.
+Converts your workstation into a remotely-accessible MCP server that any MCP client can connect to.
 
-This server is specifically designed to work seamlessly with the SystemPrompt mobile client (a paid app), but it's fully compatible with any MCP-compliant client.
+Send coding tasks from anywhere, and AI agents (Claude out of the box, extendable for any) execute directly on your actual machine. Your code never leaves your computer, but you can control it from anywhere.
 
-### 🌟 Three Key Differentiators
+This project exposes your local machine as an MCP server that can be remotely controlled. The AI agents run directly on your machine with access to your real development environment and tools. This is a way of connecting YOUR DEV env, to be remotely accessible (via networks that you choose).
 
-**1. Remote-First Architecture**  
-Transform your local machine into a remote coding endpoint. Access your development environment from anywhere—no complex networking required. [Learn more →](docs/tunnel-remote-access.md)
+### Why
 
-**2. Mobile Native Experience**  
-Purpose-built for the SystemPrompt mobile app. Start coding tasks with your voice, monitor progress in real-time, and get push notifications when tasks complete. [Learn more →](docs/push-notifications.md)
+I develop a Native Mobile MCP voice client, and users kept asking "but what do I do with it?" The answer: **manage your own development environment and agents remotely**. This is THE killer use case at this stage of the adoption curve for MCP servers.
 
-**3. Full MCP Protocol**  
-Leverages every MCP feature: persistent state management, real-time notifications, interactive prompts, and pre-configured task templates. [Learn more →](docs/mcp-server.md)
+## Quick Start [Requires Claude Code, Docker]
 
-## 🚨 Security Notice
+```bash
+# Clone and setup
+git clone https://github.com/systempromptio/systemprompt-code-orchestrator
+cd systemprompt-code-orchestrator
 
-**⚠️ CRITICAL: This server grants AI agents full access to your local machine with NO built-in authentication. (yet)**
+# Install and run
+npm i 
+npm run setup
+npm run start
 
-### Security Implications
+# Test with the inspector
+npm run inspector
+```
 
-- **Full System Access**: AI agents can read, write, and execute code in your `PROJECT_ROOT`
-- **No Authentication**: Anyone with your server URL has complete access
-- **Remote Code Execution**: AI agents execute commands on your machine
-
-### Mandatory Security Measures
-
-1. **Never expose directly to the internet**
-2. **Treat server URLs as passwords**
-3. **Use VPN or SSH tunnels for remote access**
-4. **Restrict `PROJECT_ROOT` to non-sensitive directories**
-5. **Monitor agent activity through logs**
-
-*Zero-trust OAuth authentication coming in v1.0*
-
-## Quick Start
+The created tasks which can be exectued with the inspector should tunnel to your Claude Code installation, save structured logs inside the Docker container (exposed as MCP resources), and enable execution through the inspector (and any MCP client).
 
 ### Prerequisites
 
@@ -77,32 +68,6 @@ The setup script will check for these automatically:
 - Node.js 18+ (required)
 - Docker & Docker Compose (required)
 - Claude Code CLI (optional but recommended - the setup script will guide you)
-- Git (optional - for git-based features)
-
-### 🚀 Automated Setup (Recommended)
-
-Get up and running in 3 simple steps:
-
-```bash
-# Clone the repository
-git clone https://github.com/systempromptio/systemprompt-coding-agent.git
-cd systemprompt-coding-agent
-
-# Install and configure everything automatically
-npm i
-npm run setup
-
-# Start all services
-npm run start
-```
-
-That's it! The setup script will:
-- ✅ Verify system requirements (Node.js 18+, Docker, Claude CLI)
-- ✅ Configure environment variables interactively
-- ✅ Install all dependencies (main, daemon, and test)
-- ✅ Build all TypeScript projects
-- ✅ Create necessary directories
-- ✅ Set up Docker containers with consistent naming
 
 ### Essential Commands
 
@@ -114,28 +79,7 @@ npm run logs     # View real-time logs
 npm run tunnel   # Start with internet tunnel (requires Cloudflare)
 ```
 
-### Manual Setup (Alternative)
-
-If you prefer manual configuration:
-
-```bash
-# Clone and setup
-git clone https://github.com/systempromptio/systemprompt-coding-agent.git
-cd systemprompt-coding-agent
-npm install
-
-# Configure manually
-cp .env.example .env
-nano .env
-
-# Build and run
-npm run build
-npm run start
-```
-
 ### Essential Configuration
-
-The setup script will help you configure these automatically:
 
 ```env
 # Required (setup will prompt for this)
@@ -150,13 +94,99 @@ CLOUDFLARE_TOKEN=your_token  # For tunnel access
 PUSH_TOKEN=your_token        # For mobile notifications
 ```
 
-Note: Claude Code CLI uses your authenticated session (no API key needed)
+## Technical Architecture
+
+```
+MCP Client (Mobile/Desktop)
+    |
+    v
+Docker Container (MCP Server)
+    - Handles MCP protocol
+    - Resource subscriptions
+    - Event streaming
+    |
+    v
+Host Bridge Daemon (TCP Socket)
+    - Command routing
+    |
+    v
+Host Machine
+    - AI agent execution
+    - File system access
+```
+
+### Key Technical Innovations
+
+**1. Real-Time Resource Subscription Model**
+
+The server implements the MCP SDK's `listChanged` pattern for resource subscriptions. When a task state changes:
+
+```typescript
+// Client subscribes to task resources, notified by listChanged notifications
+client.listResources()
+client.getResource({ uri: "task://abc-123" })
+
+// When task updates, server automatically:
+// 1. Saves task to disk (JSON persistence)
+await this.persistence.saveTask(updatedTask);
+
+// 2. Emits internal event
+this.emit("task:updated", updatedTask);
+
+// 3. Sends MCP notification to subscribed clients
+await sendResourcesUpdatedNotification(`task://${taskId}`, sessionId);
+// This triggers: { method: "notifications/resources/updated", params: { uri: "task://abc-123" } }
+
+// Client receives notification and can re-fetch the updated resource
+```
+
+This enables real-time task monitoring without polling - clients stay synchronized with task state changes as they happen.
+
+**2. Push Notifications for Task Completion**
+
+Integrated Firebase Cloud Messaging (FCM) support sends push notifications to mobile devices when tasks complete:
+
+```typescript
+// Task completes → Push notification sent
+{
+  notification: {
+    title: "Task Complete",
+    body: "Your refactoring task finished successfully"
+  },
+  data: {
+    taskId: "abc-123",
+    status: "completed",
+    duration: "45s"
+  }
+}
+```
+
+Perfect for long-running tasks - start a task, go about your day, get notified when it's done.
+
+**3. Stateful Process Management**
+
+- Tasks persist to disk as JSON with atomic writes
+- Process sessions maintained across daemon restarts
+- Comprehensive state machine for task lifecycle:
+  ```
+  pending → in_progress → waiting → completed
+                      ↓
+                    failed
+  ```
+
+### Event-Driven Architecture
+
+All operations emit events consumed by multiple subsystems:
+- **Logger**: Structured JSON logs with context
+- **State Manager**: Task status updates
+- **Notifier**: Push notifications to mobile clients
+- **Metrics**: Performance and usage analytics
 
 ## Remote Access Options
 
-### 🌐 Internet Access via Tunnel
+### 🌐 Internet Access via Cloudflare Tunnel
 
-For quick testing or remote access, use the built-in Cloudflare tunnel. [→ Full Tunnel Documentation](docs/tunnel-remote-access.md)
+More complex options like opening a Cloudflare tunnel to expose an HTTPS URL to your local machine are documented, but not included by default (do at your own risk).
 
 ```bash
 npm run tunnel
@@ -167,16 +197,7 @@ This will:
 - Display both the public URL and local network addresses
 - Enable access from anywhere (including mobile devices)
 
-Example output:
-```
-✅ 🌍 Your server is now accessible from the internet!
-ℹ️  🔗 Public URL: https://your-tunnel.trycloudflare.com
-ℹ️  📡 MCP Endpoint: https://your-tunnel.trycloudflare.com/mcp
-
-🏠 Local network access (without tunnel):
-📍 http://192.168.1.100:3000
-📡 MCP Endpoint: http://192.168.1.100:3000/mcp
-```
+[→ Full Tunnel Documentation](docs/tunnel-remote-access.md)
 
 ### 🏠 Local Network Access
 
@@ -188,24 +209,15 @@ If you prefer to keep everything on your local network:
    ```
 
 2. **Access from devices on the same network:**
-   - Find your machine's IP address (shown when using `npm run tunnel`)
+   - Find your machine's IP address
    - Connect using: `http://YOUR_IP:3000/mcp`
-   - Works great for testing from mobile devices on the same WiFi
-
-### 🔒 Security Considerations
-
-- **Tunnel URLs are temporary** - they change on each restart
-- **Local network access** - only devices on your network can connect
-- **No authentication yet** - treat URLs as passwords
-- For production, use proper authentication and HTTPS
 
 ## Core Features
 
 ### 🤖 AI Agent Orchestration
 
-- **Multi-Agent Support**: Seamlessly switch between Claude Code and Gemini - [Agent Manager →](docs/agent-manager.md)
+- **Multi-Agent Support**: Claude Code CLI out of the box, extendable for any agent
 - **Task Management**: Create, track, and manage coding tasks - [Task Management →](docs/task-management.md)
-- **Git Integration**: Automatic branch creation and management - [Docker Architecture →](docs/docker-architecture.md)
 - **Session Isolation**: Each task runs in its own context - [Claude Integration →](docs/claude-code-integration.md)
 - **Real-time Streaming**: Watch AI agents work in real-time - [Event System →](docs/event-system-and-logging.md)
 
@@ -214,7 +226,7 @@ If you prefer to keep everything on your local network:
 - **Voice Commands**: "Create a login form with validation"
 - **Push Notifications**: Get alerts when tasks complete - [Push Notifications →](docs/push-notifications.md)
 - **Quick Actions**: Pre-defined templates for common tasks - [Prompt Templates →](docs/prompt-templates.md)
-- **Remote Control**: Manage your dev environment from anywhere - [Tunnel Access →](docs/tunnel-remote-access.md)
+- **Remote Control**: Manage your dev environment from anywhere
 
 ### 🔧 MCP Protocol Features
 
@@ -223,26 +235,6 @@ If you prefer to keep everything on your local network:
 - **Interactive Prompts**: AI agents can ask for clarification
 - **Progress Notifications**: Real-time status updates
 - **Structured Data**: Full schema validation - [MCP Server →](docs/mcp-server.md)
-
-### 📲 Push Notifications
-
-The SystemPrompt MCP Native App supports push notifications for real-time updates:
-
-- **Task Status Updates**: Get notified when tasks complete, fail, or need attention
-- **Agent Progress**: Real-time updates as AI agents work on your code
-- **System Events**: Important alerts and milestones
-- **Test Notifications**: Send custom notifications for debugging
-
-[→ Full Push Notifications Documentation](docs/push-notifications.md)
-
-To test push notifications:
-```bash
-# Add your push token to .env
-echo "PUSH_TOKEN=your_token_here" >> .env
-
-# Send a test notification
-npm run send-push
-```
 
 ## Tool Reference
 
@@ -303,40 +295,7 @@ SystemPrompt includes powerful prompt templates for common coding tasks. [→ Fu
 }
 ```
 
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│        SystemPrompt Mobile App          │
-│           (iOS/Android)                 │
-└──────────────────┬──────────────────────┘
-                   │ Remote MCP
-┌──────────────────▼──────────────────────┐
-│          Desktop MCP Clients            │
-│      (Claude Desktop, Cline, etc.)      │
-└──────────────────┬──────────────────────┘
-                   │ Local MCP
-┌──────────────────▼──────────────────────┐
-│       SystemPrompt Coding Agent         │
-│  ┌────────────────────────────────────┐ │
-│  │     Docker Container State         │ │
-│  │  • Tasks  • Sessions  • Resources  │ │
-│  └────────────────────────────────────┘ │
-│  ┌────────────────────────────────────┐ │
-│  │        Agent Orchestrator          │ │
-│  │  • Claude Code  • Gemini CLI       │ │
-│  └────────────────────────────────────┘ │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│         Your Local Machine              │
-│          PROJECT_ROOT                   │
-└─────────────────────────────────────────┘
-```
-
 ## 📚 Comprehensive Documentation
-
-The SystemPrompt Coding Agent is a complex system with multiple interconnected components. Below is the complete technical documentation for understanding and extending the platform.
 
 ### Core Architecture
 
@@ -363,66 +322,12 @@ The SystemPrompt Coding Agent is a complex system with multiple interconnected c
 - **[Push Notifications](docs/push-notifications.md)** - Mobile push notification integration
 - **[Prompt Templates](docs/prompt-templates.md)** - Pre-built prompt system for common tasks
 
-### Architecture Overview
+## Performance Optimizations
 
-The SystemPrompt Coding Agent uses a sophisticated multi-tier architecture:
-
-1. **Host Machine Layer** - Where your actual code lives and git operations happen
-2. **Daemon Bridge** - Secure communication bridge between Docker and host
-3. **Docker Container** - Isolated MCP server environment
-4. **AI Agents** - Claude Code and Gemini processes that execute on the host
-
-### Key Design Principles
-
-- **Git-First**: All operations happen on real git branches on your host machine
-- **Event-Driven**: Real-time streaming of all agent activities
-- **Stateful**: Tasks and sessions persist across server restarts
-- **Extensible**: Designed to support multiple AI agent types
-- **Secure**: Isolated Docker environment with controlled host access
-
-## Production Deployment
-
-### Secure Docker Setup
-
-```yaml
-version: '3.8'
-services:
-  coding-agent:
-    image: systemprompt/coding-agent:latest
-    environment:
-      - NODE_ENV=production
-    volumes:
-      - ./state:/data/state
-      - /projects:/projects:ro  # Read-only
-    ports:
-      - "127.0.0.1:3000:3000"  # Local only
-    security_opt:
-      - no-new-privileges:true
-    user: "1000:1000"
-    restart: unless-stopped
-```
-
-### Nginx Reverse Proxy
-
-```nginx
-server {
-    server_name code.yourdomain.com;
-    
-    location / {
-        auth_basic "Restricted";
-        auth_basic_user_file /etc/nginx/.htpasswd;
-        
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-}
-```
+1. **Streaming Output**: Agent output streamed in chunks, not buffered
+2. **Lazy Resource Loading**: Resources fetched on-demand
+3. **Connection Pooling**: Reused TCP connections to daemon
+4. **Efficient State Persistence**: Only changed fields written to disk
 
 ## Development
 
@@ -450,10 +355,21 @@ For security issues, email security@systemprompt.io
 
 ## Support
 
-- **Documentation**: [docs.systemprompt.io](https://docs.systemprompt.io)
-- **GitHub Issues**: [Report bugs](https://github.com/systempromptio/systemprompt-coding-agent/issues)
+- **Documentation**: [docs.systemprompt.io](https://systemprompt.io/documentation)
+- **GitHub Issues**: [Report bugs](https://github.com/systempromptio/systemprompt-code-orchestrator/issues)
 - **Discord**: [Join our community](https://discord.com/invite/wkAbSuPWpr)
 - **Twitter**: [@tyingshoelaces_](https://twitter.com/tyingshoelaces_)
+
+## Future Roadmap
+
+1. **Multi-Agent Orchestration**: Coordinate multiple AI agents on complex tasks
+2. **Incremental Computation**: Cache and reuse AI outputs
+3. **Distributed Execution**: Spread tasks across multiple machines
+4. **Web UI Dashboard**: Browser-based monitoring and control
+
+## MCP Client Options
+
+While this server works with any MCP-compatible client, for a mobile voice-controlled experience, check out [SystemPrompt.io](https://systemprompt.io) - still early, but a native iOS/Android app designed specifically for voice-driven AI coding workflows. We want to create these tasks and interact with them asynchronously with our voice!
 
 ## License
 
