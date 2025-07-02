@@ -7,7 +7,7 @@
  * with proper environment configuration and health checks.
  */
 
-import { ChildProcess, spawn, exec } from 'child_process';
+import { ChildProcess, spawn, exec, execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -35,7 +35,6 @@ interface ValidatedEnvironment {
   MCP_PORT: string;
   HOST_FILE_ROOT: string;
   GIT_AVAILABLE: string;
-  GIT_CURRENT_BRANCH: string;
   TUNNEL_URL?: string;
   TUNNEL_ENABLED?: string;
   PUBLIC_URL?: string;
@@ -104,6 +103,16 @@ class StartupManager {
   }
   
   /**
+   * Determines the appropriate Docker host based on platform
+   * @returns {string} Docker host address
+   */
+  private getDockerHost(): string {
+    // Always use host.docker.internal for Docker containers
+    // This works on Mac, Windows, and WSL2
+    return 'host.docker.internal';
+  }
+
+  /**
    * Validates the runtime environment
    * @returns {Promise<ValidatedEnvironment>} Validated environment configuration
    */
@@ -117,12 +126,11 @@ class StartupManager {
       SHELL_PATH: '/bin/bash',
       CLAUDE_AVAILABLE: 'false',
       GEMINI_AVAILABLE: 'false',
-      CLAUDE_PROXY_HOST: 'host.docker.internal',
-      CLAUDE_PROXY_PORT: '9876',
-      MCP_PORT: '3010',
+      CLAUDE_PROXY_HOST: process.env.CLAUDE_PROXY_HOST || this.getDockerHost(),
+      CLAUDE_PROXY_PORT: process.env.CLAUDE_PROXY_PORT || '9876',
+      MCP_PORT: process.env.PORT || '3000',
       HOST_FILE_ROOT: projectRoot,
       GIT_AVAILABLE: 'false',
-      GIT_CURRENT_BRANCH: 'none',
       errors: []
     };
     
@@ -170,11 +178,7 @@ class StartupManager {
     try {
       const { stdout } = await execAsync('git status --porcelain -b', { cwd: projectRoot });
       env.GIT_AVAILABLE = 'true';
-      const branchMatch = stdout.match(/## (.+?)(?:\.{3}|$)/);
-      if (branchMatch) {
-        env.GIT_CURRENT_BRANCH = branchMatch[1];
-      }
-      this.success(`Git repository detected (branch: ${env.GIT_CURRENT_BRANCH})`);
+      this.success('Git repository detected');
     } catch {
       this.warning('Not a git repository - git operations will be disabled');
     }
@@ -490,11 +494,14 @@ class StartupManager {
   async startDocker(env: ValidatedEnvironment): Promise<boolean> {
     this.log('\n==== Starting Docker Services ====\n', colors.blue);
     
+    // Create a clean env object without the errors array
+    const { errors, ...cleanEnv } = env;
+    
     const dockerEnv = {
       ...process.env,
-      ...env,
+      ...cleanEnv,
       HOST_FILE_ROOT: projectRoot,
-      DAEMON_HOST: 'host.docker.internal',
+      DAEMON_HOST: env.CLAUDE_PROXY_HOST,
       DAEMON_PORT: env.CLAUDE_PROXY_PORT,
       PROJECT_ROOT: projectRoot,
       COMPOSE_PROJECT_NAME: process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent'
@@ -574,8 +581,8 @@ class StartupManager {
       }
       
       this.log('\n==== Services Started Successfully ====\n', colors.green);
-      this.success('MCP server running at: http://localhost:3010');
-      this.success('Daemon running on port: 9876');
+      this.success(`MCP server running at: http://localhost:${env.MCP_PORT}`);
+      this.success(`Daemon running on port: ${env.CLAUDE_PROXY_PORT}`);
       
       if (env.TUNNEL_URL) {
         this.success(`Tunnel URL: ${env.TUNNEL_URL}`);

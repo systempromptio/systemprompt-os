@@ -1,205 +1,319 @@
 # Constants Directory
 
-This directory contains all static definitions, schemas, and prompts used throughout the Reddit MCP server. It serves as the single source of truth for tool definitions and sampling configurations.
+Central repository for all static definitions, configurations, and schemas used throughout the SystemPrompt Coding Agent MCP server. This directory serves as the single source of truth for tool definitions, resources, and server configuration.
 
 ## Overview
 
-Constants define the "what" of the MCP server:
-- What tools are available
-- What parameters they accept
-- What prompts guide AI responses
-- What schemas validate data
+The constants directory defines the static aspects of the MCP server:
+- Tool definitions and schemas
+- Resource URIs and templates
+- Server configuration and metadata
+- Task status enumerations
+- Static validation schemas
 
 ## Directory Structure
 
-### Core Files
+```
+constants/
+├── server/                 # Server-level configuration
+│   ├── server-config.ts   # MCP server metadata
+│   └── README.md         
+├── tool/                  # Individual tool definitions
+│   ├── create-task.ts     # Task creation tool
+│   ├── update-task.ts     # Task update tool
+│   ├── check-status.ts    # Status checking tool
+│   ├── end-task.ts        # Task completion tool
+│   ├── report-task.ts     # Task reporting tool
+│   ├── clean-state.ts     # State cleanup tool
+│   └── get-prompt.ts      # Prompt retrieval tool
+├── tools.ts               # Tool aggregator
+├── resources.ts           # Resource definitions
+├── task-status.ts         # Task status enums
+└── README.md
+```
 
-#### `tools.ts`
-Master list of all available tools:
-- Exports array of tool definitions
-- Each tool references its schema in `/tool` directory
-- Used by `tool-handlers.ts` to list available tools
+## Core Files
 
-#### `message-handler.ts`
-Message formatting utilities:
-- Structures Reddit content for display
-- Formats posts, comments, and messages
-- Provides consistent output format
+### 📄 `tools.ts`
+Master list of all available MCP tools:
+```typescript
+export const TOOLS: Tool[] = [
+  createTask,
+  updateTask,
+  endTask,
+  reportTask,
+  checkStatus,
+  cleanState,
+  getPrompt
+];
+```
 
-### Server Configuration (`/server`)
+### 📄 `resources.ts`
+Defines available resources and URI patterns:
+- Task resource URIs
+- Resource templates
+- Subscription patterns
 
-Server-level configuration and constants:
-- **`server-config.ts`** - MCP server metadata and capabilities
-- Protocol version and feature declarations
-- Session and rate limiting configuration
+### 📄 `task-status.ts`
+Task status enumerations:
+```typescript
+export enum TaskStatus {
+  PENDING = "pending",
+  RUNNING = "running",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled"
+}
+```
 
-### Tool Definitions (`/tool`)
+## Server Configuration (`/server`)
 
-Each file defines a tool's schema and metadata:
+### `server-config.ts`
+MCP server metadata and capabilities:
+- Server name and version
+- Protocol capabilities
+- Feature declarations
+- Session configuration
 
-#### Search and Discovery Tools
-- **`search-reddit.ts`** - Search parameters and description
-- **`get-channel.ts`** - Subreddit info retrieval schema
+Key exports:
+```typescript
+export const SERVER_CONFIG = {
+  name: "systemprompt-coding-agent",
+  version: "1.0.0",
+  capabilities: {
+    tools: true,
+    resources: true,
+    prompts: true,
+    notifications: true
+  }
+};
+```
 
-#### Content Retrieval Tools
-- **`get-post.ts`** - Post fetching parameters
-- **`get-comment.ts`** - Comment thread schema
-- **`get-notifications.ts`** - Notification retrieval
+## Tool Definitions (`/tool`)
 
-#### Content Creation Tools
-- **`create-post.ts`** - Post submission schema
-- **`create-comment.ts`** - Comment creation parameters
-- **`create-message.ts`** - Private message schema
-
-
-### Sampling Definitions (`/sampling`)
-
-Prompts and schemas for AI-assisted operations:
-
-- **`create-post.ts`** - Post generation prompts and schema
-- **`create-comment.ts`** - Comment generation guidance
-- **`create-message.ts`** - Message composition prompts
-- **`suggest-action.ts`** - Action suggestion prompts
-- **`index.ts`** - Exports all sampling messages
-
-## Schema Structure
-
-Each tool definition follows this pattern:
+Each tool file defines a complete MCP tool specification following this pattern:
 
 ```typescript
-export const TOOL_NAME = {
-  name: 'tool_name',
-  description: 'What this tool does',
+export const toolName: Tool = {
+  name: "tool_name",
+  description: "Clear description of what the tool does",
   inputSchema: {
-    type: 'object',
+    type: "object",
     properties: {
       param1: {
-        type: 'string',
-        description: 'Parameter description'
+        type: "string",
+        description: "Parameter description",
+        enum: ["option1", "option2"] // Optional constraints
       },
       param2: {
-        type: 'number',
-        description: 'Another parameter',
-        minimum: 0
+        type: "number",
+        description: "Another parameter",
+        minimum: 0,
+        maximum: 100
       }
     },
-    required: ['param1']
+    required: ["param1"],
+    additionalProperties: false
   }
 };
 ```
 
-## Sampling Message Structure
+### Core Tools
 
-Sampling definitions include:
+#### 🔧 `create-task.ts`
+Creates new coding tasks:
+- Parameters: `tool`, `instructions`, `branch`, `requirements`
+- Supports: SHELL, CLAUDECODE agents
+- Returns: Task ID and initial status
 
+#### 🔄 `update-task.ts`
+Updates existing task state:
+- Parameters: `taskId`, `status`, `output`, `error`
+- Validates: Task existence and transitions
+- Emits: Update notifications
+
+#### ✅ `end-task.ts`
+Marks tasks as completed:
+- Parameters: `taskId`, `status`, `output`
+- Finalizes: Task state
+- Triggers: Cleanup operations
+
+#### 📊 `report-task.ts`
+Generates task reports:
+- Parameters: `taskId`
+- Returns: Complete task history
+- Includes: Logs, output, metrics
+
+#### 🔍 `check-status.ts`
+Checks task or system status:
+- Parameters: `taskId` (optional)
+- Returns: Current state
+- Monitors: Agent health
+
+#### 🧹 `clean-state.ts`
+Cleans up system state:
+- Parameters: `scope` (tasks, sessions, all)
+- Removes: Stale data
+- Resets: System state
+
+#### 📝 `get-prompt.ts`
+Retrieves system prompts:
+- Parameters: `name`, `arguments`
+- Returns: Formatted prompts
+- Supports: Dynamic generation
+
+## Schema Patterns
+
+### Consistent Structure
+All tool schemas follow JSON Schema Draft 7:
 ```typescript
-export const SAMPLING_NAME = {
-  systemPrompt: 'Instructions for the AI',
-  schemaName: 'response_schema_name',
-  schemaDescription: 'What the schema represents',
-  schema: {
-    // JSON Schema for validating AI responses
+{
+  type: "object",
+  properties: {
+    // Property definitions
+  },
+  required: ["requiredProp"],
+  additionalProperties: false
+}
+```
+
+### Validation Rules
+- **Type Safety**: Strict type definitions
+- **Constraints**: Min/max values, string patterns
+- **Enumerations**: Limited option sets
+- **Descriptions**: Clear parameter explanations
+
+### Error Messages
+Tools provide helpful error context:
+```typescript
+{
+  error: {
+    type: "validation_error",
+    message: "Invalid parameter",
+    details: {
+      parameter: "branch",
+      reason: "Must be alphanumeric with hyphens"
+    }
+  }
+}
+```
+
+## Resource Patterns
+
+### URI Structure
+Resources follow consistent URI patterns:
+```
+task://[taskId]
+task://[taskId]/output
+task://[taskId]/logs
+task-template://[type]
+```
+
+### Templates
+Pre-defined resource templates:
+```typescript
+export const RESOURCE_TEMPLATES = {
+  "task-template://coding": {
+    name: "Coding Task Template",
+    description: "Template for coding tasks",
+    mimeType: "application/json"
   }
 };
 ```
 
-## Key Patterns
+## Adding New Constants
 
-### Consistent Naming
-- Tool constants: `TOOL_NAME` (uppercase)
-- Sampling constants: `SAMPLING_NAME` (uppercase)
-- Schema properties: `camelCase`
+### Adding a Tool
 
-### Schema Validation
-All schemas use JSON Schema Draft 7:
-- Required fields clearly marked
-- Descriptions for all properties
-- Type constraints and validations
-- Examples where helpful
-
-### Prompt Engineering
-Sampling prompts follow best practices:
-- Clear instructions
-- Expected format specification
-- Examples when needed
-- Constraints and guidelines
-
-## Adding New Tools
-
-To add a new tool:
-
-1. **Create Schema File**
+1. **Create Tool Definition**
    ```typescript
-   // /tool/my-new-tool.ts
-   export const MY_NEW_TOOL = {
-     name: 'my_new_tool',
-     description: 'What it does',
-     inputSchema: { ... }
+   // tool/my-tool.ts
+   export const myTool: Tool = {
+     name: "my_tool",
+     description: "What it does",
+     inputSchema: { /* schema */ }
    };
    ```
 
 2. **Add to Tools List**
    ```typescript
    // tools.ts
-   import { MY_NEW_TOOL } from './tool/my-new-tool';
-   
-   export const TOOLS = [
-     // ... existing tools
-     MY_NEW_TOOL
-   ];
+   import { myTool } from "./tool/my-tool.js";
+   export const TOOLS = [...existing, myTool];
    ```
 
-3. **Create Handler**
-   Implement the handler in `/handlers/tools/`
+3. **Implement Handler**
+   Create corresponding handler in `handlers/tools/`
 
-## Adding Sampling Operations
+### Adding Resources
 
-For AI-assisted operations:
-
-1. **Create Sampling Definition**
+1. **Define URI Pattern**
    ```typescript
-   // /sampling/my-operation.ts
-   export const MY_OPERATION_SAMPLING = {
-     systemPrompt: 'Generate a ...',
-     schema: { ... }
+   // resources.ts
+   export const MY_RESOURCE_URI = "myresource://[id]";
+   ```
+
+2. **Add Template** (if applicable)
+   ```typescript
+   export const RESOURCE_TEMPLATES = {
+     "myresource-template://type": { /* template */ }
    };
    ```
-
-2. **Export from Index**
-   ```typescript
-   // /sampling/index.ts
-   export * from './my-operation';
-   ```
-
-3. **Implement Callback**
-   Create callback handler in `/handlers/callbacks/`
 
 ## Best Practices
 
 ### Schema Design
-- Make required fields minimal
-- Provide sensible defaults
-- Use clear, descriptive names
-- Add helpful descriptions
+1. **Minimal Required Fields**: Only require essential parameters
+2. **Clear Descriptions**: Every parameter needs explanation
+3. **Sensible Defaults**: Provide defaults where appropriate
+4. **Strict Validation**: Use constraints to prevent errors
 
-### Prompt Design
-- Be specific about output format
-- Include examples for complex tasks
-- Set clear boundaries
-- Guide tone and style
+### Naming Conventions
+- **Tools**: Verb-based names (`create_task`, `check_status`)
+- **Constants**: UPPER_SNAKE_CASE
+- **Types**: PascalCase
+- **Properties**: camelCase
 
-### Validation
-- Use strict type checking
-- Validate string formats
-- Set reasonable limits
-- Provide clear error messages
+### Documentation
+- Every exported constant must have JSDoc
+- Include usage examples for complex schemas
+- Document validation rules
+- Explain parameter relationships
+
+### Versioning
+- Consider backward compatibility
+- Use deprecation notices
+- Version schemas if needed
+- Document breaking changes
+
+## Type Safety
+
+All constants are strictly typed:
+```typescript
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+
+// Type-safe tool definition
+export const myTool: Tool = { /* ... */ };
+
+// Type-safe status enum
+export enum TaskStatus { /* ... */ }
+```
+
+## Testing
+
+Constants should be:
+- Validated against their schemas
+- Tested for completeness
+- Checked for consistency
+- Verified for correctness
 
 ## Maintenance
 
-When updating schemas:
-1. Consider backward compatibility
-2. Update handler validation
-3. Test with various inputs
+When updating constants:
+1. Update TypeScript types
+2. Update handler implementations
+3. Test all affected flows
 4. Update documentation
+5. Notify of breaking changes
 
-This directory is the foundation of the MCP server's interface - changes here affect how AI clients interact with Reddit.
+This directory forms the contract between the MCP server and its clients - changes here affect the entire system's interface.

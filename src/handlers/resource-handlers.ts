@@ -291,32 +291,6 @@ export async function handleResourceCall(
         };
       }
 
-      if (uri.match(/^branch:\/\/[^\/]+\/tasks$/)) {
-        const { branchName } = params;
-        const tasks = await taskStore.getTasks();
-        const branchTasks: typeof tasks = [];
-        return {
-          contents: [
-            {
-              uri: request.params.uri,
-              mimeType: "application/json",
-              text: JSON.stringify(
-                {
-                  branch: branchName,
-                  count: branchTasks.length,
-                  tasks: branchTasks.map((t) => ({
-                    id: t.id,
-                    description: t.description,
-                    status: t.status,
-                  })),
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      }
 
       if (uri.match(/^project:\/\/[^\/]+\/status$/)) {
         const { projectPath } = params;

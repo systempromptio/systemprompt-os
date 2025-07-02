@@ -1,239 +1,312 @@
 # Utils Directory
 
-This directory contains utility functions and helpers that provide reusable functionality across the application. These utilities handle common tasks like validation, data transformation, logging, and protocol compliance.
+Comprehensive utility functions and helpers providing security-focused validation, JSON Schema conversion, agent output parsing, logging, and tool availability checking for the SystemPrompt Coding Agent MCP server.
 
 ## Overview
 
-Utilities are the "helpers" of the MCP server:
-- Helper functions for common tasks
-- Data transformation and formatting
-- Validation and error handling
-- Cross-cutting concerns
+The utilities directory contains essential helper functions that ensure:
+- **Security**: UUID validation to prevent path traversal attacks
+- **Interoperability**: JSON Schema to Zod conversion for MCP compatibility
+- **Observability**: Structured logging and agent output parsing
+- **Reliability**: Tool availability checking and graceful degradation
 
-## File Structure
+## Architecture
 
-### Core Utilities
-
-#### `logger.ts`
-Centralized logging system:
-- Structured logging with levels
-- Context-aware log messages
-- Performance tracking
-- Error logging with stack traces
-
-#### `validation.ts`
-Input validation utilities:
-- Schema-based validation
-- Type checking functions
-- Parameter validation
-- Error message formatting
-
-#### `tool-validation.ts`
-Tool-specific validation:
-- Validates tool arguments
-- Checks required parameters
-- Type-safe validation
-- Clear error messages
-
-### Data Transformation
-
-#### `reddit-transformers.ts`
-Reddit API data transformations:
-- Convert API responses to internal types
-- Format Reddit content for display
-- Handle nested data structures
-- Normalize inconsistent data
-
-#### `message-handlers.ts`
-Message processing utilities:
-- Format content for MCP responses
-- Structure multi-part messages
-- Handle different content types
-- Provide consistent output
-
-## Key Functions
-
-### Logging
-```typescript
-logger.info('Operation started', { 
-  operation: 'search',
-  params: { query: 'test' }
-});
-
-logger.error('Operation failed', {
-  error: error.message,
-  stack: error.stack
-});
+```
+utils/
+├── id-validation.ts      # UUID validation for security
+├── json-schema-to-zod.ts # Schema conversion for MCP tools
+├── log-parser.ts         # Agent output parsing
+├── logger.ts             # Centralized logging
+└── tool-availability.ts  # AI tool availability checks
 ```
 
-### Validation
+## Core Utilities
+
+### 🔒 ID Validation (`id-validation.ts`)
+
+Security-focused validation to prevent path traversal attacks and ensure safe filesystem operations.
+
+#### Key Features:
+- **UUID v4 Validation**: Enforces proper format for task IDs
+- **Path Traversal Prevention**: Blocks dangerous characters (.., /, \)
+- **Type Safety**: Compile-time and runtime validation
+
+#### Usage:
 ```typescript
-// Validate required string
-validateRequiredString(value, 'fieldName');
+import { validateTaskId, isValidUUID, sanitizeTaskId } from './utils/id-validation';
 
-// Validate optional number with range
-validateOptionalNumber(value, 'fieldName', 0, 100);
+// Validate UUID format
+if (isValidUUID('550e8400-e29b-41d4-a716-446655440000')) {
+  console.log('Valid UUID');
+}
 
-// Validate enum value
-validateEnum(value, ['option1', 'option2'], 'fieldName');
-```
-
-### Transformation
-```typescript
-// Transform Reddit post
-const post = transformRedditPost(apiResponse);
-
-// Format for display
-const formatted = formatRedditContent(post);
-```
-
-## Utility Patterns
-
-### Error Handling
-Consistent error creation:
-```typescript
-export function createValidationError(
-  field: string, 
-  message: string
-): Error {
-  return new Error(`Validation error for ${field}: ${message}`);
+// Validate and sanitize task ID
+try {
+  const safeId = validateTaskId(userInput);
+  // safeId is guaranteed safe for filesystem operations
+} catch (error) {
+  console.error('Invalid task ID:', error.message);
 }
 ```
 
-### Type Guards
-Runtime type checking:
+#### Security Notes:
+- All task IDs MUST be valid UUID v4 format
+- Prevents directory traversal attacks
+- Safe for use in filesystem paths
+
+### 🔄 JSON Schema to Zod Converter (`json-schema-to-zod.ts`)
+
+Converts JSON Schema definitions to Zod schemas for MCP tool validation.
+
+#### Supported Features:
+- Basic types: string, number, boolean, object, array
+- Required/optional fields
+- Default values
+- String enums
+- Nested schemas
+
+#### Usage:
 ```typescript
-export function isValidUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
+import { jsonSchemaToZod } from './utils/json-schema-to-zod';
+
+const jsonSchema = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    age: { type: 'number' },
+    active: { type: 'boolean', default: true }
+  },
+  required: ['name']
+};
+
+const zodSchema = jsonSchemaToZod(jsonSchema);
+const result = zodSchema.parse({ name: 'John', age: 30 });
+```
+
+#### Limitations:
+- Designed specifically for MCP tool schemas
+- Complex validators (patterns, formats) not supported
+- Subset of JSON Schema spec
+
+### 📊 Log Parser (`log-parser.ts`)
+
+Extracts structured information from AI agent outputs for better observability.
+
+#### Features:
+- **Claude Pattern Detection**: XML-style function calls
+- **Tool Usage Extraction**: Parameters and file paths
+- **Structured Output**: Converts raw text to TaskLogEntry[]
+
+#### Usage:
+```typescript
+import { LogParser } from './utils/log-parser';
+
+const claudeOutput = `
+I'll analyze the file structure...
+<function_calls>
+<invoke name="read_file">
+  <parameter name="file_path">src/index.ts</parameter>
+</invoke>
+</function_calls>
+`;
+
+const logEntries = LogParser.parseAgentOutput(claudeOutput, 'claude');
+// Returns structured TaskLogEntry[] with tool usage information
+```
+
+#### Parsed Events:
+- Tool invocations with parameters
+- File operations
+- General output messages
+- Timing information
+
+### 📝 Logger (`logger.ts`)
+
+Simple, effective logging with environment-based debug control.
+
+#### Log Levels:
+- **debug**: Detailed debugging (requires DEBUG=true)
+- **info**: General informational messages
+- **warn**: Warning messages
+- **error**: Error messages with stack traces
+
+#### Usage:
+```typescript
+import { logger } from './utils/logger';
+
+logger.debug('Detailed debugging information', { userId: 'user123' });
+logger.info('Server started on port', 3000);
+logger.warn('Rate limit approaching', { remaining: 10 });
+logger.error('Failed to connect to agent service', error);
+```
+
+#### Configuration:
+```bash
+# Enable debug logging
+DEBUG=true npm start
+```
+
+### 🛠️ Tool Availability (`tool-availability.ts`)
+
+Checks and validates AI tool availability based on environment configuration.
+
+#### Features:
+- **Environment Checking**: Reads CLAUDE_AVAILABLE and GEMINI_AVAILABLE
+- **Graceful Degradation**: Handle missing tools
+- **Startup Validation**: Ensure at least one tool is available
+
+#### Usage:
+```typescript
+import { 
+  validateToolsAvailable, 
+  getAvailableTools,
+  isToolAvailable 
+} from './utils/tool-availability';
+
+// Startup validation
+try {
+  validateToolsAvailable();
+} catch (error) {
+  console.error('No AI tools configured:', error.message);
+  process.exit(1);
+}
+
+// Check specific tool
+if (isToolAvailable('CLAUDECODE')) {
+  // Use Claude Code
+}
+
+// Get all available tools
+const tools = getAvailableTools();
+// Returns: ['CLAUDECODE', 'GEMINICLI'] or subset
+```
+
+## Usage Patterns
+
+### Security-First Validation
+```typescript
+// Always validate IDs before filesystem operations
+export async function getTaskFile(taskId: string): Promise<string> {
+  const safeId = validateTaskId(taskId); // Throws if invalid
+  const filePath = path.join(TASK_DIR, `${safeId}.json`);
+  return fs.readFile(filePath, 'utf-8');
+}
+```
+
+### Schema Validation for Tools
+```typescript
+// Convert MCP tool schema to Zod for validation
+const tool = {
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string' },
+      limit: { type: 'number', default: 10 }
+    },
+    required: ['query']
   }
-}
+};
+
+const validator = jsonSchemaToZod(tool.inputSchema);
+const validatedInput = validator.parse(userInput);
 ```
 
-### Data Normalization
-Consistent data formatting:
+### Structured Logging from Agents
 ```typescript
-export function normalizeUsername(username: string): string {
-  return username.toLowerCase().trim();
-}
+// Parse and log agent output
+agentProcess.on('data', (chunk: string) => {
+  const entries = LogParser.parseAgentOutput(chunk, 'claude');
+  entries.forEach(entry => {
+    taskLogger.log(entry);
+  });
+});
 ```
 
-### Safe Access
-Defensive programming:
+### Conditional Tool Usage
 ```typescript
-export function safeGet<T>(
-  obj: any, 
-  path: string, 
-  defaultValue: T
-): T {
-  const value = path.split('.').reduce(
-    (acc, part) => acc?.[part], 
-    obj
-  );
-  return value ?? defaultValue;
+// Fallback logic based on availability
+function selectBestTool(): string {
+  if (isToolAvailable('CLAUDECODE')) {
+    return 'CLAUDECODE';
+  } else if (isToolAvailable('GEMINICLI')) {
+    logger.warn('Claude not available, using Gemini');
+    return 'GEMINICLI';
+  } else {
+    throw new Error('No AI tools available');
+  }
 }
 ```
 
 ## Best Practices
 
-### Function Design
-- Single responsibility
-- Clear parameter names
-- Defensive programming
-- Proper error handling
+### Security
+1. **Always Validate IDs**: Use validateTaskId for any user-provided IDs
+2. **No Direct Paths**: Never accept file paths from users
+3. **Sanitize Inputs**: Use provided validators before operations
 
-### Naming Conventions
-- Functions: `camelCase` verbs
-- Constants: `UPPER_SNAKE_CASE`
-- Types: `PascalCase`
-- Private functions: `_prefixed`
+### Error Handling
+1. **Catch Validation Errors**: Handle invalid IDs gracefully
+2. **Log Errors with Context**: Include relevant metadata
+3. **Fail Fast**: Validate early in request lifecycle
 
-### Documentation
-- JSDoc for public functions
-- Clear parameter descriptions
-- Return type documentation
-- Usage examples
+### Performance
+1. **Cache Validations**: Store validated IDs when appropriate
+2. **Batch Operations**: Parse logs in chunks
+3. **Lazy Loading**: Only check tool availability when needed
 
-### Testing
-- Unit test all utilities
-- Test edge cases
-- Test error conditions
-- Mock external dependencies
+### Maintainability
+1. **Single Purpose**: Each utility has one clear responsibility
+2. **Pure Functions**: Avoid side effects where possible
+3. **Comprehensive Docs**: JSDoc with examples for all exports
 
-## Adding New Utilities
+## Testing
 
-To add a new utility:
+### Unit Test Examples
+```typescript
+describe('ID Validation', () => {
+  it('should accept valid UUID v4', () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    expect(validateTaskId(uuid)).toBe(uuid);
+  });
 
-1. **Create Utility File**
-   ```typescript
-   // my-utility.ts
-   
-   /**
-    * Does something useful
-    * @param input - The input data
-    * @returns The processed result
-    */
-   export function myUtility(input: string): string {
-     // Implementation
-   }
-   ```
+  it('should reject path traversal attempts', () => {
+    expect(() => validateTaskId('../etc/passwd')).toThrow();
+    expect(() => validateTaskId('../../secret')).toThrow();
+  });
+});
 
-2. **Add Tests**
-   ```typescript
-   // __tests__/my-utility.test.ts
-   describe('myUtility', () => {
-     it('should process input correctly', () => {
-       expect(myUtility('test')).toBe('expected');
-     });
-   });
-   ```
+describe('JSON Schema to Zod', () => {
+  it('should handle required fields', () => {
+    const schema = jsonSchemaToZod({
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id']
+    });
+    
+    expect(() => schema.parse({})).toThrow();
+    expect(schema.parse({ id: 'test' })).toEqual({ id: 'test' });
+  });
+});
+```
 
-3. **Export if Needed**
-   - Export from specific domain file
-   - Or create new export file
+## Environment Variables
 
-## Common Utilities Reference
+```bash
+# Logging
+DEBUG=true|false                  # Enable debug logging
 
-### Validation Functions
-- `validateRequiredString()` - Ensures non-empty string
-- `validateOptionalString()` - Validates optional string
-- `validateUrl()` - Validates URL format
-- `validateEnum()` - Validates enum values
-- `validateArray()` - Validates array with items
+# Tool Availability
+CLAUDE_AVAILABLE=true|false       # Claude Code CLI available
+GEMINI_AVAILABLE=true|false       # Gemini CLI available
+```
 
-### Transformation Functions
-- `transformRedditPost()` - Reddit post transformation
-- `transformRedditComment()` - Comment transformation
-- `formatRedditContent()` - Content formatting
-- `truncateText()` - Text truncation with ellipsis
+## Future Enhancements
 
-### Helper Functions
-- `delay()` - Promise-based delay
-- `retry()` - Retry with backoff
-- `chunk()` - Array chunking
-- `debounce()` - Function debouncing
+- **Advanced Log Parsing**: Support for more agent patterns
+- **Schema Validation**: Support more JSON Schema features
+- **Metrics Collection**: Performance tracking utilities
+- **Retry Logic**: Configurable retry helpers
+- **Rate Limiting**: Request throttling utilities
 
-## Extending for Other APIs
-
-When adapting for a new API:
-
-1. **Replace API Transformers**
-   - Remove `reddit-transformers.ts`
-   - Create your API transformers
-   - Update type imports
-
-2. **Update Validation**
-   - Add API-specific validation
-   - Update parameter checks
-   - Add new constraints
-
-3. **Maintain Core Utils**
-   - Keep logger
-   - Keep base validation
-   - Keep general helpers
-
-This utility layer provides the foundation for consistent, reliable operations throughout the MCP server.
+This utilities layer provides essential security, validation, and helper functions that ensure the SystemPrompt Coding Agent operates safely and reliably.

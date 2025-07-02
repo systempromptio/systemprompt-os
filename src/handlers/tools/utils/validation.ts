@@ -130,28 +130,6 @@ function getNestedValue(obj: unknown, path: (string | number)[]): unknown {
 }
 
 /**
- * Validates that a string is a valid git branch name
- * 
- * @param branch The branch name to validate
- * @returns True if valid, false otherwise
- * 
- * @example
- * ```typescript
- * isValidGitBranch("feature/new-branch"); // true
- * isValidGitBranch("feature..branch"); // false
- * ```
- */
-export function isValidGitBranch(branch: string): boolean {
-  if (!branch || branch === "@") return false;
-  if (branch.startsWith(".") || branch.endsWith(".lock")) return false;
-  if (branch.endsWith("/")) return false;
-  if (branch.includes("..")) return false;
-
-  const invalidChars = [" ", "~", "^", ":", "?", "*", "[", "]", "\\", "@{", "//"];
-  return !invalidChars.some((char) => branch.includes(char));
-}
-
-/**
  * Validates that a tool is available based on environment
  * 
  * @param tool The tool name to check

@@ -15,6 +15,7 @@ dist/
 .env.production
 .env.development
 .env.tokens
+.cloudflare-config
 
 # Keep example file
 !.env.example

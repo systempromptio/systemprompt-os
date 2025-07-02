@@ -67,12 +67,6 @@ const RESOURCE_TEMPLATES: ResourceTemplate[] = [
     mimeType: "application/json"
   },
   {
-    uriTemplate: "branch://{branchName}/tasks",
-    name: "Branch Tasks",
-    description: "List all tasks associated with a specific git branch",
-    mimeType: "application/json"
-  },
-  {
     uriTemplate: "log://{logType}/{date}",
     name: "System Logs",
     description: "Access system logs by type and date (format: YYYY-MM-DD)",

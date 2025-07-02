@@ -21,6 +21,7 @@ import { TASK_STATUS } from "../../../constants/task-status.js";
  * Parameters for creating a new task
  */
 export interface TaskCreationParams {
+  title?: string;
   description: string;
   tool: AITool;
   projectPath: string;

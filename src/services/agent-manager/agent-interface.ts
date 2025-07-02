@@ -152,11 +152,6 @@ export interface AgentMetadata {
   currentPrompt?: string;
   
   /**
-   * Git branch the agent is working on
-   */
-  branch?: string;
-  
-  /**
    * Working directory for the agent
    */
   workingDirectory?: string;
@@ -229,11 +224,6 @@ export interface AgentConfig {
    * Task ID to associate with the agent
    */
   taskId?: string;
-  
-  /**
-   * Git branch to work on
-   */
-  branch?: string;
   
   /**
    * Working directory for the agent

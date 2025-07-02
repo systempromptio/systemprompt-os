@@ -32,7 +32,6 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
   
   // Define test parameters
   const testName = 'Create Pirate Welcome';
-  const branchName = `e2e-test-${timestamp}`;
   const instructions = 'Load systemprompt.io, read the context about the site and write a hearty pirate welcome to the user, save in IMPORTANT.md in project root';
   
   // Set up notification handlers BEFORE creating the task
@@ -110,9 +109,7 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
     name: 'create_task',
     arguments: {
       title: testName,
-      tool: 'CLAUDECODE',
-      instructions: instructions,
-      branch: branchName
+      instructions: instructions
     }
   });
   
@@ -147,14 +144,12 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
   // Start test report (taskId is guaranteed to be non-null here after the check above)
   reporter.startTest(testName, taskId!, {
     tool: 'CLAUDECODE',
-    branch: branchName,
     instructions: instructions,
     sessionId: sessionId || undefined
   });
   
   reporter.addLog(taskId!, `Task created successfully with ID: ${taskId}`, 'TASK_CREATED');
   reporter.addLog(taskId!, `Session ID: ${sessionId || 'none'}`, 'SESSION_INFO');
-  reporter.addLog(taskId!, `Branch: ${branchName}`, 'BRANCH_INFO');
   
   // Step 2: Task resource URI for monitoring
   const taskUri = `task://${taskId}`;
@@ -173,7 +168,6 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
       log.info(`  Title: ${taskInfo.title}`);
       log.info(`  Status: ${taskInfo.status}`);
       log.info(`  Progress: ${taskInfo.progress}%`);
-      log.info(`  Branch: ${taskInfo.branch}`);
       
       // Check if already completed
       if (taskInfo.status === 'completed' || taskInfo.status === 'failed') {
@@ -321,29 +315,9 @@ async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promi
     }
   }
   
-  // Step 10: Verify git branch was created
-  log.section('🌿 Git Branch Verification');
-  try {
-    const statusResult = await client.callTool({
-      name: 'run_bash_command',
-      arguments: {
-        command: `git branch -a | grep ${branchName}`
-      }
-    });
-    
-    const statusContent = statusResult.content as any[];
-    if (statusContent?.[0]?.text) {
-      const statusData = JSON.parse(statusContent[0].text as string);
-      if (statusData.result?.output) {
-        log.info(`Git branch ${branchName} found:`);
-        log.debug(statusData.result.output);
-      } else {
-        log.warning(`Git branch ${branchName} not found`);
-      }
-    }
-  } catch (error) {
-    log.debug('Could not check git branches');
-  }
+  // Step 10: Verify task completed successfully
+  log.section('✅ Task Verification');
+  log.info('Task completed successfully');
   
   // Complete test report
   if (taskId) {
@@ -364,8 +338,7 @@ async function testCreateTaskErrorHandling(client: Client, _reporter: TestReport
       arguments: {
         title: 'Invalid Tool Test',
         tool: 'INVALID_TOOL' as any,
-        instructions: 'This should fail',
-        branch: 'invalid-branch'
+        instructions: 'This should fail'
       }
     });
     throw new Error('Expected error for invalid tool');
@@ -379,7 +352,7 @@ async function testCreateTaskErrorHandling(client: Client, _reporter: TestReport
       name: 'create_task',
       arguments: {
         title: 'Missing Fields Test'
-        // Missing tool, instructions, and branch
+        // Missing instructions
       } as any
     });
     throw new Error('Expected error for missing required fields');

@@ -186,8 +186,7 @@ export class AgentManager extends EventEmitter {
    * const sessionId = await manager.startClaudeSession({
    *   task_id: 'task-123',
    *   project_path: '/home/user/project',
-   *   instructions: 'Implement user authentication',
-   *   branch: 'feature/auth'
+   *   instructions: 'Implement user authentication'
    * });
    * ```
    */

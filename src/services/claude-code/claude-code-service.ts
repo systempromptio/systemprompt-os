@@ -17,8 +17,7 @@
  * 
  * // Create a session
  * const sessionId = await service.createSession({
- *   workingDirectory: '/path/to/project',
- *   branch: 'feature/new-feature'
+ *   workingDirectory: '/path/to/project'
  * });
  * 
  * // Execute a query
@@ -164,7 +163,6 @@ export class ClaudeCodeService extends EventEmitter {
    * ```typescript
    * const sessionId = await service.createSession({
    *   workingDirectory: '/home/user/project',
-   *   branch: 'main',
    *   customSystemPrompt: 'You are a helpful coding assistant'
    * });
    * ```

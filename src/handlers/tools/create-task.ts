@@ -65,20 +65,21 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 
     const projectPath = process.env.PROJECT_ROOT || "/workspace";
     
-    // Limit description to 2555 characters
-    const truncatedDescription = validated.instructions.length > 2555
-      ? validated.instructions.substring(0, 2552) + '...'
-      : validated.instructions;
+    // Use title as the task description, limit to 255 characters
+    const truncatedTitle = validated.title.length > 255
+      ? validated.title.substring(0, 252) + '...'
+      : validated.title;
     
-    logger.debug("Creating task with description", {
-      originalLength: validated.instructions.length,
-      truncated: validated.instructions.length > 2555,
-      finalLength: truncatedDescription.length,
+    logger.debug("Creating task with title", {
+      title: truncatedTitle,
+      titleLength: truncatedTitle.length,
+      instructionsLength: validated.instructions.length,
     });
     
     const task = await taskOperations.createTask(
       {
-        description: truncatedDescription,
+        title: truncatedTitle,
+        description: truncatedTitle,
         tool: tool,
         projectPath,
       },
@@ -94,7 +95,6 @@ export const handleCreateTask: ToolHandler<CreateTaskArgs> = async (
 
       const agentResult = await agentOperations.startAgentForTask(tool, task, {
         workingDirectory: projectPath,
-        branch: "", // No branch needed
         sessionId: context?.sessionId,
       });
 

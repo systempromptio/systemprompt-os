@@ -10,6 +10,7 @@ import { Task } from "../../../types/task.js";
  * Schema for create task arguments
  */
 export const CreateTaskArgsSchema = z.object({
+  title: z.string().min(1).max(255),
   instructions: z.string().min(1).max(10000),
 });
 export type CreateTaskArgs = z.infer<typeof CreateTaskArgsSchema>;

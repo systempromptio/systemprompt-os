@@ -57,7 +57,6 @@ export class AgentOperations {
     task: Task,
     options: {
       workingDirectory?: string;
-      branch?: string;
       sessionId?: string;
     } = {},
   ): Promise<AgentStartResult> {

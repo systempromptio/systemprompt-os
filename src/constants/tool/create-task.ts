@@ -14,11 +14,15 @@ export const createTask: Tool = {
   inputSchema: {
     type: "object",
     properties: {
+      title: {
+        type: "string",
+        description: "Brief title or summary of the task (max 255 chars)",
+      },
       instructions: {
         type: "string",
         description: "Detailed instructions of what needs to be done",
       },
     },
-    required: ["instructions"],
+    required: ["title", "instructions"],
   },
 };

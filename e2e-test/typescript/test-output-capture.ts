@@ -54,6 +54,7 @@ async function testOutputCapture(client: Client): Promise<void> {
   const createResult = await client.callTool({
     name: 'create_task',
     arguments: {
+      title: 'Output Capture Test',
       instructions: 'Say "Hello from the pirate test!" and nothing else'
     }
   });

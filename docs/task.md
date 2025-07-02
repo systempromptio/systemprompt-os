@@ -1,3 +1,0 @@
-# SystemPrompt Coding Agent
-
-The SystemPrompt Coding Agent is an MCP (Model Context Protocol) server that orchestrates AI coding assistants like Claude Code CLI to perform complex programming tasks autonomously. It acts as a bridge between your local development environment and AI agents, allowing them to write, test, and refactor code on your behalf. The project features a unique three-tier architecture with a Docker container running the MCP server, a host daemon for executing commands, and integration with your actual project files on the host machine. This design enables remote access to your development environment from anywhere, including through the SystemPrompt mobile app, while maintaining proper git branch isolation and real-time task management capabilities.

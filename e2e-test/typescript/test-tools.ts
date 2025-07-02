@@ -44,9 +44,7 @@ async function testCreateTask(client: Client): Promise<string> {
     name: 'create_task',
     arguments: {
       title: 'Test Task',
-      tool: 'CLAUDECODE',
-      instructions: 'echo "Hello from test task"',
-      branch: `test-branch-${timestamp}`
+      instructions: 'echo "Hello from test task"'
     }
   });
   

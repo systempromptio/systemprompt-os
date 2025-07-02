@@ -1,134 +1,429 @@
 # Server Infrastructure
 
-This directory contains the HTTP server infrastructure that hosts the MCP protocol and handles OAuth authentication.
+HTTP server layer implementing the Model Context Protocol (MCP) specification, providing WebSocket-based communication, session management, and middleware for the SystemPrompt Coding Agent.
 
-## Files Overview
+## Overview
 
-### Core Server Components
+This directory contains the core server infrastructure that:
+- Hosts the MCP protocol over HTTP/WebSocket
+- Manages per-session server instances
+- Provides middleware for security and performance
+- Handles configuration and environment setup
 
-#### `config.ts`
-Server configuration including:
-- Environment variable validation
-- OAuth settings (client ID, secret, redirect URLs)
-- JWT configuration for session management
-- Valid redirect URIs for security
+## Architecture
 
-#### `routes.ts`
-Main routing logic that:
-- Sets up MCP protocol endpoints (`/mcp`)
-- Handles session creation and management
-- Implements health checks and utility endpoints
-- Manages the lifecycle of MCP server instances per session
+```
+┌─────────────────┐
+│   MCP Client    │
+│  (WebSocket)    │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  Express Server │
+├─────────────────┤
+│ • Rate Limiting │
+│ • CORS          │
+│ • Size Limits   │
+│ • Validation    │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│   MCP Handler   │
+│   (mcp.ts)      │
+├─────────────────┤
+│ • Session Mgmt  │
+│ • Server Factory│
+│ • Transport     │
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│  MCP SDK Server │
+│  (per session)  │
+└─────────────────┘
+```
 
-#### `mcp-server.ts`
-MCP server factory and management:
-- Creates MCP server instances for authenticated sessions
-- Registers request handlers (tools, sampling)
-- Manages server registry for notification routing
-- Provides session-based server access
+## Core Components
 
-### Authentication System
+### 🌐 `mcp.ts`
+Main MCP protocol handler implementing session-based server management.
 
-#### `oauth-server.ts`
-Complete OAuth2 implementation for Reddit:
-- Authorization endpoint (`/oauth/authorize`)
-- Token exchange endpoint (`/oauth/token`)
-- PKCE (Proof Key for Code Exchange) support
-- JWT-based session tokens
-- Well-known OAuth metadata endpoint
+#### Key Features:
+- **Per-Session Servers**: Each client gets isolated server instance
+- **StreamableHTTPServerTransport**: WebSocket-based communication
+- **Handler Registration**: Routes MCP methods to handlers
+- **Session Lifecycle**: Creation, management, cleanup
 
-#### `auth-store.ts`
-In-memory authentication storage:
-- Stores Reddit access tokens per session
-- Provides auth context for API calls
-- Handles session cleanup
+#### Implementation:
+```typescript
+// Session storage
+const sessions = new Map<string, SessionInfo>();
 
-### Supporting Infrastructure
+// Create session
+export async function handleMCPRequest(req, res) {
+  const sessionId = generateSessionId();
+  
+  // Create new server instance
+  const server = new Server(serverConfig, serverCapabilities);
+  const transport = new StreamableHTTPServerTransport();
+  
+  // Register handlers
+  server.setRequestHandler(ListToolsRequestSchema, handleListTools);
+  server.setRequestHandler(CallToolRequestSchema, handleToolCall);
+  // ... more handlers
+  
+  // Store session
+  sessions.set(sessionId, { server, transport });
+  
+  // Handle request
+  await transport.handleRequest(req, res);
+}
+```
 
-#### `middleware.ts`
-Express middleware for:
-- Rate limiting (configurable per endpoint)
-- Protocol version validation
-- Request size limits
-- CORS handling
+### ⚙️ `config.ts`
+Server configuration and environment management.
 
-#### `session-manager.ts`
-Session lifecycle management:
-- Tracks active MCP sessions
-- Implements session timeouts (30 minutes)
-- Handles graceful cleanup
-- Provides session monitoring
+#### Configuration Options:
+```typescript
+export const config = {
+  // Server settings
+  port: process.env.PORT || 3000,
+  host: process.env.HOST || '0.0.0.0',
+  
+  // Security
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['*'],
+  jwtSecret: process.env.JWT_SECRET,
+  
+  // Rate limiting
+  rateLimitWindow: 60000, // 1 minute
+  rateLimitMax: 100,      // requests per window
+  
+  // Request handling
+  requestSizeLimit: '10mb',
+  sessionTimeout: 1800000, // 30 minutes
+  
+  // Features
+  enableMetrics: process.env.ENABLE_METRICS === 'true',
+  enableHealthCheck: true
+};
+```
 
-#### `types.ts`
-TypeScript interfaces for:
-- OAuth flow types
-- Session data structures
-- Server configuration
+### 🛡️ `middleware.ts`
+Express middleware for security and performance.
+
+#### Middleware Stack:
+
+##### Rate Limiting
+```typescript
+export const rateLimitMiddleware = rateLimit({
+  windowMs: config.rateLimitWindow,
+  max: config.rateLimitMax,
+  message: 'Too many requests',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+```
+
+##### Protocol Version Validation
+```typescript
+export function validateProtocolVersion(req, res, next) {
+  const version = req.headers['mcp-version'];
+  if (version && !SUPPORTED_VERSIONS.includes(version)) {
+    return res.status(400).json({
+      error: 'Unsupported protocol version'
+    });
+  }
+  next();
+}
+```
+
+##### Request Size Limiting
+```typescript
+export const requestSizeLimit = express.json({
+  limit: config.requestSizeLimit,
+  strict: true,
+  type: 'application/json'
+});
+```
+
+##### CORS Configuration
+```typescript
+export const corsMiddleware = cors({
+  origin: config.corsOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'MCP-Version']
+});
+```
+
+### 📝 `types.ts`
+TypeScript type definitions for server components.
+
+```typescript
+// Session information
+export interface SessionInfo {
+  server: Server;
+  transport: StreamableHTTPServerTransport;
+  createdAt: number;
+  lastActivity: number;
+  metadata?: Record<string, unknown>;
+}
+
+// Server configuration
+export interface ServerConfig {
+  port: number;
+  host: string;
+  corsOrigins: string[];
+  // ... more config
+}
+
+// Request context
+export interface RequestContext {
+  sessionId: string;
+  clientId?: string;
+  timestamp: number;
+}
+```
+
+## Session Management
+
+### Session Creation
+1. Client connects to `/mcp` endpoint
+2. New session ID generated
+3. Server instance created
+4. Transport configured
+5. Handlers registered
+
+### Session Lifecycle
+- **Creation**: On first connection
+- **Activity Tracking**: Updates on each request
+- **Timeout**: After 30 minutes inactivity
+- **Cleanup**: Removes server instance
+
+### Session Isolation
+Each session has:
+- Dedicated Server instance
+- Isolated state
+- Separate handler context
+- Independent lifecycle
 
 ## Request Flow
 
-1. **Initial Connection**
-   ```
-   Client → /oauth/authorize → Reddit OAuth → /oauth/callback → JWT Token
-   ```
+### Initial Connection
+```
+1. Client → POST /mcp
+2. Middleware validation
+3. Session creation
+4. Server instantiation
+5. WebSocket upgrade
+6. Ready for commands
+```
 
-2. **MCP Connection**
-   ```
-   Client (with JWT) → /mcp → Session Creation → MCP Server Instance
-   ```
+### Command Execution
+```
+1. Client → MCP command
+2. Transport receives
+3. Server routes to handler
+4. Handler executes
+5. Response sent
+6. Session updated
+```
 
-3. **Subsequent Requests**
-   ```
-   Client → /mcp (with session ID) → Route to Existing Session → Handle Request
-   ```
+## Security Features
 
-## Key Features
-
-### Multi-User Support
-- Each user gets their own MCP server instance
-- Sessions are isolated with separate auth contexts
-- Supports concurrent users on the same deployment
-
-### Security
-- JWT tokens for session management
-- PKCE for OAuth security
-- Rate limiting to prevent abuse
+### Input Validation
+- Protocol version checking
 - Request size limits
-- CORS properly configured
+- JSON schema validation
+- Parameter sanitization
 
-### Session Management
-- Automatic timeout after 30 minutes of inactivity
-- Graceful cleanup of resources
-- Session monitoring endpoints
+### Rate Limiting
+- Per-IP rate limiting
+- Configurable windows
+- Bypass for health checks
+- Custom error responses
 
-## Configuration
+### CORS Protection
+- Configurable origins
+- Credential support
+- Preflight handling
+- Header restrictions
 
-Required environment variables:
-```bash
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
-JWT_SECRET=your_jwt_secret_min_32_chars
+## Performance Optimizations
+
+### Connection Pooling
+- Reuse HTTP connections
+- WebSocket keep-alive
+- Efficient serialization
+
+### Resource Management
+- Session timeout
+- Memory limits
+- Graceful shutdown
+- Cleanup routines
+
+## Health Monitoring
+
+### Health Check Endpoint
+```typescript
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    sessions: sessions.size,
+    memory: process.memoryUsage()
+  });
+});
 ```
 
-Optional:
-```bash
-PORT=3000
-OAUTH_ISSUER=https://your-domain.com
-```
+### Metrics Collection
+- Request counts
+- Response times
+- Error rates
+- Session metrics
 
 ## Error Handling
 
-The server implements comprehensive error handling:
-- OAuth errors return appropriate error pages
-- MCP errors follow the JSON-RPC error format
-- Session errors trigger cleanup and re-authentication
-- All errors are logged with context
+### Error Types
+1. **Protocol Errors**: Invalid MCP format
+2. **Session Errors**: Invalid/expired sessions
+3. **Handler Errors**: Tool execution failures
+4. **Transport Errors**: Connection issues
+
+### Error Responses
+```typescript
+{
+  jsonrpc: "2.0",
+  error: {
+    code: -32600,
+    message: "Invalid Request",
+    data: { details: "..." }
+  },
+  id: null
+}
+```
+
+## Configuration
+
+### Environment Variables
+```bash
+# Server
+PORT=3000
+HOST=0.0.0.0
+
+# Security
+CORS_ORIGINS=http://localhost:3000,https://app.example.com
+JWT_SECRET=your-secret-key
+
+# Performance
+RATE_LIMIT_WINDOW=60000
+RATE_LIMIT_MAX=100
+REQUEST_SIZE_LIMIT=10mb
+
+# Features
+ENABLE_METRICS=true
+SESSION_TIMEOUT=1800000
+```
+
+### Dynamic Configuration
+Some settings can be changed at runtime:
+- Rate limits
+- CORS origins
+- Session timeouts
+- Feature flags
 
 ## Extending the Server
 
-To add new functionality:
+### Adding Middleware
+```typescript
+// middleware/custom.ts
+export function customMiddleware(req, res, next) {
+  // Custom logic
+  next();
+}
 
-1. **New Routes**: Add to `routes.ts`
-2. **New Middleware**: Add to `middleware.ts` and apply in routes
-3. **New Auth Methods**: Extend `oauth-server.ts`
-4. **New Session Features**: Modify `session-manager.ts`
+// Apply in mcp.ts
+app.use('/mcp', customMiddleware);
+```
+
+### Custom Handlers
+```typescript
+// Register new handler
+server.setRequestHandler(
+  CustomRequestSchema,
+  async (request) => {
+    // Handle custom request
+    return { result: 'success' };
+  }
+);
+```
+
+### Session Extensions
+```typescript
+// Add session metadata
+interface ExtendedSessionInfo extends SessionInfo {
+  userId?: string;
+  permissions?: string[];
+}
+```
+
+## Best Practices
+
+1. **Session Management**
+   - Clean up inactive sessions
+   - Limit sessions per IP
+   - Monitor session growth
+
+2. **Error Handling**
+   - Log all errors with context
+   - Return meaningful error messages
+   - Don't expose internals
+
+3. **Performance**
+   - Use streaming for large responses
+   - Implement caching where appropriate
+   - Monitor resource usage
+
+4. **Security**
+   - Validate all inputs
+   - Use rate limiting
+   - Keep dependencies updated
+
+## Testing
+
+### Unit Tests
+```typescript
+describe('MCP Server', () => {
+  it('should create new session', async () => {
+    const response = await request(app)
+      .post('/mcp')
+      .expect(200);
+    
+    expect(response.body.sessionId).toBeDefined();
+  });
+});
+```
+
+### Integration Tests
+- Test full request flow
+- Verify session isolation
+- Check error handling
+- Validate middleware
+
+## Monitoring
+
+Key metrics to track:
+- Active sessions
+- Request rate
+- Error rate
+- Response times
+- Memory usage
+
+## Future Enhancements
+
+- WebSocket ping/pong
+- Session persistence
+- Horizontal scaling
+- Request queuing
+- Advanced rate limiting
+
+This server infrastructure provides a robust, secure, and scalable foundation for the MCP protocol implementation.

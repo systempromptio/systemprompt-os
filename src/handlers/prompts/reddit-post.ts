@@ -62,7 +62,7 @@ Write an engaging Reddit post that playfully introduces the Systemprompt Coding 
 **Key Features to Highlight**:
 - MCP (Model Context Protocol) server implementation
 - Docker-based architecture with host bridge
-- Git branch-based task execution
+- Task-based execution with AI agents
 - Support for Claude and Gemini AI assistants
 - E2E testing capabilities
 - Tunnel support for remote access

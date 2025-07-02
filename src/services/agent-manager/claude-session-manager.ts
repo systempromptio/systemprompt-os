@@ -77,10 +77,7 @@ export class ClaudeSessionManager {
    *   task_id: 'task-123',
    *   project_path: '/home/user/project',
    *   initial_context: 'Implement user authentication',
-   *   mcp_session_id: 'mcp-456',
-   *   options: {
-   *     branch: 'feature/auth'
-   *   }
+   *   mcp_session_id: 'mcp-456'
    * });
    * ```
    */

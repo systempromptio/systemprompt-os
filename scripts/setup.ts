@@ -54,7 +54,9 @@ const REQUIRED_ENV_VARS: EnvVariable[] = [
  * @const {EnvVariable[]}
  */
 const OPTIONAL_ENV_VARS: EnvVariable[] = [
-  { name: 'PORT', default: '3000', description: 'Server port' },
+  { name: 'PORT', default: '3000', description: 'MCP server port (Docker container)' },
+  { name: 'CLAUDE_PROXY_PORT', default: '9876', description: 'Host Bridge Daemon port for Claude proxy' },
+  { name: 'MCP_PORT', default: '3010', description: 'MCP server internal port' },
   { name: 'JWT_SECRET', description: 'JWT secret for authentication' },
   { name: 'STATE_PATH', description: 'State persistence path' },
   { name: 'PROJECTS_PATH', description: 'Projects directory for code execution' },
