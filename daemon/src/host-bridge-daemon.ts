@@ -61,10 +61,10 @@ class EnvironmentValidator {
       errors.push(`Shell not found at: ${shellPath}`);
     }
     
-    // Check port
-    const port = parseInt(process.env.HOST_BRIDGE_PORT || '9876', 10);
+    // Check port - support both env var names for compatibility
+    const port = parseInt(process.env.CLAUDE_PROXY_PORT || process.env.HOST_BRIDGE_PORT || '9876', 10);
     if (isNaN(port) || port < 1 || port > 65535) {
-      errors.push('Invalid HOST_BRIDGE_PORT: must be between 1 and 65535');
+      errors.push('Invalid port: must be between 1 and 65535');
     }
     
     // Setup paths - use daemon/logs directory
