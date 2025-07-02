@@ -497,12 +497,16 @@ class StartupManager {
     // Create a clean env object without the errors array
     const { errors, ...cleanEnv } = env;
     
+    // Don't pass CLAUDE_PROXY_HOST to Docker - let docker-compose use its default (host.docker.internal)
+    const { CLAUDE_PROXY_HOST, ...cleanEnvWithoutHost } = cleanEnv;
+    
     const dockerEnv = {
       ...process.env,
-      ...cleanEnv,
+      ...cleanEnvWithoutHost,
       HOST_FILE_ROOT: projectRoot,
-      DAEMON_HOST: env.CLAUDE_PROXY_HOST,
+      DAEMON_HOST: 'host.docker.internal', // Always use host.docker.internal for Docker
       DAEMON_PORT: env.CLAUDE_PROXY_PORT,
+      CLAUDE_PROXY_PORT: env.CLAUDE_PROXY_PORT, // Pass the port
       PROJECT_ROOT: projectRoot,
       COMPOSE_PROJECT_NAME: process.env.COMPOSE_PROJECT_NAME || 'systemprompt-coding-agent'
     };

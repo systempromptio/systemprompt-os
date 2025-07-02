@@ -54,16 +54,10 @@ const REQUIRED_ENV_VARS: EnvVariable[] = [
  * @const {EnvVariable[]}
  */
 const OPTIONAL_ENV_VARS: EnvVariable[] = [
-  { name: 'PORT', default: '3000', description: 'MCP server port (Docker container)' },
+  { name: 'PORT', default: '3000', description: 'MCP server port (Docker container external port)' },
   { name: 'CLAUDE_PROXY_PORT', default: '9876', description: 'Host Bridge Daemon port for Claude proxy' },
-  { name: 'MCP_PORT', default: '3010', description: 'MCP server internal port' },
-  { name: 'JWT_SECRET', description: 'JWT secret for authentication' },
-  { name: 'STATE_PATH', description: 'State persistence path' },
-  { name: 'PROJECTS_PATH', description: 'Projects directory for code execution' },
-  { name: 'CLOUDFLARE_TOKEN', description: 'Cloudflare tunnel token for HTTPS' },
-  { name: 'PUSH_TOKEN', description: 'Device push token for notifications' },
-  { name: 'UID', default: '1000', description: 'User ID for Docker' },
-  { name: 'GID', default: '1000', description: 'Group ID for Docker' },
+  { name: 'JWT_SECRET', description: 'JWT secret for authentication (optional)' },
+  { name: 'PUSH_TOKEN', description: 'Device push token for notifications (for mobile app)' },
   { name: 'COMPOSE_PROJECT_NAME', default: 'systemprompt-coding-agent', description: 'Docker Compose project name' }
 ];
 
@@ -216,7 +210,7 @@ class ProjectSetup {
     }
     
     try {
-      const composeWorks = !this.execCommand('docker compose version', '/tmp');
+      const composeWorks = this.execCommand('docker compose version', '/tmp');
       if (!composeWorks) {
         this.error('Docker Compose not working');
         this.info('Ensure Docker Compose v2 is installed');

@@ -39,7 +39,7 @@ async function testToolDiscovery(client: Client): Promise<void> {
  * Test create_task tool
  */
 async function testCreateTask(client: Client): Promise<string> {
-  const timestamp = Date.now();
+  // const timestamp = Date.now();
   const result = await client.callTool({
     name: 'create_task',
     arguments: {

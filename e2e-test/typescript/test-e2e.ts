@@ -24,7 +24,7 @@ async function sleep(ms: number): Promise<void> {
  * Test the complete create_task flow with notifications and reporting
  */
 async function testCreateTaskFlow(client: Client, reporter: TestReporter): Promise<void> {
-  const timestamp = Date.now();
+  // const timestamp = Date.now();
   let taskComplete = false;
   let taskId: string | null = null;
   let sessionId: string | null = null;
