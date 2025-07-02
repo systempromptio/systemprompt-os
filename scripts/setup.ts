@@ -153,6 +153,80 @@ class ProjectSetup {
   }
   
   /**
+   * Detects the current platform
+   * @returns {'wsl' | 'macos' | 'windows' | 'linux'} The detected platform
+   */
+  private detectPlatform(): 'wsl' | 'macos' | 'windows' | 'linux' {
+    const platform = process.platform;
+    
+    if (platform === 'darwin') {
+      return 'macos';
+    }
+    
+    if (platform === 'win32') {
+      return 'windows';
+    }
+    
+    // Check if running in WSL
+    try {
+      const osRelease = fs.readFileSync('/proc/version', 'utf-8');
+      if (osRelease.toLowerCase().includes('microsoft')) {
+        return 'wsl';
+      }
+    } catch {
+      // Not WSL
+    }
+    
+    return 'linux';
+  }
+  
+  /**
+   * Gets the appropriate host IP for Docker connectivity based on platform
+   * @returns {Promise<string>} The host IP address
+   */
+  private async getDockerHostIP(): Promise<string> {
+    const platform = this.detectPlatform();
+    
+    switch (platform) {
+      case 'wsl':
+        // In WSL2, we need the WSL2 VM's IP address
+        try {
+          const result = execSync('ip addr show eth0 | grep "inet " | awk \'{print $2}\' | cut -d/ -f1', {
+            encoding: 'utf-8'
+          }).trim();
+          if (result) {
+            this.info(`Detected WSL2 host IP: ${result}`);
+            return result;
+          }
+        } catch {
+          this.warning('Could not detect WSL2 host IP, using default');
+        }
+        return 'host.docker.internal';
+        
+      case 'macos':
+      case 'windows':
+        // Docker Desktop provides host.docker.internal
+        return 'host.docker.internal';
+        
+      case 'linux':
+        // Native Linux can use host network mode or bridge IP
+        try {
+          // Try to get the docker0 bridge IP
+          const result = execSync('ip addr show docker0 | grep "inet " | awk \'{print $2}\' | cut -d/ -f1', {
+            encoding: 'utf-8'
+          }).trim();
+          if (result) {
+            this.info(`Detected Docker bridge IP: ${result}`);
+            return result;
+          }
+        } catch {
+          // docker0 might not exist yet
+        }
+        return '172.17.0.1'; // Default Docker bridge gateway
+    }
+  }
+  
+  /**
    * Executes a shell command
    * @param {string} command - The command to execute
    * @param {string} [cwd] - Working directory for the command
@@ -576,6 +650,38 @@ class ProjectSetup {
         }
       } catch (e) {
         // Ignore errors checking ports
+      }
+    }
+    
+    // Check and set CLAUDE_PROXY_HOST based on platform
+    const claudeProxyHost = envVars['CLAUDE_PROXY_HOST'];
+    if (!claudeProxyHost || claudeProxyHost === 'host.docker.internal') {
+      const platform = this.detectPlatform();
+      const hostIP = await this.getDockerHostIP();
+      
+      if (platform === 'wsl' && hostIP !== 'host.docker.internal') {
+        this.info(`\n  Detected WSL2 environment`);
+        this.info(`  Setting CLAUDE_PROXY_HOST to WSL2 host IP: ${hostIP}`);
+        
+        let envContent = fs.readFileSync(envPath, 'utf-8');
+        const regex = /^CLAUDE_PROXY_HOST=.*$/gm;
+        
+        if (envContent.match(regex)) {
+          envContent = envContent.replace(regex, `CLAUDE_PROXY_HOST=${hostIP}`);
+        } else {
+          // Add after CLAUDE_PROXY_PORT if it exists
+          const portRegex = /^CLAUDE_PROXY_PORT=.*$/gm;
+          if (envContent.match(portRegex)) {
+            envContent = envContent.replace(portRegex, (match) => `${match}\n\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}`);
+          } else {
+            envContent += `\n# Claude proxy host for Docker (auto-detected for WSL2)\nCLAUDE_PROXY_HOST=${hostIP}\n`;
+          }
+        }
+        
+        fs.writeFileSync(envPath, envContent);
+        this.success(`  Updated CLAUDE_PROXY_HOST for WSL2 compatibility`);
+      } else {
+        this.info(`  CLAUDE_PROXY_HOST will use default: ${hostIP}`);
       }
     }
     
