@@ -313,6 +313,7 @@ export class StatePersistence extends EventEmitter {
         JSON.stringify(task, null, 2),
         'utf-8'
       );
+      logger.debug(`[StatePersistence] Saved task as ${safeId}.json`);
     } catch (error) {
       logger.error(`Failed to save task ${task.id}:`, error);
       throw new ServiceError(
@@ -407,10 +408,11 @@ export class StatePersistence extends EventEmitter {
    * ```
    */
   async saveReport(reportId: string, report: Report): Promise<string> {
+    const safeId = validateTaskId(reportId);
     const reportFile = path.join(
       this.statePath,
       'reports',
-      `report_${reportId}_${Date.now()}.json`
+      `${safeId}.json`
     );
     
     try {
@@ -419,6 +421,7 @@ export class StatePersistence extends EventEmitter {
         JSON.stringify(report, null, 2),
         'utf-8'
       );
+      logger.debug(`[StatePersistence] Saved report as ${safeId}.json`);
       return reportFile;
     } catch (error) {
       logger.error(`Failed to save report:`, error);

@@ -288,6 +288,17 @@ export class ClaudeCodeService extends EventEmitter {
   }
 
   /**
+   * Gets the task store instance
+   * 
+   * @private
+   * @returns The task store instance
+   */
+  private async getTaskStore() {
+    const { TaskStore } = await import('../task-store.js');
+    return TaskStore.getInstance();
+  }
+
+  /**
    * Executes via host proxy
    * 
    * @private
@@ -325,7 +336,7 @@ export class ClaudeCodeService extends EventEmitter {
       }
     }
 
-    const result = await this.hostProxyClient.execute(
+    const rawResult = await this.hostProxyClient.execute(
       prompt,
       session.workingDirectory,
       async (data: string) => {
@@ -353,15 +364,59 @@ export class ClaudeCodeService extends EventEmitter {
       }
     );
 
+    // Parse the JSON result from Claude
+    let parsedResult: any;
+    let textResult = rawResult;
+    
+    try {
+      parsedResult = JSON.parse(rawResult);
+      if (parsedResult.type === 'result' && parsedResult.result) {
+        textResult = parsedResult.result;
+        
+        // Log the parsed result to the task
+        if (session.taskId) {
+          const taskStore = await this.getTaskStore();
+          await taskStore.addLog(session.taskId, {
+            timestamp: new Date().toISOString(),
+            level: parsedResult.is_error ? 'error' : 'info',
+            type: 'output',
+            prefix: 'CLAUDE_RESULT',
+            message: textResult,
+            metadata: {
+              success: !parsedResult.is_error,
+              duration: parsedResult.duration_ms,
+              apiDuration: parsedResult.duration_api_ms,
+              turns: parsedResult.num_turns,
+              sessionId: parsedResult.session_id,
+              cost: parsedResult.total_cost_usd,
+              usage: parsedResult.usage ? {
+                inputTokens: parsedResult.usage.input_tokens || 0,
+                outputTokens: parsedResult.usage.output_tokens || 0,
+                cacheCreationTokens: parsedResult.usage.cache_creation_input_tokens || 0,
+                cacheReadTokens: parsedResult.usage.cache_read_input_tokens || 0,
+                totalTokens: (parsedResult.usage.input_tokens || 0) + 
+                           (parsedResult.usage.output_tokens || 0) +
+                           (parsedResult.usage.cache_creation_input_tokens || 0) +
+                           (parsedResult.usage.cache_read_input_tokens || 0)
+              } : undefined
+            }
+          }, session.mcpSessionId);
+        }
+      }
+    } catch (e) {
+      // If parsing fails, use the raw result as text
+      logger.warn('Failed to parse Claude JSON result, using raw output', { error: e });
+    }
+
     const sdkMessage = {
       type: 'assistant' as const,
-      message: { content: [{ type: 'text', text: result }] },
+      message: { content: [{ type: 'text', text: textResult }] },
       session_id: session.id,
       parent_tool_use_id: null
     };
     session.outputBuffer.push(sdkMessage as SDKMessage);
 
-    return result;
+    return textResult;
   }
 
   /**

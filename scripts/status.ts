@@ -9,10 +9,14 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import * as dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
+
+// Load environment variables from .env file
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 // Colors for output
 const colors = {
@@ -120,8 +124,9 @@ class SystemStatus {
         if (line.includes('mcp-server')) {
           if (line.includes('Up')) {
             this.success('MCP Server container is running');
-            if (line.includes('3000')) {
-              this.success('  → Exposed on port 3000');
+            const port = process.env.PORT || '3000';
+            if (line.includes(port)) {
+              this.success(`  → Exposed on port ${port}`);
             }
             runningContainers.push('mcp-server');
           } else {
@@ -180,23 +185,25 @@ class SystemStatus {
     this.header('Service Connectivity');
     
     // Check if MCP server responds
+    const port = process.env.PORT || '3000';
     try {
-      execSync('curl -s http://localhost:3000/health || curl -s http://localhost:3000/', { 
+      execSync(`curl -s http://localhost:${port}/health || curl -s http://localhost:${port}/`, { 
         timeout: 5000,
         stdio: 'pipe'
       });
-      this.success('MCP Server is responding on http://localhost:3000');
+      this.success(`MCP Server is responding on http://localhost:${port}`);
     } catch {
-      this.warning('MCP Server is not responding on port 3000');
+      this.warning(`MCP Server is not responding on port ${port}`);
     }
     
     // Check daemon connectivity from host
+    const daemonPort = process.env.CLAUDE_PROXY_PORT || '9876';
     try {
-      execSync('nc -zv localhost 9876', { 
+      execSync(`nc -zv localhost ${daemonPort}`, { 
         timeout: 2000,
         stdio: 'pipe'
       });
-      this.success('Host Bridge Daemon is accessible on localhost:9876');
+      this.success(`Host Bridge Daemon is accessible on localhost:${daemonPort}`);
     } catch {
       this.warning('Host Bridge Daemon is not accessible');
     }
