@@ -16,13 +16,16 @@ export const updateTask: Tool = {
     properties: {
       id: {
         type: "string",
-        description: "The task ID or session ID. If a task ID is provided, it will automatically find the associated session"
+        description: "The task ID (required). Use the task ID returned from create_task.",
       },
       instructions: {
         type: "string",
-        description: "Instructions to send to the AI agent"
-      }
+        description: "Instructions to send to the AI agent",
+      },
     },
-    required: ["id", "instructions"]
-  }
+    required: ["id", "instructions"],
+  },
+  _meta: {
+    subscription: true,
+  },
 };

@@ -12,6 +12,7 @@ import { testTools } from './test-tools.js';
 import { testResources } from './test-resources.js';
 import { testE2E } from './test-e2e.js';
 import { testTunnelConnection } from './test-tunnel.js';
+import { testTaskLifecycle } from './test-task-lifecycle.js';
 
 async function runAllTests(): Promise<void> {
   log.section('🧪 Running All E2E Tests');
@@ -24,6 +25,7 @@ async function runAllTests(): Promise<void> {
     await testTools();
     await testResources();
     await testE2E();
+    await testTaskLifecycle();
     
     // Check if we should run tunnel test
     const tunnelUrl = process.env.MCP_BASE_URL || process.env.TUNNEL_URL;

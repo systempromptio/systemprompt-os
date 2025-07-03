@@ -16,9 +16,12 @@ export const endTask: Tool = {
     properties: {
       id: {
         type: "string",
-        description: "The ID of the task to end"
-      }
+        description: "The task ID to end (required). Use the task ID returned from create_task.",
+      },
     },
-    required: ["id"]
-  }
+    required: ["id"],
+  },
+  _meta: {
+    subscription: true,
+  },
 };

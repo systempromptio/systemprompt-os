@@ -25,4 +25,7 @@ export const createTask: Tool = {
     },
     required: ["title", "instructions"],
   },
+  _meta: {
+    subscription: true,
+  },
 };
