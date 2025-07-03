@@ -30,11 +30,18 @@ function log(message: string, color: string = colors.reset): void {
 function checkTunnelStatus(): void {
   console.log('🔍 Tunnel Status Check\n');
   
-  // Check for tunnel URL file
-  const tunnelFile = path.join(projectRoot, '.tunnel-url');
+  // Check for tunnel URL in environment or daemon logs
+  let url: string | null = null;
+  const daemonTunnelFile = path.join(projectRoot, 'daemon', 'logs', 'tunnel-url.txt');
   
-  if (fs.existsSync(tunnelFile)) {
-    const url = fs.readFileSync(tunnelFile, 'utf8').trim();
+  // Check environment first
+  if (process.env.TUNNEL_URL) {
+    url = process.env.TUNNEL_URL;
+  } else if (fs.existsSync(daemonTunnelFile)) {
+    url = fs.readFileSync(daemonTunnelFile, 'utf8').trim();
+  }
+  
+  if (url) {
     
     // Check if cloudflared process is running
     let processRunning = false;
@@ -74,7 +81,9 @@ function checkTunnelStatus(): void {
       log('⚠️  Tunnel URL found but cloudflared is not running', colors.yellow);
       log(`   Stale URL: ${url}`, colors.yellow);
       console.log('\nCleaning up stale tunnel file...');
-      fs.unlinkSync(tunnelFile);
+      if (fs.existsSync(daemonTunnelFile)) {
+        fs.unlinkSync(daemonTunnelFile);
+      }
       log('✅ Cleaned up', colors.green);
     }
   } else {

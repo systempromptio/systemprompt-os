@@ -168,7 +168,7 @@ MCP_BASE_URL=https://your-tunnel.trycloudflare.com npm test
 
 Tests automatically detect:
 1. Environment variable `MCP_BASE_URL`
-2. Tunnel URL from `../../.tunnel-url`
+2. Tunnel URL from `../../daemon/logs/tunnel-url.txt`
 3. Default local server
 
 ## Test Reports

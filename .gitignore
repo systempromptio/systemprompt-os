@@ -28,6 +28,11 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Tunnel files
+.tunnel-url
+daemon/logs/tunnel-url.txt
+logs/tunnel-url.txt
+
 # IDE
 .vscode/
 .idea/

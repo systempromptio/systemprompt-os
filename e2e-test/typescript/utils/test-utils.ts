@@ -26,7 +26,7 @@ function getMCPBaseUrl(): string {
     try {
       const fs = require('fs');
       const path = require('path');
-      const tunnelFile = path.join(__dirname, '../../../.tunnel-url');
+      const tunnelFile = path.join(__dirname, '../../../daemon/logs/tunnel-url.txt');
       if (fs.existsSync(tunnelFile)) {
         const tunnelUrl = fs.readFileSync(tunnelFile, 'utf8').trim();
         console.log(`Using tunnel URL from file: ${tunnelUrl}`);

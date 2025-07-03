@@ -36,7 +36,7 @@ interface ValidatedEnvironment {
   GEMINI_AVAILABLE: string;
   CLAUDE_PROXY_HOST: string;
   CLAUDE_PROXY_PORT: string;
-  MCP_PORT: string;
+  PORT: string;
   HOST_FILE_ROOT: string;
   GIT_AVAILABLE: string;
   TUNNEL_URL?: string;
@@ -132,7 +132,7 @@ class StartupManager {
       GEMINI_AVAILABLE: 'false',
       CLAUDE_PROXY_HOST: process.env.CLAUDE_PROXY_HOST || this.getDockerHost(),
       CLAUDE_PROXY_PORT: process.env.CLAUDE_PROXY_PORT || '9876',
-      MCP_PORT: process.env.PORT || '3000',
+      PORT: process.env.PORT || '3000',
       HOST_FILE_ROOT: projectRoot,
       GIT_AVAILABLE: 'false',
       errors: []
@@ -196,17 +196,27 @@ class StartupManager {
       this.warning('Not a git repository - git operations will be disabled');
     }
     
-    if (fs.existsSync(path.join(projectRoot, '.tunnel-url'))) {
-      try {
-        const tunnelUrl = fs.readFileSync(path.join(projectRoot, '.tunnel-url'), 'utf-8').trim();
-        if (tunnelUrl) {
-          env.TUNNEL_URL = tunnelUrl;
-          env.TUNNEL_ENABLED = 'true';
-          env.PUBLIC_URL = tunnelUrl;
-          this.success(`Tunnel URL detected: ${tunnelUrl}`);
+    // Check for tunnel URL in environment first
+    if (process.env.TUNNEL_URL) {
+      env.TUNNEL_URL = process.env.TUNNEL_URL;
+      env.TUNNEL_ENABLED = 'true';
+      env.PUBLIC_URL = process.env.TUNNEL_URL;
+      this.success(`Tunnel URL detected from environment: ${process.env.TUNNEL_URL}`);
+    } else {
+      // Check daemon logs as fallback
+      const tunnelUrlFile = path.join(projectRoot, 'daemon', 'logs', 'tunnel-url.txt');
+      if (fs.existsSync(tunnelUrlFile)) {
+        try {
+          const tunnelUrl = fs.readFileSync(tunnelUrlFile, 'utf-8').trim();
+          if (tunnelUrl) {
+            env.TUNNEL_URL = tunnelUrl;
+            env.TUNNEL_ENABLED = 'true';
+            env.PUBLIC_URL = tunnelUrl;
+            this.success(`Tunnel URL detected: ${tunnelUrl}`);
+          }
+        } catch (e) {
+          this.warning('Failed to read tunnel URL');
         }
-      } catch (e) {
-        this.warning('Failed to read tunnel URL');
       }
     }
     
@@ -498,10 +508,10 @@ class StartupManager {
       this.success(`Port ${env.CLAUDE_PROXY_PORT} is available`);
     }
     
-    if (await this.isPortOpen(parseInt(env.MCP_PORT))) {
-      this.warning(`Port ${env.MCP_PORT} is in use (likely Docker services already running)`);
+    if (await this.isPortOpen(parseInt(env.PORT))) {
+      this.warning(`Port ${env.PORT} is in use (likely Docker services already running)`);
     } else {
-      this.success(`Port ${env.MCP_PORT} is available`);
+      this.success(`Port ${env.PORT} is available`);
     }
     
     try {
@@ -676,7 +686,7 @@ class StartupManager {
       }
       
       this.log('\n==== Services Started Successfully ====\n', colors.green);
-      this.success(`MCP server running at: http://localhost:${env.MCP_PORT}`);
+      this.success(`MCP server running at: http://localhost:${env.PORT}`);
       this.success(`Daemon running on port: ${env.CLAUDE_PROXY_PORT}`);
       
       if (env.TUNNEL_URL) {

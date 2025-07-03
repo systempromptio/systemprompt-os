@@ -103,7 +103,7 @@ DEBUG=mcp:*
 
 The test suite automatically detects:
 - Local server on port 3000
-- Tunnel URL from `.tunnel-url` file
+- Tunnel URL from `daemon/logs/tunnel-url.txt` file
 - Environment variable overrides
 
 ## Running Tests

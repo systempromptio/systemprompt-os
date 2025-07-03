@@ -32,7 +32,7 @@ function log(message: string, color: string = colors.reset): void {
 }
 
 async function checkExistingTunnel(): Promise<string | null> {
-  const tunnelFile = path.join(projectRoot, '.tunnel-url');
+  const tunnelFile = path.join(projectRoot, 'daemon/logs/tunnel-url.txt');
   if (fs.existsSync(tunnelFile)) {
     const url = fs.readFileSync(tunnelFile, 'utf8').trim();
     // Verify tunnel is still active by checking if cloudflared is running
@@ -46,7 +46,6 @@ async function checkExistingTunnel(): Promise<string | null> {
     }
   }
   return null;
-}
 
 async function startTunnel(): Promise<string> {
   log('🚀 Starting Cloudflare tunnel...', colors.blue);
@@ -66,7 +65,9 @@ async function startTunnel(): Promise<string> {
         const url = urlMatch[0];
         
         // Save to file
-        fs.writeFileSync(path.join(projectRoot, '.tunnel-url'), url);
+        const daemonLogsDir = path.join(projectRoot, 'daemon/logs');
+        fs.mkdirSync(daemonLogsDir, { recursive: true });
+        fs.writeFileSync(path.join(daemonLogsDir, 'tunnel-url.txt'), url);
         
         log(`✅ Tunnel established: ${url}`, colors.green);
         

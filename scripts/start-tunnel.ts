@@ -13,10 +13,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
+import * as dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
+
+// Load environment variables from .env file
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 // Colors for output
 const colors = {
@@ -164,16 +168,12 @@ class TunnelStarter {
   }
   
   saveTunnelUrl(url: string): void {
-    // Save to a file for other processes to read
-    const tunnelFile = path.join(projectRoot, '.tunnel-url');
-    fs.writeFileSync(tunnelFile, url);
+    // Save to daemon logs directory
+    const daemonLogsDir = path.join(projectRoot, 'daemon', 'logs');
+    fs.mkdirSync(daemonLogsDir, { recursive: true });
+    fs.writeFileSync(path.join(daemonLogsDir, 'tunnel-url.txt'), url);
     
-    // Also save to logs directory
-    const logsDir = path.join(projectRoot, 'logs');
-    fs.mkdirSync(logsDir, { recursive: true });
-    fs.writeFileSync(path.join(logsDir, 'tunnel-url.txt'), url);
-    
-    this.info(`Tunnel URL saved to: ${tunnelFile}`);
+    this.info(`Tunnel URL saved to: ${path.join(daemonLogsDir, 'tunnel-url.txt')}`);
   }
   
   updateEnvironment(url: string): void {
@@ -203,10 +203,10 @@ class TunnelStarter {
     this.info('Starting all services with tunnel enabled...');
     
     // Run the start-all script directly
-    const startAllPath = path.join(projectRoot, 'scripts', 'start-all.js');
+    const startAllPath = path.join(projectRoot, 'scripts', 'start-all.ts');
     
     // Use spawn to run start-all with tunnel environment
-    const startProcess = spawn('node', [startAllPath], {
+    const startProcess = spawn('npx', ['tsx', startAllPath], {
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -296,7 +296,7 @@ class TunnelStarter {
         }
         
         // Clean up tunnel URL file
-        const tunnelFile = path.join(projectRoot, '.tunnel-url');
+        const tunnelFile = path.join(projectRoot, 'daemon', 'logs', 'tunnel-url.txt');
         if (fs.existsSync(tunnelFile)) {
           fs.unlinkSync(tunnelFile);
         }
