@@ -169,74 +169,43 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
       );
     }
     
-    const result = await agentOperations.executeInstructions(
-      sessionId,  // Use the actual session ID, not the input ID
+    // Execute instructions asynchronously, similar to create task
+    executeUpdateInstructions(
+      sessionId,
       validated.instructions,
-      {
-        taskId,
-        updateProgress: true,
-        timeout: 300000 // 5 minutes default timeout
-      }
-    );
-    
-    const executionTime = Date.now() - startTime;
-    
-    if (taskId) {
-      const logMessage = result.success
-        ? `Update completed (${Math.floor(executionTime / 1000)}s)`
-        : `Update failed: ${result.error}`;
-        
-      await taskOperations.taskStore.addLog(
-        taskId,
-        logMessage,
-        context?.sessionId
-      );
-      
-      if (result.output) {
-        await taskOperations.taskStore.addLog(
+      taskId,
+      validated.id,
+      context?.sessionId
+    ).catch((error) => {
+      logger.error("Background instruction execution failed", { error, taskId });
+      if (taskId) {
+        taskOperations.taskStore.addLog(
           taskId,
-          result.output,
-          context?.sessionId
+          `Error: ${error}`,
+          context?.sessionId,
         );
       }
-    }
+    });
     
-    logger.info('Task update completed', {
+    logger.info('Task update initiated', {
       inputId: validated.id,
       sessionId: sessionId,
       taskId,
-      success: result.success,
-      executionTimeMs: executionTime
+      instructionsLength: validated.instructions.length
     });
     
-    if (result.success) {
-      return formatToolResponse({
-        message: 'Instructions sent successfully',
-        result: {
-          id: validated.id,
-          session_id: sessionId,
-          task_id: taskId,
-          instructions_sent: validated.instructions,
-          execution_time_ms: executionTime,
-          session_status: session.status,
-          output: result.output
-        }
-      });
-    } else {
-      return formatToolResponse({
-        status: 'error',
-        message: `Failed to execute instructions: ${result.error}`,
-        error: {
-          type: 'command_failed',
-          details: {
-            id: validated.id,
-            session_id: sessionId,
-            error: result.error,
-            execution_time_ms: executionTime
-          }
-        }
-      });
-    }
+    // Return immediately with in-progress status
+    return formatToolResponse({
+      message: 'Instructions sent to agent',
+      result: {
+        id: validated.id,
+        session_id: sessionId,
+        task_id: taskId,
+        instructions_sent: validated.instructions,
+        status: 'in_progress',
+        session_status: session.status
+      }
+    });
     
   } catch (error) {
     const executionTime = Date.now() - startTime;
@@ -255,6 +224,141 @@ export const handleUpdateTask: ToolHandler<UpdateTaskArgs> = async (
     });
   }
 };
+
+/**
+ * Executes update instructions asynchronously in the background
+ * 
+ * @param sessionId - The agent session ID
+ * @param instructions - Instructions to execute
+ * @param taskId - Optional task ID for logging
+ * @param inputId - The original input ID (task or session)
+ * @param mcpSessionId - Optional MCP session ID
+ * @returns Execution result
+ * 
+ * @remarks
+ * This function runs asynchronously after returning the initial response to:
+ * 1. Execute the provided instructions
+ * 2. Log execution results and timing
+ * 3. Update task logs with progress
+ */
+async function executeUpdateInstructions(
+  sessionId: string,
+  instructions: string,
+  taskId: string | undefined,
+  inputId: string,
+  mcpSessionId?: string,
+): Promise<any> {
+  const startTime = Date.now();
+
+  try {
+    if (taskId) {
+      await taskOperations.taskStore.addLog(
+        taskId,
+        `Processing update instructions...`,
+        mcpSessionId,
+      );
+    }
+
+    const result = await agentOperations.executeInstructions(
+      sessionId,
+      instructions,
+      {
+        taskId,
+        updateProgress: true,
+        timeout: 300000 // 5 minutes default timeout
+      }
+    );
+
+    const executionTime = Date.now() - startTime;
+    const durationSeconds = Math.floor(executionTime / 1000);
+
+    if (taskId) {
+      const logMessage = result.success
+        ? `Update completed (${durationSeconds}s)`
+        : `Update failed: ${result.error}`;
+        
+      await taskOperations.taskStore.addLog(
+        taskId,
+        logMessage,
+        mcpSessionId
+      );
+      
+      if (result.output) {
+        await taskOperations.taskStore.addLog(
+          taskId,
+          result.output,
+          mcpSessionId
+        );
+      }
+
+      // Update task result with the new output
+      if (result.success && result.output) {
+        // Parse the result if it's JSON
+        let parsedResult = result.output;
+        if (parsedResult && typeof parsedResult === 'string') {
+          try {
+            const trimmed = parsedResult.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              parsedResult = JSON.parse(trimmed);
+            }
+          } catch (e) {
+            // Keep as string if parsing fails
+            logger.debug('Result is not valid JSON, keeping as string', { error: e });
+          }
+        }
+        
+        // Update the task with the new result
+        const updateData = {
+          result: {
+            output: typeof parsedResult === 'string' ? parsedResult : JSON.stringify(parsedResult, null, 2),
+            success: true,
+            data: typeof parsedResult === 'object' ? parsedResult : undefined
+          }
+        };
+        
+        await taskOperations.taskStore.updateTask(taskId, updateData, mcpSessionId);
+        logger.info('Updated task result', { taskId, hasOutput: true });
+      }
+    }
+
+    logger.info('Task update completed', {
+      inputId,
+      sessionId,
+      taskId,
+      success: result.success,
+      executionTimeMs: executionTime
+    });
+
+    return result;
+  } catch (error) {
+    logger.error("Failed to execute update instructions", { error, taskId, sessionId });
+    
+    if (taskId) {
+      await taskOperations.taskStore.addLog(
+        taskId,
+        {
+          timestamp: new Date().toISOString(),
+          level: "error",
+          type: "system",
+          prefix: "ERROR",
+          message: `Update instructions error: ${error}`,
+          metadata: {
+            error:
+              error instanceof Error
+                ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack,
+                  }
+                : error,
+          },
+        },
+        mcpSessionId,
+      );
+    }
+    throw error;
+  }
+}
 
 /**
  * Validates that a session is in a valid state for receiving updates

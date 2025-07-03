@@ -71,15 +71,30 @@
 
 ## What is This?
 
-Converts your workstation into a remotely-accessible MCP server that any MCP client can connect to.
+This is the **SystemPrompt Coding Agent** - a cutting-edge project that converts your workstation into a remotely-accessible MCP (Model Context Protocol) server that any MCP client can connect to. It's part of the [SystemPrompt.io](https://systemprompt.io/documentation) ecosystem, which is pioneering native mobile voice-controlled AI orchestration for developers.
 
-Send coding tasks from anywhere, and AI agents (Claude out of the box, extendable for any) execute directly on your actual machine. Your code never leaves your computer, but you can control it from anywhere.
+### About SystemPrompt.io
 
-This project exposes your local machine as an MCP server that can be remotely controlled. The AI agents run directly on your machine with access to your real development environment and tools. This is a way of connecting YOUR DEV env, to be remotely accessible (via networks that you choose).
+SystemPrompt is an experimental, community-driven project (currently at v0.01) that enables developers to interact with AI and execute complex workflows using natural language voice commands. The project is:
 
-### Why
+- **Self-funded and indie** - Built by a single founder with the community
+- **Rapidly iterating** - "Visceral, raw, cutting edge software" that's evolving quickly  
+- **Mobile-first** - Native iOS and Android apps for voice-controlled development
+- **Transparent about its stage** - Early but functional, "like having a very eager but slightly confused robot"
 
-I develop a Native Mobile MCP voice client, and users kept asking "but what do I do with it?" The answer: **manage your own development environment and agents remotely**. This is THE killer use case at this stage of the adoption curve for MCP servers.
+### How This Coding Agent Works
+
+Send coding tasks from anywhere, and AI agents (Claude out of the box, extendable for any) execute directly on your actual machine. Your code never leaves your computer, but you can control it from anywhere through:
+
+- **Voice commands** via the SystemPrompt mobile app
+- **Any MCP-compatible client**
+- **The included inspector tool**
+
+This project exposes your local machine as an MCP server that can be remotely controlled. The AI agents run directly on your machine with access to your real development environment and tools.
+
+### Why This Exists
+
+The SystemPrompt mobile app users kept asking "but what do I do with it?" The answer: **manage your own development environment and agents remotely**. This coding agent is THE killer use case at this stage of the adoption curve for MCP servers - enabling developers to code from anywhere using just their voice.
 
 ## Quick Start [Requires Claude Code, Docker]
 
