@@ -1,0 +1,14 @@
+[
+  {
+    "name": "GitHub MCP Server",
+    "url": "https://api.githubcopilot.com/mcp/",
+    "auth": {
+      "type": "bearer",
+      "token": "${GITHUB_TOKEN}"
+    },
+    "timeout": 30000,
+    "headers": {
+      "X-Client": "systemprompt-os"
+    }
+  }
+]

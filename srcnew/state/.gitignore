@@ -1,0 +1,8 @@
+# Ignore all files in state directory
+*
+# But keep the directory structure
+!.gitignore
+!logs/.gitkeep
+!data/.gitkeep
+!data/sessions/.gitkeep
+!temp/.gitkeep

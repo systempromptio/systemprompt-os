@@ -1,0 +1,37 @@
+{
+  "modules": {
+    "heartbeat": {
+      "enabled": true,
+      "config": {
+        "interval": "500ms",
+        "autoStart": true,
+        "includeMetrics": [
+          "timestamp",
+          "status",
+          "uptime",
+          "memory",
+          "cpu",
+          "version"
+        ]
+      }
+    },
+    "logger": {
+      "enabled": true,
+      "config": {
+        "stateDir": "/tmp/systemprompt-test-1752757103926",
+        "logLevel": "debug",
+        "maxSize": "10m",
+        "maxFiles": 7,
+        "outputs": [
+          "console",
+          "file"
+        ],
+        "files": {
+          "system": "system.log",
+          "error": "error.log",
+          "access": "access.log"
+        }
+      }
+    }
+  }
+}

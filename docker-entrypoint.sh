@@ -5,6 +5,44 @@ set -e
 echo "Initializing state directories..."
 mkdir -p /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports
 
+# Handle custom code directories
+echo "Setting up custom code directories..."
+
+# Check if custom modules are mounted as volumes
+if [ -d "/app/custom-modules" ] && [ "$(ls -A /app/custom-modules 2>/dev/null)" ]; then
+    echo "✓ Custom modules volume detected"
+    # If not already linked, create symlink
+    if [ ! -L "/app/modules/custom" ] || [ ! -e "/app/modules/custom" ]; then
+        rm -rf /app/modules/custom
+        ln -sfn /app/custom-modules /app/modules/custom
+        echo "  → Linked /app/modules/custom to volume"
+    fi
+else
+    echo "- No custom modules volume mounted"
+fi
+
+# Check if custom MCP servers are mounted as volumes
+if [ -d "/app/custom-mcp" ] && [ "$(ls -A /app/custom-mcp 2>/dev/null)" ]; then
+    echo "✓ Custom MCP servers volume detected"
+    # If not already linked, create symlink
+    if [ ! -L "/app/server/mcp/custom" ] || [ ! -e "/app/server/mcp/custom" ]; then
+        rm -rf /app/server/mcp/custom
+        ln -sfn /app/custom-mcp /app/server/mcp/custom
+        echo "  → Linked /app/server/mcp/custom to volume"
+    fi
+else
+    echo "- No custom MCP servers volume mounted"
+fi
+
+# Alternative: Check for bind mounts directly to target paths
+if mountpoint -q /app/modules/custom 2>/dev/null; then
+    echo "✓ Custom modules bind mount detected"
+fi
+
+if mountpoint -q /app/server/mcp/custom 2>/dev/null; then
+    echo "✓ Custom MCP servers bind mount detected"
+fi
+
 # Check if we can write to the directories
 if ! touch /data/state/.write-test 2>/dev/null; then
     echo "Warning: Cannot write to /data/state. Falling back to local directory."

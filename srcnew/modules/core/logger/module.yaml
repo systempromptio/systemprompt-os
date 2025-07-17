@@ -1,0 +1,17 @@
+name: logger
+type: service
+version: 1.0.0
+description: System-wide logging service with file and console output
+singleton: true
+config:
+  stateDir: ${STATE_DIR}
+  logLevel: ${LOG_LEVEL}
+  maxSize: ${LOG_MAX_SIZE}
+  maxFiles: ${LOG_MAX_FILES}
+  outputs:
+    - console
+    - file
+  files:
+    system: system.log
+    error: error.log
+    access: access.log

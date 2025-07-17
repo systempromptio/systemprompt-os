@@ -1,7 +1,7 @@
 {
-  "name": "@systemprompt/systemprompt-mcp-server",
-  "version": "0.01",
-  "description": "Coding Agent MCP server for orchestrating Claude Code CLI sessions to perform coding tasks.",
+  "name": "@systemprompt/os",
+  "version": "0.1.0",
+  "description": "An operating system for autonomous agents that run locally, remember persistently, and act purposefully.",
   "type": "module",
   "exports": {
     ".": {
@@ -10,7 +10,7 @@
     }
   },
   "bin": {
-    "systemprompt-mcp-server": "build/index.js"
+    "systemprompt-os": "build/index.js"
   },
   "files": [
     "build",
@@ -26,7 +26,7 @@
     "setup": "npx tsx scripts/setup.ts",
     "start": "npx tsx scripts/start-all.ts",
     "stop": "npx tsx scripts/stop-all.ts",
-    "status": "npx tsx scripts/status.ts",
+    "status": "./systemprompt status",
     "tunnel": "npx tsx scripts/start-tunnel.ts",
     "tunnel:status": "npx tsx scripts/tunnel-status.ts",
     "test": "cd e2e-test && npm test",
@@ -35,17 +35,16 @@
     "test:docs": "cd e2e-test/typescript && npx tsx test-docs-task.ts",
     "send-push": "npx tsx scripts/send-push-notification.ts",
     "logs": "tail -f logs/*.log",
-    "build": "npm run build:main && npm run build:daemon && npm run build:scripts",
+    "build": "npm run build:main && npm run build:scripts",
     "build:main": "tsc && tsc-alias && chmod +x build/index.js && echo \"export * from './config.js';\nexport * from './mcp.js';\" > build/server/index.js",
-    "build:daemon": "cd daemon && npm run build",
     "build:scripts": "cd scripts && tsc",
     "dev": "npm run build && npm run start",
-    "clean": "rm -rf build daemon/dist e2e-test/dist node_modules daemon/node_modules e2e-test/node_modules logs/*",
+    "clean": "rm -rf build e2e-test/dist node_modules e2e-test/node_modules logs/*",
     "inspector": "npx @modelcontextprotocol/inspector"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/systempromptio/systemprompt-mcp-server.git"
+    "url": "git+https://github.com/systempromptio/systemprompt-os.git"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.35",

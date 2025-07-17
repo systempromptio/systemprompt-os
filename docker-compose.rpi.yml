@@ -1,0 +1,117 @@
+version: '3.8'
+
+# Raspberry Pi optimized docker-compose configuration
+# Supports both symlink and volume mount approaches for custom code
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: systemprompt-os
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - PROJECT_ROOT=${PROJECT_ROOT:-/data/projects}
+      - STATE_PATH=/data/state
+      - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-systemprompt-os}
+      # Raspberry Pi optimizations
+      - NODE_OPTIONS=--max-old-space-size=${NODE_MEMORY:-512}
+    volumes:
+      # Core data volumes
+      - state_data:/data/state
+      - projects_data:/data/projects
+      - daemon_socket:/tmp/systemprompt
+      
+      # Option 1: Bind mount custom directories directly
+      # Uncomment these if you want direct bind mounts:
+      # - /home/pi/systemprompt-custom/modules:/app/modules/custom:ro
+      # - /home/pi/systemprompt-custom/mcp-servers:/app/server/mcp/custom:ro
+      
+      # Option 2: Mount to intermediate directories for symlink handling
+      # This approach is more flexible and handles permission issues better
+      - custom_modules:/app/custom-modules:ro
+      - custom_mcp:/app/custom-mcp:ro
+      
+      # Configuration overrides
+      - ./config:/app/config:ro
+      - ./.env:/app/.env:ro
+    
+    # Raspberry Pi specific configurations
+    devices:
+      # GPIO access (optional - uncomment if needed)
+      # - /dev/gpiomem:/dev/gpiomem
+    cap_add:
+      # GPIO capabilities (optional - uncomment if needed)
+      # - SYS_RAWIO
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits for Raspberry Pi
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: ${CONTAINER_MEMORY:-1G}
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Host daemon service
+  daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: systemprompt-daemon
+    restart: unless-stopped
+    command: ["node", "build/daemon.js"]
+    volumes:
+      - daemon_socket:/tmp/systemprompt
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PROJECT_ROOT:-/home/pi/projects}:/data/projects
+    environment:
+      - NODE_ENV=production
+      - PROJECT_ROOT=${PROJECT_ROOT:-/data/projects}
+      - DAEMON_SOCKET=/tmp/systemprompt/daemon.sock
+    user: "${DOCKER_USER:-1000}:${DOCKER_GROUP:-1000}"
+
+volumes:
+  state_data:
+    driver: local
+  projects_data:
+    driver: local
+  daemon_socket:
+    driver: local
+  
+  # Custom code volumes with bind mount drivers
+  custom_modules:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/pi/systemprompt-custom/modules
+  
+  custom_mcp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/pi/systemprompt-custom/mcp-servers
+
+# Network configuration
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
