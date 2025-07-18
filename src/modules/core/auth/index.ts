@@ -16,8 +16,9 @@ export interface ModuleInterface {
 import { existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { ProviderManager } from './services/provider-manager.js';
+import { ProviderRegistry } from './providers/registry.js';
 import { IdentityProvider } from './types/provider-interface.js';
+import { TunnelService } from './services/tunnel-service.js';
 
 // Get the directory of this module
 const __filename = fileURLToPath(import.meta.url);
@@ -30,7 +31,8 @@ export class AuthModule implements ModuleInterface {
   
   private config: any;
   private logger: any;
-  private providerManager: ProviderManager | null = null;
+  private providerRegistry: ProviderRegistry | null = null;
+  private tunnelService: TunnelService | null = null;
   
   async initialize(context: { config?: any; logger?: any }): Promise<void> {
     this.config = context.config || {};
@@ -45,29 +47,35 @@ export class AuthModule implements ModuleInterface {
       this.logger?.info(`Created key store directory: ${absolutePath}`);
     }
     
-    // Initialize provider manager
+    // Initialize provider registry
     // In production/Docker, providers are in the source directory
     const providersPath = process.env.NODE_ENV === 'production' 
       ? '/app/src/modules/core/auth'  // Docker container path
       : resolve(__dirname);
-    this.providerManager = new ProviderManager(providersPath, this.logger);
+    this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
     
     this.logger?.info('Auth module initialized');
   }
   
   async start(): Promise<void> {
-    // Initialize provider manager
-    if (this.providerManager) {
-      this.logger?.info('Initializing provider manager...');
-      await this.providerManager.initialize();
-      const providers = this.providerManager.listProviderIds();
+    // Start tunnel service if needed
+    await this.startTunnelService();
+    
+    // Initialize provider registry
+    if (this.providerRegistry) {
+      this.logger?.info('Initializing provider registry...');
+      await this.providerRegistry.initialize();
+      const providers = this.providerRegistry.listProviderIds();
       this.logger?.info(`Auth module started with providers: ${providers.join(', ') || 'none'}`);
     } else {
-      this.logger?.info('Auth module started (no provider manager)');
+      this.logger?.info('Auth module started (no provider registry)');
     }
   }
   
   async stop(): Promise<void> {
+    if (this.tunnelService) {
+      await this.tunnelService.stop();
+    }
     this.logger?.info('Auth module stopped');
   }
   
@@ -81,9 +89,9 @@ export class AuthModule implements ModuleInterface {
         return { healthy: false, message: 'Key store directory not found' };
       }
       
-      // Check provider manager health
-      if (this.providerManager) {
-        const providers = this.providerManager.listProviderIds();
+      // Check provider registry health
+      if (this.providerRegistry) {
+        const providers = this.providerRegistry.listProviderIds();
         return { 
           healthy: true, 
           message: `${providers.length} provider(s) configured` 
@@ -97,37 +105,81 @@ export class AuthModule implements ModuleInterface {
   }
   
   /**
-   * Get the provider manager instance
+   * Get the provider registry instance
    */
-  getProviderManager(): ProviderManager | null {
-    return this.providerManager;
+  getProviderRegistry(): ProviderRegistry | null {
+    return this.providerRegistry;
   }
   
   /**
    * Get a specific provider by ID
    */
   getProvider(id: string): IdentityProvider | undefined {
-    return this.providerManager?.getProvider(id);
+    return this.providerRegistry?.getProvider(id);
   }
   
   /**
    * Get all configured providers
    */
   getAllProviders(): IdentityProvider[] {
-    return this.providerManager?.getAllProviders() || [];
+    return this.providerRegistry?.getAllProviders() || [];
   }
   
   /**
    * Check if a provider is available
    */
   hasProvider(id: string): boolean {
-    return this.providerManager?.hasProvider(id) || false;
+    return this.providerRegistry?.hasProvider(id) || false;
   }
   
   /**
    * Reload provider configurations
    */
   async reloadProviders(): Promise<void> {
-    await this.providerManager?.reload();
+    await this.providerRegistry?.reload();
+  }
+  
+  /**
+   * Starts the tunnel service for OAuth development
+   */
+  private async startTunnelService(): Promise<void> {
+    const port = parseInt(process.env.PORT || '3000', 10);
+    const permanentDomain = process.env.OAUTH_DOMAIN || process.env.PUBLIC_URL;
+    const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
+    
+    this.tunnelService = new TunnelService({
+      port,
+      permanentDomain,
+      tunnelToken,
+      enableInDevelopment: true
+    }, this.logger);
+    
+    try {
+      const url = await this.tunnelService.start();
+      
+      // Update OAuth configuration if tunnel is active
+      const status = this.tunnelService.getStatus();
+      if (status.active && status.type !== 'none') {
+        await this.tunnelService.updateOAuthProviders(url);
+        this.logger?.info(`OAuth providers configured with public URL: ${url}`);
+      }
+    } catch (error) {
+      this.logger?.warn('Failed to start tunnel service:', error);
+      this.logger?.info('Continuing with localhost configuration');
+    }
+  }
+  
+  /**
+   * Get the public URL for OAuth callbacks
+   */
+  getPublicUrl(): string {
+    return this.tunnelService?.getPublicUrl() || `http://localhost:${process.env.PORT || 3000}`;
+  }
+  
+  /**
+   * Get tunnel service status
+   */
+  getTunnelStatus(): any {
+    return this.tunnelService?.getStatus() || { active: false, type: 'none' };
   }
 }

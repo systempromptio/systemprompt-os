@@ -6,7 +6,7 @@
 import { Request, Response } from "express";
 import { randomBytes } from "crypto";
 import { z } from "zod";
-import { getProviderRegistry } from "../../auth/providers/registry.js";
+import { getAuthModule } from "../../../../modules/core/auth/singleton.js";
 import { OAuth2Error } from './errors.js';
 
 // Schema for authorization request - follows OAuth2 RFC standards
@@ -68,11 +68,12 @@ export class AuthorizeV2Endpoint {
         return res.status(error.code).json(error.toJSON());
       }
       
-      const registry = getProviderRegistry();
+      const authModule = getAuthModule();
+      const providers = authModule.getAllProviders();
 
       // If provider is specified, redirect to that provider
       if (params.provider) {
-        const provider = registry.get(params.provider);
+        const provider = authModule.getProvider(params.provider);
         if (!provider) {
           const error = OAuth2Error.invalidRequest(`Unknown provider: ${params.provider}`);
           return res.status(error.code).json(error.toJSON());
@@ -114,7 +115,7 @@ export class AuthorizeV2Endpoint {
       }
 
       // No provider specified - show provider selection
-      const providers = registry.list();
+      const availableProviders = providers;
 
       const html = `
         <!DOCTYPE html>
@@ -191,7 +192,7 @@ export class AuthorizeV2Endpoint {
           <div class="container">
             <h1>Select Identity Provider</h1>
             <div class="provider-list">
-              ${providers
+              ${availableProviders
                 .map(
                   (provider) => `
                 <a href="/oauth2/authorize?${new URLSearchParams({
@@ -261,8 +262,8 @@ export class AuthorizeV2Endpoint {
       }
 
       // Get provider
-      const registry = getProviderRegistry();
-      const provider = registry.get(providerId);
+      const authModule = getAuthModule();
+      const provider = authModule.getProvider(providerId);
       if (!provider) {
         const error = OAuth2Error.invalidRequest('Unknown provider');
         return res.status(error.code).json(error.toJSON());

@@ -11,26 +11,25 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
       - STATE_PATH=/data/state
       - PROJECTS_PATH=/data/projects
       - FILE_ROOT=/workspace
       - PROJECT_ROOT=/workspace
       - HOST_FILE_ROOT=${HOST_FILE_ROOT}
-      - CLAUDE_PROXY_HOST=${CLAUDE_PROXY_HOST:-host.docker.internal}
-      - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-9876}
-      - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE}
       - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
+      - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
+      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-}
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     env_file:
       - .env
     volumes:
       # Persistent state storage
       - coding-agent-state:/data/state
       # Mount local workspace for file operations
-      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-coding-agent}:/workspace:rw
+      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-os}:/workspace:rw
       # Docker socket for container management (optional)
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Mount Claude authentication if it exists
-      - ${HOME}/.claude.json:/home/appuser/.claude.json:ro
     restart: unless-stopped
 
 

@@ -16,7 +16,7 @@ export class GitHubProvider implements IdentityProvider {
   
   private config: GitHubConfig;
   private authorizationEndpoint = 'https://github.com/login/oauth/authorize';
-  private tokenEndpoint = 'https://github.com/login/oauth/accesstoken';
+  private tokenEndpoint = 'https://github.com/login/oauth/access_token';
   private userEndpoint = 'https://api.github.com/user';
   private emailEndpoint = 'https://api.github.com/user/emails';
   
@@ -29,8 +29,8 @@ export class GitHubProvider implements IdentityProvider {
   
   getAuthorizationUrl( state: string): string {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      redirecturi: this.config.redirecturi,
+      client_id: this.config.clientid,
+      redirect_uri: this.config.redirecturi,
       scope: this.config.scope!,
       state,
     });
@@ -40,10 +40,10 @@ export class GitHubProvider implements IdentityProvider {
   
   async exchangeCodeForTokens( code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
+      client_id: this.config.clientid,
+      client_secret: this.config.clientsecret,
       code,
-      redirecturi: this.config.redirecturi,
+      redirect_uri: this.config.redirecturi,
     });
     
     const response = await fetch(this.tokenEndpoint, {
@@ -63,8 +63,8 @@ export class GitHubProvider implements IdentityProvider {
     const data = await response.json() as any;
     
     return {
-      accesstoken: data.accesstoken,
-      tokentype: data.tokentype || 'Bearer',
+      accesstoken: data.access_token,
+      tokentype: data.token_type || 'Bearer',
       scope: data.scope,
     };
   }
@@ -111,7 +111,7 @@ export class GitHubProvider implements IdentityProvider {
       email,
       emailverified,
       name: userData.name || userData.login,
-      picture: userData.avatarurl,
+      picture: userData.avatar_url,
       raw: userData as Record<string, any>,
     };
   }

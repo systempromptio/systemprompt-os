@@ -31,4 +31,4 @@ features:
 credentials:
   client_id: ${GITHUB_CLIENT_ID}
   client_secret: ${GITHUB_CLIENT_SECRET}
-  redirect_uri: ${BASE_URL}/oauth2/callback/github
+  redirect_uri: ${OAUTH_REDIRECT_URI}/github

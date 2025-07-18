@@ -46,9 +46,9 @@ export class GenericOAuth2Provider implements IdentityProvider {
   
   getAuthorizationUrl( state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      redirecturi: this.config.redirecturi,
-      responsetype: 'code',
+      client_id: this.config.clientid,
+      redirect_uri: this.config.redirecturi,
+      response_type: 'code',
       scope: this.config.scope!,
       state,
     });
@@ -69,11 +69,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
   
   async exchangeCodeForTokens( code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      granttype: 'authorizationcode',
+      grant_type: 'authorization_code',
       code,
-      redirecturi: this.config.redirecturi,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
+      redirect_uri: this.config.redirecturi,
+      client_id: this.config.clientid,
+      client_secret: this.config.clientsecret,
     });
     
     const response = await fetch(this.config.tokenendpoint, {
@@ -117,7 +117,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return {
       id: this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id,
       email: this.getNestedValue(data, mapping.email || 'email'),
-      emailverified: this.getNestedValue(data, mapping.emailverified || 'emailverified'),
+      emailverified: this.getNestedValue(data, mapping.emailverified || 'email_verified'),
       name: this.getNestedValue(data, mapping.name || 'name'),
       picture: this.getNestedValue(data, mapping.picture || 'picture'),
       raw: data as Record<string, any>,
@@ -126,10 +126,10 @@ export class GenericOAuth2Provider implements IdentityProvider {
   
   async refreshTokens( refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      granttype: 'refreshtoken',
-      refreshtoken: refreshToken,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: this.config.clientid,
+      client_secret: this.config.clientsecret,
     });
     
     const response = await fetch(this.config.tokenendpoint, {
@@ -167,13 +167,13 @@ export async function discoverOIDCConfiguration( issuer: string): Promise<Partia
   
   return {
     issuer: config.issuer,
-    authorizationendpoint: config.authorizationendpoint,
-    tokenendpoint: config.tokenendpoint,
-    userinfoendpoint: config.userinfoendpoint,
-    jwksuri: config.jwksuri,
-    scopessupported: config.scopessupported,
-    responsetypes_supported: config.responsetypes_supported,
-    granttypes_supported: config.granttypes_supported,
-    tokenendpoint_auth_methods: config.tokenendpoint_auth_methods_supported,
+    authorizationendpoint: config.authorization_endpoint,
+    tokenendpoint: config.token_endpoint,
+    userinfoendpoint: config.userinfo_endpoint,
+    jwksuri: config.jwks_uri,
+    scopessupported: config.scopes_supported,
+    responsetypes_supported: config.response_types_supported,
+    granttypes_supported: config.grant_types_supported,
+    tokenendpoint_auth_methods: config.token_endpoint_auth_methods_supported,
   };
 }

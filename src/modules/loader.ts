@@ -138,6 +138,10 @@ export class ModuleLoader {
     if (config.modules.heartbeat?.enabled !== false) {
       await this.loadHeartbeatModule(config);
     }
+    
+    if (config.modules.auth?.enabled !== false) {
+      await this.loadAuthModule();
+    }
   }
   
   /**
@@ -197,6 +201,21 @@ export class ModuleLoader {
   }
   
   /**
+   * Loads and configures the auth module.
+   * @private
+   * @returns {Promise<void>} Resolves when the auth module is loaded
+   */
+  private async loadAuthModule(): Promise<void> {
+    try {
+      const { AuthModule } = await import('./core/auth/index.js');
+      const authModule = new AuthModule();
+      this.registry.register(authModule as any);
+    } catch (error) {
+      console.error('[ModuleLoader] Failed to load auth module:', error);
+    }
+  }
+  
+  /**
    * Gets the module registry containing all loaded modules.
    * @returns {ModuleRegistry} The module registry instance
    */
@@ -210,6 +229,15 @@ export class ModuleLoader {
    */
   getAllModules(): Array<import('./registry.js').ExtendedModule> {
     return this.registry.getAll();
+  }
+  
+  /**
+   * Gets a specific module by name.
+   * @param {string} name - Module name
+   * @returns {import('./registry.js').ExtendedModule | undefined} Module instance or undefined
+   */
+  getModule(name: string): import('./registry.js').ExtendedModule | undefined {
+    return this.registry.get(name);
   }
   
   /**

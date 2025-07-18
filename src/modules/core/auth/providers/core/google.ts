@@ -29,12 +29,12 @@ export class GoogleProvider implements IdentityProvider {
 
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      redirecturi: this.config.redirecturi,
-      responsetype: "code",
+      client_id: this.config.clientid,
+      redirect_uri: this.config.redirecturi,
+      response_type: "code",
       scope: this.config.scope!,
       state,
-      accesstype: "offline",
+      access_type: "offline",
       prompt: "consent",
     });
 
@@ -48,10 +48,10 @@ export class GoogleProvider implements IdentityProvider {
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       code,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
-      redirecturi: this.config.redirecturi,
-      granttype: "authorizationcode",
+      client_id: this.config.clientid,
+      client_secret: this.config.clientsecret,
+      redirect_uri: this.config.redirecturi,
+      grant_type: "authorization_code",
     });
 
     const response = await fetch(this.tokenEndpoint, {
@@ -97,10 +97,10 @@ export class GoogleProvider implements IdentityProvider {
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      refreshtoken: refreshToken,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
-      granttype: "refreshtoken",
+      refresh_token: refreshToken,
+      client_id: this.config.clientid,
+      client_secret: this.config.clientsecret,
+      grant_type: "refresh_token",
     });
 
     const response = await fetch(this.tokenEndpoint, {

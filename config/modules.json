@@ -1,0 +1,24 @@
+{
+  "modules": {
+    "logger": {
+      "enabled": true,
+      "config": {
+        "logLevel": "info",
+        "outputs": ["console", "file"]
+      }
+    },
+    "heartbeat": {
+      "enabled": true,
+      "config": {
+        "interval": "30s",
+        "autoStart": false
+      }
+    },
+    "auth": {
+      "enabled": true,
+      "config": {
+        "autoStart": true
+      }
+    }
+  }
+}

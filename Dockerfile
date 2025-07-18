@@ -2,7 +2,11 @@ FROM node:18-alpine
 
 # Install necessary packages
 # Note: coreutils is needed for full 'env' command support (npx uses env -S)
-RUN apk add --no-cache tini git bash curl coreutils
+RUN apk add --no-cache tini git bash curl coreutils wget
+
+# Install cloudflared for OAuth tunnel support
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && \
+    chmod +x /usr/local/bin/cloudflared
 
 # Create app user and group (use node user if conflicts)
 RUN addgroup -S appgroup || true && \

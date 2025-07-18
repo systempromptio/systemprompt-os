@@ -1,0 +1,1 @@
+We need 100% passing and functioning unit tests. Run the existing test suite, ensure that all are passing. Get a coverage report and follow the testing documentation to keep incremeentally adding tests, checking they pass until we have a world class testing suite, following the instructions here /var/www/html/systemprompt-os/tests/unit/README.md

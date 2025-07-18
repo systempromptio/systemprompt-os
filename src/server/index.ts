@@ -41,7 +41,7 @@ export async function createApp(): Promise<express.Application> {
   app.use(express.urlencoded({ extended: true }));
   
   // Setup REST API endpoints
-  await setupExternalAPI( app);
+  await setupExternalAPI(app, logger);
   
   // Setup MCP servers
   await setupMCPServers( app);
@@ -82,10 +82,32 @@ export async function startServer(port?: number): Promise<ReturnType<express.App
   const app = await createApp();
   const serverPort = port || parseInt(CONFIG.PORT, 10);
   
-  const server = app.listen(serverPort, '0.0.0.0', () => {
+  const server = app.listen(serverPort, '0.0.0.0', async () => {
     logger.info(`🚀 systemprompt-os running on port ${serverPort}`);
     logger.info(`📡 API endpoint: http://localhost:${serverPort}`);
     logger.info(`🔐 OAuth2 discovery: http://localhost:${serverPort}/.well-known/openid-configuration`);
+    
+    // Log OAuth tunnel status
+    const moduleLoader = getModuleLoader();
+    const authModule = moduleLoader.getModule('auth') as any;
+    if (authModule) {
+      const tunnelStatus = authModule.getTunnelStatus();
+      if (tunnelStatus.active) {
+        logger.info('');
+        logger.info('🚇 OAuth Tunnel Active');
+        logger.info(`📍 Public URL: ${tunnelStatus.url}`);
+        logger.info(`🔗 OAuth Redirect Base: ${tunnelStatus.url}/oauth2/callback`);
+        logger.info('');
+        logger.info('Configure your OAuth providers with:');
+        logger.info(`  Google: ${tunnelStatus.url}/oauth2/callback/google`);
+        logger.info(`  GitHub: ${tunnelStatus.url}/oauth2/callback/github`);
+      } else if (process.env.GOOGLE_CLIENT_ID || process.env.GITHUB_CLIENT_ID) {
+        logger.info('');
+        logger.info('⚠️  OAuth providers configured but no tunnel active');
+        logger.info('💡 Set ENABLE_OAUTH_TUNNEL=true to auto-create tunnel');
+        logger.info('💡 Or set OAUTH_DOMAIN=https://yourdomain.com for permanent URL');
+      }
+    }
   });
   
   // Add graceful shutdown for modules
