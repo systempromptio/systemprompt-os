@@ -30,7 +30,6 @@ lerna-debug.log*
 
 # Tunnel files
 .tunnel-url
-daemon/logs/tunnel-url.txt
 logs/tunnel-url.txt
 
 # IDE
@@ -44,6 +43,7 @@ logs/tunnel-url.txt
 # Testing
 coverage/
 .nyc_output/
+.test-temp/
 
 # Temporary files
 *.tmp
@@ -78,3 +78,22 @@ coding-agent-state/
 *.db
 *.sqlite
 projects/test-repo/
+
+# Extensions directory handling
+# Ignore actual YAML config files but keep examples
+extensions/servers.yaml
+extensions/modules.yaml
+
+# Ignore local extension code but keep the directories
+extensions/servers/*
+extensions/modules/*
+# But keep .gitkeep files
+!extensions/servers/.gitkeep
+!extensions/modules/.gitkeep
+
+# Ignore any symlinks created in custom directories
+src/server/mcp/custom/*
+src/modules/custom/*
+# But keep .gitkeep files in custom directories
+!src/server/mcp/custom/.gitkeep
+!src/modules/custom/.gitkeep

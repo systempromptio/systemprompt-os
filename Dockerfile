@@ -33,7 +33,15 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Build the application
-RUN npm run build
+RUN npm run build:main
+
+# Copy provider configurations to build directory
+RUN mkdir -p /app/build/modules/core/auth/providers && \
+    cp -r /app/src/modules/core/auth/providers/* /app/build/modules/core/auth/providers/
+
+# Make the CLI globally available by creating a symlink in /usr/local/bin
+RUN chmod +x /app/bin/systemprompt && \
+    ln -s /app/bin/systemprompt /usr/local/bin/systemprompt
 
 # Handle custom code directories
 # Create placeholder files to ensure directories exist even if not mounted

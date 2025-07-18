@@ -1,0 +1,1 @@
+Rewrite this file to use modern, world class typescript standards. No inline comments, comprehensive JSDOC comments.

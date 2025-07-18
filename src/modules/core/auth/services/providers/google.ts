@@ -1,0 +1,137 @@
+/**
+ * @fileoverview Google Identity Provider
+ * @module modules/core/auth/services/providers/google
+ */
+
+import { IdentityProvider, IDPConfig, IDPTokens, IDPUserInfo } from "../../types/provider-interface.js";
+
+export interface GoogleConfig extends IDPConfig {
+  discoveryurl?: string;
+}
+
+export class GoogleProvider implements IdentityProvider {
+  id = "google";
+  name = "Google";
+  type = "oidc" as const;
+
+  private config: GoogleConfig;
+  private authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
+  private tokenEndpoint = "https://oauth2.googleapis.com/token";
+  private userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
+  private revocationEndpoint = "https://oauth2.googleapis.com/revoke";
+
+  constructor(config: GoogleConfig) {
+    this.config = {
+      ...config,
+      scope: config.scope || "openid email profile",
+    };
+  }
+
+  getAuthorizationUrl(state: string, nonce?: string): string {
+    const params = new URLSearchParams({
+      clientid: this.config.clientid,
+      redirecturi: this.config.redirecturi,
+      responsetype: "code",
+      scope: this.config.scope!,
+      state,
+      accesstype: "offline",
+      prompt: "consent",
+    });
+
+    if (nonce) {
+      params.append("nonce", nonce);
+    }
+
+    return `${this.authorizationEndpoint}?${params}`;
+  }
+
+  async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
+    const params = new URLSearchParams({
+      code,
+      clientid: this.config.clientid,
+      clientsecret: this.config.clientsecret,
+      redirecturi: this.config.redirecturi,
+      granttype: "authorizationcode",
+    });
+
+    const response = await fetch(this.tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to exchange code: ${error}`);
+    }
+
+    const data = await response.json();
+    return data as IDPTokens;
+  }
+
+  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+    const response = await fetch(this.userInfoEndpoint, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user info: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as any;
+
+    return {
+      id: data.sub,
+      email: data.email,
+      emailverified: data.emailverified,
+      name: data.name,
+      picture: data.picture,
+      locale: data.locale,
+      raw: data as Record<string, any>,
+    };
+  }
+
+  async refreshTokens(refreshToken: string): Promise<IDPTokens> {
+    const params = new URLSearchParams({
+      refreshtoken: refreshToken,
+      clientid: this.config.clientid,
+      clientsecret: this.config.clientsecret,
+      granttype: "refreshtoken",
+    });
+
+    const response = await fetch(this.tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to refresh tokens: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data as IDPTokens;
+  }
+
+  async revokeTokens(token: string): Promise<void> {
+    const params = new URLSearchParams({ token });
+
+    const response = await fetch(this.revocationEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to revoke token: ${response.statusText}`);
+    }
+  }
+}

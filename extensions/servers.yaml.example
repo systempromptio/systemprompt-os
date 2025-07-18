@@ -1,0 +1,137 @@
+# Example MCP Server Configurations
+# This file demonstrates various ways to configure MCP servers
+# Copy this file to servers.yaml and modify as needed
+
+servers:
+  # Local filesystem server example
+  filesystem:
+    type: local
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/home/user/projects"
+    env:
+      NODE_ENV: production
+    description: "Local filesystem access for project directories"
+
+  # GitHub server with token authentication
+  github:
+    type: local
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-github"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+    description: "GitHub API access with personal access token"
+
+  # PostgreSQL database server
+  postgres:
+    type: local
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-postgres"
+      - "postgresql://user:pass@localhost:5432/mydb"
+    env:
+      SSL_MODE: require
+    description: "PostgreSQL database connection"
+
+  # Slack integration server
+  slack:
+    type: local
+    command: python
+    args:
+      - "-m"
+      - "mcp_server_slack"
+    env:
+      SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+      SLACK_TEAM_ID: "${SLACK_TEAM_ID}"
+    description: "Slack workspace integration"
+
+  # Remote MCP server via stdio-over-HTTP
+  remote-api:
+    type: remote
+    url: "https://api.example.com/mcp"
+    headers:
+      Authorization: "Bearer ${API_TOKEN}"
+      X-API-Version: "1.0"
+    timeout: 30000
+    description: "Remote API server with bearer token auth"
+
+  # Remote server with basic authentication
+  remote-basic:
+    type: remote
+    url: "https://mcp.internal.company.com"
+    auth:
+      type: basic
+      username: "${MCP_USERNAME}"
+      password: "${MCP_PASSWORD}"
+    description: "Internal company MCP server"
+
+  # Docker-based server
+  docker-server:
+    type: local
+    command: docker
+    args:
+      - "run"
+      - "--rm"
+      - "-i"
+      - "--network"
+      - "host"
+      - "mycompany/mcp-server:latest"
+    env:
+      API_KEY: "${DOCKER_MCP_API_KEY}"
+    description: "MCP server running in Docker container"
+
+  # Custom Python server with virtual environment
+  python-custom:
+    type: local
+    command: /opt/venvs/mcp/bin/python
+    args:
+      - "-m"
+      - "custom_mcp_server"
+      - "--config"
+      - "/etc/mcp/custom.conf"
+    cwd: /var/lib/mcp/custom
+    description: "Custom Python MCP server with venv"
+
+  # Server with health check
+  monitored-server:
+    type: local
+    command: node
+    args:
+      - "/usr/local/lib/mcp-servers/monitored/index.js"
+    healthCheck:
+      endpoint: "http://localhost:8080/health"
+      interval: 30000
+      timeout: 5000
+    description: "Server with health monitoring"
+
+  # Conditional server (only loaded in development)
+  dev-tools:
+    type: local
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-dev-tools"
+    condition: "${NODE_ENV} == 'development'"
+    description: "Development tools server (dev only)"
+
+# Global configuration options
+config:
+  # Timeout for all servers (milliseconds)
+  defaultTimeout: 60000
+  
+  # Retry configuration
+  retry:
+    attempts: 3
+    delay: 1000
+    backoff: exponential
+  
+  # Log level (debug, info, warn, error)
+  logLevel: info
+  
+  # Environment variable prefix for substitution
+  envPrefix: "MCP_"

@@ -4,7 +4,7 @@
     "module": "ESNext",
     "lib": ["ES2022"],
     "outDir": "./build",
-    "rootDir": "referenceCode",
+    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,15 +15,23 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    // DO NOT CHANGE
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["referenceCode/*"]
+      "@/*": ["src/*"],
+      "@server/*": ["src/server/*"],
+      "@modules/*": ["src/modules/*"],
+      "@tools/*": ["src/tools/*"],
+      "@services/*": ["src/services/*"],
+      "@types/*": ["src/types/*"],
+      "@utils/*": ["src/utils/*"]
     }
   },
-  "include": ["referenceCode/**/*"],
-  "exclude": ["node_modules", "build", "dist", "scripts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build", "dist", "scripts", "tests", "**/*.test.ts", "**/*.spec.ts"]
 }

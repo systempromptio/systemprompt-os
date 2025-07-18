@@ -20,9 +20,6 @@ services:
       - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-9876}
       - CLAUDE_AVAILABLE=${CLAUDE_AVAILABLE}
       - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
-      - TUNNEL_URL=${TUNNEL_URL}
-      - TUNNEL_ENABLED=${TUNNEL_ENABLED}
-      - PUBLIC_URL=${PUBLIC_URL}
     env_file:
       - .env
     volumes:
@@ -34,8 +31,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount Claude authentication if it exists
       - ${HOME}/.claude.json:/home/appuser/.claude.json:ro
-      # Mount daemon logs for Claude hooks
-      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-coding-agent}/daemon/logs:/workspace/daemon/logs:rw
     restart: unless-stopped
 
 

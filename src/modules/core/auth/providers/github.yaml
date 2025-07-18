@@ -1,0 +1,34 @@
+# GitHub OAuth2 Provider Configuration
+id: github
+name: GitHub
+type: oauth2
+enabled: false  # Enable by setting GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET
+
+# OAuth2 endpoints
+endpoints:
+  authorization: https://github.com/login/oauth/authorize
+  token: https://github.com/login/oauth/access_token
+  userinfo: https://api.github.com/user
+  emails: https://api.github.com/user/emails
+
+# Default scopes
+scopes:
+  - read:user
+  - user:email
+
+# User info field mapping
+userinfo_mapping:
+  id: id
+  email: email
+  name: name
+  picture: avatar_url
+  
+# Special handling for GitHub
+features:
+  fetch_private_email: true  # Fetch email from /user/emails if not public
+
+# Client credentials (from environment variables)
+credentials:
+  client_id: ${GITHUB_CLIENT_ID}
+  client_secret: ${GITHUB_CLIENT_SECRET}
+  redirect_uri: ${BASE_URL}/oauth2/callback/github

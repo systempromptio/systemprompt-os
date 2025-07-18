@@ -1,0 +1,72 @@
+name: extension
+type: service
+version: 1.0.0
+description: Extension and module management for SystemPrompt OS
+author: systemprompt-os
+config:
+  modulesPath: ./src/modules
+  extensionsPath: ./extensions
+  registryUrl: https://registry.systemprompt.os
+  autoDiscover: true
+dependencies:
+  - logger
+  - config
+cli:
+  commands:
+    - name: list
+      description: List installed extensions and modules
+      options:
+        - name: type
+          alias: t
+          type: string
+          description: Filter by type (module, server, all)
+          default: all
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json, table)
+          default: text
+    - name: install
+      description: Install an extension
+      options:
+        - name: name
+          type: string
+          description: Extension name or path
+          required: true
+        - name: version
+          alias: v
+          type: string
+          description: Specific version to install
+        - name: force
+          alias: f
+          type: boolean
+          description: Force installation even if already exists
+    - name: remove
+      description: Remove an extension
+      options:
+        - name: name
+          type: string
+          description: Extension name to remove
+          required: true
+        - name: preserve-config
+          type: boolean
+          description: Preserve configuration files
+    - name: validate
+      description: Validate extension structure and configuration
+      options:
+        - name: path
+          alias: p
+          type: string
+          description: Path to extension directory
+          required: true
+        - name: strict
+          alias: s
+          type: boolean
+          description: Use strict validation rules
+    - name: info
+      description: Show detailed information about an extension
+      options:
+        - name: name
+          type: string
+          description: Extension name
+          required: true

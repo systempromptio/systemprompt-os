@@ -1,0 +1,66 @@
+name: auth
+type: service
+version: 1.0.0
+description: Authentication, authorization, and security utilities
+author: systemprompt-os
+config:
+  keyStorePath: ./state/auth/keys
+  tokenExpiry: 86400
+  allowedAlgorithms:
+    - RS256
+    - RS384
+    - RS512
+  providers:
+    # OAuth2/OIDC provider configurations are loaded from:
+    # - providers/*.yaml (built-in providers like google.yaml, github.yaml)
+    # - providers/custom/*.yaml (user-defined providers)
+    # 
+    # Enable providers by setting their credentials in environment variables:
+    # - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google
+    # - GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET for GitHub
+    # 
+    # See providers/template.yaml for creating custom providers
+    path: ./providers
+dependencies:
+  - logger
+apis:
+  # APIs exposed by this module for other modules/server to use
+  - name: getProvider
+    description: Get a specific OAuth2/OIDC provider by ID
+  - name: getAllProviders
+    description: Get all configured providers
+  - name: hasProvider
+    description: Check if a provider is available
+  - name: reloadProviders
+    description: Reload provider configurations from disk
+cli:
+  commands:
+    - name: generatekey
+      description: Generate cryptographic keys for JWT signing
+      options:
+        - name: type
+          alias: t
+          type: string
+          description: Key type (currently only "jwt" is supported)
+          default: jwt
+        - name: algorithm
+          alias: a
+          type: string
+          description: Algorithm (RS256, RS384, or RS512)
+          default: RS256
+        - name: output
+          alias: o
+          type: string
+          description: Output directory
+        - name: format
+          alias: f
+          type: string
+          description: Output format (pem or jwk)
+          default: pem
+    - name: providers
+      description: List configured OAuth2/OIDC providers
+      subcommands:
+        - name: list
+          description: List all configured providers
+        - name: reload
+          description: Reload provider configurations
