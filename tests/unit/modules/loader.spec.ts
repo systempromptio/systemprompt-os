@@ -23,6 +23,12 @@ vi.mock('../../../src/utils/logger', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   },
+  getLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
   setModuleRegistry: vi.fn()
 }));
 
