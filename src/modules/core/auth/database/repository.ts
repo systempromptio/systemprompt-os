@@ -1,98 +1,103 @@
 /**
- * Auth module database repository
- * Handles all database operations for authentication and authorization
+ * @fileoverview Authentication repository providing database operations for users, roles, permissions, and sessions
+ * @module modules/core/auth/database/repository
  */
 
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '../../database/index.js';
+import { UserService } from '../services/user-service.js';
 import type { 
   User, 
   Role, 
-  Permission, 
-  OAuthIdentity 
+  Permission
 } from './models/index.js';
 
+/**
+ * Session metadata for tracking client information
+ */
+export interface SessionMetadata {
+  ipAddress?: string;
+  userAgent?: string;  
+}
+
+/**
+ * OAuth profile data received from identity providers
+ */
+export interface OAuthProfile {
+  email: string;
+  name?: string;
+  avatar?: string;
+}
+
+/**
+ * Repository class managing authentication-related database operations
+ * 
+ * Provides centralized data access for users, roles, permissions, and sessions.
+ * All OAuth user operations are delegated to UserService for proper first-user detection.
+ * 
+ * @class AuthRepository
+ */
 export class AuthRepository {
-  constructor(private db: DatabaseService) {}
+  private readonly userService: UserService;
+  
+  /**
+   * Creates a new AuthRepository instance
+   * 
+   * @param db - Database service instance for executing queries
+   */
+  constructor(private readonly db: DatabaseService) {
+    this.userService = new UserService(db);
+  }
 
   /**
-   * Create or update a user from OAuth login
+   * Creates or updates a user from OAuth authentication
+   * 
+   * Delegates to UserService which properly handles first-user detection
+   * outside of the transaction to avoid race conditions.
+   * 
+   * @param provider - OAuth provider identifier (e.g., 'google', 'github')
+   * @param providerId - User's unique ID from the OAuth provider
+   * @param profile - User profile data from OAuth provider
+   * @returns Complete user object with roles and permissions
+   * @throws {Error} If user creation or retrieval fails
    */
   async upsertUserFromOAuth(
     provider: string,
     providerId: string,
-    profile: {
-      email: string;
-      name?: string;
-      avatar?: string;
-    }
+    profile: OAuthProfile
   ): Promise<User> {
-    return this.db.transaction(async (conn) => {
-      // Check if OAuth identity exists
-      const identity = await conn.query<OAuthIdentity>(
-        `SELECT * FROM auth_oauth_identities 
-         WHERE provider = ? AND provider_user_id = ?`,
-        [provider, providerId]
-      ).then(r => r.rows[0]);
-
-      let userId: string;
-
-      if (identity) {
-        // Update existing user
-        userId = identity.user_id;
-        await conn.execute(
-          `UPDATE auth_users 
-           SET name = ?, avatar_url = ?, last_login_at = datetime('now') 
-           WHERE id = ?`,
-          [profile.name, profile.avatar, userId]
-        );
-      } else {
-        // Create new user
-        userId = randomUUID();
-        
-        // Insert user
-        await conn.execute(
-          `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at) 
-           VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, profile.email, profile.name, profile.avatar]
-        );
-
-        // Insert OAuth identity
-        await conn.execute(
-          `INSERT INTO auth_oauth_identities 
-           (id, user_id, provider, provider_user_id, provider_data) 
-           VALUES (?, ?, ?, ?, ?)`,
-          [
-            randomUUID(),
-            userId,
-            provider,
-            providerId,
-            JSON.stringify(profile)
-          ]
-        );
-
-        // Assign default role
-        const isFirstUser = await this.isFirstUser();
-        const roleId = isFirstUser ? 'role_admin' : 'role_user';
-        
-        await conn.execute(
-          `INSERT INTO auth_user_roles (user_id, role_id) 
-           VALUES (?, ?)`,
-          [userId, roleId]
-        );
-      }
-
-      // Fetch and return complete user
-      const user = await this.getUserById(userId);
-      if (!user) {
-        throw new Error('User creation failed');
-      }
-      return user;
+    const user = await this.userService.createOrUpdateUserFromOAuth({
+      provider,
+      providerId,
+      email: profile.email,
+      name: profile.name,
+      avatar: profile.avatar
     });
+    
+    const roles = await this.getUserRoles(user.id);
+    const permissions = await this.getUserPermissions(user.id);
+    
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name || undefined,
+      avatarUrl: user.avatar_url || undefined,
+      isActive: true,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+      lastLoginAt: new Date().toISOString(),
+      roles,
+      permissions
+    };
   }
 
   /**
-   * Get user by ID with roles and permissions
+   * Retrieves a user by their unique identifier
+   * 
+   * Fetches the user record along with their associated roles and permissions.
+   * 
+   * @param userId - User's unique identifier
+   * @returns User object with roles and permissions, or null if not found
    */
   async getUserById(userId: string): Promise<User | null> {
     const userRow = await this.db.query<any>(
@@ -104,10 +109,7 @@ export class AuthRepository {
       return null;
     }
 
-    // Get roles
     const roles = await this.getUserRoles(userId);
-
-    // Get permissions through roles
     const permissions = await this.getUserPermissions(userId);
 
     return {
@@ -125,7 +127,10 @@ export class AuthRepository {
   }
 
   /**
-   * Get user by email
+   * Retrieves a user by their email address
+   * 
+   * @param email - User's email address
+   * @returns User object with roles and permissions, or null if not found
    */
   async getUserByEmail(email: string): Promise<User | null> {
     const userRow = await this.db.query<any>(
@@ -141,7 +146,10 @@ export class AuthRepository {
   }
 
   /**
-   * Get user roles
+   * Retrieves all roles assigned to a user
+   * 
+   * @param userId - User's unique identifier
+   * @returns Array of role objects assigned to the user
    */
   async getUserRoles(userId: string): Promise<Role[]> {
     const rows = await this.db.query<any>(
@@ -160,7 +168,13 @@ export class AuthRepository {
   }
 
   /**
-   * Get user permissions (through roles)
+   * Retrieves all permissions granted to a user through their roles
+   * 
+   * Permissions are deduplicated using DISTINCT to handle cases where
+   * multiple roles grant the same permission.
+   * 
+   * @param userId - User's unique identifier
+   * @returns Array of unique permission objects granted to the user
    */
   async getUserPermissions(userId: string): Promise<Permission[]> {
     const rows = await this.db.query<any>(
@@ -181,7 +195,14 @@ export class AuthRepository {
   }
 
   /**
-   * Check if user has a specific permission
+   * Checks if a user has a specific permission
+   * 
+   * Verifies permission through the user's assigned roles.
+   * 
+   * @param userId - User's unique identifier
+   * @param resource - Resource the permission applies to
+   * @param action - Action the permission allows
+   * @returns True if user has the permission, false otherwise
    */
   async hasPermission(
     userId: string, 
@@ -200,7 +221,11 @@ export class AuthRepository {
   }
 
   /**
-   * Check if user has a specific role
+   * Checks if a user has a specific role
+   * 
+   * @param userId - User's unique identifier
+   * @param roleName - Name of the role to check
+   * @returns True if user has the role, false otherwise
    */
   async hasRole(userId: string, roleName: string): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
@@ -214,26 +239,21 @@ export class AuthRepository {
   }
 
   /**
-   * Check if this would be the first user
-   */
-  private async isFirstUser(): Promise<boolean> {
-    const result = await this.db.query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM auth_users'
-    );
-    return result[0].count === 0;
-  }
-
-  /**
-   * Create a session
+   * Creates a new authentication session
+   * 
+   * Sessions store hashed tokens to validate subsequent requests.
+   * 
+   * @param userId - User's unique identifier
+   * @param tokenHash - Hashed authentication token
+   * @param expiresAt - Session expiration timestamp
+   * @param metadata - Optional client metadata for the session
+   * @returns Generated session ID
    */
   async createSession(
     userId: string,
     tokenHash: string,
     expiresAt: Date,
-    metadata?: {
-      ipAddress?: string;
-      userAgent?: string;
-    }
+    metadata?: SessionMetadata
   ): Promise<string> {
     const sessionId = randomUUID();
     
@@ -255,14 +275,17 @@ export class AuthRepository {
   }
 
   /**
-   * Clean up expired sessions
+   * Removes expired authentication sessions
+   * 
+   * Should be called periodically to maintain database hygiene.
+   * 
+   * @returns Number of sessions removed (always 0 for SQLite due to API limitations)
    */
   async cleanupExpiredSessions(): Promise<number> {
     await this.db.execute(
       `DELETE FROM auth_sessions WHERE expires_at < datetime('now')`
     );
     
-    // Return number of deleted sessions
-    return 0; // SQLite doesn't easily return affected rows
+    return 0;
   }
 }

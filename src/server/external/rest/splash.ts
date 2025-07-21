@@ -31,5 +31,11 @@ export class SplashEndpoint {
 export function setupRoutes(router: Router): void {
   const splashEndpoint = new SplashEndpoint();
   
-  router.get('/', (req, res) => splashEndpoint.handleSplashPage(req, res));
+  router.get('/', (req, res, next) => {
+    // Skip if there's an OAuth callback code
+    if (req.query.code) {
+      return next();
+    }
+    splashEndpoint.handleSplashPage(req, res);
+  });
 }

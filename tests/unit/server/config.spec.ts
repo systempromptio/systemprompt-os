@@ -42,16 +42,16 @@ describe('ServerConfig', () => {
       // Set environment variables
       vi.stubEnv('PORT', '8080');
       vi.stubEnv('NODEENV', 'production');
-      vi.stubEnv('JWTSECRET', 'my-secret-key');
       vi.stubEnv('JWTISSUER', 'my-app');
+      vi.stubEnv('JWTAUDIENCE', 'my-audience');
       vi.stubEnv('LOGLEVEL', 'debug');
       
       const { CONFIG } = await import('../../../src/server/config');
 
       expect(CONFIG.PORT).toBe('8080');
       expect(CONFIG.NODEENV).toBe('production');
-      expect(CONFIG.JWTSECRET).toBe('my-secret-key');
       expect(CONFIG.JWTISSUER).toBe('my-app');
+      expect(CONFIG.JWTAUDIENCE).toBe('my-audience');
       expect(CONFIG.LOGLEVEL).toBe('debug');
     });
 
@@ -109,19 +109,40 @@ describe('ServerConfig', () => {
   });
 
   describe('production validation', () => {
-    it('should throw error if JWTSECRET is not set in production', async () => {
-      vi.stubEnv('NODEENV', 'production');
-      vi.stubEnv('JWTSECRET', '');
+    it('should warn when BASEURL contains localhost in production', async () => {
+      const originalWarn = console.warn;
+      const warnSpy = vi.fn();
+      console.warn = warnSpy;
       
-      await expect(import('../../../src/server/config')).rejects.toThrow();
+      vi.stubEnv('NODEENV', 'production');
+      vi.stubEnv('BASEURL', 'http://localhost:3000');
+      
+      // Clear module cache to force re-import with new env vars
+      vi.resetModules();
+      const { validateConfig } = await import('../../../src/server/config');
+      validateConfig();
+      
+      expect(warnSpy).toHaveBeenCalledWith('WARNING: BASEURL contains localhost in production');
+      
+      console.warn = originalWarn;
     });
 
-    it('should accept valid JWTSECRET in production', async () => {
-      vi.stubEnv('NODEENV', 'production');
-      vi.stubEnv('JWTSECRET', 'secure-secret-key');
+    it('should not warn when BASEURL is valid in production', async () => {
+      const originalWarn = console.warn;
+      const warnSpy = vi.fn();
+      console.warn = warnSpy;
       
-      const { CONFIG } = await import('../../../src/server/config');
-      expect(CONFIG.JWTSECRET).toBe('secure-secret-key');
+      vi.stubEnv('NODEENV', 'production');
+      vi.stubEnv('BASEURL', 'https://example.com');
+      
+      // Clear module cache to force re-import with new env vars
+      vi.resetModules();
+      const { validateConfig } = await import('../../../src/server/config');
+      validateConfig();
+      
+      expect(warnSpy).not.toHaveBeenCalled();
+      
+      console.warn = originalWarn;
     });
   });
 
@@ -134,8 +155,8 @@ describe('ServerConfig', () => {
       
       // All required fields should be present
       expect(CONFIG.PORT).toBeDefined();
-      expect(CONFIG.JWTSECRET).toBeDefined();
       expect(CONFIG.JWTISSUER).toBeDefined();
+      expect(CONFIG.JWTAUDIENCE).toBeDefined();
       expect(CONFIG.SERVERNAME).toBeDefined();
     });
   });

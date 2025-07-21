@@ -49,7 +49,10 @@ describe('Auth Middleware', () => {
 
       await authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(jwtVerify).toHaveBeenCalledWith('valid-token', 'test-secret');
+      expect(jwtVerify).toHaveBeenCalledWith('valid-token', {
+        issuer: 'test-issuer',
+        audience: 'test-audience'
+      });
       expect((mockReq as any).user).toEqual({
         sub: mockPayload.sub,
         clientid: mockPayload.clientid,
@@ -109,7 +112,7 @@ describe('Auth Middleware', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'unauthorized',
-        error_description: 'Invalid token'
+        error_description: 'Token has expired'
       });
     });
 
@@ -127,7 +130,10 @@ describe('Auth Middleware', () => {
 
       await authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(jwtVerify).toHaveBeenCalledWith('  token-with-spaces   ', 'test-secret');
+      expect(jwtVerify).toHaveBeenCalledWith('  token-with-spaces   ', {
+        issuer: 'test-issuer',
+        audience: 'test-audience'
+      });
       expect((mockReq as any).user).toEqual({
         sub: mockPayload.sub,
         clientid: mockPayload.clientid,  
@@ -146,7 +152,7 @@ describe('Auth Middleware', () => {
         tokentype: 'access'
       };
       mockReq.headers = { authorization: 'Bearer valid-token' };
-      vi.mocked(jwtVerify).mockResolvedValue({ payload: mockPayload });
+      vi.mocked(jwtVerify).mockRejectedValue(new Error('Invalid issuer'));
 
       await authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 
@@ -168,7 +174,7 @@ describe('Auth Middleware', () => {
         tokentype: 'access'
       };
       mockReq.headers = { authorization: 'Bearer valid-token' };
-      vi.mocked(jwtVerify).mockResolvedValue({ payload: mockPayload });
+      vi.mocked(jwtVerify).mockRejectedValue(new Error('Invalid audience'));
 
       await authMiddleware(mockReq as Request, mockRes as Response, mockNext);
 

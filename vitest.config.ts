@@ -15,10 +15,8 @@ export default defineConfig({
     restoreMocks: true,
     clearMocks: true,
     coverage: {
-      enabled: false, // Will be enabled via command line when needed
       provider: 'v8',
-      reporter: ['json', 'html', 'text'],
-      reportsDirectory: './state/temp/coverage',
+      reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
       exclude: [
         'node_modules',

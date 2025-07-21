@@ -74,9 +74,16 @@ describe('JWT Functions', () => {
     });
 
     it('should reject invalid signature', async () => {
+      // Create a token with the default setup
       const token = await jwtSign(mockPayload, 'test-secret');
       
-      await expect(jwtVerify(token, 'wrong-secret')).rejects.toThrow();
+      // Now we need to mock the verification to fail
+      // The JWT will be verified with the KeyManager's config
+      // Since we can't easily change the secret after signing,
+      // let's test with a malformed token instead
+      const malformedToken = token.slice(0, -5) + 'xxxxx'; // Change the signature
+      
+      await expect(jwtVerify(malformedToken)).rejects.toThrow();
     });
 
     it('should reject malformed tokens', async () => {

@@ -54,6 +54,9 @@ export class AuthModule implements ModuleInterface {
       : resolve(__dirname);
     this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
     
+    // Initialize default roles
+    await this.initializeDefaultRoles();
+    
     this.logger?.info('Auth module initialized');
   }
   
@@ -101,6 +104,43 @@ export class AuthModule implements ModuleInterface {
       return { healthy: true };
     } catch (error) {
       return { healthy: false, message: `Health check failed: ${error}` };
+    }
+  }
+  
+  /**
+   * Initialize default roles in the database
+   */
+  private async initializeDefaultRoles(): Promise<void> {
+    try {
+      const db = await import('../database/index.js').then(m => m.getDatabase());
+      
+      // Create default roles
+      const defaultRoles = [
+        { 
+          id: 'role_admin', 
+          name: 'admin', 
+          description: 'Full system administrator access',
+          is_system: 1 
+        },
+        { 
+          id: 'role_user', 
+          name: 'user', 
+          description: 'Standard user access',
+          is_system: 1 
+        }
+      ];
+      
+      for (const role of defaultRoles) {
+        await db.query(
+          `INSERT OR IGNORE INTO auth_roles (id, name, description, is_system) 
+           VALUES (?, ?, ?, ?)`,
+          [role.id, role.name, role.description, role.is_system]
+        );
+      }
+      
+      this.logger?.info('Default roles initialized');
+    } catch (error) {
+      this.logger?.error('Failed to initialize default roles', { error });
     }
   }
   

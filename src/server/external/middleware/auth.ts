@@ -32,14 +32,11 @@ export async function authMiddleware(
     }
     
     const token = authHeader.substring(7);
-    // Verify token
-    const { payload } = await jwtVerify(token, CONFIG.JWTSECRET);
-    
-    // Verify issuer and audience
-    if (payload.iss !== CONFIG.JWTISSUER || payload.aud !== CONFIG.JWTAUDIENCE) {
-      res.status(401).json({ error: 'unauthorized', error_description: 'Invalid token issuer or audience' });
-      return;
-    }
+    // Verify token with issuer and audience validation
+    const { payload } = await jwtVerify(token, {
+      issuer: CONFIG.JWTISSUER,
+      audience: CONFIG.JWTAUDIENCE
+    });
     
     // Check token type
     if (payload.tokentype !== 'access') {
@@ -55,7 +52,19 @@ export async function authMiddleware(
     };
     
     next();
-  } catch ( error) {
-    res.status(401).json({ error: 'unauthorized', error_description: 'Invalid token' });
+  } catch (error) {
+    let errorDescription = 'Invalid token';
+    
+    if (error instanceof Error) {
+      if (error.message === 'Invalid issuer' || error.message === 'Invalid audience') {
+        errorDescription = 'Invalid token issuer or audience';
+      } else if (error.message === 'Token expired') {
+        errorDescription = 'Token has expired';
+      } else if (error.message === 'Invalid signature') {
+        errorDescription = 'Invalid token signature';
+      }
+    }
+    
+    res.status(401).json({ error: 'unauthorized', error_description: errorDescription });
   }
 }

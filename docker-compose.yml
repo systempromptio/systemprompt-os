@@ -19,6 +19,8 @@ services:
       - FILE_ROOT=/workspace
       - PROJECT_ROOT=/workspace
       - GIT_AVAILABLE=${GIT_AVAILABLE:-true}
+      # JWT Configuration (RSA keys auto-generated on first run)
+      - JWT_KEY_PATH=/data/state/auth/keys
       # OAuth Providers
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}

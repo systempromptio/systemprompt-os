@@ -12,6 +12,8 @@ import { HealthEndpoint } from './rest/health.js';
 import { setupRoutes as setupSplashRoutes } from './rest/splash.js';
 import { setupRoutes as setupAuthRoutes } from './rest/auth.js';
 import { setupRoutes as setupConfigRoutes, setupPublicRoutes as setupPublicConfigRoutes } from './rest/config.js';
+import { setupRoutes as setupCallbackRoutes } from './rest/callback.js';
+import { setupRoutes as setupUsersAPIRoutes } from './rest/api/users.js';
 import { authMiddleware } from './middleware/auth.js';
 import cookieParser from 'cookie-parser';
 
@@ -39,9 +41,11 @@ export async function setupExternalEndpoints(app: Express, router: any): Promise
     healthEndpoint.getHealth(req, res);
   });
   
+  setupCallbackRoutes(router);
   setupSplashRoutes(router);
   setupAuthRoutes(router);
   setupPublicConfigRoutes(router);
+  setupUsersAPIRoutes(router);
   
   const protectedRouter = Router();
   protectedRouter.use(authMiddleware);

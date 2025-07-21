@@ -23,6 +23,7 @@ config:
     path: ./providers
 dependencies:
   - logger
+  - database
 apis:
   # APIs exposed by this module for other modules/server to use
   - name: getProvider
@@ -64,3 +65,39 @@ cli:
           description: List all configured providers
         - name: reload
           description: Reload provider configurations
+    - name: db
+      description: Database management commands
+      subcommands:
+        - name: reset
+          description: Reset the authentication database (removes all users, roles, and sessions)
+        - name: list-users
+          description: List all users and their roles
+    - name: role
+      description: Role management commands
+      subcommands:
+        - name: grant
+          description: Grant a role to a user
+          options:
+            - name: user
+              alias: u
+              type: string
+              description: User email or ID
+              required: true
+            - name: role
+              alias: r
+              type: string
+              description: Role name (admin or user)
+              required: true
+        - name: revoke
+          description: Revoke a role from a user
+          options:
+            - name: user
+              alias: u
+              type: string
+              description: User email or ID
+              required: true
+            - name: role
+              alias: r
+              type: string
+              description: Role name (admin or user)
+              required: true

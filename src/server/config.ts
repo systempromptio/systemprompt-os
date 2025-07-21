@@ -17,7 +17,6 @@ export interface ServerConfig {
   SERVERVERSION: string;
 
   // OAuth2 settings
-  JWTSECRET: string;
   JWTISSUER: string;
   JWTAUDIENCE: string;
   ACCESSTOKEN_EXPIRY: string;
@@ -51,7 +50,6 @@ function getConfig(): ServerConfig {
     SERVERVERSION: "0.1.0",
 
     // OAuth2 settings
-    JWTSECRET: process.env.JWTSECRET || "change-this-in-production",
     JWTISSUER: process.env.JWTISSUER || "systemprompt-os",
     JWTAUDIENCE: process.env.JWTAUDIENCE || "systemprompt-os-clients",
     ACCESSTOKEN_EXPIRY: process.env.ACCESSTOKEN_EXPIRY || "1h",
@@ -90,9 +88,6 @@ export const CONFIG = new Proxy({} as ServerConfig, {
 export function validateConfig() {
   const config = getConfig();
   if (config.NODEENV === "production") {
-    if (config.JWTSECRET === "change-this-in-production") {
-      throw new Error("JWTSECRET must be set in production");
-    }
     if (config.BASEURL.includes("localhost")) {
       console.warn("WARNING: BASEURL contains localhost in production");
     }

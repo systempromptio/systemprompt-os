@@ -74,16 +74,14 @@ function renderProviderButton(provider: IdentityProvider): string {
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
   
-  const stateData = {
-    clientId: 'setup-client',
-    redirectUri: `${process.env.BASE_URL || 'http://localhost:3000'}/config/oauth/callback`,
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const authUrl = `${baseUrl}/oauth2/authorize?` + new URLSearchParams({
+    response_type: 'code',
+    client_id: 'systemprompt-os',
+    redirect_uri: baseUrl,
     scope: 'openid profile email',
-    originalState: 'setup-flow',
-    setup: true
-  };
-  
-  const stateParam = Buffer.from(JSON.stringify(stateData)).toString('base64url');
-  const authUrl = provider.getAuthorizationUrl(stateParam);
+    provider: providerName
+  }).toString();
   
   return `
     <a href="${authUrl}" class="provider-button">

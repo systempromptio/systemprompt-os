@@ -23,6 +23,34 @@ vi.mock('child_process', () => ({
   })
 }));
 
+// Mock database for auth module
+vi.mock('@/modules/core/database/index.js', () => ({
+  getDatabase: vi.fn().mockResolvedValue({
+    query: vi.fn().mockResolvedValue(undefined)
+  })
+}));
+
+// Mock tunnel service for auth module
+vi.mock('@/modules/core/auth/services/tunnel-service.js', () => ({
+  TunnelService: vi.fn().mockImplementation(() => ({
+    start: vi.fn().mockResolvedValue('https://example.com'),
+    stop: vi.fn().mockResolvedValue(undefined),
+    getStatus: vi.fn().mockReturnValue({ active: false, type: 'none' }),
+    getPublicUrl: vi.fn().mockReturnValue('http://localhost:3000'),
+    updateOAuthProviders: vi.fn().mockResolvedValue(undefined)
+  }))
+}));
+
+// Mock provider registry for auth module
+vi.mock('@/modules/core/auth/providers/registry.js', () => ({
+  ProviderRegistry: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    listProviderIds: vi.fn().mockReturnValue([]),
+    getAllProviders: vi.fn().mockReturnValue([]),
+    getProvider: vi.fn().mockReturnValue(undefined)
+  }))
+}));
+
 // Import after mocks are set up
 import { ModuleRegistry } from '../../../src/modules/registry.js';
 

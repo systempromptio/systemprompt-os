@@ -22,6 +22,12 @@ export async function createApp(): Promise<express.Application> {
   const moduleLoader = getModuleLoader();
   await moduleLoader.loadModules();
   
+  // Start the auth module to initialize providers
+  const authModule = moduleLoader.getModule('auth');
+  if (authModule && typeof authModule.start === 'function') {
+    await authModule.start();
+  }
+  
   // Security middleware
   // TODO: Add helmet when available
   // app.use(helmet({

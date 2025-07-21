@@ -3,7 +3,7 @@ set -e
 
 # Ensure state directories exist with correct permissions
 echo "Initializing state directories..."
-mkdir -p /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports
+mkdir -p /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports /data/state/auth/keys
 
 # Handle custom code directories
 echo "Setting up custom code directories..."
@@ -65,6 +65,61 @@ if [ ! -f "$DATABASE_FILE" ] || ! /usr/local/bin/systemprompt database:status >/
     echo "Initializing database..."
     /usr/local/bin/systemprompt database:schema --action=init
     echo "✓ Database initialized"
+fi
+
+# Initialize JWT keys if not already present
+JWT_KEY_PATH="$STATE_PATH/auth/keys"
+
+# Ensure key directory exists with secure permissions
+mkdir -p "$JWT_KEY_PATH"
+chmod 700 "$JWT_KEY_PATH"
+
+if [ ! -f "$JWT_KEY_PATH/private.key" ] || [ ! -f "$JWT_KEY_PATH/public.key" ]; then
+    echo "Generating secure RSA-2048 JWT signing keys..."
+    
+    # Create temporary directory with restricted permissions in memory
+    TEMP_KEY_DIR=$(mktemp -d -p /dev/shm 2>/dev/null || mktemp -d)
+    chmod 700 "$TEMP_KEY_DIR"
+    
+    # Generate RSA-2048 keys using the CLI tool
+    if /usr/local/bin/systemprompt auth:generatekey --type jwt --algorithm RS256 --format pem --output "$TEMP_KEY_DIR"; then
+        # Use atomic move operations to prevent partial writes
+        mv -f "$TEMP_KEY_DIR/private.key" "$JWT_KEY_PATH/private.key"
+        mv -f "$TEMP_KEY_DIR/public.key" "$JWT_KEY_PATH/public.key"
+        
+        # Set secure permissions (only readable by owner)
+        chmod 400 "$JWT_KEY_PATH/private.key"
+        chmod 444 "$JWT_KEY_PATH/public.key"
+        
+        echo "✓ RSA-2048 JWT keys generated and secured at: $JWT_KEY_PATH"
+    else
+        echo "✗ Failed to generate JWT keys"
+        exit 1
+    fi
+    
+    # Clean up temp directory
+    rm -rf "$TEMP_KEY_DIR"
+fi
+
+# In production, RSA keys are required and generated above
+# No HMAC fallback needed
+
+# Verify key permissions and ownership on every startup
+if [ -f "$JWT_KEY_PATH/private.key" ]; then
+    chmod 400 "$JWT_KEY_PATH/private.key"
+    echo "✓ Private key permissions verified"
+fi
+if [ -f "$JWT_KEY_PATH/public.key" ]; then
+    chmod 444 "$JWT_KEY_PATH/public.key"
+    echo "✓ Public key permissions verified"
+fi
+
+# Verify keys are readable by checking they exist
+if [ -f "$JWT_KEY_PATH/private.key" ] && [ -f "$JWT_KEY_PATH/public.key" ]; then
+    echo "✓ JWT RSA keys verified and ready"
+else
+    echo "✗ JWT keys missing - authentication will not work"
+    exit 1
 fi
 
 # Check and start Cloudflare tunnel if token is provided

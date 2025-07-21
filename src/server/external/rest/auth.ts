@@ -7,6 +7,7 @@ import type { Request, Response, Router } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import { logger } from '@/utils/logger.js';
 import { renderAuthPage } from '../templates/auth.js';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
  * Unified authentication endpoint handling login, registration, and logout
@@ -107,7 +108,17 @@ export class AuthEndpoint {
    * @returns Promise that resolves when authentication is complete
    */
   private async completeAuthentication(code: string, res: Response): Promise<void> {
-    const tokenResponse = await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/oauth2/token`, {
+    const baseUrl = tunnelStatus.getBaseUrlOrDefault(process.env.BASE_URL || 'http://localhost:3000');
+    const tokenUrl = `${baseUrl}/oauth2/token`;
+    const redirectUri = `${baseUrl}/auth/callback`;
+    
+    logger.info('Attempting token exchange', {
+      tokenUrl,
+      redirectUri,
+      codeLength: code.length
+    });
+    
+    const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -116,12 +127,18 @@ export class AuthEndpoint {
         grant_type: 'authorization_code',
         code,
         client_id: 'auth-client',
-        redirect_uri: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/callback`,
+        redirect_uri: redirectUri,
       }).toString(),
     });
 
     if (!tokenResponse.ok) {
-      throw new Error('Token exchange failed');
+      const errorBody = await tokenResponse.text();
+      logger.error('Token exchange failed', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        body: errorBody
+      });
+      throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorBody}`);
     }
 
     const tokens = await tokenResponse.json() as { 

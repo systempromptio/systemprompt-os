@@ -12,6 +12,9 @@ import { AuthorizeEndpoint } from './authorize.js';
 import { getAuthModule } from '../../../../modules/core/auth/singleton.js';
 import { OAuth2Error } from './errors.js';
 import { jwtSign, jwtVerify } from '../../auth/jwt.js';
+import { getDatabase } from '../../../../modules/core/database/index.js';
+import { AuthRepository } from '../../../../modules/core/auth/database/repository.js';
+import { logger } from '../../../../utils/logger.js';
 
 /**
  * Schema for OAuth2 token request validation
@@ -89,7 +92,17 @@ export class TokenEndpoint {
    */
   public postToken = async (req: Request, res: Response): Promise<Response | void> => {
     try {
+      logger.info('[TOKEN] Token request received', {
+        body: req.body,
+        headers: {
+          'content-type': req.headers['content-type'],
+          'authorization': req.headers['authorization'] ? 'present' : 'missing'
+        }
+      });
+      
       const params = TokenRequestSchema.parse(req.body);
+      
+      logger.info('[TOKEN] Parsed params', params);
       
       if (params.grant_type === 'authorization_code') {
         await this.handleAuthorizationCodeGrant(params, res);
@@ -97,6 +110,8 @@ export class TokenEndpoint {
         await this.handleRefreshTokenGrant(params, res);
       }
     } catch (error) {
+      logger.error('[TOKEN] Error in postToken', { error });
+      
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
@@ -115,13 +130,19 @@ export class TokenEndpoint {
     params: TokenRequestParams,
     res: Response
   ): Promise<Response | void> {
+    logger.info('[TOKEN] handleAuthorizationCodeGrant called', params);
+    
     if (!params.code || !params.redirect_uri) {
+      logger.error('[TOKEN] Missing required parameters', { code: !!params.code, redirect_uri: !!params.redirect_uri });
       const error = OAuth2Error.invalidRequest('Missing required parameters');
       return res.status(error.code).json(error.toJSON());
     }
     
     const codeData = AuthorizeEndpoint.getAuthorizationCode(params.code);
+    logger.info('[TOKEN] Authorization code lookup result', { found: !!codeData });
+    
     if (!codeData) {
+      logger.error('[TOKEN] Invalid authorization code', { code: params.code });
       const error = OAuth2Error.invalidGrant('Invalid authorization code');
       return res.status(error.code).json(error.toJSON());
     }
@@ -132,19 +153,7 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
     
-    // Special handling for setup flow
-    if (codeData.clientId === 'setup-client') {
-      // Allow setup-client without validation during initial setup
-      const db = await import('@/modules/core/database/index.js').then(m => m.getDatabase());
-      const userCount = await db.query<{ count: number }>(
-        'SELECT COUNT(*) as count FROM auth_users'
-      ).then(result => result[0]?.count || 0);
-      
-      if (userCount > 0) {
-        const error = OAuth2Error.invalidGrant('Setup already completed');
-        return res.status(error.code).json(error.toJSON());
-      }
-    } else if (params.client_id && codeData.clientId !== params.client_id) {
+    if (params.client_id && codeData.clientId !== params.client_id) {
       const error = OAuth2Error.invalidGrant('Invalid client');
       return res.status(error.code).json(error.toJSON());
     }
@@ -180,7 +189,7 @@ export class TokenEndpoint {
           codeData.providerTokens = providerTokens;
         }
       } catch (error) {
-        console.error('Provider token exchange failed:', error);
+        logger.error('Provider token exchange failed', { error });
       }
     }
     
@@ -197,7 +206,8 @@ export class TokenEndpoint {
       codeData.clientId,
       codeData.scope,
       codeData.provider,
-      sessionId
+      sessionId,
+      codeData.userEmail
     );
     
     res.json(tokens);
@@ -254,9 +264,35 @@ export class TokenEndpoint {
     clientId: string,
     scope: string,
     provider?: string,
-    sessionId?: string
+    sessionId?: string,
+    userEmail?: string
   ): Promise<TokenResponse> {
     const now = Math.floor(Date.now() / 1000);
+    
+    // Fetch user data from database
+    let userData: any = null;
+    try {
+      const db = getDatabase();
+      const authRepo = new AuthRepository(db);
+      const user = await authRepo.getUserById(userId);
+      if (user) {
+        userData = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatarUrl
+        };
+      }
+    } catch (error) {
+      logger.error('[TOKEN] Failed to fetch user data', { error });
+      // Use provided email if database lookup fails
+      if (userEmail) {
+        userData = {
+          id: userId,
+          email: userEmail
+        };
+      }
+    }
     
     const accessTokenPayload = {
       sub: userId,
@@ -269,10 +305,16 @@ export class TokenEndpoint {
       aud: CONFIG.JWTAUDIENCE,
       iat: now,
       exp: now + 3600,
-      jti: randomBytes(16).toString('hex')
+      jti: randomBytes(16).toString('hex'),
+      // Include user data in the token
+      user: userData
     };
     
-    const accessToken = await jwtSign(accessTokenPayload, CONFIG.JWTSECRET);
+    const accessToken = await jwtSign(accessTokenPayload, {
+      issuer: CONFIG.JWTISSUER,
+      audience: CONFIG.JWTAUDIENCE,
+      expiresIn: 3600
+    });
     
     const refreshToken = randomBytes(32).toString('base64url');
     
@@ -301,9 +343,19 @@ export class TokenEndpoint {
         exp: now + 3600,
         auth_time: now,
         nonce: randomBytes(16).toString('hex'),
+        // Include user data in ID token for OpenID Connect
+        ...(userData && {
+          email: userData.email,
+          name: userData.name,
+          picture: userData.avatar
+        })
       };
       
-      response.id_token = await jwtSign(idTokenPayload, CONFIG.JWTSECRET);
+      response.id_token = await jwtSign(idTokenPayload, {
+        issuer: CONFIG.JWTISSUER,
+        audience: clientId,
+        expiresIn: 3600
+      });
     }
     
     return response;
@@ -323,7 +375,10 @@ export class TokenEndpoint {
    */
   public static async validateAccessToken(token: string): Promise<any> {
     try {
-      const { payload } = await jwtVerify(token, CONFIG.JWTSECRET);
+      const { payload } = await jwtVerify(token, {
+        issuer: CONFIG.JWTISSUER,
+        audience: CONFIG.JWTAUDIENCE
+      });
       
       if (payload.tokentype !== 'access') {
         return null;
