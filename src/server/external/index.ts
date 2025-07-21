@@ -1,48 +1,63 @@
 /**
- * @fileoverview External REST API setup
+ * @fileoverview External REST API configuration for SystemPrompt OS
  * @module server/external
  */
 
-import { Express, Router } from 'express';
+import type { Express } from 'express';
+import { Router } from 'express';
 import { setupOAuth2Routes } from './rest/oauth2/index.js';
-import { HealthEndpoint } from './rest/health.js';
-import { StatusEndpoint } from './rest/status.js';
 import { CONFIG } from '../config.js';
-import { initializeAuthModule } from '../../modules/core/auth/singleton.js';
+import { logger } from '../../utils/logger.js';
+import { HealthEndpoint } from './rest/health.js';
+import { setupRoutes as setupSplashRoutes } from './rest/splash.js';
+import { setupRoutes as setupAuthRoutes } from './rest/auth.js';
+import { setupRoutes as setupConfigRoutes, setupPublicRoutes as setupPublicConfigRoutes } from './rest/config.js';
+import { authMiddleware } from './middleware/auth.js';
+import cookieParser from 'cookie-parser';
 
-export async function setupExternalAPI(app: Express, logger?: any): Promise<void> {
-  const router = Router();
+/**
+ * Configures and initializes all external REST API endpoints
+ * 
+ * Sets up:
+ * - OAuth2 authorization endpoints
+ * - Public pages (splash, auth, config)
+ * - Health check endpoint
+ * - Authentication middleware
+ * 
+ * @param app Express application instance
+ * @param router Express router instance
+ */
+export async function setupExternalEndpoints(app: Express, router: any): Promise<void> {
+  logger.info('Setting up external REST endpoints');
   
-  // Initialize auth module with providers from configuration
-  await initializeAuthModule({ 
-    config: {
-      keyStorePath: './state/auth/keys'
-    },
-    logger 
-  });
+  app.use(cookieParser());
   
-  // Note: Providers are now loaded from YAML configuration files in
-  // src/modules/core/auth/providers/
-  // Enable providers by setting their credentials in environment variables:
-  // - GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for Google
-  // - GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET for GitHub
-  // - Or add custom providers in src/modules/core/auth/providers/custom/
-  
-  // OAuth2 Provider endpoints
   await setupOAuth2Routes(router, CONFIG.BASEURL);
   
-  // Health check endpoint
   const healthEndpoint = new HealthEndpoint();
-  router.get('/health', (req, res) => {
+  router.get('/health', (req: any, res: any) => {
     healthEndpoint.getHealth(req, res);
   });
   
-  // Status endpoint
-  const statusEndpoint = new StatusEndpoint();
-  router.get('/status', (req, res) => {
-    statusEndpoint.getStatus(req, res);
-  });
+  setupSplashRoutes(router);
+  setupAuthRoutes(router);
+  setupPublicConfigRoutes(router);
   
-  // Mount all external API routes
+  const protectedRouter = Router();
+  protectedRouter.use(authMiddleware);
+  setupConfigRoutes(protectedRouter);
+  
   app.use(router);
+  app.use(protectedRouter);
+  
+  if (process.env.NODE_ENV !== 'production') {
+    logger.debug('External endpoints configured', {
+      routes: router.stack
+        .filter((r: any) => r.route)
+        .map((r: any) => ({
+          path: r.route?.path || 'unknown',
+          methods: r.route ? Object.keys(r.route.methods || {}) : []
+        }))
+    });
+  }
 }

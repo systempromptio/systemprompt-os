@@ -28,6 +28,12 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Compiled JavaScript files (we use TypeScript)
+src/**/*.js
+!eslint.config.js
+!scripts/**/*.js
+!tests/**/*.js
+
 # Tunnel files
 .tunnel-url
 logs/tunnel-url.txt

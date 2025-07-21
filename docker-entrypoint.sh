@@ -58,13 +58,46 @@ export NODE_ENV=${NODE_ENV:-production}
 export PORT=${PORT:-3000}
 export STATE_PATH=${STATE_PATH:-/data/state}
 export PROJECTS_PATH=${PROJECTS_PATH:-/data/projects}
+export DATABASE_FILE=${DATABASE_FILE:-/data/state/database.db}
 
-# Check Cloudflare tunnel configuration
-if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ -z "$CLOUDFLARE_TUNNEL_URL" ]; then
-    if [ -f "/app/scripts/check-tunnel-token.cjs" ]; then
-        # Show instructions for setting up tunnel URL
-        node /app/scripts/check-tunnel-token.cjs
+# Initialize database if not already initialized
+if [ ! -f "$DATABASE_FILE" ] || ! /usr/local/bin/systemprompt database:status >/dev/null 2>&1; then
+    echo "Initializing database..."
+    /usr/local/bin/systemprompt database:schema --action=init
+    echo "✓ Database initialized"
+fi
+
+# Check and start Cloudflare tunnel if token is provided
+if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
+    echo "Starting Cloudflare tunnel..."
+    
+    # Start cloudflared in the background
+    cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" > /data/state/logs/cloudflared.log 2>&1 &
+    TUNNEL_PID=$!
+    
+    # Wait a moment for tunnel to establish
+    sleep 5
+    
+    # Check if tunnel is running
+    if kill -0 $TUNNEL_PID 2>/dev/null; then
+        echo "✓ Cloudflare tunnel started (PID: $TUNNEL_PID)"
+        
+        # Try to extract the tunnel URL from the logs
+        if [ -f "/data/state/logs/cloudflared.log" ]; then
+            TUNNEL_URL=$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' /data/state/logs/cloudflared.log | head -n1)
+            if [ -n "$TUNNEL_URL" ]; then
+                echo "✓ Tunnel URL: $TUNNEL_URL"
+                export CLOUDFLARE_TUNNEL_URL="$TUNNEL_URL"
+            else
+                echo "⚠️  Tunnel is running but URL not yet available"
+            fi
+        fi
+    else
+        echo "✗ Failed to start Cloudflare tunnel"
+        echo "Check logs at: /data/state/logs/cloudflared.log"
     fi
+else
+    echo "- No Cloudflare tunnel token provided"
 fi
 
 

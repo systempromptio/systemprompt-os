@@ -13,7 +13,7 @@ export interface DiscoveredCommand {
 
 export class CommandDiscovery {
   constructor(
-    private modulesPath: string = join(process.cwd(), 'src/modules')
+    private modulesPath: string = join(process.cwd(), 'build/modules')
   ) {}
   
   /**

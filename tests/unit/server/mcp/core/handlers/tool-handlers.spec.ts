@@ -48,10 +48,10 @@ vi.mock('@/server/mcp/core/handlers/tools/check-status', () => ({
 // Import the functions to test after mocks are set up
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
 
-// Mock crypto.randomUUID
-global.crypto = {
-  randomUUID: vi.fn(() => 'mock-uuid-' + Date.now())
-} as any;
+// Import node:crypto to mock it properly
+vi.mock('node:crypto', () => ({
+  randomUUID: vi.fn(() => 'mock-uuid-12345')
+}));
 
 describe('MCP Tool Handlers', () => {
   let mockHandleCheckStatus: any;
@@ -71,7 +71,8 @@ describe('MCP Tool Handlers', () => {
     it('should return check-status tool for admin users', async () => {
       const request: ListToolsRequest = {};
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       const result = await handleListTools(request, context);
@@ -106,23 +107,28 @@ describe('MCP Tool Handlers', () => {
     it('should log tool filtering process', async () => {
       const { logger } = await import('@/utils/logger');
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       await handleListTools({}, context);
 
-      expect(logger.info).toHaveBeenCalledWith(
+      // Check first call
+      expect(logger.info).toHaveBeenNthCalledWith(
+        1,
         'Tool listing requested',
         expect.objectContaining({
           sessionId: 'admin-session-123',
-          requestId: expect.stringContaining('mock-uuid')
+          requestId: 'mock-uuid-12345'
         })
       );
 
-      expect(logger.info).toHaveBeenCalledWith(
+      // Check third call
+      expect(logger.info).toHaveBeenNthCalledWith(
+        3,
         'Tool filtering completed',
         expect.objectContaining({
-          userId: 'user-123',
+          userId: '113783121475955670750',
           role: 'admin',
           totalTools: 1,
           availableTools: 1,
@@ -160,7 +166,8 @@ describe('MCP Tool Handlers', () => {
         }
       };
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       const result = await handleToolCall(request, context);
@@ -205,7 +212,8 @@ describe('MCP Tool Handlers', () => {
         }
       };
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       await expect(handleToolCall(request, context)).rejects.toThrow(
@@ -248,12 +256,12 @@ describe('MCP Tool Handlers', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         'Tool access denied',
         expect.objectContaining({
-          userId: 'user-123',
-          userEmail: 'basic@example.com',
+          userId: 'anonymous',
+          userEmail: 'user@systemprompt.io',
           role: 'basic',
           toolName: 'checkstatus',
           requiredRole: 'admin',
-          requestId: expect.stringContaining('mock-uuid')
+          requestId: 'mock-uuid-12345'
         })
       );
     });
@@ -267,18 +275,21 @@ describe('MCP Tool Handlers', () => {
         }
       };
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       await handleToolCall(request, context);
 
-      expect(logger.info).toHaveBeenCalledWith(
+      // Check that the 3rd call to logger.info was 'Tool execution completed'
+      expect(logger.info).toHaveBeenNthCalledWith(
+        3,
         'Tool execution completed',
         expect.objectContaining({
-          userId: 'user-123',
+          userId: '113783121475955670750',
           toolName: 'checkstatus',
           executionTime: expect.any(Number),
-          requestId: expect.stringContaining('mock-uuid')
+          requestId: 'mock-uuid-12345'
         })
       );
     });
@@ -293,7 +304,8 @@ describe('MCP Tool Handlers', () => {
         }
       };
       const context: MCPToolContext = {
-        sessionId: 'admin-session-123'
+        sessionId: 'admin-session-123',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       await expect(handleToolCall(request, context)).rejects.toThrow(

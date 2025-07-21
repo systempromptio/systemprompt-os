@@ -19,6 +19,8 @@
  * ```
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { z } from 'zod';
 import type {
   CallToolRequest,
@@ -87,12 +89,15 @@ async function getUserPermissionContext(context: MCPToolContext): Promise<UserPe
     throw new Error('Session ID is required');
   }
 
-  const isMockAdminSession = context.sessionId.includes('admin');
-  const role: UserRole = isMockAdminSession ? 'admin' : 'basic';
+  // Check if user is admin based on their Google user ID
+  // Your Google user ID: 113783121475955670750
+  const adminUserIds = ['113783121475955670750'];
+  const isAdmin = context.userId && adminUserIds.includes(context.userId);
+  const role: UserRole = isAdmin ? 'admin' : 'basic';
   
   const mockData = {
-    userId: 'user-123',
-    email: isMockAdminSession ? 'admin@example.com' : 'basic@example.com',
+    userId: context.userId || 'anonymous',
+    email: isAdmin ? 'admin@systemprompt.io' : 'user@systemprompt.io',
     role,
     permissions: ROLE_PERMISSIONS[role],
     customPermissions: []
@@ -169,7 +174,7 @@ export async function handleListTools(
   try {
     logger.info('Tool listing requested', { 
       sessionId: context?.sessionId,
-      requestId: crypto.randomUUID()
+      requestId: randomUUID()
     });
 
     if (!context) {
@@ -231,7 +236,7 @@ export async function handleToolCall(
   context: MCPToolContext
 ): Promise<CallToolResult> {
   const startTime = Date.now();
-  const requestId = crypto.randomUUID();
+  const requestId = randomUUID();
 
   try {
     const { name: toolName, arguments: toolArgs } = request.params;

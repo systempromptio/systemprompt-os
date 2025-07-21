@@ -1,39 +1,50 @@
 version: '3.8'
 
 services:
-  mcp-server:
+  systemprompt-os:
+    image: systemprompt-os:latest
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: systemprompt-os
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
-    # network_mode: "host"  # Disabled for WSL2 compatibility
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - DATABASE_FILE=/data/state/systemprompt.db
+      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-https://democontainer.systemprompt.io}
       - STATE_PATH=/data/state
       - PROJECTS_PATH=/data/projects
       - FILE_ROOT=/workspace
       - PROJECT_ROOT=/workspace
-      - HOST_FILE_ROOT=${HOST_FILE_ROOT}
-      - GIT_AVAILABLE=${GIT_AVAILABLE:-false}
+      - GIT_AVAILABLE=${GIT_AVAILABLE:-true}
+      # OAuth Providers
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      # Cloudflare Tunnel (optional)
       - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
-      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-}
-      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
-    env_file:
-      - .env
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     volumes:
-      # Persistent state storage
-      - coding-agent-state:/data/state
-      # Mount local workspace for file operations
-      - ${HOST_FILE_ROOT:-/var/www/html/systemprompt-os}:/workspace:rw
-      # Docker socket for container management (optional)
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Persistent data storage
+      - systemprompt-data:/data
+      # Application logs
+      - systemprompt-logs:/app/logs
+      # Mount workspace for file operations (optional)
+      - ${WORKSPACE_PATH:-./workspace}:/workspace:rw
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 
 volumes:
-  coding-agent-state:
-    name: coding-agent-state
+  systemprompt-data:
+    driver: local
+  systemprompt-logs:
     driver: local

@@ -135,6 +135,11 @@ export class ModuleLoader {
       await this.loadLoggerModule(config);
     }
     
+    // Database must be loaded before auth
+    if (config.modules.database?.enabled !== false) {
+      await this.loadDatabaseModule(config);
+    }
+    
     if (config.modules.heartbeat?.enabled !== false) {
       await this.loadHeartbeatModule(config);
     }
@@ -205,6 +210,17 @@ export class ModuleLoader {
    * @private
    * @returns {Promise<void>} Resolves when the auth module is loaded
    */
+  private async loadDatabaseModule(config: ModulesConfig): Promise<void> {
+    try {
+      const { initializeDatabase } = await import('./core/database/index.js');
+      await initializeDatabase(config.modules.database?.config);
+      console.info('[ModuleLoader] Database module initialized');
+    } catch (error) {
+      console.error('[ModuleLoader] Failed to load database module:', error);
+      throw error; // Database is critical, don't continue if it fails
+    }
+  }
+  
   private async loadAuthModule(): Promise<void> {
     try {
       const { AuthModule } = await import('./core/auth/index.js');

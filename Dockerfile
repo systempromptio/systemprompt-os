@@ -15,11 +15,13 @@ RUN addgroup -S appgroup || true && \
 # Create necessary directories with proper permissions
 # Include custom code directories that will be mounted or linked
 RUN mkdir -p /app /data/state /data/projects \
+    /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports \
     /app/modules/custom \
     /app/server/mcp/custom \
     /app/custom-modules \
     /app/custom-mcp && \
-    chown -R appuser:appgroup /app /data
+    chown -R appuser:appgroup /app /data && \
+    chmod -R 775 /data/state
 
 WORKDIR /app
 
@@ -28,6 +30,9 @@ COPY package*.json ./
 
 # Install dependencies as root (for native modules)
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
+
+# Rebuild native modules for the container architecture
+RUN npm rebuild better-sqlite3
 
 # Copy application files
 COPY . .
@@ -39,9 +44,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Build the application
 RUN npm run build:main
 
-# Copy provider configurations to build directory
-RUN mkdir -p /app/build/modules/core/auth/providers && \
-    cp -r /app/src/modules/core/auth/providers/* /app/build/modules/core/auth/providers/
+# Copy non-TypeScript resource files to build directory for runtime access
+RUN find /app/src/modules -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.json" \) -exec bash -c 'mkdir -p "/app/build/modules/$(dirname "${1#/app/src/modules/}")" && cp "$1" "/app/build/modules/${1#/app/src/modules/}"' _ {} \;
 
 # Make the CLI globally available by creating a symlink in /usr/local/bin
 RUN chmod +x /app/bin/systemprompt && \

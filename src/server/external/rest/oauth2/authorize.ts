@@ -10,6 +10,8 @@ import { OAuth2Error } from './errors.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import { logger } from '@/utils/logger.js';
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+import { getDatabase } from '@/modules/core/database/index.js';
+import { AuthRepository } from '@/modules/core/auth/database/repository.js';
 
 // Schema for authorization request
 const AuthorizeRequestSchema = z.object({
@@ -31,6 +33,7 @@ const authorizationCodes = new Map<string, {
   redirectUri: string;
   scope: string;
   userId?: string;
+  userEmail?: string;
   provider?: string;
   providerTokens?: any;
   codeChallenge?: string;
@@ -273,7 +276,13 @@ export class AuthorizeEndpoint {
       }
 
       // Decode the state to get original request parameters
-      const stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
+      let stateData: any;
+      try {
+        stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
+      } catch (error) {
+        logger.error('Failed to decode state parameter', { state, error });
+        throw new Error('Invalid state parameter');
+      }
       
       // Get the auth module and provider
       const authModule = getAuthModule();
@@ -301,6 +310,25 @@ export class AuthorizeEndpoint {
         email: userInfo.email 
       });
 
+      // Create or update user in database
+      const db = getDatabase();
+      const authRepo = new AuthRepository(db);
+      const user = await authRepo.upsertUserFromOAuth(
+        providerName,
+        userInfo.id,
+        {
+          email: userInfo.email || '',
+          name: userInfo.name,
+          avatar: userInfo.picture || (userInfo.raw?.avatar_url as string)
+        }
+      );
+
+      logger.info('User upserted in database', {
+        userId: user.id,
+        email: user.email,
+        isNew: user.createdAt === user.updatedAt
+      });
+
       // Generate our authorization code
       const authCode = randomBytes(32).toString('base64url');
       
@@ -309,12 +337,13 @@ export class AuthorizeEndpoint {
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,
         scope: stateData.scope,
-        userId: userInfo.id,
+        userId: user.id, // Use database user ID
         provider: providerName,
         providerTokens: providerTokens,
         codeChallenge: stateData.codeChallenge,
         codeChallengeMethod: stateData.codeChallengeMethod,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        userEmail: user.email, // Store email for token generation
       });
 
       // Clean up expired codes

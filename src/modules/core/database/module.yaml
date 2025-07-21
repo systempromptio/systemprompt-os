@@ -1,0 +1,116 @@
+name: database
+version: 1.0.0
+description: Core database module for SystemPrompt OS
+author: SystemPrompt Team
+type: core
+enabled: true
+
+dependencies: []
+
+configuration:
+  # Database type: sqlite | postgres
+  type: ${DATABASE_TYPE:-sqlite}
+  
+  # SQLite configuration
+  sqlite:
+    filename: ${DATABASE_FILE:-/data/state/systemprompt.db}
+    mode: ${SQLITE_MODE:-wal}  # wal | journal
+    
+  # PostgreSQL configuration (for future use)
+  postgres:
+    host: ${POSTGRES_HOST:-localhost}
+    port: ${POSTGRES_PORT:-5432}
+    database: ${POSTGRES_DB:-systemprompt}
+    user: ${POSTGRES_USER:-systemprompt}
+    password: ${POSTGRES_PASSWORD}
+    ssl: ${POSTGRES_SSL:-false}
+    
+  # Connection pool settings
+  pool:
+    min: ${DB_POOL_MIN:-1}
+    max: ${DB_POOL_MAX:-10}
+    idle_timeout: ${DB_IDLE_TIMEOUT:-30000}
+    
+  # Migration settings
+  migrations:
+    auto_run: ${DB_AUTO_MIGRATE:-true}
+    directory: database/migrations
+    
+  # Schema discovery
+  schema:
+    scan_pattern: "*/database/schema.sql"
+    init_pattern: "*/database/init.sql"
+
+exports:
+  services:
+    - DatabaseService
+    - MigrationService
+    - SchemaService
+  
+  adapters:
+    - DatabaseAdapter
+    
+  types:
+    - DatabaseConnection
+    - QueryBuilder
+    - Transaction
+
+cli:
+  commands:
+    - name: status
+      description: Show database connection status and information
+    - name: migrate
+      description: Run pending database migrations
+      options:
+        - name: dry-run
+          type: boolean
+          description: Preview migrations without running them
+        - name: module
+          type: string
+          description: Run migrations for a specific module only
+    - name: rollback
+      description: Rollback database migrations
+      options:
+        - name: steps
+          type: number
+          description: Number of migrations to rollback
+          default: 1
+        - name: module
+          type: string
+          description: Rollback migrations for a specific module only
+        - name: force
+          type: boolean
+          description: Force rollback without confirmation
+    - name: schema
+      description: Manage database schemas
+      options:
+        - name: action
+          type: string
+          description: Action to perform (list, init, validate)
+          required: true
+        - name: module
+          type: string
+          description: Module name (for init action)
+        - name: force
+          type: boolean
+          description: Force initialization even if already initialized
+    - name: query
+      description: Execute SQL queries safely (admin only)
+      options:
+        - name: sql
+          type: string
+          description: SQL query to execute
+        - name: file
+          type: string
+          description: File containing SQL queries
+        - name: format
+          type: string
+          description: Output format (table, json, csv)
+          default: table
+        - name: interactive
+          type: boolean
+          description: Start interactive SQL shell
+        - name: readonly
+          type: boolean
+          description: Allow only SELECT queries (safe mode)
+          default: true

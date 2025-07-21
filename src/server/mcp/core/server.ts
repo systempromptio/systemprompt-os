@@ -20,6 +20,7 @@ import {
   type ListResourcesRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../../external/middleware/auth.js';
 import { logger } from '@/utils/logger.js';
 import { handleListTools, handleToolCall } from './handlers/tool-handlers.js';
 import { handleListPrompts, handleGetPrompt } from './handlers/prompt-handlers.js';
@@ -114,9 +115,10 @@ export class CoreMCPServer {
    * Creates a new MCP server instance with configured handlers
    * 
    * @param sessionId - Unique session identifier
+   * @param userId - Authenticated user ID
    * @returns Configured server instance
    */
-  private createServer(sessionId: string): Server {
+  private createServer(sessionId: string, userId?: string): Server {
     const server = new Server(
       {
         name: this.name,
@@ -131,13 +133,13 @@ export class CoreMCPServer {
       }
     );
     
-    const context: MCPToolContext = { sessionId };
+    const context: MCPToolContext = { sessionId, userId };
     
     this.setupToolHandlers(server, context);
     this.setupResourceHandlers(server, context);
     this.setupPromptHandlers(server, context);
     
-    logger.debug('Server instance created', { sessionId });
+    logger.debug('Server instance created', { sessionId, userId });
     
     return server;
   }
@@ -333,8 +335,10 @@ export class CoreMCPServer {
    * @param res - Express response object
    */
   private async handleNewSession(req: Request, res: Response): Promise<void> {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.sub;
     const sessionId = this.generateSessionId();
-    const server = this.createServer(sessionId);
+    const server = this.createServer(sessionId, userId);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
     });
@@ -357,6 +361,7 @@ export class CoreMCPServer {
     
     logger.info('New session created', {
       sessionId,
+      userId,
       totalSessions: this.sessions.size,
     });
   }

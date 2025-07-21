@@ -17,6 +17,33 @@ vi.mock('../../../../../../src/server/config', () => ({
   }
 }));
 
+// Mock JWT functions
+vi.mock('../../../../../../src/server/external/auth/jwt.js', () => ({
+  jwtSign: vi.fn((payload) => {
+    // Return a base64url encoded token for tests
+    const tokenData = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    return tokenData;
+  }),
+  jwtVerify: vi.fn((token) => {
+    try {
+      return JSON.parse(Buffer.from(token, 'base64url').toString());
+    } catch {
+      throw new Error('Invalid token');
+    }
+  })
+}));
+
+// Mock auth module
+vi.mock('../../../../../../src/modules/core/auth/singleton.js', () => ({
+  getAuthModule: vi.fn(() => ({
+    getProviderRegistry: vi.fn(() => ({
+      getProvider: vi.fn(() => ({
+        getUserInfo: vi.fn(() => ({ sub: 'user123' }))
+      }))
+    }))
+  }))
+}));
+
 describe('OAuth2 Token Endpoint - Optimized', () => {
   let tokenEndpoint: TokenEndpoint;
   let authorizeEndpoint: AuthorizeEndpoint;

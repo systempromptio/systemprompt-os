@@ -4,7 +4,7 @@
  * Main CLI entry point for systemprompt-os
  */
 
-import('../build/tools/cli/src/index.js').catch(err => {
+import('../build/cli/src/index.js').catch(err => {
   console.error('Failed to start systemprompt:', err);
   process.exit(1);
 });

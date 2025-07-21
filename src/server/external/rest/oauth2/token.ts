@@ -132,7 +132,19 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
     
-    if (params.client_id && codeData.clientId !== params.client_id) {
+    // Special handling for setup flow
+    if (codeData.clientId === 'setup-client') {
+      // Allow setup-client without validation during initial setup
+      const db = await import('@/modules/core/database/index.js').then(m => m.getDatabase());
+      const userCount = await db.query<{ count: number }>(
+        'SELECT COUNT(*) as count FROM auth_users'
+      ).then(result => result[0]?.count || 0);
+      
+      if (userCount > 0) {
+        const error = OAuth2Error.invalidGrant('Setup already completed');
+        return res.status(error.code).json(error.toJSON());
+      }
+    } else if (params.client_id && codeData.clientId !== params.client_id) {
       const error = OAuth2Error.invalidGrant('Invalid client');
       return res.status(error.code).json(error.toJSON());
     }

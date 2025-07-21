@@ -265,6 +265,39 @@ const defaultGenerationConfig = {
 };
 ```
 
+## Database Integration
+
+This module uses the core database module's auto-discovery system. Database schemas are automatically discovered and initialized from:
+
+- `/database/schema.sql` - Table definitions
+- `/database/init.sql` - Initial configuration data
+- `/database/models/` - TypeScript type definitions
+
+### Database Tables
+
+#### config_settings
+Stores key-value configuration pairs with type information and encryption support.
+
+#### config_providers
+Manages external service provider configurations with priority-based loading.
+
+### Usage Example
+
+```typescript
+import { configDb } from '@modules/core/config/database';
+
+// Get a configuration value
+const apiPort = await configDb.getValue('api.port');
+
+// Set a configuration value
+await configDb.setValue('api.host', '0.0.0.0');
+
+// Query providers
+const enabledProviders = await configDb.queryProviders({ 
+  enabled: true 
+});
+```
+
 ## Module Structure
 
 ```
@@ -278,11 +311,17 @@ config/
 │   ├── list.ts
 │   ├── validate.ts
 │   └── agent.ts        # Agent management commands
+├── database/            # Database schema (auto-discovered)
+│   ├── schema.sql      # Table definitions
+│   ├── init.sql        # Initial data
+│   └── models/         # TypeScript models
+│       └── index.ts
 ├── types/              # TypeScript definitions
 │   ├── config.ts       # Configuration interfaces
 │   ├── agent.ts        # Agent-specific types
 │   └── validation.ts   # Validation schemas
 ├── services/           # Core services
+│   ├── config-database.service.ts # Database operations
 │   ├── validator.ts    # Configuration validation
 │   ├── resolver.ts     # Environment variable resolution
 │   └── template.ts     # Template management

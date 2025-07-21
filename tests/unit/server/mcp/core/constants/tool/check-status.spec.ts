@@ -9,7 +9,7 @@ import checkStatus from '../../../../../../../src/server/mcp/core/constants/tool
 describe('check-status tool definition', () => {
   it('has correct name and description', () => {
     expect(checkStatus.name).toBe('checkstatus');
-    expect(checkStatus.description).toBe('Check system status');
+    expect(checkStatus.description).toBe('Get comprehensive system status (admin only)');
   });
   
   it('has correct input schema', () => {
@@ -17,25 +17,29 @@ describe('check-status tool definition', () => {
     expect(checkStatus.inputSchema.type).toBe('object');
   });
   
-  it('defines testsessions property', () => {
-    expect(checkStatus.inputSchema.properties).toHaveProperty('testsessions');
-    expect(checkStatus.inputSchema.properties.testsessions).toEqual({
-      type: 'boolean'
+  it('defines includeContainers property', () => {
+    expect(checkStatus.inputSchema.properties).toHaveProperty('includeContainers');
+    expect(checkStatus.inputSchema.properties.includeContainers).toEqual({
+      type: 'boolean',
+      description: 'Include container status information'
     });
   });
   
-  it('defines verbose property', () => {
-    expect(checkStatus.inputSchema.properties).toHaveProperty('verbose');
-    expect(checkStatus.inputSchema.properties.verbose).toEqual({
-      type: 'boolean'
+  it('defines includeUsers property', () => {
+    expect(checkStatus.inputSchema.properties).toHaveProperty('includeUsers');
+    expect(checkStatus.inputSchema.properties.includeUsers).toEqual({
+      type: 'boolean',
+      description: 'Include active user information'
     });
   });
   
-  it('has exactly two properties', () => {
-    expect(Object.keys(checkStatus.inputSchema.properties)).toHaveLength(2);
+  it('has exactly five properties', () => {
+    expect(Object.keys(checkStatus.inputSchema.properties)).toHaveLength(5);
   });
   
-  it('exports the tool definition as default', () => {
-    expect(checkStatus).toBe(checkStatus);
+  it('has admin metadata', () => {
+    expect(checkStatus._meta).toBeDefined();
+    expect(checkStatus._meta?.requiredRole).toBe('admin');
+    expect(checkStatus._meta?.requiredPermissions).toEqual(['system:read', 'admin:status']);
   });
 });

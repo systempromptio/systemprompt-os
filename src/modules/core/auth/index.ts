@@ -48,9 +48,9 @@ export class AuthModule implements ModuleInterface {
     }
     
     // Initialize provider registry
-    // In production/Docker, providers are in the source directory
+    // In production/Docker, providers are in the build directory
     const providersPath = process.env.NODE_ENV === 'production' 
-      ? '/app/src/modules/core/auth'  // Docker container path
+      ? '/app/build/modules/core/auth'  // Docker container build path
       : resolve(__dirname);
     this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
     

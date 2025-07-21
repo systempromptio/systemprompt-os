@@ -31,7 +31,8 @@ describe('MCP Tool API E2E Tests', () => {
     it('should show different tools based on user role', async () => {
       // Test admin user flow
       const adminContext: MCPToolContext = {
-        sessionId: 'admin-session-e2e-test'
+        sessionId: 'admin-session-e2e-test',
+        userId: '113783121475955670750' // Admin user ID
       };
       
       const adminTools = await handleListTools({}, adminContext);
@@ -40,7 +41,8 @@ describe('MCP Tool API E2E Tests', () => {
 
       // Test basic user flow
       const basicContext: MCPToolContext = {
-        sessionId: 'basic-user-e2e-test'
+        sessionId: 'basic-user-e2e-test',
+        userId: 'basic-user-123'
       };
       
       const basicTools = await handleListTools({}, basicContext);
@@ -67,7 +69,8 @@ describe('MCP Tool API E2E Tests', () => {
 
       // Admin should succeed
       const adminContext: MCPToolContext = {
-        sessionId: 'admin-e2e-test-123'
+        sessionId: 'admin-e2e-test-123',
+        userId: '113783121475955670750' // Admin user ID
       };
       
       const adminResult = await handleToolCall(toolRequest, adminContext);
@@ -102,7 +105,8 @@ describe('MCP Tool API E2E Tests', () => {
       };
 
       const context: MCPToolContext = {
-        sessionId: 'admin-error-test'
+        sessionId: 'admin-error-test',
+        userId: '113783121475955670750' // Admin user ID
       };
 
       await expect(handleToolCall(invalidToolRequest, context)).rejects.toThrow(
@@ -129,7 +133,8 @@ describe('MCP Tool API E2E Tests', () => {
       
       // Test successful execution
       const adminContext: MCPToolContext = {
-        sessionId: 'admin-audit-test'
+        sessionId: 'admin-audit-test',
+        userId: '113783121475955670750' // Admin user ID
       };
       
       await handleToolCall({
@@ -148,19 +153,23 @@ describe('MCP Tool API E2E Tests', () => {
         })
       );
 
-      expect(logger.info).toHaveBeenCalledWith(
+      // Check the second call which should be 'Tool execution started'
+      expect(logger.info).toHaveBeenNthCalledWith(
+        2,
         'Tool execution started',
         expect.objectContaining({
-          userId: 'user-123',
+          userId: '113783121475955670750',
           role: 'admin',
           toolName: 'checkstatus'
         })
       );
 
-      expect(logger.info).toHaveBeenCalledWith(
+      // Check the 5th call which should be 'Tool execution completed'
+      expect(logger.info).toHaveBeenNthCalledWith(
+        5,
         'Tool execution completed',
         expect.objectContaining({
-          userId: 'user-123',
+          userId: '113783121475955670750',
           toolName: 'checkstatus',
           executionTime: expect.any(Number)
         })
@@ -187,7 +196,7 @@ describe('MCP Tool API E2E Tests', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         'Tool access denied',
         expect.objectContaining({
-          userId: 'user-123',
+          userId: 'anonymous',
           role: 'basic',
           toolName: 'checkstatus',
           requiredRole: 'admin'
@@ -199,7 +208,8 @@ describe('MCP Tool API E2E Tests', () => {
   describe('Performance', () => {
     it('should handle concurrent requests efficiently', async () => {
       const contexts = Array(10).fill(null).map((_, i) => ({
-        sessionId: i % 2 === 0 ? `admin-perf-${i}` : `basic-perf-${i}`
+        sessionId: i % 2 === 0 ? `admin-perf-${i}` : `basic-perf-${i}`,
+        userId: i % 2 === 0 ? '113783121475955670750' : `basic-user-${i}`
       }));
 
       const startTime = Date.now();
@@ -259,13 +269,13 @@ describe('MCP Tool API E2E Tests', () => {
         },
         {
           name: 'Invalid tool',
-          context: { sessionId: 'admin-test' },
+          context: { sessionId: 'admin-test', userId: '113783121475955670750' },
           request: { params: { name: 'invalid', arguments: {} } },
           expectedError: 'Unknown tool'
         },
         {
           name: 'Invalid arguments',
-          context: { sessionId: 'admin-test' },
+          context: { sessionId: 'admin-test', userId: '113783121475955670750' },
           request: { params: { name: 'checkstatus', arguments: 'not-an-object' } },
           expectedError: 'Expected object'
         }

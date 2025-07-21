@@ -6,25 +6,18 @@
  */
 
 import { AuthModule } from './index.js';
-
-let authModuleInstance: AuthModule | null = null;
+import { getModuleLoader } from '../../../modules/loader.js';
 
 /**
- * Get or create the auth module singleton instance
+ * Get the auth module singleton instance from the module loader
  */
 export function getAuthModule(): AuthModule {
-  if (!authModuleInstance) {
-    authModuleInstance = new AuthModule();
+  const moduleLoader = getModuleLoader();
+  const authModule = moduleLoader.getModule('auth');
+  
+  if (!authModule) {
+    throw new Error('Auth module not loaded');
   }
-  return authModuleInstance;
-}
-
-/**
- * Initialize the auth module singleton with context
- */
-export async function initializeAuthModule(context: { config?: any; logger?: any }): Promise<AuthModule> {
-  const module = getAuthModule();
-  await module.initialize(context);
-  await module.start();
-  return module;
+  
+  return authModule as unknown as AuthModule;
 }

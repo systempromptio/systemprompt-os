@@ -254,7 +254,7 @@ describe('GitHubProvider', () => {
       const userInfo = await provider.getUserInfo('test-token');
       
       expect(userInfo.email).toBeNull();
-      expect(userInfo.emailverified).toBe(true); // Default value
+      expect(userInfo.email_verified).toBe(true); // Default value
       expect(userInfo.name).toBe('user5'); // Uses login as name
     });
   });

@@ -72,7 +72,7 @@ describe('MCPServer', () => {
       (server as any).sessions.set('new-session', newSession);
 
       // Act
-      (server as any).cleanupOldSessions();
+      (server as any).cleanupExpiredSessions();
 
       // Assert
       expect((server as any).sessions.has('old-session')).toBe(false);

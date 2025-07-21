@@ -139,4 +139,29 @@ export class RegisterEndpoint {
     // Validate secret
     return client.client_secret === clientSecret;
   }
+
+  /**
+   * Register a client programmatically (for internal use)
+   */
+  static registerClient(registration: ClientRegistrationRequest & { client_id?: string }): ClientRegistrationResponse {
+    const clientId = registration.client_id || `mcp-${uuidv4()}`;
+    const clientSecret = registration.token_endpoint_auth_method === 'none' ? undefined : uuidv4();
+    const issuedAt = Math.floor(Date.now() / 1000);
+
+    const response: ClientRegistrationResponse = {
+      client_id: clientId,
+      ...(clientSecret && { client_secret: clientSecret }),
+      client_id_issued_at: issuedAt,
+      client_secret_expires_at: 0,
+      client_name: registration.client_name || 'OAuth Client',
+      redirect_uris: registration.redirect_uris || [],
+      token_endpoint_auth_method: registration.token_endpoint_auth_method || 'client_secret_basic',
+      grant_types: registration.grant_types || ['authorization_code'],
+      response_types: registration.response_types || ['code'],
+      scope: registration.scope || 'openid profile email',
+    };
+
+    registeredClients.set(clientId, response);
+    return response;
+  }
 }

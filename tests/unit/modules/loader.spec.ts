@@ -75,6 +75,14 @@ vi.mock('../../../src/modules/core/heartbeat/index', () => ({
   }))
 }));
 
+vi.mock('../../../src/modules/core/database/index', () => ({
+  initializeDatabase: vi.fn().mockResolvedValue(undefined),
+  shutdownDatabase: vi.fn().mockResolvedValue(undefined),
+  getDatabase: vi.fn(),
+  getSchemaService: vi.fn(),
+  getMigrationService: vi.fn()
+}));
+
 describe('ModuleLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();

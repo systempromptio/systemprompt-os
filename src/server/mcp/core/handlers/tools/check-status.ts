@@ -8,6 +8,7 @@ import { formatToolResponse } from "./types.js";
 import { logger } from "@/utils/logger.js";
 import { execSync } from "node:child_process";
 import * as os from "os";
+import { getDatabase } from "@/modules/core/database/index.js";
 
 /**
  * Check status arguments
@@ -74,8 +75,11 @@ interface SystemStatus {
   users?: Array<{
     id: string;
     email: string;
-    role: string;
+    name: string;
+    roles: string[];
     lastLogin: string;
+    isActive: boolean;
+    createdAt: string;
     activeContainers: number;
   }>;
   tunnels?: Array<{
@@ -277,16 +281,41 @@ async function getContainerStatus() {
 }
 
 async function getUserStatus() {
-  // In real implementation, query database for user info
-  return [
-    {
-      id: "user-123",
-      email: "john@example.com",
-      role: "admin",
-      lastLogin: new Date().toISOString(),
-      activeContainers: 1
-    }
-  ];
+  try {
+    const db = getDatabase();
+    
+    // Query all users from the database
+    const users = await db.query<any>(`
+      SELECT 
+        u.id,
+        u.email,
+        u.name,
+        u.last_login_at,
+        u.is_active,
+        u.created_at,
+        GROUP_CONCAT(r.name) as roles
+      FROM auth_users u
+      LEFT JOIN auth_user_roles ur ON u.id = ur.user_id
+      LEFT JOIN auth_roles r ON ur.role_id = r.id
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+    `);
+
+    // Format the user data
+    return users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: user.name || 'N/A',
+      roles: user.roles ? user.roles.split(',') : [],
+      lastLogin: user.last_login_at || 'Never',
+      isActive: Boolean(user.is_active),
+      createdAt: user.created_at,
+      activeContainers: 0 // TODO: Implement container counting when container module is added
+    }));
+  } catch (error) {
+    logger.error("Failed to get user status from database", { error });
+    return [];
+  }
 }
 
 async function getTunnelStatus() {

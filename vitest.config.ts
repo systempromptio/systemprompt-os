@@ -32,6 +32,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@server': path.resolve(__dirname, './src/server'),
+      '@modules': path.resolve(__dirname, './src/modules'),
+      '@tools': path.resolve(__dirname, './src/tools'),
+      '@services': path.resolve(__dirname, './src/services'),
+      '@types': path.resolve(__dirname, './src/types'),
+      '@utils': path.resolve(__dirname, './src/utils'),
       '@test-helpers': path.resolve(__dirname, './tests/helpers'),
       '@test-fixtures': path.resolve(__dirname, './tests/fixtures'),
       '@test-mocks': path.resolve(__dirname, './tests/mocks')
