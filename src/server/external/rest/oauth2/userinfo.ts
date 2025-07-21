@@ -5,6 +5,8 @@
 
 import { Request, Response } from 'express';
 import { OAuth2Error } from './errors.js';
+import { getDatabase } from '@/modules/core/database/index.js';
+import { AuthRepository } from '@/modules/core/auth/database/repository.js';
 
 export interface UserInfo {
   sub: string;
@@ -17,41 +19,43 @@ export interface UserInfo {
   picture?: string;
 }
 
-// Extended request type to include user from auth middleware
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    sub: string;
-    clientid: string;
-    scope: string;
-  };
-}
-
 export class UserInfoEndpoint {
   /**
    * GET /oauth2/userinfo
    * Returns information about the authenticated user
    */
-  getUserInfo = async ( req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getUserInfo = async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
       const error = OAuth2Error.unauthorizedClient('Unauthorized');
       res.status(error.code).json(error.toJSON());
       return;
     }
     
-    // TODO: Fetch actual user data from database
-    // For now, return mock data based on the authenticated user
+    // Fetch actual user data from database
+    const db = getDatabase();
+    const authRepo = new AuthRepository(db);
+    const user = await authRepo.getUserById(req.user.id);
+    
+    if (!user) {
+      const error = OAuth2Error.invalidRequest('User not found');
+      res.status(error.code).json(error.toJSON());
+      return;
+    }
+    
+    // Build userInfo response
     const userInfo: UserInfo = {
-      sub: req.user.sub,
-      name: `User ${req.user.sub}`,
-      preferred_username: `user_${req.user.sub}`,
-      email: `${req.user.sub}@systemprompt.local`,
-      email_verified: true,
-      agent_id: `agent-${req.user.sub}`,
+      sub: user.id,
+      name: user.name || undefined,
+      preferred_username: user.email.split('@')[0],
+      email: user.email,
+      email_verified: true, // OAuth users are verified by provider
+      agent_id: `agent-${user.id}`,
       agent_type: 'autonomous',
+      picture: user.avatarUrl || undefined,
     };
     
     // Filter response based on requested scopes
-    const scopes = req.user.scope.split(' ');
+    const scopes = req.user.scope?.split(' ') || [];
     const response: Partial<UserInfo> = { sub: userInfo.sub };
     
     if (scopes.includes('profile')) {
@@ -71,6 +75,6 @@ export class UserInfoEndpoint {
       response.agent_type = userInfo.agent_type;
     }
     
-    res.json( response);
+    res.json(response);
   };
 }

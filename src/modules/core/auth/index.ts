@@ -131,7 +131,7 @@ export class AuthModule implements ModuleInterface {
       ];
       
       for (const role of defaultRoles) {
-        await db.query(
+        await db.execute(
           `INSERT OR IGNORE INTO auth_roles (id, name, description, is_system) 
            VALUES (?, ?, ?, ?)`,
           [role.id, role.name, role.description, role.is_system]

@@ -8,12 +8,12 @@ import { Request, Response } from 'express';
 import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { CONFIG } from '../../../config.js';
-import { AuthorizeEndpoint } from './authorize.js';
 import { getAuthModule } from '../../../../modules/core/auth/singleton.js';
 import { OAuth2Error } from './errors.js';
 import { jwtSign, jwtVerify } from '../../auth/jwt.js';
 import { getDatabase } from '../../../../modules/core/database/index.js';
 import { AuthRepository } from '../../../../modules/core/auth/database/repository.js';
+import { AuthCodeService } from '../../../../modules/core/auth/services/auth-code-service.js';
 import { logger } from '../../../../utils/logger.js';
 
 /**
@@ -81,6 +81,17 @@ const refreshTokens = new Map<string, RefreshTokenData>();
  */
 const userSessions = new Map<string, UserSessionData>();
 
+// Get auth code service instance
+let authCodeService: AuthCodeService;
+
+function getAuthCodeService(): AuthCodeService {
+  if (!authCodeService) {
+    const db = getDatabase();
+    authCodeService = new AuthCodeService(db);
+  }
+  return authCodeService;
+}
+
 /**
  * OAuth2 Token Endpoint implementation
  * Handles authorization code and refresh token grants
@@ -138,7 +149,8 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
     
-    const codeData = AuthorizeEndpoint.getAuthorizationCode(params.code);
+    const authCodeService = getAuthCodeService();
+    const codeData = await authCodeService.getAuthorizationCode(params.code);
     logger.info('[TOKEN] Authorization code lookup result', { found: !!codeData });
     
     if (!codeData) {
@@ -148,7 +160,7 @@ export class TokenEndpoint {
     }
     
     if (codeData.expiresAt < new Date()) {
-      AuthorizeEndpoint.deleteAuthorizationCode(params.code);
+      await authCodeService.deleteAuthorizationCode(params.code);
       const error = OAuth2Error.invalidGrant('Authorization code expired');
       return res.status(error.code).json(error.toJSON());
     }
@@ -179,14 +191,17 @@ export class TokenEndpoint {
       }
     }
     
-    AuthorizeEndpoint.deleteAuthorizationCode(params.code);
+    await authCodeService.deleteAuthorizationCode(params.code);
     
-    if (codeData.provider && codeData.providerTokens?.code) {
+    if (codeData.provider && codeData.providerTokens && typeof codeData.providerTokens === 'object') {
       try {
         const provider = getAuthModule().getProvider(codeData.provider);
-        if (provider) {
-          const providerTokens = await provider.exchangeCodeForTokens(codeData.providerTokens.code);
-          codeData.providerTokens = providerTokens;
+        if (provider && 'code' in codeData.providerTokens) {
+          const code = codeData.providerTokens.code as string;
+          if (code) {
+            const providerTokens = await provider.exchangeCodeForTokens(code);
+            codeData.providerTokens = providerTokens;
+          }
         }
       } catch (error) {
         logger.error('Provider token exchange failed', { error });
@@ -271,6 +286,7 @@ export class TokenEndpoint {
     
     // Fetch user data from database
     let userData: any = null;
+    let userRoles: string[] = [];
     try {
       const db = getDatabase();
       const authRepo = new AuthRepository(db);
@@ -280,8 +296,13 @@ export class TokenEndpoint {
           id: user.id,
           email: user.email,
           name: user.name,
-          avatar: user.avatarUrl
+          avatar: user.avatarUrl,
+          roles: []  // Will be populated below
         };
+        // Get user roles
+        const roles = await authRepo.getUserRoles(userId);
+        userRoles = roles.map(r => r.name);
+        userData.roles = userRoles;
       }
     } catch (error) {
       logger.error('[TOKEN] Failed to fetch user data', { error });
@@ -307,7 +328,10 @@ export class TokenEndpoint {
       exp: now + 3600,
       jti: randomBytes(16).toString('hex'),
       // Include user data in the token
-      user: userData
+      user: userData,
+      // Include roles at top level for backward compatibility
+      roles: userRoles,
+      email: userData?.email
     };
     
     const accessToken = await jwtSign(accessTokenPayload, {

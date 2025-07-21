@@ -115,7 +115,10 @@ export class ModuleLoader {
     const config = this.loadConfig();
     
     await this.loadCoreModules(config);
-    await this.registry.initializeAll({});
+    
+    // Import logger for initialization context
+    const { getLogger } = await import('../utils/logger.js');
+    await this.registry.initializeAll({ logger: getLogger() });
     
     // Set the module registry in the logger utility after modules are loaded
     const { setModuleRegistry } = await import('../utils/logger.js');

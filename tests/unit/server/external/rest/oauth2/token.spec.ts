@@ -9,6 +9,7 @@ import { TokenEndpoint } from '../../../../../../src/server/external/rest/oauth2
 import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize';
 import { createHash } from 'crypto';
 
+
 // Mock CONFIG
 vi.mock('../../../../../../src/server/config', () => ({
   CONFIG: {
@@ -44,33 +45,116 @@ vi.mock('../../../../../../src/modules/core/auth/singleton.js', () => ({
   }))
 }));
 
+// Mock database
+vi.mock('../../../../../../src/modules/core/database/index.js', () => ({
+  getDatabase: vi.fn(() => ({}))
+}));
+
+// Create mock auth repository instance
+const mockAuthRepository = {
+  validateClient: vi.fn(() => true),
+  getAuthorizationCode: vi.fn((code) => {
+    if (code === 'invalid-code') return null;
+    return {
+      clientId: 'test-client',
+      redirectUri: 'http://localhost:3000/callback',
+      scope: 'read write',
+      userId: 'user123',
+      userEmail: 'user@example.com',
+      codeChallenge: null,
+      codeChallengeMethod: null,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    };
+  }),
+  deleteAuthorizationCode: vi.fn(),
+  createUser: vi.fn(),
+  updateUser: vi.fn(),
+  findUserByProviderSub: vi.fn(() => ({ id: 'user123' })),
+  saveRefreshToken: vi.fn(),
+  getRefreshToken: vi.fn(),
+  deleteRefreshToken: vi.fn(),
+  getUserById: vi.fn((userId) => ({
+    id: userId,
+    email: 'user@example.com',
+    name: 'Test User',
+    avatarUrl: 'https://example.com/avatar.png'
+  }))
+};
+
+// Mock auth repository
+vi.mock('../../../../../../src/modules/core/auth/database/repository.js', () => ({
+  AuthRepository: vi.fn().mockImplementation(() => mockAuthRepository)
+}));
+
+// Mock logger
+vi.mock('../../../../../../src/utils/logger.js', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
+// Mock auth code service
+const mockAuthCodeService = {
+  createAuthorizationCode: vi.fn(() => 'mock-auth-code'),
+  cleanupExpiredCodes: vi.fn(),
+  getAuthorizationCode: vi.fn((code) => {
+    if (code === 'invalid-code') return null;
+    if (code.startsWith('test-auth-code-')) {
+      return {
+        clientId: 'test-client',
+        redirectUri: 'http://localhost:3000/callback',
+        scope: 'read write',
+        userId: 'user123',
+        userEmail: 'user@example.com',
+        codeChallenge: null,
+        codeChallengeMethod: null,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      };
+    }
+    return null;
+  }),
+  deleteAuthorizationCode: vi.fn()
+};
+
+vi.mock('../../../../../../src/modules/core/auth/services/auth-code-service.js', () => ({
+  AuthCodeService: vi.fn(() => mockAuthCodeService)
+}));
+
 describe('OAuth2 Token Endpoint - Optimized', () => {
   let tokenEndpoint: TokenEndpoint;
-  let authorizeEndpoint: AuthorizeEndpoint;
 
   beforeEach(() => {
     vi.clearAllMocks();
     tokenEndpoint = new TokenEndpoint();
-    authorizeEndpoint = new AuthorizeEndpoint();
   });
 
   // Helper to create authorization code
   async function createAuthCode(params = {}) {
-    const authReq = {
-      body: {
-        action: 'approve',
-        response_type: 'code',
-        client_id: 'test-client',
-        redirect_uri: 'http://localhost:3000/callback',
-        scope: 'read write',
-        ...params
-      }
-    };
-    const authRes = { redirect: vi.fn() };
+    // For testing, just generate a simple code
+    const code = 'test-auth-code-' + Math.random().toString(36).substring(7);
     
-    await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
-    const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
-    return redirectUrl.searchParams.get('code');
+    // Update the mock to return the proper auth code data when this code is used
+    mockAuthCodeService.getAuthorizationCode.mockImplementation((requestedCode) => {
+      if (requestedCode === code) {
+        return {
+          clientId: params.client_id || 'test-client',
+          redirectUri: params.redirect_uri || 'http://localhost:3000/callback',
+          scope: params.scope || 'read write',
+          userId: 'user123',
+          userEmail: 'user@example.com',
+          codeChallenge: params.code_challenge || null,
+          codeChallengeMethod: params.code_challenge_method || null,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        };
+      }
+      if (requestedCode === 'invalid-code') return null;
+      return null;
+    });
+    
+    return code;
   }
 
   // Authorization code grant tests
@@ -84,6 +168,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           client_id: 'test-client',
           client_secret: 'test-secret',
           redirect_uri: 'http://localhost:3000/callback'
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const mockRes = {
@@ -110,6 +197,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           client_id: 'test-client',
           client_secret: 'test-secret',
           redirect_uri: 'http://localhost:3000/callback'
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const mockRes = {
@@ -150,7 +240,12 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
         expectedError: 'invalid_request'
       }
     ])('returns error for $name', async ({ body, expectedError }) => {
-      const mockReq = { body };
+      const mockReq = { 
+        body,
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
+        }
+      };
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn()
@@ -205,6 +300,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           client_id: 'test-client',
           redirect_uri: 'http://localhost:3000/callback',
           ...(verifier !== undefined && { code_verifier: verifier })
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const mockRes = {
@@ -245,6 +343,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           client_id: 'test-client',
           client_secret: 'test-secret',
           redirect_uri: 'http://localhost:3000/callback'
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const tokenRes = {
@@ -270,6 +371,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           refresh_token: tokens.refresh_token,
           client_id: 'test-client',
           client_secret: 'test-secret'
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const refreshRes = {
@@ -299,6 +403,9 @@ describe('OAuth2 Token Endpoint - Optimized', () => {
           client_id: 'test-client',
           client_secret: 'test-secret',
           redirect_uri: 'http://localhost:3000/callback'
+        },
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded'
         }
       };
       const mockRes = {

@@ -79,6 +79,23 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE
 );
 
+-- Authorization codes table for OAuth flow
+CREATE TABLE IF NOT EXISTS auth_authorization_codes (
+  code TEXT PRIMARY KEY,
+  client_id TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  user_id TEXT,
+  user_email TEXT,
+  provider TEXT,
+  provider_tokens TEXT, -- JSON data
+  code_challenge TEXT,
+  code_challenge_method TEXT,
+  expires_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth_users(email);
 CREATE INDEX IF NOT EXISTS idx_auth_oauth_identities_user_id ON auth_oauth_identities(user_id);
@@ -89,3 +106,4 @@ CREATE INDEX IF NOT EXISTS idx_auth_role_permissions_role_id ON auth_role_permis
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_token_hash ON auth_sessions(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_authorization_codes_expires_at ON auth_authorization_codes(expires_at);

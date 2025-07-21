@@ -54,7 +54,10 @@ describe('Auth Middleware', () => {
         audience: 'test-audience'
       });
       expect((mockReq as any).user).toEqual({
+        id: mockPayload.sub,
         sub: mockPayload.sub,
+        email: '',
+        roles: [],
         clientid: mockPayload.clientid,
         scope: mockPayload.scope
       });
@@ -135,7 +138,10 @@ describe('Auth Middleware', () => {
         audience: 'test-audience'
       });
       expect((mockReq as any).user).toEqual({
+        id: mockPayload.sub,
         sub: mockPayload.sub,
+        email: '',
+        roles: [],
         clientid: mockPayload.clientid,  
         scope: mockPayload.scope
       });

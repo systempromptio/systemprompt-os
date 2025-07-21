@@ -4,7 +4,6 @@
  */
 
 import { Request, Response } from 'express';
-import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import { OAuth2Error } from './errors.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
@@ -12,6 +11,7 @@ import { logger } from '@/utils/logger.js';
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 import { getDatabase } from '@/modules/core/database/index.js';
 import { AuthRepository } from '@/modules/core/auth/database/repository.js';
+import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
 
 // Schema for authorization request
 const AuthorizeRequestSchema = z.object({
@@ -27,19 +27,16 @@ const AuthorizeRequestSchema = z.object({
   provider_code: z.string().optional(), // Code from IDP
 });
 
-// In-memory storage for authorization codes (should be Redis/DB in production)
-const authorizationCodes = new Map<string, {
-  clientId: string;
-  redirectUri: string;
-  scope: string;
-  userId?: string;
-  userEmail?: string;
-  provider?: string;
-  providerTokens?: any;
-  codeChallenge?: string;
-  codeChallengeMethod?: string;
-  expiresAt: Date;
-}>();
+// Get auth code service instance
+let authCodeService: AuthCodeService;
+
+function getAuthCodeService(): AuthCodeService {
+  if (!authCodeService) {
+    const db = getDatabase();
+    authCodeService = new AuthCodeService(db);
+  }
+  return authCodeService;
+}
 
 export class AuthorizeEndpoint {
   /**
@@ -163,7 +160,7 @@ export class AuthorizeEndpoint {
       `;
       
       res.type('html').send( html);
-    } catch ( error) {
+    } catch (error) {
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
@@ -187,21 +184,28 @@ export class AuthorizeEndpoint {
           error: 'access_denied',
           error_description: 'User denied the authorization request',
         });
-        if ( state) params.append('state', state);
+        if (state) params.append('state', state);
         
         return res.redirect(`${redirect_uri}?${params}`);
       }
       
       // User approved - generate authorization code
       const params = AuthorizeRequestSchema.parse(req.body);
-      const code = randomBytes(32).toString('base64url');
       
-      // Store authorization code (expires in 10 minutes)
-      authorizationCodes.set(code, {
+      // Get authenticated user from session/token
+      const user = req.user;
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Store authorization code in database
+      const authCodeService = getAuthCodeService();
+      const code = await authCodeService.createAuthorizationCode({
         clientId: params.client_id,
         redirectUri: params.redirect_uri,
         scope: params.scope,
-        userId: 'user-001', // TODO: Get from authenticated session
+        userId: user.sub || user.id,
+        userEmail: user.email,
         provider: params.provider,
         providerTokens: params.provider_code ? { code: params.provider_code } : undefined,
         codeChallenge: params.code_challenge,
@@ -210,14 +214,14 @@ export class AuthorizeEndpoint {
       });
       
       // Clean up expired codes
-      this.cleanupExpiredCodes();
+      await authCodeService.cleanupExpiredCodes();
       
       // Redirect back to client with authorization code
       const responseParams = new URLSearchParams({ code });
-      if ( state) responseParams.append('state', state);
+      if (params.state) responseParams.append('state', params.state);
       
       res.redirect(`${params.redirect_uri}?${responseParams}`);
-    } catch ( error) {
+    } catch (error) {
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
@@ -227,24 +231,6 @@ export class AuthorizeEndpoint {
       }
     }
   };
-  
-  private cleanupExpiredCodes(): void {
-    const now = new Date();
-    for (const [code, data] of authorizationCodes.entries()) {
-      if (data.expiresAt < now) {
-        authorizationCodes.delete( code);
-      }
-    }
-  }
-  
-  // Export for use in token endpoint
-  static getAuthorizationCode( code: string) {
-    return authorizationCodes.get( code);
-  }
-  
-  static deleteAuthorizationCode( code: string) {
-    authorizationCodes.delete( code);
-  }
 
   /**
    * Handle callback from OAuth provider
@@ -329,25 +315,23 @@ export class AuthorizeEndpoint {
         isNew: user.createdAt === user.updatedAt
       });
 
-      // Generate our authorization code
-      const authCode = randomBytes(32).toString('base64url');
-      
       // Store authorization code with user info
-      authorizationCodes.set(authCode, {
+      const authCodeService = getAuthCodeService();
+      const authCode = await authCodeService.createAuthorizationCode({
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,
         scope: stateData.scope,
-        userId: user.id, // Use database user ID
+        userId: user.id,
+        userEmail: user.email,
         provider: providerName,
         providerTokens: providerTokens,
         codeChallenge: stateData.codeChallenge,
         codeChallengeMethod: stateData.codeChallengeMethod,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        userEmail: user.email, // Store email for token generation
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       });
 
       // Clean up expired codes
-      this.cleanupExpiredCodes();
+      await authCodeService.cleanupExpiredCodes();
 
       // Redirect back to client with authorization code
       const responseParams = new URLSearchParams({ code: authCode });

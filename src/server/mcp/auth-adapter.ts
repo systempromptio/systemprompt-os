@@ -6,7 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { authMiddleware, AuthenticatedRequest } from '../external/middleware/auth.js';
+import { authMiddleware } from '../external/middleware/auth.js';
 import { CONFIG } from '../config.js';
 import { tunnelStatus } from '../../modules/core/auth/tunnel-status.js';
 
@@ -61,5 +61,5 @@ export function mcpAuthAdapter(
   };
 
   // Call the existing auth middleware
-  authMiddleware(req as AuthenticatedRequest, res, next);
+  authMiddleware(req, res, next);
 }

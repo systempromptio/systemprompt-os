@@ -25,6 +25,22 @@ export interface User {
   updated_at: string;
 }
 
+interface DatabaseUser {
+  id: string;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+  is_active: number;
+}
+
+interface DatabaseConnection {
+  query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+  execute(sql: string, params?: unknown[]): Promise<void>;
+}
+
 /**
  * Service for managing users with proper first-user detection and role assignment
  */
@@ -56,7 +72,7 @@ export class UserService {
     const hasAdmins = await this.hasAdminUsers();
     logger.info('Creating/updating user', { email, hasAdmins });
 
-    return this.db.transaction(async (conn) => {
+    return this.db.transaction<User>(async (conn: DatabaseConnection) => {
       // Check if OAuth identity exists
       const identityResult = await conn.query<{ user_id: string }>(
         `SELECT user_id FROM auth_oauth_identities 
@@ -74,7 +90,7 @@ export class UserService {
           `UPDATE auth_users 
            SET name = ?, avatar_url = ?, last_login_at = datetime('now'), updated_at = datetime('now')
            WHERE id = ?`,
-          [name, avatar, userId]
+          [name || null, avatar || null, userId]
         );
         logger.info('Updated existing user', { userId, email });
       } else {
@@ -84,7 +100,7 @@ export class UserService {
         await conn.execute(
           `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at) 
            VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, email, name, avatar]
+          [userId, email, name || null, avatar || null]
         );
 
         // Insert OAuth identity
@@ -112,7 +128,7 @@ export class UserService {
       }
 
       // Fetch complete user with roles
-      const user = await this.getUserById(userId, conn);
+      const user = await this.getUserByIdWithConnection(userId, conn);
       if (!user) {
         throw new Error('User creation/update failed');
       }
@@ -122,30 +138,59 @@ export class UserService {
   }
 
   /**
-   * Get user by ID with roles
+   * Get user by ID with roles using a specific connection
    */
-  async getUserById(userId: string, conn?: any): Promise<User | null> {
-    const db = conn || this.db;
+  private async getUserByIdWithConnection(userId: string, conn: DatabaseConnection): Promise<User | null> {
+    const userResult = await conn.query<DatabaseUser>(
+      'SELECT * FROM auth_users WHERE id = ?',
+      [userId]
+    );
     
-    const userResult = conn 
-      ? await db.query('SELECT * FROM auth_users WHERE id = ?', [userId])
-      : await db.query('SELECT * FROM auth_users WHERE id = ?', [userId]);
-    
-    const userRow = conn ? userResult.rows[0] : userResult[0];
-
+    const userRow = userResult.rows[0];
     if (!userRow) {
       return null;
     }
 
     // Get roles
-    const rolesResult = await db.query(
+    const rolesResult = await conn.query<{ name: string }>(
       `SELECT r.name FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.role_id
        WHERE ur.user_id = ?`,
       [userId]
     );
+
+    return {
+      id: userRow.id,
+      email: userRow.email,
+      name: userRow.name,
+      avatar_url: userRow.avatar_url,
+      roles: rolesResult.rows.map(r => r.name),
+      created_at: userRow.created_at,
+      updated_at: userRow.updated_at
+    };
+  }
+
+  /**
+   * Get user by ID with roles
+   */
+  async getUserById(userId: string): Promise<User | null> {
+    const userRows = await this.db.query<DatabaseUser>(
+      'SELECT * FROM auth_users WHERE id = ?',
+      [userId]
+    );
     
-    const roles = conn ? rolesResult.rows : rolesResult;
+    const userRow = userRows[0];
+    if (!userRow) {
+      return null;
+    }
+
+    // Get roles
+    const roles = await this.db.query<{ name: string }>(
+      `SELECT r.name FROM auth_roles r
+       JOIN auth_user_roles ur ON r.id = ur.role_id
+       WHERE ur.user_id = ?`,
+      [userId]
+    );
 
     return {
       id: userRow.id,
@@ -162,12 +207,12 @@ export class UserService {
    * Get user by email
    */
   async getUserByEmail(email: string): Promise<User | null> {
-    const userRows = await this.db.query(
+    const userRows = await this.db.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE email = ?',
       [email]
     );
+    
     const userRow = userRows[0];
-
     if (!userRow) {
       return null;
     }

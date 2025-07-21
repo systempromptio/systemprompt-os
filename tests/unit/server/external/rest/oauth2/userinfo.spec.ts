@@ -18,6 +18,37 @@ vi.mock('../../../../../../src/server/external/rest/oauth2/errors', () => ({
   }
 }));
 
+// Create mock instance
+const mockAuthRepo = {
+  getUserById: vi.fn((userId) => ({
+    id: userId,
+    email: `${userId}@systemprompt.local`,
+    name: `User ${userId}`,
+    avatarUrl: undefined
+  })),
+  getUserRoles: vi.fn(() => [{ name: 'user' }])
+};
+
+// Mock database
+vi.mock('@/modules/core/database/index.js', () => ({
+  getDatabase: vi.fn(() => ({}))
+}));
+
+// Mock auth repository
+vi.mock('@/modules/core/auth/database/repository.js', () => ({
+  AuthRepository: vi.fn(() => mockAuthRepo)
+}));
+
+// Mock logger
+vi.mock('@/utils/logger.js', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
 describe('UserInfoEndpoint', () => {
   let endpoint: UserInfoEndpoint;
   let mockReq: Partial<AuthenticatedRequest>;
@@ -35,6 +66,7 @@ describe('UserInfoEndpoint', () => {
     
     mockReq = {
       user: {
+        id: 'user123',
         sub: 'user123',
         clientid: 'client123',
         scope: 'openid profile email'
@@ -79,7 +111,7 @@ describe('UserInfoEndpoint', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         sub: 'user123',
         name: 'User user123',
-        preferred_username: 'user_user123',
+        preferred_username: 'user123',
         picture: undefined
       });
     });
@@ -116,7 +148,7 @@ describe('UserInfoEndpoint', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         sub: 'user123',
         name: 'User user123',
-        preferred_username: 'user_user123',
+        preferred_username: 'user123',
         picture: undefined,
         email: 'user123@systemprompt.local',
         email_verified: true,
@@ -137,6 +169,7 @@ describe('UserInfoEndpoint', () => {
     });
     
     it('generates consistent user info based on sub', async () => {
+      mockReq.user!.id = 'differentUser456';
       mockReq.user!.sub = 'differentUser456';
       mockReq.user!.scope = 'openid profile email';
       
@@ -145,7 +178,7 @@ describe('UserInfoEndpoint', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         sub: 'differentUser456',
         name: 'User differentUser456',
-        preferred_username: 'user_differentUser456',
+        preferred_username: 'differentUser456',
         picture: undefined,
         email: 'differentUser456@systemprompt.local',
         email_verified: true

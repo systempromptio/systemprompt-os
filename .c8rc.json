@@ -1,0 +1,33 @@
+{
+  "all": true,
+  "src": ["./src"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.js"
+  ],
+  "exclude": [
+    "**/*.d.ts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "node_modules/**",
+    "tests/**",
+    "build/**",
+    "coverage/**",
+    "**/*.config.ts",
+    "**/*.config.js"
+  ],
+  "extension": [
+    ".ts",
+    ".js"
+  ],
+  "reporter": [
+    "text",
+    "text-summary",
+    "html",
+    "json-summary"
+  ],
+  "reportsDirectory": "./coverage",
+  "sourceMap": true,
+  "instrument": true,
+  "require": ["tsx"]
+}

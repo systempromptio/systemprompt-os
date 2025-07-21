@@ -7,19 +7,13 @@ import { Request, Response, NextFunction } from 'express';
 import { jwtVerify } from '../auth/jwt.js';
 import { CONFIG } from '../../config.js';
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    sub: string;
-    clientid: string;
-    scope: string;
-  };
-}
+// Use Express.User type from global declaration
 
 /**
  * Middleware to validate Bearer tokens
  */
 export async function authMiddleware(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
@@ -44,9 +38,15 @@ export async function authMiddleware(
       return;
     }
     
+    // Extract user data from token payload
+    const userData = payload.user as any;
+    
     // Attach user info to request
     req.user = {
+      id: payload.sub as string,
       sub: payload.sub as string,
+      email: userData?.email || payload.email as string || '',
+      roles: userData?.roles || payload.roles as string[] || [],
       clientid: payload.clientid as string,
       scope: payload.scope as string,
     };
