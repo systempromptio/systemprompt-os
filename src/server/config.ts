@@ -45,7 +45,7 @@ function getConfig(): ServerConfig {
   return {
     // Server settings
     PORT: process.env.PORT || "3000",
-    BASEURL: process.env.BASEURL || `http://localhost:${process.env.PORT || "3000"}`,
+    BASEURL: process.env.BASE_URL || process.env.BASEURL || `http://localhost:${process.env.PORT || "3000"}`,
     NODEENV: process.env.NODEENV || "development",
     SERVERNAME: "systemprompt-os",
     SERVERVERSION: "0.1.0",

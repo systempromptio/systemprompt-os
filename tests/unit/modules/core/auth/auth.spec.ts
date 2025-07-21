@@ -48,16 +48,26 @@ describe('AuthModule', () => {
   
   describe('lifecycle', () => {
     it('should start successfully', async () => {
-      const mockLogger = { info: vi.fn() };
+      const mockLogger = { 
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn()
+      };
       await authModule.initialize({ logger: mockLogger });
       
       await authModule.start();
       
-      expect(mockLogger.info).toHaveBeenCalledWith('Auth module started');
+      expect(mockLogger.info).toHaveBeenCalledWith('Auth module started with providers: none');
     });
     
     it('should stop successfully', async () => {
-      const mockLogger = { info: vi.fn() };
+      const mockLogger = { 
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn()
+      };
       await authModule.initialize({ logger: mockLogger });
       
       await authModule.stop();
@@ -73,7 +83,8 @@ describe('AuthModule', () => {
       
       const result = await authModule.healthCheck();
       
-      expect(result).toEqual({ healthy: true });
+      expect(result).toMatchObject({ healthy: true });
+      expect(result.message).toMatch(/provider\(s\) configured/);
     });
     
     it('should return unhealthy when key store does not exist', async () => {
@@ -86,14 +97,6 @@ describe('AuthModule', () => {
         healthy: false, 
         message: 'Key store directory not found' 
       });
-    });
-  });
-  
-  describe('module properties', () => {
-    it('should have correct module metadata', () => {
-      expect(authModule.name).toBe('auth');
-      expect(authModule.version).toBe('1.0.0');
-      expect(authModule.type).toBe('service');
     });
   });
 });

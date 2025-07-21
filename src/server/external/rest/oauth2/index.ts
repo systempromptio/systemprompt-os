@@ -25,8 +25,8 @@
 
 import { Router } from 'express';
 import { WellKnownEndpoint } from './well-known.js';
-import { AuthorizeV2Endpoint } from './authorize-v2.js';
-import { TokenV2Endpoint } from './token-v2.js';
+import { AuthorizeEndpoint } from './authorize.js';
+import { TokenEndpoint } from './token.js';
 import { UserInfoEndpoint } from './userinfo.js';
 import { authMiddleware } from '../../middleware/auth.js';
 
@@ -75,8 +75,8 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
    * Each handler class encapsulates the logic for a specific OAuth2 endpoint
    */
   const wellKnown = new WellKnownEndpoint(baseUrl);
-  const authorize = new AuthorizeV2Endpoint();
-  const token = new TokenV2Endpoint();
+  const authorize = new AuthorizeEndpoint();
+  const token = new TokenEndpoint();
   const userinfo = new UserInfoEndpoint();
   
   /**
@@ -107,13 +107,21 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   });
   
   /**
+   * OAuth2 Authorization POST Endpoint
+   * Handles form submission for authorization approval/denial
+   */
+  router.post('/oauth2/authorize', (req, res) => {
+    authorize.postAuthorize(req, res);
+  });
+  
+  /**
    * Identity Provider Callback Endpoint
-   * Handles the callback from external identity providers after user authentication
+   * TODO: Implement provider callback handling in the authorize endpoint
    * @param {string} provider - The identity provider name (e.g., 'google', 'github')
    */
-  router.get('/oauth2/callback/:provider', (req, res) => {
-    authorize.handleProviderCallback(req, res);
-  });
+  // router.get('/oauth2/callback/:provider', (req, res) => {
+  //   authorize.handleProviderCallback(req, res);
+  // });
   
   /**
    * OAuth2 Token Endpoint

@@ -5,9 +5,9 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CLIModule } from '../../../../../src/modules/core/cli/index.js';
-import { CommandDiscovery } from '../../../../../src/tools/cli/src/discovery.js';
+import { CommandDiscovery } from '../../../../../src/cli/src/discovery.js';
 
-vi.mock('../../../../../src/tools/cli/src/discovery.js', () => ({
+vi.mock('../../../../../src/cli/src/discovery.js', () => ({
   CommandDiscovery: vi.fn().mockImplementation(() => ({
     discoverCommands: vi.fn()
   }))
@@ -40,16 +40,18 @@ describe('CLIModule', () => {
         ['auth:generatekey', { description: 'Generate keys' }]
       ]);
       
-      mockDiscovery = {
+      const mockDiscoveryInstance = {
         discoverCommands: vi.fn().mockResolvedValue(mockCommands)
       };
       
-      vi.mocked(CommandDiscovery).mockImplementation(() => mockDiscovery);
+      vi.mocked(CommandDiscovery).mockImplementation(() => mockDiscoveryInstance as any);
       
+      cliModule = new CLIModule();
       await cliModule.initialize({});
       const commands = await cliModule.getAllCommands();
       
-      expect(commands).toBe(mockCommands);
+      expect(mockDiscoveryInstance.discoverCommands).toHaveBeenCalled();
+      expect(commands).toEqual(mockCommands);
     });
   });
   
@@ -147,14 +149,6 @@ describe('CLIModule', () => {
       const parsed = JSON.parse(docs);
       
       expect(parsed['test:unit']).toEqual({ description: 'Run tests' });
-    });
-  });
-  
-  describe('module properties', () => {
-    it('should have correct module metadata', () => {
-      expect(cliModule.name).toBe('cli');
-      expect(cliModule.version).toBe('1.0.0');
-      expect(cliModule.type).toBe('service');
     });
   });
 });

@@ -18,6 +18,8 @@ const AuthorizeRequestSchema = z.object({
   nonce: z.string().optional(),
   code_challenge: z.string().optional(),
   code_challenge_method: z.enum(['S256', 'plain']).optional(),
+  provider: z.string().optional(), // IDP to use (google, github, etc)
+  provider_code: z.string().optional(), // Code from IDP
 });
 
 // In-memory storage for authorization codes (should be Redis/DB in production)
@@ -26,6 +28,8 @@ const authorizationCodes = new Map<string, {
   redirectUri: string;
   scope: string;
   userId?: string;
+  provider?: string;
+  providerTokens?: any;
   codeChallenge?: string;
   codeChallengeMethod?: string;
   expiresAt: Date;
@@ -138,6 +142,8 @@ export class AuthorizeEndpoint {
         redirectUri: params.redirect_uri,
         scope: params.scope,
         userId: 'user-001', // TODO: Get from authenticated session
+        provider: params.provider,
+        providerTokens: params.provider_code ? { code: params.provider_code } : undefined,
         codeChallenge: params.code_challenge,
         codeChallengeMethod: params.code_challenge_method,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),

@@ -7,116 +7,78 @@ import {
 
 describe('ID Validation Utils', () => {
   describe('isValidUUID', () => {
-    it('should validate correct UUIDs', () => {
-      expect(isValidUUID('550e8400-e29b-41d4-a716-446655440000')).toBe(true);
-      expect(isValidUUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')).toBe(true);
-      expect(isValidUUID('00000000-0000-0000-0000-000000000000')).toBe(true);
-    });
-
-    it('should reject invalid UUIDs', () => {
-      expect(isValidUUID('not-a-uuid')).toBe(false);
-      expect(isValidUUID('550e8400-e29b-41d4-a716')).toBe(false); // too short
-      expect(isValidUUID('550e8400-e29b-41d4-a716-446655440000-extra')).toBe(false); // too long
-      expect(isValidUUID('550e8400-e29b-41d4-a716-44665544000g')).toBe(false); // invalid char
-      expect(isValidUUID('')).toBe(false);
-    });
-
-    it('should handle different UUID versions', () => {
-      // v1
-      expect(isValidUUID('c9f57622-bb3f-11ed-afa1-0242ac120002')).toBe(true);
-      // v4
-      expect(isValidUUID('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')).toBe(true);
-      // v5
-      expect(isValidUUID('a6fa3124-d8f5-5e45-8b5b-73e524d7c2f2')).toBe(true);
-    });
-
-    it('should handle case insensitive UUIDs', () => {
-      expect(isValidUUID('550E8400-E29B-41D4-A716-446655440000')).toBe(true);
-      expect(isValidUUID('550e8400-E29B-41d4-A716-446655440000')).toBe(true);
+    it.each([
+      // Valid UUIDs
+      ['550e8400-e29b-41d4-a716-446655440000', true, 'standard UUID'],
+      ['6ba7b810-9dad-11d1-80b4-00c04fd430c8', true, 'UUID v1'],
+      ['00000000-0000-0000-0000-000000000000', true, 'nil UUID'],
+      ['c9f57622-bb3f-11ed-afa1-0242ac120002', true, 'UUID v1'],
+      ['9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d', true, 'UUID v4'],
+      ['a6fa3124-d8f5-5e45-8b5b-73e524d7c2f2', true, 'UUID v5'],
+      ['550E8400-E29B-41D4-A716-446655440000', true, 'uppercase UUID'],
+      ['550e8400-E29B-41d4-A716-446655440000', true, 'mixed case UUID'],
+      // Invalid UUIDs
+      ['not-a-uuid', false, 'invalid format'],
+      ['550e8400-e29b-41d4-a716', false, 'too short'],
+      ['550e8400-e29b-41d4-a716-446655440000-extra', false, 'too long'],
+      ['550e8400-e29b-41d4-a716-44665544000g', false, 'invalid character'],
+      ['', false, 'empty string'],
+      ['   ', false, 'whitespace only'],
+      ['\t\n', false, 'special whitespace'],
+      [123, false, 'number input'],
+      [{}, false, 'object input'],
+      [[], false, 'array input'],
+      [true, false, 'boolean input'],
+      [null, false, 'null input'],
+      [undefined, false, 'undefined input']
+    ])('validates %s as %s (%s)', (input, expected, description) => {
+      expect(isValidUUID(input as any)).toBe(expected);
     });
   });
 
   describe('validateTaskId', () => {
-    it('should return valid task IDs unchanged', () => {
-      const validId = '550e8400-e29b-41d4-a716-446655440000';
-      expect(validateTaskId(validId)).toBe(validId);
-    });
-
-    it('should accept task_ prefixed IDs', () => {
-      const taskId = 'task_550e8400-e29b-41d4-a716-446655440000';
-      expect(validateTaskId(taskId)).toBe(taskId);
-    });
-
-    it('should throw error for invalid task IDs', () => {
-      expect(() => validateTaskId('')).toThrow('Invalid task ID');
-      expect(() => validateTaskId('invalid-id')).toThrow('Invalid task ID');
-      expect(() => validateTaskId('123')).toThrow('Invalid task ID');
-      expect(() => validateTaskId('task_invalid')).toThrow('Invalid task ID');
-    });
-
-    it('should throw error for null or undefined', () => {
-      expect(() => validateTaskId(null as any)).toThrow('Invalid task ID');
-      expect(() => validateTaskId(undefined as any)).toThrow('Invalid task ID');
+    it.each([
+      // Valid task IDs
+      ['550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440000', 'returns valid UUID unchanged'],
+      ['task_550e8400-e29b-41d4-a716-446655440000', 'task_550e8400-e29b-41d4-a716-446655440000', 'accepts task_ prefix'],
+      // Invalid task IDs
+      ['', 'Invalid task ID', 'rejects empty string'],
+      ['invalid-id', 'Invalid task ID', 'rejects invalid format'],
+      ['123', 'Invalid task ID', 'rejects non-UUID'],
+      ['task_invalid', 'Invalid task ID', 'rejects invalid with prefix'],
+      ['   ', 'Invalid task ID', 'rejects whitespace'],
+      [null, 'Invalid task ID', 'rejects null'],
+      [undefined, 'Invalid task ID', 'rejects undefined']
+    ])('handles %s correctly', (input, expected, description) => {
+      if (expected.includes('Invalid')) {
+        expect(() => validateTaskId(input as any)).toThrow(expected);
+      } else {
+        expect(validateTaskId(input)).toBe(expected);
+      }
     });
   });
 
   describe('sanitizeTaskId', () => {
-    it('should return valid IDs unchanged', () => {
-      const validId = '550e8400-e29b-41d4-a716-446655440000';
-      expect(sanitizeTaskId(validId)).toBe(validId);
-    });
-
-    it('should remove task_ prefix if present', () => {
-      expect(sanitizeTaskId('task_550e8400-e29b-41d4-a716-446655440000'))
-        .toBe('550e8400-e29b-41d4-a716-446655440000');
-    });
-
-    it('should handle IDs without prefix', () => {
-      const id = '550e8400-e29b-41d4-a716-446655440000';
-      expect(sanitizeTaskId(id)).toBe(id);
-    });
-
-    it('should trim whitespace', () => {
-      expect(sanitizeTaskId('  550e8400-e29b-41d4-a716-446655440000  '))
-        .toBe('550e8400-e29b-41d4-a716-446655440000');
-      
-      expect(sanitizeTaskId('  task_550e8400-e29b-41d4-a716-446655440000  '))
-        .toBe('550e8400-e29b-41d4-a716-446655440000');
-    });
-
-    it('should convert to lowercase', () => {
-      expect(sanitizeTaskId('550E8400-E29B-41D4-A716-446655440000'))
-        .toBe('550e8400-e29b-41d4-a716-446655440000');
-    });
-
-    it('should throw error for invalid IDs after sanitization', () => {
-      expect(() => sanitizeTaskId('invalid')).toThrow('Invalid task ID');
-      expect(() => sanitizeTaskId('task_invalid')).toThrow('Invalid task ID');
-      expect(() => sanitizeTaskId('')).toThrow('Invalid task ID');
-    });
-  });
-
-  describe('Edge cases', () => {
-    it('should handle non-string inputs', () => {
-      expect(isValidUUID(123 as any)).toBe(false);
-      expect(isValidUUID({} as any)).toBe(false);
-      expect(isValidUUID([] as any)).toBe(false);
-      expect(isValidUUID(true as any)).toBe(false);
-    });
-
-    it('should handle whitespace-only strings', () => {
-      expect(isValidUUID('   ')).toBe(false);
-      expect(isValidUUID('\t\n')).toBe(false);
-      expect(() => validateTaskId('   ')).toThrow();
-      expect(() => sanitizeTaskId('   ')).toThrow();
-    });
-
-    it('should handle special task ID formats', () => {
-      // Multiple prefixes
-      expect(() => sanitizeTaskId('task_task_550e8400-e29b-41d4-a716-446655440000')).toThrow();
-      
-      // Wrong prefix
-      expect(() => sanitizeTaskId('user_550e8400-e29b-41d4-a716-446655440000')).toThrow();
+    it.each([
+      // Valid cases
+      ['550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440000', 'returns valid ID unchanged'],
+      ['task_550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440000', 'removes task_ prefix'],
+      ['  550e8400-e29b-41d4-a716-446655440000  ', '550e8400-e29b-41d4-a716-446655440000', 'trims whitespace'],
+      ['  task_550e8400-e29b-41d4-a716-446655440000  ', '550e8400-e29b-41d4-a716-446655440000', 'trims and removes prefix'],
+      ['550E8400-E29B-41D4-A716-446655440000', '550e8400-e29b-41d4-a716-446655440000', 'converts to lowercase'],
+      // Invalid cases
+      ['invalid', 'Invalid task ID', 'rejects invalid format'],
+      ['task_invalid', 'Invalid task ID', 'rejects invalid with prefix'],
+      ['', 'Invalid task ID', 'rejects empty string'],
+      ['   ', 'Invalid task ID', 'rejects whitespace only'],
+      ['task_task_550e8400-e29b-41d4-a716-446655440000', 'Invalid task ID', 'rejects multiple prefixes'],
+      ['user_550e8400-e29b-41d4-a716-446655440000', 'Invalid task ID', 'rejects wrong prefix']
+    ])('sanitizes %s correctly', (input, expected, description) => {
+      if (expected.includes('Invalid')) {
+        expect(() => sanitizeTaskId(input)).toThrow(expected);
+      } else {
+        expect(sanitizeTaskId(input)).toBe(expected);
+      }
     });
   });
 });

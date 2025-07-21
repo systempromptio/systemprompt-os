@@ -66,6 +66,9 @@ describe('ServerConfig', () => {
     });
 
     it('should construct BASEURL from PORT', async () => {
+      // Clear any existing BASE_URL/BASEURL
+      vi.stubEnv('BASE_URL', '');
+      vi.stubEnv('BASEURL', '');
       vi.stubEnv('PORT', '4000');
       
       const { CONFIG } = await import('../../../src/server/config');
@@ -74,7 +77,7 @@ describe('ServerConfig', () => {
     });
 
     it('should use custom BASEURL when provided', async () => {
-      vi.stubEnv('BASEURL', 'https://api.example.com');
+      vi.stubEnv('BASE_URL', 'https://api.example.com');
       
       const { CONFIG } = await import('../../../src/server/config');
 

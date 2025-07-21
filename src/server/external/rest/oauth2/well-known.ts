@@ -4,6 +4,7 @@
  */
 
 import { Request, Response } from 'express';
+import { tunnelStatus } from '../../../../modules/core/auth/tunnel-status.js';
 // import { exportJWK, generateKeyPair } from 'jose';
 // TODO: Implement proper key generation
 
@@ -54,12 +55,15 @@ export class WellKnownEndpoint {
    * Returns OpenID Connect discovery document
    */
   getOpenIDConfiguration = ( _req: Request, res: Response): Response => {
+    // Use dynamic base URL from tunnel status or fallback
+    const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
+    
     const config: OpenIDConfiguration = {
-      issuer: this.baseUrl,
-      authorization_endpoint: `${this.baseUrl}/oauth2/authorize`,
-      token_endpoint: `${this.baseUrl}/oauth2/token`,
-      userinfo_endpoint: `${this.baseUrl}/oauth2/userinfo`,
-      jwks_uri: `${this.baseUrl}/.well-known/jwks.json`,
+      issuer: currentBaseUrl,
+      authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
+      token_endpoint: `${currentBaseUrl}/oauth2/token`,
+      userinfo_endpoint: `${currentBaseUrl}/oauth2/userinfo`,
+      jwks_uri: `${currentBaseUrl}/.well-known/jwks.json`,
       response_types_supported: ['code', 'code id_token'],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256', 'HS256'],

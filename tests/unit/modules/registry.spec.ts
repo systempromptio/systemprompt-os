@@ -4,68 +4,27 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock all module dependencies before importing registry
+vi.mock('fs', () => ({
+  existsSync: vi.fn().mockReturnValue(true),
+  mkdirSync: vi.fn(),
+  readFileSync: vi.fn().mockReturnValue('{}'),
+  writeFileSync: vi.fn()
+}));
+
+vi.mock('child_process', () => ({
+  exec: vi.fn(),
+  spawn: vi.fn().mockReturnValue({
+    on: vi.fn(),
+    stdout: { on: vi.fn() },
+    stderr: { on: vi.fn() },
+    kill: vi.fn()
+  })
+}));
+
+// Import after mocks are set up
 import { ModuleRegistry } from '../../../src/modules/registry.js';
-
-// Mock all the module imports
-vi.mock('../../../src/modules/core/auth/index.js', () => ({
-  AuthModule: vi.fn().mockImplementation(() => ({
-    name: 'auth',
-    version: '1.0.0',
-    type: 'service',
-    initialize: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    healthCheck: vi.fn()
-  }))
-}));
-
-vi.mock('../../../src/modules/core/config/index.js', () => ({
-  ConfigModule: vi.fn().mockImplementation(() => ({
-    name: 'config',
-    version: '1.0.0',
-    type: 'service',
-    initialize: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    healthCheck: vi.fn()
-  }))
-}));
-
-vi.mock('../../../src/modules/core/test/index.js', () => ({
-  TestModule: vi.fn().mockImplementation(() => ({
-    name: 'test',
-    version: '1.0.0',
-    type: 'service',
-    initialize: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    healthCheck: vi.fn()
-  }))
-}));
-
-vi.mock('../../../src/modules/core/cli/index.js', () => ({
-  CLIModule: vi.fn().mockImplementation(() => ({
-    name: 'cli',
-    version: '1.0.0',
-    type: 'service',
-    initialize: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    healthCheck: vi.fn()
-  }))
-}));
-
-vi.mock('../../../src/modules/core/extension/index.js', () => ({
-  ExtensionModule: vi.fn().mockImplementation(() => ({
-    name: 'extension',
-    version: '1.0.0',
-    type: 'service',
-    initialize: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    healthCheck: vi.fn()
-  }))
-}));
 
 describe('ModuleRegistry', () => {
   let registry: ModuleRegistry;
@@ -83,7 +42,6 @@ describe('ModuleRegistry', () => {
       // Check that all core modules are registered
       expect(registry.has('auth')).toBe(true);
       expect(registry.has('config')).toBe(true);
-      expect(registry.has('test')).toBe(true);
       expect(registry.has('cli')).toBe(true);
       expect(registry.has('extension')).toBe(true);
     });
@@ -105,12 +63,11 @@ describe('ModuleRegistry', () => {
   describe('getAll', () => {
     it('should return all registered modules', () => {
       const modules = registry.getAll();
-      expect(modules).toHaveLength(5);
+      expect(modules).toHaveLength(4);
       
       const moduleNames = modules.map(m => m.name);
       expect(moduleNames).toContain('auth');
       expect(moduleNames).toContain('config');
-      expect(moduleNames).toContain('test');
       expect(moduleNames).toContain('cli');
       expect(moduleNames).toContain('extension');
     });
@@ -145,6 +102,45 @@ describe('ModuleRegistry', () => {
         expect(typeof module.stop).toBe('function');
         expect(typeof module.healthCheck).toBe('function');
       });
+    });
+  });
+  
+  describe('initializeAll', () => {
+    it('should initialize all modules', async () => {
+      const context = { 
+        config: {}, 
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn()
+        }
+      };
+      await expect(registry.initializeAll(context)).resolves.not.toThrow();
+    });
+  });
+  
+  describe('shutdownAll', () => {
+    it('should stop all modules', async () => {
+      await expect(registry.shutdownAll()).resolves.not.toThrow();
+    });
+  });
+
+  describe('register', () => {
+    it('should register a new module', () => {
+      const testModule = {
+        name: 'test-module',
+        version: '1.0.0',
+        type: 'service' as const,
+        initialize: vi.fn().mockResolvedValue(undefined),
+        start: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+        healthCheck: vi.fn().mockResolvedValue({ healthy: true })
+      };
+      
+      registry.register(testModule);
+      expect(registry.has('test-module')).toBe(true);
+      expect(registry.get('test-module')).toBe(testModule);
     });
   });
 });

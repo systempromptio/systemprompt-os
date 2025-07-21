@@ -1,0 +1,653 @@
+/**
+ * @fileoverview Unit tests for OAuth2 Token endpoint
+ * @module tests/unit/server/external/rest/oauth2/token
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Request, Response } from 'express';
+import { TokenEndpoint } from '../../../../../../src/server/external/rest/oauth2/token';
+import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize';
+import { createHash } from 'crypto';
+
+// Mock CONFIG
+vi.mock('../../../../../../src/server/config', () => ({
+  CONFIG: {
+    JWTISSUER: 'test-issuer',
+    JWTAUDIENCE: 'test-audience'
+  }
+}));
+
+describe('OAuth2 Token Endpoint', () => {
+  let tokenEndpoint: TokenEndpoint;
+  let mockReq: Partial<Request>;
+  let mockRes: Partial<Response>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    
+    tokenEndpoint = new TokenEndpoint();
+    
+    mockReq = {
+      body: {},
+      headers: {}
+    };
+    
+    mockRes = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis()
+    };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('postToken', () => {
+    describe('authorization_code grant', () => {
+      it('should exchange valid authorization code for tokens', async () => {
+        // First, create a valid authorization code
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read write'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        // Extract the code from redirect
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        // Now exchange the code for tokens
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          client_secret: 'test-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.json).toHaveBeenCalledWith({
+          access_token: expect.any(String),
+          token_type: 'Bearer',
+          expires_in: 3600,
+          refresh_token: expect.stringMatching(/^[A-Za-z0-9_-]+$/),
+          scope: 'read write'
+        });
+
+        // Verify access token structure
+        const response = vi.mocked(mockRes.json).mock.calls[0][0];
+        const tokenPayload = JSON.parse(Buffer.from(response.access_token, 'base64url').toString());
+        expect(tokenPayload).toMatchObject({
+          sub: 'user-001',
+          clientid: 'test-client',
+          scope: 'read write',
+          tokentype: 'access',
+          iss: 'test-issuer',
+          aud: 'test-audience'
+        });
+      });
+
+      it('should handle PKCE code verification', async () => {
+        // Create authorization code with PKCE
+        const codeVerifier = 'test-verifier-string-that-is-long-enough';
+        const codeChallenge = createHash('sha256')
+          .update(codeVerifier)
+          .digest('base64url');
+
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
+          code_verifier: codeVerifier
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            access_token: expect.any(String)
+          })
+        );
+      });
+
+      it('should reject missing code_verifier when PKCE is used', async () => {
+        // Create authorization code with PKCE
+        const codeChallenge = createHash('sha256')
+          .update('some-verifier')
+          .digest('base64url');
+
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback'
+          // missing code_verifier
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Code verifier required'
+        });
+      });
+
+      it('should reject invalid PKCE code verifier', async () => {
+        // Create authorization code with PKCE
+        const codeChallenge = createHash('sha256')
+          .update('correct-verifier')
+          .digest('base64url');
+
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read',
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
+          code_verifier: 'wrong-verifier'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid code verifier'
+        });
+      });
+
+      it('should reject invalid authorization code', async () => {
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code: 'invalid-code',
+          client_id: 'test-client',
+          client_secret: 'test-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid authorization code'
+        });
+      });
+
+      it('should reject expired authorization code', async () => {
+        // Create a code and mock Date to make it expired
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        // Mock Date.now to be in the past when code is created
+        const originalNow = Date.now;
+        Date.now = vi.fn().mockReturnValue(originalNow() - 11 * 60 * 1000); // 11 minutes ago
+        
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        // Restore Date.now for token exchange
+        Date.now = originalNow;
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid authorization code'
+        });
+      });
+
+      it('should reject mismatched client_id', async () => {
+        // Create a code for one client
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'original-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        // Try to exchange with different client
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'different-client',
+          client_secret: 'test-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid client or redirect URI'
+        });
+      });
+
+      it('should reject mismatched redirect_uri', async () => {
+        // Create a code with specific redirect_uri
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        // Try to exchange with different redirect_uri
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          client_secret: 'test-secret',
+          redirect_uri: 'http://localhost:4000/different'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid client or redirect URI'
+        });
+      });
+
+      it('should prevent code reuse', async () => {
+        // Create a valid code
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          client_secret: 'test-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        // First exchange should succeed
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            access_token: expect.any(String)
+          })
+        );
+
+        // Reset mocks
+        vi.clearAllMocks();
+        mockRes.status = vi.fn().mockReturnThis();
+        mockRes.json = vi.fn().mockReturnThis();
+
+        // Second exchange should fail
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid authorization code'
+        });
+      });
+
+      it('should require code and redirect_uri', async () => {
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          client_id: 'test-client',
+          client_secret: 'test-secret'
+          // missing code and redirect_uri
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Missing required parameters'
+        });
+      });
+    });
+
+    describe('refresh_token grant', () => {
+      it('should refresh access token with valid refresh token', async () => {
+        // First get a valid refresh token by exchanging a code
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'test-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read write'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        // Exchange code for tokens
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+        
+        const initialTokens = vi.mocked(mockRes.json).mock.calls[0][0];
+        const refreshToken = initialTokens.refresh_token;
+
+        // Reset mocks
+        vi.clearAllMocks();
+        mockRes.json = vi.fn().mockReturnThis();
+
+        // Now use refresh token
+        mockReq.body = {
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: 'test-client',
+          client_secret: 'test-secret'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.json).toHaveBeenCalledWith({
+          access_token: expect.any(String),
+          token_type: 'Bearer',
+          expires_in: 3600,
+          refresh_token: expect.stringMatching(/^[A-Za-z0-9_-]+$/),
+          scope: 'read write'
+        });
+
+        // Verify new tokens are different
+        const newTokens = vi.mocked(mockRes.json).mock.calls[0][0];
+        expect(newTokens.access_token).not.toBe(initialTokens.access_token);
+        expect(newTokens.refresh_token).not.toBe(initialTokens.refresh_token);
+      });
+
+      it('should reject invalid refresh token', async () => {
+        mockReq.body = {
+          grant_type: 'refresh_token',
+          refresh_token: 'invalid-refresh-token',
+          client_id: 'test-client',
+          client_secret: 'test-secret'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid refresh token'
+        });
+      });
+
+      it('should reject refresh token from different client', async () => {
+        // First get a valid refresh token
+        const authorizeEndpoint = new AuthorizeEndpoint();
+        const authReq = {
+          body: {
+            action: 'approve',
+            response_type: 'code',
+            client_id: 'original-client',
+            redirect_uri: 'http://localhost:3000/callback',
+            scope: 'read'
+          }
+        };
+        const authRes = {
+          redirect: vi.fn()
+        };
+
+        await authorizeEndpoint.postAuthorize(authReq as Request, authRes as Response);
+        
+        const redirectUrl = new URL(vi.mocked(authRes.redirect).mock.calls[0][0]);
+        const code = redirectUrl.searchParams.get('code');
+
+        // Exchange code for tokens
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code,
+          client_id: 'original-client',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+        
+        const initialTokens = vi.mocked(mockRes.json).mock.calls[0][0];
+        const refreshToken = initialTokens.refresh_token;
+
+        // Reset mocks
+        vi.clearAllMocks();
+        mockRes.status = vi.fn().mockReturnThis();
+        mockRes.json = vi.fn().mockReturnThis();
+
+        // Try to use refresh token with different client
+        mockReq.body = {
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: 'different-client',
+          client_secret: 'test-secret'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_grant',
+          error_description: 'Invalid client'
+        });
+      });
+
+      it('should require refresh_token parameter', async () => {
+        mockReq.body = {
+          grant_type: 'refresh_token',
+          client_id: 'test-client',
+          client_secret: 'test-secret'
+          // missing refresh_token
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Missing refresh token'
+        });
+      });
+    });
+
+    describe('error handling', () => {
+      it('should reject unsupported grant type', async () => {
+        mockReq.body = {
+          grant_type: 'password',
+          username: 'user',
+          password: 'pass'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: expect.stringContaining('Invalid enum value')
+        });
+      });
+
+      it('should reject missing grant_type', async () => {
+        mockReq.body = {
+          client_id: 'test-client',
+          client_secret: 'test-secret'
+        };
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: expect.stringContaining('Required')
+        });
+      });
+
+      it('should handle server errors gracefully', async () => {
+        // Mock internal error
+        mockReq.body = {
+          grant_type: 'authorization_code',
+          code: 'test-code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback'
+        };
+
+        // Mock AuthorizeEndpoint.getAuthorizationCode to throw
+        vi.spyOn(AuthorizeEndpoint, 'getAuthorizationCode').mockImplementation(() => {
+          throw new Error('Database error');
+        });
+
+        await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'server_error',
+          error_description: 'Internal server error'
+        });
+      });
+    });
+  });
+});

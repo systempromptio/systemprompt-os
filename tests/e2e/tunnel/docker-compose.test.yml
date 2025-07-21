@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Cloudflared tunnel service for testing
+  cloudflared-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: systemprompt-cloudflared-test
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Mock OAuth provider for testing
+  mock-oauth-provider:
+    image: node:18-alpine
+    container_name: systemprompt-mock-oauth
+    working_dir: /app
+    volumes:
+      - ./mock-oauth-server.js:/app/server.js
+    command: node server.js
+    ports:
+      - "4567:4567"
+    environment:
+      - PORT=4567
+      - TUNNEL_CALLBACK_URL=${TUNNEL_URL}/oauth2/callback
+    depends_on:
+      - cloudflared-tunnel
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4567/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  default:
+    name: systemprompt-test-network

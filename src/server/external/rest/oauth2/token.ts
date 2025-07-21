@@ -10,6 +10,7 @@ import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { CONFIG } from '../../../config.js';
 import { AuthorizeEndpoint } from './authorize.js';
+import { getAuthModule } from '../../../../modules/core/auth/singleton.js';
 import { OAuth2Error } from './errors.js';
 
 // Schema for token request
@@ -28,7 +29,18 @@ const refreshTokens = new Map<string, {
   clientId: string;
   userId: string;
   scope: string;
+  provider?: string;
   expiresAt: Date;
+}>();
+
+// In-memory storage for user sessions with provider info
+const userSessions = new Map<string, {
+  userId: string;
+  provider?: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  providerTokens?: any;
 }>();
 
 export class TokenEndpoint {
@@ -112,11 +124,37 @@ export class TokenEndpoint {
     // Delete authorization code (one-time use)
     AuthorizeEndpoint.deleteAuthorizationCode(params.code);
     
+    // Handle provider token exchange if needed
+    if (codeData.provider && codeData.providerTokens?.code) {
+      try {
+        const provider = getAuthModule().getProvider(codeData.provider);
+        if (provider) {
+          const providerTokens = await provider.exchangeCodeForTokens(codeData.providerTokens.code);
+          codeData.providerTokens = providerTokens;
+        }
+      } catch (error) {
+        // Log but don't fail - provider tokens are optional
+        console.error('Provider token exchange failed:', error);
+      }
+    }
+    
+    // Store user session if provider data exists
+    const sessionId = randomBytes(32).toString('base64url');
+    if (codeData.provider) {
+      userSessions.set(sessionId, {
+        userId: codeData.userId || 'anonymous',
+        provider: codeData.provider,
+        providerTokens: codeData.providerTokens,
+      });
+    }
+    
     // Generate tokens
     const tokens = await this.generateTokens(
       codeData.userId || 'anonymous',
       params.client_id,
-      codeData.scope
+      codeData.scope,
+      codeData.provider,
+      sessionId
     );
     
     res.json( tokens);
@@ -158,7 +196,8 @@ export class TokenEndpoint {
     const tokens = await this.generateTokens(
       tokenData.userId,
       tokenData.clientId,
-      tokenData.scope
+      tokenData.scope,
+      tokenData.provider
     );
     
     res.json( tokens);
@@ -167,7 +206,9 @@ export class TokenEndpoint {
   private async generateTokens(
     userId: string,
     clientId: string,
-    scope: string
+    scope: string,
+    provider?: string,
+    sessionId?: string
   ) {
     const now = Math.floor(Date.now() / 1000);
     
@@ -177,6 +218,8 @@ export class TokenEndpoint {
       sub: userId,
       clientid: clientId,
       scope,
+      provider,
+      sessionid: sessionId,
       tokentype: 'access',
       iss: CONFIG.JWTISSUER,
       aud: CONFIG.JWTAUDIENCE,
@@ -193,15 +236,33 @@ export class TokenEndpoint {
       clientId,
       userId,
       scope,
+      provider,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     });
     
-    return {
+    const response: any = {
       access_token: accessToken,
       token_type: 'Bearer',
       expires_in: 3600,
       refresh_token: refreshToken,
       scope,
     };
+    
+    // Add ID token for OpenID Connect
+    if (scope.includes('openid')) {
+      const idToken = Buffer.from(JSON.stringify({
+        sub: userId,
+        aud: clientId,
+        iss: CONFIG.JWTISSUER,
+        iat: now,
+        exp: now + 3600,
+        auth_time: now,
+        nonce: randomBytes(16).toString('hex'), // TODO: Use actual nonce from request
+      })).toString('base64url');
+      
+      response.id_token = idToken;
+    }
+    
+    return response;
   }
 }

@@ -13,9 +13,12 @@ import express from 'express';
 import { createServer } from 'http';
 import chalk from 'chalk';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const LOCALHOST_URL = process.env.BASE_URL || 'http://localhost:3000';
 const CALLBACK_PORT = 4567;
-const CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/callback`;
+
+// We'll detect the actual OAuth URL from the discovery endpoint
+let BASE_URL = LOCALHOST_URL;
+let CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/callback`;
 
 interface OAuth2Config {
   authorization_uri: string;
@@ -33,10 +36,26 @@ class MCPOAuthTester {
 
   async run(): Promise<void> {
     console.log(chalk.blue('\n🔐 MCP OAuth2 Flow Interactive Test\n'));
-    console.log(chalk.gray(`Server URL: ${BASE_URL}`));
-    console.log(chalk.gray(`Callback URL: ${CALLBACK_URL}\n`));
-
+    
     try {
+      // First, check OAuth discovery to see if tunnel is being used
+      const discoveryResponse = await fetch(`${LOCALHOST_URL}/.well-known/openid-configuration`);
+      const discovery = await discoveryResponse.json();
+      
+      // If the authorization endpoint is not localhost, we're using a tunnel
+      if (!discovery.authorization_endpoint.includes('localhost')) {
+        const tunnelUrl = new URL(discovery.authorization_endpoint).origin;
+        console.log(chalk.green(`✓ Detected tunnel URL: ${tunnelUrl}`));
+        BASE_URL = tunnelUrl;
+        // Keep callback URL as localhost since that's where our test server runs
+        console.log(chalk.yellow(`  Note: OAuth will redirect to ${tunnelUrl}, but callback stays at localhost:${CALLBACK_PORT}`));
+      } else {
+        console.log(chalk.yellow('⚠️  No tunnel detected, using localhost'));
+      }
+      
+      console.log(chalk.gray(`\nServer URL: ${BASE_URL}`));
+      console.log(chalk.gray(`Callback URL: ${CALLBACK_URL}\n`));
+
       // Step 1: Test unauthenticated access
       const oauth2Config = await this.testUnauthenticatedAccess();
       

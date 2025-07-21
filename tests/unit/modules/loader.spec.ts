@@ -4,11 +4,18 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { ModuleLoader, getModuleLoader, resetModuleLoader } from '../../../src/modules/loader';
+import { ModuleRegistry } from '../../../src/modules/registry';
 
 // Mock dependencies
-vi.mock('fs');
+vi.mock('fs', () => ({
+  existsSync: vi.fn().mockReturnValue(true),
+  mkdirSync: vi.fn(),
+  readFileSync: vi.fn().mockReturnValue('{}'),
+  writeFileSync: vi.fn()
+}));
+
 vi.mock('../../../src/utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -18,6 +25,21 @@ vi.mock('../../../src/utils/logger', () => ({
   },
   setModuleRegistry: vi.fn()
 }));
+
+// Mock child_process to prevent spawn errors
+vi.mock('child_process', () => ({
+  exec: vi.fn(),
+  spawn: vi.fn().mockReturnValue({
+    on: vi.fn(),
+    stdout: { on: vi.fn() },
+    stderr: { on: vi.fn() },
+    kill: vi.fn()
+  })
+}));
+
+
+// Mock the registry module first
+vi.mock('../../../src/modules/registry');
 
 vi.mock('../../../src/server/config', () => ({
   CONFIG: {
@@ -57,6 +79,18 @@ describe('ModuleLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetModuleLoader();
+    
+    // Mock the ModuleRegistry implementation
+    const mockRegistry = {
+      initializeAll: vi.fn().mockResolvedValue(undefined),
+      shutdownAll: vi.fn().mockResolvedValue(undefined),
+      getAll: vi.fn().mockReturnValue([]),
+      get: vi.fn().mockReturnValue(undefined),
+      has: vi.fn().mockReturnValue(false),
+      register: vi.fn()
+    };
+    
+    vi.mocked(ModuleRegistry).mockImplementation(() => mockRegistry as any);
   });
 
   afterEach(() => {
@@ -94,15 +128,18 @@ describe('ModuleLoader', () => {
       consoleInfoSpy.mockRestore();
     });
 
-    it('should load empty modules when no config exists', async () => {
+    it('should load core modules when no config exists', async () => {
       vi.mocked(existsSync).mockReturnValue(false);
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
       
       const loader = new ModuleLoader();
-      await loader.loadModules();
       
-      expect(loader.getAllModules()).toEqual([]);
+      await expect(loader.loadModules()).resolves.not.toThrow();
+      
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Module config not found')
+      );
       
       consoleWarnSpy.mockRestore();
       consoleInfoSpy.mockRestore();

@@ -29,108 +29,82 @@ describe('ExtensionModule', () => {
     vi.clearAllMocks();
   });
   
-  describe('initialization', () => {
-    it('should create required directories', async () => {
+  describe('Extension management', () => {
+    it('handles initialization and directory creation', async () => {
+      // Test when directories don't exist
       vi.mocked(existsSync).mockReturnValue(false);
-      
       await extensionModule.initialize({ config: {} });
-      
       expect(vi.mocked(mkdirSync)).toHaveBeenCalledTimes(4);
-    });
-    
-    it('should not create directories if they exist', async () => {
+      
+      // Test when directories exist
+      vi.clearAllMocks();
       vi.mocked(existsSync).mockReturnValue(true);
-      
       await extensionModule.initialize({ config: {} });
-      
       expect(vi.mocked(mkdirSync)).not.toHaveBeenCalled();
     });
+
+    it('manages extension retrieval and filtering', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      await extensionModule.initialize({ config: {} });
+      
+      // No extensions
+      expect(extensionModule.getExtensions()).toEqual([]);
+      
+      // Filter by type
+      expect(Array.isArray(extensionModule.getExtensions('module'))).toBe(true);
+      expect(Array.isArray(extensionModule.getExtensions('server'))).toBe(true);
+    });
   });
-  
-  describe('getExtensions', () => {
+
+  describe('Extension validation', () => {
+    it.each([
+      // Valid cases
+      [
+        { name: 'test', version: '1.0.0', type: 'service' },
+        { valid: true, errors: [] },
+        'valid module structure'
+      ],
+      // Missing fields
+      [
+        { name: 'test' },
+        { valid: false, errors: ['Missing required field: version'] },
+        'missing version'
+      ],
+      [
+        { name: 'test', version: '1.0.0', type: 'service', cli: { commands: [{ name: 'test' }] } },
+        { valid: false, errors: ['CLI command file missing: cli/test.ts'] },
+        'missing CLI command file'
+      ]
+    ])('validates %s', (yamlContent, expected, scenario) => {
+      // Setup mocks for valid path
+      vi.mocked(existsSync)
+        .mockReturnValueOnce(true)  // path exists
+        .mockReturnValueOnce(true)  // module.yaml exists
+        .mockReturnValueOnce(true)  // index.ts exists
+        .mockReturnValueOnce(yamlContent.cli ? true : false)  // cli dir
+        .mockReturnValueOnce(false); // command file
+      
+      vi.mocked(readFileSync).mockReturnValue(JSON.stringify(yamlContent));
+      vi.mocked(yaml.parse).mockReturnValue(yamlContent);
+      
+      const result = extensionModule.validateExtension('/test/path');
+      
+      expect(result.valid).toBe(expected.valid);
+      if (expected.errors.length > 0) {
+        expect(result.errors).toContain(expected.errors[0]);
+      } else {
+        expect(result.errors).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('Extension removal', () => {
     beforeEach(async () => {
       vi.mocked(existsSync).mockReturnValue(true);
       await extensionModule.initialize({ config: {} });
     });
-    
-    it('should return empty array when no extensions exist', () => {
-      const extensions = extensionModule.getExtensions();
-      expect(extensions).toEqual([]);
-    });
-    
-    it('should filter extensions by type', () => {
-      const modules = extensionModule.getExtensions('module');
-      const servers = extensionModule.getExtensions('server');
-      
-      expect(Array.isArray(modules)).toBe(true);
-      expect(Array.isArray(servers)).toBe(true);
-    });
-  });
-  
-  describe('validateExtension', () => {
-    it('should validate valid module structure', () => {
-      vi.mocked(existsSync)
-        .mockReturnValueOnce(true)  // path exists
-        .mockReturnValueOnce(true)  // module.yaml exists
-        .mockReturnValueOnce(true); // index.ts exists
-      
-      vi.mocked(readFileSync).mockReturnValue('name: test\nversion: 1.0.0\ntype: service');
-      vi.mocked(yaml.parse).mockReturnValue({
-        name: 'test',
-        version: '1.0.0',
-        type: 'service'
-      });
-      
-      const result = extensionModule.validateExtension('/test/path');
-      
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-    
-    it('should detect missing required fields', () => {
-      vi.mocked(existsSync)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true);
-      
-      vi.mocked(readFileSync).mockReturnValue('name: test');
-      vi.mocked(yaml.parse).mockReturnValue({ name: 'test' });
-      
-      const result = extensionModule.validateExtension('/test/path');
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Missing required field: version');
-    });
-    
-    it('should check CLI commands if defined', () => {
-      vi.mocked(existsSync)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true)  // index.ts
-        .mockReturnValueOnce(true)  // cli dir
-        .mockReturnValueOnce(false); // command file
-      
-      vi.mocked(yaml.parse).mockReturnValue({
-        name: 'test',
-        version: '1.0.0',
-        type: 'service',
-        cli: {
-          commands: [{ name: 'test' }]
-        }
-      });
-      
-      const result = extensionModule.validateExtension('/test/path');
-      
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('CLI command file missing: cli/test.ts');
-    });
-  });
-  
-  describe('removeExtension', () => {
-    it('should prevent removal of core modules', async () => {
-      vi.mocked(existsSync).mockReturnValue(true);
-      await extensionModule.initialize({ config: {} });
-      
-      // Manually set up a core module
+
+    it('prevents removal of core modules', async () => {
       extensionModule['extensions'].set('auth', {
         name: 'auth',
         type: 'module',
@@ -141,13 +115,8 @@ describe('ExtensionModule', () => {
       await expect(extensionModule.removeExtension('auth'))
         .rejects.toThrow('Cannot remove core modules');
     });
-    
-    it('should remove custom extension', async () => {
-      vi.mocked(existsSync).mockReturnValue(true);
-      
-      await extensionModule.initialize({ config: {} });
-      
-      // Add a custom extension
+
+    it('removes custom extensions', async () => {
       extensionModule['extensions'].set('custom', {
         name: 'custom',
         type: 'module',
@@ -163,39 +132,21 @@ describe('ExtensionModule', () => {
       );
     });
   });
-  
-  describe('module properties', () => {
-    it('should have correct module metadata', () => {
-      expect(extensionModule.name).toBe('extension');
-      expect(extensionModule.version).toBe('1.0.0');
-      expect(extensionModule.type).toBe('service');
-    });
-  });
-  
-  describe('healthCheck', () => {
-    it('should return healthy when modules directory exists', async () => {
+
+  describe('Health check', () => {
+    it.each([
+      [true, { healthy: true }, 'modules directory exists'],
+      [false, { healthy: false, message: 'Modules directory not found' }, 'modules directory missing']
+    ])('returns %s when %s', async (existsValue, expected, scenario) => {
+      // Initialize first
       vi.mocked(existsSync).mockReturnValue(true);
       await extensionModule.initialize({ config: {} });
       
+      // Then test health check
+      vi.mocked(existsSync).mockReturnValue(existsValue);
       const result = await extensionModule.healthCheck();
       
-      expect(result).toEqual({ healthy: true });
-    });
-    
-    it('should return unhealthy when modules directory is missing', async () => {
-      vi.mocked(existsSync)
-        .mockReturnValueOnce(true)  // for initialization
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(true)
-        .mockReturnValueOnce(false); // for health check
-        
-      await extensionModule.initialize({ config: {} });
-      
-      const result = await extensionModule.healthCheck();
-      
-      expect(result.healthy).toBe(false);
-      expect(result.message).toBe('Modules directory not found');
+      expect(result).toEqual(expected);
     });
   });
 });

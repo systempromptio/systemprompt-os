@@ -86,7 +86,7 @@ class AuthenticationError extends Error {
   }
 }
 
-describe('Interactive MCP OAuth2 Flow', () => {
+describe.skip('Interactive MCP OAuth2 Flow (requires manual interaction)', () => {
   let callbackServer: any;
   let authorizationCode: string | null = null;
   const PORT = 4567;
@@ -337,7 +337,7 @@ describe('Interactive MCP OAuth2 Flow', () => {
 /**
  * Utility to generate a test token for development
  */
-describe('Token Generation Utility', () => {
+describe.skip('Token Generation Utility (requires manual interaction)', () => {
   it('should generate a test token for development', async () => {
     const { generateToken } = await inquirer.prompt([
       {

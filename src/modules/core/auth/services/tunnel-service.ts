@@ -5,6 +5,7 @@
 
 import { spawn, spawnSync, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
+import { tunnelStatus } from "../tunnel-status.js";
 
 /**
  * Tunnel configuration options
@@ -228,10 +229,13 @@ export class TunnelService extends EventEmitter {
               url: this.tunnelUrl,
               type: "cloudflared"
             };
-            this.logger?.info(`Tunnel established: ${this.tunnelUrl}`);
+            this.logger?.info(`🚇 Tunnel established: ${this.tunnelUrl}`);
+            this.logger?.info(`📍 Public URL: ${this.tunnelUrl}`);
+            this.logger?.info(`🔗 OAuth Redirect Base: ${this.tunnelUrl}/oauth2/callback`);
             
             // Update OAuth configuration immediately
             this.updateOAuthProviders(this.tunnelUrl).then(() => {
+              this.logger?.info("✅ OAuth providers updated with tunnel URL");
               this.emit("ready", this.tunnelUrl);
               resolve(this.tunnelUrl!);
             }).catch((err) => {
@@ -250,11 +254,24 @@ export class TunnelService extends EventEmitter {
         checkForUrl(output);
       });
 
+      // Buffer to accumulate stderr output
+      let stderrBuffer = "";
+      
       // Parse stderr for tunnel URL (cloudflared outputs URL here)
       this.tunnelProcess.stderr?.on("data", (data: Buffer) => {
-        const output = data.toString().trim();
-        this.logger?.info(`Cloudflared output: ${output}`);
-        checkForUrl(output);
+        const output = data.toString();
+        stderrBuffer += output;
+        
+        // Log stderr output (cloudflared uses stderr for info messages)
+        const lines = output.trim().split('\n');
+        lines.forEach(line => {
+          if (line.trim()) {
+            this.logger?.info(`Cloudflared: ${line.trim()}`);
+          }
+        });
+        
+        // Check accumulated buffer for URL
+        checkForUrl(stderrBuffer);
       });
 
       // Handle process exit
@@ -322,6 +339,9 @@ export class TunnelService extends EventEmitter {
     // Update environment variables for current process
     process.env.BASE_URL = url;
     process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
+    
+    // Update global tunnel status
+    tunnelStatus.setBaseUrl(url);
     
     this.logger?.info(`Updated OAuth configuration with tunnel URL: ${url}`);
     this.emit("oauth-updated", {
