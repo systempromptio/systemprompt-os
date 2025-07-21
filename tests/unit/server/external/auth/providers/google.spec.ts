@@ -19,13 +19,13 @@ generateOAuth2ProviderTests({
   baseConfig: {
     id: 'google',
     name: 'Google',
-    clientid: 'test-client-id.apps.googleusercontent.com',
-    clientsecret: 'test-client-secret',
-    redirecturi: 'http://localhost:3000/callback',
+    client_id: 'test-client-id.apps.googleusercontent.com',
+    client_secret: 'test-client-secret',
+    redirect_uri: 'http://localhost:3000/callback',
     scope: 'openid email profile'
   },
   expectedAuthParams: {
-    accesstype: 'offline',
+    access_type: 'offline',
     prompt: 'consent'
   },
   expectedTokenEndpoint: 'https://oauth2.googleapis.com/token',

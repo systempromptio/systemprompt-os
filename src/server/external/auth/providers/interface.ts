@@ -3,10 +3,12 @@
  * @module server/external/auth/providers/interface
  */
 
+import type { OAuth2TokenResponse, OAuth2ClientCredentials } from '@/types/oauth2.js';
+
 export interface IDPUserInfo {
   id: string;
   email?: string;
-  emailverified?: boolean;
+  email_verified?: boolean;  // Standard OpenID Connect claim
   name?: string;
   picture?: string;
   locale?: string;
@@ -14,23 +16,11 @@ export interface IDPUserInfo {
   raw?: Record<string, any>;
 }
 
-export interface IDPTokens {
-  accesstoken: string;
-  tokentype: string;
-  expiresin?: number;
-  refreshtoken?: string;
-  idtoken?: string;
-  scope?: string;
-}
+// Use standard OAuth2 token response
+export type IDPTokens = OAuth2TokenResponse;
 
-export interface IDPConfig {
-  clientid: string;
-  clientsecret: string;
-  redirecturi: string;
-  scope?: string;
-  // Additional provider-specific config
-  [key: string]: any;
-}
+// Use standard OAuth2 client credentials
+export type IDPConfig = OAuth2ClientCredentials;
 
 export interface IdentityProvider {
   id: string;

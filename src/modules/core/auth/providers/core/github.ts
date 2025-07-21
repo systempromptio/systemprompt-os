@@ -29,8 +29,8 @@ export class GitHubProvider implements IdentityProvider {
   
   getAuthorizationUrl( state: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.clientid,
-      redirect_uri: this.config.redirecturi,
+      client_id: this.config.client_id,
+      redirect_uri: this.config.redirect_uri,
       scope: this.config.scope!,
       state,
     });
@@ -40,10 +40,10 @@ export class GitHubProvider implements IdentityProvider {
   
   async exchangeCodeForTokens( code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      client_id: this.config.clientid,
-      client_secret: this.config.clientsecret,
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || '',
       code,
-      redirect_uri: this.config.redirecturi,
+      redirect_uri: this.config.redirect_uri,
     });
     
     const response = await fetch(this.tokenEndpoint, {
@@ -62,11 +62,8 @@ export class GitHubProvider implements IdentityProvider {
     
     const data = await response.json() as any;
     
-    return {
-      accesstoken: data.access_token,
-      tokentype: data.token_type || 'Bearer',
-      scope: data.scope,
-    };
+    // Return standard OAuth2 token response
+    return data as IDPTokens;
   }
   
   async getUserInfo( accessToken: string): Promise<IDPUserInfo> {
@@ -109,7 +106,7 @@ export class GitHubProvider implements IdentityProvider {
     return {
       id: userData.id.toString(),
       email,
-      emailverified,
+      email_verified: emailverified,
       name: userData.name || userData.login,
       picture: userData.avatar_url,
       raw: userData as Record<string, any>,

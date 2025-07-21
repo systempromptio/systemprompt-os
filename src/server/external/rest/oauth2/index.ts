@@ -25,6 +25,9 @@
 
 import { Router } from 'express';
 import { WellKnownEndpoint } from './well-known.js';
+import { ProtectedResourceEndpoint } from './protected-resource.js';
+import { AuthorizationServerEndpoint } from './authorization-server.js';
+import { RegisterEndpoint } from './register.js';
 import { AuthorizeEndpoint } from './authorize.js';
 import { TokenEndpoint } from './token.js';
 import { UserInfoEndpoint } from './userinfo.js';
@@ -75,17 +78,29 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
    * Each handler class encapsulates the logic for a specific OAuth2 endpoint
    */
   const wellKnown = new WellKnownEndpoint(baseUrl);
+  const protectedResource = new ProtectedResourceEndpoint(baseUrl);
+  const authorizationServer = new AuthorizationServerEndpoint(baseUrl);
+  const register = new RegisterEndpoint();
   const authorize = new AuthorizeEndpoint();
   const token = new TokenEndpoint();
   const userinfo = new UserInfoEndpoint();
   
   /**
-   * OpenID Connect Discovery Endpoint
-   * Returns metadata about the OAuth2 server's configuration
-   * @see {@link https://openid.net/specs/openid-connect-discovery-1_0.html}
+   * OAuth 2.0 Protected Resource Metadata Endpoint (RFC 9728)
+   * Returns metadata about the protected resource for MCP clients
+   * @see {@link https://datatracker.ietf.org/doc/rfc9728/}
    */
-  router.get('/.well-known/openid-configuration', (req, res) => {
-    wellKnown.getOpenIDConfiguration(req, res);
+  router.get('/.well-known/oauth-protected-resource', (req, res) => {
+    protectedResource.getProtectedResourceMetadata(req, res);
+  });
+  
+  /**
+   * OAuth 2.0 Authorization Server Metadata Endpoint (RFC 8414)
+   * Returns metadata about the authorization server
+   * @see {@link https://datatracker.ietf.org/doc/rfc8414/}
+   */
+  router.get('/.well-known/oauth-authorization-server', (req, res) => {
+    authorizationServer.getAuthorizationServerMetadata(req, res);
   });
   
   /**
@@ -95,6 +110,15 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
    */
   router.get('/.well-known/jwks.json', (req, res) => {
     wellKnown.getJWKS(req, res);
+  });
+  
+  /**
+   * OAuth2 Dynamic Client Registration Endpoint
+   * Allows clients to register dynamically
+   * @see {@link https://datatracker.ietf.org/doc/rfc7591/}
+   */
+  router.post('/oauth2/register', (req, res) => {
+    register.register(req, res);
   });
   
   /**
@@ -116,12 +140,12 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   
   /**
    * Identity Provider Callback Endpoint
-   * TODO: Implement provider callback handling in the authorize endpoint
+   * Handles the callback from OAuth providers after user authentication
    * @param {string} provider - The identity provider name (e.g., 'google', 'github')
    */
-  // router.get('/oauth2/callback/:provider', (req, res) => {
-  //   authorize.handleProviderCallback(req, res);
-  // });
+  router.get('/oauth2/callback/:provider', (req, res) => {
+    authorize.handleProviderCallback(req, res);
+  });
   
   /**
    * OAuth2 Token Endpoint

@@ -8,19 +8,19 @@ import { IdentityProvider, IDPConfig, IDPTokens, IDPUserInfo } from '../../types
 export interface GenericOAuth2Config extends IDPConfig {
   id: string;
   name: string;
-  authorizationendpoint: string;
-  tokenendpoint: string;
-  userinfoendpoint?: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint?: string;
   issuer?: string;
-  jwksuri?: string;
-  scopessupported?: string[];
-  responsetypes_supported?: string[];
-  granttypes_supported?: string[];
-  tokenendpoint_auth_methods?: string[];
-  userinfomapping?: {
+  jwks_uri?: string;
+  scopes_supported?: string[];
+  response_types_supported?: string[];
+  grant_types_supported?: string[];
+  token_endpoint_auth_methods?: string[];
+  userinfo_mapping?: {
     id?: string;
     email?: string;
-    emailverified?: string;
+    email_verified?: string;
     name?: string;
     picture?: string;
   };
@@ -40,14 +40,14 @@ export class GenericOAuth2Provider implements IdentityProvider {
     this.config = {
       ...config,
       scope: config.scope || 'openid email profile',
-      userinfomapping: config.userinfomapping || {},
+      userinfo_mapping: config.userinfo_mapping || {},
     };
   }
   
   getAuthorizationUrl( state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.clientid,
-      redirect_uri: this.config.redirecturi,
+      client_id: this.config.client_id,
+      redirect_uri: this.config.redirect_uri,
       response_type: 'code',
       scope: this.config.scope!,
       state,
@@ -58,25 +58,25 @@ export class GenericOAuth2Provider implements IdentityProvider {
     }
     
     // Add any additional parameters from config
-    if (this.config.authorizationparams) {
-      Object.entries(this.config.authorizationparams).forEach(([key, value]) => {
+    if ('authorization_params' in this.config && this.config.authorization_params) {
+      Object.entries(this.config.authorization_params).forEach(([key, value]) => {
         params.append(key, value as string);
       });
     }
     
-    return `${this.config.authorizationendpoint}?${params}`;
+    return `${this.config.authorization_endpoint}?${params}`;
   }
   
   async exchangeCodeForTokens( code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: this.config.redirecturi,
-      client_id: this.config.clientid,
-      client_secret: this.config.clientsecret,
+      redirect_uri: this.config.redirect_uri,
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || '',
     });
     
-    const response = await fetch(this.config.tokenendpoint, {
+    const response = await fetch(this.config.token_endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -95,11 +95,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
   }
   
   async getUserInfo( accessToken: string): Promise<IDPUserInfo> {
-    if (!this.config.userinfoendpoint) {
+    if (!this.config.userinfo_endpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
     
-    const response = await fetch(this.config.userinfoendpoint, {
+    const response = await fetch(this.config.userinfo_endpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json',
@@ -111,13 +111,13 @@ export class GenericOAuth2Provider implements IdentityProvider {
     }
     
     const data = await response.json() as any;
-    const mapping = this.config.userinfomapping!;
+    const mapping = this.config.userinfo_mapping!;
     
     // Map the response to our standard format
     return {
       id: this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id,
       email: this.getNestedValue(data, mapping.email || 'email'),
-      emailverified: this.getNestedValue(data, mapping.emailverified || 'email_verified'),
+      email_verified: this.getNestedValue(data, mapping.email_verified || 'email_verified'),
       name: this.getNestedValue(data, mapping.name || 'name'),
       picture: this.getNestedValue(data, mapping.picture || 'picture'),
       raw: data as Record<string, any>,
@@ -128,11 +128,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: this.config.clientid,
-      client_secret: this.config.clientsecret,
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || '',
     });
     
-    const response = await fetch(this.config.tokenendpoint, {
+    const response = await fetch(this.config.token_endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,13 +167,13 @@ export async function discoverOIDCConfiguration( issuer: string): Promise<Partia
   
   return {
     issuer: config.issuer,
-    authorizationendpoint: config.authorization_endpoint,
-    tokenendpoint: config.token_endpoint,
-    userinfoendpoint: config.userinfo_endpoint,
-    jwksuri: config.jwks_uri,
-    scopessupported: config.scopes_supported,
-    responsetypes_supported: config.response_types_supported,
-    granttypes_supported: config.grant_types_supported,
-    tokenendpoint_auth_methods: config.token_endpoint_auth_methods_supported,
+    authorization_endpoint: config.authorization_endpoint,
+    token_endpoint: config.token_endpoint,
+    userinfo_endpoint: config.userinfo_endpoint,
+    jwks_uri: config.jwks_uri,
+    scopes_supported: config.scopes_supported,
+    response_types_supported: config.response_types_supported,
+    grant_types_supported: config.grant_types_supported,
+    token_endpoint_auth_methods: config.token_endpoint_auth_methods_supported,
   };
 }

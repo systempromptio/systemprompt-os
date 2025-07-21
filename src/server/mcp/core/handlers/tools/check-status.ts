@@ -1,108 +1,152 @@
 /**
- * @fileoverview Check status tool handler that inspects system health and service availability
+ * @fileoverview Check status tool handler for admin system overview
  * @module handlers/tools/check-status
  */
 
 import type { ToolHandler, CallToolResult, ToolHandlerContext } from "./types.js";
 import { formatToolResponse } from "./types.js";
-import { logger } from "../../utils/logger.js";
+import { logger } from "@/utils/logger.js";
 import { execSync } from "node:child_process";
-import * as net from "net";
+import * as os from "os";
 
 /**
  * Check status arguments
  */
 interface CheckStatusArgs {
-  verbose?: boolean;
+  includeContainers?: boolean;
+  includeUsers?: boolean;
+  includeResources?: boolean;
+  includeTunnels?: boolean;
+  includeAuditLog?: boolean;
 }
 
 /**
- * Internal service status information
+ * System status response
  */
-interface InternalServiceStatus {
-  available: boolean;
-  clipath: string | null;
-  error: string | null;
-  version: string | null;
-  cliname: string;
-  daemonreachable?: boolean;
-  daemonhas_tool?: boolean;
+interface SystemStatus {
+  timestamp: string;
+  uptime: number;
+  platform: string;
+  resources: {
+    cpu: {
+      model: string;
+      cores: number;
+      usage: number;
+    };
+    memory: {
+      total: number;
+      free: number;
+      used: number;
+      usagePercent: number;
+    };
+    disk: {
+      total: number;
+      free: number;
+      used: number;
+      usagePercent: number;
+    };
+  };
+  services: {
+    mcp: {
+      status: string;
+      version: string;
+      activeSessions: number;
+    };
+    oauth: {
+      status: string;
+      tunnelActive: boolean;
+      providers: string[];
+    };
+    docker?: {
+      status: string;
+      version: string;
+      containers: number;
+    };
+  };
+  containers?: Array<{
+    id: string;
+    name: string;
+    userId: string;
+    status: string;
+    created: string;
+    tunnelStatus: string;
+  }>;
+  users?: Array<{
+    id: string;
+    email: string;
+    role: string;
+    lastLogin: string;
+    activeContainers: number;
+  }>;
+  tunnels?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    hostname: string;
+    created: string;
+  }>;
+  auditLog?: Array<{
+    timestamp: string;
+    userId: string;
+    action: string;
+    resource: string;
+    result: string;
+  }>;
 }
 
 /**
- * Checks the status of system services
- *
- * @param args - Check status parameters including verbosity options
- * @param context - Execution context containing session information
- * @returns Status report of services and system state
- *
- * @example
- * ```typescript
- * await handleCheckStatus({
- *   verbose: true
- * });
- * ```
+ * Admin-only system status check handler
  */
 export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
   args: CheckStatusArgs,
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    logger.info("Checking system status", {
+    logger.info("Admin checking system status", {
       sessionId: context?.sessionId,
+      options: args
     });
 
-    const claudeStatus = createEmptyServiceStatus("Claude Code");
-    const daemonHost = process.env.CLAUDEPROXY_HOST ||
-      process.env.HOSTBRIDGE_DAEMON_HOST ||
-      "host.docker.internal";
-    const daemonPort = parseInt(
-      process.env.CLAUDEPROXY_PORT || process.env.HOSTBRIDGE_DAEMON_PORT || "9876",
-      10,
-    );
-
-    const daemonStatus = await checkDaemonConnectivity();
-    
-    if (daemonStatus.reachable) {
-      claudeStatus.daemonreachable = true;
-      claudeStatus.daemonhas_tool = daemonStatus.tools.includes("claude");
-      claudeStatus.available = claudeStatus.daemonhas_tool;
-      claudeStatus.clipath = process.env.CLAUDEPATH || null;
-    } else {
-      claudeStatus.available = false;
-    }
-
-    await checkClaudeCodeVersion(claudeStatus);
-
-    const claudeActive = claudeStatus.available;
-    const systemStatus = claudeActive ? "ACTIVE" : "NOT_ACTIVE";
-
-    logger.info("Status check completed", {
-      systemStatus,
-      claudeActive,
-    });
-
-    const response = {
-      status: systemStatus,
-      services: {
-        claude: {
-          status: claudeActive ? "ACTIVE" : "NOT_ACTIVE",
-          available: claudeActive,
-        },
-      },
-      daemon: {
-        connected: daemonStatus.reachable,
-        host: daemonHost,
-        port: daemonPort,
-      },
+    // Get basic system info
+    const status: SystemStatus = {
+      timestamp: new Date().toISOString(),
+      uptime: os.uptime(),
+      platform: `${os.type()} ${os.release()}`,
+      resources: await getResourceUsage(),
+      services: await getServiceStatus(),
     };
 
+    // Include optional information based on args
+    if (args.includeContainers) {
+      status.containers = await getContainerStatus();
+    }
+
+    if (args.includeUsers) {
+      status.users = await getUserStatus();
+    }
+
+    if (args.includeTunnels) {
+      status.tunnels = await getTunnelStatus();
+    }
+
+    if (args.includeAuditLog) {
+      status.auditLog = await getRecentAuditLog();
+    }
+
+    logger.info("Admin status check completed", {
+      sessionId: context?.sessionId,
+      includesContainers: !!status.containers,
+      includesUsers: !!status.users,
+      includesTunnels: !!status.tunnels,
+      includesAudit: !!status.auditLog
+    });
+
     return formatToolResponse({
-      message: `System ${systemStatus}`,
-      result: response,
+      message: "System status retrieved successfully",
+      result: status,
     });
   } catch (error) {
-    logger.error("Failed to check status", { error, args });
+    logger.error("Failed to check system status", { error, args });
 
     return formatToolResponse({
       status: "error",
@@ -116,111 +160,157 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
 };
 
 /**
- * Creates an empty service status object
- * 
- * @param cliName - Name of the CLI service
- * @returns Empty internal service status structure
+ * Get system resource usage
  */
-function createEmptyServiceStatus(cliName: string): InternalServiceStatus {
+async function getResourceUsage() {
+  const cpus = os.cpus();
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const usedMemory = totalMemory - freeMemory;
+
+  // Calculate CPU usage
+  let totalIdle = 0;
+  let totalTick = 0;
+  cpus.forEach(cpu => {
+    for (const type in cpu.times) {
+      totalTick += cpu.times[type as keyof typeof cpu.times];
+    }
+    totalIdle += cpu.times.idle;
+  });
+  const cpuUsage = 100 - ~~(100 * totalIdle / totalTick);
+
+  // Get disk usage (simplified - you might want to use a library like 'diskusage')
+  let diskInfo = { total: 0, free: 0, used: 0, usagePercent: 0 };
+  try {
+    const dfOutput = execSync('df -k / | tail -1', { encoding: 'utf-8' });
+    const parts = dfOutput.trim().split(/\s+/);
+    if (parts.length >= 4) {
+      diskInfo = {
+        total: parseInt(parts[1]) * 1024,
+        used: parseInt(parts[2]) * 1024,
+        free: parseInt(parts[3]) * 1024,
+        usagePercent: parseInt(parts[4])
+      };
+    }
+  } catch (e) {
+    logger.warn("Could not get disk usage", e);
+  }
+
   return {
-    available: false,
-    clipath: null,
-    error: null,
-    version: null,
-    cliname: cliName,
+    cpu: {
+      model: cpus[0].model,
+      cores: cpus.length,
+      usage: cpuUsage
+    },
+    memory: {
+      total: totalMemory,
+      free: freeMemory,
+      used: usedMemory,
+      usagePercent: Math.round((usedMemory / totalMemory) * 100)
+    },
+    disk: diskInfo
   };
 }
 
 /**
- * Checks daemon connectivity and available tools
- * 
- * @returns Daemon status with reachability and available tools
+ * Get service status
  */
-async function checkDaemonConnectivity(): Promise<{
-  reachable: boolean;
-  tools: string[];
-  error?: string;
-}> {
-  const proxyHost =
-    process.env.CLAUDEPROXY_HOST || process.env.HOSTBRIDGE_DAEMON_HOST || "host.docker.internal";
-  const proxyPort = parseInt(
-    process.env.CLAUDEPROXY_PORT || process.env.HOSTBRIDGE_DAEMON_PORT || "9876",
-    10,
-  );
+async function getServiceStatus() {
+  const services: any = {
+    mcp: {
+      status: "active",
+      version: process.env.npm_package_version || "unknown",
+      activeSessions: 0 // Would query from database
+    },
+    oauth: {
+      status: "active",
+      tunnelActive: false,
+      providers: []
+    }
+  };
 
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      client.destroy();
-      resolve({ reachable: false, tools: [], error: "Connection timeout" });
-    }, 5000);
+  // Check OAuth providers
+  if (process.env.GOOGLE_CLIENT_ID) services.oauth.providers.push("google");
+  if (process.env.GITHUB_CLIENT_ID) services.oauth.providers.push("github");
+  if (process.env.MICROSOFT_CLIENT_ID) services.oauth.providers.push("microsoft");
 
-    const client = net.createConnection({ port: proxyPort, host: proxyHost });
+  // Check OAuth tunnel
+  if (process.env.ENABLE_OAUTH_TUNNEL === 'true' || process.env.OAUTH_DOMAIN) {
+    services.oauth.tunnelActive = true;
+  }
 
-    client.on("connect", () => {
-      clearTimeout(timeout);
-      const message = JSON.stringify({
-        tool: "status",
-        command: "check",
-      });
-      client.write(message + "\n");
+  // Check Docker
+  try {
+    const dockerVersion = execSync('docker --version', { encoding: 'utf-8' }).trim();
+    const containerCount = execSync('docker ps -q | wc -l', { encoding: 'utf-8' }).trim();
+    services.docker = {
+      status: "active",
+      version: dockerVersion,
+      containers: parseInt(containerCount)
+    };
+  } catch (e) {
+    services.docker = {
+      status: "unavailable",
+      version: "n/a",
+      containers: 0
+    };
+  }
 
-      let responseData = "";
-      client.on("data", (data) => {
-        responseData += data.toString();
-        if (responseData.includes("Available tools:")) {
-          const tools: string[] = [];
-          if (responseData.includes("claude")) tools.push("claude");
-          client.destroy();
-          resolve({ reachable: true, tools });
-        }
-      });
-
-      setTimeout(() => {
-        client.destroy();
-        resolve({ reachable: true, tools: [] });
-      }, 2000);
-    });
-
-    client.on("error", (error) => {
-      clearTimeout(timeout);
-      resolve({
-        reachable: false,
-        tools: [],
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
-  });
+  return services;
 }
 
 /**
- * Checks Claude Code CLI version
- * 
- * @param claudeStatus - Service status object to update with version info
+ * Mock functions for additional status - would be implemented with real database queries
  */
-async function checkClaudeCodeVersion(claudeStatus: InternalServiceStatus): Promise<void> {
-  try {
-    if (!claudeStatus.available && !claudeStatus.daemonhas_tool) {
-      claudeStatus.error = "Claude Code CLI not available";
-      return;
+async function getContainerStatus() {
+  // In real implementation, query database for container info
+  return [
+    {
+      id: "container-123",
+      name: "user-john-dev",
+      userId: "user-123",
+      status: "running",
+      created: new Date().toISOString(),
+      tunnelStatus: "active"
     }
+  ];
+}
 
-    if (claudeStatus.daemonreachable && claudeStatus.daemonhas_tool) {
-      logger.info("Claude available through daemon");
-      claudeStatus.version = "Available via daemon";
-      return;
+async function getUserStatus() {
+  // In real implementation, query database for user info
+  return [
+    {
+      id: "user-123",
+      email: "john@example.com",
+      role: "admin",
+      lastLogin: new Date().toISOString(),
+      activeContainers: 1
     }
+  ];
+}
 
-    logger.info("Checking Claude Code version locally");
-    const version = execSync("claude --version", {
-      encoding: "utf-8",
-      env: { ...process.env },
-      timeout: 30000,
-    }).trim();
+async function getTunnelStatus() {
+  // In real implementation, query Cloudflare API
+  return [
+    {
+      id: "tunnel-123",
+      name: "user-john-dev",
+      status: "healthy",
+      hostname: "john-dev.containers.example.com",
+      created: new Date().toISOString()
+    }
+  ];
+}
 
-    claudeStatus.version = version;
-    logger.info("Claude Code version detected", { version });
-  } catch (error) {
-    claudeStatus.error = "Failed to get Claude Code version";
-    logger.error("Claude Code version check failed", { error });
-  }
+async function getRecentAuditLog() {
+  // In real implementation, query audit log table
+  return [
+    {
+      timestamp: new Date().toISOString(),
+      userId: "user-123",
+      action: "container.create",
+      resource: "container-123",
+      result: "success"
+    }
+  ];
 }

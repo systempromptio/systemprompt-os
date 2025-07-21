@@ -266,9 +266,9 @@ export class ProviderRegistry {
    */
   private async createProvider(config: ProviderConfig): Promise<IdentityProvider | null> {
     const idpConfig: IDPConfig = {
-      clientid: config.credentials.client_id,
-      clientsecret: config.credentials.client_secret,
-      redirecturi: config.credentials.redirect_uri,
+      client_id: config.credentials.client_id,
+      client_secret: config.credentials.client_secret,
+      redirect_uri: config.credentials.redirect_uri,
       scope: config.scopes?.join(" "),
     };
 
@@ -304,12 +304,12 @@ export class ProviderRegistry {
       ...idpConfig,
       id: config.id,
       name: config.name,
-      authorizationendpoint: config.endpoints.authorization,
-      tokenendpoint: config.endpoints.token,
-      userinfoendpoint: config.endpoints.userinfo,
+      authorization_endpoint: config.endpoints.authorization,
+      token_endpoint: config.endpoints.token,
+      userinfo_endpoint: config.endpoints.userinfo,
       issuer: this.extractIssuer(config),
-      jwksuri: config.endpoints.jwks,
-      userinfomapping: config.userinfo_mapping,
+      jwks_uri: config.endpoints.jwks,
+      userinfo_mapping: config.userinfo_mapping,
     };
 
     if (config.type === "oidc" && config.endpoints.discovery) {

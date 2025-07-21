@@ -7,6 +7,9 @@ import { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import { OAuth2Error } from './errors.js';
+import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import { logger } from '@/utils/logger.js';
+import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 
 // Schema for authorization request
 const AuthorizeRequestSchema = z.object({
@@ -44,59 +47,113 @@ export class AuthorizeEndpoint {
     try {
       const params = AuthorizeRequestSchema.parse(req.query);
       
-      // TODO: Validate clientid and redirecturi
-      // TODO: Check if user is already authenticated
-      // For now, return a simple consent form
+      // Get the auth module to access provider registry
+      const authModule = getAuthModule();
+      const providerRegistry = authModule.getProviderRegistry();
+      
+      if (!providerRegistry) {
+        throw new Error('Provider registry not initialized');
+      }
+      
+      // If a specific provider is requested, redirect to that provider
+      if (params.provider) {
+        logger.info('Redirecting to OAuth provider', { provider: params.provider });
+        
+        // Provider names are case-insensitive
+        const provider = providerRegistry.getProvider(params.provider.toLowerCase());
+        if (!provider) {
+          throw new Error(`Unknown provider: ${params.provider}`);
+        }
+        
+        // Store the original request parameters in session
+        // In production, use proper session management
+        const stateData = {
+          clientId: params.client_id,
+          redirectUri: params.redirect_uri,
+          scope: params.scope,
+          originalState: params.state,
+          codeChallenge: params.code_challenge,
+          codeChallengeMethod: params.code_challenge_method,
+        };
+        
+        // Generate state parameter for provider
+        const providerState = Buffer.from(JSON.stringify(stateData)).toString('base64url');
+        
+        // Get the provider's authorization URL
+        const providerAuthUrl = provider.getAuthorizationUrl(providerState);
+        
+        // Redirect to the provider
+        return res.redirect(providerAuthUrl);
+      }
+      
+      // If no provider specified, show provider selection
+      
+      // Get available providers
+      const availableProviders = providerRegistry.getAllProviders();
       
       const html = `
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Authorize - systemprompt-os</title>
+          <title>Sign In - systemprompt-os</title>
           <style>
-            body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
-            .container { border: 1px solid #ccc; border-radius: 8px; padding: 30px; }
-            h1 { color: #333; }
-            .client { background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 20px 0; }
+            body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+            .container { background: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #333; text-align: center; margin-bottom: 30px; }
+            .client { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 20px 0; }
             .scopes { margin: 20px 0; }
-            .scope-item { margin: 10px 0; }
-            button { background: #007bff; color: white; border: none; padding: 10px 20px; 
-                     border-radius: 4px; cursor: pointer; margin-right: 10px; }
-            button.deny { background: #dc3545; }
-            form { display: inline; }
+            .scope-item { margin: 10px 0; color: #666; }
+            .provider-list { margin: 30px 0; }
+            .provider-button { 
+              display: flex; align-items: center; justify-content: center;
+              width: 100%; padding: 12px 20px; margin: 10px 0;
+              border: 1px solid #ddd; border-radius: 6px;
+              background: white; color: #333;
+              text-decoration: none; font-size: 16px;
+              transition: all 0.2s;
+            }
+            .provider-button:hover { 
+              background: #f8f9fa; border-color: #999;
+              transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            .provider-google { border-color: #4285f4; color: #4285f4; }
+            .provider-google:hover { background: #f0f7ff; }
+            .provider-github { border-color: #333; color: #333; }
+            .provider-github:hover { background: #f6f8fa; }
+            .provider-icon { width: 20px; height: 20px; margin-right: 10px; }
+            .divider { text-align: center; margin: 20px 0; color: #999; }
+            .cancel { text-align: center; margin-top: 20px; }
+            .cancel a { color: #666; text-decoration: none; }
+            .cancel a:hover { text-decoration: underline; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>Authorization Request</h1>
+            <h1>Sign in to continue</h1>
             <div class="client">
-              <strong>Client ID:</strong> ${params.client_id}
+              <strong>Application:</strong> ${params.client_id}<br>
+              <small style="color: #666;">This application is requesting access to your account</small>
             </div>
-            <p>This application is requesting access to your systemprompt-os account.</p>
             <div class="scopes">
               <strong>Requested permissions:</strong>
               <ul>
                 ${params.scope.split(' ').map(scope => `<li class="scope-item">${scope}</li>`).join('')}
               </ul>
             </div>
-            <form method="POST" action="/oauth2/authorize" style="display: inline;">
-              <input type="hidden" name="response_type" value="${params.response_type}">
-              <input type="hidden" name="client_id" value="${params.client_id}">
-              <input type="hidden" name="redirect_uri" value="${params.redirect_uri}">
-              <input type="hidden" name="scope" value="${params.scope}">
-              <input type="hidden" name="state" value="${params.state || ''}">
-              <input type="hidden" name="nonce" value="${params.nonce || ''}">
-              <input type="hidden" name="code_challenge" value="${params.code_challenge || ''}">
-              <input type="hidden" name="code_challenge_method" value="${params.code_challenge_method || ''}">
-              <input type="hidden" name="action" value="approve">
-              <button type="submit">Approve</button>
-            </form>
-            <form method="POST" action="/oauth2/authorize" style="display: inline;">
-              <input type="hidden" name="redirect_uri" value="${params.redirect_uri}">
-              <input type="hidden" name="state" value="${params.state || ''}">
-              <input type="hidden" name="action" value="deny">
-              <button type="submit" class="deny">Deny</button>
-            </form>
+            <div class="provider-list">
+              <h3 style="text-align: center; margin-bottom: 20px;">Choose how to sign in:</h3>
+              ${availableProviders.map((provider: IdentityProvider) => `
+                <a href="/oauth2/authorize?${new URLSearchParams({
+                  ...Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined)),
+                  provider: provider.name
+                }).toString()}" class="provider-button provider-${provider.name}">
+                  ${provider.name === 'google' ? '🔵' : '⚫'} Sign in with ${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)}
+                </a>
+              `).join('')}
+            </div>
+            <div class="cancel">
+              <a href="${params.redirect_uri}?error=access_denied&state=${params.state || ''}">Cancel</a>
+            </div>
           </div>
         </body>
         </html>
@@ -185,4 +242,107 @@ export class AuthorizeEndpoint {
   static deleteAuthorizationCode( code: string) {
     authorizationCodes.delete( code);
   }
+
+  /**
+   * Handle callback from OAuth provider
+   */
+  handleProviderCallback = async (req: Request, res: Response): Promise<Response | void> => {
+    try {
+      const { provider } = req.params;
+      const providerName = provider.toLowerCase();
+      const { code, state, error, error_description } = req.query;
+
+      logger.info('OAuth provider callback received', { provider, hasCode: !!code, hasError: !!error });
+
+      // Handle error from provider
+      if (error) {
+        logger.error('Provider returned error', { provider, error, error_description });
+        return res.status(400).send(`
+          <html>
+          <body>
+            <h1>Authentication Failed</h1>
+            <p>Error: ${error}</p>
+            <p>${error_description || ''}</p>
+          </body>
+          </html>
+        `);
+      }
+
+      if (!code || !state) {
+        throw new Error('Missing code or state parameter');
+      }
+
+      // Decode the state to get original request parameters
+      const stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
+      
+      // Get the auth module and provider
+      const authModule = getAuthModule();
+      const providerRegistry = authModule.getProviderRegistry();
+      
+      if (!providerRegistry) {
+        throw new Error('Provider registry not initialized');
+      }
+      
+      const providerInstance = providerRegistry.getProvider(providerName);
+      
+      if (!providerInstance) {
+        throw new Error(`Unknown provider: ${provider}`);
+      }
+
+      // Exchange the provider's code for tokens
+      const providerTokens = await providerInstance.exchangeCodeForTokens(code as string);
+      
+      // Get user info from provider
+      const userInfo = await providerInstance.getUserInfo(providerTokens.access_token);
+      
+      logger.info('User authenticated via provider', { 
+        provider, 
+        userId: userInfo.id,
+        email: userInfo.email 
+      });
+
+      // Generate our authorization code
+      const authCode = randomBytes(32).toString('base64url');
+      
+      // Store authorization code with user info
+      authorizationCodes.set(authCode, {
+        clientId: stateData.clientId,
+        redirectUri: stateData.redirectUri,
+        scope: stateData.scope,
+        userId: userInfo.id,
+        provider: providerName,
+        providerTokens: providerTokens,
+        codeChallenge: stateData.codeChallenge,
+        codeChallengeMethod: stateData.codeChallengeMethod,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      });
+
+      // Clean up expired codes
+      this.cleanupExpiredCodes();
+
+      // Redirect back to client with authorization code
+      const responseParams = new URLSearchParams({ code: authCode });
+      if (stateData.originalState) {
+        responseParams.append('state', stateData.originalState);
+      }
+      
+      logger.info('Redirecting to client with authorization code', { 
+        redirectUri: stateData.redirectUri,
+        hasState: !!stateData.originalState 
+      });
+
+      res.redirect(`${stateData.redirectUri}?${responseParams}`);
+    } catch (error) {
+      logger.error('Provider callback error', { error });
+      res.status(500).send(`
+        <html>
+        <body>
+          <h1>Authentication Error</h1>
+          <p>An error occurred during authentication. Please try again.</p>
+          <p>${error instanceof Error ? error.message : 'Unknown error'}</p>
+        </body>
+        </html>
+      `);
+    }
+  };
 }

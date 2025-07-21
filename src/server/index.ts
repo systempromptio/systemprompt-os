@@ -59,7 +59,7 @@ export async function createApp(): Promise<express.Application> {
         health: `${baseUrl}/health`,
         status: `${baseUrl}/status`,
         oauth2: {
-          discovery: `${baseUrl}/.well-known/openid-configuration`,
+          discovery: `${baseUrl}/.well-known/oauth-protected-resource`,
           authorize: `${baseUrl}/oauth2/authorize`,
           token: `${baseUrl}/oauth2/token`,
           userinfo: `${baseUrl}/oauth2/userinfo`,
@@ -85,7 +85,7 @@ export async function startServer(port?: number): Promise<ReturnType<express.App
   const server = app.listen(serverPort, '0.0.0.0', async () => {
     logger.info(`🚀 systemprompt-os running on port ${serverPort}`);
     logger.info(`📡 API endpoint: http://localhost:${serverPort}`);
-    logger.info(`🔐 OAuth2 discovery: http://localhost:${serverPort}/.well-known/openid-configuration`);
+    logger.info(`🔐 OAuth2 discovery: http://localhost:${serverPort}/.well-known/oauth-protected-resource`);
     
     // Log OAuth tunnel status after a brief delay to ensure it's initialized
     setTimeout(() => {

@@ -55,8 +55,8 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
       const authUrl = provider.getAuthorizationUrl(state, nonce);
       const url = new URL(authUrl);
       
-      expect(url.searchParams.get('clientid')).toBe(baseConfig.clientid);
-      expect(url.searchParams.get('redirecturi')).toBe(baseConfig.redirecturi);
+      expect(url.searchParams.get('client_id')).toBe(baseConfig.client_id);
+      expect(url.searchParams.get('redirect_uri')).toBe(baseConfig.redirect_uri);
       expect(url.searchParams.get('state')).toBe(state);
       
       if (providerType === 'oidc' && nonce) {
@@ -71,20 +71,20 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
 
     it('should exchange code for tokens successfully', async () => {
       const mockTokens: any = {
-        accesstoken: 'mock-access-token',
-        tokentype: 'Bearer'
+        access_token: 'mock-access-token',
+        token_type: 'Bearer'
       };
       
       // GitHub returns different token structure
       if (providerName === 'GitHub') {
         mockTokens.scope = baseConfig.scope;
       } else {
-        mockTokens.expiresin = 3600;
+        mockTokens.expires_in = 3600;
         if (supportsRefresh) {
-          mockTokens.refreshtoken = 'mock-refresh-token';
+          mockTokens.refresh_token = 'mock-refresh-token';
         }
         if (providerType === 'oidc') {
-          mockTokens.idtoken = 'mock-id-token';
+          mockTokens.id_token = 'mock-id-token';
         }
       }
       
@@ -110,7 +110,7 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
       const mockUserInfo = providerName === 'Google' ? {
         sub: 'user-123',
         email: 'test@example.com',
-        emailverified: true,
+        email_verified: true,
         name: 'Test User',
         picture: 'https://example.com/avatar.jpg'
       } : providerName === 'GitHub' ? {
@@ -118,7 +118,7 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
         login: 'testuser',
         name: 'Test User',
         email: 'test@example.com',
-        avatarurl: 'https://example.com/avatar.jpg'
+        avatar_url: 'https://example.com/avatar.jpg'
       } : {
         sub: 'user-123',
         email: 'test@example.com',
@@ -138,9 +138,9 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
         email: 'test@example.com'
       };
       
-      // Only check emailverified if provider returns it
-      if (userInfo.emailverified !== undefined) {
-        expectedUserInfo.emailverified = expect.any(Boolean);
+      // Only check email_verified if provider returns it
+      if (userInfo.email_verified !== undefined) {
+        expectedUserInfo.email_verified = expect.any(Boolean);
       }
       
       expect(userInfo).toMatchObject(expectedUserInfo);
@@ -160,9 +160,9 @@ export function generateOAuth2ProviderTests(config: OAuth2ProviderTestConfig, ad
     if (supportsRefresh) {
       it('should refresh tokens successfully', async () => {
         const mockNewTokens = {
-          accesstoken: 'new-access-token',
-          expiresin: 3600,
-          refreshtoken: 'new-refresh-token'
+          access_token: 'new-access-token',
+          expires_in: 3600,
+          refresh_token: 'new-refresh-token'
         };
         
         global.fetch = vi.fn().mockResolvedValueOnce({

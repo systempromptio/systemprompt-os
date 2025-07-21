@@ -3,13 +3,15 @@
  * @module modules/core/auth/types/provider-interface
  * 
  * This file defines the interfaces for OAuth2/OIDC providers
- * It's a copy of the server's interface to maintain module independence
+ * Using standard OAuth2 types from RFC 6749
  */
+
+import type { OAuth2TokenResponse, OAuth2ClientCredentials } from '@/types/oauth2.js';
 
 export interface IDPUserInfo {
   id: string;
   email?: string;
-  emailverified?: boolean;
+  email_verified?: boolean;  // Standard OpenID Connect claim
   name?: string;
   picture?: string;
   locale?: string;
@@ -17,23 +19,9 @@ export interface IDPUserInfo {
   raw?: Record<string, any>;
 }
 
-export interface IDPTokens {
-  accesstoken: string;
-  tokentype: string;
-  expiresin?: number;
-  refreshtoken?: string;
-  idtoken?: string;
-  scope?: string;
-}
-
-export interface IDPConfig {
-  clientid: string;
-  clientsecret: string;
-  redirecturi: string;
-  scope?: string;
-  // Additional provider-specific config
-  [key: string]: any;
-}
+// Type aliases for backward compatibility
+export type IDPTokens = OAuth2TokenResponse;
+export type IDPConfig = OAuth2ClientCredentials;
 
 export interface IdentityProvider {
   id: string;

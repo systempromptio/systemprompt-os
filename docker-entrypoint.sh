@@ -59,6 +59,14 @@ export PORT=${PORT:-3000}
 export STATE_PATH=${STATE_PATH:-/data/state}
 export PROJECTS_PATH=${PROJECTS_PATH:-/data/projects}
 
+# Check Cloudflare tunnel configuration
+if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ -z "$CLOUDFLARE_TUNNEL_URL" ]; then
+    if [ -f "/app/scripts/check-tunnel-token.cjs" ]; then
+        # Show instructions for setting up tunnel URL
+        node /app/scripts/check-tunnel-token.cjs
+    fi
+fi
+
 
 
 echo "Starting SystemPrompt OS MCP Server..."

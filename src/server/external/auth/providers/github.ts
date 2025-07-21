@@ -16,7 +16,7 @@ export class GitHubProvider implements IdentityProvider {
   
   private config: GitHubConfig;
   private authorizationEndpoint = 'https://github.com/login/oauth/authorize';
-  private tokenEndpoint = 'https://github.com/login/oauth/accesstoken';
+  private tokenEndpoint = 'https://github.com/login/oauth/access_token';
   private userEndpoint = 'https://api.github.com/user';
   private emailEndpoint = 'https://api.github.com/user/emails';
   
@@ -29,8 +29,8 @@ export class GitHubProvider implements IdentityProvider {
   
   getAuthorizationUrl( state: string): string {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      redirecturi: this.config.redirecturi,
+      client_id: this.config.client_id,
+      redirect_uri: this.config.redirect_uri,
       scope: this.config.scope!,
       state,
     });
@@ -40,10 +40,10 @@ export class GitHubProvider implements IdentityProvider {
   
   async exchangeCodeForTokens( code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || "",
       code,
-      redirecturi: this.config.redirecturi,
+      redirect_uri: this.config.redirect_uri,
     });
     
     const response = await fetch(this.tokenEndpoint, {
@@ -62,11 +62,8 @@ export class GitHubProvider implements IdentityProvider {
     
     const data = await response.json() as any;
     
-    return {
-      accesstoken: data.accesstoken,
-      tokentype: data.tokentype || 'Bearer',
-      scope: data.scope,
-    };
+    // Return standard OAuth2 token response
+    return data as IDPTokens;
   }
   
   async getUserInfo( accessToken: string): Promise<IDPUserInfo> {
@@ -86,7 +83,7 @@ export class GitHubProvider implements IdentityProvider {
     
     // Get primary email if not public
     let email = userData.email as string | undefined;
-    let emailverified = true;
+    let email_verified = true;
     
     if (!email) {
       const emailResponse = await fetch(this.emailEndpoint, {
@@ -101,7 +98,7 @@ export class GitHubProvider implements IdentityProvider {
         const primaryEmail = emails.find(( e: any) => e.primary);
         if ( primaryEmail) {
           email = primaryEmail.email;
-          emailverified = primaryEmail.verified;
+          email_verified = primaryEmail.verified;
         }
       }
     }
@@ -109,9 +106,9 @@ export class GitHubProvider implements IdentityProvider {
     return {
       id: userData.id.toString(),
       email,
-      emailverified,
+      email_verified,
       name: userData.name || userData.login,
-      picture: userData.avatarurl,
+      picture: userData.avatar_url,
       raw: userData as Record<string, any>,
     };
   }

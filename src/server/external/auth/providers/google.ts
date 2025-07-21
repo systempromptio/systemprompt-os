@@ -29,12 +29,12 @@ export class GoogleProvider implements IdentityProvider {
 
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      clientid: this.config.clientid,
-      redirecturi: this.config.redirecturi,
-      responsetype: "code",
+      client_id: this.config.client_id,
+      redirect_uri: this.config.redirect_uri,
+      response_type: "code",
       scope: this.config.scope!,
       state,
-      accesstype: "offline",
+      access_type: "offline",
       prompt: "consent",
     });
 
@@ -48,10 +48,10 @@ export class GoogleProvider implements IdentityProvider {
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       code,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
-      redirecturi: this.config.redirecturi,
-      granttype: "authorizationcode",
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || "",
+      redirect_uri: this.config.redirect_uri,
+      grant_type: "authorization_code",
     });
 
     const response = await fetch(this.tokenEndpoint, {
@@ -87,7 +87,7 @@ export class GoogleProvider implements IdentityProvider {
     return {
       id: data.sub,
       email: data.email,
-      emailverified: data.emailverified,
+      email_verified: data.email_verified,
       name: data.name,
       picture: data.picture,
       locale: data.locale,
@@ -97,10 +97,10 @@ export class GoogleProvider implements IdentityProvider {
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      refreshtoken: refreshToken,
-      clientid: this.config.clientid,
-      clientsecret: this.config.clientsecret,
-      granttype: "refreshtoken",
+      refresh_token: refreshToken,
+      client_id: this.config.client_id,
+      client_secret: this.config.client_secret || "",
+      grant_type: "refresh_token",
     });
 
     const response = await fetch(this.tokenEndpoint, {

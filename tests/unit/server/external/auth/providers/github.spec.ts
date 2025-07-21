@@ -13,9 +13,9 @@ global.fetch = vi.fn();
 const baseConfig = {
   id: 'github',
   name: 'GitHub',
-  clientid: 'test-client-id',
-  clientsecret: 'test-client-secret',
-  redirecturi: 'http://localhost:3000/callback',
+  client_id: 'test-client-id',
+  client_secret: 'test-client-secret',
+  redirect_uri: 'http://localhost:3000/callback',
   scope: 'read:user user:email'
 };
 
@@ -26,7 +26,7 @@ generateOAuth2ProviderTests({
   providerType: 'oauth2',
   createProvider: (config) => new GitHubProvider(config),
   baseConfig,
-  expectedTokenEndpoint: 'https://github.com/login/oauth/accesstoken',
+  expectedTokenEndpoint: 'https://github.com/login/oauth/access_token',
   expectedUserInfoEndpoint: 'https://api.github.com/user',
   supportsRefresh: false
 }, () => {
@@ -73,7 +73,7 @@ generateOAuth2ProviderTests({
       );
       
       expect(userInfo.email).toBe('private@example.com');
-      expect(userInfo.emailverified).toBe(true);
+      expect(userInfo.email_verified).toBe(true);
     });
 
     it('should handle errors when fetching emails gracefully', async () => {
@@ -100,7 +100,7 @@ generateOAuth2ProviderTests({
       
       // When email fetch fails, it should continue with null email
       expect(userInfo.email).toBeNull();
-      expect(userInfo.emailverified).toBe(true);
+      expect(userInfo.email_verified).toBe(true);
     });
   });
 });

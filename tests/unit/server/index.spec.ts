@@ -145,20 +145,6 @@ describe('Server', () => {
       expect(setupExternalAPI).toHaveBeenCalledWith(app, logger);
     });
 
-    // Skip this test since it's already verified by other tests that MCP setup runs
-    it('should setup MCP servers', async () => {
-      const { createApp } = await import('../../../src/server/index');
-      
-      await createApp();
-      
-      // Verify setupMCPServers was called with the Express app
-      const { setupMCPServers } = await import('../../../src/server/mcp');
-      expect(setupMCPServers).toHaveBeenCalledWith(expect.objectContaining({
-        use: expect.any(Function),
-        get: expect.any(Function),
-        post: expect.any(Function)
-      }));
-    });
 
     it('should setup root endpoint', async () => {
       const { createApp } = await import('../../../src/server/index');
@@ -235,7 +221,7 @@ describe('Server', () => {
           health: 'http://localhost:3000/health',
           status: 'http://localhost:3000/status',
           oauth2: expect.objectContaining({
-            discovery: 'http://localhost:3000/.well-known/openid-configuration',
+            discovery: 'http://localhost:3000/.well-known/oauth-protected-resource',
             authorize: 'http://localhost:3000/oauth2/authorize',
             token: 'http://localhost:3000/oauth2/token',
             userinfo: 'http://localhost:3000/oauth2/userinfo'

@@ -146,11 +146,13 @@ export class AuthModule implements ModuleInterface {
     const port = parseInt(process.env.PORT || '3000', 10);
     const permanentDomain = process.env.OAUTH_DOMAIN || process.env.PUBLIC_URL;
     const tunnelToken = process.env.CLOUDFLARE_TUNNEL_TOKEN;
+    const tunnelUrl = process.env.CLOUDFLARE_TUNNEL_URL;
     
     this.tunnelService = new TunnelService({
       port,
       permanentDomain,
       tunnelToken,
+      tunnelUrl,
       enableInDevelopment: true
     }, this.logger);
     

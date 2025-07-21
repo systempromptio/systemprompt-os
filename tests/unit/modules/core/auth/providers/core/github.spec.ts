@@ -17,9 +17,9 @@ describe('GitHubProvider', () => {
     vi.clearAllMocks();
     
     mockConfig = {
-      clientid: 'test-client-id',
-      clientsecret: 'test-client-secret',
-      redirecturi: 'http://localhost:3000/callback'
+      client_id: 'test-client-id',
+      client_secret: 'test-client-secret',
+      redirect_uri: 'http://localhost:3000/callback'
     };
   });
   
@@ -100,11 +100,7 @@ describe('GitHubProvider', () => {
       expect(body.get('code')).toBe('test-code');
       expect(body.get('redirect_uri')).toBe('http://localhost:3000/callback');
       
-      expect(tokens).toEqual({
-        accesstoken: mockTokens.access_token,
-        tokentype: mockTokens.token_type,
-        scope: mockTokens.scope
-      });
+      expect(tokens).toEqual(mockTokens);
     });
     
     it('handles token exchange errors', async () => {
@@ -166,7 +162,7 @@ describe('GitHubProvider', () => {
       expect(userInfo).toEqual({
         id: '123456',
         email: 'primary@example.com',
-        emailverified: true,
+        email_verified: true,
         name: 'Test User',
         picture: 'https://github.com/avatar.jpg',
         raw: mockUser
@@ -195,7 +191,7 @@ describe('GitHubProvider', () => {
       const userInfo = await provider.getUserInfo('test-token');
       
       expect(userInfo.email).toBe('public@example.com');
-      expect(userInfo.emailverified).toBe(true); // Default to true when using public email
+      expect(userInfo.email_verified).toBe(true); // Default to true when using public email
     });
     
     it('handles user info fetch errors', async () => {

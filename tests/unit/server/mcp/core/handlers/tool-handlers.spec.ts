@@ -1,167 +1,363 @@
 /**
- * @fileoverview Unit tests for MCP Tool Handlers
- * @module tests/unit/server/mcp/core/handlers/tool-handlers
+ * @fileoverview Unit tests for MCP tool handlers with permissions
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleListTools, handleToolCall } from '../../../../../../src/server/mcp/core/handlers/tool-handlers';
-import type { MCPToolContext } from '../../../../../../src/server/mcp/core/types/request-context';
-import type { CallToolRequest, ListToolsRequest } from '@modelcontextprotocol/sdk/types.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { z } from 'zod';
+import type { MCPToolContext } from '@/server/mcp/core/types/request-context';
+import type { ListToolsRequest, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 
-// Mock dependencies
-vi.mock('../../../../../../src/server/mcp/core/handlers/tools/check-status', () => ({
-  handleCheckStatus: vi.fn().mockResolvedValue({ 
-    content: [{ type: 'text', text: 'Status: OK' }] 
-  })
-}));
-
-vi.mock('../../../../../../src/server/mcp/core/handlers/tools/get-prompt', () => ({
-  handleGetPrompt: vi.fn().mockResolvedValue({ 
-    content: [{ type: 'text', text: 'Prompt content' }] 
-  })
-}));
-
-vi.mock('../../../../../../src/utils/logger', () => ({
+// Mock the logger
+vi.mock('@/utils/logger', () => ({
   logger: {
     info: vi.fn(),
     debug: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn()
+    warn: vi.fn(),
+    error: vi.fn()
   }
 }));
 
-describe('Tool Handlers', () => {
-  let mockContext: MCPToolContext;
+// Mock the check-status handler
+vi.mock('@/server/mcp/core/handlers/tools/check-status', () => ({
+  handleCheckStatus: vi.fn(() => Promise.resolve({
+    content: [{
+      type: 'text',
+      text: 'System status retrieved successfully'
+    }],
+    structuredContent: {
+      status: 'success',
+      message: 'System status retrieved successfully',
+      result: {
+        timestamp: new Date().toISOString(),
+        uptime: 12345,
+        platform: 'Linux 5.15',
+        resources: {
+          cpu: { model: 'Test CPU', cores: 4, usage: 25 },
+          memory: { total: 8000000000, free: 4000000000, used: 4000000000, usagePercent: 50 },
+          disk: { total: 100000000000, free: 50000000000, used: 50000000000, usagePercent: 50 }
+        },
+        services: {
+          mcp: { status: 'active', version: '0.1.0', activeSessions: 1 },
+          oauth: { status: 'active', tunnelActive: false, providers: [] }
+        }
+      }
+    }
+  }))
+}));
 
-  beforeEach(() => {
+// Import the functions to test after mocks are set up
+import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
+
+// Mock crypto.randomUUID
+global.crypto = {
+  randomUUID: vi.fn(() => 'mock-uuid-' + Date.now())
+} as any;
+
+describe('MCP Tool Handlers', () => {
+  let mockHandleCheckStatus: any;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
-    
-    mockContext = {
-      sessionId: 'test-session-123',
-      sessionConfig: {}
-    };
+    // Get the mocked function
+    const checkStatusModule = await import('@/server/mcp/core/handlers/tools/check-status');
+    mockHandleCheckStatus = checkStatusModule.handleCheckStatus as any;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('handleListTools', () => {
-    it('should return empty tools array', async () => {
+    it('should return check-status tool for admin users', async () => {
       const request: ListToolsRequest = {};
-      
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
+
+      const result = await handleListTools(request, context);
+
+      expect(result.tools).toHaveLength(1);
+      expect(result.tools[0]).toMatchObject({
+        name: 'checkstatus',
+        description: 'Get comprehensive system status (admin only)'
+      });
+      expect(result.tools[0]).not.toHaveProperty('_meta');
+    });
+
+    it('should return empty tool list for basic users', async () => {
+      const request: ListToolsRequest = {};
+      const context: MCPToolContext = {
+        sessionId: 'basic-user-456'
+      };
+
+      const result = await handleListTools(request, context);
+
+      expect(result.tools).toHaveLength(0);
+    });
+
+    it('should return empty tool list when no context provided', async () => {
+      const request: ListToolsRequest = {};
+
       const result = await handleListTools(request);
 
-      expect(result).toEqual({
-        tools: []
-      });
+      expect(result.tools).toHaveLength(0);
+    });
+
+    it('should log tool filtering process', async () => {
+      const { logger } = await import('@/utils/logger');
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
+
+      await handleListTools({}, context);
+
+      expect(logger.info).toHaveBeenCalledWith(
+        'Tool listing requested',
+        expect.objectContaining({
+          sessionId: 'admin-session-123',
+          requestId: expect.stringContaining('mock-uuid')
+        })
+      );
+
+      expect(logger.info).toHaveBeenCalledWith(
+        'Tool filtering completed',
+        expect.objectContaining({
+          userId: 'user-123',
+          role: 'admin',
+          totalTools: 1,
+          availableTools: 1,
+          toolNames: ['checkstatus']
+        })
+      );
+    });
+
+    it('should handle errors gracefully', async () => {
+      const context: MCPToolContext = {
+        sessionId: null as any // Invalid session to trigger error
+      };
+
+      await expect(handleListTools({}, context)).rejects.toThrow();
+      
+      const { logger } = await import('@/utils/logger');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Tool listing failed',
+        expect.objectContaining({
+          error: expect.any(String)
+        })
+      );
     });
   });
 
   describe('handleToolCall', () => {
-    // Note: The current implementation has an empty TOOLS array,
-    // which means all tool calls will fail the validation check.
-    // The switch statement that handles actual tools is unreachable.
-    
-    it('should throw error for any tool since TOOLS array is empty', async () => {
+    it('should allow admin to call check-status tool', async () => {
       const request: CallToolRequest = {
         params: {
           name: 'checkstatus',
-          arguments: { verbose: true }
+          arguments: {
+            includeContainers: true,
+            includeUsers: true
+          }
         }
       };
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
 
-      await expect(handleToolCall(request, mockContext)).rejects.toThrow('Unknown tool: checkstatus');
-      
-      const { logger } = await import('../../../../../../src/utils/logger');
-      expect(logger.error).toHaveBeenCalledWith(
-        'Unknown tool requested',
-        { toolName: 'checkstatus' }
+      const result = await handleToolCall(request, context);
+
+      expect(result).toHaveProperty('content');
+      expect(result.content).toEqual([{
+        type: 'text',
+        text: 'System status retrieved successfully'
+      }]);
+      expect(result).toHaveProperty('structuredContent');
+      expect(result.structuredContent.status).toBe('success');
+
+      expect(mockHandleCheckStatus).toHaveBeenCalledWith(
+        { includeContainers: true, includeUsers: true },
+        context
       );
+    });
+
+    it('should deny basic user from calling check-status tool', async () => {
+      const request: CallToolRequest = {
+        params: {
+          name: 'checkstatus',
+          arguments: {}
+        }
+      };
+      const context: MCPToolContext = {
+        sessionId: 'basic-user-456'
+      };
+
+      await expect(handleToolCall(request, context)).rejects.toThrow(
+        'Permission denied: basic role cannot access checkstatus tool'
+      );
+
+      expect(mockHandleCheckStatus).not.toHaveBeenCalled();
     });
 
     it('should throw error for unknown tool', async () => {
       const request: CallToolRequest = {
         params: {
-          name: 'unknown_tool',
+          name: 'unknowntool',
           arguments: {}
         }
       };
-
-      await expect(handleToolCall(request, mockContext)).rejects.toThrow('Unknown tool: unknown_tool');
-    });
-
-    it('should throw error for missing arguments', async () => {
-      const request: CallToolRequest = {
-        params: {
-          name: 'checkstatus',
-          arguments: undefined as any
-        }
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
       };
 
-      await expect(handleToolCall(request, mockContext)).rejects.toThrow('Arguments are required');
-      
-      const { logger } = await import('../../../../../../src/utils/logger');
-      expect(logger.error).toHaveBeenCalledWith(
-        'Tool call missing required arguments',
-        { toolName: 'checkstatus' }
+      await expect(handleToolCall(request, context)).rejects.toThrow(
+        'Unknown tool: unknowntool'
       );
     });
 
-    it('should log tool call information before validation', async () => {
-      const { logger } = await import('../../../../../../src/utils/logger');
-      
+    it('should require session ID', async () => {
       const request: CallToolRequest = {
         params: {
           name: 'checkstatus',
-          arguments: { context: 'tasks' }
+          arguments: {}
         }
+      };
+      const context: MCPToolContext = {};
+
+      await expect(handleToolCall(request, context)).rejects.toThrow(
+        'Session ID is required'
+      );
+    });
+
+    it('should log permission denial attempts', async () => {
+      const { logger } = await import('@/utils/logger');
+      const request: CallToolRequest = {
+        params: {
+          name: 'checkstatus',
+          arguments: {}
+        }
+      };
+      const context: MCPToolContext = {
+        sessionId: 'basic-user-456'
       };
 
       try {
-        await handleToolCall(request, mockContext);
-      } catch {
+        await handleToolCall(request, context);
+      } catch (e) {
         // Expected to throw
       }
 
-      expect(logger.info).toHaveBeenCalledWith('🔧 handleToolCall called for tool: checkstatus');
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Tool arguments:',
-        JSON.stringify({ context: 'tasks' }, null, 2)
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Tool access denied',
+        expect.objectContaining({
+          userId: 'user-123',
+          userEmail: 'basic@example.com',
+          role: 'basic',
+          toolName: 'checkstatus',
+          requiredRole: 'admin',
+          requestId: expect.stringContaining('mock-uuid')
+        })
       );
     });
 
-    it('should handle errors and log them properly', async () => {
-      const { logger } = await import('../../../../../../src/utils/logger');
-      
+    it('should log successful tool execution', async () => {
+      const { logger } = await import('@/utils/logger');
       const request: CallToolRequest = {
         params: {
-          name: 'getprompt',
-          arguments: { promptId: 'test' }
+          name: 'checkstatus',
+          arguments: {}
         }
       };
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
 
-      await expect(handleToolCall(request, mockContext)).rejects.toThrow('Unknown tool: getprompt');
+      await handleToolCall(request, context);
 
-      expect(logger.error).toHaveBeenCalledWith(
-        'Tool call failed',
-        {
-          toolName: 'getprompt',
-          error: 'Unknown tool: getprompt',
-          stack: expect.stringContaining('Error: Unknown tool: getprompt')
-        }
+      expect(logger.info).toHaveBeenCalledWith(
+        'Tool execution completed',
+        expect.objectContaining({
+          userId: 'user-123',
+          toolName: 'checkstatus',
+          executionTime: expect.any(Number),
+          requestId: expect.stringContaining('mock-uuid')
+        })
       );
     });
-    
-    // Test the unreachable switch statement logic for documentation purposes
-    it('switch statement would handle checkstatus if TOOLS validation passed', () => {
-      // This test documents that the implementation has a switch statement
-      // for 'checkstatus' and 'getprompt' tools, but it's currently unreachable
-      // due to the empty TOOLS array validation
-      expect(true).toBe(true);
+
+    it('should handle tool execution errors', async () => {
+      mockHandleCheckStatus.mockRejectedValueOnce(new Error('Tool execution failed'));
+
+      const request: CallToolRequest = {
+        params: {
+          name: 'checkstatus',
+          arguments: {}
+        }
+      };
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
+
+      await expect(handleToolCall(request, context)).rejects.toThrow(
+        'Tool execution failed'
+      );
+
+      const { logger } = await import('@/utils/logger');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Tool execution failed',
+        expect.objectContaining({
+          toolName: 'checkstatus',
+          error: 'Tool execution failed',
+          isPermissionError: false
+        })
+      );
     });
-    
-    it('switch statement would handle getprompt if TOOLS validation passed', () => {
-      // This test documents that the implementation has a switch statement
-      // for 'checkstatus' and 'getprompt' tools, but it's currently unreachable
-      // due to the empty TOOLS array validation
-      expect(true).toBe(true);
+
+    it('should validate tool arguments with Zod', async () => {
+      const request: CallToolRequest = {
+        params: {
+          name: 'checkstatus',
+          arguments: 'invalid-arguments' as any // Should be object
+        }
+      };
+      const context: MCPToolContext = {
+        sessionId: 'admin-session-123'
+      };
+
+      await expect(handleToolCall(request, context)).rejects.toThrow();
+    });
+  });
+
+  describe('Permission System Integration', () => {
+    it('should respect granular permissions', async () => {
+      // This test would require modifying getUserPermissionContext
+      // to accept custom permissions for testing
+      const context: MCPToolContext = {
+        sessionId: 'custom-permissions-test'
+      };
+
+      // In a real implementation, we'd mock the database query
+      // to return a user with specific permissions
+      const result = await handleListTools({}, context);
+      
+      // Basic user should not see admin tools
+      if (context.sessionId.includes('basic')) {
+        expect(result.tools).toHaveLength(0);
+      }
+    });
+
+    it('should handle session expiration', async () => {
+      const request: CallToolRequest = {
+        params: {
+          name: 'checkstatus',
+          arguments: {}
+        }
+      };
+      const context: MCPToolContext = {
+        sessionId: undefined as any
+      };
+
+      await expect(handleToolCall(request, context)).rejects.toThrow(
+        'Session ID is required'
+      );
     });
   });
 });

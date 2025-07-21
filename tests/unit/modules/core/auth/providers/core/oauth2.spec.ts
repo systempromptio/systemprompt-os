@@ -19,12 +19,12 @@ describe('GenericOAuth2Provider', () => {
     mockConfig = {
       id: 'test-oauth2',
       name: 'Test OAuth2 Provider',
-      clientid: 'test-client-id',
-      clientsecret: 'test-client-secret',
-      redirecturi: 'http://localhost:3000/callback',
-      authorizationendpoint: 'https://provider.com/authorize',
-      tokenendpoint: 'https://provider.com/token',
-      userinfoendpoint: 'https://provider.com/userinfo',
+      client_id: 'test-client-id',
+      client_secret: 'test-client-secret',
+      redirect_uri: 'http://localhost:3000/callback',
+      authorization_endpoint: 'https://provider.com/authorize',
+      token_endpoint: 'https://provider.com/token',
+      userinfo_endpoint: 'https://provider.com/userinfo',
       scope: 'openid email profile'
     };
   });
@@ -82,7 +82,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('includes custom parameters', () => {
-      mockConfig.authorizationparams = {
+      mockConfig.authorization_params = {
         prompt: 'consent',
         access_type: 'offline'
       };
@@ -171,7 +171,7 @@ describe('GenericOAuth2Provider', () => {
       expect(userInfo).toEqual({
         id: '123456',
         email: 'test@example.com',
-        emailverified: true,
+        email_verified: true,
         name: 'Test User',
         picture: 'https://example.com/photo.jpg',
         raw: mockUserInfo
@@ -179,7 +179,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('applies custom user info mapping', async () => {
-      mockConfig.userinfomapping = {
+      mockConfig.userinfo_mapping = {
         id: 'user_id',
         email: 'user_email',
         name: 'display_name'
@@ -203,7 +203,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('throws error when endpoint not configured', async () => {
-      delete mockConfig.userinfoendpoint;
+      delete mockConfig.userinfo_endpoint;
       provider = new GenericOAuth2Provider(mockConfig);
       
       await expect(provider.getUserInfo('token'))
@@ -261,7 +261,7 @@ describe('GenericOAuth2Provider', () => {
       
       const config = {
         ...mockConfig,
-        discoveryurl: 'https://provider.com/.well-known/openid-configuration'
+        discovery_url: 'https://provider.com/.well-known/openid-configuration'
       };
       
       // This would typically be done in a factory method

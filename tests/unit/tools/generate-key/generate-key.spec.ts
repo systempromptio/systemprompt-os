@@ -3,7 +3,7 @@ import { generateJWTKeyPair } from '../../../../src/modules/core/auth/utils/gene
 import { existsSync, readFileSync, rmSync, mkdtempSync } from 'fs';
 import path from 'path';
 import os from 'os';
-import type { JWTKeyPairOptions } from '../../../../src/modules/core/auth/utils/generate-key.js';
+import type { GenerateKeyOptions } from '../../../../src/modules/core/auth/utils/generate-key.js';
 
 describe('CLI Key Generation', () => {
   let testDir: string;
@@ -21,7 +21,7 @@ describe('CLI Key Generation', () => {
   describe('PEM format generation', () => {
     it('should generate RSA key pair in PEM format', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'RS256',
         outputDir: testDir,
@@ -49,7 +49,7 @@ describe('CLI Key Generation', () => {
 
     it('should generate valid RSA keys with correct modulus', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'RS256',
         outputDir: testDir,
@@ -68,7 +68,7 @@ describe('CLI Key Generation', () => {
   describe('JWK format generation', () => {
     it('should generate keys in JWK format with correct structure', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'RS256',
         outputDir: testDir,
@@ -103,7 +103,7 @@ describe('CLI Key Generation', () => {
 
     it('should support RS512 algorithm', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'RS512',
         outputDir: testDir,
@@ -124,7 +124,7 @@ describe('CLI Key Generation', () => {
   describe('error handling', () => {
     it('should throw error for invalid output directory', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'RS256',
         outputDir: '/invalid/non/existent/path',
@@ -137,7 +137,7 @@ describe('CLI Key Generation', () => {
 
     it('should handle symmetric algorithm gracefully', async () => {
       // Arrange
-      const options: JWTKeyPairOptions = {
+      const options: GenerateKeyOptions = {
         type: 'jwt',
         algorithm: 'HS256' as any, // symmetric algorithm
         outputDir: testDir,
@@ -145,13 +145,21 @@ describe('CLI Key Generation', () => {
       };
 
       // Act
-      // Note: Current implementation treats HS256 as RSA, which will generate RSA keys
-      // This is not ideal but we're testing current behavior
-      const result = await generateJWTKeyPair(options);
+      // The current implementation treats HS256 as EC since it doesn't start with 'RS'
+      // This will generate EC keys (not ideal for HS256 which is symmetric)
+      await generateJWTKeyPair(options);
       
-      // Assert - it generates RSA keys even for HS256
-      expect(result.publicKeyPath).toContain('jwt_public.pem');
-      expect(result.privateKeyPath).toContain('jwt_private.pem');
+      // Assert - it generates EC keys for HS256
+      const privateKeyPath = path.join(testDir, 'private.key');
+      const publicKeyPath = path.join(testDir, 'public.key');
+      expect(existsSync(privateKeyPath)).toBe(true);
+      expect(existsSync(publicKeyPath)).toBe(true);
+      
+      // Verify they are EC keys
+      const privateKey = readFileSync(privateKeyPath, 'utf8');
+      const publicKey = readFileSync(publicKeyPath, 'utf8');
+      expect(privateKey).toMatch(/BEGIN PRIVATE KEY/);
+      expect(publicKey).toMatch(/BEGIN PUBLIC KEY/);
     });
   });
 });

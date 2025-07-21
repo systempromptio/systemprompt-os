@@ -17,9 +17,9 @@ describe('GoogleProvider', () => {
     vi.clearAllMocks();
     
     mockConfig = {
-      clientid: 'test-client-id.apps.googleusercontent.com',
-      clientsecret: 'test-client-secret',
-      redirecturi: 'http://localhost:3000/callback'
+      client_id: 'test-client-id.apps.googleusercontent.com',
+      client_secret: 'test-client-secret',
+      redirect_uri: 'http://localhost:3000/callback'
     };
   });
   
@@ -139,7 +139,7 @@ describe('GoogleProvider', () => {
       const mockUserInfo = {
         sub: '1234567890',
         email: 'test@gmail.com',
-        emailverified: true,
+        email_verified: true,
         name: 'Test User',
         picture: 'https://lh3.googleusercontent.com/a/test-photo',
         given_name: 'Test',
@@ -163,7 +163,7 @@ describe('GoogleProvider', () => {
       expect(userInfo).toEqual({
         id: '1234567890',
         email: 'test@gmail.com',
-        emailverified: true,
+        email_verified: true,
         name: 'Test User',
         picture: 'https://lh3.googleusercontent.com/a/test-photo',
         locale: 'en',

@@ -27,6 +27,11 @@ export interface TunnelConfig {
   tunnelToken?: string;
   
   /**
+   * Cloudflare tunnel URL (required when using tunnel token)
+   */
+  tunnelUrl?: string;
+  
+  /**
    * Enable tunnel in development
    */
   enableInDevelopment?: boolean;
@@ -205,44 +210,97 @@ export class TunnelService extends EventEmitter {
         return;
       }
 
-      // Start cloudflared with quick tunnel
-      const args = ["tunnel", "--url", `http://localhost:${this.config.port}`];
+      // Start cloudflared with appropriate command
+      let args: string[];
       
-      // If tunnel token is provided, use named tunnel
       if (this.config.tunnelToken) {
-        args.unshift("--token", this.config.tunnelToken);
+        // Use named tunnel with token
+        args = ["tunnel", "--no-autoupdate", "run", "--token", this.config.tunnelToken];
+      } else {
+        // Use quick tunnel for temporary URLs
+        args = ["tunnel", "--url", `http://localhost:${this.config.port}`];
       }
 
       this.tunnelProcess = spawn("cloudflared", args);
 
       let urlFound = false;
       const tunnelUrlRegex = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/;
+      const namedTunnelRegex = /INF\s+Registered tunnel connection|Connection [a-f0-9-]+ registered/i;
+      const namedTunnelUrlRegex = /https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.cloudflare[a-z]*\.com|https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
+
+      // Helper method to handle tunnel ready state
+      const handleTunnelReady = () => {
+        this.status = {
+          active: true,
+          url: this.tunnelUrl,
+          type: "cloudflared"
+        };
+        this.logger?.info(`🚇 Tunnel established: ${this.tunnelUrl}`);
+        this.logger?.info(`📍 Public URL: ${this.tunnelUrl}`);
+        this.logger?.info(`🔗 OAuth Redirect Base: ${this.tunnelUrl}/oauth2/callback`);
+        
+        // Emit tunnel ready event
+        this.emit('tunnel-ready', {
+          url: this.tunnelUrl,
+          type: this.status.type,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Update OAuth configuration immediately
+        this.updateOAuthProviders(this.tunnelUrl!).then(() => {
+          this.logger?.info("✅ OAuth providers updated with tunnel URL");
+          this.emit("ready", this.tunnelUrl);
+        }).catch((err) => {
+          this.logger?.error("Failed to update OAuth providers:", err);
+          this.emit("ready", this.tunnelUrl);
+        });
+      };
 
       const checkForUrl = (output: string) => {
         if (!urlFound) {
-          const match = output.match(tunnelUrlRegex);
-          if (match) {
-            urlFound = true;
-            this.tunnelUrl = match[0];
-            this.status = {
-              active: true,
-              url: this.tunnelUrl,
-              type: "cloudflared"
-            };
-            this.logger?.info(`🚇 Tunnel established: ${this.tunnelUrl}`);
-            this.logger?.info(`📍 Public URL: ${this.tunnelUrl}`);
-            this.logger?.info(`🔗 OAuth Redirect Base: ${this.tunnelUrl}/oauth2/callback`);
-            
-            // Update OAuth configuration immediately
-            this.updateOAuthProviders(this.tunnelUrl).then(() => {
-              this.logger?.info("✅ OAuth providers updated with tunnel URL");
-              this.emit("ready", this.tunnelUrl);
+          // For quick tunnels, look for the URL in output
+          if (!this.config.tunnelToken) {
+            const match = output.match(tunnelUrlRegex);
+            if (match) {
+              urlFound = true;
+              this.tunnelUrl = match[0];
+              handleTunnelReady();
               resolve(this.tunnelUrl!);
-            }).catch((err) => {
-              this.logger?.error("Failed to update OAuth providers:", err);
-              this.emit("ready", this.tunnelUrl);
+            }
+          } 
+          // For named tunnels, look for connection registered message
+          else {
+            // Check if tunnel connection is registered
+            if (output.match(namedTunnelRegex)) {
+              this.logger?.info("Named tunnel connection registered");
+              // For token-based tunnels, we don't get the URL in output
+              // The URL is pre-configured in Cloudflare dashboard
+              if (!urlFound) {
+                urlFound = true;
+                this.logger?.warn("Token-based tunnel connected but URL not available in output");
+                this.logger?.warn("Please check your Cloudflare dashboard for the tunnel URL");
+                const tunnelIdMatch = output.match(/tunnelID=([a-f0-9-]+)/);
+                if (tunnelIdMatch) {
+                  this.logger?.warn(`Tunnel ID: ${tunnelIdMatch[1]}`);
+                }
+                // Use configured URL if available, otherwise use placeholder
+                this.tunnelUrl = this.config.tunnelUrl || "https://tunnel-configured-in-cloudflare.com";
+                if (!this.config.tunnelUrl) {
+                  this.logger?.error("CLOUDFLARE_TUNNEL_URL not configured!");
+                  this.logger?.error("Please set CLOUDFLARE_TUNNEL_URL in your .env file");
+                }
+                handleTunnelReady();
+                resolve(this.tunnelUrl!);
+              }
+            }
+            // Also check for URL in case it's printed
+            const urlMatch = output.match(namedTunnelUrlRegex);
+            if (urlMatch && !urlFound) {
+              urlFound = true;
+              this.tunnelUrl = urlMatch[0];
+              handleTunnelReady();
               resolve(this.tunnelUrl!);
-            });
+            }
           }
         }
       };

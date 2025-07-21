@@ -13,12 +13,12 @@ global.fetch = vi.fn();
 const baseConfig = {
   id: 'test-provider',
   name: 'Test Provider',
-  clientid: 'test-client-id',
-  clientsecret: 'test-client-secret',
-  redirecturi: 'http://localhost:3000/callback',
-  authorizationendpoint: 'https://provider.com/auth',
-  tokenendpoint: 'https://provider.com/token',
-  userinfoendpoint: 'https://provider.com/userinfo',
+  client_id: 'test-client-id',
+  client_secret: 'test-client-secret',
+  redirect_uri: 'http://localhost:3000/callback',
+  authorization_endpoint: 'https://provider.com/auth',
+  token_endpoint: 'https://provider.com/token',
+  userinfo_endpoint: 'https://provider.com/userinfo',
   scope: 'openid email profile'
 };
 
@@ -48,7 +48,7 @@ generateOAuth2ProviderTests({
     it('should support custom authorization parameters', () => {
       const config = {
         ...baseConfig,
-        authorizationparams: {
+        authorization_params: {
           prompt: 'consent',
           access_type: 'offline'
         }
@@ -65,7 +65,7 @@ generateOAuth2ProviderTests({
     it('should handle custom user info mapping', async () => {
       const config = {
         ...baseConfig,
-        userinfomapping: {
+        userinfo_mapping: {
           id: 'sub',
           email: 'email_address',
           name: 'display_name',
@@ -91,7 +91,7 @@ generateOAuth2ProviderTests({
       expect(userInfo).toEqual({
         id: 'custom-id-123',
         email: 'custom@example.com',
-        emailverified: undefined,
+        email_verified: undefined,
         name: 'Custom User',
         picture: 'https://example.com/avatar.jpg',
         raw: mockUserInfo

@@ -11,4 +11,3 @@ export type {
 } from './types.js';
 
 export { handleCheckStatus } from './check-status.js';
-export { handleGetPrompt } from './get-prompt.js';

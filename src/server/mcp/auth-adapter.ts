@@ -8,6 +8,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authMiddleware, AuthenticatedRequest } from '../external/middleware/auth.js';
 import { CONFIG } from '../config.js';
+import { tunnelStatus } from '../../modules/core/auth/tunnel-status.js';
 
 /**
  * Wraps the existing auth middleware to return MCP-compliant error responses
@@ -37,23 +38,19 @@ export function mcpAuthAdapter(
   // Override json to transform auth errors to MCP format
   res.json = function(body: any) {
     if (statusCode === 401) {
+      // Set WWW-Authenticate header as required by RFC 9728
+      const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
+      res.setHeader('WWW-Authenticate', 
+        `Bearer realm="${baseUrl}/mcp", ` +
+        `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`
+      );
+      
       // Transform to MCP-compliant error response
       const mcpError = {
         jsonrpc: '2.0',
         error: {
           code: -32001, // Authentication required
-          message: body.error_description || 'Authentication required',
-          data: {
-            // Include OAuth2 configuration for client
-            oauth2: {
-              authorization_uri: `${CONFIG.BASEURL}/oauth2/authorize`,
-              token_uri: `${CONFIG.BASEURL}/oauth2/token`,
-              scopes_supported: ['openid', 'email', 'profile'],
-              response_types_supported: ['code'],
-              grant_types_supported: ['authorization_code', 'refresh_token'],
-              code_challenge_methods_supported: ['S256', 'plain']
-            }
-          }
+          message: body.error_description || 'Authentication required'
         },
         id: req.body?.id || null
       };

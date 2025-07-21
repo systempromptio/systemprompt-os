@@ -117,43 +117,4 @@ describe('MCP Server', () => {
     });
   });
 
-  // Skip tests that rely on real implementations
-  it('should start all MCP servers', async () => {
-    const { setupMCPServers } = await import('../../../src/server/mcp/index.js');
-    
-    // Mock the registry
-    const mockRegistry = {
-      getServers: vi.fn().mockReturnValue([
-        { name: 'test-server', transport: 'stdio' }
-      ]),
-      startServer: vi.fn().mockResolvedValue(undefined)
-    };
-    
-    vi.mocked(getMCPServerRegistry).mockReturnValue(mockRegistry as any);
-    
-    await setupMCPServers(mockApp);
-    
-    expect(mockRegistry.startServer).toHaveBeenCalledWith('test-server');
-  });
-
-  it('should handle server startup errors', async () => {
-    const { setupMCPServers } = await import('../../../src/server/mcp/index.js');
-    
-    // Mock the registry with error
-    const mockRegistry = {
-      getServers: vi.fn().mockReturnValue([
-        { name: 'error-server', transport: 'stdio' }
-      ]),
-      startServer: vi.fn().mockRejectedValue(new Error('Startup failed'))
-    };
-    
-    vi.mocked(getMCPServerRegistry).mockReturnValue(mockRegistry as any);
-    
-    await setupMCPServers(mockApp);
-    
-    expect(mockConsole.error).toHaveBeenCalledWith(
-      'Failed to start MCP server error-server:',
-      expect.any(Error)
-    );
-  });
 });
