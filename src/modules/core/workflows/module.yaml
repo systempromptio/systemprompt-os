@@ -1,0 +1,189 @@
+name: workflows
+type: service
+version: 1.0.0
+description: Workflow definition and execution engine
+author: systemprompt-os
+
+config:
+  maxConcurrentWorkflows: 50
+  defaultTimeout: 3600000  # 1 hour
+  retryAttempts: 3
+  retryDelay: 5000
+  checkpointInterval: 30000
+
+dependencies:
+  - database
+  - logger
+  - agents
+
+apis:
+  - name: createWorkflow
+    description: Create a new workflow definition
+  - name: executeWorkflow
+    description: Execute a workflow
+  - name: scheduleWorkflow
+    description: Schedule a workflow for future execution
+  - name: cancelWorkflow
+    description: Cancel a running workflow
+  - name: getWorkflowStatus
+    description: Get workflow execution status
+  - name: listWorkflows
+    description: List workflow definitions
+  - name: listExecutions
+    description: List workflow executions
+
+cli:
+  commands:
+    - name: workflows
+      description: Workflow management commands
+      subcommands:
+        - name: list
+          description: List all workflows
+          options:
+            - name: status
+              alias: s
+              type: string
+              description: Filter by status (active, inactive, archived)
+              required: false
+            - name: format
+              alias: f
+              type: string
+              description: Output format (json, table)
+              required: false
+              default: table
+        
+        - name: create
+          description: Create workflow from definition file
+          options:
+            - name: file
+              alias: f
+              type: string
+              description: Workflow definition file (YAML/JSON)
+              required: true
+            - name: name
+              alias: n
+              type: string
+              description: Override workflow name
+              required: false
+        
+        - name: execute
+          description: Execute a workflow
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Workflow ID
+              required: true
+            - name: params
+              alias: p
+              type: string
+              description: Workflow parameters (JSON)
+              required: false
+            - name: async
+              alias: a
+              type: boolean
+              description: Execute asynchronously
+              required: false
+              default: true
+        
+        - name: schedule
+          description: Schedule workflow execution
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Workflow ID
+              required: true
+            - name: cron
+              alias: c
+              type: string
+              description: Cron expression
+              required: false
+            - name: at
+              alias: a
+              type: string
+              description: Execute at specific time (ISO 8601)
+              required: false
+            - name: params
+              alias: p
+              type: string
+              description: Workflow parameters (JSON)
+              required: false
+        
+        - name: status
+          description: Check workflow execution status
+          options:
+            - name: execution
+              alias: e
+              type: string
+              description: Execution ID
+              required: true
+            - name: detailed
+              alias: d
+              type: boolean
+              description: Show detailed status
+              required: false
+              default: false
+        
+        - name: history
+          description: View workflow execution history
+          options:
+            - name: workflow
+              alias: w
+              type: string
+              description: Workflow ID
+              required: false
+            - name: limit
+              alias: l
+              type: number
+              description: Number of executions to show
+              required: false
+              default: 20
+            - name: status
+              alias: s
+              type: string
+              description: Filter by status
+              required: false
+        
+        - name: cancel
+          description: Cancel running workflow
+          options:
+            - name: execution
+              alias: e
+              type: string
+              description: Execution ID
+              required: true
+            - name: force
+              alias: f
+              type: boolean
+              description: Force cancellation
+              required: false
+              default: false
+        
+        - name: validate
+          description: Validate workflow definition
+          options:
+            - name: file
+              alias: f
+              type: string
+              description: Workflow definition file
+              required: true
+        
+        - name: export
+          description: Export workflow definition
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Workflow ID
+              required: true
+            - name: output
+              alias: o
+              type: string
+              description: Output file
+              required: false
+
+exports:
+  - WorkflowService
+  - WorkflowRepository
+  - WorkflowEngine

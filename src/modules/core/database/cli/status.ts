@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "../../../../cli/src/types.js";
-import { ensureDatabaseInitialized } from "./utils.js";
+import type { CLICommand, CLIContext } from "@/cli/src/types";
+import { ensureDatabaseInitialized } from "./utils";
 
 export const command: CLICommand = {
   name: "status",
@@ -29,7 +29,7 @@ export const command: CLICommand = {
       // Get connection info
       const connection = await dbService.getConnection();
       const databaseType = process.env.DATABASE_TYPE || "sqlite";
-      const databaseFile = process.env.DATABASE_FILE || "./state/database.db";
+      const databaseFile = process.env.DATABASE_FILE || "/data/state/systemprompt.db";
       
       // Get migration status
       const pendingMigrations = await migrationService.getPendingMigrations();

@@ -1,0 +1,194 @@
+name: api
+type: service
+version: 1.0.0
+description: API key management and rate limiting
+author: systemprompt-os
+
+config:
+  rateLimit:
+    windowSize: 3600000    # 1 hour in milliseconds
+    defaultLimit: 1000     # Default requests per window
+    cleanupInterval: 300000 # 5 minutes
+  apiKey:
+    defaultExpiry: 2592000000 # 30 days in milliseconds
+    maxKeysPerUser: 10
+    keyPrefix: "sk_"
+    hashAlgorithm: "sha256"
+  usage:
+    trackingEnabled: true
+    aggregationInterval: 3600000 # 1 hour
+
+dependencies:
+  - database
+  - logger
+  - auth
+
+apis:
+  - name: createApiKey
+    description: Create a new API key
+  - name: validateApiKey
+    description: Validate an API key
+  - name: revokeApiKey
+    description: Revoke an API key
+  - name: listApiKeys
+    description: List API keys for a user
+  - name: getApiKeyUsage
+    description: Get usage statistics for an API key
+  - name: checkRateLimit
+    description: Check rate limit for a key
+  - name: getRateLimitStatus
+    description: Get current rate limit status
+
+cli:
+  commands:
+    - name: api
+      description: API key management commands
+      subcommands:
+        - name: keys
+          description: API key operations
+          subcommands:
+            - name: create
+              description: Create a new API key
+              options:
+                - name: name
+                  alias: n
+                  type: string
+                  description: Key name/description
+                  required: true
+                - name: user
+                  alias: u
+                  type: string
+                  description: User ID
+                  required: true
+                - name: scopes
+                  alias: s
+                  type: string
+                  description: Comma-separated scopes
+                  required: false
+                - name: limit
+                  alias: l
+                  type: number
+                  description: Rate limit (requests per hour)
+                  required: false
+                - name: expires
+                  alias: e
+                  type: string
+                  description: Expiry duration (e.g., "30d", "1y")
+                  required: false
+            
+            - name: list
+              description: List API keys
+              options:
+                - name: user
+                  alias: u
+                  type: string
+                  description: Filter by user ID
+                  required: false
+                - name: active
+                  alias: a
+                  type: boolean
+                  description: Show only active keys
+                  required: false
+                  default: false
+                - name: format
+                  alias: f
+                  type: string
+                  description: Output format (json, table)
+                  required: false
+                  default: table
+            
+            - name: revoke
+              description: Revoke an API key
+              options:
+                - name: key
+                  alias: k
+                  type: string
+                  description: API key to revoke
+                  required: true
+                - name: reason
+                  alias: r
+                  type: string
+                  description: Revocation reason
+                  required: false
+            
+            - name: info
+              description: Get API key information
+              options:
+                - name: key
+                  alias: k
+                  type: string
+                  description: API key
+                  required: true
+                - name: usage
+                  alias: u
+                  type: boolean
+                  description: Include usage statistics
+                  required: false
+                  default: false
+        
+        - name: ratelimit
+          description: Rate limit operations
+          subcommands:
+            - name: status
+              description: Check rate limit status
+              options:
+                - name: key
+                  alias: k
+                  type: string
+                  description: API key
+                  required: true
+            
+            - name: reset
+              description: Reset rate limit
+              options:
+                - name: key
+                  alias: k
+                  type: string
+                  description: API key
+                  required: true
+                - name: confirm
+                  alias: c
+                  type: boolean
+                  description: Skip confirmation
+                  required: false
+                  default: false
+            
+            - name: update
+              description: Update rate limit
+              options:
+                - name: key
+                  alias: k
+                  type: string
+                  description: API key
+                  required: true
+                - name: limit
+                  alias: l
+                  type: number
+                  description: New limit (requests per hour)
+                  required: true
+        
+        - name: usage
+          description: API usage statistics
+          options:
+            - name: key
+              alias: k
+              type: string
+              description: API key (optional, shows all if not specified)
+              required: false
+            - name: period
+              alias: p
+              type: string
+              description: Time period (1h, 24h, 7d, 30d)
+              required: false
+              default: 24h
+            - name: format
+              alias: f
+              type: string
+              description: Output format (json, table, chart)
+              required: false
+              default: table
+
+exports:
+  - ApiKeyService
+  - RateLimitService
+  - ApiRepository

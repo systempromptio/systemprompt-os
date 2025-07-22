@@ -2,7 +2,7 @@ name: cli
 type: service
 version: 1.0.0
 description: CLI utilities and help system for SystemPrompt OS
-author: systemprompt-os
+author: SystemPrompt OS Team <team@systemprompt-os.com>
 config:
   showColors: true
   outputFormat: text
@@ -45,3 +45,29 @@ cli:
           type: string
           description: Documentation format (markdown, html, json)
           default: markdown
+    - name: mcp:list
+      description: List available MCP tools
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (json, table)
+          default: table
+    - name: mcp:call
+      description: Call an MCP tool
+      positionals:
+        - name: tool
+          type: string
+          description: Tool name to call
+          required: true
+      options:
+        - name: args
+          alias: a
+          type: string
+          description: Tool arguments as JSON string
+          default: '{}'
+        - name: format
+          alias: f
+          type: string
+          description: Output format (json, pretty)
+          default: pretty

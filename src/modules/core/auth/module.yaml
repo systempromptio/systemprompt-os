@@ -1,8 +1,8 @@
 name: auth
 type: service
-version: 1.0.0
-description: Authentication, authorization, and security utilities
-author: systemprompt-os
+version: 2.0.0
+description: Enhanced authentication with MFA, tokens, and audit logging
+author: SystemPrompt OS Team <team@systemprompt-os.com>
 config:
   keyStorePath: ./state/auth/keys
   tokenExpiry: 86400

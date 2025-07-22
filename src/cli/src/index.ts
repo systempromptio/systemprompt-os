@@ -64,9 +64,15 @@ async function registerModuleCommands() {
           env: process.env as Record<string, string>
         };
 
-        if (command.execute) {
+        // Load executor on demand
+        let executor = command.execute;
+        if (!executor && command.executorPath) {
+          executor = await discovery.loadCommandExecutor(command.executorPath);
+        }
+
+        if (executor) {
           try {
-            await command.execute(context);
+            await executor(context);
           } catch (error) {
             console.error(`Error executing ${commandName}:`, error);
             process.exit(1);

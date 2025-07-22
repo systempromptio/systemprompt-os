@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "../../../../cli/src/types.js";
-import { ensureDatabaseInitialized } from "./utils.js";
+import type { CLICommand, CLIContext } from "@/cli/src/types";
+import { ensureDatabaseInitialized } from "./utils";
 
 export const command: CLICommand = {
   name: "rollback",

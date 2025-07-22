@@ -1,7 +1,7 @@
 name: database
 version: 1.0.0
 description: Core database module for SystemPrompt OS
-author: SystemPrompt Team
+author: SystemPrompt OS Team <team@systemprompt-os.com>
 type: core
 enabled: true
 
@@ -42,18 +42,9 @@ configuration:
     init_pattern: "*/database/init.sql"
 
 exports:
-  services:
-    - DatabaseService
-    - MigrationService
-    - SchemaService
-  
-  adapters:
-    - DatabaseAdapter
-    
-  types:
-    - DatabaseConnection
-    - QueryBuilder
-    - Transaction
+  - services
+  - adapters
+  - types
 
 cli:
   commands:

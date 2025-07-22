@@ -1,6 +1,6 @@
-import type { CLICommand, CLIContext } from "../../../../cli/src/types.js";
-import { ensureDatabaseInitialized } from "./utils.js";
-import { DatabaseService } from "../services/database.service.js";
+import type { CLICommand, CLIContext } from "@/cli/src/types";
+import { ensureDatabaseInitialized } from "./utils";
+import { DatabaseService } from "@/modules/core/database/services/database.service";
 import * as readline from "readline";
 
 export const command: CLICommand = {

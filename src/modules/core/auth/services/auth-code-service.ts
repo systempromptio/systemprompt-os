@@ -4,8 +4,8 @@
  */
 
 import { randomBytes } from 'crypto';
-import { DatabaseService } from '../../database/index.js';
-import { logger } from '@/utils/logger.js';
+import { DatabaseService } from '@/modules/core/database';
+import { Logger } from '@/modules/types';
 
 export interface AuthorizationCodeData {
   clientId: string;
@@ -39,7 +39,21 @@ interface AuthCodeRow {
  * Service for managing OAuth authorization codes with database persistence
  */
 export class AuthCodeService {
-  constructor(private db: DatabaseService) {}
+  private static instance: AuthCodeService;
+  private logger?: Logger;
+  
+  private constructor(private db: DatabaseService) {}
+  
+  static getInstance(): AuthCodeService {
+    if (!this.instance) {
+      this.instance = new AuthCodeService(DatabaseService.getInstance());
+    }
+    return this.instance;
+  }
+  
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
 
   /**
    * Generate and store a new authorization code
@@ -67,7 +81,7 @@ export class AuthCodeService {
       ]
     );
     
-    logger.info('Authorization code created', { 
+    this.logger?.info('Authorization code created', { 
       code: code.substring(0, 8) + '...', 
       clientId: data.clientId 
     });

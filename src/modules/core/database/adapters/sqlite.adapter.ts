@@ -13,13 +13,13 @@ import type {
   QueryResult,
   PreparedStatement,
   Transaction
-} from '../interfaces/database.interface.js';
-import { logger } from '@utils/logger.js';
+} from '@/modules/core/database/types';
+import { ConnectionError, QueryError, TransactionError } from '@/modules/core/database/utils/errors';
 
 class SQLitePreparedStatement implements PreparedStatement {
   constructor(private stmt: Database.Statement) {}
 
-  async execute(params?: any[]): Promise<QueryResult> {
+  async execute(params?: unknown[]): Promise<QueryResult> {
     const rows = this.stmt.all(...(params || []));
     return {
       rows,
@@ -27,15 +27,15 @@ class SQLitePreparedStatement implements PreparedStatement {
     };
   }
 
-  async all<T = any>(params?: any[]): Promise<T[]> {
+  async all<T = unknown>(params?: unknown[]): Promise<T[]> {
     return this.stmt.all(...(params || [])) as T[];
   }
 
-  async get<T = any>(params?: any[]): Promise<T | undefined> {
+  async get<T = unknown>(params?: unknown[]): Promise<T | undefined> {
     return this.stmt.get(...(params || [])) as T | undefined;
   }
 
-  async run(params?: any[]): Promise<{ changes: number; lastInsertRowid: number | string }> {
+  async run(params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | string }> {
     const result = this.stmt.run(...(params || []));
     return {
       changes: result.changes,
@@ -51,7 +51,7 @@ class SQLitePreparedStatement implements PreparedStatement {
 class SQLiteTransaction implements Transaction {
   constructor(private db: Database.Database) {}
 
-  async query<T = any>(sql: string, params?: any[]): Promise<QueryResult<T>> {
+  async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
     const stmt = this.db.prepare(sql);
     const rows = stmt.all(...(params || []));
     return {
@@ -60,7 +60,7 @@ class SQLiteTransaction implements Transaction {
     };
   }
 
-  async execute(sql: string, params?: any[]): Promise<void> {
+  async execute(sql: string, params?: unknown[]): Promise<void> {
     if (params && params.length > 0) {
       const stmt = this.db.prepare(sql);
       stmt.run(...params);
@@ -85,7 +85,7 @@ class SQLiteTransaction implements Transaction {
 class SQLiteConnection implements DatabaseConnection {
   constructor(private db: Database.Database) {}
 
-  async query<T = any>(sql: string, params?: any[]): Promise<QueryResult<T>> {
+  async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
     const stmt = this.db.prepare(sql);
     const rows = stmt.all(...(params || []));
     return {
@@ -94,7 +94,7 @@ class SQLiteConnection implements DatabaseConnection {
     };
   }
 
-  async execute(sql: string, params?: any[]): Promise<void> {
+  async execute(sql: string, params?: unknown[]): Promise<void> {
     if (params && params.length > 0) {
       const stmt = this.db.prepare(sql);
       stmt.run(...params);
@@ -131,7 +131,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
   async connect(config: DatabaseConfig): Promise<DatabaseConnection> {
     if (!config.sqlite) {
-      throw new Error('SQLite configuration is required');
+      throw new ConnectionError('SQLite configuration is required', { type: 'sqlite' });
     }
 
     const { filename, mode = 'wal' } = config.sqlite;
@@ -151,12 +151,15 @@ export class SQLiteAdapter implements DatabaseAdapter {
       this.db.pragma('foreign_keys = ON');
       this.db.pragma('temp_store = MEMORY');
       
-      logger.info('SQLite database connected', { filename, mode });
+      // SQLite database connected successfully
       
       return new SQLiteConnection(this.db);
     } catch (error) {
-      logger.error('Failed to connect to SQLite database', { error });
-      throw error;
+      throw new ConnectionError(
+        `Failed to connect to SQLite database at ${filename}`,
+        { type: 'sqlite', host: filename },
+        error as Error
+      );
     }
   }
 
@@ -164,7 +167,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
     if (this.db) {
       this.db.close();
       this.db = null;
-      logger.info('SQLite database disconnected');
+      // SQLite database disconnected
     }
   }
 

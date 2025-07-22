@@ -47,8 +47,7 @@ export async function createApp(): Promise<express.Application> {
   app.use(express.urlencoded({ extended: true }));
   
   // Setup REST API endpoints
-  const router = express.Router();
-  await setupExternalEndpoints(app, router);
+  await setupExternalEndpoints(app);
   
   // Setup MCP servers
   await setupMCPServers( app);

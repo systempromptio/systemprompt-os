@@ -1,0 +1,152 @@
+name: users
+type: service
+version: 1.0.0
+description: User management with sessions, activity tracking, and role integration
+author: systemprompt-os
+dependencies:
+  - logger
+  - database
+  - auth
+config:
+  session:
+    timeout: 86400000  # 24 hours in milliseconds
+    maxConcurrent: 5   # Max concurrent sessions per user
+  activity:
+    trackingEnabled: true
+    retentionDays: 90
+  defaults:
+    role: user
+    status: active
+cli:
+  commands:
+    - name: list
+      description: List all users with roles and status
+      options:
+        - name: role
+          alias: r
+          type: string
+          description: Filter by role (admin, user)
+        - name: status
+          alias: s
+          type: string
+          description: Filter by status (active, disabled)
+        - name: format
+          alias: f
+          type: string
+          description: Output format (json, table)
+          default: table
+    - name: update
+      description: Update user information
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID or email
+          required: true
+        - name: name
+          alias: n
+          type: string
+          description: Update display name
+        - name: email
+          alias: e
+          type: string
+          description: Update email address
+        - name: metadata
+          alias: m
+          type: string
+          description: Update metadata (JSON string)
+    - name: delete
+      description: Delete a user
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID or email
+          required: true
+        - name: confirm
+          type: boolean
+          description: Skip confirmation prompt
+          default: false
+    - name: enable
+      description: Enable a user account
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID or email
+          required: true
+    - name: disable
+      description: Disable a user account
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID or email
+          required: true
+        - name: reason
+          alias: r
+          type: string
+          description: Reason for disabling
+    - name: sessions
+      description: View active user sessions
+      options:
+        - name: user
+          alias: u
+          type: string
+          description: Filter by user ID or email
+        - name: active
+          alias: a
+          type: boolean
+          description: Show only active sessions
+          default: true
+    - name: revoke-sessions
+      description: Revoke user sessions
+      options:
+        - name: user
+          alias: u
+          type: string
+          description: User ID or email
+          required: true
+        - name: all
+          type: boolean
+          description: Revoke all sessions (not just current)
+          default: false
+    - name: activity
+      description: View user activity logs
+      options:
+        - name: user
+          alias: u
+          type: string
+          description: Filter by user ID or email
+        - name: days
+          alias: d
+          type: number
+          description: Number of days to show
+          default: 7
+        - name: type
+          alias: t
+          type: string
+          description: Filter by activity type
+apis:
+  - name: listUsers
+    description: Get list of all users with filters
+  - name: getUser
+    description: Get user by ID or email
+  - name: updateUser
+    description: Update user information
+  - name: deleteUser
+    description: Delete user account
+  - name: enableUser
+    description: Enable user account
+  - name: disableUser
+    description: Disable user account
+  - name: getUserSessions
+    description: Get user sessions
+  - name: revokeUserSessions
+    description: Revoke user sessions
+  - name: getUserActivity
+    description: Get user activity logs
+  - name: recordActivity
+    description: Record user activity
+singleton: true
+enabled: true

@@ -72,7 +72,7 @@ describe('Auth Middleware', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'unauthorized',
-        error_description: 'Missing bearer token'
+        error_description: 'Missing authentication token'
       });
     });
 
@@ -85,7 +85,7 @@ describe('Auth Middleware', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'unauthorized',
-        error_description: 'Missing bearer token'
+        error_description: 'Missing authentication token'
       });
     });
 

@@ -4,8 +4,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '../../database/index.js';
-import { UserService } from '../services/user-service.js';
+import { DatabaseService } from '@/modules/core/database';
+import { UserService } from '@/modules/core/auth/services/user-service';
 import type { 
   User, 
   Role, 
@@ -38,6 +38,7 @@ export interface OAuthProfile {
  * @class AuthRepository
  */
 export class AuthRepository {
+  private static instance: AuthRepository;
   private readonly userService: UserService;
   
   /**
@@ -45,8 +46,19 @@ export class AuthRepository {
    * 
    * @param db - Database service instance for executing queries
    */
-  constructor(private readonly db: DatabaseService) {
-    this.userService = new UserService(db);
+  private constructor(private readonly db: DatabaseService) {
+    this.userService = UserService.getInstance();
+  }
+  
+  /**
+   * Gets the singleton instance of AuthRepository
+   * @returns AuthRepository instance
+   */
+  static getInstance(): AuthRepository {
+    if (!this.instance) {
+      this.instance = new AuthRepository(DatabaseService.getInstance());
+    }
+    return this.instance;
   }
 
   /**

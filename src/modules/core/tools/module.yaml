@@ -1,0 +1,72 @@
+name: tools
+type: service
+version: 1.0.0
+description: MCP tools management with database storage and scope control
+author: systemprompt-os
+dependencies:
+  - logger
+  - database
+apis:
+  - name: listTools
+    description: List all available MCP tools
+  - name: getToolsByScope
+    description: Get tools filtered by scope (remote, local, all)
+  - name: getTool
+    description: Get a specific tool by name
+  - name: enableTool
+    description: Enable a tool
+  - name: disableTool
+    description: Disable a tool
+  - name: refreshTools
+    description: Rescan and update tool registry
+  - name: executeTool
+    description: Execute a tool with given parameters
+cli:
+  commands:
+    - name: list
+      description: List all registered tools
+      options:
+        - name: scope
+          alias: s
+          type: string
+          description: Filter by scope (remote, local, all)
+          choices: [remote, local, all]
+        - name: enabled
+          alias: e
+          type: boolean
+          description: Show only enabled tools
+        - name: module
+          alias: m
+          type: string
+          description: Filter by module name
+    - name: enable
+      description: Enable a tool
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Tool name
+          required: true
+    - name: disable
+      description: Disable a tool
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Tool name
+          required: true
+    - name: refresh
+      description: Rescan modules for tools and update registry
+      options:
+        - name: force
+          alias: f
+          type: boolean
+          description: Force refresh even if no changes detected
+    - name: info
+      description: Show detailed information about a tool
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Tool name
+          required: true

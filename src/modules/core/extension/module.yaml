@@ -52,17 +52,28 @@ cli:
           type: boolean
           description: Preserve configuration files
     - name: validate
-      description: Validate extension structure and configuration
+      description: Validate module/extension structure and configuration
       options:
         - name: path
           alias: p
           type: string
-          description: Path to extension directory
-          required: true
+          description: Path to module/extension directory
+          required: false
+        - name: all
+          alias: a
+          type: boolean
+          description: Validate all modules in the core directory
+          default: false
         - name: strict
           alias: s
           type: boolean
           description: Use strict validation rules
+          default: false
+        - name: fix
+          alias: f
+          type: boolean
+          description: Attempt to fix common issues
+          default: false
     - name: info
       description: Show detailed information about an extension
       options:
@@ -70,3 +81,36 @@ cli:
           type: string
           description: Extension name
           required: true
+    - name: create
+      description: Create a new module with proper structure
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Module name (lowercase, alphanumeric with hyphens)
+          required: true
+        - name: type
+          alias: t
+          type: string
+          description: Module type (service, daemon, plugin, core, extension)
+          default: service
+        - name: description
+          alias: d
+          type: string
+          description: Module description
+          default: A new SystemPrompt OS module
+        - name: author
+          alias: a
+          type: string
+          description: Module author
+          default: SystemPrompt Team
+        - name: style
+          alias: s
+          type: string
+          description: Implementation style (class, function)
+          default: class
+        - name: path
+          alias: p
+          type: string
+          description: Path to create module in
+          default: ./src/modules/core

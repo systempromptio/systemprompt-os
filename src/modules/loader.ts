@@ -150,6 +150,21 @@ export class ModuleLoader {
     if (config.modules.auth?.enabled !== false) {
       await this.loadAuthModule();
     }
+    
+    // Load prompts module
+    if (config.modules.prompts?.enabled !== false) {
+      await this.loadPromptsModule();
+    }
+    
+    // Load resources module
+    if (config.modules.resources?.enabled !== false) {
+      await this.loadResourcesModule();
+    }
+    
+    // Load tools module
+    if (config.modules.tools?.enabled !== false) {
+      await this.loadToolsModule();
+    }
   }
   
   /**
@@ -231,6 +246,36 @@ export class ModuleLoader {
       this.registry.register(authModule as any);
     } catch (error) {
       console.error('[ModuleLoader] Failed to load auth module:', error);
+    }
+  }
+  
+  private async loadPromptsModule(): Promise<void> {
+    try {
+      const { PromptsModule } = await import('./core/prompts/index.js');
+      const promptsModule = new PromptsModule();
+      this.registry.register(promptsModule as any);
+    } catch (error) {
+      console.error('[ModuleLoader] Failed to load prompts module:', error);
+    }
+  }
+  
+  private async loadResourcesModule(): Promise<void> {
+    try {
+      const { ResourcesModule } = await import('./core/resources/index.js');
+      const resourcesModule = new ResourcesModule();
+      this.registry.register(resourcesModule as any);
+    } catch (error) {
+      console.error('[ModuleLoader] Failed to load resources module:', error);
+    }
+  }
+  
+  private async loadToolsModule(): Promise<void> {
+    try {
+      const { ToolsModule } = await import('./core/tools/index.js');
+      const toolsModule = new ToolsModule();
+      this.registry.register(toolsModule as any);
+    } catch (error) {
+      console.error('[ModuleLoader] Failed to load tools module:', error);
     }
   }
   

@@ -47,6 +47,9 @@ RUN npm run build:main
 # Copy non-TypeScript resource files to build directory for runtime access
 RUN find /app/src/modules -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.json" \) -exec bash -c 'mkdir -p "/app/build/modules/$(dirname "${1#/app/src/modules/}")" && cp "$1" "/app/build/modules/${1#/app/src/modules/}"' _ {} \;
 
+# Copy scripts directory to build
+RUN cp -r /app/scripts /app/build/scripts || mkdir -p /app/build/scripts
+
 # Make the CLI globally available by creating a symlink in /usr/local/bin
 RUN chmod +x /app/bin/systemprompt && \
     ln -s /app/bin/systemprompt /usr/local/bin/systemprompt

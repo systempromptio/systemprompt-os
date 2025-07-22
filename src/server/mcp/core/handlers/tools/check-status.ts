@@ -101,8 +101,8 @@ interface SystemStatus {
 /**
  * Admin-only system status check handler
  */
-export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
-  args: CheckStatusArgs,
+export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async (
+  args: CheckStatusArgs | undefined,
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
@@ -121,19 +121,19 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs> = async (
     };
 
     // Include optional information based on args
-    if (args.includeContainers) {
+    if (args?.includeContainers) {
       status.containers = await getContainerStatus();
     }
 
-    if (args.includeUsers) {
+    if (args?.includeUsers) {
       status.users = await getUserStatus();
     }
 
-    if (args.includeTunnels) {
+    if (args?.includeTunnels) {
       status.tunnels = await getTunnelStatus();
     }
 
-    if (args.includeAuditLog) {
+    if (args?.includeAuditLog) {
       status.auditLog = await getRecentAuditLog();
     }
 

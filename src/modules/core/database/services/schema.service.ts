@@ -6,8 +6,10 @@
 import { readFile } from 'node:fs/promises';
 // import { join, dirname } from 'node:path';
 import { glob } from 'glob';
-import { logger } from '@utils/logger.js';
-import { DatabaseService } from './database.service.js';
+import { Logger } from '@/modules/core/logger/types';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { SchemaError, DatabaseError } from '@/modules/core/database/utils/errors';
+import type { SchemaDefinition, SchemaStatus } from '@/modules/core/database/types';
 
 export interface ModuleSchema {
   module: string;
@@ -24,22 +26,41 @@ export interface InstalledSchema {
   installed_at: string;
 }
 
+/**
+ * Service for managing database schemas across modules
+ */
 export class SchemaService {
   private static instance: SchemaService;
   private schemas: Map<string, ModuleSchema> = new Map();
+  private logger?: Logger;
+  private initialized = false;
 
   private constructor(private databaseService: DatabaseService) {}
 
-  static initialize(databaseService: DatabaseService): SchemaService {
+  /**
+   * Initialize the schema service
+   * @param databaseService Database service instance
+   * @param logger Optional logger instance
+   */
+  static initialize(databaseService: DatabaseService, logger?: Logger): SchemaService {
     if (!SchemaService.instance) {
       SchemaService.instance = new SchemaService(databaseService);
     }
+    SchemaService.instance.logger = logger;
+    SchemaService.instance.initialized = true;
     return SchemaService.instance;
   }
 
+  /**
+   * Get the schema service instance
+   * @throws {DatabaseError} If service not initialized
+   */
   static getInstance(): SchemaService {
-    if (!SchemaService.instance) {
-      throw new Error('SchemaService not initialized');
+    if (!SchemaService.instance || !SchemaService.instance.initialized) {
+      throw new DatabaseError(
+        'SchemaService not initialized. Call initialize() first.',
+        'SERVICE_NOT_INITIALIZED'
+      );
     }
     return SchemaService.instance;
   }
@@ -49,7 +70,7 @@ export class SchemaService {
    */
   async discoverSchemas(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
-      logger.info('Discovering module schemas', { baseDir });
+      this.logger?.info('Discovering module schemas', { baseDir });
 
       // Find all schema.sql files
       const schemaFiles = await glob('**/database/schema.sql', {
@@ -87,14 +108,14 @@ export class SchemaService {
         };
 
         this.schemas.set(module, schema);
-        logger.debug('Discovered schema', { module, schemaPath });
+        this.logger?.debug('Discovered schema', { module, schemaPath });
       }
 
-      logger.info('Schema discovery complete', { 
+      this.logger?.info('Schema discovery complete', { 
         modulesFound: this.schemas.size 
       });
     } catch (error) {
-      logger.error('Schema discovery failed', { error });
+      this.logger?.error('Schema discovery failed', { error });
       throw error;
     }
   }
@@ -114,7 +135,7 @@ export class SchemaService {
     // Initialize each schema in order
     for (const [module, schema] of this.schemas) {
       if (initialized.has(module)) {
-        logger.debug('Schema already initialized', { module });
+        this.logger?.debug('Schema already initialized', { module });
         continue;
       }
 
@@ -130,7 +151,7 @@ export class SchemaService {
     schema: ModuleSchema
   ): Promise<void> {
     try {
-      logger.info('Initializing schema', { module });
+      this.logger?.info('Initializing schema', { module });
 
       await this.databaseService.transaction(async (conn) => {
         // Execute schema SQL
@@ -149,9 +170,9 @@ export class SchemaService {
         );
       });
 
-      logger.info('Schema initialized successfully', { module });
+      this.logger?.info('Schema initialized successfully', { module });
     } catch (error) {
-      logger.error('Failed to initialize schema', { module, error });
+      this.logger?.error('Failed to initialize schema', { module, error });
       throw error;
     }
   }
@@ -238,7 +259,7 @@ export class SchemaService {
       );
       return rows;
     } catch (error) {
-      logger.debug('No schema versions table found', { error });
+      this.logger?.debug('No schema versions table found', { error });
       return [];
     }
   }

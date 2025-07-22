@@ -3,64 +3,93 @@
  * @module modules/core/cli
  */
 
-// Module interface defined locally
-export interface ModuleInterface {
-  name: string;
-  version: string;
-  type: 'core' | 'service' | 'extension';
-  initialize(context: { config?: any; logger?: any }): Promise<void>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
-  healthCheck(): Promise<{ healthy: boolean; message?: string }>;
-}
+import { ModuleInterface, ModuleContext } from '@/modules/types';
+import { CLIService } from '@/modules/core/cli/services/cli.service';
+import { CLICommand, CLIModuleExports } from '@/modules/core/cli/types';
+import { CLIInitializationError } from '@/modules/core/cli/utils/errors';
 
-import { CommandDiscovery } from '../../../cli/src/discovery.js';
-
+/**
+ * CLI module for managing command-line interface utilities and help system
+ */
 export class CLIModule implements ModuleInterface {
   name = 'cli';
   version = '1.0.0';
   type = 'service' as const;
   
-  private logger: any;
-  private commandDiscovery: CommandDiscovery | undefined;
+  private cliService: CLIService;
+  exports: CLIModuleExports;
   
-  async initialize(context: { config?: any; logger?: any }): Promise<void> {
-    // Store config if needed in the future
-    // this.config = context.config || {};
-    this.logger = context.logger;
+  constructor() {
+    this.cliService = CLIService.getInstance();
     
-    // Initialize command discovery
-    this.commandDiscovery = new CommandDiscovery();
-    
-    this.logger?.info('CLI module initialized');
+    // Set up exports
+    this.exports = {
+      getAllCommands: () => this.getAllCommands(),
+      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) => 
+        this.getCommandHelp(commandName, commands),
+      formatCommands: (commands: Map<string, CLICommand>, format: string) => 
+        this.formatCommands(commands, format),
+      generateDocs: (commands: Map<string, CLICommand>, format: string) => 
+        this.generateDocs(commands, format)
+    };
   }
   
+  /**
+   * Initialize the CLI module
+   * @param context - Module initialization context
+   * @throws {CLIInitializationError} If initialization fails
+   */
+  async initialize(context: ModuleContext): Promise<void> {
+    try {
+      await this.cliService.initialize(context.logger!);
+      context.logger?.info('CLI module initialized');
+    } catch (error) {
+      throw new CLIInitializationError(error as Error);
+    }
+  }
+  
+  /**
+   * Start the CLI module
+   */
   async start(): Promise<void> {
-    this.logger?.info('CLI module started');
+    // No specific start actions needed
   }
   
+  /**
+   * Stop the CLI module
+   */
   async stop(): Promise<void> {
-    this.logger?.info('CLI module stopped');
+    // No specific stop actions needed
   }
   
+  /**
+   * Check the health of the CLI module
+   * @returns Health check result
+   */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
-    return { healthy: true };
+    return { 
+      healthy: this.cliService.isInitialized(),
+      message: this.cliService.isInitialized() 
+        ? 'CLI service is healthy' 
+        : 'CLI service not initialized'
+    };
   }
   
   /**
    * Get all available commands
+   * @returns Map of command names to command definitions
    */
-  async getAllCommands(): Promise<Map<string, any>> {
-    if (!this.commandDiscovery) {
-      this.commandDiscovery = new CommandDiscovery();
-    }
-    return await this.commandDiscovery.discoverCommands();
+  async getAllCommands(): Promise<Map<string, CLICommand>> {
+    return await this.cliService.getAllCommands();
   }
   
   /**
-   * Get help for a specific command
+   * Get help text for a specific command
+   * @param commandName - Name of the command
+   * @param commands - Map of available commands
+   * @returns Help text for the command
    */
-  getCommandHelp(commandName: string, commands: Map<string, any>): string {
+  getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string {
     const command = commands.get(commandName);
     
     if (!command) {
@@ -72,7 +101,7 @@ export class CLIModule implements ModuleInterface {
     
     if (command.options && command.options.length > 0) {
       help += '\nOptions:\n';
-      command.options.forEach((opt: any) => {
+      command.options.forEach(opt => {
         const aliasText = opt.alias ? `, -${opt.alias}` : '';
         const defaultText = opt.default !== undefined ? ` (default: ${opt.default})` : '';
         const requiredText = opt.required ? ' [required]' : '';
@@ -86,10 +115,13 @@ export class CLIModule implements ModuleInterface {
   
   /**
    * Format commands for display
+   * @param commands - Map of available commands
+   * @param format - Output format ('text', 'json', or 'table')
+   * @returns Formatted command list
    */
-  formatCommands(commands: Map<string, any>, format: string = 'text'): string {
+  formatCommands(commands: Map<string, CLICommand>, format: string = 'text'): string {
     if (format === 'json') {
-      const commandsObj: any = {};
+      const commandsObj: Record<string, CLICommand> = {};
       commands.forEach((value, key) => {
         commandsObj[key] = value;
       });
@@ -145,8 +177,11 @@ export class CLIModule implements ModuleInterface {
   
   /**
    * Generate documentation for all commands
+   * @param commands - Map of available commands
+   * @param format - Documentation format ('markdown', 'html', or 'json')
+   * @returns Generated documentation
    */
-  generateDocs(commands: Map<string, any>, format: string = 'markdown'): string {
+  generateDocs(commands: Map<string, CLICommand>, format: string = 'markdown'): string {
     if (format === 'markdown') {
       let doc = '# SystemPrompt OS CLI Commands\n\n';
       doc += 'This document contains all available CLI commands for SystemPrompt OS.\n\n';
@@ -181,7 +216,7 @@ export class CLIModule implements ModuleInterface {
               
               if (cmd.options && cmd.options.length > 0) {
                 doc += '**Options:**\n\n';
-                cmd.options.forEach((opt: any) => {
+                cmd.options.forEach(opt => {
                   const aliasText = opt.alias ? `, -${opt.alias}` : '';
                   const defaultText = opt.default !== undefined ? ` (default: ${opt.default})` : '';
                   const requiredText = opt.required ? ' **[required]**' : '';
@@ -196,7 +231,7 @@ export class CLIModule implements ModuleInterface {
     }
     
     // For other formats, return JSON for now
-    const commandsObj: any = {};
+    const commandsObj: Record<string, CLICommand> = {};
     commands.forEach((value, key) => {
       commandsObj[key] = value;
     });

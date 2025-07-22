@@ -4,8 +4,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '../../database/index.js';
-import { logger } from '@/utils/logger.js';
+import { DatabaseService } from '@/modules/core/database';
+import { Logger } from '@/modules/types';
 
 export interface CreateUserOptions {
   provider: string;
@@ -45,7 +45,21 @@ interface DatabaseConnection {
  * Service for managing users with proper first-user detection and role assignment
  */
 export class UserService {
-  constructor(private db: DatabaseService) {}
+  private static instance: UserService;
+  private logger?: Logger;
+  
+  private constructor(private db: DatabaseService) {}
+  
+  static getInstance(): UserService {
+    if (!this.instance) {
+      this.instance = new UserService(DatabaseService.getInstance());
+    }
+    return this.instance;
+  }
+  
+  setLogger(logger: Logger): void {
+    this.logger = logger;
+  }
 
   /**
    * Check if any admin users exist in the system
@@ -70,7 +84,7 @@ export class UserService {
     
     // Check if admins exist BEFORE starting the transaction
     const hasAdmins = await this.hasAdminUsers();
-    logger.info('Creating/updating user', { email, hasAdmins });
+    this.logger?.info('Creating/updating user', { email, hasAdmins });
 
     return this.db.transaction<User>(async (conn: DatabaseConnection) => {
       // Check if OAuth identity exists
@@ -92,7 +106,7 @@ export class UserService {
            WHERE id = ?`,
           [name || null, avatar || null, userId]
         );
-        logger.info('Updated existing user', { userId, email });
+        this.logger?.info('Updated existing user', { userId, email });
       } else {
         // Create new user
         userId = randomUUID();
@@ -120,7 +134,7 @@ export class UserService {
           [userId, roleId]
         );
         
-        logger.info('Created new user with role', { 
+        this.logger?.info('Created new user with role', { 
           userId, 
           email, 
           role: hasAdmins ? 'user' : 'admin' 

@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+
+if {[llength $argv] != 2} {
+    puts "Usage: $argv0 <tty> <text>"
+    exit 1
+}
+
+set tty [lindex $argv 0]
+set text [lindex $argv 1]
+
+# Open the terminal
+spawn -open [open $tty r+]
+
+# Send the text
+send "$text\r"
+
+# Brief pause
+sleep 0.1

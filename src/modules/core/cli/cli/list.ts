@@ -1,59 +1,84 @@
 /**
- * @fileoverview List all available commands
+ * @fileoverview List all available CLI commands
  * @module modules/core/cli/cli/list
  */
 
-// Local interface definition
-export interface CLIContext {
-  cwd: string;
-  args: Record<string, any>;
-  options?: Record<string, any>;
-}
-import { CLIModule } from '../index.js';
+import { CLIModule } from '@/modules/core/cli';
+import { CLIContext, CLICommand } from '@/modules/core/cli/types';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
 
-export const command = {
+export const command: CLICommand = {
+  description: 'List all available commands',
+  options: [
+    {
+      name: 'module',
+      alias: 'm',
+      type: 'string',
+      description: 'Filter commands by module'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (text, json, table)',
+      default: 'text',
+      choices: ['text', 'json', 'table']
+    }
+  ],
+  examples: [
+    'systemprompt cli:list',
+    'systemprompt cli:list --format json',
+    'systemprompt cli:list --module auth'
+  ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
+    const format = args.format || 'text';
+    const filterModule = args.module;
     
     try {
       const cliModule = new CLIModule();
-      await cliModule.initialize({ config: {} });
+      await cliModule.initialize({ logger: context.logger });
       
       // Get all available commands
-      let commands = await cliModule.getAllCommands();
+      const commands = await cliModule.getAllCommands();
       
       // Filter by module if specified
-      if (args.module) {
-        const filtered = new Map<string, any>();
-        commands.forEach((command, name) => {
-          if (name.startsWith(`${args.module}:`)) {
-            filtered.set(name, command);
-          }
-        });
-        commands = filtered;
-        
-        if (commands.size === 0) {
-          console.log(`No commands found for module: ${args.module}`);
-          return;
-        }
+      let filteredCommands = commands;
+      if (filterModule) {
+        filteredCommands = new Map(
+          Array.from(commands.entries()).filter(([name]) => 
+            name.startsWith(`${filterModule}:`)
+          )
+        );
       }
       
-      const format = args.format || 'text';
-      const output = cliModule.formatCommands(commands, format);
-      
-      if (format === 'text' || format === 'table') {
+      if (format === 'json') {
+        // Output commands in JSON format for the API
+        const commandsArray = Array.from(filteredCommands.entries()).map(([name, cmd]) => {
+          const parts = name.split(':');
+          const module = parts.length > 1 ? parts[0] : 'core';
+          const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
+          
+          return {
+            command: commandName,
+            module: module,
+            description: cmd.description || 'No description available',
+            usage: `systemprompt ${name}`,
+            options: cmd.options || [],
+            positionals: cmd.positionals || []
+          };
+        });
+        
+        console.log(JSON.stringify(commandsArray, null, 2));
+      } else {
+        // Display commands in text format
         console.log('\nSystemPrompt OS - Available Commands');
         console.log('====================================');
-      }
-      
-      console.log(output);
-      
-      if (format === 'text') {
-        console.log(`\nTotal commands: ${commands.size}`);
+        console.log(cliModule.formatCommands(filteredCommands, format));
+        console.log('\nUse "systemprompt cli:help --command <name>" for detailed help');
       }
     } catch (error) {
-      console.error('Error listing commands:', error);
-      process.exit(1);
+      throw new CommandExecutionError('cli:list', error as Error);
     }
   }
 };

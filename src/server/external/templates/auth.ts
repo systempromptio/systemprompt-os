@@ -5,6 +5,7 @@
 
 import { renderLayout } from './config/layout.js';
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
  * Authentication page configuration
@@ -141,10 +142,13 @@ function renderProviderButton(provider: IdentityProvider): string {
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
   
+  // Use the tunnel URL if available
+  const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
+  
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'auth-client',
-    redirect_uri: `${process.env.BASE_URL || 'http://localhost:3000'}/auth/callback`,
+    redirect_uri: `${baseUrl}/auth/callback`,
     scope: 'openid profile email',
     state: 'auth-flow',
     provider: providerName

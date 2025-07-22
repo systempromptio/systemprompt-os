@@ -31,7 +31,7 @@ import type {
   PromptMessage,
   TextContent,
 } from '@modelcontextprotocol/sdk/types.js';
-import { CODINGPROMPTS } from './prompts/index.js';
+import { getModuleLoader } from '../../../../modules/loader.js';
 
 /**
  * Handles MCP prompt listing requests
@@ -45,55 +45,51 @@ import { CODINGPROMPTS } from './prompts/index.js';
  * ```
  */
 export async function handleListPrompts(): Promise<ListPromptsResult> {
-  return { prompts: CODINGPROMPTS };
+  const moduleLoader = getModuleLoader();
+  const promptsModule = moduleLoader.getModule('prompts');
+  
+  if (!promptsModule || !promptsModule.exports) {
+    throw new Error('Prompts module not available');
+  }
+  
+  const prompts = await promptsModule.exports.listPrompts();
+  return { prompts };
 }
 
 /**
  * Handles MCP prompt retrieval requests with variable substitution
  * 
- * @param request - The prompt retrieval request with name and arguments
- * @returns The processed prompt with variables replaced
- * @throws {Error} If the requested prompt is not found
- * 
- * @remarks
- * This function:
- * 1. Looks up the prompt by name
- * 2. Replaces template variables ({{variable}}) with provided arguments
- * 3. Returns the processed prompt messages
+ * @param request - GetPromptRequest containing prompt name and arguments
+ * @returns GetPromptResult with populated prompt messages
+ * @throws {Error} If prompt is not found
  * 
  * @example
  * ```typescript
  * const result = await handleGetPrompt({
  *   params: {
- *     name: 'reactcomponent',
- *     arguments: {
- *       componentname: 'UserProfile',
- *       requirements: 'Display user avatar and bio'
- *     }
+ *     name: 'bugfix',
+ *     arguments: { errormessage: 'TypeError', file_path: 'src/app.ts' }
  *   }
  * });
  * ```
  */
 export async function handleGetPrompt(
-  request: GetPromptRequest,
+  request: GetPromptRequest
 ): Promise<GetPromptResult> {
-  const prompt = CODINGPROMPTS.find(p => p.name === request.params.name);
-  if (!prompt) {
+  const moduleLoader = getModuleLoader();
+  const promptsModule = moduleLoader.getModule('prompts');
+  
+  if (!promptsModule || !promptsModule.exports) {
+    throw new Error('Prompts module not available');
+  }
+  
+  const promptWithMessages = await promptsModule.exports.getPrompt(request.params.name);
+  if (!promptWithMessages) {
     throw new Error(`Prompt not found: ${request.params.name}`);
   }
-
-  /**
-   * Type guard to check if prompt content is text type
-   * 
-   * @param content - Prompt message content to check
-   * @returns True if content is text type
-   */
-  function isTextContent( content: PromptMessage['content']): content is TextContent {
-    return content.type === 'text';
-  }
-
-  const promptWithMessages = prompt as unknown as { messages: PromptMessage[] };
-  const messages = promptWithMessages.messages.map(( message: PromptMessage) => {
+  
+  // Process messages with argument substitution
+  const messages = promptWithMessages.messages.map((message: PromptMessage) => {
     if (!isTextContent(message.content)) {
       return message;
     }
@@ -103,7 +99,7 @@ export async function handleGetPrompt(
     if (request.params.arguments) {
       Object.entries(request.params.arguments).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
-        text = text.replace(new RegExp(placeholder, 'g'), String( value));
+        text = text.replace(new RegExp(placeholder, 'g'), String(value));
       });
     }
     
@@ -115,9 +111,19 @@ export async function handleGetPrompt(
       },
     };
   });
-
+  
   return {
-    description: prompt.description,
-    messages: messages,
+    description: promptWithMessages.description,
+    messages
   };
+}
+
+/**
+ * Type guard to check if prompt content is text type
+ * 
+ * @param content - Prompt message content to check
+ * @returns True if content is text type
+ */
+function isTextContent(content: PromptMessage['content']): content is TextContent {
+  return content.type === 'text';
 }

@@ -24,6 +24,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@cli/*": ["src/cli/*"],
       "@server/*": ["src/server/*"],
       "@modules/*": ["src/modules/*"],
       "@tools/*": ["src/tools/*"],

@@ -55,6 +55,7 @@ export type PluginModule = ModuleInterface & {
  */
 export type ExtendedModule = ModuleInterface & {
   config?: ModuleConfig;
+  exports?: any;
 };
 
 /**

@@ -3,85 +3,121 @@
  * @module modules/core/logger
  */
 
-import { appendFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-import type { ServiceModule, ModuleConfig } from "../../registry.js";
+import { ModuleInterface, ModuleContext } from '@/modules/types';
+import { Logger, LoggerConfig } from '@/modules/core/logger/types';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
 
-export interface LogLevel {
-  debug: number;
-  info: number;
-  warn: number;
-  error: number;
-}
+/**
+ * Logger module implementation
+ * @class LoggerModule
+ * @implements {ModuleInterface}
+ */
+export class LoggerModule implements ModuleInterface {
+  public readonly name = 'logger';
+  public readonly type: 'core' = 'core';
+  public readonly version = '1.0.0';
+  public readonly description = 'System-wide logging service with file and console output';
 
-export interface Logger {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, ...args: any[]): void;
-  addLog(level: string, message: string, ...args: any[]): void;
-  clearLogs(logFile?: string): Promise<void>;
-  getLogs(logFile?: string): Promise<string[]>;
-}
+  private loggerService: LoggerService;
+  private initialized = false;
+  private started = false;
 
-// Re-export for convenience
-export type { Logger as ILogger };
-
-export interface LoggerConfig {
-  stateDir: string;
-  logLevel: keyof LogLevel;
-  maxSize: string;
-  maxFiles: number;
-  outputs: ("console" | "file")[];
-  files: {
-    system: string;
-    error: string;
-    access: string;
-  };
-}
-
-export class LoggerModule implements ServiceModule {
-  public readonly name = "logger";
-  public readonly type = "service" as const;
-  public readonly version = "1.0.0";
-  public readonly description = "System-wide logging service with file and console output";
-
-  private loggerConfig: LoggerConfig;
-  public config?: ModuleConfig;
-  private logsDir: string;
-  private logLevels: LogLevel = {
-    debug: 0,
-    info: 1,
-    warn: 2,
-    error: 3,
-  };
-
-  constructor(config: LoggerConfig) {
-    this.loggerConfig = config;
-    this.logsDir = join(config.stateDir, "logs");
-    this.ensureLogsDirectory();
+  constructor() {
+    this.loggerService = LoggerService.getInstance();
   }
 
-  async initialize(_context: any): Promise<void> {
-    // Logger is ready immediately
+  /**
+   * Initialize the logger module
+   * @param {ModuleContext} context - Module context with configuration
+   * @throws {LoggerInitializationError} If initialization fails
+   */
+  async initialize(context: ModuleContext): Promise<void> {
+    if (this.initialized) {
+      throw new LoggerInitializationError('Logger module already initialized');
+    }
+
+    try {
+      const config = context.config as LoggerConfig;
+      
+      if (!config) {
+        throw new LoggerInitializationError('Logger configuration is required');
+      }
+
+      await this.loggerService.initialize(config);
+      this.initialized = true;
+
+      // Log initialization success
+      this.loggerService.info(`Logger module initialized successfully`, {
+        version: this.version,
+        logLevel: config.logLevel,
+        outputs: config.outputs
+      });
+    } catch (error) {
+      if (error instanceof LoggerInitializationError) {
+        throw error;
+      }
+      throw new LoggerInitializationError(
+        'Failed to initialize logger module',
+        error as Error
+      );
+    }
   }
 
+  /**
+   * Start the logger module
+   * @throws {Error} If module not initialized
+   */
   async start(): Promise<void> {
-    // Logger starts immediately
+    if (!this.initialized) {
+      throw new Error('Logger module not initialized');
+    }
+
+    if (this.started) {
+      throw new Error('Logger module already started');
+    }
+
+    this.started = true;
+    this.loggerService.info('Logger module started');
   }
 
+  /**
+   * Stop the logger module
+   */
   async stop(): Promise<void> {
-    // Flush any pending logs if needed
+    if (this.started) {
+      this.loggerService.info('Logger module stopping');
+      this.started = false;
+    }
   }
-  
+
+  /**
+   * Perform health check on the logger module
+   * @returns {Promise<{ healthy: boolean; message?: string }>} Health check result
+   */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
-      // Check if logs directory is writable
-      const testFile = join(this.logsDir, '.health-check');
-      const { writeFileSync, unlinkSync } = await import('fs');
-      writeFileSync(testFile, 'test');
-      unlinkSync(testFile);
-      return { healthy: true };
+      if (!this.initialized) {
+        return {
+          healthy: false,
+          message: 'Logger module not initialized'
+        };
+      }
+
+      if (!this.started) {
+        return {
+          healthy: false,
+          message: 'Logger module not started'
+        };
+      }
+
+      // Test write capability by attempting to log
+      this.loggerService.debug('Health check test log');
+
+      return { 
+        healthy: true,
+        message: 'Logger module is healthy'
+      };
     } catch (error) {
       return { 
         healthy: false, 
@@ -90,181 +126,43 @@ export class LoggerModule implements ServiceModule {
     }
   }
 
-  async shutdown(): Promise<void> {
-    await this.stop();
-  }
-
-  getService(): Logger {
+  /**
+   * Get module exports
+   * @returns {any} Module exports
+   */
+  get exports(): any {
     return {
-      debug: this.debug.bind(this),
-      info: this.info.bind(this),
-      warn: this.warn.bind(this),
-      error: this.error.bind(this),
-      addLog: this.addLog.bind(this),
-      clearLogs: this.clearLogs.bind(this),
-      getLogs: this.getLogs.bind(this),
+      service: this.getService(),
+      LoggerService,
+      types: require('./types')
     };
   }
 
-  private ensureLogsDirectory(): void {
-    if (!existsSync(this.logsDir)) {
-      mkdirSync(this.logsDir, { recursive: true });
-    }
-  }
-
-  private shouldLog(level: keyof LogLevel): boolean {
-    return this.logLevels[level] >= this.logLevels[this.loggerConfig.logLevel];
-  }
-
-  private formatTimestamp(): string {
-    return new Date().toISOString();
-  }
-
-  private formatMessage(level: string, message: string, args: any[]): string {
-    const formatted =
-      args.length > 0
-        ? `${message} ${args
-            .map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : String(arg)))
-            .join(" ")}`
-        : message;
-    return `[${this.formatTimestamp()}] [${level}] ${formatted}`;
-  }
-
-  private writeToFile(filename: string, message: string): void {
-    if (!this.loggerConfig.outputs.includes("file")) return;
-
-    try {
-      const filepath = join(this.logsDir, filename);
-      appendFileSync(filepath, message + "\n");
-    } catch (error) {
-      // Fallback to console if file write fails
-      console.error("Logger file write error:", error);
-    }
-  }
-
-  private writeToConsole(level: string, message: string, args: any[]): void {
-    if (!this.loggerConfig.outputs.includes("console")) return;
-
-    const timestamp = this.formatTimestamp();
-    const formattedArgs = args.length > 0 ? [message, ...args] : [message];
-
-    switch (level.toLowerCase()) {
-      case "debug":
-        console.debug(`[${timestamp}] [DEBUG]`, ...formattedArgs);
-        break;
-      case "info":
-        console.log(`[${timestamp}] [INFO]`, ...formattedArgs);
-        break;
-      case "warn":
-        console.warn(`[${timestamp}] [WARN]`, ...formattedArgs);
-        break;
-      case "error":
-        console.error(`[${timestamp}] [ERROR]`, ...formattedArgs);
-        break;
-    }
-  }
-
-  debug(message: string, ...args: any[]): void {
-    if (!this.shouldLog("debug")) return;
-    const formatted = this.formatMessage("DEBUG", message, args);
-    this.writeToConsole("debug", message, args);
-    this.writeToFile(this.loggerConfig.files.system, formatted);
-  }
-
-  info(message: string, ...args: any[]): void {
-    if (!this.shouldLog("info")) return;
-    const formatted = this.formatMessage("INFO", message, args);
-    this.writeToConsole("info", message, args);
-    this.writeToFile(this.loggerConfig.files.system, formatted);
-  }
-
-  warn(message: string, ...args: any[]): void {
-    if (!this.shouldLog("warn")) return;
-    const formatted = this.formatMessage("WARN", message, args);
-    this.writeToConsole("warn", message, args);
-    this.writeToFile(this.loggerConfig.files.system, formatted);
-  }
-
-  error(message: string, ...args: any[]): void {
-    if (!this.shouldLog("error")) return;
-    const formatted = this.formatMessage("ERROR", message, args);
-    this.writeToConsole("error", message, args);
-    this.writeToFile(this.loggerConfig.files.system, formatted);
-    this.writeToFile(this.loggerConfig.files.error, formatted);
-  }
-
   /**
-   * Special method for access logs (HTTP requests)
+   * Get the logger service
+   * @returns {Logger} Logger service instance
    */
-  access(message: string): void {
-    const formatted = this.formatMessage("ACCESS", message, []);
-    this.writeToFile(this.loggerConfig.files.access, formatted);
-  }
-
-  /**
-   * Add a log with custom level
-   */
-  addLog(level: string, message: string, ...args: any[]): void {
-    const formatted = this.formatMessage(level.toUpperCase(), message, args);
-    this.writeToConsole(level.toLowerCase(), message, args);
-    this.writeToFile(this.loggerConfig.files.system, formatted);
-  }
-
-  /**
-   * Clear logs from a specific file or all log files
-   */
-  async clearLogs(logFile?: string): Promise<void> {
-    const { writeFileSync } = await import("fs");
-
-    if (logFile) {
-      // Clear specific log file
-      const filepath = join(this.logsDir, logFile);
-      if (existsSync(filepath)) {
-        writeFileSync(filepath, "");
-      }
-    } else {
-      // Clear all log files
-      const files = Object.values(this.loggerConfig.files);
-      for (const file of files) {
-        const filepath = join(this.logsDir, file);
-        if (existsSync(filepath)) {
-          writeFileSync(filepath, "");
-        }
-      }
+  getService(): Logger {
+    if (!this.initialized) {
+      throw new Error('Logger module not initialized');
     }
-  }
-
-  /**
-   * Get logs from a specific file or all logs
-   */
-  async getLogs(logFile?: string): Promise<string[]> {
-    const { readFileSync } = await import("fs");
-    const logs: string[] = [];
-
-    if (logFile) {
-      // Get logs from specific file
-      const filepath = join(this.logsDir, logFile);
-      if (existsSync(filepath)) {
-        const content = readFileSync(filepath, "utf-8");
-        logs.push(...content.split("\n").filter((line) => line.trim()));
-      }
-    } else {
-      // Get logs from all files
-      const files = Object.values(this.loggerConfig.files);
-      for (const file of files) {
-        const filepath = join(this.logsDir, file);
-        if (existsSync(filepath)) {
-          const content = readFileSync(filepath, "utf-8");
-          logs.push(...content.split("\n").filter((line) => line.trim()));
-        }
-      }
-    }
-
-    return logs;
+    return this.loggerService;
   }
 }
 
-// Export factory function for module system
+/**
+ * Factory function for module system
+ * @param {LoggerConfig} config - Logger configuration
+ * @returns {LoggerModule} Logger module instance
+ */
 export function createModule(config: LoggerConfig): LoggerModule {
-  return new LoggerModule(config);
+  return new LoggerModule();
 }
+
+// Export default instance
+export default new LoggerModule();
+
+// Re-export types for convenience
+export type { Logger, LoggerConfig, LogLevelName, LogLevel } from './types';
+export { LoggerService } from './services/logger.service';
+export * from './utils/errors';

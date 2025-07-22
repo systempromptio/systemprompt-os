@@ -4,17 +4,7 @@
  */
 
 import type { Express } from 'express';
-import { Router } from 'express';
-import { setupOAuth2Routes } from './rest/oauth2/index.js';
-import { CONFIG } from '../config.js';
 import { logger } from '../../utils/logger.js';
-import { HealthEndpoint } from './rest/health.js';
-import { setupRoutes as setupSplashRoutes } from './rest/splash.js';
-import { setupRoutes as setupAuthRoutes } from './rest/auth.js';
-import { setupRoutes as setupConfigRoutes, setupPublicRoutes as setupPublicConfigRoutes } from './rest/config.js';
-import { setupRoutes as setupCallbackRoutes } from './rest/callback.js';
-import { setupRoutes as setupUsersAPIRoutes } from './rest/api/users.js';
-import { authMiddleware } from './middleware/auth.js';
 import cookieParser from 'cookie-parser';
 
 /**
@@ -29,39 +19,18 @@ import cookieParser from 'cookie-parser';
  * @param app Express application instance
  * @param router Express router instance
  */
-export async function setupExternalEndpoints(app: Express, router: any): Promise<void> {
+export async function setupExternalEndpoints(app: Express): Promise<void> {
   logger.info('Setting up external REST endpoints');
   
   app.use(cookieParser());
   
-  await setupOAuth2Routes(router, CONFIG.BASEURL);
-  
-  const healthEndpoint = new HealthEndpoint();
-  router.get('/health', (req: any, res: any) => {
-    healthEndpoint.getHealth(req, res);
-  });
-  
-  setupCallbackRoutes(router);
-  setupSplashRoutes(router);
-  setupAuthRoutes(router);
-  setupPublicConfigRoutes(router);
-  setupUsersAPIRoutes(router);
-  
-  const protectedRouter = Router();
-  protectedRouter.use(authMiddleware);
-  setupConfigRoutes(protectedRouter);
-  
-  app.use(router);
-  app.use(protectedRouter);
+  // Use the new centralized route configuration
+  const { configureRoutes, getRouteSummary } = await import('./routes.js');
+  configureRoutes(app);
   
   if (process.env.NODE_ENV !== 'production') {
     logger.debug('External endpoints configured', {
-      routes: router.stack
-        .filter((r: any) => r.route)
-        .map((r: any) => ({
-          path: r.route?.path || 'unknown',
-          methods: r.route ? Object.keys(r.route.methods || {}) : []
-        }))
+      routes: getRouteSummary(app)
     });
   }
 }

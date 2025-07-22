@@ -29,12 +29,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'admin:*',
     'container:*',
     'user:*',
-    'audit:read'
+    'audit:read',
+    'tools:*'
   ],
   basic: [
     'system:read:basic',
     'container:read:own',
-    'user:read:self'
+    'user:read:self',
+    'tools:basic'
   ]
 };
 

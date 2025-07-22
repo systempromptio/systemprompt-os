@@ -6,6 +6,7 @@
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, extname } from "path";
 import { parse as parseYaml } from "yaml";
+import { Logger } from "@/modules/types";
 import { IdentityProvider, IDPConfig } from "../types/provider-interface.js";
 import { GenericOAuth2Provider } from "./core/oauth2.js";
 import { GoogleProvider } from "./core/google.js";
@@ -57,14 +58,6 @@ interface OIDCDiscoveryResponse {
   token_endpoint_auth_methods_supported?: string[];
 }
 
-/**
- * Logger interface for dependency injection
- */
-interface Logger {
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-}
 
 /**
  * Registry for OAuth2/OIDC identity providers

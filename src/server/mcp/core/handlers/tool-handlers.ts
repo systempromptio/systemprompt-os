@@ -27,14 +27,11 @@ import type {
   CallToolResult,
   ListToolsRequest,
   ListToolsResult,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { checkStatus } from "../constants/tool/check-status.js";
-import { handleCheckStatus } from "./tools/check-status.js";
+import { getModuleLoader } from '../../../../modules/loader.js';
 import { logger } from "@/utils/logger.js";
 import type { MCPToolContext } from "../types/request-context.js";
-import type { PermissionTool } from "../constants/tool/check-status.js";
 import { ROLE_PERMISSIONS, hasPermission } from "../types/permissions.js";
 import type { UserRole, Permission, UserPermissionContext } from "../types/permissions.js";
 
@@ -59,16 +56,12 @@ const ToolMetadataSchema = z.object({
 
 
 /**
- * Registry of available MCP tools
+ * Tool permission metadata interface
  */
-const TOOL_REGISTRY: ReadonlyArray<PermissionTool> = Object.freeze([checkStatus]);
-
-/**
- * Tool handler function map
- */
-const TOOL_HANDLERS = Object.freeze({
-  checkstatus: handleCheckStatus
-} as const);
+interface ToolPermissionMeta {
+  requiredRole?: UserRole;
+  requiredPermissions?: string[];
+}
 
 /**
  * Retrieves user permission context from session
@@ -110,7 +103,7 @@ async function getUserPermissionContext(context: MCPToolContext): Promise<UserPe
  * Checks if a user has the required permissions to use a tool
  * 
  * @param userContext - Validated user permission context
- * @param tool - Tool with permission metadata
+ * @param metadata - Tool permission metadata
  * @returns true if user has required permissions, false otherwise
  * 
  * @remarks
@@ -122,9 +115,9 @@ async function getUserPermissionContext(context: MCPToolContext): Promise<UserPe
  */
 function hasToolPermission(
   userContext: UserPermissionContext,
-  tool: PermissionTool
+  metadata?: ToolPermissionMeta
 ): boolean {
-  const validatedMeta = ToolMetadataSchema.parse(tool._meta);
+  const validatedMeta = ToolMetadataSchema.parse(metadata);
   
   if (!validatedMeta) {
     return true;
@@ -141,17 +134,6 @@ function hasToolPermission(
   }
 
   return true;
-}
-
-/**
- * Strips internal metadata from a tool for public API response
- * 
- * @param tool - Tool with potential internal metadata
- * @returns Tool without _meta property
- */
-function stripToolMetadata(tool: PermissionTool): Tool {
-  const { _meta, ...publicTool } = tool;
-  return publicTool;
 }
 
 /**
@@ -190,16 +172,32 @@ export async function handleListTools(
       permissionCount: userContext.permissions.length
     });
 
-    const availableTools = TOOL_REGISTRY
-      .filter(tool => hasToolPermission(userContext, tool))
-      .map(stripToolMetadata);
+    // Get tools from the tools module
+    const moduleLoader = getModuleLoader();
+    await moduleLoader.loadModules();
+    const toolsModule = moduleLoader.getModule('tools');
+    
+    if (!toolsModule || !toolsModule.exports) {
+      logger.error('Tools module not available');
+      return { tools: [] };
+    }
+
+    // Get enabled remote tools
+    const enabledTools = await toolsModule.exports.getEnabledToolsByScope('remote');
+    
+    // Filter tools based on permissions
+    const availableTools = enabledTools.filter((tool: any) => {
+      // Extract metadata if it exists
+      const metadata = (tool as any).metadata as ToolPermissionMeta | undefined;
+      return hasToolPermission(userContext, metadata);
+    });
 
     logger.info('Tool filtering completed', {
       userId: userContext.userId,
       role: userContext.role,
-      totalTools: TOOL_REGISTRY.length,
+      totalTools: enabledTools.length,
       availableTools: availableTools.length,
-      toolNames: availableTools.map(t => t.name)
+      toolNames: availableTools.map((t: any) => t.name)
     });
 
     return { tools: availableTools };
@@ -212,10 +210,6 @@ export async function handleListTools(
   }
 }
 
-/**
- * Tool call arguments schema
- */
-const ToolCallArgsSchema = z.record(z.unknown()).optional();
 
 /**
  * Handles MCP tool invocation requests with permission enforcement
@@ -248,12 +242,23 @@ export async function handleToolCall(
       hasArguments: toolArgs !== undefined
     });
 
-    const tool = TOOL_REGISTRY.find(t => t.name === toolName);
+    // Get tools module
+    const moduleLoader = getModuleLoader();
+    await moduleLoader.loadModules();
+    const toolsModule = moduleLoader.getModule('tools');
+    
+    if (!toolsModule || !toolsModule.exports) {
+      const error = new Error('Tools module not available');
+      logger.error('Tools module not loaded', { requestId });
+      throw error;
+    }
+
+    // Get the tool from the module
+    const tool = await toolsModule.exports.getTool(toolName);
     if (!tool) {
       const error = new Error(`Unknown tool: ${toolName}`);
       logger.error('Tool not found in registry', {
         toolName,
-        availableTools: TOOL_REGISTRY.map(t => t.name),
         requestId
       });
       throw error;
@@ -261,7 +266,9 @@ export async function handleToolCall(
 
     const userContext = await getUserPermissionContext(context);
     
-    if (!hasToolPermission(userContext, tool)) {
+    // Check permissions using metadata if available
+    const metadata = tool.metadata as ToolPermissionMeta | undefined;
+    if (!hasToolPermission(userContext, metadata)) {
       const error = new Error(
         `Permission denied: ${userContext.role} role cannot access ${toolName} tool`
       );
@@ -271,19 +278,12 @@ export async function handleToolCall(
         userEmail: userContext.email,
         role: userContext.role,
         toolName,
-        requiredRole: tool._meta?.requiredRole,
-        requiredPermissions: tool._meta?.requiredPermissions,
+        requiredRole: metadata?.requiredRole,
+        requiredPermissions: metadata?.requiredPermissions,
         userPermissions: userContext.permissions,
         requestId
       });
       
-      throw error;
-    }
-
-    const handler = TOOL_HANDLERS[toolName as keyof typeof TOOL_HANDLERS];
-    if (!handler) {
-      const error = new Error(`No handler implemented for tool: ${toolName}`);
-      logger.error('Tool handler missing', { toolName, requestId });
       throw error;
     }
 
@@ -295,8 +295,13 @@ export async function handleToolCall(
       requestId
     });
 
-    const validatedArgs = ToolCallArgsSchema.parse(toolArgs);
-    const result = await handler(validatedArgs || {}, context);
+    // Execute the tool using the tools module
+    const result = await toolsModule.exports.executeTool(toolName, toolArgs, {
+      userId: userContext.userId,
+      userEmail: userContext.email,
+      sessionId: context.sessionId,
+      requestId
+    });
 
     const executionTime = Date.now() - startTime;
     
@@ -304,11 +309,18 @@ export async function handleToolCall(
       userId: userContext.userId,
       toolName,
       executionTime,
-      requestId,
-      resultStatus: result?.structuredContent?.status || 'success'
+      requestId
     });
 
-    return result;
+    // Wrap result in MCP format if needed
+    const mcpResult: CallToolResult = {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(result, null, 2)
+      }]
+    };
+
+    return mcpResult;
   } catch (error) {
     const executionTime = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

@@ -138,12 +138,22 @@ export class ConfigEndpoint {
       githubConfigured: !!process.env.GITHUB_CLIENT_ID
     };
 
+    // Admin config page needs full width layout, so we bypass the standard layout
     const content = renderAdminConfig(configData);
-    const html = renderLayout({
-      title: 'Configuration',
-      content,
-      styles: getAdminConfigStyles()
-    });
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Configuration - SystemPrompt OS</title>
+        <style>${getAdminConfigStyles()}</style>
+      </head>
+      <body>
+        ${content}
+      </body>
+      </html>
+    `;
     
     res.type('html').send(html);
   }

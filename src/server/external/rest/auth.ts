@@ -23,7 +23,6 @@ export class AuthEndpoint {
    */
   public async handleAuthPage(req: Request, res: Response): Promise<void> {
     try {
-      const user = (req as any).user;
       const error = req.query.error as string | undefined;
       
       const authModule = getAuthModule();
@@ -35,10 +34,12 @@ export class AuthEndpoint {
 
       const providers = providerRegistry.getAllProviders();
       
+      // Auth page is always shown as login page
+      // If user is authenticated, they should be on protected routes
       const html = renderAuthPage({
         providers,
-        isAuthenticated: !!user,
-        userEmail: user?.email,
+        isAuthenticated: false,
+        userEmail: undefined,
         error
       });
       
@@ -61,15 +62,15 @@ export class AuthEndpoint {
    */
   public async handleAuthCallback(req: Request, res: Response): Promise<void> {
     try {
-      const { code, state, error, error_description } = req.query;
+      const { code, error, error_description } = req.query;
 
       if (error) {
         logger.error('OAuth error during auth', { error, error_description });
         return res.redirect(`/auth?error=${encodeURIComponent(error as string)}`);
       }
 
-      if (!code || state !== 'auth-flow') {
-        throw new Error('Invalid OAuth callback parameters');
+      if (!code) {
+        throw new Error('Missing authorization code');
       }
 
       await this.completeAuthentication(code as string, res);
@@ -163,7 +164,7 @@ export class AuthEndpoint {
       });
     }
 
-    res.redirect('/config');
+    res.redirect('/dashboard');
   }
 }
 

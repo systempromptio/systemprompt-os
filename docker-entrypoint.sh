@@ -155,6 +155,19 @@ else
     echo "- No Cloudflare tunnel token provided"
 fi
 
+# Start local MCP server daemon
+echo "Starting local MCP server daemon..."
+
+# Start the daemon using the startup script
+if [ -f "/app/scripts/start-local-mcp.sh" ]; then
+    /app/scripts/start-local-mcp.sh
+else
+    echo "⚠️  Local MCP startup script not found, starting directly..."
+    node /app/build/server/mcp/local/daemon.js 2>&1 > /data/state/logs/mcp-local.log &
+    echo $! > /var/run/mcp-local.pid
+    echo "✓ Local MCP server daemon started (PID: $(cat /var/run/mcp-local.pid))"
+fi
+
 
 
 echo "Starting SystemPrompt OS MCP Server..."
@@ -170,6 +183,12 @@ if [ -d "/workspace/.git" ]; then
     git config --system --add safe.directory /workspace 2>/dev/null || \
     git config --global --add safe.directory /workspace 2>/dev/null || \
     echo "Warning: Could not configure Git safe directory"
+fi
+
+# Start the local MCP daemon
+if [ -f "/app/scripts/start-local-mcp.sh" ]; then
+    echo "Starting local MCP daemon..."
+    /app/scripts/start-local-mcp.sh
 fi
 
 # Execute the main command

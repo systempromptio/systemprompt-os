@@ -1,0 +1,60 @@
+name: resources
+type: service
+version: 1.0.0
+description: MCP resources management with database storage
+author: systemprompt-os
+dependencies:
+  - logger
+  - database
+apis:
+  - name: listResources
+    description: List all available MCP resources
+  - name: getResource
+    description: Get a specific resource by URI
+  - name: createResource
+    description: Create a new resource
+  - name: updateResource
+    description: Update an existing resource
+  - name: deleteResource
+    description: Delete a resource
+cli:
+  commands:
+    - name: list
+      description: List all resources
+    - name: get
+      description: Get a specific resource
+      options:
+        - name: uri
+          alias: u
+          type: string
+          description: Resource URI
+          required: true
+    - name: create
+      description: Create a new resource
+      options:
+        - name: file
+          alias: f
+          type: string
+          description: JSON file containing resource data
+          required: true
+    - name: update
+      description: Update an existing resource
+      options:
+        - name: uri
+          alias: u
+          type: string
+          description: Resource URI
+          required: true
+        - name: file
+          alias: f
+          type: string
+          description: JSON file containing updated resource data
+          required: true
+    - name: delete
+      description: Delete a resource
+      options:
+        - name: uri
+          alias: u
+          type: string
+          description: Resource URI
+          required: true

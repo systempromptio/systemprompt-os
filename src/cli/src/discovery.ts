@@ -13,7 +13,8 @@ export interface DiscoveredCommand {
 
 export class CommandDiscovery {
   constructor(
-    private modulesPath: string = join(process.cwd(), 'build/modules')
+    private modulesPath: string = join(process.cwd(), 'src/modules'),
+    private buildPath: string = join(process.cwd(), 'build/modules')
   ) {}
   
   /**
@@ -22,16 +23,23 @@ export class CommandDiscovery {
   async discoverCommands(): Promise<Map<string, any>> {
     const commands = new Map<string, any>();
     
-    // Check core modules
-    const corePath = join(this.modulesPath, 'core');
-    if (existsSync(corePath)) {
-      await this.discoverInDirectory(corePath, commands);
-    }
+    // Discover commands from source modules (for metadata)
+    await this.discoverFromSource(commands);
     
-    // Check custom modules
-    const customPath = join(this.modulesPath, 'custom');
-    if (existsSync(customPath)) {
-      await this.discoverInDirectory(customPath, commands);
+    return commands;
+  }
+  
+  /**
+   * Discover commands from source modules
+   */
+  private async discoverFromSource(commands: Map<string, any>): Promise<void> {
+    const moduleTypes = ['core', 'custom'];
+    
+    for (const type of moduleTypes) {
+      const typePath = join(this.modulesPath, type);
+      if (existsSync(typePath)) {
+        await this.discoverInDirectory(typePath, commands);
+      }
     }
     
     // Check extension modules
@@ -39,8 +47,6 @@ export class CommandDiscovery {
     if (existsSync(extensionsPath)) {
       await this.discoverInDirectory(extensionsPath, commands);
     }
-    
-    return commands;
   }
   
   /**
@@ -66,7 +72,10 @@ export class CommandDiscovery {
               commands.set(commandName, {
                 ...cmdDef,
                 moduleName,
-                execute: await this.loadCommandExecutor(dirPath, moduleName, cmdDef.name)
+                module: moduleName,
+                fullCommand: commandName,
+                // Executor will be loaded on demand when command is actually run
+                executorPath: this.getExecutorPath(moduleName, cmdDef.name)
               });
             }
           }
@@ -78,29 +87,34 @@ export class CommandDiscovery {
   }
   
   /**
-   * Load command executor from module CLI directory
+   * Get the executor path for a command
    */
-  private async loadCommandExecutor(basePath: string, moduleName: string, commandName: string): Promise<Function | undefined> {
-    const cliPath = join(basePath, moduleName, 'cli', `${commandName}.ts`);
-    const cliJsPath = join(basePath, moduleName, 'cli', `${commandName}.js`);
+  private getExecutorPath(moduleName: string, commandName: string): string {
+    // Commands are always executed from the build directory
+    return join(this.buildPath, 'core', moduleName, 'cli', `${commandName}.js`);
+  }
+  
+  /**
+   * Load command executor on demand
+   */
+  async loadCommandExecutor(commandPath: string): Promise<Function | undefined> {
+    if (!existsSync(commandPath)) {
+      console.error(`Command executor not found: ${commandPath}`);
+      return undefined;
+    }
     
-    // Try loading the command file
-    const filePath = existsSync(cliJsPath) ? cliJsPath : cliPath;
-    
-    if (existsSync(filePath)) {
-      try {
-        // For TypeScript files in development, we need to handle them differently
-        // In production, these would be compiled to .js
-        const module = await import(filePath);
-        
-        if (module.command?.execute) {
-          return module.command.execute;
-        } else if (module.default?.execute) {
-          return module.default.execute;
-        }
-      } catch (error) {
-        console.error(`Error loading command from ${filePath}:`, error);
+    try {
+      const module = await import(commandPath);
+      
+      if (module.command?.execute) {
+        return module.command.execute;
+      } else if (module.default?.execute) {
+        return module.default.execute;
+      } else if (typeof module.default === 'function') {
+        return module.default;
       }
+    } catch (error) {
+      console.error(`Error loading command from ${commandPath}:`, error);
     }
     
     return undefined;

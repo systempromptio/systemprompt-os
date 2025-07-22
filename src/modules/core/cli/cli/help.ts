@@ -3,21 +3,37 @@
  * @module modules/core/cli/cli/help
  */
 
-// Local interface definition
-export interface CLIContext {
-  cwd: string;
-  args: Record<string, any>;
-  options?: Record<string, any>;
-}
-import { CLIModule } from '../index.js';
+import { CLIModule } from '@/modules/core/cli';
+import { CLIContext, CLICommand } from '@/modules/core/cli/types';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
 
-export const command = {
+export const command: CLICommand = {
+  description: 'Show help information for commands',
+  options: [
+    {
+      name: 'command',
+      type: 'string',
+      description: 'Specific command to get help for'
+    },
+    {
+      name: 'all',
+      alias: 'a',
+      type: 'boolean',
+      description: 'Show all available commands with details',
+      default: false
+    }
+  ],
+  examples: [
+    'systemprompt cli:help',
+    'systemprompt cli:help --command database:migrate',
+    'systemprompt cli:help --all'
+  ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
     
     try {
       const cliModule = new CLIModule();
-      await cliModule.initialize({ config: {} });
+      await cliModule.initialize({ logger: context.logger });
       
       // Get all available commands
       const commands = await cliModule.getAllCommands();
@@ -31,7 +47,12 @@ export const command = {
         console.log('\nSystemPrompt OS - All Available Commands');
         console.log('========================================\n');
         
-        commands.forEach((_command, name) => {
+        // Sort commands alphabetically
+        const sortedCommands = Array.from(commands.entries()).sort((a, b) => 
+          a[0].localeCompare(b[0])
+        );
+        
+        sortedCommands.forEach(([name, _command]) => {
           console.log(cliModule.getCommandHelp(name, commands));
           console.log('-'.repeat(40));
         });
@@ -48,8 +69,7 @@ export const command = {
         console.log('  systemprompt cli:help --all');
       }
     } catch (error) {
-      console.error('Error displaying help:', error);
-      process.exit(1);
+      throw new CommandExecutionError('cli:help', error as Error);
     }
   }
 };

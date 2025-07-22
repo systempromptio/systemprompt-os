@@ -1,155 +1,172 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/cli/cli/list';
-import { CLIModule } from '../../../../../../src/modules/core/cli/index.js';
+/**
+ * @fileoverview Tests for list command
+ * @module tests/unit/modules/core/cli/cli
+ */
 
-vi.mock('../../../../../../src/modules/core/cli/index.js');
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { command } from '@/modules/core/cli/cli/list';
+import { CLIModule } from '@/modules/core/cli';
+import { CLIContext } from '@/modules/core/cli/types';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
 
-describe('CLI List Command', () => {
-  let mockCLIModule: any;
-  let consoleLogSpy: any;
-  let consoleErrorSpy: any;
-  let processExitSpy: any;
+// Mock CLIModule
+jest.mock('@/modules/core/cli');
+
+// Mock console methods
+const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
+
+describe('list command', () => {
+  let mockCLIModule: jest.Mocked<CLIModule>;
+  let mockContext: CLIContext;
 
   beforeEach(() => {
-    // Mock console methods
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
-    processExitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
+    jest.clearAllMocks();
 
-    // Mock CLIModule
+    // Create mock CLI module instance
     mockCLIModule = {
-      initialize: vi.fn().mockResolvedValue(undefined),
-      getAllCommands: vi.fn().mockResolvedValue(new Map([
-        ['auth:providers', { description: 'List auth providers' }],
-        ['auth:tunnel', { description: 'Manage tunnel' }],
-        ['config:get', { description: 'Get config value' }],
-        ['config:set', { description: 'Set config value' }]
-      ])),
-      formatCommands: vi.fn().mockReturnValue('Formatted commands output')
-    };
+      initialize: jest.fn().mockResolvedValue(undefined),
+      getAllCommands: jest.fn().mockResolvedValue(new Map()),
+      formatCommands: jest.fn().mockReturnValue('Formatted commands output')
+    } as any;
 
-    vi.mocked(CLIModule).mockImplementation(() => mockCLIModule);
+    // Mock CLIModule constructor
+    (CLIModule as jest.MockedClass<typeof CLIModule>).mockImplementation(() => mockCLIModule);
+
+    // Create mock context
+    mockContext = {
+      cwd: '/test/dir',
+      args: {},
+      logger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn()
+      }
+    };
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
+  describe('command definition', () => {
+    it('should have correct properties', () => {
+      expect(command.description).toBe('List all available commands');
+      expect(command.options).toHaveLength(2);
+      expect(command.options![0].name).toBe('module');
+      expect(command.options![1].name).toBe('format');
+      expect(command.examples).toContain('systemprompt cli:list');
+    });
   });
 
   describe('execute', () => {
-    it('should list all commands with default text format', async () => {
-      const context = {
-        cwd: '/test',
-        args: {}
-      };
+    it('should list commands in default text format', async () => {
+      const mockCommands = new Map([
+        ['test:command', { description: 'Test', execute: jest.fn() }]
+      ]);
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
-      await command.execute(context);
+      await command.execute(mockContext);
 
-      expect(mockCLIModule.initialize).toHaveBeenCalledWith({ config: {} });
+      expect(mockCLIModule.initialize).toHaveBeenCalledWith({ logger: mockContext.logger });
       expect(mockCLIModule.getAllCommands).toHaveBeenCalled();
-      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(expect.any(Map), 'text');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nSystemPrompt OS - Available Commands');
-      expect(consoleLogSpy).toHaveBeenCalledWith('====================================');
-      expect(consoleLogSpy).toHaveBeenCalledWith('Formatted commands output');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nTotal commands: 4');
+      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(mockCommands, 'text');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('SystemPrompt OS - Available Commands'));
+      expect(mockConsoleLog).toHaveBeenCalledWith('Formatted commands output');
     });
 
-    it('should filter commands by module when module arg provided', async () => {
-      const context = {
-        cwd: '/test',
-        args: {
-          module: 'auth'
-        }
-      };
+    it('should output JSON format when specified', async () => {
+      mockContext.args.format = 'json';
+      const mockCommands = new Map([
+        ['auth:login', { description: 'Login', execute: jest.fn() }],
+        ['db:migrate', { description: 'Migrate', options: [{ name: 'force' }], execute: jest.fn() }]
+      ]);
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
-      await command.execute(context);
+      await command.execute(mockContext);
 
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringMatching(/^\[/)); // JSON array
+      const jsonOutput = mockConsoleLog.mock.calls[0][0];
+      const parsed = JSON.parse(jsonOutput);
+      
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0]).toEqual({
+        command: 'login',
+        module: 'auth',
+        description: 'Login',
+        usage: 'systemprompt auth:login',
+        options: [],
+        positionals: []
+      });
+    });
+
+    it('should filter commands by module', async () => {
+      mockContext.args.module = 'auth';
+      const mockCommands = new Map([
+        ['auth:login', { description: 'Login', execute: jest.fn() }],
+        ['auth:logout', { description: 'Logout', execute: jest.fn() }],
+        ['db:migrate', { description: 'Migrate', execute: jest.fn() }]
+      ]);
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
+
+      await command.execute(mockContext);
+
+      const expectedFiltered = new Map([
+        ['auth:login', { description: 'Login', execute: expect.any(Function) }],
+        ['auth:logout', { description: 'Logout', execute: expect.any(Function) }]
+      ]);
+      
       expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(
         expect.objectContaining({
           size: 2
         }),
         'text'
       );
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nTotal commands: 2');
     });
 
-    it('should show message when no commands found for module', async () => {
-      const context = {
-        cwd: '/test',
-        args: {
-          module: 'nonexistent'
-        }
-      };
+    it('should handle empty module filter', async () => {
+      mockContext.args.module = 'nonexistent';
+      const mockCommands = new Map([
+        ['auth:login', { description: 'Login', execute: jest.fn() }]
+      ]);
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
-      await command.execute(context);
+      await command.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No commands found for module: nonexistent');
-      expect(mockCLIModule.formatCommands).not.toHaveBeenCalled();
+      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(
+        expect.objectContaining({ size: 0 }),
+        'text'
+      );
     });
 
-    it('should support JSON format', async () => {
-      const context = {
-        cwd: '/test',
-        args: {
-          format: 'json'
-        }
-      };
+    it('should use table format when specified', async () => {
+      mockContext.args.format = 'table';
+      const mockCommands = new Map();
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
-      mockCLIModule.formatCommands.mockReturnValue('{"commands": []}');
+      await command.execute(mockContext);
 
-      await command.execute(context);
-
-      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(expect.any(Map), 'json');
-      expect(consoleLogSpy).toHaveBeenCalledWith('{"commands": []}');
-      // Should not print header for JSON format
-      expect(consoleLogSpy).not.toHaveBeenCalledWith('\nSystemPrompt OS - Available Commands');
+      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(mockCommands, 'table');
     });
 
-    it('should support table format', async () => {
-      const context = {
-        cwd: '/test',
-        args: {
-          format: 'table'
-        }
-      };
+    it('should throw CommandExecutionError on failure', async () => {
+      const error = new Error('getAllCommands failed');
+      mockCLIModule.getAllCommands.mockRejectedValue(error);
 
-      await command.execute(context);
-
-      expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(expect.any(Map), 'table');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nSystemPrompt OS - Available Commands');
-      expect(consoleLogSpy).toHaveBeenCalledWith('====================================');
-      // Should not print total for table format
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Total commands:'));
+      await expect(command.execute(mockContext)).rejects.toThrow(CommandExecutionError);
+      await expect(command.execute(mockContext)).rejects.toThrow('cli:list');
     });
 
-    it('should handle errors gracefully', async () => {
-      const context = {
-        cwd: '/test',
-        args: {}
-      };
+    it('should handle commands without module prefix', async () => {
+      mockContext.args.format = 'json';
+      const mockCommands = new Map([
+        ['help', { description: 'Show help', execute: jest.fn() }]
+      ]);
+      mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
-      mockCLIModule.initialize.mockRejectedValue(new Error('Init failed'));
+      await command.execute(mockContext);
 
-      await expect(command.execute(context)).rejects.toThrow('process.exit called');
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error listing commands:', expect.any(Error));
-      expect(processExitSpy).toHaveBeenCalledWith(1);
-    });
-
-    it('should handle formatCommands error', async () => {
-      const context = {
-        cwd: '/test',
-        args: {}
-      };
-
-      mockCLIModule.formatCommands.mockImplementation(() => {
-        throw new Error('Format failed');
-      });
-
-      await expect(command.execute(context)).rejects.toThrow('process.exit called');
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error listing commands:', expect.any(Error));
+      const jsonOutput = mockConsoleLog.mock.calls[0][0];
+      const parsed = JSON.parse(jsonOutput);
+      
+      expect(parsed[0].module).toBe('core');
+      expect(parsed[0].command).toBe('help');
     });
   });
 });

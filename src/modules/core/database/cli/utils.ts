@@ -1,7 +1,7 @@
-import { DatabaseService } from "../services/database.service.js";
-import { SchemaService } from "../services/schema.service.js";
-import { MigrationService } from "../services/migration.service.js";
-import type { DatabaseConfig } from "../interfaces/database.interface.js";
+import { DatabaseService } from "@/modules/core/database/services/database.service";
+import { SchemaService } from "@/modules/core/database/services/schema.service";
+import { MigrationService } from "@/modules/core/database/services/migration.service";
+import type { DatabaseConfig } from "@/modules/core/database/types";
 
 let initialized = false;
 
@@ -19,7 +19,7 @@ export async function ensureDatabaseInitialized(): Promise<{
       const config: DatabaseConfig = {
         type: process.env.DATABASE_TYPE as 'sqlite' | 'postgres' || 'sqlite',
         sqlite: {
-          filename: process.env.DATABASE_FILE || '/data/state/database.db',
+          filename: process.env.DATABASE_FILE || '/data/state/systemprompt.db',
           mode: 'wal'
         },
         postgres: {

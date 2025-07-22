@@ -1,0 +1,198 @@
+name: scheduler
+type: daemon
+version: 1.0.0
+description: Task scheduling and cron job management
+author: systemprompt-os
+
+config:
+  maxConcurrentTasks: 100
+  defaultRetries: 3
+  retryDelay: 5000
+  tickInterval: 1000
+  taskTimeout: 3600000
+  cleanupInterval: 3600000
+  historyRetentionDays: 30
+
+dependencies:
+  - database
+  - logger
+
+apis:
+  - name: createTask
+    description: Create a new scheduled task
+  - name: updateTask
+    description: Update an existing task
+  - name: deleteTask
+    description: Delete a scheduled task
+  - name: runTask
+    description: Run a task immediately
+  - name: pauseTask
+    description: Pause a scheduled task
+  - name: resumeTask
+    description: Resume a paused task
+  - name: listTasks
+    description: List all scheduled tasks
+  - name: getTaskHistory
+    description: Get task execution history
+
+cli:
+  commands:
+    - name: scheduler
+      description: Task scheduler management commands
+      subcommands:
+        - name: list
+          description: List scheduled tasks
+          options:
+            - name: status
+              alias: s
+              type: string
+              description: Filter by status (active, paused, completed, failed)
+              required: false
+            - name: format
+              alias: f
+              type: string
+              description: Output format (json, table)
+              required: false
+              default: table
+        
+        - name: create
+          description: Create scheduled task
+          options:
+            - name: name
+              alias: n
+              type: string
+              description: Task name
+              required: true
+            - name: command
+              alias: c
+              type: string
+              description: Command to execute
+              required: true
+            - name: schedule
+              alias: s
+              type: string
+              description: Cron expression or interval (e.g., "0 * * * *" or "5m")
+              required: true
+            - name: data
+              alias: d
+              type: string
+              description: Task data (JSON)
+              required: false
+            - name: once
+              alias: o
+              type: boolean
+              description: Run only once
+              required: false
+              default: false
+        
+        - name: update
+          description: Update scheduled task
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Task ID
+              required: true
+            - name: name
+              alias: n
+              type: string
+              description: New task name
+              required: false
+            - name: schedule
+              alias: s
+              type: string
+              description: New schedule
+              required: false
+            - name: command
+              alias: c
+              type: string
+              description: New command
+              required: false
+        
+        - name: delete
+          description: Delete scheduled task
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Task ID
+              required: true
+            - name: confirm
+              alias: c
+              type: boolean
+              description: Skip confirmation
+              required: false
+              default: false
+        
+        - name: run
+          description: Run task immediately
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Task ID
+              required: true
+            - name: wait
+              alias: w
+              type: boolean
+              description: Wait for completion
+              required: false
+              default: false
+        
+        - name: pause
+          description: Pause scheduler or specific task
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Task ID (if not provided, pauses all)
+              required: false
+        
+        - name: resume
+          description: Resume scheduler or specific task
+          options:
+            - name: id
+              alias: i
+              type: string
+              description: Task ID (if not provided, resumes all)
+              required: false
+        
+        - name: history
+          description: View task execution history
+          options:
+            - name: task
+              alias: t
+              type: string
+              description: Task ID
+              required: false
+            - name: limit
+              alias: l
+              type: number
+              description: Number of records to show
+              required: false
+              default: 20
+            - name: status
+              alias: s
+              type: string
+              description: Filter by execution status
+              required: false
+        
+        - name: next
+          description: Show next scheduled runs
+          options:
+            - name: count
+              alias: c
+              type: number
+              description: Number of upcoming runs to show
+              required: false
+              default: 10
+            - name: task
+              alias: t
+              type: string
+              description: Filter by task ID
+              required: false
+
+exports:
+  - SchedulerService
+  - SchedulerRepository
+  - CronEngine

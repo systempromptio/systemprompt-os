@@ -26,8 +26,8 @@ import type {
   ListResourcesResult,
   ReadResourceRequest,
   ReadResourceResult,
-  Resource,
 } from "@modelcontextprotocol/sdk/types.js";
+import { getModuleLoader } from '../../../../modules/loader.js';
 /**
  * Lists all available MCP resources including static and dynamic task resources
  *
@@ -42,7 +42,14 @@ import type {
  */
 export async function handleListResources(): Promise<ListResourcesResult> {
   try {
-    const resources: Resource[] = [];
+    const moduleLoader = getModuleLoader();
+    const resourcesModule = moduleLoader.getModule('resources');
+    
+    if (!resourcesModule || !resourcesModule.exports) {
+      throw new Error('Resources module not available');
+    }
+    
+    const resources = await resourcesModule.exports.listResources();
     return { resources };
   } catch (error) {
     throw new Error(`Failed to list resources: ${error}`);
@@ -75,10 +82,24 @@ export async function handleListResources(): Promise<ListResourcesResult> {
  * ```
  */
 export async function handleResourceCall(
-  _request: ReadResourceRequest,
+  request: ReadResourceRequest,
 ): Promise<ReadResourceResult> {
   try {
-    return {} as ReadResourceResult;
+    const moduleLoader = getModuleLoader();
+    const resourcesModule = moduleLoader.getModule('resources');
+    
+    if (!resourcesModule || !resourcesModule.exports) {
+      throw new Error('Resources module not available');
+    }
+    
+    const resourceWithContents = await resourcesModule.exports.getResource(request.params.uri);
+    if (!resourceWithContents) {
+      throw new Error(`Resource not found: ${request.params.uri}`);
+    }
+    
+    return {
+      contents: resourceWithContents.contents
+    };
   } catch (error) {
     throw new Error(`Failed to read resource: ${error}`);
   }
