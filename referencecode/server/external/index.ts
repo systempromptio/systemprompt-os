@@ -4,7 +4,7 @@
  */
 
 import type { Express } from 'express';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import cookieParser from 'cookie-parser';
 
 /**
@@ -20,6 +20,7 @@ import cookieParser from 'cookie-parser';
  * @param router Express router instance
  */
 export async function setupExternalEndpoints(app: Express): Promise<void> {
+  const logger = LoggerService.getInstance();
   logger.info('Setting up external REST endpoints');
 
   app.use(cookieParser());

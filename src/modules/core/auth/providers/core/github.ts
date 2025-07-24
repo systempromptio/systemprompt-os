@@ -107,7 +107,7 @@ export class GitHubProvider implements IdentityProvider {
 
       if (emailResponse.ok) {
         const emails = await emailResponse.json() as any[];
-        const primaryEmail = emails.find((e: any) => { return e.primary });
+        const primaryEmail = emails.find((e: unknown) => { return e.primary });
         if (primaryEmail) {
           email = primaryEmail.email;
           emailverified = primaryEmail.verified;

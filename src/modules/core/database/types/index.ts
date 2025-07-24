@@ -106,8 +106,8 @@ export type DatabaseType = 'sqlite' | 'postgres';
 /**
  * Transaction isolation level.
  */
-export type TransactionIsolationLevel = 
-  | 'READ UNCOMMITTED' 
-  | 'READ COMMITTED' 
-  | 'REPEATABLE READ' 
+export type TransactionIsolationLevel =
+  | 'READ UNCOMMITTED'
+  | 'READ COMMITTED'
+  | 'REPEATABLE READ'
   | 'SERIALIZABLE';

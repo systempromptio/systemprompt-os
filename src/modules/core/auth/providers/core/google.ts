@@ -1,24 +1,26 @@
 import type {
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../../constants';
   IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
 } from '@/modules/core/auth/types/provider-interface.js';
+import {
+ EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
+} from '@/modules/core/auth/constants';
 
 const THREE = 3;
 
 /**
-
+ *
  * GoogleConfig interface.
-
+ *
  */
 
-export interface GoogleConfig extends IDPConfig {
+export interface IGoogleConfig extends IDPConfig {
   discoveryurl?: string;
 }
 
 /**
-
+ *
  * GoogleProvider class.
-
+ *
  */
 
 export class GoogleProvider implements IdentityProvider {
@@ -94,8 +96,8 @@ export class GoogleProvider implements IdentityProvider {
     }
 
     /**
- *  * Description.
-     * data function
+     *  * Description.
+     * Data function.
      */
     const data = (await response.json()) as any;
 
@@ -112,7 +114,7 @@ export class GoogleProvider implements IdentityProvider {
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      refreshToken: refreshToken,
+      refreshToken,
       clientId: this.config.clientId,
       clientSecret: this.config.client_secret || '',
       grantType: "refresh_token",

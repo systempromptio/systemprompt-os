@@ -8,7 +8,7 @@ import type {
  *
  */
 
-export interface GenericOAuth2Config extends IDPConfig {
+export interface IGenericOAuth2Config extends IDPConfig {
   id: string;
   name: string;
   authorizationEndpoint: string;
@@ -104,7 +104,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return data as IDPTokens;
   }
 
-  async getUserInfo(_accessToken: string): Promise<IDPUserInfo> {
+  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
     if (!this.config.userinfo_endpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
@@ -161,7 +161,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return data as IDPTokens;
   }
 
-  private getNestedValue(_obj: unknown, path: string): unknown {
+  private getNestedValue(obj: unknown, path: string): unknown {
     return path.split('.').reduce((curr, prop) : void => { return curr?.[prop] }, obj);
   }
 }
@@ -185,6 +185,6 @@ export async function discoverOIDCConfiguration(issuer: string): Promise<Partial
     scopesSupported: config.scopes_supported,
     responsetypesSupported: config.response_types_supported,
     granttypesSupported: config.grant_types_supported,
-    tokenendpoint_authMethods: config.token_endpoint_auth_methods_supported,
+    tokenendpointauthMethods: config.token_endpoint_auth_methods_supported,
   };
 }

@@ -28,9 +28,7 @@ export class DatabaseCLIHandlerService {
    * @returns The CLI handler service instance.
    */
   public static getInstance(logger?: ILogger): DatabaseCLIHandlerService {
-    if (!DatabaseCLIHandlerService.instance) {
-      DatabaseCLIHandlerService.instance = new DatabaseCLIHandlerService();
-    }
+    DatabaseCLIHandlerService.instance ||= new DatabaseCLIHandlerService();
     if (logger !== undefined) {
       DatabaseCLIHandlerService.instance.logger = logger;
     }
@@ -46,12 +44,12 @@ export class DatabaseCLIHandlerService {
       const db = DatabaseService.getInstance();
       const isConnected = await db.isConnected();
       const dbType = db.getDatabaseType();
-      
+
       return {
         connected: isConnected,
         type: dbType,
-        message: isConnected 
-          ? `Connected to ${dbType} database` 
+        message: isConnected
+          ? `Connected to ${dbType} database`
           : 'Database not connected'
       };
     } catch (error) {
@@ -71,7 +69,7 @@ export class DatabaseCLIHandlerService {
     try {
       const migrationService = MigrationService.getInstance();
       await migrationService.runMigrations();
-      
+
       return {
         success: true,
         message: 'Migrations completed successfully'
@@ -94,7 +92,7 @@ export class DatabaseCLIHandlerService {
       const schemaService = SchemaService.getInstance();
       await schemaService.initializeBaseSchema();
       await schemaService.initializeSchemas();
-      
+
       return {
         success: true,
         message: 'Database initialized successfully'

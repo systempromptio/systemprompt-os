@@ -6,7 +6,7 @@ export type UserRole = 'admin' | 'basic';
 
 export type Permission = string;
 
-export interface UserPermissionContext {
+export interface IUserPermissionContext {
   userId: string;
   email: string;
   role: UserRole;
@@ -36,8 +36,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
  * @param userContext
  * @param permission
  */
-export function hasPermission(
-  userContext: UserPermissionContext,
+export const hasPermission = function (
+  userContext: IUserPermissionContext,
   permission: string
 ): boolean {
   const allPermissions = [
@@ -45,17 +45,14 @@ export function hasPermission(
     ...userContext.customPermissions || []
   ];
 
-  // Check for exact match
   if (allPermissions.includes(permission)) {
     return true;
   }
 
-  // Check for wildcard permissions
   const permissionParts = permission.split(':');
   for (const userPerm of allPermissions) {
     const userPermParts = userPerm.split(':');
 
-    // Check if user has a wildcard that matches
     if (userPermParts[userPermParts.length - 1] === '*') {
       const wildcardBase = userPermParts.slice(0, -1).join(':');
       const permissionBase = permissionParts.slice(0, userPermParts.length - 1).join(':');

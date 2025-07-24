@@ -12,12 +12,50 @@ import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/s
 import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
+ * SQL parser service interface.
+ */
+interface ISQLParserService {
+  parseSQLFile(content: string, filename: string): {
+    hasErrors: boolean;
+    errors: Array<{ line: number; message: string }>;
+    statements: Array<{
+      statement: string;
+      lineNumber: number;
+      isValid: boolean;
+    }>;
+  };
+  categorizeStatements(statements: Array<{
+    statement: string;
+    lineNumber: number;
+    isValid: boolean;
+  }>): {
+    tables: Array<{ statement: string; lineNumber: number; isValid: boolean }>;
+    indexes: Array<{ statement: string; lineNumber: number; isValid: boolean }>;
+    triggers: Array<{ statement: string; lineNumber: number; isValid: boolean }>;
+    data: Array<{ statement: string; lineNumber: number; isValid: boolean }>;
+    other: Array<{ statement: string; lineNumber: number; isValid: boolean }>;
+  };
+}
+
+/**
+ * Database service interface.
+ */
+interface IDatabaseService {
+  execute(sql: string, params?: unknown[]): Promise<void>;
+  query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+  transaction<T>(fn: (conn: {
+    execute(sql: string, params?: unknown[]): Promise<void>;
+    query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+  }) => Promise<T>): Promise<T>;
+}
+
+/**
  * Schema import service for managing database schemas.
  */
 export class SchemaImportService {
   private static instance: SchemaImportService;
-  private parser: any;
-  private database: any;
+  private parser?: ISQLParserService;
+  private database?: IDatabaseService;
   private logger?: ILogger;
   private initialized = false;
 
@@ -33,7 +71,11 @@ export class SchemaImportService {
    * @param logger - Optional logger instance.
    * @returns The initialized schema import service instance.
    */
-  public static initialize(database: any, parser: any, logger?: ILogger): SchemaImportService {
+  public static initialize(
+    database: IDatabaseService,
+    parser: ISQLParserService,
+    logger?: ILogger
+  ): SchemaImportService {
     SchemaImportService.instance ||= new SchemaImportService();
     SchemaImportService.instance.database = database;
     SchemaImportService.instance.parser = parser;
@@ -61,6 +103,10 @@ export class SchemaImportService {
    * @returns Promise that resolves when table is created.
    */
   public async initialize(): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database service not initialized');
+    }
+
     await this.database.execute(`
       CREATE TABLE IF NOT EXISTS _imported_schemas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +131,8 @@ export class SchemaImportService {
 
     const existing = await this.getImportedSchemas();
     const existingMap = new Map(
-      existing.map((schema): [string, string] => { return [`${schema.module}:${schema.filepath}`, schema.checksum] })
+      existing.map((schema): [string, string] =>
+        { return [`${schema.module}:${schema.filepath}`, schema.checksum] })
     );
 
     for (const schema of schemaFiles) {
@@ -133,6 +180,10 @@ export class SchemaImportService {
    * @returns Promise that resolves when schema is imported.
    */
   private async importSchema(schema: ISchemaFile): Promise<void> {
+    if (!this.parser || !this.database) {
+      throw new Error('Parser or database service not initialized');
+    }
+
     this.logger?.info('Importing schema', {
       module: schema.module,
       file: schema.filepath
@@ -141,10 +192,11 @@ export class SchemaImportService {
     const parsed = this.parser.parseSQLFile(schema.content, schema.filepath);
 
     if (parsed.hasErrors) {
-      throw new Error(
-        `Schema has syntax errors: ${parsed.errors.map((errorItem: any): string =>
-          { return `Line ${errorItem.line}: ${errorItem.message}` }).join('; ')}`
-      );
+      const errorMessages = parsed.errors
+        .map((errorItem): string =>
+          { return `Line ${errorItem.line}: ${errorItem.message}` })
+        .join('; ');
+      throw new Error(`Schema has syntax errors: ${errorMessages}`);
     }
 
     const categorized = this.parser.categorizeStatements(parsed.statements);
@@ -164,13 +216,15 @@ export class SchemaImportService {
       return;
     }
 
-    await this.database.transaction(async (conn: any): Promise<void> => {
+    await this.database.transaction(async (conn): Promise<void> => {
       for (const stmt of validStatements) {
         try {
           await conn.execute(stmt.statement);
         } catch (error) {
           throw new Error(
-            `Failed at line ${stmt.lineNumber}: ${error instanceof Error ? error.message : String(error)}`
+            `Failed at line ${stmt.lineNumber}: ${
+              error instanceof Error ? error.message : String(error)
+            }`
           );
         }
       }
@@ -210,7 +264,16 @@ export class SchemaImportService {
    * Get list of imported schemas.
    * @returns Array of imported schema records.
    */
-  public async getImportedSchemas(): Promise<Array<{ module: string; filepath: string; checksum: string; imported_at: string }>> {
+  public async getImportedSchemas(): Promise<Array<{
+    module: string;
+    filepath: string;
+    checksum: string;
+    imported_at: string
+  }>> {
+    if (!this.database) {
+      throw new Error('Database service not initialized');
+    }
+
     return await this.database.query(
       `SELECT module, filepath, checksum, imported_at 
        FROM _imported_schemas 
@@ -225,6 +288,10 @@ export class SchemaImportService {
    * @returns True if schema has been imported.
    */
   public async isSchemaImported(module: string, filepath: string): Promise<boolean> {
+    if (!this.database) {
+      throw new Error('Database service not initialized');
+    }
+
     const result = await this.database.query<{ count: number }>(
       `SELECT COUNT(*) as count 
        FROM _imported_schemas 

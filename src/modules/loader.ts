@@ -86,7 +86,7 @@ export class ModuleLoader {
    */
   private constructor(configPath?: string) {
     this.registry = new ModuleRegistry();
-    this.configPath = configPath || join(CONFIG.CONFIGPATH, 'modules.json');
+    this.configPath = configPath ?? join(CONFIG.CONFIGPATH, 'modules.json');
   }
 
   /**
@@ -169,7 +169,7 @@ export class ModuleLoader {
       }
 
       this.scannerService = modulesModule.service.getScannerService();
-      if (!this.scannerService) {
+      if (this.scannerService === null) {
         logger.error('Scanner service not available');
         return;
       }
@@ -213,7 +213,7 @@ export class ModuleLoader {
    */
   private async loadModuleFromInfo(moduleInfo: ModuleInfo, config: ModulesConfig): Promise<void> {
     try {
-      if (this.scannerService) {
+      if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.LOADING);
       }
 
@@ -222,12 +222,12 @@ export class ModuleLoader {
 
       await this.loadModule(moduleInfo.name, importPath, config);
 
-      if (this.scannerService) {
+      if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.RUNNING);
       }
     } catch (error) {
       logger.error(`Failed to load module ${moduleInfo.name}:`, error);
-      if (this.scannerService) {
+      if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(
           moduleInfo.name,
           ModuleStatus.ERROR,
@@ -255,7 +255,7 @@ export class ModuleLoader {
         (key) => { return key.toLowerCase().includes(name.toLowerCase()) && key.includes('Module') },
       );
 
-      if (!moduleClassName) {
+      if (moduleClassName === undefined) {
         throw new Error(`No module class found in ${importPath}`);
       }
 
@@ -263,7 +263,7 @@ export class ModuleLoader {
       const moduleInstance = new ModuleClass();
 
       const context = {
-        config: config.modules[name]?.config || {},
+        config: config.modules[name]?.config ?? {},
         logger,
       };
 
@@ -294,11 +294,11 @@ export class ModuleLoader {
 
     for (const module of modules.reverse()) {
       try {
-        if (module.stop) {
+        if (module.stop !== undefined) {
           await module.stop();
         }
 
-        if (this.scannerService) {
+        if (this.scannerService !== null) {
           await this.scannerService.updateModuleStatus(module.name, ModuleStatus.STOPPED);
         }
       } catch (error) {

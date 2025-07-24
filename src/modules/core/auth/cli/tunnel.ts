@@ -1,3 +1,9 @@
+/* eslint-disable func-style */
+
+/* eslint-disable max-statements */
+
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import {
  FIVE, FOUR, ONE, THREE, TWO

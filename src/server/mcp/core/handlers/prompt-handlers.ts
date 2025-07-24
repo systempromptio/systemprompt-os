@@ -38,7 +38,7 @@ import { getModuleLoader } from '@/modules/loader.js';
  * console.log(`Available prompts: ${prompts.length}`);
  * ```
  */
-export async function handleListPrompts(): Promise<ListPromptsResult> {
+export const handleListPrompts = async function (): Promise<ListPromptsResult> {
   const moduleLoader = getModuleLoader();
   const promptsModule = moduleLoader.getModule('prompts');
 
@@ -65,7 +65,7 @@ export async function handleListPrompts(): Promise<ListPromptsResult> {
  * });
  * ```
  */
-export async function handleGetPrompt(
+export const handleGetPrompt = async function (
   request: GetPromptRequest
 ): Promise<GetPromptResult> {
   const moduleLoader = getModuleLoader();
@@ -80,7 +80,6 @@ export async function handleGetPrompt(
     throw new Error(`Prompt not found: ${request.params.name}`);
   }
 
-  // Process messages with argument substitution
   const messages = promptWithMessages.messages.map((message: PromptMessage) => {
     if (!isTextContent(message.content)) {
       return message;
@@ -115,6 +114,6 @@ export async function handleGetPrompt(
  * @param content - Prompt message content to check.
  * @returns True if content is text type.
  */
-function isTextContent(content: PromptMessage['content']): content is TextContent {
+const isTextContent = function (content: PromptMessage['content']): content is TextContent {
   return content.type === 'text';
 }

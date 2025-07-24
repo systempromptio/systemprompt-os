@@ -95,7 +95,7 @@ export enum TaskStatus {
 /**
  * Response structure for check status operation.
  */
-export interface CheckStatusResponse {
+export interface ICheckStatusResponse {
   status: SystemStatus;
   services: {
     claude: {
@@ -127,7 +127,7 @@ export interface CheckStatusResponse {
 /**
  * Generic tool response structure.
  */
-export interface ToolResponse<T = unknown> {
+export interface IToolResponse<T = unknown> {
   readonly success: boolean;
   readonly message: string;
   readonly data?: T;
@@ -140,7 +140,7 @@ export interface ToolResponse<T = unknown> {
 /**
  * Session context information.
  */
-export interface SessionContext {
+export interface ISessionContext {
   readonly sessionId?: string;
   readonly userId?: string;
   readonly requestId?: string;
@@ -209,7 +209,7 @@ export class StatusCheckError extends Error {
 /**
  * Task report structure.
  */
-export interface TaskReport {
+export interface ITaskReport {
   readonly task: Task;
   readonly duration: string;
   readonly logCount: number;

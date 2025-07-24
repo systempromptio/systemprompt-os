@@ -4,12 +4,12 @@ import type { ProviderRegistry } from '@/modules/core/auth/providers/registry.js
 import { getModuleLoader } from '@/modules/loader.js';
 
 /**
-
+ *
  * AuthModuleWithExports interface.
-
+ *
  */
 
-export interface AuthModuleWithExports extends IModule {
+export interface IAuthModuleWithExports extends IModule {
   exports: AuthModuleExports;
   getProvider(providerId: string): IdentityProvider | undefined;
   getAllProviders(): IdentityProvider[];
@@ -24,7 +24,7 @@ export function getAuthModule(): AuthModuleWithExports {
   const moduleLoader = getModuleLoader();
   const authModule = moduleLoader.getModule('auth');
 
-  if (!authModule)) {
+  if (authModule === undefined) {
     throw new Error('Auth module not loaded');
   }
 

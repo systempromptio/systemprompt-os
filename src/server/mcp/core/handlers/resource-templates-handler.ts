@@ -8,7 +8,10 @@
  * construct URIs for specific resources.
  * @example
  * ```typescript
- * import { handleListResourceTemplates, matchResourceTemplate } from './handlers/resource-templates-handler.js';
+ * import {
+ * handleListResourceTemplates,
+ * matchResourceTemplate
+ * } from './handlers/resource-templates-handler.js';
  * // List available templates
  * const { resourceTemplates } = await handleListResourceTemplates({});
  * // Match a URI against templates
@@ -86,7 +89,7 @@ const RESOURCETEMPLATES: ResourceTemplate[] = [
  * console.log(`Available templates: ${result.resourceTemplates.length}`);
  * ```
  */
-export async function handleListResourceTemplates(
+export const handleListResourceTemplates = async function (
   _request: ListResourceTemplatesRequest,
 ): Promise<ListResourceTemplatesResult> {
   logger.debug('📋 Listing resource templates', {
@@ -102,7 +105,7 @@ export async function handleListResourceTemplates(
  * Gets the current resource templates.
  * @returns Array of resource templates.
  */
-export function getResourceTemplates(): ResourceTemplate[] {
+export const getResourceTemplates = function (): ResourceTemplate[] {
   return RESOURCETEMPLATES;
 }
 
@@ -118,7 +121,7 @@ export function getResourceTemplates(): ResourceTemplate[] {
  * }
  * ```
  */
-export function matchResourceTemplate(
+export const matchResourceTemplate = function (
   uri: string,
 ): { template: ResourceTemplate; params: Record<string, string> } | null {
   for (const template of RESOURCETEMPLATES) {
@@ -141,7 +144,7 @@ export function matchResourceTemplate(
  * @param template - The URI template string.
  * @returns Regular expression for matching URIs.
  */
-function createTemplateRegex(template: string): RegExp {
+const createTemplateRegex = function (template: string): RegExp {
   const pattern = template
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     .replace(/\\{(\w+)\\}/g, '(?<$1>[^/]+)');
@@ -160,6 +163,6 @@ function createTemplateRegex(template: string): RegExp {
  * console.log( uri); // 'task://123/logs'
  * ```
  */
-export function expandTemplate(template: string, params: Record<string, string>): string {
+export const expandTemplate = function (template: string, params: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => { return params[key] || match });
 }

@@ -10,7 +10,7 @@ export type { CallToolResult };
 /**
  * Context passed to individual tool handlers.
  */
-export interface ToolHandlerContext {
+export interface IToolHandlerContext {
   userId?: string;
   sessionId?: string;
   progressToken?: string | number;
@@ -21,19 +21,19 @@ export interface ToolHandlerContext {
  */
 export type ToolHandler<T = any> = (
   args: T,
-  context?: ToolHandlerContext,
+  context?: IToolHandlerContext,
 ) => Promise<CallToolResult>;
 
 /**
  * Standard response type for all tool handlers.
  */
-export interface ToolResponse<T = any> {
+export interface IToolResponse<T = any> {
   status: "success" | "error";
   message: string;
   result?: T;
   error?: {
     type: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -49,10 +49,10 @@ export interface ToolResponse<T = any> {
  * });
  * ```
  */
-export function formatToolResponse<T>(
-  response: Partial<ToolResponse<T>> & Pick<ToolResponse<T>, "message">,
+export const formatToolResponse = <T>function (
+  response: Partial<IToolResponse<T>> & Pick<IToolResponse<T>, "message">,
 ): CallToolResult {
-  const standardResponse: ToolResponse<T> = {
+  const standardResponse: IToolResponse<T> = {
     status: response.status || "success",
     message: response.message,
     ...response.result && { result: response.result },

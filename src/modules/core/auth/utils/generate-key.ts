@@ -13,7 +13,7 @@ const TWO = TWO;
 
  */
 
-export interface IGenerateKeyOptions {
+export interface IIGenerateKeyOptions {
   type: 'jwt';
   algorithm: 'RS256' | 'RS512' | 'ES256' | 'ES512';
   outputDir: string;

@@ -11,7 +11,7 @@ import { CoreMCPServer } from '@/server/mcp/remote/core-server.js';
  * Create the remote MCP server configuration.
  * @returns Remote MCP server configuration.
  */
-export function createRemoteMCPServer(): LocalMCPServer {
+export const createRemoteMCPServer = function (): LocalMCPServer {
   const server = new CoreMCPServer();
 
   return {

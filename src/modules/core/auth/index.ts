@@ -33,8 +33,8 @@ import type {
 const _filename = fileURLToPath(import.meta.url);
 import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from './constants';
 
-const FIVE = 5;
-const TEN = TEN;
+
+
 const _dirname = dirname(_filename);
 
 /**
@@ -45,7 +45,7 @@ const _dirname = dirname(_filename);
 
 export class AuthModule implements IModule {
   public readonly name = 'auth';
-  public readonly version = 'TWO.ZERO.0';
+  public readonly version = '2.0.0';
   public readonly type = 'service' as const;
   public readonly description = 'Authentication, authorization, and JWT management';
   public readonly dependencies = ['logger', 'database'];
@@ -65,18 +65,18 @@ export class AuthModule implements IModule {
   private started = false;
   get exports(): AuthModuleExports {
     return {
-      service: () => { return this.authService },
-      tokenService: () => { return this.tokenService },
-      userService: () => { return this.userService },
-      authCodeService: () => { return this.authCodeService },
-      mfaService: () => { return this.mfaService },
-      auditService: () => { return this.auditService },
+      service: () => this.authService,,
+      tokenService: () => this.tokenService,,
+      userService: () => this.userService,,
+      authCodeService: () => this.authCodeService,,
+      mfaService: () => this.mfaService,,
+      auditService: () => this.auditService,,
       getProvider: (id: string) => { return this.getProvider(id) },
-      getAllProviders: () => { return this.getAllProviders() },
+      getAllProviders: () => this.getAllProviders(),,
       createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
       validateToken: async (token: string) => { return await this.validateToken(token) },
       hasProvider: (id: string) => { return this.hasProvider(id) },
-      getProviderRegistry: () => { return this.getProviderRegistry() },
+      getProviderRegistry: () => this.getProviderRegistry(),,
       reloadProviders: async () => { await this.reloadProviders(); },
     };
   }
@@ -85,7 +85,7 @@ export class AuthModule implements IModule {
  *  * Initialize the auth module.
    */
   async initialize(): Promise<void> {
-    if (this.initialized) {
+    if (this.initialized === true) {
       throw new ConfigurationError('Auth module already initialized');
     }
 
@@ -96,10 +96,10 @@ export class AuthModule implements IModule {
 
       this.config = this.buildConfig();
 
-      const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
+      const keyStorePath = this.config.jwt.keyStorePath ?? './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
-      if (!existsSync(absolutePath)) {
+      if (existsSync(absolutePath) === false) {
         mkdirSync(absolutePath, { recursive: true });
         this.logger.info(`Created key store directory: ${absolutePath}`);
       }
@@ -107,19 +107,20 @@ export class AuthModule implements IModule {
       const privateKeyPath = join(absolutePath, 'private.key');
       const publicKeyPath = join(absolutePath, 'public.key');
 
-      if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
+      if (existsSync(privateKeyPath) === false || existsSync(publicKeyPath) === false) {
         this.logger.info('JWT keys not found, generating new keys...');
 
-        const { generateJWTKeyPair } = dynamicImport;
+        
+        const { generateJWTKeyPair } = await import('@/modules/core/auth/cli/generatekey.js');
 
-const ZERO = ZERO;
-const ONE = ONE;
-const TWO = TWO;
-const THREE = THREE;
-const SECONDS_PER_MINUTE = SECONDS_PER_MINUTE;
-const MILLISECONDS_PER_SECOND = MILLISECONDS_PER_SECOND;
-const SECONDS_PER_HOUR = SECONDS_PER_HOUR;
-const SECONDS_PER_DAY = SECONDS_PER_DAY;
+
+
+
+
+
+
+
+
 
         await generateJWTKeyPair({
           type: 'jwt',
@@ -157,7 +158,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
 
       if (process.env['NODE_ENV'] !== 'production') {
         const tunnelConfig = {
-          port: parseInt(process.env['PORT'] || '3000', TEN),
+          port: parseInt(process.env['PORT'] ?? '3000', TEN),
           ...process.env['TUNNEL_DOMAIN'] && { permanentDomain: process.env['TUNNEL_DOMAIN'] },
         };
         this.tunnelService = new TunnelService(tunnelConfig, this.logger);
@@ -176,11 +177,11 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
  *  * Start the auth module.
    */
   async start(): Promise<void> {
-    if (!this.initialized) {
+    if (this.initialized === false) {
       throw new Error('Auth module not initialized');
     }
 
-    if (this.started) {
+    if (this.started === true) {
       return;
     }
 
@@ -188,14 +189,14 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
       const schemaPath = join(_dirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter((s) : void => { return s.trim() });
+        const statements = schema.split(';').filter((s) => s.trim() !== '');
 
         for (const statement of statements) {
-          if (statement.trim()) {
+          if (statement.trim() !== '') {
             try {
               await this.database.execute(statement);
             } catch (error) {
-              if (error instanceof Error && !error.message.includes('duplicate column')) {
+              if (error instanceof Error && error.message.includes('duplicate column') === false) {
                 this.logger.warn('Schema statement warning', { error: error.message });
               }
             }
@@ -206,12 +207,12 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
       }
 
       setInterval(
-        () : void => {
+        () => {
           this.tokenService
             .cleanupExpiredTokens()
-            .catch((err) : void => { this.logger.error('Token cleanup failed', err); });
+            .catch((err) => { this.logger.error('Token cleanup failed', err); });
         },
-        24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND,.
+        24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
       ); // Daily
 
       this.status = ModuleStatus.RUNNING;
@@ -227,7 +228,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
  *  * Stop the auth module.
    */
   async stop(): Promise<void> {
-    if (this.tunnelService) {
+    if (this.tunnelService !== null) {
       await this.tunnelService.stop();
     }
     this.status = ModuleStatus.STOPPED;
@@ -240,7 +241,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
-      const providers = this.providerRegistry?.getAllProviders() || [];
+      const providers = this.providerRegistry?.getAllProviders() ?? [];
       return {
         healthy: true,
         message: `Auth module healthy. ${providers.length} provider(s) loaded.`,
@@ -304,11 +305,11 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
   }
 
   getAllProviders(): IdentityProvider[] {
-    return this.providerRegistry?.getAllProviders() || [];
+    return this.providerRegistry?.getAllProviders() ?? [];
   }
 
   hasProvider(providerId: string): boolean {
-    return this.providerRegistry?.hasProvider(providerId) || false;
+    return this.providerRegistry?.hasProvider(providerId) ?? false;
   }
 
   getProviderRegistry(): ProviderRegistry | null {
@@ -324,7 +325,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
   }
 
   getTunnelStatus(): unknown {
-    if (!this.tunnelService) {
+    if (this.tunnelService === null) {
       return {
         active: false,
         type: 'none'
@@ -334,7 +335,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
   }
 
   getPublicUrl(): string | null {
-    if (!this.tunnelService) {
+    if (this.tunnelService === null) {
       return null;
     }
     return this.tunnelService.getPublicUrl();
@@ -351,7 +352,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
         audience: 'systemprompt-os',
         accessTokenTTL: 900, // 15 minutes
         refreshTokenTTL: 2592000, // THIRTY days
-        keyStorePath: process.env['JWT_KEY_PATH'] || './state/auth/keys',
+        keyStorePath: process.env['JWT_KEY_PATH'] ?? './state/auth/keys',
         privateKey: '', // Loaded at runtime
         publicKey: '', // Loaded at runtime
       },

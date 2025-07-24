@@ -4,7 +4,7 @@
 
  */
 
-export interface IToolDefinition {
+export interface IIToolDefinition {
   name: string;
   description: string;
   inputSchema: unknown;

@@ -76,7 +76,7 @@ export class LoggerService implements ILogger {
    * @throws {LoggerInitializationError} If initialization fails.
    */
   initialize(config: ILoggerConfig): void {
-    if (this.initialized) {
+    if (this.initialized === true) {
       throw new LoggerInitializationError('Logger already initialized');
     }
 
@@ -84,7 +84,7 @@ export class LoggerService implements ILogger {
       this.config = config;
       this.logsDir = join(config.stateDir, 'logs');
 
-      if (!this.isValidLogLevel(config.logLevel)) {
+      if (this.isValidLogLevel(config.logLevel) === false) {
         throw new InvalidLogLevelError(config.logLevel);
       }
 
@@ -106,7 +106,7 @@ export class LoggerService implements ILogger {
    */
   debug(message: string, ...args: unknown[]): void {
     this.checkInitialized();
-    if (!this.shouldLog('debug')) {
+    if (this.shouldLog('debug') === false) {
       return;
     }
     const formatted = this.formatMessage('DEBUG', message, args);
@@ -121,7 +121,7 @@ export class LoggerService implements ILogger {
    */
   info(message: string, ...args: unknown[]): void {
     this.checkInitialized();
-    if (!this.shouldLog('info')) {
+    if (this.shouldLog('info') === false) {
       return;
     }
     const formatted = this.formatMessage('INFO', message, args);
@@ -136,7 +136,7 @@ export class LoggerService implements ILogger {
    */
   warn(message: string, ...args: unknown[]): void {
     this.checkInitialized();
-    if (!this.shouldLog('warn')) {
+    if (this.shouldLog('warn') === false) {
       return;
     }
     const formatted = this.formatMessage('WARN', message, args);
@@ -151,7 +151,7 @@ export class LoggerService implements ILogger {
    */
   error(message: string, ...args: unknown[]): void {
     this.checkInitialized();
-    if (!this.shouldLog('error')) {
+    if (this.shouldLog('error') === false) {
       return;
     }
     const formatted = this.formatMessage('ERROR', message, args);
@@ -270,7 +270,7 @@ export class LoggerService implements ILogger {
    */
   private ensureLogsDirectory(): void {
     try {
-      if (!existsSync(this.logsDir)) {
+      if (existsSync(this.logsDir) === false) {
         mkdirSync(this.logsDir, { recursive: true });
       }
     } catch (error) {
@@ -338,7 +338,7 @@ export class LoggerService implements ILogger {
    * @throws {LoggerFileWriteError} If write fails.
    */
   private writeToFile(filename: string, message: string): void {
-    if (!this.config.outputs.includes('file')) {
+    if (this.config.outputs.includes('file') === false) {
       return;
     }
 
@@ -357,12 +357,12 @@ export class LoggerService implements ILogger {
    * @param {unknown[]} args - Additional arguments.
    */
   private writeToConsole(level: string, message: string, args: unknown[]): void {
-    if (!this.config.outputs.includes('console')) {
+    if (this.config.outputs.includes('console') === false) {
       return;
     }
 
     const timestamp = this.formatTimestamp();
-    const hasArgs = Boolean(args.length);
+    const hasArgs = args.length > 0;
     const formattedMessage = hasArgs ? `${message} ${args.join(' ')}` : message;
     const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${formattedMessage}\n`;
 
@@ -394,7 +394,7 @@ export class LoggerService implements ILogger {
    * @throws {LoggerInitializationError} If not initialized.
    */
   private checkInitialized(): void {
-    if (!this.initialized) {
+    if (this.initialized === false) {
       throw new LoggerInitializationError('Logger not initialized');
     }
   }

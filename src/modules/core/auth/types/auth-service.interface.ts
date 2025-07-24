@@ -8,7 +8,7 @@ import type {
  *
  */
 
-export interface IAuthService {
+export interface IIAuthService {
   login(input: LoginInput): Promise<LoginResult>;
   setupMFA(userId: string): Promise<MFASetupResult>;
   createToken(_input: TokenCreateInput): Promise<AuthToken>;

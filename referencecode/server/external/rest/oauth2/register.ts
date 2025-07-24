@@ -7,7 +7,9 @@
 
 import type { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 /**
  * Client registration request as per RFC 7591

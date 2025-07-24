@@ -24,7 +24,7 @@ import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
  * const result = validateInput(schema, { name: "test" });
  * ```
  */
-export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I): T {
+export const validateInput = <T, I = unknown>function (schema: z.ZodSchema<T>, input: I): T {
   try {
     return schema.parse(input);
   } catch (error) {
@@ -51,7 +51,7 @@ export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I):
  * @param input - The input to validate.
  * @returns Either the validated input or an error response.
  */
-export function validateWithResponse<T, I = unknown>(
+export const validateWithResponse = <T, I = unknown>function (
   schema: z.ZodSchema<T>,
   input: I,
 ): T | CallToolResult {
@@ -90,7 +90,7 @@ export function validateWithResponse<T, I = unknown>(
  * @param schema - The Zod schema to validate against.
  * @returns A validator function that returns a result object.
  */
-export function createSafeValidator<T>(schema: z.ZodSchema<T>) {
+export const createSafeValidator = <T>function (schema: z.ZodSchema<T>) {
   return (
     input: unknown,
   ): { success: true; data: T } | { success: false; error: ValidationError } => {
@@ -123,10 +123,10 @@ error
  * @param path - The path array.
  * @returns The value at the path or undefined.
  */
-function getNestedValue(obj: unknown, path: (string | number)[]): unknown {
+const getNestedValue = function (obj: unknown, path: (string | number)[]): unknown {
   if (!obj || typeof obj !== "object") { return undefined; }
 
-  let current: any = obj;
+  let current: unknown = obj;
   for (const key of path) {
     if (current === null || current === undefined) { return undefined; }
     current = current[key];
@@ -139,10 +139,10 @@ function getNestedValue(obj: unknown, path: (string | number)[]): unknown {
  * @param tool - The tool name to check.
  * @returns True if available, false otherwise.
  */
-export function isToolAvailable(tool: "CLAUDECODE"): boolean {
+export const isToolAvailable = function (tool: "CLAUDECODE"): boolean {
   switch (tool) {
     case "CLAUDECODE":
-      // Check if Claude is available and authenticated on the host
+
       return process.env['CLAUDEAVAILABLE'] === "true";
     default:
       return false;
@@ -158,7 +158,7 @@ export function isToolAvailable(tool: "CLAUDECODE"): boolean {
  * sanitizeForLogging("API key: sk-abcd1234..."); // "API key: sk-***"
  * ```
  */
-export function sanitizeForLogging(input: string): string {
+export const sanitizeForLogging = function (input: string): string {
   return input
     .replace(/sk-[a-zA-Z0-9]{48}/g, "sk-***")
     .replace(/AIza[a-zA-Z0-9-_]{35}/g, "AIza***")

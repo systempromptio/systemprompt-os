@@ -8,7 +8,9 @@ import os from 'os';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { CONFIG } from '../../config.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 // import { HeartbeatStatus } from '../../../modules/core/heartbeat/types.js';
 // Heartbeat functionality has been absorbed into the system module
 

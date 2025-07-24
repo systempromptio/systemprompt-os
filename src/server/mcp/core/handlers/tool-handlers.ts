@@ -32,7 +32,6 @@ import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js'
 import { ROLE_PERMISSIONS, hasPermission } from '@/server/mcp/core/types/permissions.js';
 import type { UserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions.js';
 
-// Initialize logger instance
 const logger = LoggerService.getInstance();
 
 /**
@@ -76,15 +75,11 @@ interface ToolPermissionMeta {
  * 3. Role assignments
  * 4. Custom permissions
  */
-async function getUserPermissionContext(context: MCPToolContext): Promise<UserPermissionContext> {
+const getUserPermissionContext = async function (context: MCPToolContext): Promise<UserPermissionContext> {
   if (!context.sessionId) {
     throw new Error('Session ID is required');
   }
 
-  /*
-   * Check if user is admin based on their Google user ID
-   * Your Google user ID: 113783121475955670750
-   */
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = context.userId && adminUserIds.includes(context.userId);
   const role: UserRole = isAdmin ? 'admin' : 'basic';
@@ -111,7 +106,7 @@ async function getUserPermissionContext(context: MCPToolContext): Promise<UserPe
  * 3. Check all required permissions
  * 4. Support wildcard permissions (e.g., admin:*)
  */
-function hasToolPermission(
+const hasToolPermission = function (
   userContext: UserPermissionContext,
   metadata?: ToolPermissionMeta,
 ): boolean {
@@ -144,7 +139,7 @@ function hasToolPermission(
  * - Strips internal metadata from tool definitions
  * - Logs access patterns for security auditing
  */
-export async function handleListTools(
+export const handleListTools = async function (
   _request: ListToolsRequest,
   context?: MCPToolContext,
 ): Promise<ListToolsResult> {
@@ -167,7 +162,6 @@ export async function handleListTools(
       permissionCount: userContext.permissions.length,
     });
 
-    // Get tools from the tools module
     const moduleLoader = getModuleLoader();
     await moduleLoader.loadModules();
     const toolsModule = moduleLoader.getModule('tools');
@@ -177,12 +171,9 @@ export async function handleListTools(
       return { tools: [] };
     }
 
-    // Get enabled remote tools
     const enabledTools = await toolsModule.exports.getEnabledToolsByScope('remote');
 
-    // Filter tools based on permissions
-    const availableTools = enabledTools.filter((tool: any) => {
-      // Extract metadata if it exists
+    const availableTools = enabledTools.filter((tool: unknown) => {
       const metadata = tool.metadata as ToolPermissionMeta | undefined;
       return hasToolPermission(userContext, metadata);
     });
@@ -192,7 +183,7 @@ export async function handleListTools(
       role: userContext.role,
       totalTools: enabledTools.length,
       availableTools: availableTools.length,
-      toolNames: availableTools.map((t: any) => { return t.name }),
+      toolNames: availableTools.map((t: unknown) => { return t.name }),
     });
 
     return { tools: availableTools };
@@ -217,7 +208,7 @@ export async function handleListTools(
  * - Logs all access attempts for security auditing
  * - Provides detailed error messages for debugging
  */
-export async function handleToolCall(
+export const handleToolCall = async function (
   request: CallToolRequest,
   context: MCPToolContext,
 ): Promise<CallToolResult> {
@@ -234,7 +225,6 @@ export async function handleToolCall(
       hasArguments: toolArgs !== undefined,
     });
 
-    // Get tools module
     const moduleLoader = getModuleLoader();
     await moduleLoader.loadModules();
     const toolsModule = moduleLoader.getModule('tools');
@@ -245,7 +235,6 @@ export async function handleToolCall(
       throw error;
     }
 
-    // Get the tool from the module
     const tool = await toolsModule.exports.getTool(toolName);
     if (!tool) {
       const error = new Error(`Unknown tool: ${toolName}`);
@@ -258,7 +247,6 @@ export async function handleToolCall(
 
     const userContext = await getUserPermissionContext(context);
 
-    // Check permissions using metadata if available
     const metadata = tool.metadata as ToolPermissionMeta | undefined;
     if (!hasToolPermission(userContext, metadata)) {
       const error = new Error(
@@ -287,7 +275,6 @@ export async function handleToolCall(
       requestId,
     });
 
-    // Execute the tool using the tools module
     const result = await toolsModule.exports.executeTool(toolName, toolArgs, {
       userId: userContext.userId,
       userEmail: userContext.email,
@@ -304,7 +291,6 @@ export async function handleToolCall(
       requestId,
     });
 
-    // Wrap result in MCP format if needed
     const mcpResult: CallToolResult = {
       content: [
         {

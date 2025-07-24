@@ -15,7 +15,9 @@ import { setupRoutes as setupCallbackRoutes } from './rest/callback.js';
 import { setupRoutes as setupUsersAPIRoutes } from './rest/api/users.js';
 import { setupRoutes as setupDashboardRoutes } from './rest/dashboard.js';
 import { setupRoutes as setupTerminalAPIRoutes } from './rest/api/terminal.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 /**
  * Configure all application routes

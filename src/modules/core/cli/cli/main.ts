@@ -200,11 +200,11 @@ const main = async (): Promise<void> => {
     bootstrap = await registerModuleCommands();
     program.parse(process.argv);
 
-    if (!process.argv.slice(2).length) {
+    if (process.argv.slice(2).length === 0) {
       program.outputHelp();
     }
   } finally {
-    if (bootstrap) {
+    if (bootstrap !== null) {
       try {
         await bootstrap.shutdown();
       } catch {

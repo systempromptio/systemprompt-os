@@ -1,0 +1,49 @@
+name: system
+type: service
+version: 1.0.0
+description: Core system management and configuration
+author: SystemPrompt OS
+dependencies:
+  - logger
+  - database
+  - monitor
+enabled: true
+singleton: true
+
+cli:
+  commands:
+    - name: system:info
+      description: Display system information
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
+    - name: system:config
+      description: Manage system configuration
+      options:
+        - name: get
+          alias: g
+          type: string
+          description: Get configuration value
+        - name: set
+          alias: s
+          type: string
+          description: Set configuration value
+        - name: value
+          alias: v
+          type: string
+          description: Configuration value (with --set)
+    - name: system:health
+      description: Check system health
+      options:
+        - name: detailed
+          alias: d
+          type: boolean
+          description: Show detailed health information
+
+exports:
+  - services
+  - types

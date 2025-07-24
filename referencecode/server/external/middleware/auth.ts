@@ -7,7 +7,9 @@ import type { Request, Response, NextFunction } from 'express';
 import { jwtVerify } from '../auth/jwt.js';
 import { CONFIG } from '../../config.js';
 import type { AccessTokenPayload, AuthUser } from '../types/auth.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 /**
  * Options for auth middleware

@@ -1,7 +1,7 @@
 /**
  *  * CLI context interface.
  */
-export interface ICliContext {
+export interface IICliContext {
   cwd: string;
   args: Record<string, unknown>;
   options?: Record<string, unknown>;
@@ -10,7 +10,7 @@ export interface ICliContext {
 /**
  *  * CLI command interface.
  */
-export interface ICliCommand {
+export interface IICliCommand {
   description: string;
   subcommands?: Record<string, ICliSubcommand>;
   execute?: (_context: ICliContext) => Promise<void>;
@@ -19,7 +19,7 @@ export interface ICliCommand {
 /**
  *  * CLI subcommand interface.
  */
-export interface ICliSubcommand {
+export interface IICliSubcommand {
   description?: string;
   execute: (_context: ICliContext) => Promise<void>;
 }

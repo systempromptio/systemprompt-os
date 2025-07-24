@@ -5,7 +5,9 @@
 
 import type { Request, Response, Router } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 import { renderAuthPage } from '../templates/auth.js';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 

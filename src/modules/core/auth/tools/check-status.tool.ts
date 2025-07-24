@@ -12,7 +12,7 @@ const SECONDS_PER_DAY = SECONDS_PER_DAY;
 
  */
 
-export interface IToolDefinition {
+export interface IIToolDefinition {
   name: string;
   description: string;
   inputSchema: unknown;

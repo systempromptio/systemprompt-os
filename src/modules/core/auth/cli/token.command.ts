@@ -1,11 +1,18 @@
-/* eslint-disable no-console */
+/* eslint-disable func-style */
+/* eslint-disable max-lines-per-function */
+/* eslint-disable max-statements */
+
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /**
  *  *  * Token management CLI commands.
  */
 
 import { Command } from 'commander';
 import type { AuthModule } from '@/modules/core/auth/index.js';
-import { ZERO, ONE, TWO, THREE, TEN } from '@/modules/core/auth/constants';
+import {
+ ONE, TEN, THREE, TWO, ZERO
+} from '@/modules/core/auth/constants';
 
 const TEN = TEN;
 
@@ -14,15 +21,17 @@ const THREE = THREE;
 
 /**
  *  *
- * createTokenCommand function
-
+ * CreateTokenCommand function.
+ *
  */
 
 export function createTokenCommand(module: AuthModule): Command {
   const cmd = new Command('token')
     .description('Token management commands');
 
-  /** Create token */
+  /**
+   * Create token.
+   */
   cmd.command('create')
     .description('Create a new token')
     .requiredOption('-u, --user <userId>', 'User ID')

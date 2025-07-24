@@ -22,7 +22,7 @@ export enum MCPServerType {
 /**
  * Configuration for a remote MCP server.
  */
-export interface RemoteMCPConfig {
+export interface IRemoteMCPConfig {
     name: string;
     url: string;
     auth?: {
@@ -45,7 +45,7 @@ export interface RemoteMCPConfig {
 /**
  * Base interface for all MCP servers.
  */
-export interface MCPServerBase {
+export interface IMCPServerBase {
     id: string;
     name: string;
     version: string;
@@ -56,7 +56,7 @@ export interface MCPServerBase {
 /**
  * Local embedded MCP server.
  */
-export interface LocalMCPServer extends MCPServerBase {
+export interface ILocalMCPServer extends IMCPServerBase {
   type: MCPServerType.LOCAL;
     createHandler: () => RequestHandler;
     getActiveSessionCount?: () => number;
@@ -66,20 +66,20 @@ export interface LocalMCPServer extends MCPServerBase {
 /**
  * Remote MCP server accessed via proxy.
  */
-export interface RemoteMCPServer extends MCPServerBase {
+export interface IRemoteMCPServer extends IMCPServerBase {
   type: MCPServerType.REMOTE;
-    config: RemoteMCPConfig;
+    config: IRemoteMCPConfig;
 }
 
 /**
  * Union type for all MCP server types.
  */
-export type MCPServer = LocalMCPServer | RemoteMCPServer;
+export type MCPServer = ILocalMCPServer | IRemoteMCPServer;
 
 /**
  * MCP server module exports for local servers.
  */
-export interface MCPServerModule {
+export interface IMCPServerModule {
     createMCPHandler: () => RequestHandler;
     CONFIG?: {
         SERVERNAME?: string;
@@ -91,7 +91,7 @@ export interface MCPServerModule {
 /**
  * MCP server status information.
  */
-export interface MCPServerStatus {
+export interface IMCPServerStatus {
     id: string;
     name: string;
     status: 'running' | 'stopped' | 'error' | 'unreachable';
@@ -109,7 +109,7 @@ export interface MCPServerStatus {
 /**
  * Options for loading custom MCP servers.
  */
-export interface MCPLoaderOptions {
+export interface IMCPLoaderOptions {
     customDir: string;
     loadRemoteConfigs?: boolean;
     remoteConfigFile?: string;
@@ -118,7 +118,7 @@ export interface MCPLoaderOptions {
 /**
  * MCP request context with authentication.
  */
-export interface MCPRequestContext {
+export interface IMCPRequestContext {
     sessionId: string;
     user?: {
     id: string;
@@ -135,13 +135,13 @@ export interface MCPRequestContext {
 export type MCPHandlerWithContext = (
   req: Request,
   res: Response,
-  context: MCPRequestContext
+  context: IMCPRequestContext
 ) => Promise<void> | void;
 
 /**
  * MCP session information.
  */
-export interface MCPSession {
+export interface IMCPSession {
   id: string;
   clientInfo: {
     name: string;
@@ -156,34 +156,34 @@ export interface MCPSession {
 /**
  * MCP request structure.
  */
-export interface MCPRequest {
+export interface IMCPRequest {
   jsonrpc: '2.0';
   id: string | number;
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 /**
  * MCP response structure.
  */
-export interface MCPResponse {
+export interface IMCPResponse {
   jsonrpc: '2.0';
   id: string | number;
-  result?: any;
+  result?: unknown;
   error?: {
     code: number;
     message: string;
-    data?: any;
+    data?: unknown;
   };
 }
 
 /**
  * Extended MCPServer interface with session management.
  */
-export interface MCPServerWithSessions extends MCPServerBase {
-  sessions: Map<string, MCPSession>;
+export interface IMCPServerWithSessions extends IMCPServerBase {
+  sessions: Map<string, IMCPSession>;
   createServer?: () => any;
-  handleRequest?: (request: MCPRequest) => Promise<MCPResponse>;
+  handleRequest?: (request: IMCPRequest) => Promise<IMCPResponse>;
   getActiveSessionCount: () => number;
   cleanupOldSessions: () => void;
   shutdown: () => void;

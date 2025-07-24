@@ -1,7 +1,6 @@
 /**
  * @file Custom MCP Server Loader.
  * @module server/mcp/custom-loader
- * @remarks
  * This module handles the discovery and loading of custom MCP servers from the
  * file system. It supports both local embedded servers (Express handlers) and
  * remote server configurations.
@@ -30,6 +29,8 @@ import {
   MCPServerType
 } from '@/server/mcp/types.js';
 
+const ZERO = 0;
+
 /**
  * Default options for the MCP loader.
  */
@@ -40,7 +41,6 @@ const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
 
 /**
  * Custom MCP Server Loader.
- * @remarks
  * Responsible for discovering and loading MCP servers from the custom directory.
  * Supports both local embedded servers and remote server configurations.
  * @example
@@ -77,13 +77,11 @@ export class CustomMCPLoader {
     const dir = customDir || this.options.customDir;
 
     try {
-      // Load local embedded servers
       const localServers = await this.discoverLocalServers(dir);
       for (const serverDir of localServers) {
         await this.loadLocalServer(serverDir, dir);
       }
 
-      // Load remote server configurations
       if (this.options.loadRemoteConfigs) {
         await this.loadRemoteConfigs(dir);
       }
@@ -113,7 +111,6 @@ export class CustomMCPLoader {
       const stat = fs.statSync(fullPath);
 
       if (stat.isDirectory() && !entry.startsWith('.')) {
-        // Check if it looks like a Node.js module
         const packageJsonPath = path.join(fullPath, 'package.json');
         const indexPath = path.join(fullPath, 'index.js');
         const buildIndexPath = path.join(fullPath, 'build', 'index.js');
@@ -140,27 +137,22 @@ export class CustomMCPLoader {
     try {
       console.log(`📦 Loading local MCP server: ${serverDir}`);
 
-      // Determine entry point
       const entryPoint = this.findEntryPoint(serverPath);
       if (!entryPoint) {
         throw new Error(`No entry point found for server: ${serverDir}`);
       }
 
-      // Dynamic import of the server module
       const moduleUrl = pathToFileURL(entryPoint).href;
       const module = await import(moduleUrl) as MCPServerModule;
 
-      // Validate the module exports
       if (!module.createMCPHandler || typeof module.createMCPHandler !== 'function') {
         throw new Error(`Invalid MCP server module: ${serverDir} - missing createMCPHandler export`);
       }
 
-      // Extract server metadata
       const serverName = module.CONFIG?.SERVERNAME || serverDir;
       const serverVersion = module.CONFIG?.SERVERVERSION || '0.0.0';
       const serverDescription = module.CONFIG?.SERVERDESCRIPTION || `Custom MCP server: ${serverDir}`;
 
-      // Create local server configuration
       const localServer: LocalMCPServer = {
         id: serverDir,
         name: serverName,
@@ -168,13 +160,12 @@ export class CustomMCPLoader {
         type: MCPServerType.LOCAL,
         description: serverDescription,
         createHandler: module.createMCPHandler,
-        getActiveSessionCount: () => { return 0 }, // TODO: Implement session tracking
+        getActiveSessionCount: () => { return ZERO },
         shutdown: async () => {
           console.log(`🛑 Shutting down ${serverName}`);
         }
       };
 
-      // Register with the registry
       await this.registry.registerServer(localServer);
       console.log(`✅ Loaded local server: ${serverName} v${serverVersion}`);
     } catch (error) {
@@ -188,7 +179,6 @@ export class CustomMCPLoader {
    * @returns Path to the entry point file, or null if not found.
    */
   private findEntryPoint(serverPath: string): string | null {
-    // Check package.json for main field
     const packageJsonPath = path.join(serverPath, 'package.json');
     if (fs.existsSync(packageJsonPath)) {
       try {
@@ -204,7 +194,6 @@ export class CustomMCPLoader {
       }
     }
 
-    // Check common entry points
     const commonEntryPoints = [
       'build/index.js',
       'dist/index.js',
@@ -236,10 +225,6 @@ export class CustomMCPLoader {
     }
 
     try {
-      /*
-       * For now, we'll use JSON instead of YAML for simplicity
-       * In production, you'd use a YAML parser like js-yaml
-       */
       const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
       const configs = JSON.parse(configContent) as RemoteMCPConfig[];
 
@@ -247,7 +232,7 @@ export class CustomMCPLoader {
         const remoteServer: RemoteMCPServer = {
           id: config.name.toLowerCase().replace(/\s+/g, '-'),
           name: config.name,
-          version: '1.0.0', // Remote servers don't expose version
+          version: '1.0.0',
           type: MCPServerType.REMOTE,
           description: `Remote MCP server: ${config.name}`,
           config

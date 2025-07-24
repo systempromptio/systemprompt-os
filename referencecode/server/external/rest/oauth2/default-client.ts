@@ -3,7 +3,9 @@
  */
 
 import { RegisterEndpoint } from './register.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 export interface DefaultClient {
   client_id: string;

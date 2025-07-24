@@ -1,23 +1,16 @@
 /**
- *  *  * @file Audit service for authentication events.
+ * Audit service for authentication events.
  * @module modules/core/auth/services/audit.service
  */
 
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
-
-const ONE_HUNDRED = 100;
-
-const ZERO = ZERO;
-const ONE = ONE;
+import { ONE_HUNDRED } from '@/modules/core/auth/constants';
 
 /**
- *  *
- * AuditEvent interface
-
+ * AuditEvent interface.
  */
-
 export interface IAuditEvent {
   userId?: string;
   action: string;
@@ -27,44 +20,46 @@ export interface IAuditEvent {
 }
 
 /**
- *  *
  * AuditService class.
-
  */
-
 export class AuditService {
   private static instance: AuditService;
+  private readonly logger!: ILogger;
+  private readonly db!: DatabaseService;
 
   /**
- *  * Get singleton instance
+   * Get singleton instance.
+   * @returns AuditService instance.
    */
   public static getInstance(): AuditService {
-    if (!AuditService.instance) {
-      AuditService.instance = new AuditService();
-    }
+    AuditService.instance ||= new AuditService();
     return AuditService.instance;
   }
 
   /**
- *  * Private constructor for singleton
+   * Private constructor for singleton.
    */
   private constructor() {
-    // Initialize
+    this.logger = LoggerService.getInstance();
+    this.db = DatabaseService.getInstance();
   }
 
-
-
-  async logEvent(event: AuditEvent): Promise<void> {
+  /**
+   * Log an audit event.
+   * @param event - Event to log.
+   * @returns Promise that resolves when logged.
+   */
+  async logEvent(event: IAuditEvent): Promise<void> {
     try {
       await this.db.execute(
         `INSERT INTO auth_audit_log (userId, action, details, ip_address, user_agent, createdAt)
          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
         [
-          event.userId || null,
+          event.userId ?? null,
           event.action,
           event.details ? JSON.stringify(event.details) : null,
-          event.ipAddress || null,
-          event.userAgent || null,
+          event.ipAddress ?? null,
+          event.userAgent ?? null,
         ],
       );
 
@@ -73,14 +68,20 @@ export class AuditService {
         userId: event.userId
       });
     } catch (error) {
-      this.(logger as any).error('Failed to log audit event', {
- event,
-error
-});
+      this.logger.error('Failed to log audit event', {
+        event,
+        error
+      });
     }
   }
 
-  async getEvents(userId?: string, limit = ONE_HUNDRED): Promise<AuditEvent[]> {
+  /**
+   * Get audit events.
+   * @param userId - Optional user ID filter.
+   * @param limit - Maximum number of events.
+   * @returns Array of audit events.
+   */
+  async getEvents(userId?: string, limit = ONE_HUNDRED): Promise<IAuditEvent[]> {
     try {
       let query = 'SELECT * FROM auth_audit_log';
       const params: string[] = [];
@@ -93,20 +94,28 @@ error
       query += ' ORDER BY createdAt DESC LIMIT ?';
       params.push(String(limit));
 
-      const rows = await this.db.query<any>(query, params);
+      interface IAuditRow {
+        userId: string;
+        action: string;
+        details: string | null;
+        ip_address: string | null;
+        user_agent: string | null;
+      }
 
-      return rows.map((row) : void => { return {
+      const rows = await this.db.query<IAuditRow>(query, params);
+
+      return rows.map((row): IAuditEvent => { return {
         userId: row.userId,
         action: row.action,
         details: row.details ? JSON.parse(row.details) : undefined,
-        ipAddress: row.ip_address,
-        userAgent: row.user_agent,
+        ipAddress: row.ip_address ?? undefined,
+        userAgent: row.user_agent ?? undefined,
       } });
     } catch (error) {
-      this.(logger as any).error('Failed to get audit events', {
- userId,
-error
-});
+      this.logger.error('Failed to get audit events', {
+        userId,
+        error
+      });
       return [];
     }
   }

@@ -17,7 +17,11 @@ import { MCPServerType } from '@/server/mcp/types.js';
 import { mcpAuthAdapter } from '@/server/mcp/auth-adapter.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
 
-// Create logger instance
+/**
+ * HTTP Status Codes.
+ */
+const HTTP_OK = 200;
+
 const logger = LoggerService.getInstance();
 
 /**
@@ -431,7 +435,7 @@ let registry: MCPServerRegistry | null = null;
  * @description Creates a new registry instance on first call, returns existing instance
  * on subsequent calls (singleton pattern).
  */
-export function initializeMCPServerRegistry(): MCPServerRegistry {
+export const initializeMCPServerRegistry = function (): MCPServerRegistry {
   registry ||= new MCPServerRegistry();
   return registry;
 }
@@ -443,7 +447,7 @@ export function initializeMCPServerRegistry(): MCPServerRegistry {
  * @description Use this function when you need to access the registry after it has been
  * initialized. For initial setup, use initializeMCPServerRegistry instead.
  */
-export function getMCPServerRegistry(): MCPServerRegistry {
+export const getMCPServerRegistry = function (): MCPServerRegistry {
   if (!registry) {
     throw new Error('MCP Server Registry not initialized');
   }

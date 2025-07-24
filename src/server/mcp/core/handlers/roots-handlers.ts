@@ -37,7 +37,7 @@ import * as os from 'os';
  * These represent the actual host directories that the daemon has access to.
  * The roots are calculated dynamically based on environment variables.
  */
-function getServerRoots(): Root[] {
+const getServerRoots = function (): Root[] {
   const roots: Root[] = [];
 
   const hostFileRoot = process.env['HOSTFILE_ROOT'] || '/var/www/html/systemprompt-coding-agent';
@@ -94,7 +94,7 @@ function getServerRoots(): Root[] {
  * console.log(`Available roots: ${result.roots.length}`);
  * ```
  */
-export async function handleListRoots(_request: ListRootsRequest): Promise<ListRootsResult> {
+export const handleListRoots = async function (_request: ListRootsRequest): Promise<ListRootsResult> {
   const roots = getServerRoots();
 
   logger.debug('📁 Listing roots (host filesystem paths)', {
@@ -114,7 +114,7 @@ name: r.name
  * Gets current roots for notifications.
  * @returns The dynamically calculated roots based on current environment.
  */
-export function getCurrentRoots(): Root[] {
+export const getCurrentRoots = function (): Root[] {
   return getServerRoots();
 }
 
@@ -130,7 +130,7 @@ export function getCurrentRoots(): Root[] {
  * await notifyRootsChanged();
  * ```
  */
-export async function notifyRootsChanged(): Promise<void> {
+export const notifyRootsChanged = async function (): Promise<void> {
   logger.info('🔄 Notifying clients about roots change');
 
   try {

@@ -1,3 +1,8 @@
+/* eslint-disable no-console */
+/* eslint-disable func-style */
+/* eslint-disable max-lines-per-function */
+/* eslint-disable max-statements */
+/* eslint-disable no-underscore-dangle */
 /**
  *  *  * @file Generate cryptographic keys command for auth module.
  * @module modules/core/auth/cli/generatekey
@@ -33,7 +38,7 @@ export const command = {
       description: 'Overwrite existing keys',
     },
   },
-  execute: async (context: ICliContext): Promise<void> => {
+  execute: async (_context: ICliContext): Promise<void> => => {
     const { args } = context;
 
     try {

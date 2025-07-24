@@ -1,10 +1,3 @@
-/* eslint-disable
-  logical-assignment-operators,
-  @typescript-eslint/no-unnecessary-condition,
-  @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
-  systemprompt-os/no-block-comments
-*/
 /**
  * Executor service implementation - placeholder service for future executor functionality.
  * @file Executor service implementation.
@@ -45,9 +38,7 @@ export class ExecutorService implements IExecutorService {
    * @returns The executor service instance.
    */
   static getInstance(): ExecutorService {
-    if (!ExecutorService.instance) {
-      ExecutorService.instance = new ExecutorService();
-    }
+    ExecutorService.instance ??= new ExecutorService();
     return ExecutorService.instance;
   }
 
@@ -64,7 +55,7 @@ export class ExecutorService implements IExecutorService {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    if (this.initialized) {
+    if (this.initialized === true) {
       return;
     }
 
@@ -184,7 +175,7 @@ export class ExecutorService implements IExecutorService {
    * @returns Promise that resolves when initialized.
    */
   private async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
+    if (this.initialized === false) {
       await this.initialize();
     }
   }

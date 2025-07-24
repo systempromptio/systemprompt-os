@@ -6,7 +6,9 @@
 import type { Router } from 'express';
 import type { Request, Response } from 'express';
 import { spawn } from 'child_process';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 /**
  * Execute terminal commands through the API

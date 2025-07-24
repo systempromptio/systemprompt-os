@@ -1,14 +1,14 @@
 /**
- * Task types for MCP.
+ * ITask types for MCP.
  */
 
-export interface Task {
+export interface ITask {
   id: string;
   name: string;
   description?: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: Date;
   updatedAt: Date;
-  result?: any;
+  result?: unknown;
   error?: string;
 }

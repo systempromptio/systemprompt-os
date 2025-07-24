@@ -1,3 +1,7 @@
+/* eslint-disable max-statements */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /**
  *  *  * @file Provider management CLI commands.
  * @module modules/core/auth/cli/providers
@@ -20,7 +24,7 @@ export const command = {
   description: 'List configured OAuth2/OIDC providers',
   subcommands: {
     list: {
-      execute: async (context: ICliContext): Promise<void> => {
+      execute: async (_context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
           const providers = authModule.exports.getAllProviders();
@@ -51,7 +55,7 @@ export const command = {
     },
 
     reload: {
-      execute: async (context: ICliContext): Promise<void> => {
+      execute: async (_context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
 

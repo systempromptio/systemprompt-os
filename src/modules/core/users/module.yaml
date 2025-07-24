@@ -1,0 +1,69 @@
+name: users
+type: service
+version: 1.0.0
+description: User management and authentication services
+author: SystemPrompt OS
+dependencies:
+  - logger
+  - database
+  - permissions
+enabled: true
+singleton: true
+
+cli:
+  commands:
+    - name: users:list
+      description: List all users
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
+    - name: users:create
+      description: Create a new user
+      options:
+        - name: username
+          alias: u
+          type: string
+          description: Username
+          required: true
+        - name: email
+          alias: e
+          type: string
+          description: Email address
+          required: true
+        - name: role
+          alias: r
+          type: string
+          description: User role
+          default: user
+    - name: users:delete
+      description: Delete a user
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID
+          required: true
+    - name: users:update
+      description: Update user information
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID
+          required: true
+        - name: email
+          alias: e
+          type: string
+          description: New email address
+        - name: status
+          alias: s
+          type: string
+          description: User status (active, inactive, suspended)
+
+exports:
+  - services
+  - types

@@ -2,13 +2,13 @@
  * MCP Request Context Types.
  */
 
-export interface RequestContext {
+export interface IRequestContext {
   userId?: string;
   sessionId?: string;
   permissions?: string[];
 }
 
-export interface MCPToolContext extends RequestContext {
+export interface IMCPToolContext extends IRequestContext {
   toolName?: string;
   requestId?: string;
 }

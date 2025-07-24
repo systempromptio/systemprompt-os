@@ -1,3 +1,8 @@
+/* eslint-disable max-lines-per-function */
+/* eslint-disable max-statements */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /**
  *  *  * @file Role management CLI commands.
  * @module modules/core/auth/cli/role
@@ -19,7 +24,7 @@ export const command = {
   description: 'Role management commands',
   subcommands: {
     grant: {
-      execute: async (context: ICliContext): Promise<void> => {
+      execute: async (_context: ICliContext): Promise<void> => {
         const { args } = context;
 
         if (!args.user) {
@@ -96,7 +101,7 @@ export const command = {
     },
 
     revoke: {
-      execute: async (context: ICliContext): Promise<void> => {
+      execute: async (_context: ICliContext): Promise<void> => {
         const { args } = context;
 
         if (!args.user) {

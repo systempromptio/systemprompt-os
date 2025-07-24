@@ -7,7 +7,9 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { OAuth2Error } from './errors.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 import { AuthRepository } from '@/modules/core/auth/database/repository.js';
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';

@@ -20,13 +20,16 @@ import {
   type ReadResourceRequest,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import { handleListResources, handleResourceCall } from '@/server/mcp/core/handlers/resource-handlers.js';
+import {
+  handleListResources,
+  handleResourceCall
+} from '@/server/mcp/core/handlers/resource-handlers.js';
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
 import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
 /**
- * Local MCP Server implementation
+ * Local MCP Server implementation.
  * Provides full access to all tools via STDIO transport.
  */
 export class LocalMCPServer {
@@ -92,7 +95,7 @@ export class LocalMCPServer {
       ListToolsRequestSchema,
       async (request: ListToolsRequest) => {
         const context = this.createLocalContext();
-        // Local server context - tools will be filtered for 'local' scope
+
         return await handleListTools(request, context);
       }
     );

@@ -5,18 +5,24 @@
  */
 
 import type {
- NextFunction, Request as ExpressRequest, Response as ExpressResponse
+ Request as ExpressRequest, Response as ExpressResponse, NextFunction
 } from 'express';
 import { authMiddleware } from '@/server/external/middleware/auth.js';
 import { CONFIG } from '@/server/config.js';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
+ * HTTP Status Codes.
+ */
+const HTTP_OK = 200;
+const HTTP_UNAUTHORIZED = 401;
+
+/**
  * Wraps the existing auth middleware to return MCP-compliant error responses.
  * Following the MCP specification for OAuth2 authentication.
- * @param req - Express request object
- * @param res - Express response object
- * @param next - Express next function
+ * @param req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next function.
  */
 export const mcpAuthAdapter = function (req: ExpressRequest, res: ExpressResponse, next: NextFunction): void {
   if (process.env['MCP_AUTH_DISABLED'] === 'true') {
@@ -26,7 +32,7 @@ export const mcpAuthAdapter = function (req: ExpressRequest, res: ExpressRespons
 
   const originalJson = res.json.bind(res);
   const originalStatus = res.status.bind(res);
-  let statusCode = 200;
+  let statusCode = HTTP_OK;
 
   res.status = function (code: number) {
     statusCode = code;
@@ -34,7 +40,7 @@ export const mcpAuthAdapter = function (req: ExpressRequest, res: ExpressRespons
   };
 
   res.json = function (body: unknown) {
-    if (statusCode === 401) {
+    if (statusCode === HTTP_UNAUTHORIZED) {
       const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
       res.setHeader(
         'WWW-Authenticate',

@@ -1,3 +1,5 @@
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 /**
  *  *  * @file Authorization code persistence service.
  * @module modules/core/auth/services/auth-code-service
@@ -6,16 +8,14 @@
 import { randomBytes } from 'crypto';
 import type { DatabaseService } from '@/modules/core/database/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
-
-const ZERO = ZERO;
-const TWO = TWO;
-const THREE = THREE;
+import {
+ EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
+} from '@/modules/core/auth/constants';
 
 /**
  *  *
- * AuthorizationCodeData interface
-
+ * AuthorizationCodeData interface.
+ *
  */
 
 export interface IAuthorizationCodeData {
@@ -34,7 +34,7 @@ export interface IAuthorizationCodeData {
 /**
  *  *
  * AuthCodeRow interface.
-
+ *
  */
 
 export interface IAuthCodeRow {
@@ -53,41 +53,36 @@ export interface IAuthCodeRow {
 }
 
 /**
- *  *  * Service for managing OAuth authorization codes with database persistence.
- */
-/**
  *  *  * AuthCodeService class.
  */
 export class AuthCodeService {
-  private static instance: AuthCodeService;
+  private static readonly instance: AuthCodeService;
+  private logger!: ILogger;
+  private db!: DatabaseService;
 
-  /**
- *  * Get singleton instance
-   */
-  public static getInstance(): AuthCodeService {
-    if (!AuthCodeService.instance) {
-      AuthCodeService.instance = new AuthCodeService();
-    }
-    return AuthCodeService.instance;
-  }
-
-  /**
- *  * Private constructor for singleton
-   */
   private constructor() {
-    // Initialize
+    // Initialize lazily when first used
   }
 
-
-
   /**
- *  *    * Generate and store a new authorization code.
+   *  *    * Generate and store a new authorization code.
    * @param data
    */
-  async createAuthorizationCode(data: AuthorizationCodeData): Promise<string> {
+
+  private getLogger(): ILogger {
+    this.logger ||= LoggerService.getInstance();
+    return this.logger;
+  }
+
+  private getDb(): DatabaseService {
+    this.db ||= DatabaseService.getInstance();
+    return this.db;
+  }
+
+  async createAuthorizationCode(data: IAuthorizationCodeData): Promise<string> {
     const code = randomBytes(32).toString('base64url');
 
-    await this.db.execute(
+    await this.getDb().execute(
       `INSERT INTO auth_authorization_codes
        (code, client_id, redirect_uri, scope, userId, user_email,
         provider, provider_tokens, code_challenge, code_challenge_method, expires_at)
@@ -107,7 +102,7 @@ export class AuthCodeService {
       ]
     );
 
-    this.(logger as any).info('Authorization code created', {
+    this.getLogger().info('Authorization code created', {
       code: `${code.substring(ZERO, 8)}...`,
       clientId: data.clientId
     });
@@ -116,11 +111,11 @@ export class AuthCodeService {
   }
 
   /**
- *  *    * Retrieve and validate an authorization code.
+   *  *    * Retrieve and validate an authorization code.
    * @param code
    */
-  async getAuthorizationCode(code: string): Promise<AuthorizationCodeData | null> {
-    const rows = await this.db.query<AuthCodeRow>(
+  async getAuthorizationCode(code: string): Promise<IAuthorizationCodeData | null> {
+    const rows = await this.getDb().query<IAuthCodeRow>(
       `SELECT * FROM auth_authorization_codes
        WHERE code = ? AND datetime(expires_at) > datetime('now')`,
       [code]
@@ -146,21 +141,21 @@ export class AuthCodeService {
   }
 
   /**
- *  *    * Delete an authorization code after use.
+   *  *    * Delete an authorization code after use.
    * @param code
    */
   async deleteAuthorizationCode(code: string): Promise<void> {
-    await this.db.execute(
+    await this.getDb().execute(
       'DELETE FROM auth_authorization_codes WHERE code = ?',
       [code]
     );
   }
 
   /**
- *  *    * Clean up expired authorization codes.
+   *  *    * Clean up expired authorization codes.
    */
   async cleanupExpiredCodes(): Promise<void> {
-    await this.db.execute(
+    await this.getDb().execute(
       `DELETE FROM auth_authorization_codes
        WHERE datetime(expires_at) < datetime('now')`
     );

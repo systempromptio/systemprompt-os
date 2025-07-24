@@ -12,7 +12,6 @@ import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js'
 import type { UserPermissionContext } from '@/server/mcp/core/types/permissions.js';
 import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions.js';
 
-// Initialize logger
 const logger = LoggerService.getInstance();
 
 /**
@@ -43,12 +42,11 @@ interface WhoamiResponse {
  * Get user permission context (imported from tool-handlers.ts logic).
  * @param context
  */
-async function getUserContext(context: MCPToolContext): Promise<UserPermissionContext> {
+const getUserContext = async function (context: MCPToolContext): Promise<UserPermissionContext> {
   if (!context.sessionId) {
     throw new Error('Session ID is required');
   }
 
-  // Check if user is admin based on their Google user ID
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = context.userId && adminUserIds.includes(context.userId);
   const role = isAdmin ? 'admin' : 'basic';
@@ -83,10 +81,8 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       throw new Error('Authentication context is required');
     }
 
-    // Get user context
     const userContext = await getUserContext(context as MCPToolContext);
 
-    // Build response
     const response: WhoamiResponse = {
       userId: userContext.userId,
       email: userContext.email,
@@ -94,7 +90,6 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       isAdmin: userContext.role === 'admin',
     };
 
-    // Add permissions if requested
     if (args?.includePermissions) {
       response.permissions = userContext.permissions;
       if (userContext.customPermissions && userContext.customPermissions.length > 0) {
@@ -102,7 +97,6 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       }
     }
 
-    // Add session info if requested
     if (args?.includeSession && context.sessionId) {
       response.session = {
         sessionId: context.sessionId,

@@ -12,7 +12,6 @@ import { execSync } from 'node:child_process';
 import * as os from 'os';
 import { getDatabase } from '@/modules/core/database/index.js';
 
-// Initialize logger
 const logger = LoggerService.getInstance();
 
 /**
@@ -118,7 +117,6 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
       options: args,
     });
 
-    // Get basic system info
     const status: SystemStatus = {
       timestamp: new Date().toISOString(),
       uptime: os.uptime(),
@@ -127,7 +125,6 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
       services: await getServiceStatus(),
     };
 
-    // Include optional information based on args
     if (args?.includeContainers) {
       status.containers = await getContainerStatus();
     }
@@ -176,13 +173,12 @@ args
 /**
  * Get system resource usage.
  */
-async function getResourceUsage() {
+const getResourceUsage = async function () {
   const cpus = os.cpus();
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
   const usedMemory = totalMemory - freeMemory;
 
-  // Calculate CPU usage
   let totalIdle = 0;
   let totalTick = 0;
   cpus.forEach((cpu) => {
@@ -193,7 +189,6 @@ async function getResourceUsage() {
   });
   const cpuUsage = 100 - ~~(100 * totalIdle / totalTick);
 
-  // Get disk usage (simplified - you might want to use a library like 'diskusage')
   let diskInfo = {
  total: 0,
 free: 0,
@@ -234,8 +229,8 @@ usagePercent: 0
 /**
  * Get service status.
  */
-async function getServiceStatus() {
-  const services: any = {
+const getServiceStatus = async function () {
+  const services: unknown = {
     mcp: {
       status: 'active',
       version: process.env['npm_package_version'] || 'unknown',
@@ -248,7 +243,6 @@ async function getServiceStatus() {
     },
   };
 
-  // Check OAuth providers
   if (process.env['GOOGLE_CLIENT_ID']) {
     services.oauth.providers.push('google');
   }
@@ -259,12 +253,10 @@ async function getServiceStatus() {
     services.oauth.providers.push('microsoft');
   }
 
-  // Check OAuth tunnel
   if (process.env['ENABLE_OAUTH_TUNNEL'] === 'true' || process.env['OAUTH_DOMAIN']) {
     services.oauth.tunnelActive = true;
   }
 
-  // Check Docker
   try {
     const dockerVersion = execSync('docker --version', { encoding: 'utf-8' }).trim();
     const containerCount = execSync('docker ps -q | wc -l', { encoding: 'utf-8' }).trim();
@@ -287,8 +279,7 @@ async function getServiceStatus() {
 /**
  * Mock functions for additional status - would be implemented with real database queries.
  */
-async function getContainerStatus() {
-  // In real implementation, query database for container info
+const getContainerStatus = async function () {
   return [
     {
       id: 'container-123',
@@ -301,12 +292,11 @@ async function getContainerStatus() {
   ];
 }
 
-async function getUserStatus() {
+const getUserStatus = async function () {
   try {
     const db = getDatabase();
 
-    // Query all users from the database
-    const users = await db.query<any>(`
+    const users = await db.query(`
       SELECT 
         u.id,
         u.email,
@@ -332,7 +322,6 @@ async function getUserStatus() {
       created_at: string;
     }
 
-    // Format the user data
     return users.map((user: UserStatusRow) => { return {
       id: user.id,
       email: user.email,
@@ -349,8 +338,7 @@ async function getUserStatus() {
   }
 }
 
-async function getTunnelStatus() {
-  // In real implementation, query Cloudflare API
+const getTunnelStatus = async function () {
   return [
     {
       id: 'tunnel-123',
@@ -362,8 +350,7 @@ async function getTunnelStatus() {
   ];
 }
 
-async function getRecentAuditLog() {
-  // In real implementation, query audit log table
+const getRecentAuditLog = async function () {
   return [
     {
       timestamp: new Date().toISOString(),

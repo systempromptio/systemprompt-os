@@ -34,7 +34,7 @@ import { getModuleLoader } from '@/modules/loader.js';
  * console.log(`Available resources: ${resources.length}`);
  * ```
  */
-export async function handleListResources(): Promise<ListResourcesResult> {
+export const handleListResources = async function (): Promise<ListResourcesResult> {
   try {
     const moduleLoader = getModuleLoader();
     const resourcesModule = moduleLoader.getModule('resources');
@@ -72,7 +72,7 @@ export async function handleListResources(): Promise<ListResourcesResult> {
  * const status = JSON.parse(result.contents[0].text);
  * ```
  */
-export async function handleResourceCall(
+export const handleResourceCall = async function (
   request: ReadResourceRequest,
 ): Promise<ReadResourceResult> {
   try {

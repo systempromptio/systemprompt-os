@@ -14,7 +14,7 @@ const LOGFILE = '/app/logs/mcp-local.log';
 /**
  * Write process ID to file for daemon management.
  */
-async function writePidFile(): Promise<void> {
+const writePidFile = async function (): Promise<void> {
   const dir = path.dirname(PIDFILE);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(PIDFILE, process.pid.toString());
@@ -23,11 +23,11 @@ async function writePidFile(): Promise<void> {
 /**
  * Remove PID file on exit.
  */
-async function removePidFile(): Promise<void> {
+const removePidFile = async function (): Promise<void> {
   try {
     await fs.unlink(PIDFILE);
   } catch {
-    // Ignore if file doesn't exist
+
   }
 }
 
@@ -35,7 +35,7 @@ async function removePidFile(): Promise<void> {
  * Log message to file.
  * @param message
  */
-async function log(message: string): Promise<void> {
+const log = async function (message: string): Promise<void> {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
 
@@ -49,7 +49,7 @@ async function log(message: string): Promise<void> {
 /**
  * Main daemon process.
  */
-async function main(): Promise<void> {
+const main = async function (): Promise<void> {
   await log('Starting MCP local server daemon');
 
   try {
@@ -57,7 +57,6 @@ async function main(): Promise<void> {
 
     const server = new LocalMCPServer();
 
-    // Handle shutdown signals
     const shutdown = async (signal: string) => {
       await log(`Received ${signal}, shutting down...`);
       await server.stop();
@@ -69,7 +68,6 @@ async function main(): Promise<void> {
     process.on('SIGINT', async () => { return await shutdown('SIGINT') });
     process.on('SIGHUP', async () => { return await shutdown('SIGHUP') });
 
-    // Start the server
     await log('Starting STDIO server');
     await server.start();
   } catch (error) {
@@ -79,7 +77,6 @@ async function main(): Promise<void> {
   }
 }
 
-// Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(async (error) => {
     await log(`Unhandled error: ${error}`);

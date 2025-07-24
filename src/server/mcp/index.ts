@@ -1,7 +1,7 @@
 /**
- * MCP server setup and initialization module.
  * @file MCP server setup and initialization.
  * @module server/mcp
+ * MCP server setup and initialization module.
  */
 
 import type { Express } from 'express';
@@ -18,8 +18,8 @@ const logger = LoggerService.getInstance();
 
 /**
  * Set up all MCP servers and register routes.
- * @param {Express} app - Express application instance.
- * @returns {Promise<void>} Promise that resolves when setup is complete.
+ * @param app - Express application instance.
+ * @returns Promise that resolves when setup is complete.
  */
 export const setupMcpServers = async (app: Express): Promise<void> => {
   const registry = initializeMCPServerRegistry();

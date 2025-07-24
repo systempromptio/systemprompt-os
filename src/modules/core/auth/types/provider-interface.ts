@@ -6,7 +6,7 @@ const TWO = TWO;
  *
  */
 
-export interface IOAuth2TokenResponse {
+export interface IIOAuth2TokenResponse {
   accessToken: string;
   tokenType: string;
   expires_in?: number;
@@ -21,7 +21,7 @@ export interface IOAuth2TokenResponse {
  *
  */
 
-export interface IOAuth2ClientCredentials {
+export interface IIOAuth2ClientCredentials {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
@@ -34,7 +34,7 @@ export interface IOAuth2ClientCredentials {
  *
  */
 
-export interface IDPUserInfo {
+export interface IIDPUserInfo {
   id: string;
   email?: string;
   email_verified?: boolean; // Standard OpenID Connect claim
@@ -62,7 +62,7 @@ export type IDPConfig = OAuth2ClientCredentials;
  *
  */
 
-export interface IdentityProvider {
+export interface IIdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc' | 'saml';

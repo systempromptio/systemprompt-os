@@ -8,7 +8,7 @@ import type { DatabaseService } from '@/modules/core/database/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
 
-const ZERO = ZERO;
+
 
 /**
  *  *
@@ -81,9 +81,7 @@ export class UserService {
  *  * Get singleton instance
    */
   public static getInstance(): UserService {
-    if (!UserService.instance) {
-      UserService.instance = new UserService();
-    }
+    UserService.instance ??= new UserService();
     return UserService.instance;
   }
 
@@ -94,7 +92,8 @@ export class UserService {
     // Initialize
   }
 
-
+  private db!: DatabaseService;
+  private logger!: ILogger;
 
   /**
  *  *    * Check if any admin users exist in the system.
@@ -107,7 +106,7 @@ export class UserService {
        JOIN auth_roles r ON ur.roleId = r.id
        WHERE r.name = 'admin'`
     );
-    return (result[ZERO]?.count || ZERO) > ZERO;
+    return (result[ZERO]?.count ?? ZERO) > ZERO;
   }
 
   /**
@@ -115,20 +114,20 @@ export class UserService {
  * Handles first-user admin assignment properly.
    * @param options
    */
-  async createOrUpdateUserFromOAuth(_options: CreateUserOptions): Promise<User> {
+  async createOrUpdateUserFromOAuth(_options: ICreateUserOptions): Promise<IUser> {
     const {
  provider, providerId, email, name, avatar
-} = options;
+} = _options;
 
     /** Check if admins exist BEFORE starting the transaction */
     const hasAdmins = await this.hasAdminUsers();
-    this.(logger as any).info('Creating/updating user', {
+    this.logger.info('Creating/updating user', {
  email,
 hasAdmins
 });
 
   /** TODO: Refactor this function to reduce complexity */
-    return await this.db.transaction<User>(async (conn: DatabaseConnection) => {
+    return await this.db.transaction<IUser>(async (conn: IDatabaseConnection) => {
       const identityResult = await conn.query<{ userId: string }>(
         `SELECT userId FROM auth_oauth_identities
          WHERE provider = ? AND provider_userId = ?`,
@@ -138,15 +137,15 @@ hasAdmins
 
       let userId: string;
 
-      if (identity !== undefined && identity !== null)) {
+      if (identity !== undefined) {
         userId = identity.userId;
         await conn.execute(
           `UPDATE auth_users
            SET name = ?, avatar_url = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now')
            WHERE id = ?`,
-          [name || null, avatar || null, userId]
+          [name ?? null, avatar ?? null, userId]
         );
-        this.(logger as any).info('Updated existing user', {
+        this.logger.info('Updated existing user', {
  userId,
 email
 });
@@ -156,7 +155,7 @@ email
         await conn.execute(
           `INSERT INTO auth_users (id, email, name, avatar_url, lastLoginAt)
            VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, email, name || null, avatar || null]
+          [userId, email, name ?? null, avatar ?? null]
         );
 
         await conn.execute(
@@ -180,7 +179,7 @@ avatar
           [userId, roleId]
         );
 
-        this.(logger as any).info('Created new user with role', {
+        this.logger.info('Created new user with role', {
           userId,
           email,
           role: hasAdmins ? 'user' : 'admin'
@@ -188,7 +187,7 @@ avatar
       }
 
       const user = await this.getUserByIdWithConnection(userId, conn);
-      if (user === undefined || user === null)) {
+      if (user === null) {
         throw new Error('User creation/update failed');
       }
 
@@ -201,14 +200,14 @@ avatar
    * @param userId
    * @param conn
    */
-  private async getUserByIdWithConnection(userId: string, conn: DatabaseConnection): Promise<User | null> {
-    const userResult = await conn.query<DatabaseUser>(
+  private async getUserByIdWithConnection(userId: string, conn: IDatabaseConnection): Promise<IUser | null> {
+    const userResult = await conn.query<IDatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId]
     );
 
     const userRow = userResult.rows[ZERO];
-    if (userRow === undefined || userRow === null): unknown {
+    if (userRow === undefined) {
       return null;
     }
 
@@ -223,7 +222,7 @@ avatar
       id: userRow.id,
       email: userRow.email,
       name: userRow.name,
-      avatarurl: userRow.avatar_url,
+      avatarurl: userRow.avatarurl,
       roles: rolesResult.rows.map(r => { return r.name }),
       createdAt: userRow.createdAt,
       updatedAt: userRow.updatedAt
@@ -234,14 +233,14 @@ avatar
  *  *    * Get user by ID with roles.
    * @param userId
    */
-  async getUserById(userId: string): Promise<User | null> {
-    const userRows = await this.db.query<DatabaseUser>(
+  async getUserById(userId: string): Promise<IUser | null> {
+    const userRows = await this.db.query<IDatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId]
     );
 
     const userRow = userRows[ZERO];
-    if (userRow === undefined || userRow === null): unknown {
+    if (userRow === undefined) {
       return null;
     }
 
@@ -256,7 +255,7 @@ avatar
       id: userRow.id,
       email: userRow.email,
       name: userRow.name,
-      avatarurl: userRow.avatar_url,
+      avatarurl: userRow.avatarurl,
       roles: roles.map((r: { name: string }) => { return r.name }),
       createdAt: userRow.createdAt,
       updatedAt: userRow.updatedAt
@@ -267,14 +266,14 @@ avatar
  *  *    * Get user by email.
    * @param email
    */
-  async getUserByEmail(email: string): Promise<User | null> {
-    const userRows = await this.db.query<DatabaseUser>(
+  async getUserByEmail(email: string): Promise<IUser | null> {
+    const userRows = await this.db.query<IDatabaseUser>(
       'SELECT * FROM auth_users WHERE email = ?',
       [email]
     );
 
     const userRow = userRows[ZERO];
-    if (userRow === undefined || userRow === null): unknown {
+    if (userRow === undefined) {
       return null;
     }
 

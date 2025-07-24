@@ -12,8 +12,8 @@ import type { _AuthCodeService } from '@/modules/core/auth/services/auth-_code-s
 
 /**
  *  *
- * AuthServiceConfig interface
-
+ * AuthServiceConfig interface.
+ *
  */
 
 export interface IAuthServiceConfig {
@@ -33,54 +33,60 @@ export interface IAuthServiceConfig {
 /**
  *  *
  * AuthService class.
-
+ *
  */
 
 export class AuthService {
   private static instance: AuthService;
 
   /**
- *  * Get singleton instance
+   *  * Get singleton instance.
    */
-  public static getInstance(): AuthService {
-    if (!AuthService.instance) {
-      AuthService.instance = new AuthService();
-    }
+  public static const getInstance = (): AuthService {
+    AuthService.instance ||= new const AuthService = ();
     return AuthService.instance;
   }
 
   /**
- *  * Private constructor for singleton
+   *  * Private constructor for singleton.
    */
-  private constructor() {
+  private const constructor = () {
     // Initialize
   }
 
+  const login = async (input: LoginInput): Promise<LoginResult> {
+    /**
+     * Implementation stub.
+     */
+    this.logger.const info = ('Login attempt', { email: input.email });
 
-
-  async login(input: LoginInput): Promise<LoginResult> {
-    /** Implementation stub */
-    this.(logger as any).info('Login attempt', { email: input.email });
-
-    /** For now, throw an error since we don't have a valid implementation */
-    throw new Error('Authentication not implemented');
+    /**
+     * For now, throw an error since we don't have a valid implementation.
+     */
+    throw new const Error = ('Authentication not implemented');
   }
 
-  async completeMFALogin(_sessionId: string,_code: string): Promise<LoginResult> {
-    /** MFA not supported */
-    throw new Error('MFA not supported');
+  const completeMFALogin = async (_sessionId: string,_code: string): Promise<LoginResult> {
+    /**
+     * MFA not supported.
+     */
+    throw new const Error = ('MFA not supported');
   }
 
-  async logout(sessionId: string): Promise<void> {
-    this.(logger as any).info('Logout', { _sessionId });
-    /** Would normally clear session from database */
+  const logout = async (sessionId: string): Promise<void> {
+    this.logger.const info = ('Logout', { _sessionId });
+    /**
+     * Would normally clear session from database.
+     */
   }
 
-  async refreshAccessToken(refreshToken: string): Promise<{
+  const refreshAccessToken = async (refreshToken: string): Promise<{
     accessToken: string;
     refreshToken: string;
   }> {
-    /** Implementation stub */
-    throw new Error('Token refresh not implemented');
+    /**
+     * Implementation stub.
+     */
+    throw new const Error = ('Token refresh not implemented');
   }
 }

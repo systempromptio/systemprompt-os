@@ -1,0 +1,51 @@
+name: permissions
+type: service
+version: 1.0.0
+description: Role-based access control and permissions management
+author: SystemPrompt OS
+dependencies:
+  - logger
+  - database
+  - users
+enabled: true
+singleton: true
+
+cli:
+  commands:
+    - name: permissions:list
+      description: List all permissions
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
+    - name: permissions:roles
+      description: Manage roles
+      options:
+        - name: list
+          alias: l
+          type: boolean
+          description: List all roles
+        - name: create
+          alias: c
+          type: string
+          description: Create a new role
+    - name: permissions:grant
+      description: Grant permissions to a role
+      options:
+        - name: role
+          alias: r
+          type: string
+          description: Role name
+          required: true
+        - name: permission
+          alias: p
+          type: string
+          description: Permission to grant
+          required: true
+
+exports:
+  - services
+  - types

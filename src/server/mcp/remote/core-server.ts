@@ -23,10 +23,19 @@ import type { Request, Response } from 'express';
 import { LoggerService } from '@/modules/core/logger/index.js';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
-import { handleListResources, handleResourceCall } from '@/server/mcp/core/handlers/resource-handlers.js';
+import {
+  handleListResources,
+  handleResourceCall
+} from '@/server/mcp/core/handlers/resource-handlers.js';
 import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
-// Create logger instance
+/**
+ * HTTP Status Codes.
+ */
+const HTTP_OK = 200;
+const HTTP_NOT_FOUND = 404;
+const HTTP_INTERNAL_ERROR = 500;
+
 const logger = LoggerService.getInstance();
 
 /**
@@ -60,8 +69,8 @@ const DEFAULT_CONFIG: Required<ServerConfig> = {
 } as const;
 
 /**
- * Core MCP Server implementation providing tools, resources, and prompts
- * with session management and dynamic handler loading.
+ * Core MCP Server implementation providing tools, resources, and prompts.
+ * With session management and dynamic handler loading.
  */
 export class CoreMCPServer {
   public readonly name: string;
@@ -287,7 +296,7 @@ userId
     const sessionInfo = this.sessions.get(sessionId);
 
     if (!sessionInfo) {
-      res.status(404).json({
+      res.status(HTTP_NOT_FOUND).json({
         jsonrpc: '2.0',
         error: {
           code: -32001,
@@ -354,7 +363,7 @@ userId
    */
   private sendErrorResponse(res: Response, error: unknown): void {
     if (!res.headersSent) {
-      res.status(500).json({
+      res.status(HTTP_INTERNAL_ERROR).json({
         jsonrpc: '2.0',
         error: {
           code: -32603,
@@ -463,6 +472,6 @@ userId
  * @param config - Optional server configuration.
  * @returns Configured MCP server instance.
  */
-export function createMCPServer(config?: ServerConfig): CoreMCPServer {
+export const createMCPServer = function (config?: ServerConfig): CoreMCPServer {
   return new CoreMCPServer(config);
 }

@@ -11,7 +11,10 @@
  * Notifications can be sent to specific sessions or broadcast to all active sessions.
  * @example
  * ```typescript
- * import { sendOperationNotification, sendProgressNotification } from './handlers/notifications.js';
+ * import {
+ * sendOperationNotification,
+ * sendProgressNotification
+ * } from './handlers/notifications.js';
  * // Send operation notification
  * await sendOperationNotification('createtask', 'Task created successfully');
  * // Send progress notification
@@ -84,7 +87,7 @@ type ResourcesListChangedNotification = {
  * await sendOperationNotification('endtask', 'Task completed successfully', 'session-123');
  * ```
  */
-export async function sendOperationNotification(operation: string, message: string, sessionId?: string): Promise<void> {
+export const sendOperationNotification = async function (operation: string, message: string, sessionId?: string): Promise<void> {
   const notification: ServerNotification = {
     method: "notifications/message",
     params: {
@@ -101,7 +104,7 @@ export async function sendOperationNotification(operation: string, message: stri
  * Sends a JSON result notification.
  * @param message - The notification message.
  */
-export async function sendJsonResultNotification(message: string): Promise<void> {
+export const sendJsonResultNotification = async function (message: string): Promise<void> {
   const notification: ServerNotification = {
     method: "notifications/message",
     params: {
@@ -118,7 +121,7 @@ export async function sendJsonResultNotification(message: string): Promise<void>
  * Sends a configuration change notification.
  * @param message - The configuration change message.
  */
-export async function sendConfigNotification(message: string): Promise<void> {
+export const sendConfigNotification = async function (message: string): Promise<void> {
   const notification: ConfigNotification = {
     method: "server/config/changed",
     params: {
@@ -142,7 +145,7 @@ export async function sendConfigNotification(message: string): Promise<void> {
  * await sendProgressNotification('task-123', 75, 100, 'session-456');
  * ```
  */
-export async function sendProgressNotification(
+export const sendProgressNotification = async function (
   progressToken: string | number,
   progress: number,
   total?: number,
@@ -163,7 +166,7 @@ export async function sendProgressNotification(
  * Sends a notification that the roots list has changed.
  *
  */
-export async function sendRootsListChangedNotification(): Promise<void> {
+export const sendRootsListChangedNotification = async function (): Promise<void> {
   const notification: RootsListChangedNotification = {
     method: "notifications/roots/listchanged",
     params: {}
@@ -180,7 +183,7 @@ export async function sendRootsListChangedNotification(): Promise<void> {
  * await sendResourcesUpdatedNotification('task://123', 'session-789');
  * ```
  */
-export async function sendResourcesUpdatedNotification(uri: string, sessionId?: string): Promise<void> {
+export const sendResourcesUpdatedNotification = async function (uri: string, sessionId?: string): Promise<void> {
   const notification: ResourcesUpdatedNotification = {
     method: "notifications/resources/updated",
     params: { uri }
@@ -192,7 +195,7 @@ export async function sendResourcesUpdatedNotification(uri: string, sessionId?: 
  * Sends a notification that the resources list has changed.
  * @param sessionId - Optional session ID for targeted notification.
  */
-export async function sendResourcesListChangedNotification(sessionId?: string): Promise<void> {
+export const sendResourcesListChangedNotification = async function (sessionId?: string): Promise<void> {
   const notification: ResourcesListChangedNotification = {
     method: "notifications/resources/listchanged",
     params: {}
@@ -209,7 +212,7 @@ export async function sendResourcesListChangedNotification(sessionId?: string): 
  * notifications. If sessionId is provided, the notification is sent only
  * to that session. Otherwise, it's broadcast to all active sessions.
  */
-async function sendNotification(
+const sendNotification = async function (
   notification: ServerNotification | ConfigNotification | ProgressNotification | RootsListChangedNotification | ResourcesUpdatedNotification | ResourcesListChangedNotification,
   sessionId?: string
 ) {
@@ -239,7 +242,7 @@ async function sendNotification(
   }
 
   const notificationPromises = activeServers.map(async (server: Server) => { await server.notification(notification as ServerNotification).catch(() => {
-      // Ignore broadcast failures silently
+
     }); });
 
   await Promise.all(notificationPromises);

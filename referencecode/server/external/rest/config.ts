@@ -6,7 +6,9 @@
 import type { Request, Response, Router } from 'express';
 import { getDatabase } from '@/modules/core/database/index.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 import { renderLayout } from '../templates/config/layout.js';
 import { renderInitialSetup, getInitialSetupStyles } from '../templates/config/initial-setup.js';
 import {

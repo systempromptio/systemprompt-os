@@ -13,7 +13,9 @@ import { OAuth2Error } from './errors.js';
 import { jwtSign, jwtVerify } from '../../auth/jwt.js';
 import { AuthRepository } from '../../../../modules/core/auth/database/repository.js';
 import { AuthCodeService } from '../../../../modules/core/auth/services/auth-code-service.js';
-import type { Logger } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
 
 /**
  * Schema for OAuth2 token request validation
