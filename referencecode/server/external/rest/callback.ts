@@ -8,7 +8,7 @@ import { renderCallbackHandler } from '../templates/auth/callback.js';
 
 /**
  * OAuth callback handler endpoint
- * 
+ *
  * Serves a client-side page that completes the OAuth flow by:
  * 1. Extracting the authorization code from URL parameters
  * 2. Exchanging it for tokens via the /oauth2/token endpoint
@@ -17,7 +17,7 @@ import { renderCallbackHandler } from '../templates/auth/callback.js';
 export class CallbackEndpoint {
   /**
    * Handles GET requests to the root callback page
-   * 
+   *
    * @param req Express request object
    * @param res Express response object
    */
@@ -29,12 +29,12 @@ export class CallbackEndpoint {
 
 /**
  * Sets up the callback route
- * 
+ *
  * @param router Express router instance
  */
 export function setupRoutes(router: Router): void {
   const callbackEndpoint = new CallbackEndpoint();
-  
+
   // Root URL handles OAuth callbacks
   router.get('/', (req, res, next) => {
     // Only handle if there's a code parameter

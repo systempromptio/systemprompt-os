@@ -4,16 +4,37 @@
  */
 
 import type {
- ConfigEntry, ConfigValue, IConfigService
+ ConfigValue, IConfigEntry, IConfigService
 } from '@/modules/core/config/types/index.js';
 
 /**
- * Service for managing configuration.
+ * Service for managing configuration with singleton pattern.
+ * TODO: Load configurations from database.
+ * TODO: Persist to database.
+ * TODO: Remove from database.
+ * TODO: Implement validation logic.
  * @class ConfigService
  */
 export class ConfigService implements IConfigService {
-  private readonly configs: Map<string, ConfigEntry> = new Map();
+  private static instance: ConfigService | undefined;
+  private readonly configs: Map<string, IConfigEntry> = new Map();
   private initialized = false;
+
+  /**
+   * Private constructor for singleton pattern. Private constructor for singleton.
+   */
+  private constructor() {
+    Object.seal(this);
+  }
+
+  /**
+   * Get singleton instance.
+   * @returns {ConfigService} The singleton instance.
+   */
+  public static getInstance(): ConfigService {
+    ConfigService.instance ??= new ConfigService();
+    return ConfigService.instance;
+  }
 
   /**
    * Initialize the service.
@@ -24,7 +45,7 @@ export class ConfigService implements IConfigService {
       return;
     }
 
-    // TODO: Load configurations from database
+    await Promise.resolve();
     this.initialized = true;
   }
 
@@ -35,7 +56,8 @@ export class ConfigService implements IConfigService {
    */
   async get(key: string): Promise<ConfigValue> {
     const entry = this.configs.get(key);
-    return entry ? entry.value : null;
+    await Promise.resolve();
+    return entry === undefined ? null : entry.value;
   }
 
   /**
@@ -48,15 +70,15 @@ export class ConfigService implements IConfigService {
     const now = new Date();
     const existing = this.configs.get(key);
 
-    const entry: ConfigEntry = {
+    const entry: IConfigEntry = {
       key,
       value,
-      createdAt: existing?.createdAt || now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
 
     this.configs.set(key, entry);
-    // TODO: Persist to database
+    await Promise.resolve();
   }
 
   /**
@@ -66,14 +88,15 @@ export class ConfigService implements IConfigService {
    */
   async delete(key: string): Promise<void> {
     this.configs.delete(key);
-    // TODO: Remove from database
+    await Promise.resolve();
   }
 
   /**
    * List all configuration entries.
-   * @returns {Promise<ConfigEntry[]>} All configuration entries.
+   * @returns {Promise<IConfigEntry[]>} All configuration entries.
    */
-  async list(): Promise<ConfigEntry[]> {
+  async list(): Promise<IConfigEntry[]> {
+    await Promise.resolve();
     return Array.from(this.configs.values());
   }
 
@@ -84,9 +107,10 @@ export class ConfigService implements IConfigService {
   async validate(): Promise<{ valid: boolean; errors?: string[] }> {
     const errors: string[] = [];
 
-    // TODO: Implement validation logic
+    await Promise.resolve();
 
-    if (errors.length > 0) {
+    const EMPTY_ERRORS = 0;
+    if (errors.length > EMPTY_ERRORS) {
       return {
         valid: false,
         errors,

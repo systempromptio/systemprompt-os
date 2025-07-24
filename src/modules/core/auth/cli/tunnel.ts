@@ -1,52 +1,61 @@
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import {
+ FIVE, FOUR, ONE, THREE, TWO
+} from '@/modules/core/auth/constants';
+
+const FOUR = 4;
+const FIVE = 5;
+
+const TWO = TWO;
+const THREE = THREE;
 
 /**
- * Shows the current tunnel status and OAuth URLs.
+ *  *  * TunnelStatus function.
  */
 export async function tunnelStatus(): Promise<void> {
   const authModule = getAuthModule();
   const status = authModule.getTunnelStatus();
   const publicUrl = authModule.getPublicUrl();
 
-  console.log('\n🚇 OAuth Tunnel Status\n');
-  console.log(`Status: ${status.active ? '✅ Active' : '❌ Inactive'}`);
-  console.log(`Type: ${status.type}`);
+  logger.log('\n🚇 OAuth Tunnel Status\n');
+  logger.log(`Status: ${status.active ? '✅ Active' : '❌ Inactive'}`);
+  logger.log(`Type: ${status.type}`);
 
   if (status.url) {
-    console.log(`Public URL: ${status.url}`);
+    logger.log(`Public URL: ${status.url}`);
   }
 
   if (status.error) {
-    console.log(`Error: ${status.error}`);
+    logger.log(`Error: ${status.error}`);
   }
 
-  console.log('\n📝 OAuth Configuration\n');
-  console.log(`Base URL: ${publicUrl}`);
-  console.log(`OAuth Redirect URI: ${publicUrl}/oauth2/callback`);
+  logger.log('\n📝 OAuth Configuration\n');
+  logger.log(`Base URL: ${publicUrl}`);
+  logger.log(`OAuth Redirect URI: ${publicUrl}/oauth2/callback`);
 
   if (status.active && status.type === 'cloudflared') {
-    console.log('\n🔧 Provider Configuration\n');
-    console.log('Add these URLs to your OAuth providers:\n');
-    console.log(`Google: ${publicUrl}/oauth2/callback/google`);
-    console.log(`GitHub: ${publicUrl}/oauth2/callback/github`);
+    logger.log('\n🔧 Provider Configuration\n');
+    logger.log('Add these URLs to your OAuth providers:\n');
+    logger.log(`Google: ${publicUrl}/oauth2/callback/google`);
+    logger.log(`GitHub: ${publicUrl}/oauth2/callback/github`);
 
-    console.log(
+    logger.log(
       '\n⚠️  Note: For Google OAuth, you may need to add the domain to authorized domains.',
     );
-    console.log('The domain would be the part after https:// (e.g., xxx.trycloudflare.com)');
+    logger.log('The domain would be the part after https:// (e.g., xxx.trycloudflare.com)');
   }
 
-  console.log('\n💡 Tips\n');
-  console.log('- Set ENABLE_OAUTH_TUNNEL=true to auto-start tunnel');
-  console.log('- Set OAUTH_DOMAIN for a permanent domain');
-  console.log('- Use CLOUDFLARE_TUNNEL_TOKEN for persistent tunnels');
+  logger.log('\n💡 Tips\n');
+  logger.log('- Set ENABLE_OAUTH_TUNNEL=true to auto-start tunnel');
+  logger.log('- Set OAUTH_DOMAIN for a permanent domain');
+  logger.log('- Use CLOUDFLARE_TUNNEL_TOKEN for persistent tunnels');
 }
 
 /**
- * Manually starts the OAuth tunnel.
+ *  *  * StartTunnel function.
  */
 export async function startTunnel(): Promise<void> {
-  console.log('🚀 Starting OAuth tunnel...\n');
+  logger.log('🚀 Starting OAuth tunnel...\n');
 
   try {
     const authModule = getAuthModule();
@@ -55,69 +64,73 @@ export async function startTunnel(): Promise<void> {
     const status = authModule.getTunnelStatus();
 
     if (status.active) {
-      console.log(`✅ Tunnel started successfully!`);
-      console.log(`Public URL: ${status.url}`);
+      logger.log(`✅ Tunnel started successfully!`);
+      logger.log(`Public URL: ${status.url}`);
 
-      console.log('\n📋 Next steps:');
-      console.log('1. Update your OAuth provider settings with these URLs:');
-      console.log(`   - Google: ${status.url}/oauth2/callback/google`);
-      console.log(`   - GitHub: ${status.url}/oauth2/callback/github`);
-      console.log('2. Restart your application to use the new URLs');
+      logger.log('\n📋 Next steps:');
+      logger.log('ONE. Update your OAuth provider settings with these URLs:');
+      logger.log(`   - Google: ${status.url}/oauth2/callback/google`);
+      logger.log(`   - GitHub: ${status.url}/oauth2/callback/github`);
+      logger.log('TWO. Restart your application to use the new URLs');
     } else {
-      console.log('❌ Tunnel did not start');
+      logger.log('❌ Tunnel did not start');
       if (status.error) {
-        console.log(`Error: ${status.error}`);
+        logger.log(`Error: ${status.error}`);
       }
     }
   } catch (error) {
-    console.error('❌ Failed to start tunnel:', error);
-    process.exit(1);
+    logger.error('❌ Failed to start tunnel:', error);
+    process.exit(ONE);
   }
 }
 
 /**
- * Shows setup instructions for permanent domains.
+ *  *  * SetupDomain function.
  */
 export async function setupDomain(): Promise<void> {
-  console.log('\n🌐 Setting Up a Permanent Domain for OAuth\n');
+  logger.log('\n🌐 Setting Up a Permanent Domain for OAuth\n');
 
-  console.log('Option 1: Use Cloudflare Tunnel (Recommended)\n');
-  console.log('1. Install cloudflared and login:');
-  console.log('   cloudflared tunnel login\n');
+  logger.log('Option ONE: Use Cloudflare Tunnel (Recommended)\n');
+  logger.log('ONE. Install cloudflared and login:');
+  logger.log('   cloudflared tunnel login\n');
 
-  console.log('2. Create a tunnel:');
-  console.log('   cloudflared tunnel create systemprompt-oauth\n');
+  logger.log('TWO. Create a tunnel:');
+  logger.log('   cloudflared tunnel create systemprompt-oauth\n');
 
-  console.log('3. Create a config file (~/.cloudflared/config.yml):');
-  console.log(`   url: http://localhost:3000
+  logger.log('THREE. Create a config file (~/.cloudflared/config.yml):');
+  logger.log(`   url: http://localhost:3000
    tunnel: <TUNNEL_ID>
    credentials-file: /home/user/.cloudflared/<TUNNEL_ID>.json\n`);
 
-  console.log('4. Route traffic to your tunnel:');
-  console.log('   cloudflared tunnel route dns systemprompt-oauth oauth.yourdomain.com\n');
+  logger.log('FOUR. Route traffic to your tunnel:');
+  logger.log('   cloudflared tunnel route dns systemprompt-oauth oauth.yourdomain.com\n');
 
-  console.log('5. Add to your .env:');
-  console.log('   OAUTH_DOMAIN=https://oauth.yourdomain.com');
-  console.log('   CLOUDFLARE_TUNNEL_TOKEN=<YOUR_TOKEN>\n');
+  logger.log('FIVE. Add to your .env:');
+  logger.log('   OAUTH_DOMAIN=https://oauth.yourdomain.com');
+  logger.log('   CLOUDFLARE_TUNNEL_TOKEN=<YOUR_TOKEN>\n');
 
-  console.log('\nOption 2: Use a Reverse Proxy\n');
-  console.log('1. Set up nginx/caddy on a server with a domain');
-  console.log("2. Configure SSL with Let's Encrypt");
-  console.log('3. Proxy to your application');
-  console.log('4. Add to .env: OAUTH_DOMAIN=https://oauth.yourdomain.com');
+  logger.log('\nOption TWO: Use a Reverse Proxy\n');
+  logger.log('ONE. Set up nginx/caddy on a server with a domain');
+  logger.log("TWO. Configure SSL with Let's Encrypt");
+  logger.log('THREE. Proxy to your application');
+  logger.log('FOUR. Add to .env: OAUTH_DOMAIN=https://oauth.yourdomain.com');
 }
 
-// CLI command handlers
+/**
+ * CLI command handlers.
+ */
 const commands: Record<string, () => Promise<void>> = {
   'tunnel:status': tunnelStatus,
   'tunnel:start': startTunnel,
   'tunnel:setup': setupDomain,
 };
 
-// Execute if called directly
-if (process.argv[2]) {
-  const command = commands[process.argv[2]];
+/**
+ * Execute if called directly.
+ */
+if (process.argv[TWO]) {
+  const command = commands[process.argv[TWO]];
   if (command) {
-    command().catch?.(console.error);
+    command().catch?.(logger.error);
   }
 }

@@ -1,7 +1,7 @@
 /**
  * @fileoverview OAuth 2.0 Authorization Server Metadata endpoint (RFC 8414)
  * @module server/external/rest/oauth2/authorization-server
- * 
+ *
  * @see {@link https://datatracker.ietf.org/doc/rfc8414/}
  */
 
@@ -43,11 +43,11 @@ export interface AuthorizationServerMetadata {
 
 export class AuthorizationServerEndpoint {
   private readonly baseUrl: string;
-  
+
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   }
-  
+
   /**
    * GET /.well-known/oauth-authorization-server
    * Returns OAuth 2.0 Authorization Server Metadata
@@ -55,7 +55,7 @@ export class AuthorizationServerEndpoint {
   getAuthorizationServerMetadata = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-    
+
     const metadata: AuthorizationServerMetadata = {
       issuer: currentBaseUrl,
       authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
@@ -69,7 +69,7 @@ export class AuthorizationServerEndpoint {
       token_endpoint_auth_methods_supported: [
         'client_secret_basic',
         'client_secret_post',
-        'none'
+        'none',
       ],
       service_documentation: `${currentBaseUrl}/docs/api`,
       code_challenge_methods_supported: ['S256', 'plain'],
@@ -88,10 +88,10 @@ export class AuthorizationServerEndpoint {
         'email',
         'email_verified',
         'agent_id',
-        'agent_type'
-      ]
+        'agent_type',
+      ],
     };
-    
+
     return res.json(metadata);
   };
 }

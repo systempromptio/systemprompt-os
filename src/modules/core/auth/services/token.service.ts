@@ -1,5 +1,5 @@
 /**
- * Token management service.
+ *  *  * Token management service.
  */
 
 import { createHash, randomBytes } from 'crypto';
@@ -13,29 +13,47 @@ import type {
 } from '@/modules/core/auth/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
+
+const ZERO = ZERO;
+const ONE = ONE;
+const TWO = TWO;
+const THREE = THREE;
+const SECONDS_PER_MINUTE = SECONDS_PER_MINUTE;
+const MILLISECONDS_PER_SECOND = MILLISECONDS_PER_SECOND;
+
+/**
+ *  *
+ * TokenService class.
+
+ */
 
 export class TokenService {
-  private readonly db: DatabaseService;
+  private static instance: TokenService;
 
-  constructor(
-    private readonly config: {
-      jwt: {
-        algorithm: string;
-        issuer: string;
-        audience: string;
-        privateKey: string;
-        publicKey: string;
-        accessTokenTTL: number;
-        refreshTokenTTL: number;
-      };
-    },
-    private readonly logger: ILogger,
-  ) {
-    this.db = DatabaseService.getInstance();
+  /**
+ *  * Get singleton instance
+   */
+  public static getInstance(): TokenService {
+    if (!TokenService.instance) {
+      TokenService.instance = new TokenService();
+    }
+    return TokenService.instance;
   }
 
   /**
-   * Create a new token.
+ *  * Private constructor for singleton
+   */
+  private constructor() {
+    // Initialize
+  }
+
+  private readonly db: DatabaseService;
+
+
+
+  /**
+ *  *    * Create a new token.
    * @param input
    */
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
@@ -45,13 +63,13 @@ export class TokenService {
       const hashedToken = this.hashToken(tokenValue);
 
       const expiresAt = new Date(
-        Date.now() + (input.expiresIn || this.getDefaultTTL(input.type)) * 1000,
+        Date.now() + (input.expiresIn || this.getDefaultTTL(input.type)) * MILLISECONDS_PER_SECOND,
       );
 
       await this.db.execute(
         `
-        INSERT INTO auth_tokens 
-        (id, user_id, token_hash, type, scope, expires_at, metadata, created_at)
+        INSERT INTO auth_tokens
+        (id, userId, token_hash, type, scope, expires_at, metadata, createdAt)
         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `,
         [
@@ -77,7 +95,7 @@ export class TokenService {
         ...input.metadata && { metadata: input.metadata },
       };
 
-      this.logger.info('Token created', {
+      this.(logger as any).info('Token created', {
         tokenId: id,
         userId: input.userId,
         type: input.type,
@@ -85,7 +103,7 @@ export class TokenService {
 
       return token;
     } catch (error) {
-      this.logger.error('Failed to create token', {
+      this.(logger as any).error('Failed to create token', {
  input,
 error
 });
@@ -94,7 +112,7 @@ error
   }
 
   /**
-   * Create JWT access token.
+ *  *    * Create JWT access token.
    * @param userId
    * @param email
    * @param name
@@ -115,8 +133,8 @@ error
         name,
         roles,
         scope,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + this.config.jwt.accessTokenTTL,
+        iat: Math.floor(Date.now() / MILLISECONDS_PER_SECOND),
+        exp: Math.floor(Date.now() / MILLISECONDS_PER_SECOND) + this.config.jwt.accessTokenTTL,
       };
 
       const token = jwt.sign(payload, this.config.jwt.privateKey, {
@@ -127,7 +145,7 @@ error
 
       return token;
     } catch (error) {
-      this.logger.error('Failed to create JWT', {
+      this.(logger as any).error('Failed to create JWT', {
  userId,
 error
 });
@@ -136,23 +154,23 @@ error
   }
 
   /**
-   * Validate token.
+ *  *    * Validate token.
    * @param tokenString
    */
   async validateToken(tokenString: string): Promise<TokenValidationResult> {
     try {
-      // Check if it's a JWT
-      if (tokenString.includes('.') && tokenString.split('.').length === 3) {
+      /** Check if it's a JWT */
+      if (tokenString.includes('.') && tokenString.split('.').length === THREE) {
         return this.validateJWT(tokenString);
       }
 
-      // API token format: id.value
+      /** API token format: id.value */
       const parts = tokenString.split('.');
-      if (parts.length !== 2) {
+      if (parts.length !== TWO) {
         return {
- valid: false,
-reason: 'Invalid token format'
-};
+          valid: false,
+          reason: 'Invalid token format'
+        };
       }
 
       const [tokenId, tokenValue] = parts;
@@ -160,39 +178,39 @@ reason: 'Invalid token format'
 
       const result = await this.db.query<any>(
         `
-        SELECT * FROM auth_tokens 
+        SELECT * FROM auth_tokens
         WHERE id = ? AND token_hash = ?
       `,
         [tokenId, hashedToken],
       );
 
-      const tokenData = result[0];
-      if (!tokenData) {
+      const tokenData = result[ZERO];
+      if (tokenData === undefined || tokenData === null) {
         return {
- valid: false,
-reason: 'Token not found'
-};
+          valid: false,
+          reason: 'Token not found'
+        };
       }
 
       if (tokenData.is_revoked) {
         return {
- valid: false,
-reason: 'Token revoked'
-};
+          valid: false,
+          reason: 'Token revoked'
+        };
       }
 
       if (new Date(tokenData.expires_at) < new Date()) {
         return {
- valid: false,
-reason: 'Token expired'
-};
+          valid: false,
+          reason: 'Token expired'
+        };
       }
 
-      // Update last used
+      /** Update last used */
       await this.db.execute(
         `
-        UPDATE auth_tokens 
-        SET last_used_at = CURRENT_TIMESTAMP 
+        UPDATE auth_tokens
+        SET last_used_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
         [tokenId],
@@ -200,12 +218,12 @@ reason: 'Token expired'
 
       const token: AuthToken = {
         id: tokenData.id,
-        userId: tokenData.user_id,
+        userId: tokenData.userId,
         token: tokenString,
         type: tokenData.type,
         scope: JSON.parse(tokenData.scope),
         expiresAt: new Date(tokenData.expires_at),
-        createdAt: new Date(tokenData.created_at),
+        createdAt: new Date(tokenData.createdAt),
         lastUsedAt: new Date(),
         isRevoked: false,
         metadata: tokenData.metadata ? JSON.parse(tokenData.metadata) : undefined,
@@ -218,16 +236,16 @@ reason: 'Token expired'
         token,
       };
     } catch (error) {
-      this.logger.error('Failed to validate token', { error });
+      this.(logger as any).error('Failed to validate token', { error });
       return {
- valid: false,
-reason: 'Validation error'
-};
+        valid: false,
+        reason: 'Validation error'
+      };
     }
   }
 
   /**
-   * Validate JWT.
+ *  *    * Validate JWT.
    * @param token
    */
   private validateJWT(token: string): TokenValidationResult {
@@ -243,7 +261,7 @@ reason: 'Validation error'
         userId: decoded.sub,
         scope: decoded.scope,
       };
-    } catch (error: any) {
+    } catch (error) {
       return {
         valid: false,
         reason: error.message || 'Invalid JWT',
@@ -252,23 +270,23 @@ reason: 'Validation error'
   }
 
   /**
-   * Revoke token.
+ *  *    * Revoke token.
    * @param tokenId
    */
   async revokeToken(tokenId: string): Promise<void> {
     try {
       await this.db.execute(
         `
-        UPDATE auth_tokens 
-        SET is_revoked = true 
+        UPDATE auth_tokens
+        SET is_revoked = true
         WHERE id = ?
       `,
         [tokenId],
       );
 
-      this.logger.info('Token revoked', { tokenId });
+      this.(logger as any).info('Token revoked', { tokenId });
     } catch (error) {
-      this.logger.error('Failed to revoke token', {
+      this.(logger as any).error('Failed to revoke token', {
  tokenId,
 error
 });
@@ -277,28 +295,28 @@ error
   }
 
   /**
-   * Revoke all user tokens.
+ *  *    * Revoke all user tokens.
    * @param userId
    * @param type
    */
   async revokeUserTokens(userId: string, type?: string): Promise<void> {
     try {
-      let sql = 'UPDATE auth_tokens SET is_revoked = true WHERE user_id = ?';
-      const params: any[] = [userId];
+      let sql = 'UPDATE auth_tokens SET is_revoked = true WHERE userId = ?';
+      const params: unknown[] = [userId];
 
-      if (type) {
+      if (type !== undefined && type !== null) {
         sql += ' AND type = ?';
         params.push(type);
       }
 
       await this.db.execute(sql, params);
 
-      this.logger.info('User tokens revoked', {
- userId,
-type
-});
+      this.(logger as any).info('User tokens revoked', {
+        userId,
+        type
+      });
     } catch (error) {
-      this.logger.error('Failed to revoke user tokens', {
+      this.(logger as any).error('Failed to revoke user tokens', {
  userId,
 error
 });
@@ -307,34 +325,34 @@ error
   }
 
   /**
-   * List user tokens.
+ *  *    * List user tokens.
    * @param userId
    */
   async listUserTokens(userId: string): Promise<AuthToken[]> {
     try {
       const result = await this.db.query<any>(
         `
-        SELECT * FROM auth_tokens 
-        WHERE user_id = ? AND is_revoked = false
-        ORDER BY created_at DESC
+        SELECT * FROM auth_tokens
+        WHERE userId = ? AND is_revoked = false
+        ORDER BY createdAt DESC
       `,
         [userId],
       );
 
       return result.map((row): AuthToken => { return {
         id: row.id,
-        userId: row.user_id,
+        userId: row.userId,
         token: `${row.id}.***`, // Don't expose actual token
         type: row.type as TokenType,
         scope: JSON.parse(row.scope),
         expiresAt: new Date(row.expires_at),
-        createdAt: new Date(row.created_at),
+        createdAt: new Date(row.createdAt),
         isRevoked: Boolean(row.is_revoked),
         ...row.last_used_at && { lastUsedAt: new Date(row.last_used_at) },
         ...row.metadata && { metadata: JSON.parse(row.metadata) },
       } });
     } catch (error) {
-      this.logger.error('Failed to list user tokens', {
+      this.(logger as any).error('Failed to list user tokens', {
  userId,
 error
 });
@@ -343,49 +361,49 @@ error
   }
 
   /**
-   * Clean up expired tokens.
+ *  *    * Clean up expired tokens.
    */
   async cleanupExpiredTokens(): Promise<number> {
     try {
       const result = await this.db.query<{ count: number }>(`
-        SELECT COUNT(*) as count FROM auth_tokens 
+        SELECT COUNT(*) as count FROM auth_tokens
         WHERE expires_at < datetime('now')
       `);
 
-      const count = result[0]?.count || 0;
+      const count = result[ZERO]?.count || ZERO;
 
-      if (count > 0) {
+      if (count > ZERO) {
         await this.db.execute(`
-          DELETE FROM auth_tokens 
+          DELETE FROM auth_tokens
           WHERE expires_at < datetime('now')
         `);
 
-        this.logger.info('Expired tokens cleaned up', { count });
+        this.(logger as any).info('Expired tokens cleaned up', { count });
       }
 
       return count;
     } catch (error) {
-      this.logger.error('Failed to cleanup expired tokens', { error });
+      this.(logger as any).error('Failed to cleanup expired tokens', { error });
       throw error;
     }
   }
 
   /**
-   * Generate token ID.
+ *  *    * Generate token ID.
    */
   private generateTokenId(): string {
     return randomBytes(16).toString('hex');
   }
 
   /**
-   * Generate token value.
+ *  *    * Generate token value.
    */
   private generateTokenValue(): string {
     return randomBytes(32).toString('base64url');
   }
 
   /**
-   * Hash token for storage.
+ *  *    * Hash token for storage.
    * @param token
    */
   private hashToken(token: string): string {
@@ -394,7 +412,7 @@ error
   }
 
   /**
-   * Get default TTL for token type.
+ *  *    * Get default TTL for token type.
    * @param type
    */
   private getDefaultTTL(type: string): number {
@@ -404,13 +422,13 @@ error
       case 'refresh':
         return this.config.jwt.refreshTokenTTL;
       case 'api':
-        return 365 * 24 * 60 * 60; // 1 year
+        return 365 * 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // ONE year
       case 'personal':
-        return 90 * 24 * 60 * 60; // 90 days
+        return 90 * 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // 90 days
       case 'service':
-        return 0; // No expiry
+        return ZERO; // No expiry
       default:
-        return 24 * 60 * 60; // 24 hours
+        return 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // 24 hours
     }
   }
 }

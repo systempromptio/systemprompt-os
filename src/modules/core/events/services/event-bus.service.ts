@@ -4,26 +4,47 @@
  */
 
 import type {
- EventEntry, EventHandler, EventSubscription, IEventBusService
+ EventHandler, IEventBusService, IEventEntry, IEventSubscription
 } from '@/modules/core/events/types/index.js';
+
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const EMPTY_LENGTH = 0 as const;
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const HISTORY_LIMIT = 1000 as const;
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const INITIAL_ID = 1 as const;
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const HISTORY_KEEP_SIZE = -1000 as const;
+// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+const DEFAULT_HISTORY_LIMIT = 10 as const;
 
 /**
  * Service for managing events.
  * @class EventBusService
  */
 export class EventBusService implements IEventBusService {
-  private static instance: EventBusService;
-  private readonly subscriptions: Map<string, EventSubscription[]> = new Map();
-  private history: EventEntry[] = [];
-  private nextId = 1;
+  private static readonly historyLimit = HISTORY_LIMIT;
+  private static readonly initialId = INITIAL_ID;
+  private static readonly historyKeepSize = HISTORY_KEEP_SIZE;
+  private static readonly defaultHistoryLimit = DEFAULT_HISTORY_LIMIT;
+  private static instance: EventBusService | undefined;
+  private readonly subscriptions: Map<string, IEventSubscription[]> = new Map();
+  private history: IEventEntry[] = [];
+  private nextId = EventBusService.initialId;
   private initialized = false;
+
+  /**
+   * Private constructor for singleton pattern.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  private constructor() {}
 
   /**
    * Get singleton instance.
    * @returns {EventBusService} Service instance.
    */
   static getInstance(): EventBusService {
-    EventBusService.instance ||= new EventBusService();
+    EventBusService.instance ??= new EventBusService();
     return EventBusService.instance;
   }
 
@@ -36,6 +57,7 @@ export class EventBusService implements IEventBusService {
       return;
     }
     this.initialized = true;
+    await Promise.resolve();
   }
 
   /**
@@ -45,15 +67,16 @@ export class EventBusService implements IEventBusService {
    * @returns {string} Subscription ID.
    */
   on(event: string, handler: EventHandler): string {
-    const id = `sub_${this.nextId++}`;
-    const subscription: EventSubscription = {
+    const id = `sub_${String(this.nextId)}`;
+    this.nextId += 1;
+    const subscription: IEventSubscription = {
       id,
       event,
       handler,
       once: false,
     };
 
-    const subs = this.subscriptions.get(event) || [];
+    const subs = this.subscriptions.get(event) ?? [];
     subs.push(subscription);
     this.subscriptions.set(event, subs);
 
@@ -67,15 +90,16 @@ export class EventBusService implements IEventBusService {
    * @returns {string} Subscription ID.
    */
   once(event: string, handler: EventHandler): string {
-    const id = `sub_${this.nextId++}`;
-    const subscription: EventSubscription = {
+    const id = `sub_${String(this.nextId)}`;
+    this.nextId += 1;
+    const subscription: IEventSubscription = {
       id,
       event,
       handler,
       once: true,
     };
 
-    const subs = this.subscriptions.get(event) || [];
+    const subs = this.subscriptions.get(event) ?? [];
     subs.push(subscription);
     this.subscriptions.set(event, subs);
 
@@ -89,16 +113,16 @@ export class EventBusService implements IEventBusService {
    */
   off(event: string, handlerOrId: string | EventHandler): void {
     const subs = this.subscriptions.get(event);
-    if (!subs) { return; }
+    if (subs === undefined) { return; }
 
-    const filtered = subs.filter(sub => {
+    const filtered = subs.filter((sub): boolean => {
       if (typeof handlerOrId === 'string') {
         return sub.id !== handlerOrId;
       }
       return sub.handler !== handlerOrId;
     });
 
-    if (filtered.length > 0) {
+    if (filtered.length > EMPTY_LENGTH) {
       this.subscriptions.set(event, filtered);
     } else {
       this.subscriptions.delete(event);
@@ -108,50 +132,27 @@ export class EventBusService implements IEventBusService {
   /**
    * Emit an event.
    * @param {string} event - Event name.
-   * @param {any} data - Event data.
+   * @param {unknown} payload - Event payload.
    * @returns {Promise<void>} Promise that resolves when all handlers complete.
    */
-  async emit(event: string, data?: any): Promise<void> {
-    // Record in history
-    this.history.push({
-      id: `evt_${this.nextId++}`,
-      event,
-      data,
-      timestamp: new Date(),
-    });
-
-    // Keep history size limited
-    if (this.history.length > 1000) {
-      this.history = this.history.slice(-1000);
-    }
+  async emit(event: string, payload?: unknown): Promise<void> {
+    this.addToHistory(event, payload);
 
     const subs = this.subscriptions.get(event);
-    if (!subs) { return; }
+    if (subs === undefined) { return; }
 
     const promises: Promise<void>[] = [];
     const toRemove: string[] = [];
 
     for (const sub of subs) {
-      const promise = Promise.resolve(sub.handler(data));
-      promises.push(promise);
-
+      promises.push(Promise.resolve(sub.handler(payload)));
       if (sub.once) {
         toRemove.push(sub.id);
       }
     }
 
-    // Wait for all handlers
     await Promise.all(promises);
-
-    // Remove once handlers
-    if (toRemove.length > 0) {
-      const remaining = subs.filter(sub => { return !toRemove.includes(sub.id) });
-      if (remaining.length > 0) {
-        this.subscriptions.set(event, remaining);
-      } else {
-        this.subscriptions.delete(event);
-      }
-    }
+    this.cleanupOnceHandlers(event, toRemove);
   }
 
   /**
@@ -159,7 +160,7 @@ export class EventBusService implements IEventBusService {
    * @param {string} event - Event name.
    */
   removeAllListeners(event?: string): void {
-    if (event) {
+    if (typeof event === 'string' && event.length > EMPTY_LENGTH) {
       this.subscriptions.delete(event);
     } else {
       this.subscriptions.clear();
@@ -169,14 +170,14 @@ export class EventBusService implements IEventBusService {
   /**
    * Get all listeners for an event.
    * @param {string} event - Event name.
-   * @returns {EventSubscription[]} Event subscriptions.
+   * @returns {IEventSubscription[]} Event subscriptions.
    */
-  getListeners(event?: string): EventSubscription[] {
-    if (event) {
-      return this.subscriptions.get(event) || [];
+  getListeners(event?: string): IEventSubscription[] {
+    if (typeof event === 'string' && event.length > EMPTY_LENGTH) {
+      return this.subscriptions.get(event) ?? [];
     }
 
-    const all: EventSubscription[] = [];
+    const all: IEventSubscription[] = [];
     for (const subs of this.subscriptions.values()) {
       all.push(...subs);
     }
@@ -186,9 +187,49 @@ export class EventBusService implements IEventBusService {
   /**
    * Get event history.
    * @param {number} limit - Number of events to retrieve.
-   * @returns {EventEntry[]} Event entries.
+   * @returns {IEventEntry[]} Event entries.
    */
-  getHistory(limit: number = 10): EventEntry[] {
+  getHistory(limit: number = EventBusService.defaultHistoryLimit): IEventEntry[] {
     return this.history.slice(-limit);
+  }
+
+  /**
+   * Add event to history.
+   * @param {string} event - Event name.
+   * @param {unknown} payload - Event payload.
+   * @private
+   */
+  private addToHistory(event: string, payload?: unknown): void {
+    this.history.push({
+      id: `evt_${String(this.nextId)}`,
+      event,
+      payload,
+      timestamp: new Date(),
+    });
+    this.nextId += 1;
+
+    if (this.history.length > EventBusService.historyLimit) {
+      this.history = this.history.slice(EventBusService.historyKeepSize);
+    }
+  }
+
+  /**
+   * Clean up once handlers.
+   * @param {string} event - Event name.
+   * @param {string[]} toRemove - IDs to remove.
+   * @private
+   */
+  private cleanupOnceHandlers(event: string, toRemove: string[]): void {
+    const subs = this.subscriptions.get(event);
+    if (subs === undefined) { return; }
+
+    if (toRemove.length > EMPTY_LENGTH) {
+      const remaining = subs.filter((sub): boolean => { return !toRemove.includes(sub.id) });
+      if (remaining.length > EMPTY_LENGTH) {
+        this.subscriptions.set(event, remaining);
+      } else {
+        this.subscriptions.delete(event);
+      }
+    }
   }
 }

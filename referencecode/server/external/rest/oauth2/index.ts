@@ -1,22 +1,22 @@
 /**
  * @fileoverview OAuth2 Provider Routes Configuration
  * @module server/external/rest/oauth2
- * 
+ *
  * @remarks
  * This module sets up all OAuth2-related routes for the application, including:
  * - OpenID Connect discovery endpoints
  * - OAuth2 authorization flow endpoints
  * - Token exchange endpoints
  * - User information endpoints
- * 
+ *
  * The module integrates with various identity providers (Google, GitHub, etc.)
  * and provides a unified OAuth2/OIDC interface for client applications.
- * 
+ *
  * @example
  * ```typescript
  * import { setupOAuth2Routes } from './oauth2/index.js';
  * import { Router } from 'express';
- * 
+ *
  * const router = Router();
  * await setupOAuth2Routes(router, 'https://api.example.com');
  * app.use(router);
@@ -35,40 +35,40 @@ import { authMiddleware } from '../../middleware/auth.js';
 
 /**
  * Configures and sets up all OAuth2-related routes on the provided Express router
- * 
+ *
  * @param {Router} router - Express router instance to mount the OAuth2 routes on
  * @param {string} baseUrl - Base URL of the application used for generating absolute URLs in responses
  * @returns {Promise<void>} Promise that resolves when all routes are configured
- * 
+ *
  * @remarks
  * This function sets up the following endpoints:
- * 
+ *
  * **Discovery Endpoints** (No authentication required):
  * - `GET /.well-known/openid-configuration` - OpenID Connect discovery document
  * - `GET /.well-known/jwks.json` - JSON Web Key Set for token verification
- * 
+ *
  * **Authorization Flow Endpoints**:
  * - `GET /oauth2/authorize` - OAuth2 authorization endpoint for initiating login
  * - `GET /oauth2/callback/:provider` - Callback endpoint for identity provider responses
- * 
+ *
  * **Token Management Endpoints**:
  * - `POST /oauth2/token` - Token exchange endpoint (requires client authentication)
  * - `GET /oauth2/userinfo` - User information endpoint (requires valid access token)
- * 
+ *
  * @example
  * ```typescript
  * const app = express();
  * const router = Router();
- * 
+ *
  * await setupOAuth2Routes(router, 'https://api.example.com');
  * app.use('/api', router);
- * 
+ *
  * // Routes are now available at:
  * // - /api/.well-known/openid-configuration
  * // - /api/oauth2/authorize
  * // - etc.
  * ```
- * 
+ *
  * @public
  * @async
  */
@@ -84,7 +84,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   const authorize = new AuthorizeEndpoint();
   const token = new TokenEndpoint();
   const userinfo = new UserInfoEndpoint();
-  
+
   /**
    * OAuth 2.0 Protected Resource Metadata Endpoint (RFC 9728)
    * Returns metadata about the protected resource for MCP clients
@@ -93,7 +93,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.get('/.well-known/oauth-protected-resource', (req, res) => {
     protectedResource.getProtectedResourceMetadata(req, res);
   });
-  
+
   /**
    * OAuth 2.0 Authorization Server Metadata Endpoint (RFC 8414)
    * Returns metadata about the authorization server
@@ -102,7 +102,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.get('/.well-known/oauth-authorization-server', (req, res) => {
     authorizationServer.getAuthorizationServerMetadata(req, res);
   });
-  
+
   /**
    * JSON Web Key Set (JWKS) Endpoint
    * Returns the public keys used for JWT token verification
@@ -111,7 +111,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.get('/.well-known/jwks.json', (req, res) => {
     wellKnown.getJWKS(req, res);
   });
-  
+
   /**
    * OAuth2 Dynamic Client Registration Endpoint
    * Allows clients to register dynamically
@@ -120,7 +120,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.post('/oauth2/register', (req, res) => {
     register.register(req, res);
   });
-  
+
   /**
    * OAuth2 Authorization Endpoint
    * Initiates the authorization flow by redirecting users to their chosen identity provider
@@ -129,7 +129,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.get('/oauth2/authorize', (req, res) => {
     authorize.getAuthorize(req, res);
   });
-  
+
   /**
    * OAuth2 Authorization POST Endpoint
    * Handles form submission for authorization approval/denial
@@ -137,7 +137,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.post('/oauth2/authorize', (req, res) => {
     authorize.postAuthorize(req, res);
   });
-  
+
   /**
    * Identity Provider Callback Endpoint
    * Handles the callback from OAuth providers after user authentication
@@ -146,7 +146,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.get('/oauth2/callback/:provider', (req, res) => {
     authorize.handleProviderCallback(req, res);
   });
-  
+
   /**
    * OAuth2 Token Endpoint
    * Exchanges authorization codes for access tokens
@@ -156,7 +156,7 @@ export async function setupOAuth2Routes(router: Router, baseUrl: string): Promis
   router.post('/oauth2/token', (req, res) => {
     token.postToken(req, res);
   });
-  
+
   /**
    * OAuth2 UserInfo Endpoint
    * Returns information about the authenticated user

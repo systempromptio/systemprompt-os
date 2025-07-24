@@ -29,17 +29,17 @@ export class UserInfoEndpoint {
       res.status(error.code).json(error.toJSON());
       return;
     }
-    
+
     // Fetch actual user data from database
     const authRepo = AuthRepository.getInstance();
     const user = await authRepo.getUserById(req.user.id);
-    
+
     if (!user) {
       const error = OAuth2Error.invalidRequest('User not found');
       res.status(error.code).json(error.toJSON());
       return;
     }
-    
+
     // Build userInfo response
     const userInfo: UserInfo = {
       sub: user.id,
@@ -51,28 +51,28 @@ export class UserInfoEndpoint {
       agent_type: 'autonomous',
       ...(user.avatarUrl && { picture: user.avatarUrl }),
     };
-    
+
     // Filter response based on requested scopes
     const scopes = req.user.scope?.split(' ') || [];
     const response: Partial<UserInfo> = { sub: userInfo.sub };
-    
+
     if (scopes.includes('profile')) {
       if (userInfo.name) {response.name = userInfo.name;}
       if (userInfo.preferred_username) {response.preferred_username = userInfo.preferred_username;}
       if (userInfo.picture) {response.picture = userInfo.picture;}
     }
-    
+
     if (scopes.includes('email')) {
       if (userInfo.email) {response.email = userInfo.email;}
       if (userInfo.email_verified !== undefined) {response.email_verified = userInfo.email_verified;}
     }
-    
+
     // Custom scopes for systemprompt-os
     if (scopes.includes('agent')) {
       if (userInfo.agent_id) {response.agent_id = userInfo.agent_id;}
       if (userInfo.agent_type) {response.agent_type = userInfo.agent_type;}
     }
-    
+
     res.json(response);
   };
 }

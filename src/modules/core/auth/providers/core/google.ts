@@ -1,15 +1,25 @@
-/**
- * @file Google Identity Provider.
- * @module modules/core/auth/services/providers/google
- */
-
 import type {
- IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
+import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../../constants';
+  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
 } from '@/modules/core/auth/types/provider-interface.js';
+
+const THREE = 3;
+
+/**
+
+ * GoogleConfig interface.
+
+ */
 
 export interface GoogleConfig extends IDPConfig {
   discoveryurl?: string;
 }
+
+/**
+
+ * GoogleProvider class.
+
+ */
 
 export class GoogleProvider implements IdentityProvider {
   id = "google";
@@ -30,12 +40,12 @@ export class GoogleProvider implements IdentityProvider {
 
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      redirect_uri: this.config.redirect_uri,
-      response_type: "code",
+      clientId: this.config.clientId,
+      redirectUri: this.config.redirect_uri,
+      responseType: "code",
       scope: this.config.scope!,
       state,
-      access_type: "offline",
+      accessType: "offline",
       prompt: "consent",
     });
 
@@ -49,10 +59,10 @@ export class GoogleProvider implements IdentityProvider {
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       code,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || '',
-      redirect_uri: this.config.redirect_uri,
-      grant_type: "authorization_code",
+      clientId: this.config.clientId,
+      clientSecret: this.config.client_secret || '',
+      redirectUri: this.config.redirect_uri,
+      grantType: "authorization_code",
     });
 
     const response = await fetch(this.tokenEndpoint, {
@@ -83,25 +93,29 @@ export class GoogleProvider implements IdentityProvider {
       throw new Error(`Failed to get user info: ${response.statusText}`);
     }
 
+    /**
+ *  * Description.
+     * data function
+     */
     const data = (await response.json()) as any;
 
     return {
       id: data.sub,
       email: data.email,
-      email_verified: data.email_verified,
+      emailVerified: data.email_verified,
       name: data.name,
       picture: data.picture,
       locale: data.locale,
-      raw: data as Record<string, any>,
+      raw: data as Record<string, unknown>,
     };
   }
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || '',
-      grant_type: "refresh_token",
+      refreshToken: refreshToken,
+      clientId: this.config.clientId,
+      clientSecret: this.config.client_secret || '',
+      grantType: "refresh_token",
     });
 
     const response = await fetch(this.tokenEndpoint, {

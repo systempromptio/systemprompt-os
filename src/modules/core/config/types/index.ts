@@ -1,24 +1,39 @@
 /**
- * Configuration value types.
+ * JSON-compatible primitive types.
  */
-export type ConfigValue = string | number | boolean | null | ConfigObject | ConfigArray;
+type JsonPrimitive = string | number | boolean | null;
 
 /**
- * Configuration object type.
+ * JSON-compatible value type.
  */
-export interface ConfigObject {
+type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
+
+/**
+ * Configuration value types.
+ */
+export type ConfigValue = JsonValue;
+
+/**
+ * Configuration object type with string keys and config values.
+ */
+export interface IConfigObject {
   [key: string]: ConfigValue;
 }
 
 /**
- * Configuration array type.
+ * Configuration array type containing config values.
  */
-export type ConfigArray = ConfigValue[];
+export interface IConfigArray extends Array<ConfigValue> {
+  map<TResult>(
+    callbackfn: (value: ConfigValue, index: number, array: ConfigValue[]) => TResult,
+    thisArg?: unknown
+  ): TResult[];
+}
 
 /**
  * Configuration entry.
  */
-export interface ConfigEntry {
+export interface IConfigEntry {
   key: string;
   value: ConfigValue;
   description?: string;
@@ -38,7 +53,7 @@ export interface IConfigService {
 
     delete(key: string): Promise<void>;
 
-    list(): Promise<ConfigEntry[]>;
+    list(): Promise<IConfigEntry[]>;
 
     validate(): Promise<{ valid: boolean; errors?: string[] }>;
 }

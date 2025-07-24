@@ -1,12 +1,12 @@
 /**
  * @fileoverview Auth Module Adapter for Provider Registry
  * @module server/external/auth/providers/auth-module-adapter
- * 
+ *
  * This adapter allows the server to use providers from the auth module
  * while maintaining the existing provider registry interface
  */
 
-import type { IdentityProvider } from "./interface.js";
+import type { IdentityProvider } from './interface.js';
 import { getAuthModule } from '../../../../modules/core/auth/singleton.js';
 
 export class AuthModuleProviderRegistry {

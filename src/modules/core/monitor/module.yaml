@@ -1,0 +1,42 @@
+name: monitor
+type: service
+version: 1.0.0
+description: System monitoring and performance tracking module
+author: SystemPrompt OS
+dependencies:
+  - logger
+  - database
+enabled: true
+singleton: true
+
+cli:
+  commands:
+    - name: monitor:status
+      description: Display current system monitoring status
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
+    - name: monitor:metrics
+      description: Display system metrics
+      options:
+        - name: type
+          alias: t
+          type: string
+          description: Metric type (cpu, memory, disk, all)
+          default: all
+          choices: [cpu, memory, disk, all]
+    - name: monitor:alerts
+      description: Manage monitoring alerts
+      options:
+        - name: list
+          alias: l
+          type: boolean
+          description: List all alerts
+
+exports:
+  - services
+  - types

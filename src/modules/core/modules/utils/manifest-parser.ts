@@ -1,10 +1,11 @@
 /**
  * @file Type-safe manifest parser utilities.
  * @module modules/core/modules/utils/manifest-parser
+ * @description Utilities for parsing and validating module manifests.
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { ModuleManifest} from '@/modules/core/modules/types/index.js';
+import type { ModuleManifest } from '@/modules/core/modules/types/index.js';
 import { ModuleType } from '@/modules/core/modules/types/index.js';
 
 /**
@@ -37,62 +38,62 @@ function isModuleType(value: unknown): value is ModuleType {
 function validateManifest(raw: unknown): ModuleManifest {
   const errors: string[] = [];
 
-  // Check if raw is an object
   if (!raw || typeof raw !== 'object') {
     throw new ManifestParseError('Manifest must be an object', ['Invalid manifest format']);
   }
 
-  const obj = raw as Record<string, unknown>;
+  const manifestData = raw as Record<string, unknown>;
 
-  // Validate required fields
-  if (!obj['name'] || typeof obj['name'] !== 'string') {
+  if (!manifestData.name || typeof manifestData.name !== 'string') {
     errors.push('name: required field missing or not a string');
   }
 
-  if (!obj['version'] || typeof obj['version'] !== 'string') {
+  if (!manifestData.version || typeof manifestData.version !== 'string') {
     errors.push('version: required field missing or not a string');
   }
 
-  if (!obj['type'] || typeof obj['type'] !== 'string') {
+  if (!manifestData.type || typeof manifestData.type !== 'string') {
     errors.push('type: required field missing or not a string');
-  } else if (!isModuleType(obj['type'])) {
+  } else if (!isModuleType(manifestData.type)) {
     errors.push(
-      `type: invalid value '${obj['type']}', must be one of: ${Object.values(ModuleType).join(', ')}`,
+      `type: invalid value '${manifestData.type}', must be one of: ${Object.values(ModuleType).join(', ')}`,
     );
   }
 
-  // Validate optional fields
-  if (obj['description'] !== undefined && typeof obj['description'] !== 'string') {
+  if (manifestData.description !== undefined && typeof manifestData.description !== 'string') {
     errors.push('description: must be a string');
   }
 
-  if (obj['author'] !== undefined && typeof obj['author'] !== 'string') {
+  if (manifestData.author !== undefined && typeof manifestData.author !== 'string') {
     errors.push('author: must be a string');
   }
 
-  if (obj['dependencies'] !== undefined) {
-    if (!Array.isArray(obj['dependencies'])) {
+  if (manifestData.dependencies !== undefined) {
+    if (!Array.isArray(manifestData.dependencies)) {
       errors.push('dependencies: must be an array');
-    } else if (!obj['dependencies'].every((dep) => { return typeof dep === 'string' })) {
+    } else if (!manifestData.dependencies.every((dep) => { return typeof dep === 'string' })) {
       errors.push('dependencies: all items must be strings');
     }
   }
 
   if (
-    obj['config'] !== undefined
-    && (typeof obj['config'] !== 'object' || obj['config'] === null || Array.isArray(obj['config']))
+    manifestData.config !== undefined
+    && (typeof manifestData.config !== 'object'
+        || manifestData.config === null
+        || Array.isArray(manifestData.config))
   ) {
     errors.push('config: must be an object');
   }
 
   if (
-    obj['cli'] !== undefined
-    && (typeof obj['cli'] !== 'object' || obj['cli'] === null || Array.isArray(obj['cli']))
+    manifestData.cli !== undefined
+    && (typeof manifestData.cli !== 'object'
+        || manifestData.cli === null
+        || Array.isArray(manifestData.cli))
   ) {
     errors.push('cli: must be an object');
   }
 
-  // If there are errors, throw
   if (errors.length > 0) {
     throw new ManifestParseError(
       `Manifest validation failed with ${errors.length} error(s)`,
@@ -100,20 +101,29 @@ function validateManifest(raw: unknown): ModuleManifest {
     );
   }
 
-  // Return validated manifest
-  const manifest: ModuleManifest = {
-    name: obj['name'] as string,
-    version: obj['version'] as string,
-    type: obj['type'] as string,
+  const result: ModuleManifest = {
+    name: String(manifestData.name),
+    version: String(manifestData.version),
+    type: String(manifestData.type),
   };
 
-  if (obj['description']) { manifest.description = obj['description'] as string; }
-  if (obj['author']) { manifest.author = obj['author'] as string; }
-  if (obj['dependencies']) { manifest.dependencies = obj['dependencies'] as string[]; }
-  if (obj['config']) { manifest.config = obj['config'] as Record<string, any>; }
-  if (obj['cli']) { manifest.cli = obj['cli'] as { commands?: any[] }; }
+  if (manifestData.description !== undefined) {
+    result.description = String(manifestData.description);
+  }
+  if (manifestData.author !== undefined) {
+    result.author = String(manifestData.author);
+  }
+  if (manifestData.dependencies !== undefined) {
+    result.dependencies = manifestData.dependencies as string[];
+  }
+  if (manifestData.config !== undefined) {
+    result.config = manifestData.config as Record<string, unknown>;
+  }
+  if (manifestData.cli !== undefined) {
+    result.cli = manifestData.cli as { commands?: unknown[] };
+  }
 
-  return manifest;
+  return result;
 }
 
 /**
@@ -122,7 +132,7 @@ function validateManifest(raw: unknown): ModuleManifest {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if parsing or validation fails.
  */
-export function parseModuleManifest(yamlContent: string): ModuleManifest {
+export const parseModuleManifest = (yamlContent: string): ModuleManifest => {
   try {
     const raw = parseYaml(yamlContent);
     return validateManifest(raw);
@@ -134,30 +144,30 @@ export function parseModuleManifest(yamlContent: string): ModuleManifest {
       error instanceof Error ? error.message : String(error),
     ]);
   }
-}
+};
 
 /**
  * Try to parse a module manifest, returning undefined on failure.
  * @param yamlContent - YAML content to parse.
  * @returns ModuleManifest or undefined.
  */
-export function tryParseModuleManifest(yamlContent: string): ModuleManifest | undefined {
+export const tryParseModuleManifest = (yamlContent: string): ModuleManifest | undefined => {
   try {
     return parseModuleManifest(yamlContent);
   } catch {
     return undefined;
   }
-}
+};
 
 /**
  * Parse a module manifest with detailed error information.
  * @param yamlContent - YAML content to parse.
  * @returns Object with either manifest or errors.
  */
-export function parseModuleManifestSafe(yamlContent: string): {
+export const parseModuleManifestSafe = (yamlContent: string): {
   manifest?: ModuleManifest;
   errors?: string[];
-} {
+} => {
   try {
     const manifest = parseModuleManifest(yamlContent);
     return { manifest };
@@ -169,4 +179,4 @@ export function parseModuleManifestSafe(yamlContent: string): {
       errors: [error instanceof Error ? error.message : String(error)],
     };
   }
-}
+};

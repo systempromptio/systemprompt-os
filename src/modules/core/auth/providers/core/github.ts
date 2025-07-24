@@ -1,13 +1,20 @@
-/**
- * @file GitHub Identity Provider.
- * @module modules/core/auth/services/providers/github
- */
-
 import type {
- IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
+  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
 } from '@/modules/core/auth/types/provider-interface.js';
 
+/**
+ *
+ * GitHubConfig type.
+ *
+ */
+
 export type GitHubConfig = IDPConfig;
+
+/**
+ *
+ * GitHubProvider class.
+ *
+ */
 
 export class GitHubProvider implements IdentityProvider {
   id = 'github';
@@ -28,8 +35,8 @@ export class GitHubProvider implements IdentityProvider {
 
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      redirect_uri: this.config.redirect_uri,
+      clientId: this.config.clientId,
+      redirectUri: this.config.redirect_uri,
       scope: this.config.scope!,
       state,
     });
@@ -39,10 +46,10 @@ export class GitHubProvider implements IdentityProvider {
 
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || '',
+      clientId: this.config.clientId,
+      clientSecret: this.config.client_secret || '',
       code,
-      redirect_uri: this.config.redirect_uri,
+      redirectUri: this.config.redirect_uri,
     });
 
     const response = await fetch(this.tokenEndpoint, {
@@ -61,12 +68,16 @@ export class GitHubProvider implements IdentityProvider {
 
     const data = await response.json() as any;
 
-    // Return standard OAuth2 token response
+    /**
+     * Return standard OAuth2 token response.
+     */
     return data as IDPTokens;
   }
 
   async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
-    // Get basic user info
+    /**
+     * Get basic user info.
+     */
     const userResponse = await fetch(this.userEndpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -80,7 +91,9 @@ export class GitHubProvider implements IdentityProvider {
 
     const userData = await userResponse.json() as any;
 
-    // Get primary email if not public
+    /**
+     * Get primary email if not public.
+     */
     let email = userData.email as string | undefined;
     let emailverified = true;
 
@@ -105,10 +118,10 @@ export class GitHubProvider implements IdentityProvider {
     return {
       id: userData.id.toString(),
       ...email && { email },
-      email_verified: emailverified,
+      emailVerified: emailverified,
       name: userData.name || userData.login,
       picture: userData.avatar_url,
-      raw: userData as Record<string, any>,
+      raw: userData as Record<string, unknown>,
     };
   }
 }

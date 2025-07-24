@@ -12,7 +12,7 @@ import { renderSplashPage } from '../templates/splash.js';
 export class SplashEndpoint {
   /**
    * Handles GET requests to the splash/home page
-   * 
+   *
    * @param req Express request object
    * @param res Express response object
    * @returns Promise that resolves when response is sent
@@ -25,12 +25,12 @@ export class SplashEndpoint {
 
 /**
  * Configures splash page routes on the Express router
- * 
+ *
  * @param router Express router instance to mount routes on
  */
 export function setupRoutes(router: Router): void {
   const splashEndpoint = new SplashEndpoint();
-  
+
   router.get('/', (req, res, next) => {
     // Skip if there's an OAuth callback code
     if (req.query['code']) {

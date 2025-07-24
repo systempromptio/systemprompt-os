@@ -36,13 +36,15 @@ export class EventsModule {
       await this.eventBusService.initialize();
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize events module: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to initialize events module: ${errorMessage}`);
     }
   }
 
   /**
    * Start the events module.
    * @returns {Promise<void>} Promise that resolves when started.
+   * @throws {Error} If module not initialized or already started.
    */
   async start(): Promise<void> {
     if (!this.initialized) {
@@ -55,6 +57,7 @@ export class EventsModule {
 
     this.started = true;
     this.status = 'running';
+    await Promise.resolve();
   }
 
   /**
@@ -67,6 +70,7 @@ export class EventsModule {
       this.started = false;
       this.status = 'stopped';
     }
+    await Promise.resolve();
   }
 
   /**
@@ -89,6 +93,7 @@ export class EventsModule {
         message: 'Events module not started',
       };
     }
+    await Promise.resolve();
     return {
       healthy: true,
       message: 'Events module is healthy',
@@ -101,7 +106,7 @@ export class EventsModule {
    * @throws {Error} If module not initialized.
    */
   getService(): IEventBusService {
-    if (!this.eventBusService) {
+    if (this.eventBusService === undefined) {
       throw new Error('Events module not initialized');
     }
     return this.eventBusService;

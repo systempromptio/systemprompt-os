@@ -1,20 +1,24 @@
+const ZERO = ZERO;
+const ONE = ONE;
+const TWO = TWO;
+const THREE = THREE;
+const SECONDS_PER_MINUTE = SECONDS_PER_MINUTE;
+const SECONDS_PER_HOUR = SECONDS_PER_HOUR;
+const SECONDS_PER_DAY = SECONDS_PER_DAY;
+
 /**
- * @file System status check tool.
- * @module auth/tools/check-status
+
+ * IToolDefinition interface.
+
  */
 
-// Tool definition interface (temporary until MCP types are available)
-interface ToolDefinition {
+export interface IToolDefinition {
   name: string;
   description: string;
-  inputSchema: any;
-  execute: (input: any, context: any) => Promise<any>;
+  inputSchema: unknown;
+  execute: (_input: unknown,_context: unknown) => Promise<unknown>;
 }
 
-/**
- * Check Status tool definition
- * Returns system operational status.
- */
 export const tool: ToolDefinition = {
   name: 'checkstatus',
   description: 'Check system operational status and health metrics',
@@ -50,7 +54,8 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  execute: async (params: any, context: any) => {
+  /** TODO: Refactor this function to reduce complexity */
+  execute: async (_params: unknown,_context: unknown) => {
     const {
       includeContainers = false,
       includeUsers = false,
@@ -59,19 +64,17 @@ export const tool: ToolDefinition = {
       includeAuditLog = false
     } = params || {};
 
-    // Basic status information
-    const result: any = {
+    const result: unknown = {
       message: 'System operational',
       result: {
         status: 'healthy',
-        version: '1.0.0',
+        version: 'ONE.ZERO.0',
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
       }
     };
 
-    // Add resource information if requested
-    if (includeResources) {
+    if (includeResources)) {
       const memUsage = process.memoryUsage();
       result.result.resources = {
         memory: {
@@ -86,11 +89,10 @@ export const tool: ToolDefinition = {
       };
     }
 
-    // Add container status if requested
-    if (includeContainers) {
+    if (includeContainers)) {
       result.result.containers = {
         status: 'running',
-        count: 1,
+        count: ONE,
         details: [
           {
             name: 'systemprompt-os',
@@ -101,27 +103,24 @@ export const tool: ToolDefinition = {
       };
     }
 
-    // Add user statistics if requested
-    if (includeUsers) {
+    if (includeUsers)) {
       result.result.users = {
-        total: 1,
-        active: 1,
-        admins: context.role === 'admin' ? 1 : 0
+        total: ONE,
+        active: ONE,
+        admins: context.role === 'admin' ? ONE : ZERO
       };
     }
 
-    // Add tunnel status if requested
-    if (includeTunnels) {
+    if (includeTunnels)) {
       result.result.tunnels = {
         enabled: false,
-        active: 0
+        active: ZERO
       };
     }
 
-    // Add audit log if requested
-    if (includeAuditLog) {
+    if (includeAuditLog)) {
       result.result.auditLog = {
-        entries: 0,
+        entries: ZERO,
         latest: []
       };
     }
@@ -130,22 +129,17 @@ export const tool: ToolDefinition = {
   }
 };
 
-/**
- * Format uptime in human-readable format.
- * @param seconds - Uptime in seconds.
- * @returns Formatted uptime string.
- */
 function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor(seconds % 86400 / 3600);
-  const minutes = Math.floor(seconds % 3600 / 60);
-  const secs = Math.floor(seconds % 60);
+  const days = Math.floor(seconds / SECONDS_PER_DAY);
+  const hours = Math.floor(seconds % SECONDS_PER_DAY / SECONDS_PER_HOUR);
+  const minutes = Math.floor(seconds % SECONDS_PER_HOUR / SECONDS_PER_MINUTE);
+  const secs = Math.floor(seconds % SECONDS_PER_MINUTE);
 
   const parts = [];
-  if (days > 0) { parts.push(`${days}d`); }
-  if (hours > 0) { parts.push(`${hours}h`); }
-  if (minutes > 0) { parts.push(`${minutes}m`); }
-  if (secs > 0 || parts.length === 0) { parts.push(`${secs}s`); }
+  if (days > ZERO): unknown { parts.push(`${days}d`); }
+  if (hours > ZERO): unknown { parts.push(`${hours}h`); }
+  if (minutes > ZERO): unknown { parts.push(`${minutes}m`); }
+  if (secs > ZERO || parts.length === ZERO): unknown { parts.push(`${secs}s`); }
 
   return parts.join(' ');
 }

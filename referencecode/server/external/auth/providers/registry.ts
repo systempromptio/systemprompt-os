@@ -1,7 +1,7 @@
 /**
  * @fileoverview Identity Provider Registry
  * @module server/external/auth/providers/registry
- * 
+ *
  * This file now delegates to the auth module for provider management
  */
 

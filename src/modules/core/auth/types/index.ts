@@ -1,8 +1,10 @@
 /**
- * Auth module type definitions.
+ *
+ * IAuthUser interface.
+ *
  */
 
-export interface AuthUser {
+export interface IAuthUser {
   id: string;
   email: string;
   name: string;
@@ -17,7 +19,13 @@ export interface AuthUser {
   mfaBackupCodes?: string[];
 }
 
-export interface AuthToken {
+/**
+ *
+ * IAuthToken interface.
+ *
+ */
+
+export interface IAuthToken {
   id: string;
   userId: string;
   token: string;
@@ -30,6 +38,12 @@ export interface AuthToken {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ *
+ * TokenType type.
+ *
+ */
+
 export type TokenType =
   | 'access'
   | 'refresh'
@@ -37,7 +51,13 @@ export type TokenType =
   | 'personal'
   | 'service';
 
-export interface TokenCreateInput {
+/**
+ *
+ * ITokenCreateInput interface.
+ *
+ */
+
+export interface ITokenCreateInput {
   userId: string;
   type: TokenType;
   scope: string[];
@@ -45,19 +65,37 @@ export interface TokenCreateInput {
   metadata?: Record<string, unknown>;
 }
 
-export interface MFASetupResult {
+/**
+ *
+ * IMFASetupResult interface.
+ *
+ */
+
+export interface IMFASetupResult {
   secret: string;
   qrCodeUrl: string;
   backupCodes: string[];
 }
 
-export interface MFAVerifyInput {
+/**
+ *
+ * IMFAVerifyInput interface.
+ *
+ */
+
+export interface IMFAVerifyInput {
   userId: string;
   code: string;
   isBackupCode?: boolean;
 }
 
-export interface AuthSession {
+/**
+ *
+ * IAuthSession interface.
+ *
+ */
+
+export interface IAuthSession {
   id: string;
   userId: string;
   token: string;
@@ -71,7 +109,13 @@ export interface AuthSession {
   metadata?: Record<string, unknown>;
 }
 
-export interface AuthAuditEntry {
+/**
+ *
+ * IAuthAuditEntry interface.
+ *
+ */
+
+export interface IAuthAuditEntry {
   id: string;
   userId?: string;
   action: AuthAuditAction;
@@ -83,6 +127,12 @@ export interface AuthAuditEntry {
   metadata?: Record<string, unknown>;
   timestamp: Date;
 }
+
+/**
+ *
+ * AuthAuditAction type.
+ *
+ */
 
 export type AuthAuditAction =
   | 'auth.login'
@@ -102,7 +152,13 @@ export type AuthAuditAction =
   | 'session.refresh'
   | 'session.revoke';
 
-export interface LoginInput {
+/**
+ *
+ * ILoginInput interface.
+ *
+ */
+
+export interface ILoginInput {
   email: string;
   password?: string;
   provider?: string;
@@ -112,7 +168,13 @@ export interface LoginInput {
   userAgent?: string;
 }
 
-export interface LoginResult {
+/**
+ *
+ * ILoginResult interface.
+ *
+ */
+
+export interface ILoginResult {
   user: AuthUser;
   session: AuthSession;
   accessToken: string;
@@ -120,7 +182,13 @@ export interface LoginResult {
   requiresMFA: boolean;
 }
 
-export interface TokenValidationResult {
+/**
+ *
+ * ITokenValidationResult interface.
+ *
+ */
+
+export interface ITokenValidationResult {
   valid: boolean;
   userId?: string;
   scope?: string[];
@@ -128,7 +196,13 @@ export interface TokenValidationResult {
   reason?: string;
 }
 
-export interface JWTPayload {
+/**
+ *
+ * IJWTPayload interface.
+ *
+ */
+
+export interface IJWTPayload {
   sub: string; // User id
   email: string;
   name: string;
@@ -139,7 +213,13 @@ export interface JWTPayload {
   jti?: string; // Token id
 }
 
-export interface JWTConfig {
+/**
+ *
+ * IJWTConfig interface.
+ *
+ */
+
+export interface IJWTConfig {
   algorithm: string;
   issuer: string;
   audience: string;
@@ -150,7 +230,13 @@ export interface JWTConfig {
   publicKey: string;
 }
 
-export interface AuthConfig {
+/**
+ *
+ * IAuthConfig interface.
+ *
+ */
+
+export interface IAuthConfig {
   jwt: JWTConfig;
   mfa?: {
     enabled: boolean;
@@ -175,7 +261,13 @@ export interface AuthConfig {
   };
 }
 
-export interface ProviderUser {
+/**
+ *
+ * IProviderUser interface.
+ *
+ */
+
+export interface IProviderUser {
   id: string;
   email: string;
   name: string;
@@ -184,27 +276,42 @@ export interface ProviderUser {
 }
 
 /**
- * Database query result types for auth module.
+ *
+ * IUserRow interface.
+ *
  */
-export interface UserRow {
+
+export interface IUserRow {
   id: string;
   email: string;
   name?: string;
   avatar_url?: string;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-  last_login_at?: string;
+  isActive: number;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
 }
 
-export interface RoleRow {
+/**
+ *
+ * IRoleRow interface.
+ *
+ */
+
+export interface IRoleRow {
   id: string;
   name: string;
   description?: string;
-  is_system: number;
+  isSystem: number;
 }
 
-export interface PermissionRow {
+/**
+ *
+ * IPermissionRow interface.
+ *
+ */
+
+export interface IPermissionRow {
   id: string;
   name: string;
   resource: string;
@@ -212,25 +319,43 @@ export interface PermissionRow {
   description?: string;
 }
 
-export interface UserRoleRow {
-  user_id: string;
-  role_id: string;
-  created_at: string;
+/**
+ *
+ * IUserRoleRow interface.
+ *
+ */
+
+export interface IUserRoleRow {
+  userId: string;
+  roleId: string;
+  createdAt: string;
 }
 
-export interface SessionRow {
+/**
+ *
+ * ISessionRow interface.
+ *
+ */
+
+export interface ISessionRow {
   id: string;
-  user_id: string;
-  token_hash: string;
-  expires_at: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: string;
   ip_address?: string;
   user_agent?: string;
-  created_at: string;
+  createdAt: string;
 }
 
-export interface AuditRow {
+/**
+ *
+ * IAuditRow interface.
+ *
+ */
+
+export interface IAuditRow {
   id: string;
-  user_id?: string;
+  userId?: string;
   action: string;
   resource?: string;
   ip_address?: string;
@@ -241,16 +366,21 @@ export interface AuditRow {
   timestamp: string;
 }
 
-export interface UserListRow {
+/**
+ *
+ * IUserListRow interface.
+ *
+ */
+
+export interface IUserListRow {
   id: string;
   email: string;
   name?: string | null;
   roles?: string | null;
-  created_at: string;
-  last_login_at?: string | null;
+  createdAt: string;
+  lastLoginAt?: string | null;
 }
 
-// Import service types for exports
 import type { AuthService } from '@/modules/core/auth/services/auth.service.js';
 import type { TokenService } from '@/modules/core/auth/services/token.service.js';
 import type { UserService } from '@/modules/core/auth/services/user-service.js';
@@ -260,9 +390,12 @@ import type { AuditService } from '@/modules/core/auth/services/audit.service.js
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 
 /**
- * Auth module exports interface.
+ *
+ * IAuthModuleExports interface.
+ *
  */
-export interface AuthModuleExports {
+
+export interface IAuthModuleExports {
   service: () => AuthService;
   tokenService: () => TokenService;
   userService: () => UserService;
@@ -271,13 +404,12 @@ export interface AuthModuleExports {
   auditService: () => AuditService;
   getProvider: (id: string) => IdentityProvider | undefined;
   getAllProviders: () => IdentityProvider[];
-  createToken: (input: TokenCreateInput) => Promise<AuthToken>;
-  validateToken: (token: string) => Promise<TokenValidationResult>;
+  createToken: (_input: TokenCreateInput) => Promise<AuthToken>;
+  validateToken: (_token: string) => Promise<TokenValidationResult>;
   hasProvider: (id: string) => boolean;
   getProviderRegistry: () => any;
   reloadProviders: () => Promise<void>;
 }
 
-// Re-export existing types
 export type * from '@/modules/core/auth/types/provider-interface.js';
 export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface.js';

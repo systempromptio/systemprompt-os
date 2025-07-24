@@ -15,7 +15,7 @@ export class DashboardEndpoint {
    */
   public async handleDashboard(req: Request, res: Response): Promise<void> {
     const user = req.user!; // Guaranteed by auth middleware
-    
+
     const content = `
       <div class="dashboard">
         <h1>Welcome to SystemPrompt OS</h1>
@@ -54,13 +54,13 @@ export class DashboardEndpoint {
         </div>
       </div>
     `;
-    
+
     const html = renderLayout({
       title: 'Dashboard',
       content,
-      styles: getDashboardStyles()
+      styles: getDashboardStyles(),
     });
-    
+
     res.type('html').send(html);
   }
 }
@@ -153,7 +153,7 @@ function getDashboardStyles(): string {
  */
 export function setupRoutes(router: Router): void {
   const dashboardEndpoint = new DashboardEndpoint();
-  
+
   router.get('/dashboard', async (req, res) => dashboardEndpoint.handleDashboard(req, res));
   router.get('/', async (req, res) => dashboardEndpoint.handleDashboard(req, res)); // Root redirects to dashboard for authenticated users
 }

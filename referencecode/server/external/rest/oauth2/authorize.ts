@@ -139,25 +139,25 @@ export class AuthorizeEndpoint {
               <strong>Requested permissions:</strong>
               <ul>
                 ${params.scope
-                  .split(' ')
-                  .map((scope) => `<li class="scope-item">${scope}</li>`)
-                  .join('')}
+    .split(' ')
+    .map((scope) => `<li class="scope-item">${scope}</li>`)
+    .join('')}
               </ul>
             </div>
             <div class="provider-list">
               <h3 style="text-align: center; margin-bottom: 20px;">Choose how to sign in:</h3>
               ${availableProviders
-                .map(
-                  (provider: IdentityProvider) => `
+    .map(
+      (provider: IdentityProvider) => `
                 <a href="/oauth2/authorize?${new URLSearchParams({
-                  ...Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined)),
-                  provider: provider.name,
-                }).toString()}" class="provider-button provider-${provider.name}">
+    ...Object.fromEntries(Object.entries(params).filter(([_, v]) => v !== undefined)),
+    provider: provider.name,
+  }).toString()}" class="provider-button provider-${provider.name}">
                   ${provider.name === 'google' ? '🔵' : '⚫'} Sign in with ${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)}
                 </a>
               `,
-                )
-                .join('')}
+    )
+    .join('')}
             </div>
             <div class="cancel">
               <a href="${params.redirect_uri}?error=access_denied&state=${params.state || ''}">Cancel</a>

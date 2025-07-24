@@ -1,17 +1,18 @@
-/**
- * @file Generic OAuth2/OIDC Provider.
- * @module modules/core/auth/services/providers/generic-oauth2
- */
-
 import type {
- IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
+  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
 } from '@/modules/core/auth/types/provider-interface.js';
+
+/**
+ *
+ * GenericOAuth2Config interface.
+ *
+ */
 
 export interface GenericOAuth2Config extends IDPConfig {
   id: string;
   name: string;
-  authorization_endpoint: string;
-  token_endpoint: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
   userinfo_endpoint?: string;
   issuer?: string;
   jwks_uri?: string;
@@ -28,6 +29,12 @@ export interface GenericOAuth2Config extends IDPConfig {
   };
 }
 
+/**
+ *
+ * GenericOAuth2Provider class.
+ *
+ */
+
 export class GenericOAuth2Provider implements IdentityProvider {
   id: string;
   name: string;
@@ -41,15 +48,15 @@ export class GenericOAuth2Provider implements IdentityProvider {
     this.config = {
       ...config,
       scope: config.scope || 'openid email profile',
-      userinfo_mapping: config.userinfo_mapping || {},
+      userinfoMapping: config.userinfo_mapping || {},
     };
   }
 
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      redirect_uri: this.config.redirect_uri,
-      response_type: 'code',
+      clientId: this.config.clientId,
+      redirectUri: this.config.redirect_uri,
+      responseType: 'code',
       scope: this.config.scope!,
       state,
     });
@@ -58,9 +65,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
       params.append('nonce', nonce);
     }
 
-    // Add any additional parameters from config
+    /**
+     * Add any additional parameters from config.
+     */
     if ('authorization_params' in this.config && this.config.authorization_params) {
-      Object.entries(this.config.authorization_params).forEach(([key, value]) => {
+      Object.entries(this.config.authorization_params).forEach(([key, value]) : void => {
         params.append(key, value as string);
       });
     }
@@ -70,11 +79,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
 
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      grant_type: 'authorization_code',
+      grantType: 'authorization_code',
       code,
-      redirect_uri: this.config.redirect_uri,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || '',
+      redirectUri: this.config.redirect_uri,
+      clientId: this.config.clientId,
+      clientSecret: this.config.client_secret || '',
     });
 
     const response = await fetch(this.config.token_endpoint, {
@@ -95,7 +104,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return data as IDPTokens;
   }
 
-  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  async getUserInfo(_accessToken: string): Promise<IDPUserInfo> {
     if (!this.config.userinfo_endpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
@@ -114,23 +123,25 @@ export class GenericOAuth2Provider implements IdentityProvider {
     const data = await response.json() as any;
     const mapping = this.config.userinfo_mapping!;
 
-    // Map the response to our standard format
+    /**
+     * Map the response to our standard format.
+     */
     return {
       id: this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id,
       email: this.getNestedValue(data, mapping.email || 'email'),
-      email_verified: this.getNestedValue(data, mapping.email_verified || 'email_verified'),
+      emailVerified: this.getNestedValue(data, mapping.email_verified || 'email_verified'),
       name: this.getNestedValue(data, mapping.name || 'name'),
       picture: this.getNestedValue(data, mapping.picture || 'picture'),
-      raw: data as Record<string, any>,
+      raw: data as Record<string, unknown>,
     };
   }
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || '',
+      grantType: 'refresh_token',
+      refreshToken,
+      clientId: this.config.clientId,
+      clientSecret: this.config.client_secret || '',
     });
 
     const response = await fetch(this.config.token_endpoint, {
@@ -150,12 +161,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return data as IDPTokens;
   }
 
-  private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((curr, prop) => { return curr?.[prop] }, obj);
+  private getNestedValue(_obj: unknown, path: string): unknown {
+    return path.split('.').reduce((curr, prop) : void => { return curr?.[prop] }, obj);
   }
 }
 
-// Helper to discover OIDC configuration
 export async function discoverOIDCConfiguration(issuer: string): Promise<Partial<GenericOAuth2Config>> {
   const discoveryUrl = `${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`;
 
@@ -168,13 +178,13 @@ export async function discoverOIDCConfiguration(issuer: string): Promise<Partial
 
   return {
     issuer: config.issuer,
-    authorization_endpoint: config.authorization_endpoint,
-    token_endpoint: config.token_endpoint,
-    userinfo_endpoint: config.userinfo_endpoint,
-    jwks_uri: config.jwks_uri,
-    scopes_supported: config.scopes_supported,
-    response_types_supported: config.response_types_supported,
-    grant_types_supported: config.grant_types_supported,
-    token_endpoint_auth_methods: config.token_endpoint_auth_methods_supported,
+    authorizationEndpoint: config.authorization_endpoint,
+    tokenEndpoint: config.token_endpoint,
+    userinfoEndpoint: config.userinfo_endpoint,
+    jwksUri: config.jwks_uri,
+    scopesSupported: config.scopes_supported,
+    responsetypesSupported: config.response_types_supported,
+    granttypesSupported: config.grant_types_supported,
+    tokenendpoint_authMethods: config.token_endpoint_auth_methods_supported,
   };
 }

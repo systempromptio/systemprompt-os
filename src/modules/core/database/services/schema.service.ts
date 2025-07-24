@@ -1,60 +1,47 @@
 /**
  * Schema discovery service that scans modules for database schemas
  * and initializes tables.
+ * @file Schema discovery and management service.
+ * @module database/services/schema
  */
 
 import { readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service.js';
-// MCPContentScannerService type will be imported dynamically
-
-export interface ModuleSchema {
-  module: string;
-  moduleName?: string; // Alias for module
-  schemaPath: string;
-  initPath?: string;
-  sql: string;
-  initSql?: string;
-}
-
-export interface InstalledSchema {
-  module_name: string;
-  version: string;
-  installed_at: string;
-}
+import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * Service for managing database schemas across modules.
  */
 export class SchemaService {
   private static instance: SchemaService;
-  private readonly schemas: Map<string, ModuleSchema> = new Map();
+  private readonly schemas: Map<string, IModuleSchema> = new Map();
   private logger?: ILogger;
   private initialized = false;
-  private mcpContentScanner?: any; // MCPContentScannerService
-  private importService: SchemaImportService;
+  private mcpContentScanner?: any;
+  private importService: any;
+  private databaseService: any;
 
-  private constructor(
-    // @ts-expect-error - Used through importService
-    private readonly _databaseService: DatabaseService
-  ) {
-    this.importService = new SchemaImportService(_databaseService);
-  }
+  /**
+   * Creates a new schema service instance.
+   */
+  private constructor() {}
 
   /**
    * Initialize the schema service.
    * @param databaseService - Database service instance.
+   * @param importService - Schema import service instance.
    * @param logger - Optional logger instance.
+   * @returns The initialized schema service instance.
    */
-  static initialize(databaseService: DatabaseService, logger?: ILogger): SchemaService {
-    SchemaService.instance ||= new SchemaService(databaseService);
-    if (logger) {
+  public static initialize(databaseService: any, importService: any, logger?: ILogger): SchemaService {
+    SchemaService.instance ||= new SchemaService();
+    SchemaService.instance.databaseService = databaseService;
+    SchemaService.instance.importService = importService;
+    if (logger !== undefined) {
       SchemaService.instance.logger = logger;
-      // Pass logger to import service
-      SchemaService.instance.importService = new SchemaImportService(databaseService, logger);
     }
     SchemaService.instance.initialized = true;
     return SchemaService.instance;
@@ -63,17 +50,19 @@ export class SchemaService {
   /**
    * Set the MCP content scanner.
    * @param scanner - MCP content scanner instance.
+   * @returns Void.
    */
-  setMCPContentScanner(scanner: any): void {
+  public setMCPContentScanner(scanner: any): void {
     this.mcpContentScanner = scanner;
   }
 
   /**
    * Get the schema service instance.
-   * @throws {DatabaseError} If service not initialized.
+   * @returns The schema service instance.
+   * @throws {Error} If service not initialized.
    */
-  static getInstance(): SchemaService {
-    if (!SchemaService.instance?.initialized) {
+  public static getInstance(): SchemaService {
+    if (!SchemaService.instance || !SchemaService.instance.initialized) {
       throw new Error('SchemaService not initialized. Call initialize() first.');
     }
     return SchemaService.instance;
@@ -81,51 +70,51 @@ export class SchemaService {
 
   /**
    * Scan all modules for database schemas.
-   * @param baseDir
+   * @param baseDir - Base directory to scan.
+   * @returns Promise that resolves when scan is complete.
    */
-  async discoverSchemas(baseDir: string = '/app/src/modules'): Promise<void> {
+  public async discoverSchemas(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
       this.logger?.info('Discovering module schemas', { baseDir });
 
-      // Find all schema.sql files
       const schemaFiles = await glob('**/database/schema.sql', {
         cwd: baseDir,
         absolute: true,
       });
 
-      // Find all init.sql files
       const initFiles = await glob('**/database/init.sql', {
         cwd: baseDir,
         absolute: true,
       });
 
-      // Create a map of init files by module
       const initFileMap = new Map<string, string>();
       for (const initFile of initFiles) {
-        const module = this.extractModuleName(initFile, baseDir);
-        initFileMap.set(module, initFile);
+        const moduleNameResult = this.extractModuleName(initFile, baseDir);
+        initFileMap.set(moduleNameResult, initFile);
       }
 
-      // Load each schema
       for (const schemaPath of schemaFiles) {
-        const module = this.extractModuleName(schemaPath, baseDir);
+        const moduleNameResult = this.extractModuleName(schemaPath, baseDir);
         const sql = await readFile(schemaPath, 'utf-8');
 
-        const initPath = initFileMap.get(module);
-        const schema: ModuleSchema = {
-          module,
-          moduleName: module, // Add alias for compatibility
+        const initPath = initFileMap.get(moduleNameResult);
+        const schema: IModuleSchema = {
+          module: moduleNameResult,
+          moduleName: moduleNameResult,
           schemaPath,
           sql,
-          ...initPath ? { initPath } : {},
-          ...initPath ? { initSql: await readFile(initPath, 'utf-8') } : {},
         };
 
-        this.schemas.set(module, schema);
+        if (initPath !== undefined) {
+          schema.initPath = initPath;
+          schema.initSql = await readFile(initPath, 'utf-8');
+        }
+
+        this.schemas.set(moduleNameResult, schema);
         this.logger?.debug('Discovered schema', {
- module,
-schemaPath
-});
+          module: moduleNameResult,
+          schemaPath
+        });
       }
 
       this.logger?.info('Schema discovery complete', {
@@ -139,25 +128,23 @@ schemaPath
 
   /**
    * Initialize all discovered schemas.
+   * @returns Promise that resolves when initialization is complete.
    */
-  async initializeSchemas(): Promise<void> {
-    // Initialize import service
+  public async initializeSchemas(): Promise<void> {
     await this.importService.initialize();
 
-    // Prepare schema files for import
     const schemaFiles = [];
-    for (const [module, schema] of this.schemas) {
+    for (const [moduleKey, schema] of this.schemas) {
       schemaFiles.push({
-        module,
+        module: moduleKey,
         filepath: schema.schemaPath,
-        checksum: '', // Will be calculated by import service
+        checksum: '',
         content: schema.sql
       });
 
-      // Also add init.sql if present
-      if (schema.initSql && schema.initPath) {
+      if (schema.initSql !== undefined && schema.initPath !== undefined) {
         schemaFiles.push({
-          module,
+          module: moduleKey,
           filepath: schema.initPath,
           checksum: '',
           content: schema.initSql
@@ -165,12 +152,13 @@ schemaPath
       }
     }
 
-    // Import all schemas
     const result = await this.importService.importSchemas(schemaFiles);
 
     if (!result.success) {
       this.logger?.error('Schema import failed', { errors: result.errors });
-      throw new Error(`Schema import failed: ${result.errors.map(e => { return e.error }).join('; ')}`);
+      throw new Error(
+        `Schema import failed: ${result.errors.map((errorItem: any): string => { return errorItem.error }).join('; ')}`
+      );
     }
 
     this.logger?.info('Schema import complete', {
@@ -178,7 +166,6 @@ schemaPath
       skipped: result.skipped.length
     });
 
-    // Scan for MCP content after all schemas are imported
     await this.scanMCPContentForAllModules();
   }
 
@@ -186,14 +173,14 @@ schemaPath
    * Scan MCP content for all modules after schema import.
    */
   private async scanMCPContentForAllModules(): Promise<void> {
-    if (!this.mcpContentScanner) {
+    if (this.mcpContentScanner === undefined) {
       return;
     }
 
-    for (const [module, schema] of this.schemas) {
+    for (const [moduleKey, schema] of this.schemas) {
       try {
         const modulePath = dirname(dirname(schema.schemaPath));
-        const moduleName = module.replace('core/', '');
+        const moduleName = moduleKey.replace('core/', '');
 
         this.logger?.debug('Scanning module for MCP content', {
           module: moduleName,
@@ -203,7 +190,7 @@ schemaPath
         await this.mcpContentScanner.scanModule(moduleName, modulePath);
       } catch (error) {
         this.logger?.warn('Failed to scan MCP content for module', {
-          module,
+          module: moduleKey,
           error
         });
       }
@@ -212,8 +199,9 @@ schemaPath
 
   /**
    * Extract module name from file path.
-   * @param filePath
-   * @param baseDir
+   * @param filePath - File path to extract module from.
+   * @param baseDir - Base directory path.
+   * @returns Module name.
    */
   private extractModuleName(filePath: string, baseDir: string): string {
     const normalized = filePath.replace(/\\/g, '/');
@@ -221,39 +209,44 @@ schemaPath
     const relativePath = normalized.replace(`${normalizedBase}/`, '');
     const parts = relativePath.split('/');
 
-    // Handle both core and custom modules
-    if (parts[0] === 'core' && parts.length > 1) {
-      return `core/${parts[1]}`;
+    const firstPart = parts[ZERO];
+    const secondPart = parts[1];
+
+    if (firstPart === 'core' && parts.length > 1 && secondPart !== undefined) {
+      return `core/${secondPart}`;
     }
 
-    return parts[0] || 'unknown';
+    return firstPart ?? 'unknown';
   }
 
   /**
    * Get schema for a specific module.
-   * @param module
+   * @param moduleKey - Module key.
+   * @returns Module schema or undefined.
    */
-  getSchema(module: string): ModuleSchema | undefined {
-    return this.schemas.get(module);
+  public getSchema(moduleKey: string): IModuleSchema | undefined {
+    return this.schemas.get(moduleKey);
   }
 
   /**
    * Get all discovered schemas.
+   * @returns Map of all schemas.
    */
-  getAllSchemas(): Map<string, ModuleSchema> {
+  public getAllSchemas(): Map<string, IModuleSchema> {
     return new Map(this.schemas);
   }
 
   /**
    * Get list of installed schemas from database.
+   * @returns Array of installed schemas.
    */
-  async getInstalledSchemas(): Promise<InstalledSchema[]> {
+  public async getInstalledSchemas(): Promise<IInstalledSchema[]> {
     try {
       const schemas = await this.importService.getImportedSchemas();
-      return schemas.map(s => { return {
-        module_name: s.module,
-        version: '1.0.0', // Simple version since we don't track versions
-        installed_at: s.imported_at
+      return schemas.map((schema: any): IInstalledSchema => { return {
+        moduleName: schema.module,
+        version: '1.0.0',
+        installedAt: schema.imported_at
       } });
     } catch (error) {
       this.logger?.debug('No imported schemas found', { error });
@@ -263,25 +256,28 @@ schemaPath
 
   /**
    * Discover schemas and return as array.
-   * @param baseDir
+   * @param baseDir - Base directory to scan.
+   * @returns Array of module schemas.
    */
-  async discoverSchemasArray(baseDir?: string): Promise<ModuleSchema[]> {
+  public async discoverSchemasArray(baseDir?: string): Promise<IModuleSchema[]> {
     await this.discoverSchemas(baseDir);
     return Array.from(this.schemas.values());
   }
 
   /**
    * Initialize the base schema tables.
+   * @returns Promise that resolves when initialization is complete.
    */
-  async initializeBaseSchema(): Promise<void> {
+  public async initializeBaseSchema(): Promise<void> {
     await this.importService.initialize();
   }
 
   /**
    * Install a specific module's schema.
-   * @param schema
+   * @param schema - Module schema to install.
+   * @returns Promise that resolves when installation is complete.
    */
-  async installModuleSchema(schema: ModuleSchema): Promise<void> {
+  public async installModuleSchema(schema: IModuleSchema): Promise<void> {
     const schemaFiles = [
       {
         module: schema.module,
@@ -291,7 +287,7 @@ schemaPath
       }
     ];
 
-    if (schema.initSql && schema.initPath) {
+    if (schema.initSql !== undefined && schema.initPath !== undefined) {
       schemaFiles.push({
         module: schema.module,
         filepath: schema.initPath,
@@ -303,11 +299,12 @@ schemaPath
     const result = await this.importService.importSchemas(schemaFiles);
 
     if (!result.success) {
-      throw new Error(`Failed to install module schema: ${result.errors.map(e => { return e.error }).join('; ')}`);
+      throw new Error(
+        `Failed to install module schema: ${result.errors.map((errorItem: any): string => { return errorItem.error }).join('; ')}`
+      );
     }
 
-    // Scan for MCP content
-    if (this.mcpContentScanner) {
+    if (this.mcpContentScanner !== undefined) {
       const modulePath = dirname(dirname(schema.schemaPath));
       const moduleName = schema.module.replace('core/', '');
       await this.scanModuleMCPContent(moduleName, modulePath);
@@ -318,9 +315,10 @@ schemaPath
    * Scan a module for MCP content.
    * @param moduleName - Name of the module.
    * @param modulePath - Path to the module directory.
+   * @returns Promise that resolves when scan is complete.
    */
-  async scanModuleMCPContent(moduleName: string, modulePath: string): Promise<void> {
-    if (!this.mcpContentScanner) {
+  public async scanModuleMCPContent(moduleName: string, modulePath: string): Promise<void> {
+    if (this.mcpContentScanner === undefined) {
       this.logger?.warn('MCP content scanner not available');
       return;
     }
@@ -330,9 +328,9 @@ schemaPath
       this.logger?.info('MCP content scan completed', { module: moduleName });
     } catch (error) {
       this.logger?.error('Failed to scan MCP content', {
- module: moduleName,
-error
-});
+        module: moduleName,
+        error
+      });
       throw error;
     }
   }
@@ -340,9 +338,10 @@ error
   /**
    * Remove MCP content for a module (when uninstalling).
    * @param moduleName - Name of the module.
+   * @returns Promise that resolves when removal is complete.
    */
-  async removeModuleMCPContent(moduleName: string): Promise<void> {
-    if (!this.mcpContentScanner) {
+  public async removeModuleMCPContent(moduleName: string): Promise<void> {
+    if (this.mcpContentScanner === undefined) {
       this.logger?.warn('MCP content scanner not available');
       return;
     }
@@ -352,9 +351,9 @@ error
       this.logger?.info('MCP content removed', { module: moduleName });
     } catch (error) {
       this.logger?.error('Failed to remove MCP content', {
- module: moduleName,
-error
-});
+        module: moduleName,
+        error
+      });
       throw error;
     }
   }

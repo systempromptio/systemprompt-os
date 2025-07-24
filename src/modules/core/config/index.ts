@@ -32,19 +32,21 @@ export class ConfigModule {
     }
 
     try {
-      this.configService = new ConfigService();
+      this.configService = ConfigService.getInstance();
       await this.configService.initialize();
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize config module: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to initialize config module: ${errorMessage}`);
     }
   }
 
   /**
    * Start the config module.
-   * @returns {Promise<void>} Promise that resolves when started.
+   * @returns {void} Returns when started.
+   * @throws {Error} If module not initialized or already started.
    */
-  async start(): Promise<void> {
+  start(): void {
     if (!this.initialized) {
       throw new Error('Config module not initialized');
     }
@@ -59,9 +61,9 @@ export class ConfigModule {
 
   /**
    * Stop the config module.
-   * @returns {Promise<void>} Promise that resolves when stopped.
+   * @returns {void} Returns when stopped.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     if (this.started) {
       this.started = false;
       this.status = 'stopped';
@@ -70,12 +72,12 @@ export class ConfigModule {
 
   /**
    * Perform health check on the config module.
-   * @returns {Promise<{ healthy: boolean; message?: string }>} Health check result.
+   * @returns {{ healthy: boolean; message?: string }} Health check result.
    */
-  async healthCheck(): Promise<{
+  healthCheck(): {
     healthy: boolean;
     message?: string;
-  }> {
+  } {
     if (!this.initialized) {
       return {
         healthy: false,
@@ -100,7 +102,7 @@ export class ConfigModule {
    * @throws {Error} If module not initialized.
    */
   getService(): IConfigService {
-    if (!this.configService) {
+    if (this.configService === undefined) {
       throw new Error('Config module not initialized');
     }
     return this.configService;
@@ -115,12 +117,23 @@ export const createModule = (): ConfigModule => {
   return new ConfigModule();
 };
 
+let moduleInstance: ConfigModule | undefined;
+
 /**
- * Initialize function for core module pattern.
- * @returns {Promise<ConfigModule>} Initialized config module.
+ * Get singleton instance.
+ * @returns {ConfigModule} Module instance.
+ */
+export const getInstance = (): ConfigModule => {
+  moduleInstance ??= new ConfigModule();
+  return moduleInstance;
+};
+
+/**
+ * Initialize module with singleton pattern.
+ * @returns {Promise<ConfigModule>} Initialized module.
  */
 export const initialize = async (): Promise<ConfigModule> => {
-  const configModule = new ConfigModule();
+  const configModule = getInstance();
   await configModule.initialize();
   return configModule;
 };

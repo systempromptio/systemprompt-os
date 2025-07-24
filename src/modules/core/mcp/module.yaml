@@ -1,0 +1,48 @@
+name: mcp
+type: service
+version: 1.0.0
+description: Model Context Protocol integration for managing AI model contexts and interactions
+author: SystemPrompt OS
+dependencies:
+  - logger
+  - database
+  - executors
+enabled: true
+singleton: true
+
+cli:
+  commands:
+    - name: mcp:list
+      description: List all configured MCP contexts
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
+    - name: mcp:create
+      description: Create a new MCP context
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Context name
+          required: true
+        - name: model
+          alias: m
+          type: string
+          description: Model identifier
+          required: true
+    - name: mcp:delete
+      description: Delete an MCP context
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: Context ID
+          required: true
+
+exports:
+  - services
+  - types

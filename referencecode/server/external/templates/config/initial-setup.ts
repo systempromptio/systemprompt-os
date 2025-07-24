@@ -73,16 +73,16 @@ function renderProviderButton(provider: IdentityProvider): string {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  
+
   const baseUrl = process.env['BASE_URL'] || 'http://localhost:3000';
   const authUrl = `${baseUrl}/oauth2/authorize?${  new URLSearchParams({
     response_type: 'code',
     client_id: 'systemprompt-os',
     redirect_uri: baseUrl,
     scope: 'openid profile email',
-    provider: providerName
+    provider: providerName,
   }).toString()}`;
-  
+
   return `
     <a href="${authUrl}" class="provider-button">
       <span class="provider-icon">${icon}</span>

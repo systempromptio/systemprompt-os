@@ -1,6 +1,7 @@
 /**
  * @file CLI service for command management and execution.
  * @module modules/core/cli/services/cli.service
+ * Service for managing CLI commands, executing commands, and generating help documentation.
  */
 
 import type {
@@ -10,21 +11,45 @@ import type {
   CommandMetadata,
 } from '@/modules/core/cli/types/index.js';
 import {
-  CLIInitializationError,
+  CliInitializationError,
   CommandNotFoundError,
   DocumentationGenerationError,
   OutputFormattingError,
 } from '@/modules/core/cli/utils/errors.js';
 import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
+
+interface IDatabaseCommand {
+  id: number;
+  commandPath: string;
+  commandName: string;
+  description: string;
+  module: string;
+  executorPath: string;
+  options: string;
+  aliases: string;
+  active: number;
+}
+
+interface IParsedDatabaseCommand {
+  id: number;
+  commandPath: string;
+  commandName: string;
+  description: string;
+  module: string;
+  executorPath: string;
+  options: CLIOption[];
+  aliases: string[];
+  active: number;
+}
 
 /**
  * Service for managing CLI commands and operations.
  */
-export class CLIService {
-  private static instance: CLIService;
+export class CliService {
+  private static instance: CliService;
   private logger: CLILogger | null = null;
   private database: DatabaseService | null = null;
   private initialized = false;
@@ -32,22 +57,34 @@ export class CLIService {
   /**
    * Private constructor to enforce singleton pattern.
    */
-  private constructor() {}
+  private constructor() {
+    /**
+     * Intentionally empty.
+     */
+  }
 
   /**
-   * Get the singleton instance of CLIService.
-   * @returns The CLIService instance.
+   * Get the singleton instance of CliService.
+   * @returns The CliService instance.
    */
-  public static getInstance(): CLIService {
-    CLIService.instance ||= new CLIService();
-    return CLIService.instance;
+  public static getInstance(): CliService {
+    CliService.instance ||= new CliService();
+    return CliService.instance;
+  }
+
+  /**
+   * Check if service is initialized.
+   * @returns Whether the service is initialized.
+   */
+  public isInitialized(): boolean {
+    return this.initialized;
   }
 
   /**
    * Initialize the CLI service.
    * @param logger - Logger instance.
    * @param database - Database service instance.
-   * @throws {CLIInitializationError} If initialization fails.
+   * @throws {CliInitializationError} If initialization fails.
    */
   public async initialize(logger: CLILogger, database: DatabaseService): Promise<void> {
     if (this.initialized) {
@@ -58,40 +95,32 @@ export class CLIService {
       this.logger = logger;
       this.database = database;
 
-      // Initialize database schema
       await this.initializeDatabase();
 
       this.initialized = true;
       this.logger.info('CLI service initialized');
     } catch (error) {
-      throw new CLIInitializationError(error as Error);
+      throw new CliInitializationError(error as Error);
     }
   }
 
   /**
    * Initialize CLI database tables.
+   * @throws {Error} If database is not initialized.
    */
   private async initializeDatabase(): Promise<void> {
-    if (!this.database) {
+    if (this.database === null || this.database === undefined) {
       throw new Error('Database not initialized');
     }
 
-    const __filename = import.meta.url.replace('file://', '');
-    const __dirname = join(__filename, '..');
-    const schemaPath = join(__dirname, '../../database/schema.sql');
+    const filename = import.meta.url.replace('file://', '');
+    const dirName = join(filename, '..');
+    const schemaPath = join(dirName, '../../database/schema.sql');
 
     if (existsSync(schemaPath)) {
       const schema = readFileSync(schemaPath, 'utf-8');
       await this.database.execute(schema);
     }
-  }
-
-  /**
-   * Check if service is initialized.
-   * @returns Whether the service is initialized.
-   */
-  public isInitialized(): boolean {
-    return this.initialized;
   }
 
   /**
@@ -106,11 +135,11 @@ export class CLIService {
     const commandMap = new Map<string, CLICommand>();
 
     for (const cmd of commands) {
-      commandMap.set(cmd.command_path, {
-        name: cmd.command_name,
+      commandMap.set(cmd.commandPath, {
+        name: cmd.commandName,
         description: cmd.description,
         options: cmd.options,
-        executorPath: cmd.executor_path,
+        executorPath: cmd.executorPath,
       });
     }
 
@@ -125,20 +154,24 @@ export class CLIService {
     const commands = await this.getAllCommands();
     const metadata: CommandMetadata[] = [];
 
-    commands.forEach((command, name) => {
+    commands.forEach((command, name): void => {
       const parts = name.split(':');
-      const module = parts.length > 1 ? parts[0] : 'core';
+      const moduleName = parts.length > 1 ? parts[0] : 'core';
       const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
       const meta: CommandMetadata = {
         name,
-        module: module || 'core',
+        module: moduleName ?? 'core',
         commandName,
-        description: command.description || 'No description available',
+        description: command.description ?? 'No description available',
         usage: `systemprompt ${name}`,
-        options: command.options || [],
-        ...command.positionals && { positionals: command.positionals },
+        options: command.options ?? [],
       };
+
+      if (command.positionals !== undefined) {
+        meta.positionals = command.positionals;
+      }
+
       metadata.push(meta);
     });
 
@@ -155,42 +188,42 @@ export class CLIService {
   public getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string {
     const command = commands.get(commandName);
 
-    if (!command) {
+    if (command === undefined) {
       throw new CommandNotFoundError(commandName);
     }
 
     let help = `\nCommand: ${commandName}\n`;
-    help += `Description: ${command.description || 'No description available'}\n`;
+    help += `Description: ${command.description ?? 'No description available'}\n`;
 
-    if (command.positionals && command.positionals.length > 0) {
+    if (command.positionals !== undefined && command.positionals.length > 0) {
       help += '\nPositional Arguments:\n';
-      command.positionals.forEach((pos) => {
-        const requiredText = pos.required ? ' [required]' : ' [optional]';
+      command.positionals.forEach((pos): void => {
+        const requiredText = pos.required === true ? ' [required]' : ' [optional]';
         help += `  ${pos.name}${requiredText}\n`;
         help += `    ${pos.description}\n`;
         if (pos.default !== undefined) {
-          help += `    Default: ${pos.default}\n`;
+          help += `    Default: ${String(pos.default)}\n`;
         }
       });
     }
 
-    if (command.options && command.options.length > 0) {
+    if (command.options !== undefined && command.options.length > 0) {
       help += '\nOptions:\n';
-      command.options.forEach((opt: CLIOption) => {
-        const aliasText = opt.alias ? `, -${opt.alias}` : '';
-        const defaultText = opt.default !== undefined ? ` (default: ${opt.default})` : '';
-        const requiredText = opt.required ? ' [required]' : '';
+      command.options.forEach((opt: CLIOption): void => {
+        const aliasText = opt.alias !== undefined ? `, -${opt.alias}` : '';
+        const defaultText = opt.default !== undefined ? ` (default: ${String(opt.default)})` : '';
+        const requiredText = opt.required === true ? ' [required]' : '';
         help += `  --${opt.name}${aliasText}\n`;
         help += `    ${opt.description}${defaultText}${requiredText}\n`;
-        if (opt.choices) {
+        if (opt.choices !== undefined) {
           help += `    Choices: ${opt.choices.join(', ')}\n`;
         }
       });
     }
 
-    if (command.examples && command.examples.length > 0) {
+    if (command.examples !== undefined && command.examples.length > 0) {
       help += '\nExamples:\n';
-      command.examples.forEach((example) => {
+      command.examples.forEach((example): void => {
         help += `  ${example}\n`;
       });
     }
@@ -205,70 +238,78 @@ export class CLIService {
    * @returns Formatted command list.
    * @throws {OutputFormattingError} If formatting fails.
    */
-  public formatCommands(commands: Map<string, CLICommand>, format: string = 'text'): string {
+  public formatCommands(commands: Map<string, CLICommand>, format = 'text'): string {
     try {
       if (format === 'json') {
         const metadata: CommandMetadata[] = [];
-        commands.forEach((command, name) => {
+        commands.forEach((command, name): void => {
           const parts = name.split(':');
-          const module = parts.length > 1 ? parts[0]! : 'core';
+          const module = parts.length > 1 ? parts[0] ?? 'core' : 'core';
           const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
           metadata.push({
             name,
             module,
             commandName,
-            description: command.description || 'No description available',
+            description: command.description ?? 'No description available',
             usage: `systemprompt ${name}`,
-            options: command.options || []
+            options: command.options ?? []
           });
         });
         return JSON.stringify(metadata, null, 2);
       }
 
-      // Group commands by module
       const modules = new Map<string, Array<{ name: string; description: string }>>();
 
-      commands.forEach((command, name) => {
+      commands.forEach((command, name): void => {
         const parts = name.split(':');
         const moduleName = parts.length > 1 ? parts[0] : 'core';
         const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
-        if (!modules.has(moduleName || '')) {
-          modules.set(moduleName!, []);
+        if (!modules.has(moduleName ?? '')) {
+          modules.set(moduleName ?? '', []);
         }
 
-        modules.get(moduleName || '')!.push({
-          name: commandName,
-          description: command.description || 'No description',
-        });
+        const moduleCommands = modules.get(moduleName ?? '');
+        if (moduleCommands !== undefined) {
+          moduleCommands.push({
+            name: commandName,
+            description: command.description ?? 'No description',
+          });
+        }
       });
 
       let output = '';
 
       if (format === 'table') {
-        output = 'Available Commands\n';
-        output += '==================\n\n';
-      }
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
+          { return a[0].localeCompare(b[0]) });
 
-      // Sort modules alphabetically
-      const sortedModules = Array.from(modules.entries()).sort((a, b) => { return a[0].localeCompare(b[0]) });
+        sortedModules.forEach(([moduleName, moduleCommands]): void => {
+          output += `\n${moduleName}:\n`;
+          output += `${'-'.repeat(moduleName.length + 1)}\n`;
 
-      sortedModules.forEach(([moduleName, moduleCommands]) => {
-        output += `\n${moduleName} commands:\n`;
-        output += `${'-'.repeat(moduleName.length + 10)}\n`;
+          const sortedCommands = moduleCommands.sort((a, b): number =>
+            { return a.name.localeCompare(b.name) });
 
-        // Sort commands within module
-        moduleCommands.sort((a, b) => { return a.name.localeCompare(b.name) });
-
-        moduleCommands.forEach((cmd) => {
-          if (format === 'table') {
-            output += `  ${moduleName}:${cmd.name.padEnd(20)} ${cmd.description}\n`;
-          } else {
-            output += `  ${cmd.name}\n    ${cmd.description}\n`;
-          }
+          sortedCommands.forEach((cmd): void => {
+            output += `  ${cmd.name.padEnd(25)} ${cmd.description}\n`;
+          });
         });
-      });
+      } else {
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
+          { return a[0].localeCompare(b[0]) });
+
+        sortedModules.forEach(([moduleName, moduleCommands]): void => {
+          output += `\n${moduleName}:\n`;
+          const sortedCommands = moduleCommands.sort((a, b): number =>
+            { return a.name.localeCompare(b.name) });
+
+          sortedCommands.forEach((cmd): void => {
+            output += `  ${moduleName}:${cmd.name} - ${cmd.description}\n`;
+          });
+        });
+      }
 
       return output;
     } catch (error) {
@@ -279,211 +320,177 @@ export class CLIService {
   /**
    * Generate documentation for all commands.
    * @param commands - Map of commands to document.
-   * @param format - Documentation format ('markdown', 'html', or 'json').
+   * @param format - Documentation format (markdown, html, etc.).
    * @returns Generated documentation.
-   * @throws {DocumentationGenerationError} If generation fails.
+   * @throws {DocumentationGenerationError} If documentation generation fails.
    */
-  public generateDocs(commands: Map<string, CLICommand>, format: string = 'markdown'): string {
+  public generateDocs(commands: Map<string, CLICommand>, format: string): string {
     try {
       if (format === 'markdown') {
         let doc = '# SystemPrompt OS CLI Commands\n\n';
-        doc += 'This document contains all available CLI commands for SystemPrompt OS.\n\n';
-        doc += '## Usage\n\n';
-        doc += '```bash\nsystemprompt <command> [options]\n```\n\n';
-        doc += '## Commands\n\n';
+        doc += `Generated on ${new Date().toISOString()}\n\n`;
+        doc += '## Table of Contents\n\n';
 
-        // Group by module
-        const modules = new Map<string, any[]>();
-        commands.forEach((command, name) => {
+        const modules = new Map<string, Array<{ name: string; command: CLICommand }>>();
+
+        commands.forEach((command, name): void => {
           const parts = name.split(':');
           const moduleName = parts.length > 1 ? parts[0] : 'core';
 
-          if (!modules.has(moduleName || '')) {
-            modules.set(moduleName!, []);
+          if (!modules.has(moduleName ?? '')) {
+            modules.set(moduleName ?? '', []);
           }
 
-          modules.get(moduleName || '')!.push({
+          const moduleCommands = modules.get(moduleName ?? '');
+          if (moduleCommands !== undefined) {
+            moduleCommands.push({
  name,
-...command
+command
 });
+          }
         });
 
-        // Sort and generate docs
-        Array.from(modules.entries())
-          .sort((a, b) => { return a[0].localeCompare(b[0]) })
-          .forEach(([moduleName, moduleCommands]) => {
-            doc += `### ${moduleName} module\n\n`;
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
+          { return a[0].localeCompare(b[0]) });
 
-            moduleCommands
-              .sort((a, b) => { return a.name.localeCompare(b.name) })
-              .forEach((cmd) => {
-                doc += `#### ${cmd.name}\n\n`;
-                doc += `${cmd.description || 'No description available'}\n\n`;
+        sortedModules.forEach(([moduleName]): void => {
+          doc += `- [${moduleName}](#${moduleName})\n`;
+        });
 
-                if (cmd.positionals && cmd.positionals.length > 0) {
-                  doc += '**Positional Arguments:**\n\n';
-                  cmd.positionals.forEach((pos: any) => {
-                    const requiredText = pos.required ? ' **[required]**' : '';
-                    const defaultText
-                      = pos.default !== undefined ? ` (default: ${pos.default})` : '';
-                    doc += `- \`${pos.name}\`: ${pos.description}${defaultText}${requiredText}\n`;
-                  });
-                  doc += '\n';
-                }
+        doc += '\n## Commands by Module\n\n';
 
-                if (cmd.options && cmd.options.length > 0) {
-                  doc += '**Options:**\n\n';
-                  cmd.options.forEach((opt: any) => {
-                    const aliasText = opt.alias ? `, -${opt.alias}` : '';
-                    const defaultText
-                      = opt.default !== undefined ? ` (default: ${opt.default})` : '';
-                    const requiredText = opt.required ? ' **[required]**' : '';
-                    doc += `- \`--${opt.name}${aliasText}\`: ${opt.description}${defaultText}${requiredText}\n`;
-                    if (opt.choices) {
-                      doc += `  - Choices: ${opt.choices.join(', ')}\n`;
-                    }
-                  });
-                  doc += '\n';
-                }
+        sortedModules.forEach(([moduleName, moduleCommands]): void => {
+          doc += `### ${moduleName}\n\n`;
 
-                if (cmd.examples && cmd.examples.length > 0) {
-                  doc += '**Examples:**\n\n';
-                  cmd.examples.forEach((example: string) => {
-                    doc += `\`\`\`bash\n${example}\n\`\`\`\n\n`;
-                  });
-                }
+          const sortedCommands = moduleCommands.sort((a, b): number =>
+            { return a.name.localeCompare(b.name) });
+
+          sortedCommands.forEach(({ name, command }): void => {
+            doc += `#### ${name}\n\n`;
+            doc += `${command.description ?? 'No description available'}\n\n`;
+            doc += `**Usage:** \`systemprompt ${name}\`\n\n`;
+
+            if (command.options !== undefined && command.options.length > 0) {
+              doc += '**Options:**\n\n';
+              command.options.forEach((opt): void => {
+                const aliasText = opt.alias !== undefined ? `, -${opt.alias}` : '';
+                const defaultText = opt.default !== undefined ? ` (default: ${String(opt.default)})` : '';
+                const requiredText = opt.required === true ? ' **[required]**' : '';
+                doc += `- \`--${opt.name}${aliasText}\`: ${opt.description}${defaultText}${requiredText}\n`;
               });
+              doc += '\n';
+            }
+
+            if (command.examples !== undefined && command.examples.length > 0) {
+              doc += '**Examples:**\n\n';
+              command.examples.forEach((example): void => {
+                doc += `\`\`\`bash\n${example}\n\`\`\`\n\n`;
+              });
+            }
           });
+        });
 
         return doc;
       }
 
-      // For other formats, return JSON for now
-      const metadata: CommandMetadata[] = [];
-      commands.forEach((command, name) => {
-        const parts = name.split(':');
-        const module = parts.length > 1 ? parts[0]! : 'core';
-        const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
-
-        metadata.push({
-          name,
-          module,
-          commandName,
-          description: command.description || 'No description available',
-          usage: `systemprompt ${name}`,
-          options: command.options || []
-        });
-      });
-      return JSON.stringify(metadata, null, 2);
+      throw new Error(`Unsupported documentation format: ${format}`);
     } catch (error) {
       throw new DocumentationGenerationError(format, error as Error);
     }
   }
 
   /**
-   * Ensure service is initialized.
-   * @throws {Error} If service is not initialized.
+   * Register a new command in the database.
+   * @param command - Command to register.
+   * @param moduleName - Name of the module registering the command.
+   * @param executorPath - Path to the command executor.
+   * @throws {Error} If database is not initialized.
    */
-  private ensureInitialized(): void {
-    if (!this.initialized) {
-      throw new Error('CLI service not initialized. Call initialize() first.');
-    }
-  }
-
-  /**
-   * Register commands from a module.
-   * @param moduleName - Name of the module.
-   * @param moduleYamlPath - Path to module.yaml file.
-   */
-  public async registerModuleCommands(moduleName: string, moduleYamlPath: string): Promise<void> {
-    if (!this.database) {
+  public async registerCommand(
+    command: CLICommand,
+    moduleName: string,
+    executorPath: string
+  ): Promise<void> {
+    if (this.database === null || this.database === undefined) {
       throw new Error('Database not initialized');
     }
 
-    try {
-      const content = readFileSync(moduleYamlPath, 'utf-8');
-      const manifest = parse(content);
+    const commandPath = `${moduleName}:${command.name ?? 'unknown'}`;
 
-      if (manifest.cli?.commands) {
-        for (const cmd of manifest.cli.commands) {
-          const commandPath = `${moduleName}:${cmd.name}`;
-          const executorPath = join(
-            process.cwd(),
-            'build/modules/core',
-            moduleName,
-            'cli',
-            `${cmd.name}.js`
-          );
-
-          await this.database.execute(
-            `INSERT OR REPLACE INTO cli_commands 
-             (module_name, command_name, command_path, description, executor_path, options, aliases, active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              moduleName,
-              cmd.name,
-              commandPath,
-              cmd.description || '',
-              executorPath,
-              JSON.stringify(cmd.options || []),
-              JSON.stringify(cmd.aliases || []),
-              1
-            ]
-          );
-        }
-
-        this.logger?.info(`Registered ${manifest.cli.commands.length} CLI commands for module '${moduleName}'`);
-      }
-    } catch (error) {
-      this.logger?.error(`Failed to register commands for module ${moduleName}:`, error);
-    }
+    await this.database.execute(
+      `INSERT OR REPLACE INTO cli_commands 
+       (command_path, command_name, description, module, executor_path, options, aliases, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        commandPath,
+        command.name ?? 'unknown',
+        command.description,
+        moduleName,
+        executorPath,
+        JSON.stringify(command.options ?? []),
+        JSON.stringify(command.aliases ?? []),
+        1
+      ]
+    );
   }
 
   /**
    * Get commands from database.
    * @returns Array of registered commands.
    */
-  public async getCommandsFromDatabase(): Promise<any[]> {
-    if (!this.database) {
+  public async getCommandsFromDatabase(): Promise<IParsedDatabaseCommand[]> {
+    if (this.database === null || this.database === undefined) {
       throw new Error('Database not initialized');
     }
 
-    const result = await this.database.query(
+    const result = await this.database.query<IDatabaseCommand>(
       `SELECT * FROM cli_commands WHERE active = 1 ORDER BY command_path`
     );
 
-    return result.map((row: any) => { return {
+    return result.map((row): IParsedDatabaseCommand => { return {
       ...row,
-      options: JSON.parse(row.options || '[]'),
-      aliases: JSON.parse(row.aliases || '[]')
+      options: JSON.parse(row.options ?? '[]') as CLIOption[],
+      aliases: JSON.parse(row.aliases ?? '[]') as string[]
     } });
   }
 
   /**
-   * Scan all modules and register their commands.
+   * Parse module.yaml file to extract CLI commands.
+   * @param yamlPath - Path to the module.yaml file.
+   * @returns Array of command metadata.
    */
-  public async scanAndRegisterAllCommands(): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  public parseModuleYaml(yamlPath: string): Array<{
+    name: string;
+    description: string;
+    executor: string;
+  }> {
+    if (!existsSync(yamlPath)) {
+      return [];
     }
 
-    // Get all enabled modules from database
-    const result = await this.database.query(
-      `SELECT name, path FROM modules WHERE enabled = 1`
-    );
+    const yamlContent = readFileSync(yamlPath, 'utf-8');
+    const moduleConfig = parse(yamlContent) as {
+      cli?: {
+        commands?: Array<{
+          name: string;
+          description: string;
+          executor: string;
+        }>;
+      };
+    };
 
-    for (const module of result) {
-      const mod = module as any;
-      // Module.yaml files are in source directory, not build directory
-      const sourcePath = mod.path.replace('/build/', '/src/').replace('.js', '');
-      const moduleDir = dirname(sourcePath);
-      const moduleYamlPath = join(moduleDir, 'module.yaml');
-      
-      if (existsSync(moduleYamlPath)) {
-        await this.registerModuleCommands(mod.name, moduleYamlPath);
-      } else {
-        this.logger?.debug(`No module.yaml found for ${mod.name} at ${moduleYamlPath}`);
-      }
+    return moduleConfig.cli?.commands ?? [];
+  }
+
+  /**
+   * Ensure the service is initialized.
+   * @throws {Error} If service is not initialized.
+   */
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error('CLI service not initialized');
     }
   }
 }
+
+export { CliService as CLIService };

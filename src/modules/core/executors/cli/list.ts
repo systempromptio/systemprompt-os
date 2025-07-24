@@ -1,12 +1,17 @@
-/** eslint-disable systemprompt-os/no-console-with-help */
-/** eslint-disable @typescript-eslint/no-magic-numbers */
-/** eslint-disable systemprompt-os/enforce-constants-imports */
+/* eslint-disable
+  systemprompt-os/no-console-with-help,
+  systemprompt-os/no-block-comments,
+  systemprompt-os/enforce-constants-imports
+*/
 /**
  * List executors CLI command - placeholder implementation.
  */
 
 import { Command } from 'commander';
 import { ExecutorService } from '@/modules/core/executors/services/executor.service.js';
+
+const NO_EXECUTORS = 0;
+const ERROR_EXIT_CODE = 1;
 
 /**
  * Creates a command for listing executors.
@@ -19,21 +24,21 @@ export const createListCommand = (): Command => {
       try {
         const service = ExecutorService.getInstance();
         await service.initialize();
-        
+
         const executors = await service.listExecutors();
-        
-        if (executors.length === 0) {
+
+        if (executors.length === NO_EXECUTORS) {
           console.log('No executors found.');
           return;
         }
-        
+
         console.log('Executors:');
         executors.forEach((executor): void => {
           console.log(`- ${executor.name} (${executor.type}): ${executor.status}`);
         });
       } catch (error) {
         console.error('Error listing executors:', error);
-        process.exit(1);
+        process.exit(ERROR_EXIT_CODE);
       }
     });
 };

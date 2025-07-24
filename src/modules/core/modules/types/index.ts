@@ -12,7 +12,7 @@ export interface IModule {
 
     status: ModuleStatus;
 
-    readonly exports?: Record<string, any>;
+    readonly exports?: Record<string, unknown>;
 
     setDependencies?(modules: Map<string, IModule>): void;
 
@@ -122,8 +122,8 @@ export interface ModuleInfo {
 
   // Optional module metadata
   dependencies?: string[];
-  config?: Record<string, any>;
-  metadata?: Record<string, any>;
+  config?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 
   // Optional status information
   lastError?: string;
@@ -144,7 +144,7 @@ export interface ModuleEvent {
 
   // Optional fields
   id?: number;
-  eventData?: Record<string, any>;
+  eventData?: Record<string, unknown>;
   createdAt?: Date;
 }
 
@@ -175,8 +175,8 @@ export interface ScannedModule {
 
   // Optional fields from manifest
   dependencies?: string[];
-  config?: Record<string, any>;
-  metadata?: Record<string, any>;
+  config?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -240,10 +240,10 @@ export interface ExtensionInfo {
   description?: string;
   author?: string;
   dependencies?: string[];
-  config?: Record<string, any>;
-  metadata?: Record<string, any>;
-  exports?: Record<string, any>;
-  cli?: Record<string, any>;
+  config?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  exports?: Record<string, unknown>;
+  cli?: Record<string, unknown>;
 }
 
 /**
@@ -253,8 +253,8 @@ export interface ExtensionConfig {
   // All fields optional as this is runtime config
   autoStart?: boolean;
   dependencies?: string[];
-  settings?: Record<string, any>;
-  [key: string]: any; // Allow dynamic config keys
+  settings?: Record<string, unknown>;
+  [key: string]: unknown; // Allow dynamic config keys
 }
 
 /**
@@ -270,7 +270,7 @@ export interface ModuleManifest {
   description?: string;
   author?: string;
   dependencies?: string[];
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   cli?: {
     commands?: CLICommand[];
   };
@@ -356,7 +356,7 @@ export interface MCPResource {
   size?: number;
   moduleName: string;
   filePath?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   lastSyncedAt?: Date;

@@ -1,0 +1,23 @@
+name: dev
+displayName: Development Tools
+description: Module providing development utilities and tools
+version: 1.0.0
+author: SystemPrompt OS Team
+category: core
+enabled: true
+
+dependencies:
+  - logger
+  - database
+
+commands:
+  - debug
+  - format
+  - lint
+  - profile
+  - repl
+  - test
+  - watch
+
+database:
+  schema: ./database/schema.sql

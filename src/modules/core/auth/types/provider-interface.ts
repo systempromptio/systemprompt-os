@@ -1,26 +1,38 @@
+const TWO = TWO;
+
 /**
- * @file Identity Provider Interface.
- * @module modules/core/auth/types/provider-interface
- * This file defines the interfaces for OAuth2/OIDC providers
- * Using standard OAuth2 types from RFC 6749
+ *
+ * IOAuth2TokenResponse interface.
+ *
  */
 
-// OAuth2 types embedded directly to avoid external dependencies
-export interface OAuth2TokenResponse {
-  access_token: string;
-  token_type: string;
+export interface IOAuth2TokenResponse {
+  accessToken: string;
+  tokenType: string;
   expires_in?: number;
   refresh_token?: string;
   scope?: string;
   id_token?: string; // For OpenID Connect
 }
 
-export interface OAuth2ClientCredentials {
-  client_id: string;
-  client_secret: string;
-  redirect_uri: string;
+/**
+ *
+ * IOAuth2ClientCredentials interface.
+ *
+ */
+
+export interface IOAuth2ClientCredentials {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
   scope?: string;
 }
+
+/**
+ *
+ * IDPUserInfo interface.
+ *
+ */
 
 export interface IDPUserInfo {
   id: string;
@@ -29,13 +41,26 @@ export interface IDPUserInfo {
   name?: string;
   picture?: string;
   locale?: string;
-  // Additional provider-specific fields
-  raw?: Record<string, any>;
+    raw?: Record<string, unknown>;
 }
 
-// Type aliases for backward compatibility
+/**
+ *
+ * IDPTokens type.
+ *
+ */
+
 export type IDPTokens = OAuth2TokenResponse;
+/**
+ * IDPConfig type.
+ */
 export type IDPConfig = OAuth2ClientCredentials;
+
+/**
+ *
+ * IdentityProvider interface.
+ *
+ */
 
 export interface IdentityProvider {
   id: string;
@@ -44,11 +69,11 @@ export interface IdentityProvider {
 
     getAuthorizationUrl(state: string, nonce?: string): string;
 
-    exchangeCodeForTokens(code: string): Promise<IDPTokens>;
+    exchangeCodeForTokens(_code: string): Promise<IDPTokens>;
 
-    getUserInfo(accessToken: string): Promise<IDPUserInfo>;
+    getUserInfo(_accessToken: string): Promise<IDPUserInfo>;
 
-    refreshTokens?(refreshToken: string): Promise<IDPTokens>;
+    refreshTokens?(_refreshToken: string): Promise<IDPTokens>;
 
-    revokeTokens?(token: string): Promise<void>;
+    revokeTokens?(_token: string): Promise<void>;
 }

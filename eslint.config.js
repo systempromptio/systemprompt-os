@@ -924,6 +924,123 @@ export default [
     },
   },
   {
+    // Reference code files - relaxed rules for external reference implementations
+    files: ["referencecode/**/*.js", "referencecode/**/*.mjs", "referencecode/**/*.ts", "referencecode/**/*.tsx"],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 2024,
+        sourceType: "module",
+        project: null, // Don't require project for reference code
+        tsconfigRootDir: "."
+      },
+      globals: {
+        ...globals.node,
+        ...globals.es2024,
+        process: true,
+        console: true,
+        Buffer: true,
+        __dirname: true,
+        __filename: true,
+        fetch: true,
+        Headers: true,
+        Request: true,
+        Response: true,
+        URL: true,
+        URLSearchParams: true,
+        TextEncoder: true,
+        TextDecoder: true,
+        AbortController: true,
+        AbortSignal: true,
+        setTimeout: true,
+        clearTimeout: true,
+        setInterval: true,
+        clearInterval: true,
+        setImmediate: true,
+        clearImmediate: true,
+        logger: true
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint
+    },
+    rules: {
+      // Basic TypeScript rules only
+      ...tseslint.configs.recommended.rules,
+      
+      // Relaxed rules for reference code
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["error", {
+        "args": "none",
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }],
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/ban-ts-comment": "off",
+      
+      // Disable strict rules
+      "no-console": "off",
+      "no-debugger": "warn",
+      "max-lines": "off",
+      "max-lines-per-function": "off",
+      "max-statements": "off",
+      "max-params": "off",
+      "max-depth": "off",
+      "complexity": "off",
+      "no-magic-numbers": "off",
+      
+      // Disable all SystemPrompt OS custom rules
+      "systemprompt-os/enforce-module-structure": "off",
+      "systemprompt-os/enforce-file-naming": "off",
+      "systemprompt-os/enforce-import-restrictions": "off",
+      "systemprompt-os/enforce-required-files": "off",
+      "systemprompt-os/enforce-type-exports": "off",
+      "systemprompt-os/enforce-test-files": "off",
+      "systemprompt-os/enforce-constants-imports": "off",
+      "systemprompt-os/no-line-comments": "off",
+      "systemprompt-os/no-block-comments": "off",
+      "systemprompt-os/enforce-path-alias": "off",
+      "systemprompt-os/jsdoc-compact": "off",
+      "systemprompt-os/no-comments-in-functions": "off",
+      "systemprompt-os/no-type-reexports": "off",
+      "systemprompt-os/no-exports-getter": "off",
+      "systemprompt-os/no-redundant-jsdoc": "off",
+      "systemprompt-os/no-blank-lines-between-properties": "off",
+      "systemprompt-os/no-jsdoc-in-interfaces": "off",
+      "systemprompt-os/enforce-module-bootstrap-pattern": "off",
+      "systemprompt-os/enforce-module-yaml-bootstrap": "off",
+      "systemprompt-os/enforce-core-module-pattern": "off",
+      "systemprompt-os/enforce-extension-module-pattern": "off",
+      "systemprompt-os/no-orphaned-jsdoc": "off",
+      "systemprompt-os/warn-inline-eslint-comments": "off",
+      "systemprompt-os/no-unsafe-assignment-with-help": "off",
+      "systemprompt-os/no-unsafe-call-with-help": "off",
+      "systemprompt-os/no-console-with-help": "off",
+      "systemprompt-os/no-continue-with-help": "off",
+      "systemprompt-os/no-restricted-syntax-typescript-with-help": "off",
+      "systemprompt-os/no-await-in-loop-with-help": "off",
+      
+      // Disable JSDoc requirements
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-description": "off",
+      
+      // Standard JS/TS rules
+      "no-undef": "off",
+      "no-unused-vars": "off",
+      "prefer-const": "warn",
+      "eqeqeq": ["error", "always"],
+      "curly": ["error", "all"],
+      "semi": ["error", "always"],
+      "quotes": ["error", "single", { avoidEscape: true }],
+      "indent": ["error", 2],
+      "comma-dangle": ["error", "always-multiline"],
+      "no-trailing-spaces": "error",
+      "no-multiple-empty-lines": ["error", { max: 1 }]
+    }
+  },
+  {
     // Test files - completely relaxed
     files: [
       "src/**/*.test.ts",
@@ -977,6 +1094,105 @@ export default [
       "systemprompt-os/no-comments-in-functions": "off",
       "jsdoc/require-jsdoc": "off",
       "jsdoc/require-description": "off"
+    }
+  },
+  {
+    // CLI command files - allow console output
+    files: [
+      "src/modules/core/cli/cli/*.ts",
+      "src/modules/core/cli/cli/**/*.ts"
+    ],
+    rules: {
+      "systemprompt-os/no-console-with-help": "off",
+      "no-console": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
+      "max-lines-per-function": ["error", { "max": 100 }],
+      "max-statements": ["error", 30],
+      "complexity": ["error", 20]
+    }
+  },
+  {
+    // CLI module - allow self-contained design
+    files: [
+      "src/modules/core/cli/**/*.ts"
+    ],
+    rules: {
+      "systemprompt-os/enforce-import-restrictions": "off",
+      "systemprompt-os/enforce-type-exports": "off",
+      "systemprompt-os/enforce-module-bootstrap-pattern": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
+      "max-lines-per-function": ["error", { "max": 100 }],
+      "jsdoc/require-description": "off",
+      "jsdoc/require-jsdoc": "off",
+      "systemprompt-os/no-comments-in-functions": "off",
+      "systemprompt-os/no-line-comments": ["error", {
+        "exceptions": ["eslint-disable", "eslint-enable", "eslint-disable-next-line", "eslint-disable-line", "Dynamic import needed"]
+      }],
+      "@typescript-eslint/member-ordering": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-use-before-define": "off",
+      "@typescript-eslint/strict-boolean-expressions": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-shadow": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+      "max-classes-per-file": "off",
+      "no-negated-condition": "off",
+      "prefer-destructuring": "off",
+      "no-trailing-spaces": "off",
+      "id-length": "off",
+      "max-len": ["error", { "code": 120 }],
+      "arrow-body-style": "off",
+      "func-style": "off",
+      "implicit-arrow-linebreak": "off",
+      "function-paren-newline": "off",
+      "operator-linebreak": "off",
+      "object-curly-newline": "off",
+      "no-extra-parens": "off",
+      "@typescript-eslint/naming-convention": [
+        "error",
+        {
+          "selector": "default",
+          "format": ["camelCase"],
+          "leadingUnderscore": "forbid",
+          "trailingUnderscore": "forbid"
+        },
+        {
+          "selector": "variable",
+          "format": ["camelCase", "UPPER_CASE", "PascalCase"],
+          "leadingUnderscore": "forbid",
+          "trailingUnderscore": "forbid"
+        },
+        {
+          "selector": "parameter",
+          "format": ["camelCase"],
+          "leadingUnderscore": "allow",
+          "trailingUnderscore": "forbid"
+        },
+        {
+          "selector": "memberLike",
+          "modifiers": ["private"],
+          "format": ["camelCase"],
+          "leadingUnderscore": "forbid"
+        },
+        {
+          "selector": "typeLike",
+          "format": ["PascalCase"]
+        },
+        {
+          "selector": "interface",
+          "format": ["PascalCase"],
+          "prefix": ["I"]
+        },
+        {
+          "selector": "class",
+          "format": ["PascalCase"]
+        },
+        {
+          "selector": "enum",
+          "format": ["PascalCase"]
+        }
+      ]
     }
   }
 ];

@@ -1,27 +1,31 @@
 /**
- * @file Provider management CLI commands.
+ *  *  * @file Provider management CLI commands.
  * @module modules/core/auth/cli/providers
  */
 
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import {
+ ONE, TWO, ZERO
+} from '@/modules/core/auth/constants';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
-// Local interface definition
-export interface CLIContext {
-  cwd: string;
-  args: Record<string, any>;
-  options?: Record<string, any>;
-}
+const TWO = TWO;
+
+/**
+ *  *  * CLIContext interface.
+ */
+export
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',
   subcommands: {
     list: {
-      execute: async (_context: CLIContext): Promise<void> => {
+      execute: async (context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
           const providers = authModule.exports.getAllProviders();
 
-          if (providers.length === 0) {
+          if (providers.length === ZERO) {
             console.log('No OAuth2/OIDC providers are currently configured.');
             console.log('\nTo enable providers, set the following environment variables:');
             console.log('  - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google');
@@ -41,13 +45,13 @@ export const command = {
           }
         } catch (error) {
           console.error('Error listing providers:', error);
-          process.exit(1);
+          process.exit(ONE);
         }
       },
     },
 
     reload: {
-      execute: async (_context: CLIContext): Promise<void> => {
+      execute: async (context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
 
@@ -57,7 +61,7 @@ export const command = {
           const providers = authModule.exports.getAllProviders();
           console.log(`✓ Reloaded successfully. ${providers.length} provider(s) available.`);
 
-          if (providers.length > 0) {
+          if (providers.length > ZERO) {
             console.log('\nActive providers:');
             for (const provider of providers) {
               console.log(`  - ${provider.id} (${provider.name})`);
@@ -65,7 +69,7 @@ export const command = {
           }
         } catch (error) {
           console.error('Error reloading providers:', error);
-          process.exit(1);
+          process.exit(ONE);
         }
       },
     },

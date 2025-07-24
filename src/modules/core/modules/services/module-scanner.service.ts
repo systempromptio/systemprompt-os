@@ -24,11 +24,37 @@ import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-p
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 
 /**
+ * Database row type for modules table.
+ */
+interface DatabaseModuleRow {
+  id: number;
+  name: string;
+  version: string;
+  type: string;
+  path: string;
+  enabled: number;
+  auto_start: number;
+  dependencies: string;
+  config: string;
+  status: string;
+  lasterror: string | null;
+  discovered_at?: string;
+  last_started_at?: string;
+  last_stopped_at?: string;
+  health_status: string;
+  health_message: string | null;
+  last_health_check?: string;
+  metadata: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Service for scanning and discovering available modules.
  */
 export class ModuleScannerService implements IModuleScannerService {
   private readonly logger: ILogger | undefined;
-  private db: any;
+  private db: Awaited<ReturnType<typeof createModuleAdapter>>;
   private readonly defaultPaths = ['src/modules/core', 'src/modules/custom', 'extensions/modules'];
 
   constructor(logger?: ILogger) {
@@ -45,10 +71,9 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Set the module manager service for validation.
-   * @param _service
+   * @param _service - The module manager service instance.
    */
-  setModuleManagerService(_service: any): void {
-    // Currently not used, kept for API compatibility
+  setModuleManagerService(_service: unknown): void {
   }
 
   /**
@@ -64,10 +89,10 @@ export class ModuleScannerService implements IModuleScannerService {
       this.logger?.debug('Module database schema initialized');
     }
 
-    // Also apply migrations for CLI commands
     const migrationsPath = join(__dirname, '../database/migrations');
     if (existsSync(migrationsPath)) {
-      const migrations = readdirSync(migrationsPath).filter(f => { return f.endsWith('.sql') && !f.includes('rollback') });
+      const migrations = readdirSync(migrationsPath)
+        .filter((f) => f.endsWith('.sql') && !f.includes('rollback'));
       for (const migration of migrations.sort()) {
         const migrationPath = join(migrationsPath, migration);
         const migrationSql = readFileSync(migrationPath, 'utf-8');
@@ -79,7 +104,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Scan for available modules.
-   * @param options
+   * @param options - Options for scanning modules.
    */
   async scan(options: ModuleScanOptions = {}): Promise<ScannedModule[]> {
     const paths = options.paths || this.defaultPaths;
@@ -96,7 +121,6 @@ export class ModuleScannerService implements IModuleScannerService {
       modules.push(...scannedModules);
     }
 
-    // Store discovered modules in database
     await this.storeModules(modules);
 
     return modules;
@@ -104,8 +128,8 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Scan a directory for modules.
-   * @param dirPath
-   * @param options
+   * @param dirPath - The directory path to scan.
+   * @param options - Options for scanning modules.
    */
   private async scanDirectory(
     dirPath: string,
@@ -124,7 +148,6 @@ export class ModuleScannerService implements IModuleScannerService {
           continue;
         }
 
-        // Check if this is a module directory (has module.yaml)
         const moduleYamlPath = join(fullPath, 'module.yaml');
         if (existsSync(moduleYamlPath)) {
           const module = await this.loadModuleInfo(fullPath);
@@ -133,7 +156,6 @@ export class ModuleScannerService implements IModuleScannerService {
             this.logger?.debug(`Discovered module: ${module.name} at ${fullPath}`);
           }
         } else if (options.deep) {
-          // Recursively scan subdirectories
           const subModules = await this.scanDirectory(fullPath, options);
           modules.push(...subModules);
         }
@@ -147,7 +169,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Load module information from a directory.
-   * @param modulePath
+   * @param modulePath - The path to the module directory.
    */
   private async loadModuleInfo(modulePath: string): Promise<ScannedModule | null> {
     try {
@@ -162,13 +184,11 @@ export class ModuleScannerService implements IModuleScannerService {
 
       const {manifest} = parseResult;
 
-      // Basic validation of manifest
       if (!manifest.name || !manifest.version) {
         this.logger?.error(`Module at ${modulePath} has invalid manifest: missing name or version`);
         return null;
       }
 
-      // Check if index file exists
       const indexPath = join(modulePath, 'index.ts');
       const indexJsPath = join(modulePath, 'index.js');
 
@@ -177,7 +197,6 @@ export class ModuleScannerService implements IModuleScannerService {
         return null;
       }
 
-      // Determine module type - if it's in /core/ directory, force it to be CORE type
       let moduleType: ModuleType | null;
       if (modulePath.includes('/modules/core/')) {
         moduleType = ModuleType.CORE;
@@ -211,7 +230,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Parse module type string to enum.
-   * @param type
+   * @param type - The module type string.
    */
   private parseModuleType(type: string): ModuleType | null {
     const typeMap: Record<string, ModuleType> = {
@@ -227,7 +246,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
   /**
    * Store discovered modules in database.
-   * @param modules
+   * @param modules - Array of scanned modules to store.
    */
   private async storeModules(modules: ScannedModule[]): Promise<void> {
     const stmt = this.db.prepare(`
@@ -244,7 +263,6 @@ export class ModuleScannerService implements IModuleScannerService {
 
     for (const module of modules) {
       try {
-        // Validate types match database constraints
         if (!Object.values(ModuleType).includes(module.type)) {
           this.logger?.error(`Invalid module type for ${module.name}: ${module.type}`);
           continue;
@@ -255,8 +273,8 @@ export class ModuleScannerService implements IModuleScannerService {
           module.version,
           module.type,
           module.path,
-          1, // Enabled by default
-          0, // Don't auto-start by default
+          1,
+          0,
           JSON.stringify(module.dependencies || []),
           JSON.stringify(module.config || {}),
           ModuleStatus.INSTALLED,
@@ -282,32 +300,32 @@ path: module.path
    * Get all registered modules from database.
    */
   async getRegisteredModules(): Promise<ModuleInfo[]> {
-    const rows = this.db.prepare('SELECT * FROM modules').all();
-    return rows.map((row: any) => { return this.mapRowToModuleInfo(row) });
+    const rows = this.db.prepare('SELECT * FROM modules').all() as DatabaseModuleRow[];
+    return rows.map(row => { return this.mapRowToModuleInfo(row) });
   }
 
   /**
    * Get enabled modules.
    */
   async getEnabledModules(): Promise<ModuleInfo[]> {
-    const rows = this.db.prepare('SELECT * FROM modules WHERE enabled = 1').all();
-    return rows.map((row: any) => { return this.mapRowToModuleInfo(row) });
+    const rows = this.db.prepare('SELECT * FROM modules WHERE enabled = 1').all() as DatabaseModuleRow[];
+    return rows.map(row => { return this.mapRowToModuleInfo(row) });
   }
 
   /**
    * Get module by name.
-   * @param name
+   * @param name - The name of the module.
    */
   async getModule(name: string): Promise<ModuleInfo | undefined> {
-    const row = this.db.prepare('SELECT * FROM modules WHERE name = ?').get(name);
+    const row = this.db.prepare('SELECT * FROM modules WHERE name = ?').get(name) as DatabaseModuleRow | undefined;
     return row ? this.mapRowToModuleInfo(row) : undefined;
   }
 
   /**
    * Map database row to ModuleInfo.
-   * @param row
+   * @param row - The database row.
    */
-  private mapRowToModuleInfo(row: any): ModuleInfo {
+  private mapRowToModuleInfo(row: DatabaseModuleRow): ModuleInfo {
     return {
       id: row.id,
       name: row.name,
@@ -320,12 +338,12 @@ path: module.path
       config: row.config ? JSON.parse(row.config) : {},
       status: row.status as ModuleStatus,
       lastError: row.lasterror,
-      ...row.discovered_at && { discoveredAt: new Date(row.discovered_at) },
-      ...row.last_started_at && { lastStartedAt: new Date(row.last_started_at) },
-      ...row.last_stopped_at && { lastStoppedAt: new Date(row.last_stopped_at) },
+      ...row.discovered_at ? { discoveredAt: new Date(row.discovered_at) } : {},
+      ...row.last_started_at ? { lastStartedAt: new Date(row.last_started_at) } : {},
+      ...row.last_stopped_at ? { lastStoppedAt: new Date(row.last_stopped_at) } : {},
       healthStatus: (row.health_status as ModuleHealthStatus) || ModuleHealthStatus.UNKNOWN,
       healthMessage: row.health_message,
-      ...row.last_health_check && { lastHealthCheck: new Date(row.last_health_check) },
+      ...row.last_health_check ? { lastHealthCheck: new Date(row.last_health_check) } : {},
       metadata: row.metadata ? JSON.parse(row.metadata) : {},
       createdAt: new Date(row.created_at || Date.now()),
       updatedAt: new Date(row.updated_at || Date.now()),
@@ -334,9 +352,9 @@ path: module.path
 
   /**
    * Update module status.
-   * @param name
-   * @param status
-   * @param error
+   * @param name - The module name.
+   * @param status - The new status.
+   * @param error - Optional error message.
    */
   async updateModuleStatus(name: string, status: ModuleStatus, error?: string): Promise<void> {
     const stmt = this.db.prepare(`
@@ -347,7 +365,6 @@ path: module.path
 
     stmt.run(status, error || null, name);
 
-    // Record event based on status
     const eventType = this.mapStatusToEventType(status);
     if (eventType) {
       const eventStmt = this.db.prepare(`
@@ -364,7 +381,7 @@ error
 
   /**
    * Map module status to event type.
-   * @param status
+   * @param status - The module status.
    */
   private mapStatusToEventType(status: ModuleStatus): ModuleEventType | null {
     switch (status) {
@@ -382,14 +399,13 @@ error
 
   /**
    * Enable or disable a module.
-   * @param name
-   * @param enabled
+   * @param name - The module name.
+   * @param enabled - Whether to enable or disable.
    */
   async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
     const stmt = this.db.prepare('UPDATE modules SET enabled = ? WHERE name = ?');
     stmt.run(enabled ? 1 : 0, name);
 
-    // Record config change event
     const eventStmt = this.db.prepare(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
@@ -400,9 +416,9 @@ error
 
   /**
    * Update module health status.
-   * @param name
-   * @param healthy
-   * @param message
+   * @param name - The module name.
+   * @param healthy - Whether the module is healthy.
+   * @param message - Optional health message.
    */
   async updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void> {
     const healthStatus = healthy ? ModuleHealthStatus.HEALTHY : ModuleHealthStatus.UNHEALTHY;
@@ -414,7 +430,6 @@ error
 
     stmt.run(healthStatus, message || null, name);
 
-    // Record health check event
     const eventStmt = this.db.prepare(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)

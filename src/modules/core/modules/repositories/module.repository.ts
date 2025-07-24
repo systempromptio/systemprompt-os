@@ -1,5 +1,7 @@
 /**
- * @file Module repository for managing module metadata.
+ * Module repository for managing module metadata.
+ * Repository class for managing extension module metadata storage.
+ * @file Module repository.
  * @module modules/core/modules/repositories/module.repository
  */
 
@@ -13,10 +15,10 @@ export class ModuleRepository {
 
   /**
    * Save module information.
-   * @param module - Module information to save.
+   * @param moduleInfo - Module information to save.
    */
-  save(module: ExtensionInfo): void {
-    this.modules.set(module.name, module);
+  save(moduleInfo: ExtensionInfo): void {
+    this.modules.set(moduleInfo.name, moduleInfo);
   }
 
   /**
@@ -42,7 +44,9 @@ export class ModuleRepository {
    * @returns Array of modules matching the type.
    */
   findByType(type: ExtensionType): ExtensionInfo[] {
-    return Array.from(this.modules.values()).filter((module) => { return module.type === type });
+    return Array.from(this.modules.values()).filter(
+      (moduleInfo): boolean => moduleInfo.type === type,
+    );
   }
 
   /**
@@ -84,7 +88,9 @@ export class ModuleRepository {
    * @returns Array of matching modules.
    */
   findByPattern(pattern: RegExp): ExtensionInfo[] {
-    return Array.from(this.modules.values()).filter((module) => { return pattern.test(module.name) });
+    return Array.from(this.modules.values()).filter(
+      (moduleInfo): boolean => pattern.test(moduleInfo.name),
+    );
   }
 
   /**
@@ -93,7 +99,9 @@ export class ModuleRepository {
    * @returns Array of modules by the author.
    */
   findByAuthor(author: string): ExtensionInfo[] {
-    return Array.from(this.modules.values()).filter((module) => { return module.author === author });
+    return Array.from(this.modules.values()).filter(
+      (moduleInfo): boolean => moduleInfo.author === author,
+    );
   }
 
   /**
@@ -103,7 +111,7 @@ export class ModuleRepository {
    */
   findByDependency(dependency: string): ExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
-      (module) => { return module.dependencies?.includes(dependency) ?? false },
+      (moduleInfo): boolean => moduleInfo.dependencies?.includes(dependency) ?? false,
     );
   }
 
@@ -111,24 +119,32 @@ export class ModuleRepository {
    * Export all modules as JSON.
    * @returns JSON string of all modules.
    */
-  toJSON(): string {
-    const modulesArray = Array.from(this.modules.entries()).map(([, info]) => { return {
-      ...info,
-    } });
-    return JSON.stringify(modulesArray, null, 2);
+  toJsonString(): string {
+    const modulesArray = Array.from(this.modules.entries()).map(
+      ([, info]): ExtensionInfo => ({ ...info }),
+    );
+    const jsonIndent = 2;
+    return JSON.stringify(modulesArray, null, jsonIndent);
   }
 
   /**
    * Import modules from JSON.
    * @param json - JSON string of modules.
+   * @throws {Error} If JSON parsing fails.
    */
-  fromJSON(json: string): void {
+  fromJsonString(json: string): void {
     try {
-      const modulesArray = JSON.parse(json) as ExtensionInfo[];
+      const parsedData = JSON.parse(json);
+      if (!Array.isArray(parsedData)) {
+        throw new Error('Expected an array of modules');
+      }
+      const modulesArray = parsedData as ExtensionInfo[];
       this.clear();
-      modulesArray.forEach((module) => { this.save(module); });
+      modulesArray.forEach((moduleData): void => {
+        this.save(moduleData);
+      });
     } catch (error) {
-      throw new Error(`Failed to import modules from JSON: ${error}`);
+      throw new Error(`Failed to import modules from JSON: ${String(error)}`);
     }
   }
 }

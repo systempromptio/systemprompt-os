@@ -1,180 +1,85 @@
 /**
- * SQLite adapter implementation
+ * SQLite adapter implementation.
  * Provides database operations using better-sqlite3.
+ * @file SQLite adapter implementation.
+ * @module database/adapters/sqlite.adapter
  */
 
-import Database from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import type {
-  DatabaseAdapter,
-  DatabaseConfig,
-  DatabaseConnection,
-  PreparedStatement,
-  QueryResult,
-  Transaction,
-} from '@/modules/core/database/types/index.js';
-import { ConnectionError } from '@/modules/core/database/utils/errors.js';
+  IDatabaseAdapter,
+  IDatabaseConfig,
+  IDatabaseConnection,
+} from '@/modules/core/database/types/database.types.js';
+import { ConnectionError } from '@/modules/core/database/errors/connection.error.js';
+import {
+  BUSY_TIMEOUT_MS,
+  CACHE_SIZE_PAGES,
+} from '@/modules/core/database/constants/index.js';
+import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
 
-class SQLitePreparedStatement implements PreparedStatement {
-  constructor(private readonly stmt: Database.Statement) {}
+/**
+ * SQLite database adapter.
+ */
+export class SqliteAdapter implements IDatabaseAdapter {
+  private db: BetterSqlite3.Database | null = null;
 
-  async execute(params?: unknown[]): Promise<QueryResult> {
-    const rows = this.stmt.all(...params || []);
-    return {
-      rows,
-      rowCount: rows.length,
-    };
-  }
-
-  async all<T = unknown>(params?: unknown[]): Promise<T[]> {
-    return this.stmt.all(...params || []) as T[];
-  }
-
-  async get<T = unknown>(params?: unknown[]): Promise<T | undefined> {
-    return this.stmt.get(...params || []) as T | undefined;
-  }
-
-  async run(params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | string }> {
-    const result = this.stmt.run(...params || []);
-    return {
-      changes: result.changes,
-      lastInsertRowid: result.lastInsertRowid as number,
-    };
-  }
-
-  async finalize(): Promise<void> {
-    // SQLite statements don't need explicit finalization in better-sqlite3
-  }
-}
-
-class SQLiteTransaction implements Transaction {
-  constructor(private readonly db: Database.Database) {}
-
-  async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
-    const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...params || []);
-    return {
-      rows: rows as T[],
-      rowCount: rows.length,
-    };
-  }
-
-  async execute(sql: string, params?: unknown[]): Promise<void> {
-    if (params && params.length > 0) {
-      const stmt = this.db.prepare(sql);
-      stmt.run(...params);
-    } else {
-      this.db.exec(sql);
-    }
-  }
-
-  async prepare(sql: string): Promise<PreparedStatement> {
-    return new SQLitePreparedStatement(this.db.prepare(sql));
-  }
-
-  async commit(): Promise<void> {
-    this.db.exec('COMMIT');
-  }
-
-  async rollback(): Promise<void> {
-    this.db.exec('ROLLBACK');
-  }
-}
-
-class SQLiteConnection implements DatabaseConnection {
-  constructor(private readonly db: Database.Database) {}
-
-  async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
-    const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...params || []);
-    return {
-      rows: rows as T[],
-      rowCount: rows.length,
-    };
-  }
-
-  async execute(sql: string, params?: unknown[]): Promise<void> {
-    if (params && params.length > 0) {
-      const stmt = this.db.prepare(sql);
-      stmt.run(...params);
-    } else {
-      this.db.exec(sql);
-    }
-  }
-
-  async prepare(sql: string): Promise<PreparedStatement> {
-    return new SQLitePreparedStatement(this.db.prepare(sql));
-  }
-
-  async transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T> {
-    this.db.exec('BEGIN');
-    const tx = new SQLiteTransaction(this.db);
-
-    try {
-      const result = await callback(tx);
-      await tx.commit();
-      return result;
-    } catch (error) {
-      await tx.rollback();
-      throw error;
-    }
-  }
-
-  async close(): Promise<void> {
-    this.db.close();
-  }
-}
-
-export class SQLiteAdapter implements DatabaseAdapter {
-  private db: Database.Database | null = null;
-
-  async connect(config: DatabaseConfig): Promise<DatabaseConnection> {
-    if (!config.sqlite) {
+  /**
+   * Connect to a SQLite database.
+   * @param config - Database configuration.
+   * @returns Database connection instance.
+   */
+  public async connect(config: IDatabaseConfig): Promise<IDatabaseConnection> {
+    if (config.sqlite === undefined) {
       throw new ConnectionError('SQLite configuration is required', { type: 'sqlite' });
     }
 
     const { filename } = config.sqlite;
 
     try {
-      // Ensure directory exists
       await mkdir(dirname(filename), { recursive: true });
 
-      // Open database
-      this.db = new Database(filename);
+      this.db = new BetterSqlite3(filename);
 
-      // Configure SQLite for better concurrency
       this.db.pragma('journal_mode = WAL');
-      this.db.pragma('busy_timeout = 5000');
+      this.db.pragma(`busy_timeout = ${String(BUSY_TIMEOUT_MS)}`);
       this.db.pragma('synchronous = NORMAL');
-      this.db.pragma('cache_size = -64000'); // 64MB cache
+      this.db.pragma(`cache_size = ${String(CACHE_SIZE_PAGES)}`);
       this.db.pragma('foreign_keys = ON');
       this.db.pragma('temp_store = MEMORY');
 
-      // SQLite database connected successfully
-
-      return new SQLiteConnection(this.db);
+      return new SqliteConnection(this.db);
     } catch (error) {
+      const errorAsError = error as Error;
       throw new ConnectionError(
         `Failed to connect to SQLite database at ${filename}`,
         {
- type: 'sqlite',
-host: filename
-},
-        error as Error,
+          type: 'sqlite',
+          host: filename
+        },
+        errorAsError,
       );
     }
   }
 
-  async disconnect(): Promise<void> {
-    if (this.db) {
+  /**
+   * Disconnect from the database.
+   * @returns Promise that resolves when disconnected.
+   */
+  public async disconnect(): Promise<void> {
+    if (this.db !== null) {
       this.db.close();
       this.db = null;
-      // SQLite database disconnected
     }
   }
 
-  isConnected(): boolean {
+  /**
+   * Check if the database is connected.
+   * @returns True if connected, false otherwise.
+   */
+  public isConnected(): boolean {
     return this.db !== null && this.db.open;
   }
 }

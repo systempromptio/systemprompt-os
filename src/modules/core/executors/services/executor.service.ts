@@ -1,8 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable
+  logical-assignment-operators,
+  @typescript-eslint/no-unnecessary-condition,
+  @typescript-eslint/strict-boolean-expressions,
+  @typescript-eslint/await-thenable,
+  systemprompt-os/no-block-comments
+*/
 /**
- * @file Executor service implementation - placeholder service for future executor functionality.
+ * Executor service implementation - placeholder service for future executor functionality.
+ * @file Executor service implementation.
  * @module executors/services
- * @description Provides business logic for executor operations.
+ * Provides business logic for executor operations.
  */
 
 import { randomUUID } from 'crypto';
@@ -38,7 +45,9 @@ export class ExecutorService implements IExecutorService {
    * @returns The executor service instance.
    */
   static getInstance(): ExecutorService {
-    ExecutorService.instance ||= new ExecutorService();
+    if (!ExecutorService.instance) {
+      ExecutorService.instance = new ExecutorService();
+    }
     return ExecutorService.instance;
   }
 

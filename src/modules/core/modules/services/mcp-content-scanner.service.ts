@@ -1,3 +1,10 @@
+/**
+ * MCP content scanner service for scanning modules for prompts and resources.
+ * Service for scanning and syncing MCP content from module directories.
+ * @file MCP content scanner service.
+ * @module modules/core/modules/services/mcp-content-scanner.service
+ */
+
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
@@ -13,7 +20,7 @@ interface MCPResourceData {
   name: string;
   description?: string;
   mimeType?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface MCPPromptData {
@@ -39,6 +46,9 @@ interface FileInfo {
   hash?: string;
 }
 
+/**
+ * Service for scanning and syncing MCP content from module directories.
+ */
 export class MCPContentScannerService {
   private readonly logger: ILogger;
   private readonly database: DatabaseService;
@@ -50,18 +60,17 @@ export class MCPContentScannerService {
 
   /**
    * Scan a module for MCP content (prompts and resources).
-   * @param moduleName
-   * @param modulePath
+   * @param moduleName - Name of the module to scan.
+   * @param modulePath - Path to the module directory.
+   * @returns Promise that resolves when scan is complete.
    */
   async scanModule(moduleName: string, modulePath: string): Promise<void> {
     this.logger.info(`Scanning module ${moduleName} for MCP content`, { modulePath });
 
     try {
-      // Scan for prompts
       const promptFiles = await this.findFiles(modulePath, 'prompts/**/*.md');
       await this.syncPrompts(moduleName, promptFiles);
 
-      // Scan for resources
       const resourceFiles = await this.findFiles(modulePath, 'resources/**/*');
       await this.syncResources(moduleName, resourceFiles);
 
@@ -77,8 +86,9 @@ export class MCPContentScannerService {
 
   /**
    * Find files matching a pattern within a module directory.
-   * @param basePath
-   * @param pattern
+   * @param basePath - Base directory path.
+   * @param pattern - Glob pattern to match files.
+   * @returns Promise that resolves to array of file info.
    */
   private async findFiles(basePath: string, pattern: string): Promise<FileInfo[]> {
     const fullPattern = path.join(basePath, pattern);
@@ -104,36 +114,34 @@ export class MCPContentScannerService {
 
   /**
    * Sync prompts from markdown files to database.
-   * @param moduleName
-   * @param files
+   * @param moduleName - Name of the module.
+   * @param files - Array of file info to process.
+   * @returns Promise that resolves when sync is complete.
    */
   private async syncPrompts(moduleName: string, files: FileInfo[]): Promise<void> {
     const db = this.database;
 
-    // Get existing prompts for this module
     const existingPrompts = await db.query<{name: string; file_path: string; last_synced_at: string}>(
       'SELECT name, file_path, last_synced_at FROM mcp_prompts WHERE module_name = ?',
       [moduleName],
     );
 
-    const existingMap = new Map(existingPrompts.map((p) => { return [p.file_path, p] }));
+    const existingMap = new Map(existingPrompts.map((p) => [p.file_path, p]));
     const processedPaths = new Set<string>();
 
     for (const file of files) {
       processedPaths.add(file.relativePath);
 
       try {
-        // Check if file needs updating
         const existing = existingMap.get(file.relativePath);
         if (existing?.last_synced_at) {
           const lastSync = new Date(existing.last_synced_at).getTime();
           if (file.stats.mtime.getTime() <= lastSync) {
-            continue; // Skip unchanged files
+            continue;
           }
         }
 
-        // Parse the markdown file
-        const content = await (fs.readFile as any)(file.path, 'utf-8');
+        const content = await fs.readFile(file.path, 'utf-8');
         const parsed = matter(content);
         const promptData = parsed.data as MCPPromptData;
 
@@ -142,10 +150,8 @@ export class MCPContentScannerService {
           continue;
         }
 
-        // Parse content into messages
         const messages = this.parsePromptContent(parsed.content);
 
-        // Upsert the prompt
         await db.execute(
           `
           INSERT INTO mcp_prompts (
@@ -178,14 +184,13 @@ export class MCPContentScannerService {
       }
     }
 
-    // Remove prompts whose files no longer exist
     const toDelete = Array.from(existingMap.entries())
-      .filter(([path]) => { return !processedPaths.has(path) })
-      .map(([_, prompt]) => { return prompt.name });
+      .filter(([path]) => !processedPaths.has(path))
+      .map(([_, prompt]) => prompt.name);
 
     if (toDelete.length > 0) {
       await db.execute(
-        `DELETE FROM mcp_prompts WHERE module_name = ? AND name IN (${toDelete.map(() => { return '?' }).join(',')})`,
+        `DELETE FROM mcp_prompts WHERE module_name = ? AND name IN (${toDelete.map(() => '?').join(',')})`,
         [moduleName, ...toDelete],
       );
       this.logger.info(`Removed ${toDelete.length} obsolete prompts`, { module: moduleName });
@@ -194,17 +199,19 @@ export class MCPContentScannerService {
 
   /**
    * Parse prompt content into messages array.
-   * @param content
+   * @param content - Markdown content to parse.
+   * @returns Array of message objects with role and content.
    */
   private parsePromptContent(content: string): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Simple parser - splits by ## headers for roles
-    const sections = content.split(/^##\s+/m).filter((s) => { return s.trim() });
+    const sections = content.split(/^##\s+/m).filter((s) => s.trim());
 
     for (const section of sections) {
       const lines = section.split('\n');
-      if (lines.length === 0) { continue; }
+      if (lines.length === 0) {
+        continue;
+      }
       const roleMatch = lines[0]?.toLowerCase().trim() || '';
 
       let role: string;
@@ -215,25 +222,23 @@ export class MCPContentScannerService {
       } else if (roleMatch.includes('assistant')) {
         role = 'assistant';
       } else {
-        continue; // Skip unknown sections
+        continue;
       }
 
-      const content = lines.slice(1).join('\n')
-.trim();
-      if (content) {
+      const messageContent = lines.slice(1).join('\n').trim();
+      if (messageContent) {
         messages.push({
- role,
-content
-});
+          role,
+          content: messageContent,
+        });
       }
     }
 
-    // If no sections found, treat entire content as a system message
     if (messages.length === 0 && content.trim()) {
       messages.push({
- role: 'system',
-content: content.trim()
-});
+        role: 'system',
+        content: content.trim(),
+      });
     }
 
     return messages;
@@ -241,35 +246,33 @@ content: content.trim()
 
   /**
    * Sync resources from files to database.
-   * @param moduleName
-   * @param files
+   * @param moduleName - Name of the module.
+   * @param files - Array of file info to process.
+   * @returns Promise that resolves when sync is complete.
    */
   private async syncResources(moduleName: string, files: FileInfo[]): Promise<void> {
     const db = this.database;
 
-    // Get existing resources for this module
     const existingResources = await db.query<{uri: string; file_path: string; last_synced_at: string}>(
       'SELECT uri, file_path, last_synced_at FROM mcp_resources WHERE module_name = ?',
       [moduleName],
     );
 
-    const existingMap = new Map(existingResources.map((r) => { return [r.file_path, r] }));
+    const existingMap = new Map(existingResources.map((r) => [r.file_path, r]));
     const processedPaths = new Set<string>();
 
     for (const file of files) {
       processedPaths.add(file.relativePath);
 
       try {
-        // Check if file needs updating
         const existing = existingMap.get(file.relativePath);
         if (existing?.last_synced_at) {
           const lastSync = new Date(existing.last_synced_at).getTime();
           if (file.stats.mtime.getTime() <= lastSync) {
-            continue; // Skip unchanged files
+            continue;
           }
         }
 
-        // Determine content type and MIME type
         const ext = path.extname(file.path).toLowerCase();
         const mimeType = mime.lookup(file.path) || 'application/octet-stream';
         const isText = this.isTextFile(mimeType, ext);
@@ -279,20 +282,16 @@ content: content.trim()
         let contentType: 'text' | 'blob';
 
         if (ext === '.md' && file.relativePath.startsWith('resources/')) {
-          // Parse markdown files for metadata
           const fileContent = await fs.readFile(file.path, 'utf-8');
           const parsed = matter(fileContent);
           resourceData = parsed.data as MCPResourceData;
           content = parsed.content;
           contentType = 'text';
 
-          // Generate URI if not provided
           resourceData.uri ||= this.generateResourceUri(moduleName, file.relativePath);
 
-          // Use filename as name if not provided
           resourceData.name ||= path.basename(file.path, ext);
         } else {
-          // Handle non-markdown files
           content = await fs.readFile(file.path);
           contentType = isText ? 'text' : 'blob';
 
@@ -303,9 +302,7 @@ content: content.trim()
           };
         }
 
-        // Content is ready for storage
-
-        // Upsert the resource
+        
         await db.execute(
           `
           INSERT INTO mcp_resources (
@@ -351,14 +348,13 @@ content: content.trim()
       }
     }
 
-    // Remove resources whose files no longer exist
     const toDelete = Array.from(existingMap.entries())
-      .filter(([path]) => { return !processedPaths.has(path) })
-      .map(([_, resource]) => { return resource.uri });
+      .filter(([path]) => !processedPaths.has(path))
+      .map(([_, resource]) => resource.uri);
 
     if (toDelete.length > 0) {
       await db.execute(
-        `DELETE FROM mcp_resources WHERE module_name = ? AND uri IN (${toDelete.map(() => { return '?' }).join(',')})`,
+        `DELETE FROM mcp_resources WHERE module_name = ? AND uri IN (${toDelete.map(() => '?').join(',')})`,
         [moduleName, ...toDelete],
       );
       this.logger.info(`Removed ${toDelete.length} obsolete resources`, { module: moduleName });
@@ -367,29 +363,30 @@ content: content.trim()
 
   /**
    * Generate a resource URI from module name and file path.
-   * @param moduleName
-   * @param relativePath
+   * @param moduleName - Name of the module.
+   * @param relativePath - Relative path to the resource.
+   * @returns Generated URI string.
    */
   private generateResourceUri(moduleName: string, relativePath: string): string {
-    // Remove 'resources/' prefix and extension
     const cleanPath = relativePath
       .replace(/^resources\//, '')
       .replace(/\.[^.]+$/, '')
-      .replace(/\\/g, '/'); // Normalize path separators
+      .replace(/\\/g, '/');
 
     return `module://${moduleName}/${cleanPath}`;
   }
 
   /**
    * Determine if a file should be treated as text based on MIME type.
-   * @param mimeType
-   * @param ext
+   * @param mimeType - MIME type string.
+   * @param ext - File extension.
+   * @returns True if file should be treated as text.
    */
   private isTextFile(mimeType: string, ext: string): boolean {
-    // Text MIME types
-    if (mimeType.startsWith('text/')) { return true; }
+    if (mimeType.startsWith('text/')) {
+      return true;
+    }
 
-    // Application types that are text
     const textApplicationTypes = [
       'application/json',
       'application/xml',
@@ -400,9 +397,10 @@ content: content.trim()
       'application/sql',
     ];
 
-    if (textApplicationTypes.includes(mimeType)) { return true; }
+    if (textApplicationTypes.includes(mimeType)) {
+      return true;
+    }
 
-    // Check by extension as fallback
     const textExtensions = [
       '.txt',
       '.md',
@@ -446,7 +444,8 @@ content: content.trim()
 
   /**
    * Remove all MCP content for a module (used when module is uninstalled).
-   * @param moduleName
+   * @param moduleName - Name of the module to remove content for.
+   * @returns Promise that resolves when content is removed.
    */
   async removeModuleContent(moduleName: string): Promise<void> {
     const db = this.database;

@@ -1,32 +1,37 @@
-/**
- * @file JWT key generation utilities.
- * @module modules/core/auth/utils/generate-key
- */
-
 import { generateKeyPairSync } from 'crypto';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
+import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
 
-export interface GenerateKeyOptions {
+const ZERO = ZERO;
+const ONE = ONE;
+const TWO = TWO;
+
+/**
+
+ * IGenerateKeyOptions interface.
+
+ */
+
+export interface IGenerateKeyOptions {
   type: 'jwt';
   algorithm: 'RS256' | 'RS512' | 'ES256' | 'ES512';
   outputDir: string;
   format: 'pem' | 'jwk';
 }
 
-export async function generateJWTKeyPair(options: GenerateKeyOptions): Promise<void> {
+  /** TODO: Refactor this function to reduce complexity */
+export async function generateJWTKeyPair(_options: GenerateKeyOptions): Promise<void> {
   const {
  algorithm, outputDir, format
 } = options;
 
-  // Map algorithm to key type
   const keyType = algorithm.startsWith('RS') ? 'rsa' : 'ec';
 
-  // Generate key pair with proper typing
   let publicKey: string;
   let privateKey: string;
 
-  if (keyType === 'rsa') {
+  if (keyType === 'rsa')) {
     const keyPair = generateKeyPairSync('rsa', {
       modulusLength: algorithm === 'RS256' ? 2048 : 4096,
       publicKeyEncoding: {
@@ -56,25 +61,22 @@ format: 'pem'
     privateKey = keyPair.privateKey;
   }
 
-  if (format === 'pem') {
-    // Write PEM files
+  if (format === 'pem')) {
     writeFileSync(join(outputDir, 'private.key'), privateKey);
     writeFileSync(join(outputDir, 'public.key'), publicKey);
   } else {
-    // Convert to JWK format
     const jwks = {
       keys: [{
         kty: keyType.toUpperCase(),
         alg: algorithm,
         use: 'sig',
         kid: `${algorithm}-${Date.now()}`,
-        /*
-         * Note: In production, you'd need proper JWK conversion
-         * This is simplified for the example
-         */
+         * Note: In production, you'd need proper JWK conversion.
+         * This is simplified for the example.
+ */
       }]
     };
 
-    writeFileSync(join(outputDir, 'jwks.json'), JSON.stringify(jwks, null, 2));
+    writeFileSync(join(outputDir, 'jwks.json'), JSON.stringify(jwks, null, TWO));
   }
 }

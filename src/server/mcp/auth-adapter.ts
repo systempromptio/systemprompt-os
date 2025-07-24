@@ -1,45 +1,40 @@
 /**
  * @file MCP Authentication Adapter.
  * @module server/mcp/auth-adapter
- * Adapts the existing auth middleware to return MCP-compliant responses
+ * Adapts the existing auth middleware to return MCP-compliant responses.
  */
 
 import type {
- NextFunction, Request, Response
+ NextFunction, Request as ExpressRequest, Response as ExpressResponse
 } from 'express';
 import { authMiddleware } from '@/server/external/middleware/auth.js';
 import { CONFIG } from '@/server/config.js';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
- * Wraps the existing auth middleware to return MCP-compliant error responses
+ * Wraps the existing auth middleware to return MCP-compliant error responses.
  * Following the MCP specification for OAuth2 authentication.
- * @param req
- * @param res
- * @param next
+ * @param req - Express request object
+ * @param res - Express response object
+ * @param next - Express next function
  */
-export function mcpAuthAdapter(req: Request, res: Response, next: NextFunction): void {
-  // Allow disabling auth for development
+export const mcpAuthAdapter = function (req: ExpressRequest, res: ExpressResponse, next: NextFunction): void {
   if (process.env['MCP_AUTH_DISABLED'] === 'true') {
     next();
     return;
   }
 
-  // Create a custom response handler to intercept auth errors
   const originalJson = res.json.bind(res);
   const originalStatus = res.status.bind(res);
   let statusCode = 200;
 
-  // Override status to capture the status code
   res.status = function (code: number) {
     statusCode = code;
     return originalStatus(code);
   };
 
-  // Override json to transform auth errors to MCP format
-  res.json = function (body: any) {
+  res.json = function (body: unknown) {
     if (statusCode === 401) {
-      // Set WWW-Authenticate header as required by RFC 9728
       const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
       res.setHeader(
         'WWW-Authenticate',
@@ -47,21 +42,20 @@ export function mcpAuthAdapter(req: Request, res: Response, next: NextFunction):
           + `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`,
       );
 
-      // Transform to MCP-compliant error response
+      const authBody = body as { error_description?: string };
+      const requestBody = req.body as { id?: unknown } | undefined;
       const mcpError = {
         jsonrpc: '2.0',
         error: {
-          code: -32001, // Authentication required
-          message: body.error_description || 'Authentication required',
+          code: -32001,
+          message: authBody.error_description || 'Authentication required',
         },
-        id: req.body?.id || null,
+        id: requestBody?.id || null,
       };
       return originalJson(mcpError);
     }
-    // Not an auth error, return as-is
     return originalJson(body);
   };
 
-  // Call the existing auth middleware
   authMiddleware(req, res, next);
-}
+};

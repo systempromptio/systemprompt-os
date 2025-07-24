@@ -1,62 +1,82 @@
 /**
  * SQL Parser Service for safe schema execution.
- * Provides:
- * - SQL statement parsing and validation
- * - Safe execution with proper error handling
- * - Transaction management
- * - Detailed error reporting.
+ * @file SQL parser service for statement validation and parsing.
+ * @module database/services/sql-parser
  */
 
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
-export interface ParsedStatement {
-  type: 'DDL' | 'DML' | 'COMMENT' | 'TRANSACTION';
-  statement: string;
-  normalized: string;
-  lineNumber: number;
-  isValid: boolean;
-  error?: string;
-}
-
-export interface ParseResult {
-  statements: ParsedStatement[];
-  hasErrors: boolean;
-  errors: Array<{ line: number; message: string }>;
-}
-
+/**
+ * SQL parser service for parsing and validating SQL statements.
+ */
 export class SQLParserService {
-  constructor(
-    // @ts-expect-error - Will be used for logging when implemented
-    private readonly _logger?: ILogger
-  ) {}
+  private static instance: SQLParserService;
+  private logger?: ILogger;
+  private initialized = false;
+
+  /**
+   * Creates a new SQL parser service instance.
+   */
+  private constructor() {}
+
+  /**
+   * Initialize the SQL parser service.
+   * @param logger - Optional logger instance.
+   * @returns The initialized SQL parser service instance.
+   */
+  public static initialize(logger?: ILogger): SQLParserService {
+    SQLParserService.instance ||= new SQLParserService();
+    if (logger !== undefined) {
+      SQLParserService.instance.logger = logger;
+    }
+    SQLParserService.instance.initialized = true;
+    return SQLParserService.instance;
+  }
+
+  /**
+   * Get the SQL parser service instance.
+   * @returns The SQL parser service instance.
+   * @throws {Error} If service not initialized.
+   */
+  public static getInstance(): SQLParserService {
+    if (!SQLParserService.instance || !SQLParserService.instance.initialized) {
+      throw new Error('SQLParserService not initialized. Call initialize() first.');
+    }
+    return SQLParserService.instance;
+  }
 
   /**
    * Parse SQL file into individual statements.
-   * @param sql
-   * @param _fileName
+   * @param sql - SQL content to parse.
+   * @param fileName - Optional file name for logging.
+   * @returns Parse result with statements and errors.
    */
-  parseSQLFile(sql: string, _fileName?: string): ParseResult {
+  public parseSQLFile(sql: string, fileName?: string): IParseResult {
+    if (fileName !== undefined) {
+      this.logger?.debug('Parsing SQL file', { fileName });
+    }
+
     const lines = sql.split('\n');
-    const statements: ParsedStatement[] = [];
+    const statements: IParsedStatement[] = [];
     const errors: Array<{ line: number; message: string }> = [];
 
     let currentStatement = '';
-    let statementStartLine = 0;
+    let statementStartLine = ZERO;
     let inComment = false;
     let inString = false;
     let stringChar = '';
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) { continue; }
+    for (let lineIndex = ZERO; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex];
+      if (line === undefined) { continue; }
       const trimmedLine = line.trim();
 
-      // Skip empty lines
       if (!trimmedLine && !currentStatement) {
         continue;
       }
 
-      // Handle multi-line comments
       if (trimmedLine.startsWith('/*')) {
         inComment = true;
       }
@@ -68,23 +88,19 @@ export class SQLParserService {
         continue;
       }
 
-      // Handle single-line comments
       if (trimmedLine.startsWith('--')) {
         continue;
       }
 
-      // Track statement start
       if (!currentStatement && trimmedLine) {
-        statementStartLine = i + 1;
+        statementStartLine = lineIndex + 1;
       }
 
-      // Parse the line character by character to handle strings properly
-      let j = 0;
-      for (j = 0; j < line.length; j++) {
-        const char = line[j];
-        const prevChar = j > 0 ? line[j - 1] : '';
+      let charIndex = ZERO;
+      for (charIndex = ZERO; charIndex < line.length; charIndex++) {
+        const char = line[charIndex];
+        const prevChar = charIndex > ZERO ? line[charIndex - 1] : '';
 
-        // Handle string literals
         if ((char === '"' || char === "'") && prevChar !== '\\') {
           if (!inString) {
             inString = true;
@@ -97,15 +113,14 @@ export class SQLParserService {
 
         currentStatement += char;
 
-        // Check for statement end (semicolon outside of string)
         if (char === ';' && !inString) {
           const parsed = this.parseStatement(currentStatement.trim(), statementStartLine);
 
-          if (!parsed.isValid && parsed.error) {
+          if (!parsed.isValid && parsed.error !== undefined) {
             errors.push({
- line: statementStartLine,
-message: parsed.error
-});
+              line: statementStartLine,
+              message: parsed.error
+            });
           }
 
           statements.push(parsed);
@@ -114,41 +129,40 @@ message: parsed.error
         }
       }
 
-      if (currentStatement && j === line.length) {
+      if (currentStatement && charIndex === line.length) {
         currentStatement += '\n';
       }
     }
 
-    // Handle any remaining statement
     if (currentStatement.trim()) {
       const parsed = this.parseStatement(currentStatement.trim(), statementStartLine);
-      if (!parsed.isValid && parsed.error) {
+      if (!parsed.isValid && parsed.error !== undefined) {
         errors.push({
- line: statementStartLine,
-message: parsed.error
-});
+          line: statementStartLine,
+          message: parsed.error
+        });
       }
       statements.push(parsed);
     }
 
     return {
       statements,
-      hasErrors: errors.length > 0,
+      hasErrors: errors.length > ZERO,
       errors
     };
   }
 
   /**
    * Parse and validate a single SQL statement.
-   * @param statement
-   * @param lineNumber
+   * @param statement - SQL statement to parse.
+   * @param lineNumber - Line number where statement starts.
+   * @returns Parsed statement with validation result.
    */
-  private parseStatement(statement: string, lineNumber: number): ParsedStatement {
+  private parseStatement(statement: string, lineNumber: number): IParsedStatement {
     const normalized = statement.replace(/\s+/g, ' ').trim();
     const upperStatement = normalized.toUpperCase();
 
-    // Determine statement type
-    let type: ParsedStatement['type'] = 'DDL';
+    let type: IParsedStatement['type'] = 'DDL';
     if (upperStatement.startsWith('INSERT')
         || upperStatement.startsWith('UPDATE')
         || upperStatement.startsWith('DELETE')
@@ -163,10 +177,9 @@ message: parsed.error
       type = 'COMMENT';
     }
 
-    // Basic validation
     const validation = this.validateStatement(statement, type);
 
-    if (validation.error) {
+    if (validation.error !== undefined) {
       return {
         type,
         statement,
@@ -188,58 +201,57 @@ message: parsed.error
 
   /**
    * Validate SQL statement syntax.
-   * @param statement
-   * @param type
+   * @param statement - Statement to validate.
+   * @param type - Statement type.
+   * @returns Validation result with optional error message.
    */
-  private validateStatement(statement: string, type: ParsedStatement['type']): { isValid: boolean; error?: string } {
-    // Check for common syntax errors
-    const openParens = (statement.match(/\(/g) || []).length;
-    const closeParens = (statement.match(/\)/g) || []).length;
+  private validateStatement(statement: string, type: IParsedStatement['type']): { isValid: boolean; error?: string } {
+    const openParenMatches = statement.match(/\(/g);
+    const closeParenMatches = statement.match(/\)/g);
+    const openParens = openParenMatches?.length ?? ZERO;
+    const closeParens = closeParenMatches?.length ?? ZERO;
 
     if (openParens !== closeParens) {
       return {
- isValid: false,
-error: `Mismatched parentheses: ${openParens} opening, ${closeParens} closing`
-};
+        isValid: false,
+        error: `Mismatched parentheses: ${openParens} opening, ${closeParens} closing`
+      };
     }
 
-    // Check for unclosed strings
     const singleQuotes = statement.split("'").length - 1;
     const doubleQuotes = statement.split('"').length - 1;
+    const TWO = 2;
 
-    if (singleQuotes % 2 !== 0) {
+    if (singleQuotes % TWO !== ZERO) {
       return {
- isValid: false,
-error: 'Unclosed single quote'
-};
+        isValid: false,
+        error: 'Unclosed single quote'
+      };
     }
 
-    if (doubleQuotes % 2 !== 0) {
+    if (doubleQuotes % TWO !== ZERO) {
       return {
- isValid: false,
-error: 'Unclosed double quote'
-};
+        isValid: false,
+        error: 'Unclosed double quote'
+      };
     }
 
-    // DDL-specific validation
     if (type === 'DDL') {
       const upperStatement = statement.toUpperCase();
 
-      // Check for dangerous operations
       if (upperStatement.includes('DROP TABLE') && !upperStatement.includes('IF EXISTS')) {
         return {
- isValid: false,
-error: 'DROP TABLE should use IF EXISTS for safety'
-};
+          isValid: false,
+          error: 'DROP TABLE should use IF EXISTS for safety'
+        };
       }
 
-      // Validate CREATE TABLE syntax
       if (upperStatement.startsWith('CREATE TABLE')) {
         if (!statement.includes('(')) {
           return {
- isValid: false,
-error: 'CREATE TABLE missing column definitions'
-};
+            isValid: false,
+            error: 'CREATE TABLE missing column definitions'
+          };
         }
       }
     }
@@ -249,21 +261,22 @@ error: 'CREATE TABLE missing column definitions'
 
   /**
    * Split SQL by statement type for ordered execution.
-   * @param statements
+   * @param statements - Array of parsed statements.
+   * @returns Categorized statements by type.
    */
-  categorizeStatements(statements: ParsedStatement[]): {
-    tables: ParsedStatement[];
-    indexes: ParsedStatement[];
-    triggers: ParsedStatement[];
-    data: ParsedStatement[];
-    other: ParsedStatement[];
+  public categorizeStatements(statements: IParsedStatement[]): {
+    tables: IParsedStatement[];
+    indexes: IParsedStatement[];
+    triggers: IParsedStatement[];
+    data: IParsedStatement[];
+    other: IParsedStatement[];
   } {
     const categorized = {
-      tables: [] as ParsedStatement[],
-      indexes: [] as ParsedStatement[],
-      triggers: [] as ParsedStatement[],
-      data: [] as ParsedStatement[],
-      other: [] as ParsedStatement[]
+      tables: [] as IParsedStatement[],
+      indexes: [] as IParsedStatement[],
+      triggers: [] as IParsedStatement[],
+      data: [] as IParsedStatement[],
+      other: [] as IParsedStatement[]
     };
 
     for (const stmt of statements) {

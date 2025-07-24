@@ -1,20 +1,16 @@
 /**
- * @file Who Am I tool for user identification.
- * @module auth/tools/whoami
+
+ * IToolDefinition interface.
+
  */
 
-// Tool definition interface (temporary until MCP types are available)
-interface ToolDefinition {
+export interface IToolDefinition {
   name: string;
   description: string;
-  inputSchema: any;
-  execute: (input: any, context: any) => Promise<any>;
+  inputSchema: unknown;
+  execute: (_input: unknown,_context: unknown) => Promise<unknown>;
 }
 
-/**
- * Who Am I tool definition
- * Returns information about the current user.
- */
 export const tool: ToolDefinition = {
   name: 'whoami',
   description: 'Get information about the current user including role and permissions',
@@ -35,11 +31,10 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  execute: async (params: any, context: any) => {
+  execute: async (_params: unknown,_context: unknown) => {
     const { includePermissions = false, includeSession = false } = params || {};
 
-    // Mock implementation for demonstration
-    const result: any = {
+    const result: unknown = {
       message: `User: ${context.userEmail || 'user@example.com'} (${context.userId || 'anonymous'})`,
       result: {
         userId: context.userId || 'anonymous',
@@ -49,11 +44,11 @@ export const tool: ToolDefinition = {
       }
     };
 
-    if (includePermissions) {
+    if (includePermissions)) {
       result.result.permissions = context.permissions || ['read:own'];
     }
 
-    if (includeSession) {
+    if (includeSession)) {
       result.result.session = {
         id: context.sessionId || 'local-session',
         isLocal: context.isLocal || false

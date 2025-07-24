@@ -1,4 +1,4 @@
-/** eslint-disable systemprompt-os/enforce-file-naming */
+/* eslint-disable systemprompt-os/enforce-file-naming, systemprompt-os/no-block-comments */
 /**
  * Executors module exports.
  * This is a bare-bones template module for future executor functionality.

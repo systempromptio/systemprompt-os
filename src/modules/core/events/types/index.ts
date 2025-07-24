@@ -1,12 +1,12 @@
 /**
  * Event handler function type.
  */
-export type EventHandler<T = any> = (data: T) => void | Promise<void>;
+export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>;
 
 /**
  * Event subscription.
  */
-export interface EventSubscription {
+export interface IEventSubscription {
   id: string;
   event: string;
   handler: EventHandler;
@@ -16,10 +16,10 @@ export interface EventSubscription {
 /**
  * Event entry for history.
  */
-export interface EventEntry {
+export interface IEventEntry {
   id: string;
   event: string;
-  data: any;
+  payload: unknown;
   timestamp: Date;
 }
 
@@ -35,11 +35,11 @@ export interface IEventBusService {
 
     off(event: string, handlerOrId: string | EventHandler): void;
 
-    emit(event: string, data?: any): Promise<void>;
+    emit(event: string, payload?: unknown): Promise<void>;
 
     removeAllListeners(event?: string): void;
 
-    getListeners(event?: string): EventSubscription[];
+    getListeners(event?: string): IEventSubscription[];
 
-    getHistory(limit?: number): EventEntry[];
+    getHistory(limit?: number): IEventEntry[];
 }

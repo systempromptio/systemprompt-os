@@ -26,27 +26,27 @@ export interface IdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc' | 'saml';
-  
+
   /**
    * Get the authorization URL for this provider
    */
   getAuthorizationUrl( state: string, nonce?: string): string;
-  
+
   /**
    * Exchange authorization code for tokens
    */
   exchangeCodeForTokens( code: string): Promise<IDPTokens>;
-  
+
   /**
    * Get user information from the provider
    */
   getUserInfo( accessToken: string): Promise<IDPUserInfo>;
-  
+
   /**
    * Refresh tokens if supported
    */
   refreshTokens?( refreshToken: string): Promise<IDPTokens>;
-  
+
   /**
    * Revoke tokens if supported
    */

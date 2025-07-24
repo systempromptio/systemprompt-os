@@ -1,8 +1,3 @@
-/**
- * @file Core Auth module - self-contained authentication and JWT management.
- * @module modules/core/auth
- */
-
 import {
  existsSync, mkdirSync, readFileSync
 } from 'fs';
@@ -35,16 +30,22 @@ import type {
   TokenValidationResult,
 } from '@/modules/core/auth/types/index.js';
 
-// Get the directory of this module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const _filename = fileURLToPath(import.meta.url);
+import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from './constants';
+
+const FIVE = 5;
+const TEN = TEN;
+const _dirname = dirname(_filename);
 
 /**
- * Auth module implementation - self-contained.
+
+ * AuthModule class.
+
  */
+
 export class AuthModule implements IModule {
   public readonly name = 'auth';
-  public readonly version = '2.0.0';
+  public readonly version = 'TWO.ZERO.0';
   public readonly type = 'service' as const;
   public readonly description = 'Authentication, authorization, and JWT management';
   public readonly dependencies = ['logger', 'database'];
@@ -81,7 +82,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   * Initialize the auth module.
+ *  * Initialize the auth module.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -89,16 +90,12 @@ export class AuthModule implements IModule {
     }
 
     try {
-      // Get logger service
       this.logger = LoggerService.getInstance();
 
-      // Get database service
       this.database = DatabaseService.getInstance();
 
-      // Build config with defaults
       this.config = this.buildConfig();
 
-      // Ensure key store directory exists
       const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
@@ -107,17 +104,23 @@ export class AuthModule implements IModule {
         this.logger.info(`Created key store directory: ${absolutePath}`);
       }
 
-      // Load JWT keys - generate if they don't exist
       const privateKeyPath = join(absolutePath, 'private.key');
       const publicKeyPath = join(absolutePath, 'public.key');
 
       if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
         this.logger.info('JWT keys not found, generating new keys...');
 
-        // Import the key generation utility
-        const { generateJWTKeyPair } = await import('./utils/generate-key.js');
+        const { generateJWTKeyPair } = dynamicImport;
 
-        // Generate keys with default RS256 algorithm
+const ZERO = ZERO;
+const ONE = ONE;
+const TWO = TWO;
+const THREE = THREE;
+const SECONDS_PER_MINUTE = SECONDS_PER_MINUTE;
+const MILLISECONDS_PER_SECOND = MILLISECONDS_PER_SECOND;
+const SECONDS_PER_HOUR = SECONDS_PER_HOUR;
+const SECONDS_PER_DAY = SECONDS_PER_DAY;
+
         await generateJWTKeyPair({
           type: 'jwt',
           algorithm: 'RS256',
@@ -134,14 +137,12 @@ export class AuthModule implements IModule {
         publicKey: readFileSync(publicKeyPath, 'utf8'),
       };
 
-      // Initialize services with dependencies
       this.tokenService = new TokenService({ jwt: jwtConfig }, this.logger);
       this.userService = new UserService(this.database, this.logger);
       this.authCodeService = new AuthCodeService(this.database, this.logger);
       this.mfaService = new MFAService(this.database, this.logger);
       this.auditService = new AuditService(this.database, this.logger);
 
-      // Initialize auth service with all dependencies
       this.authService = new AuthService(
         this.logger,
         this.database,
@@ -150,15 +151,13 @@ export class AuthModule implements IModule {
         this.authCodeService
       );
 
-      // Initialize provider registry
-      const providersPath = join(__dirname, 'providers');
+      const providersPath = join(_dirname, 'providers');
       this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
       await this.providerRegistry.initialize();
 
-      // Initialize tunnel service for local development
       if (process.env['NODE_ENV'] !== 'production') {
         const tunnelConfig = {
-          port: parseInt(process.env['PORT'] || '3000', 10),
+          port: parseInt(process.env['PORT'] || '3000', TEN),
           ...process.env['TUNNEL_DOMAIN'] && { permanentDomain: process.env['TUNNEL_DOMAIN'] },
         };
         this.tunnelService = new TunnelService(tunnelConfig, this.logger);
@@ -174,7 +173,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   * Start the auth module.
+ *  * Start the auth module.
    */
   async start(): Promise<void> {
     if (!this.initialized) {
@@ -186,18 +185,16 @@ export class AuthModule implements IModule {
     }
 
     try {
-      // Run database migrations for enhanced schema
-      const schemaPath = join(__dirname, 'database', 'schema.sql');
+      const schemaPath = join(_dirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter((s) => { return s.trim() });
+        const statements = schema.split(';').filter((s) : void => { return s.trim() });
 
         for (const statement of statements) {
           if (statement.trim()) {
             try {
               await this.database.execute(statement);
             } catch (error) {
-              // Ignore errors for "column already exists" etc.
               if (error instanceof Error && !error.message.includes('duplicate column')) {
                 this.logger.warn('Schema statement warning', { error: error.message });
               }
@@ -208,14 +205,13 @@ export class AuthModule implements IModule {
         this.logger.info('Auth database schema updated');
       }
 
-      // Start cleanup intervals
       setInterval(
-        () => {
+        () : void => {
           this.tokenService
             .cleanupExpiredTokens()
-            .catch((err) => { this.logger.error('Token cleanup failed', err); });
+            .catch((err) : void => { this.logger.error('Token cleanup failed', err); });
         },
-        24 * 60 * 60 * 1000,
+        24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND,.
       ); // Daily
 
       this.status = ModuleStatus.RUNNING;
@@ -228,7 +224,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   * Stop the auth module.
+ *  * Stop the auth module.
    */
   async stop(): Promise<void> {
     if (this.tunnelService) {
@@ -240,7 +236,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   * Health check.
+ *  * Health check.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
@@ -258,13 +254,11 @@ export class AuthModule implements IModule {
   }
 
   /**
-   * Get logger instance.
+ *  * Get logger instance.
    */
   getLogger(): ILogger {
     return this.logger;
   }
-
-  // Auth service methods
 
   async login(input: LoginInput): Promise<LoginResult> {
     return await this.authService.login(input);
@@ -280,8 +274,6 @@ export class AuthModule implements IModule {
   }> {
     return await this.authService.refreshAccessToken(refreshToken);
   }
-
-  // Token methods
 
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
     return await this.tokenService.createToken(input);
@@ -307,8 +299,6 @@ export class AuthModule implements IModule {
     return await this.tokenService.cleanupExpiredTokens();
   }
 
-  // Provider methods
-
   getProvider(providerId: string): IdentityProvider | undefined {
     return this.providerRegistry?.getProvider(providerId);
   }
@@ -329,18 +319,16 @@ export class AuthModule implements IModule {
     await this.providerRegistry?.initialize();
   }
 
-  // Tunnel service methods
-
   getTunnelService(): TunnelService | null {
     return this.tunnelService;
   }
 
-  getTunnelStatus(): any {
+  getTunnelStatus(): unknown {
     if (!this.tunnelService) {
       return {
- active: false,
-type: 'none'
-};
+        active: false,
+        type: 'none'
+      };
     }
     return this.tunnelService.getStatus();
   }
@@ -353,7 +341,7 @@ type: 'none'
   }
 
   /**
-   * Build configuration with defaults.
+ *  * Build configuration with defaults.
    */
   private buildConfig(): AuthConfig {
     return {
@@ -362,18 +350,18 @@ type: 'none'
         issuer: 'systemprompt-os',
         audience: 'systemprompt-os',
         accessTokenTTL: 900, // 15 minutes
-        refreshTokenTTL: 2592000, // 30 days
+        refreshTokenTTL: 2592000, // THIRTY days
         keyStorePath: process.env['JWT_KEY_PATH'] || './state/auth/keys',
         privateKey: '', // Loaded at runtime
         publicKey: '', // Loaded at runtime
       },
       session: {
-        maxConcurrent: 5,
-        absoluteTimeout: 86400, // 24 hours
-        inactivityTimeout: 3600, // 1 hour
+        maxConcurrent: FIVE,
+        absoluteTimeout: SECONDS_PER_DAY, // 24 hours
+        inactivityTimeout: SECONDS_PER_HOUR, // ONE hour
       },
       security: {
-        maxLoginAttempts: 5,
+        maxLoginAttempts: FIVE,
         lockoutDuration: 900, // 15 minutes
         passwordMinLength: 8,
         requirePasswordChange: false,
@@ -382,17 +370,14 @@ type: 'none'
   }
 }
 
-// Factory function for core module pattern
 export const createModule = (): AuthModule => {
   return new AuthModule();
 };
 
-// Module initialization function pattern
 export const initialize = async (): Promise<AuthModule> => {
   const authModule = new AuthModule();
   await authModule.initialize();
   return authModule;
 };
 
-// Export class as default for module loader
 export default AuthModule;

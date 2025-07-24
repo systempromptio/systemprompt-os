@@ -1,10 +1,15 @@
 /**
  * Base error class for CLI-related errors.
  */
-export class CLIError extends Error {
+export class CliError extends Error {
+  /**
+   * Creates a new CLI error.
+   * @param message - The error message.
+   * @param code - The error code.
+   */
   constructor(message: string, public readonly code: string) {
     super(message);
-    this.name = 'CLIError';
+    this.name = 'CliError';
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -12,7 +17,11 @@ export class CLIError extends Error {
 /**
  * Error thrown when a command is not found.
  */
-export class CommandNotFoundError extends CLIError {
+export class CommandNotFoundError extends CliError {
+  /**
+   * Creates a new command not found error.
+   * @param commandName - The name of the command that was not found.
+   */
   constructor(public readonly commandName: string) {
     super(`Command not found: ${commandName}`, 'COMMAND_NOT_FOUND');
     this.name = 'CommandNotFoundError';
@@ -22,14 +31,20 @@ export class CommandNotFoundError extends CLIError {
 /**
  * Error thrown when command execution fails.
  */
-export class CommandExecutionError extends CLIError {
+export class CommandExecutionError extends CliError {
+  /**
+   * Creates a new command execution error.
+   * @param commandName - The name of the command that failed.
+   * @param originalError - The original error that caused the failure.
+   * @param message - Optional custom error message.
+   */
   constructor(
     public readonly commandName: string,
     public readonly originalError: Error,
     message?: string
   ) {
     super(
-      message || `Failed to execute command "${commandName}": ${originalError.message}`,
+      message ?? `Failed to execute command "${commandName}": ${originalError.message}`,
       'COMMAND_EXECUTION_FAILED'
     );
     this.name = 'CommandExecutionError';
@@ -39,7 +54,12 @@ export class CommandExecutionError extends CLIError {
 /**
  * Error thrown when command arguments are invalid.
  */
-export class InvalidArgumentsError extends CLIError {
+export class InvalidArgumentsError extends CliError {
+  /**
+   * Creates a new invalid arguments error.
+   * @param commandName - The name of the command.
+   * @param details - Details about what is invalid.
+   */
   constructor(
     public readonly commandName: string,
     public readonly details: string
@@ -55,7 +75,12 @@ export class InvalidArgumentsError extends CLIError {
 /**
  * Error thrown when required options are missing.
  */
-export class MissingRequiredOptionError extends CLIError {
+export class MissingRequiredOptionError extends CliError {
+  /**
+   * Creates a new missing required option error.
+   * @param commandName - The name of the command.
+   * @param optionName - The name of the missing option.
+   */
   constructor(
     public readonly commandName: string,
     public readonly optionName: string
@@ -71,7 +96,12 @@ export class MissingRequiredOptionError extends CLIError {
 /**
  * Error thrown when command discovery fails.
  */
-export class CommandDiscoveryError extends CLIError {
+export class CommandDiscoveryError extends CliError {
+  /**
+   * Creates a new command discovery error.
+   * @param path - The path where discovery failed.
+   * @param originalError - The original error that caused the failure.
+   */
   constructor(
     public readonly path: string,
     public readonly originalError: Error
@@ -87,20 +117,29 @@ export class CommandDiscoveryError extends CLIError {
 /**
  * Error thrown when CLI module initialization fails.
  */
-export class CLIInitializationError extends CLIError {
+export class CliInitializationError extends CliError {
+  /**
+   * Creates a new CLI initialization error.
+   * @param originalError - The original error that caused the failure.
+   */
   constructor(public readonly originalError: Error) {
     super(
       `Failed to initialize CLI module: ${originalError.message}`,
       'CLI_INITIALIZATION_FAILED'
     );
-    this.name = 'CLIInitializationError';
+    this.name = 'CliInitializationError';
   }
 }
 
 /**
  * Error thrown when output formatting fails.
  */
-export class OutputFormattingError extends CLIError {
+export class OutputFormattingError extends CliError {
+  /**
+   * Creates a new output formatting error.
+   * @param format - The format that failed.
+   * @param originalError - The original error that caused the failure.
+   */
   constructor(
     public readonly format: string,
     public readonly originalError: Error
@@ -116,7 +155,12 @@ export class OutputFormattingError extends CLIError {
 /**
  * Error thrown when documentation generation fails.
  */
-export class DocumentationGenerationError extends CLIError {
+export class DocumentationGenerationError extends CliError {
+  /**
+   * Creates a new documentation generation error.
+   * @param format - The documentation format that failed.
+   * @param originalError - The original error that caused the failure.
+   */
   constructor(
     public readonly format: string,
     public readonly originalError: Error
@@ -128,3 +172,6 @@ export class DocumentationGenerationError extends CLIError {
     this.name = 'DocumentationGenerationError';
   }
 }
+
+export { CliError as CLIError };
+export { CliInitializationError as CLIInitializationError };

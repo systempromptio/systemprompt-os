@@ -32,12 +32,12 @@ export interface OpenIDConfiguration {
 export class WellKnownEndpoint {
   private readonly baseUrl: string;
   private publicKeyJWK: any | null = null;
-  
+
   constructor( baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
     this.initializeKeys();
   }
-  
+
   private async initializeKeys() {
     // For now, use a placeholder JWK (in production, generate proper RSA keys)
     this.publicKeyJWK = {
@@ -46,10 +46,10 @@ export class WellKnownEndpoint {
       e: 'AQAB',
       use: 'sig',
       kid: 'systemprompt-os-key-1',
-      alg: 'RS256'
+      alg: 'RS256',
     };
   }
-  
+
   /**
    * GET /.well-known/openid-configuration
    * Returns OpenID Connect discovery document
@@ -57,7 +57,7 @@ export class WellKnownEndpoint {
   getOpenIDConfiguration = ( _req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-    
+
     const config: OpenIDConfiguration = {
       issuer: currentBaseUrl,
       authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
@@ -71,7 +71,7 @@ export class WellKnownEndpoint {
       token_endpoint_auth_methods_supported: [
         'client_secret_basic',
         'client_secret_post',
-        'none'
+        'none',
       ],
       claims_supported: [
         'sub',
@@ -84,15 +84,15 @@ export class WellKnownEndpoint {
         'email',
         'email_verified',
         'agent_id',
-        'agent_type'
+        'agent_type',
       ],
       code_challenge_methods_supported: ['S256', 'plain'],
-      grant_types_supported: ['authorization_code', 'refresh_token']
+      grant_types_supported: ['authorization_code', 'refresh_token'],
     };
-    
+
     return res.json( config);
   };
-  
+
   /**
    * GET /.well-known/jwks.json
    * Returns JSON Web Key Set for token verification
@@ -101,15 +101,15 @@ export class WellKnownEndpoint {
     if (!this.publicKeyJWK) {
       await this.initializeKeys();
     }
-    
+
     if (!this.publicKeyJWK) {
       return res.status(500).json({ error: 'Keys not initialized' });
     }
-    
+
     const jwks = {
-      keys: [this.publicKeyJWK]
+      keys: [this.publicKeyJWK],
     };
-    
+
     return res.json( jwks);
   };
 }

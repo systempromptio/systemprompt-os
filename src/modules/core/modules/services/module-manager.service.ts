@@ -1,5 +1,7 @@
 /**
- * @file Module manager service for managing injectable modules.
+ * Module manager service for managing injectable modules.
+ * Service for managing injectable modules with database persistence.
+ * @file Module manager service.
  * @module modules/core/modules/services/module-manager.service
  */
 
@@ -19,6 +21,20 @@ interface ModuleManagerConfig {
   modulesPath: string;
   injectablePath: string;
   extensionsPath: string;
+}
+
+interface DatabaseModuleRow {
+  id: number;
+  name: string;
+  version: string;
+  type: string;
+  path: string;
+  enabled: number;
+  dependencies: string;
+  config: string;
+  metadata: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -51,7 +67,6 @@ export class ModuleManagerService {
    * Initialize the service and create database tables if needed.
    */
   async initialize(): Promise<void> {
-    // Don't create the table here - let the database module's schema discovery handle it
     this.logger.info('Module manager service initialized');
   }
 
@@ -78,22 +93,21 @@ export class ModuleManagerService {
           if (existsSync(moduleYaml)) {
             try {
               const content = readFileSync(moduleYaml, 'utf-8');
-              const manifest = parse(content);
+              const manifestData = parse(content);
 
-              if (manifest && manifest.name) {
+              if (manifestData && manifestData.name) {
                 const scannedModule: ScannedModule = {
-                  name: manifest.name,
-                  version: manifest.version || '1.0.0',
-                  type: manifest.type || 'service',
+                  name: manifestData.name,
+                  version: manifestData.version || '1.0.0',
+                  type: manifestData.type || 'service',
                   path: modulePath,
-                  dependencies: manifest.dependencies,
-                  config: manifest.config,
-                  metadata: manifest.metadata
+                  dependencies: manifestData.dependencies,
+                  config: manifestData.config,
+                  metadata: manifestData.metadata
                 };
 
                 modules.push(scannedModule);
 
-                // Upsert module into database
                 await this.upsertModule(scannedModule);
               }
             } catch (error) {
@@ -112,37 +126,38 @@ export class ModuleManagerService {
 
   /**
    * Register a core module in the database.
-   * @param name
-   * @param path
-   * @param dependencies
+   * @param name - Module name.
+   * @param path - Module path.
+   * @param dependencies - Array of module dependencies.
+   * @returns Promise that resolves when registration is complete.
    */
   async registerCoreModule(name: string, path: string, dependencies: string[] = []): Promise<void> {
-    const module: ScannedModule = {
+    const moduleData: ScannedModule = {
       name,
       version: '1.0.0',
-      type: ModuleType.SERVICE, // Use SERVICE enum for core modules
+      type: ModuleType.SERVICE,
       path,
       dependencies,
       config: {},
       metadata: { core: true }
     };
 
-    await this.upsertModule(module);
+    await this.upsertModule(moduleData);
     this.logger.info(`Registered core module '${name}' in database`);
   }
 
   /**
    * Upsert a module into the database.
-   * @param module
+   * @param module - Module data to upsert.
+   * @returns Promise that resolves when upsert is complete.
    */
   private async upsertModule(module: ScannedModule): Promise<void> {
-    const existingModule = await this.database.query<any>(
+    const existingModule = await this.database.query<{ id: number }>(
       'SELECT id FROM modules WHERE name = ?',
       [module.name]
     );
 
     if (existingModule.length > 0) {
-      // Update existing module
       await this.database.execute(
         `UPDATE modules SET 
          version = ?, type = ?, path = ?, 
@@ -160,7 +175,6 @@ export class ModuleManagerService {
         ]
       );
     } else {
-      // Insert new module
       await this.database.execute(
         `INSERT INTO modules 
          (name, version, type, path, enabled, dependencies, config, metadata)
@@ -182,7 +196,7 @@ export class ModuleManagerService {
    * Get all enabled modules.
    */
   async getEnabledModules(): Promise<ModuleInfo[]> {
-    const rows = await this.database.query<any>(
+    const rows = await this.database.query<DatabaseModuleRow>(
       'SELECT * FROM modules WHERE enabled = 1 ORDER BY name'
     );
 
@@ -191,10 +205,11 @@ export class ModuleManagerService {
 
   /**
    * Get a specific module by name.
-   * @param name
+   * @param name - Module name.
+   * @returns Promise that resolves to module info or undefined.
    */
   async getModule(name: string): Promise<ModuleInfo | undefined> {
-    const rows = await this.database.query<any>(
+    const rows = await this.database.query<DatabaseModuleRow>(
       'SELECT * FROM modules WHERE name = ?',
       [name]
     );
@@ -208,7 +223,8 @@ export class ModuleManagerService {
 
   /**
    * Enable a module.
-   * @param name
+   * @param name - Module name to enable.
+   * @returns Promise that resolves when module is enabled.
    */
   async enableModule(name: string): Promise<void> {
     await this.database.execute(
@@ -220,7 +236,8 @@ export class ModuleManagerService {
 
   /**
    * Disable a module.
-   * @param name
+   * @param name - Module name to disable.
+   * @returns Promise that resolves when module is disabled.
    */
   async disableModule(name: string): Promise<void> {
     await this.database.execute(
@@ -232,9 +249,10 @@ export class ModuleManagerService {
 
   /**
    * Convert database row to ModuleInfo.
-   * @param row
+   * @param row - Database row data.
+   * @returns ModuleInfo object.
    */
-  private rowToModuleInfo(row: any): ModuleInfo {
+  private rowToModuleInfo(row: DatabaseModuleRow): ModuleInfo {
     return {
       id: row.id,
       name: row.name,

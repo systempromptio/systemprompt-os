@@ -1,46 +1,66 @@
 /**
  * Schema Import Service.
- * Simple and reliable SQL discovery and import mechanism
- * - Discovers SQL files in module directories
- * - Imports schemas in correct order
- * - Tracks imported schemas to avoid duplicates
- * - No complex migration features, just import.
+ * Simple and reliable SQL discovery and import mechanism.
+ * @file Schema import service.
+ * @module database/services/schema-import
  */
 
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { SQLParserService } from '@/modules/core/database/services/sql-parser.service.js';
+import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
-export interface SchemaFile {
-  module: string;
-  filepath: string;
-  checksum: string;
-  content: string;
-}
-
-export interface ImportResult {
-  success: boolean;
-  imported: string[];
-  skipped: string[];
-  errors: Array<{ file: string; error: string }>;
-}
-
+/**
+ * Schema import service for managing database schemas.
+ */
 export class SchemaImportService {
-  private readonly parser: SQLParserService;
+  private static instance: SchemaImportService;
+  private parser: any;
+  private database: any;
+  private logger?: ILogger;
+  private initialized = false;
 
-  constructor(
-    private readonly database: DatabaseService,
-    private readonly logger?: ILogger
-  ) {
-    this.parser = new SQLParserService(logger);
+  /**
+   * Creates a new schema import service instance.
+   */
+  private constructor() {}
+
+  /**
+   * Initialize the schema import service.
+   * @param database - Database service instance.
+   * @param parser - SQL parser service instance.
+   * @param logger - Optional logger instance.
+   * @returns The initialized schema import service instance.
+   */
+  public static initialize(database: any, parser: any, logger?: ILogger): SchemaImportService {
+    SchemaImportService.instance ||= new SchemaImportService();
+    SchemaImportService.instance.database = database;
+    SchemaImportService.instance.parser = parser;
+    if (logger !== undefined) {
+      SchemaImportService.instance.logger = logger;
+    }
+    SchemaImportService.instance.initialized = true;
+    return SchemaImportService.instance;
+  }
+
+  /**
+   * Get the schema import service instance.
+   * @returns The schema import service instance.
+   * @throws {Error} If service not initialized.
+   */
+  public static getInstance(): SchemaImportService {
+    if (!SchemaImportService.instance || !SchemaImportService.instance.initialized) {
+      throw new Error('SchemaImportService not initialized. Call initialize() first.');
+    }
+    return SchemaImportService.instance;
   }
 
   /**
    * Initialize schema tracking table.
+   * @returns Promise that resolves when table is created.
    */
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     await this.database.execute(`
       CREATE TABLE IF NOT EXISTS _imported_schemas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,31 +75,29 @@ export class SchemaImportService {
 
   /**
    * Import schema files.
-   * @param schemaFiles
+   * @param schemaFiles - Array of schema files to import.
+   * @returns Import result with success status and details.
    */
-  async importSchemas(schemaFiles: SchemaFile[]): Promise<ImportResult> {
+  public async importSchemas(schemaFiles: ISchemaFile[]): Promise<IImportResult> {
     const imported: string[] = [];
     const skipped: string[] = [];
     const errors: Array<{ file: string; error: string }> = [];
 
-    // Get already imported schemas
     const existing = await this.getImportedSchemas();
     const existingMap = new Map(
-      existing.map(s => { return [`${s.module}:${s.filepath}`, s.checksum] })
+      existing.map((schema): [string, string] => { return [`${schema.module}:${schema.filepath}`, schema.checksum] })
     );
 
     for (const schema of schemaFiles) {
       const key = `${schema.module}:${schema.filepath}`;
       const existingChecksum = existingMap.get(key);
 
-      // Skip if already imported with same checksum
       if (existingChecksum === schema.checksum) {
         skipped.push(key);
         continue;
       }
 
-      // Warn if checksum changed
-      if (existingChecksum && existingChecksum !== schema.checksum) {
+      if (existingChecksum !== undefined && existingChecksum !== schema.checksum) {
         this.logger?.warn('Schema file changed after import', {
           module: schema.module,
           file: schema.filepath,
@@ -90,7 +108,6 @@ export class SchemaImportService {
         continue;
       }
 
-      // Import the schema
       try {
         await this.importSchema(schema);
         imported.push(key);
@@ -103,7 +120,7 @@ export class SchemaImportService {
     }
 
     return {
-      success: errors.length === 0,
+      success: errors.length === ZERO,
       imported,
       skipped,
       errors
@@ -112,24 +129,24 @@ export class SchemaImportService {
 
   /**
    * Import a single schema file.
-   * @param schema
+   * @param schema - Schema file to import.
+   * @returns Promise that resolves when schema is imported.
    */
-  private async importSchema(schema: SchemaFile): Promise<void> {
+  private async importSchema(schema: ISchemaFile): Promise<void> {
     this.logger?.info('Importing schema', {
       module: schema.module,
       file: schema.filepath
     });
 
-    // Parse SQL
     const parsed = this.parser.parseSQLFile(schema.content, schema.filepath);
 
     if (parsed.hasErrors) {
       throw new Error(
-        `Schema has syntax errors: ${parsed.errors.map(e => { return `Line ${e.line}: ${e.message}` }).join('; ')}`
+        `Schema has syntax errors: ${parsed.errors.map((errorItem: any): string =>
+          { return `Line ${errorItem.line}: ${errorItem.message}` }).join('; ')}`
       );
     }
 
-    // Categorize statements for proper execution order
     const categorized = this.parser.categorizeStatements(parsed.statements);
     const validStatements = [
       ...categorized.tables,
@@ -137,9 +154,9 @@ export class SchemaImportService {
       ...categorized.triggers,
       ...categorized.data,
       ...categorized.other
-    ].filter(stmt => { return stmt.isValid && stmt.statement.trim() });
+    ].filter((stmt): boolean => { return stmt.isValid && stmt.statement.trim() !== '' });
 
-    if (validStatements.length === 0) {
+    if (validStatements.length === ZERO) {
       this.logger?.warn('No valid statements found in schema file', {
         module: schema.module,
         file: schema.filepath
@@ -147,9 +164,7 @@ export class SchemaImportService {
       return;
     }
 
-    // Execute in transaction
-    await this.database.transaction(async (conn) => {
-      // Execute statements
+    await this.database.transaction(async (conn: any): Promise<void> => {
       for (const stmt of validStatements) {
         try {
           await conn.execute(stmt.statement);
@@ -160,7 +175,6 @@ export class SchemaImportService {
         }
       }
 
-      // Record import
       await conn.execute(
         `INSERT INTO _imported_schemas (module, filepath, checksum)
          VALUES (?, ?, ?)`,
@@ -177,10 +191,11 @@ export class SchemaImportService {
 
   /**
    * Load schema file from disk.
-   * @param filepath
-   * @param module
+   * @param filepath - Path to schema file.
+   * @param module - Module name.
+   * @returns Schema file object.
    */
-  async loadSchemaFile(filepath: string, module: string): Promise<SchemaFile> {
+  public async loadSchemaFile(filepath: string, module: string): Promise<ISchemaFile> {
     const content = await readFile(filepath, 'utf-8');
 
     return {
@@ -193,8 +208,9 @@ export class SchemaImportService {
 
   /**
    * Get list of imported schemas.
+   * @returns Array of imported schema records.
    */
-  async getImportedSchemas(): Promise<Array<{ module: string; filepath: string; checksum: string; imported_at: string }>> {
+  public async getImportedSchemas(): Promise<Array<{ module: string; filepath: string; checksum: string; imported_at: string }>> {
     return await this.database.query(
       `SELECT module, filepath, checksum, imported_at 
        FROM _imported_schemas 
@@ -204,10 +220,11 @@ export class SchemaImportService {
 
   /**
    * Check if a schema has been imported.
-   * @param module
-   * @param filepath
+   * @param module - Module name.
+   * @param filepath - File path.
+   * @returns True if schema has been imported.
    */
-  async isSchemaImported(module: string, filepath: string): Promise<boolean> {
+  public async isSchemaImported(module: string, filepath: string): Promise<boolean> {
     const result = await this.database.query<{ count: number }>(
       `SELECT COUNT(*) as count 
        FROM _imported_schemas 
@@ -215,24 +232,28 @@ export class SchemaImportService {
       [module, filepath]
     );
 
-    return (result[0]?.count ?? 0) > 0;
+    const firstResult = result[ZERO];
+    return firstResult !== undefined && firstResult.count > ZERO;
   }
 
   /**
    * Calculate checksum for content.
-   * @param content
+   * @param content - Content to calculate checksum for.
+   * @returns Checksum string.
    */
   private calculateChecksum(content: string): string {
+    const CHECKSUM_LENGTH = 16;
     return createHash('sha256')
       .update(content.trim())
       .digest('hex')
-      .substring(0, 16);
+      .substring(ZERO, CHECKSUM_LENGTH);
   }
 
   /**
    * Get import status summary.
+   * @returns Import status with totals and breakdown by module.
    */
-  async getImportStatus(): Promise<{
+  public async getImportStatus(): Promise<{
     totalImported: number;
     byModule: Record<string, number>;
     lastImport?: string;
@@ -243,13 +264,14 @@ export class SchemaImportService {
     let lastImport: string | undefined;
 
     for (const schema of schemas) {
-      byModule[schema.module] = (byModule[schema.module] || 0) + 1;
-      if (!lastImport || schema.imported_at > lastImport) {
+      const currentCount = byModule[schema.module] ?? ZERO;
+      byModule[schema.module] = currentCount + 1;
+      if (lastImport === undefined || schema.imported_at > lastImport) {
         lastImport = schema.imported_at;
       }
     }
 
-    if (lastImport) {
+    if (lastImport !== undefined) {
       return {
         totalImported: schemas.length,
         byModule,

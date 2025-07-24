@@ -1,7 +1,7 @@
 /**
  * @fileoverview OAuth 2.0 Protected Resource Metadata endpoint (RFC 9728)
  * @module server/external/rest/oauth2/protected-resource
- * 
+ *
  * @see {@link https://datatracker.ietf.org/doc/rfc9728/}
  */
 
@@ -25,11 +25,11 @@ export interface ProtectedResourceMetadata {
 
 export class ProtectedResourceEndpoint {
   private readonly baseUrl: string;
-  
+
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
   }
-  
+
   /**
    * GET /.well-known/oauth-protected-resource
    * Returns OAuth 2.0 Protected Resource Metadata
@@ -37,15 +37,15 @@ export class ProtectedResourceEndpoint {
   getProtectedResourceMetadata = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-    
+
     const metadata: ProtectedResourceMetadata = {
       resource: `${currentBaseUrl}/mcp`,
       authorization_servers: [currentBaseUrl], // Since we're acting as both resource and auth server
       bearer_methods_supported: ['header'],
       scopes_supported: ['openid', 'profile', 'email', 'offline_access', 'agent'],
-      resource_documentation: `${currentBaseUrl}/docs/api`
+      resource_documentation: `${currentBaseUrl}/docs/api`,
     };
-    
+
     return res.json(metadata);
   };
 }

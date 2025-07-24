@@ -85,7 +85,7 @@ export function renderSplashPage(): string {
   return renderLayout({
     title: 'Welcome',
     content,
-    styles: getSplashStyles()
+    styles: getSplashStyles(),
   });
 }
 

@@ -5,7 +5,7 @@ export class ExtensionError extends Error {
   public readonly code: string;
   public readonly statusCode: number;
 
-  constructor(message: string, code: string = 'EXTENSIONerror', statusCode: number = 500) {
+  constructor(message: string, code: string = 'EXTENSION_ERROR', statusCode: number = 500) {
     super(message);
     this.name = 'ExtensionError';
     this.code = code;
@@ -76,7 +76,7 @@ export class ExtensionConfigError extends ExtensionError {
       configPath
         ? `Invalid extension configuration at ${configPath}: ${message}`
         : `Invalid extension configuration: ${message}`,
-      'EXTENSION_CONFIGerror',
+      'EXTENSION_CONFIG_ERROR',
       400,
     );
     this.name = 'ExtensionConfigError';
@@ -92,7 +92,7 @@ export class ExtensionDependencyError extends ExtensionError {
   constructor(extensionName: string, missingDependencies: string[]) {
     super(
       `Extension ${extensionName} has unsatisfied dependencies: ${missingDependencies.join(', ')}`,
-      'EXTENSION_DEPENDENCYerror',
+      'EXTENSION_DEPENDENCY_ERROR',
       424,
     );
     this.name = 'ExtensionDependencyError';
@@ -105,7 +105,7 @@ export class ExtensionDependencyError extends ExtensionError {
  */
 export class ExtensionRegistryError extends ExtensionError {
   constructor(message: string) {
-    super(`Extension registry error: ${message}`, 'EXTENSION_REGISTRYerror', 503);
+    super(`Extension registry error: ${message}`, 'EXTENSION_REGISTRY_ERROR', 503);
     this.name = 'ExtensionRegistryError';
   }
 }

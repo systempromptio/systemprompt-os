@@ -1,8 +1,10 @@
 /**
- * Auth module data models.
+ *
+ * IUser interface.
+ *
  */
 
-export interface User {
+export interface IUser {
   id: string;
   email: string;
   name?: string;
@@ -15,14 +17,26 @@ export interface User {
   permissions: Permission[];
 }
 
-export interface Role {
+/**
+ *
+ * IRole interface.
+ *
+ */
+
+export interface IRole {
   id: string;
   name: string;
   description?: string;
   isSystem: boolean;
 }
 
-export interface Permission {
+/**
+ *
+ * IPermission interface.
+ *
+ */
+
+export interface IPermission {
   id: string;
   name: string;
   resource: string;
@@ -30,16 +44,28 @@ export interface Permission {
   description?: string;
 }
 
-export interface OAuthIdentity {
+/**
+ *
+ * IOAuthIdentity interface.
+ *
+ */
+
+export interface IOAuthIdentity {
   id: string;
-  user_id: string;
+  userId: string;
   provider: string;
-  provider_user_id: string;
-  provider_data?: string;
-  created_at: string;
+  provideruserId: string;
+  providerData?: string;
+  createdAt: string;
 }
 
-export interface Session {
+/**
+ *
+ * ISession interface.
+ *
+ */
+
+export interface ISession {
   id: string;
   userId: string;
   tokenHash: string;

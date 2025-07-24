@@ -1,23 +1,21 @@
 /**
- * @file Database management CLI commands.
+ * Database management CLI commands.
  * @module modules/core/auth/cli/db
  */
 
-import { getDatabase } from '@/modules/core/database/index.js';
 import type { UserListRow } from '@/modules/core/auth/types/index.js';
-
-export interface CLIContext {
-  cwd: string;
-  args: Record<string, any>;
-  options?: Record<string, any>;
-}
+import readline from 'readline';
+import {
+ EIGHTY, ONE, ZERO
+} from '@/modules/core/auth/constants';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import { DatabaseService } from '@/modules/core/database';
 
 export const command = {
   description: 'Database management commands',
   subcommands: {
-    "reset": {
-      execute: async (_context: CLIContext): Promise<void> => {
-        const readline = await import('readline');
+    reset: {
+      execute: async (context: ICliContext): Promise<void> => {
         const rl = readline.createInterface({
           input: process.stdin,
           output: process.stdout,
@@ -36,48 +34,48 @@ export const command = {
               }
 
               try {
-                const db = getDatabase();
+                const db = DatabaseService.getInstance();
 
-                // Delete all data in reverse dependency order
-                await db.query('DELETE FROM auth_sessions');
-                await db.query('DELETE FROM auth_role_permissions');
-                await db.query('DELETE FROM auth_user_roles');
-                await db.query('DELETE FROM auth_oauth_identities');
-                await db.query('DELETE FROM auth_users');
-                await db.query('DELETE FROM auth_permissions');
-                await db.query('DELETE FROM auth_roles');
+                await db.execute('DELETE FROM auth_sessions');
+                await db.execute('DELETE FROM auth_role_permissions');
+                await db.execute('DELETE FROM auth_user_roles');
+                await db.execute('DELETE FROM auth_oauth_identities');
+                await db.execute('DELETE FROM auth_users');
+                await db.execute('DELETE FROM auth_permissions');
+                await db.execute('DELETE FROM auth_roles');
 
                 console.log('✅ Database reset complete');
                 console.log('All users, roles, and sessions have been removed');
 
-                // Re-initialize default roles
                 const defaultRoles = [
                   {
                     id: 'role_admin',
                     name: 'admin',
                     description: 'Full system administrator access',
-                    is_system: 1,
+                    isSystem: ONE,
                   },
                   {
                     id: 'role_user',
                     name: 'user',
                     description: 'Standard user access',
-                    is_system: 1,
+                    isSystem: ONE,
                   },
                 ];
 
+                // Process roles sequentially
+
                 for (const role of defaultRoles) {
-                  await db.query(
-                    `INSERT INTO auth_roles (id, name, description, is_system) 
+                  await db.execute(
+                    `INSERT INTO auth_roles (id, name, description, isSystem)
                    VALUES (?, ?, ?, ?)`,
-                    [role.id, role.name, role.description, role.is_system],
+                    [role.id, role.name, role.description, role.isSystem],
                   );
                 }
 
                 console.log('✅ Default roles re-created');
               } catch (error) {
                 console.error('❌ Error resetting database:', error);
-                process.exit(1);
+                process.exit(ONE);
               }
 
               resolve();
@@ -87,57 +85,52 @@ export const command = {
       },
     },
 
-    'list-users': {
-      execute: async (_context: CLIContext): Promise<void> => {
+    listUsers: {
+      execute: async (context: ICliContext): Promise<void> => {
         try {
-          const db = getDatabase();
+          const db = DatabaseService.getInstance();
 
-          const users = await db.query<{
-            id: string;
-            email: string;
-            name: string | null;
-            created_at: string;
-            last_login_at: string | null;
-            roles: string | null;
-          }>(`
-            SELECT 
+          const users = await db.query<UserListRow>(`
+            SELECT
               u.id,
               u.email,
               u.name,
-              u.created_at,
-              u.last_login_at,
+              u.createdAt,
+              u.lastLoginAt,
               GROUP_CONCAT(r.name) as roles
             FROM auth_users u
-            LEFT JOIN auth_user_roles ur ON u.id = ur.user_id
-            LEFT JOIN auth_roles r ON ur.role_id = r.id
+            LEFT JOIN auth_user_roles ur ON u.id = ur.userId
+            LEFT JOIN auth_roles r ON ur.roleId = r.id
             GROUP BY u.id
-            ORDER BY u.created_at DESC
+            ORDER BY u.createdAt DESC
           `);
 
-          if (users.length === 0) {
+          if (users.length === ZERO) {
             console.log('No users found in the database');
             return;
           }
 
           console.log('\n📋 Users in database:\n');
-          console.log('─'.repeat(80));
+          console.log('─'.repeat(EIGHTY));
 
           users.forEach((user: UserListRow, index: number) => {
-            console.log(`${index + 1}. ${user.email}`);
+            console.log(`${index + ONE}. ${user.email}`);
             console.log(`   ID: ${user.id}`);
-            if (user.name) { console.log(`   Name: ${user.name}`); }
-            console.log(`   Roles: ${user.roles || 'none'}`);
-            console.log(`   Created: ${new Date(user.created_at).toLocaleString()}`);
-            if (user.last_login_at) {
-              console.log(`   Last login: ${new Date(user.last_login_at).toLocaleString()}`);
+            if (user.name) {
+              console.log(`   Name: ${user.name}`);
             }
-            console.log('─'.repeat(80));
+            console.log(`   Roles: ${user.roles || 'none'}`);
+            console.log(`   Created: ${new Date(user.createdAt).toLocaleString()}`);
+            if (user.lastLoginAt) {
+              console.log(`   Last login: ${new Date(user.lastLoginAt).toLocaleString()}`);
+            }
+            console.log('─'.repeat(EIGHTY));
           });
 
           console.log(`\nTotal users: ${users.length}`);
         } catch (error) {
           console.error('❌ Error listing users:', error);
-          process.exit(1);
+          process.exit(ONE);
         }
       },
     },

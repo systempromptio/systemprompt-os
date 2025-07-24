@@ -21,14 +21,14 @@ export interface AuthPageConfig {
  * Renders the authentication page combining login and registration
  */
 export function renderAuthPage(config: AuthPageConfig): string {
-  const content = config.isAuthenticated 
+  const content = config.isAuthenticated
     ? renderLogoutSection(config.userEmail)
     : renderLoginSection(config.providers, config.error);
 
   return renderLayout({
     title: config.isAuthenticated ? 'Account' : 'Sign In',
     content,
-    styles: getAuthStyles()
+    styles: getAuthStyles(),
   });
 }
 
@@ -141,19 +141,19 @@ function renderProviderButton(provider: IdentityProvider): string {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  
+
   // Use the tunnel URL if available
   const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
-  
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'auth-client',
     redirect_uri: `${baseUrl}/auth/callback`,
     scope: 'openid profile email',
     state: 'auth-flow',
-    provider: providerName
+    provider: providerName,
   });
-  
+
   return `
     <a href="/oauth2/authorize?${params.toString()}" class="provider-button">
       <span class="provider-icon">${icon}</span>
