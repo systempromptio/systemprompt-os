@@ -11,8 +11,8 @@ import {
   createSafeValidator,
   isToolAvailable,
   sanitizeForLogging
-} from '../../../../../../../../src/server/mcp/core/handlers/tools/utils/validation';
-import { ValidationError } from '../../../../../../../../src/server/mcp/core/handlers/tools/utils/types';
+} from '../../../../../../../../src/server/mcp/core/handlers/tools/utils/validation.js';
+import { ValidationError } from '../../../../../../../../src/server/mcp/core/handlers/tools/utils/types.js';
 
 // Mock formatToolResponse
 vi.mock('../../../../../../../../src/server/mcp/core/handlers/tools/types', () => ({

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { jsonSchemaToZod } from '../../../src/utils/json-schema-to-zod';
+import { jsonSchemaToZod } from '../../../src/utils/json-schema-to-zod.js';
 import { z } from 'zod';
 
 describe('jsonSchemaToZod', () => {

@@ -1,10 +1,5 @@
 /**
- * @fileoverview Strongly typed authentication types
- * @module server/external/types/auth
- */
-
-/**
- * Authenticated user information extracted from JWT
+ * Authenticated user information extracted from JWT.
  */
 export interface AuthUser {
   id: string;
@@ -15,7 +10,7 @@ export interface AuthUser {
 }
 
 /**
- * JWT payload structure for access tokens
+ * JWT payload structure for access tokens.
  */
 export interface AccessTokenPayload {
   sub: string;
@@ -39,7 +34,7 @@ export interface AccessTokenPayload {
 }
 
 /**
- * Cookie options for auth tokens
+ * Cookie options for auth tokens.
  */
 export interface AuthCookieOptions {
   httpOnly: boolean;

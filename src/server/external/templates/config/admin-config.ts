@@ -1,10 +1,5 @@
 /**
- * @fileoverview Admin configuration page template with integrated terminal
- * @module server/external/templates/config/admin-config
- */
-
-/**
- * Configuration data for admin page rendering
+ * Configuration data for admin page rendering.
  */
 export interface AdminConfigData {
   cloudflareUrl: string;
@@ -16,7 +11,8 @@ export interface AdminConfigData {
 }
 
 /**
- * Renders the admin configuration page with terminal interface
+ * Renders the admin configuration page with terminal interface.
+ * @param data
  */
 export function renderAdminConfig(data: AdminConfigData): string {
   return `
@@ -534,7 +530,7 @@ export function renderAdminConfig(data: AdminConfigData): string {
 }
 
 /**
- * Returns CSS styles for the admin configuration page with terminal
+ * Returns CSS styles for the admin configuration page with terminal.
  */
 export function getAdminConfigStyles(): string {
   return `

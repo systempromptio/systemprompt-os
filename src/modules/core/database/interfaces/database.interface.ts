@@ -1,6 +1,6 @@
 /**
  * Database adapter interface for abstraction across different databases
- * Supports both SQLite and PostgreSQL with a common API
+ * Supports both SQLite and PostgreSQL with a common API.
  */
 
 export interface DatabaseConfig {
@@ -21,6 +21,10 @@ export interface DatabaseConfig {
     min: number;
     max: number;
     idleTimeout: number;
+  };
+  migrations?: {
+    autoRun?: boolean;
+    directory?: string;
   };
 }
 

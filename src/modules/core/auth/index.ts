@@ -1,122 +1,201 @@
 /**
- * @fileoverview Enhanced Auth module with MFA, tokens, and audit
+ * @file Core Auth module - self-contained authentication and JWT management.
  * @module modules/core/auth
  */
 
-import { existsSync, mkdirSync, readFileSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import {
+ existsSync, mkdirSync, readFileSync
+} from 'fs';
+import {
+ dirname, join, resolve
+} from 'path';
 import { fileURLToPath } from 'url';
-import type { ModuleInterface, ModuleContext, Logger } from '@/modules/types';
-import { ProviderRegistry } from './providers/registry.js';
-import { IdentityProvider } from './types/provider-interface.js';
-import { TunnelService } from './services/tunnel-service.js';
-import { MFAService } from './services/mfa.service.js';
-import { TokenService } from './services/token.service.js';
-import { AuthAuditService } from './services/audit.service.js';
-import { AuthService } from './services/auth.service.js';
-import { ConfigurationError } from './utils/errors.js';
+import type { IModule } from '@/modules/core/modules/types/index.js';
+import { ModuleStatus } from '@/modules/core/modules/types/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { ProviderRegistry } from '@/modules/core/auth/providers/registry.js';
+import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+import { TunnelService } from '@/modules/core/auth/services/tunnel-service.js';
+import { TokenService } from '@/modules/core/auth/services/token.service.js';
+import { AuthService } from '@/modules/core/auth/services/auth.service.js';
+import { UserService } from '@/modules/core/auth/services/user-service.js';
+import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
+import { MFAService } from '@/modules/core/auth/services/mfa.service.js';
+import { AuditService } from '@/modules/core/auth/services/audit.service.js';
+import { ConfigurationError } from '@/modules/core/auth/utils/errors.js';
 import type {
   AuthConfig,
+  AuthModuleExports,
+  AuthToken,
   LoginInput,
   LoginResult,
-  MFASetupResult,
   TokenCreateInput,
-  AuthToken,
-  AuthAuditEntry,
-  TokenValidationResult
-} from './types/index.js';
+  TokenValidationResult,
+} from '@/modules/core/auth/types/index.js';
 
 // Get the directory of this module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export class AuthModule implements ModuleInterface {
-  name = 'auth';
-  version = '2.0.0';
-  type = 'service' as const;
-  
+/**
+ * Auth module implementation - self-contained.
+ */
+export class AuthModule implements IModule {
+  public readonly name = 'auth';
+  public readonly version = '2.0.0';
+  public readonly type = 'service' as const;
+  public readonly description = 'Authentication, authorization, and JWT management';
+  public readonly dependencies = ['logger', 'database'];
+  public status = ModuleStatus.STOPPED;
   private config!: AuthConfig;
-  private logger!: Logger;
   private providerRegistry: ProviderRegistry | null = null;
   private tunnelService: TunnelService | null = null;
-  private mfaService!: MFAService;
   private tokenService!: TokenService;
-  private auditService!: AuthAuditService;
   private authService!: AuthService;
-  
-  async initialize(context: ModuleContext): Promise<void> {
-    this.logger = context.logger || console;
-    
-    // Build config with defaults
-    this.config = this.buildConfig(context.config);
-    
-    // Ensure key store directory exists
-    const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
-    const absolutePath = resolve(process.cwd(), keyStorePath);
-    
-    if (!existsSync(absolutePath)) {
-      mkdirSync(absolutePath, { recursive: true });
-      this.logger.info(`Created key store directory: ${absolutePath}`);
-    }
-    
-    // Load JWT keys
-    const privateKeyPath = join(absolutePath, 'private.pem');
-    const publicKeyPath = join(absolutePath, 'public.pem');
-    
-    if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
-      throw new ConfigurationError('JWT keys not found. Run "auth generatekey" to create them.');
-    }
-    
-    const jwtConfig = {
-      ...this.config.jwt,
-      privateKey: readFileSync(privateKeyPath, 'utf8'),
-      publicKey: readFileSync(publicKeyPath, 'utf8')
+  private userService!: UserService;
+  private authCodeService!: AuthCodeService;
+  private mfaService!: MFAService;
+  private auditService!: AuditService;
+  private logger!: ILogger;
+  private database!: DatabaseService;
+  private initialized = false;
+  private started = false;
+  get exports(): AuthModuleExports {
+    return {
+      service: () => { return this.authService },
+      tokenService: () => { return this.tokenService },
+      userService: () => { return this.userService },
+      authCodeService: () => { return this.authCodeService },
+      mfaService: () => { return this.mfaService },
+      auditService: () => { return this.auditService },
+      getProvider: (id: string) => { return this.getProvider(id) },
+      getAllProviders: () => { return this.getAllProviders() },
+      createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
+      validateToken: async (token: string) => { return await this.validateToken(token) },
+      hasProvider: (id: string) => { return this.hasProvider(id) },
+      getProviderRegistry: () => { return this.getProviderRegistry() },
+      reloadProviders: async () => { await this.reloadProviders(); },
     };
-    
-    // Initialize services
-    this.mfaService = new MFAService(this.config.mfa, this.logger);
-    this.tokenService = new TokenService({ jwt: jwtConfig }, this.logger);
-    this.auditService = new AuthAuditService(this.config.audit, this.logger);
-    this.authService = new AuthService(
-      this.mfaService,
-      this.tokenService,
-      this.auditService,
-      {
-        session: this.config.session,
-        security: this.config.security
-      },
-      this.logger
-    );
-    
-    // Initialize provider registry
-    const providersPath = join(__dirname, 'providers');
-    this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
-    await this.providerRegistry.loadProviders();
-    
-    // Initialize tunnel service for local development
-    if (process.env.NODE_ENV !== 'production') {
-      this.tunnelService = new TunnelService(this.logger);
-    }
-    
-    this.logger.info('Auth module initialized', { version: this.version });
   }
-  
-  async start(): Promise<void> {
-    // Run database migrations for enhanced schema
+
+  /**
+   * Initialize the auth module.
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      throw new ConfigurationError('Auth module already initialized');
+    }
+
     try {
-      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-      const db = DatabaseService.getInstance();
-      
-      // Read and execute enhancement schema
-      const schemaPath = join(__dirname, 'database', 'schema-enhancements.sql');
+      // Get logger service
+      this.logger = LoggerService.getInstance();
+
+      // Get database service
+      this.database = DatabaseService.getInstance();
+
+      // Build config with defaults
+      this.config = this.buildConfig();
+
+      // Ensure key store directory exists
+      const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
+      const absolutePath = resolve(process.cwd(), keyStorePath);
+
+      if (!existsSync(absolutePath)) {
+        mkdirSync(absolutePath, { recursive: true });
+        this.logger.info(`Created key store directory: ${absolutePath}`);
+      }
+
+      // Load JWT keys - generate if they don't exist
+      const privateKeyPath = join(absolutePath, 'private.key');
+      const publicKeyPath = join(absolutePath, 'public.key');
+
+      if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
+        this.logger.info('JWT keys not found, generating new keys...');
+
+        // Import the key generation utility
+        const { generateJWTKeyPair } = await import('./utils/generate-key.js');
+
+        // Generate keys with default RS256 algorithm
+        await generateJWTKeyPair({
+          type: 'jwt',
+          algorithm: 'RS256',
+          outputDir: absolutePath,
+          format: 'pem'
+        });
+
+        this.logger.info('JWT keys generated successfully');
+      }
+
+      const jwtConfig = {
+        ...this.config.jwt,
+        privateKey: readFileSync(privateKeyPath, 'utf8'),
+        publicKey: readFileSync(publicKeyPath, 'utf8'),
+      };
+
+      // Initialize services with dependencies
+      this.tokenService = new TokenService({ jwt: jwtConfig }, this.logger);
+      this.userService = new UserService(this.database, this.logger);
+      this.authCodeService = new AuthCodeService(this.database, this.logger);
+      this.mfaService = new MFAService(this.database, this.logger);
+      this.auditService = new AuditService(this.database, this.logger);
+
+      // Initialize auth service with all dependencies
+      this.authService = new AuthService(
+        this.logger,
+        this.database,
+        this.tokenService,
+        this.userService,
+        this.authCodeService
+      );
+
+      // Initialize provider registry
+      const providersPath = join(__dirname, 'providers');
+      this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
+      await this.providerRegistry.initialize();
+
+      // Initialize tunnel service for local development
+      if (process.env['NODE_ENV'] !== 'production') {
+        const tunnelConfig = {
+          port: parseInt(process.env['PORT'] || '3000', 10),
+          ...process.env['TUNNEL_DOMAIN'] && { permanentDomain: process.env['TUNNEL_DOMAIN'] },
+        };
+        this.tunnelService = new TunnelService(tunnelConfig, this.logger);
+      }
+
+      this.initialized = true;
+      this.logger.info('Auth module initialized', { version: this.version });
+    } catch (error) {
+      throw new ConfigurationError(
+        `Failed to initialize auth module: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Start the auth module.
+   */
+  async start(): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('Auth module not initialized');
+    }
+
+    if (this.started) {
+      return;
+    }
+
+    try {
+      // Run database migrations for enhanced schema
+      const schemaPath = join(__dirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter(s => s.trim());
-        
+        const statements = schema.split(';').filter((s) => { return s.trim() });
+
         for (const statement of statements) {
           if (statement.trim()) {
             try {
-              await db.execute(statement);
+              await this.database.execute(statement);
             } catch (error) {
               // Ignore errors for "column already exists" etc.
               if (error instanceof Error && !error.message.includes('duplicate column')) {
@@ -125,247 +204,195 @@ export class AuthModule implements ModuleInterface {
             }
           }
         }
-        
+
         this.logger.info('Auth database schema updated');
       }
+
+      // Start cleanup intervals
+      setInterval(
+        () => {
+          this.tokenService
+            .cleanupExpiredTokens()
+            .catch((err) => { this.logger.error('Token cleanup failed', err); });
+        },
+        24 * 60 * 60 * 1000,
+      ); // Daily
+
+      this.status = ModuleStatus.RUNNING;
+      this.started = true;
+      this.logger.info('Auth module started');
     } catch (error) {
-      this.logger.error('Failed to update auth schema', error);
+      this.status = ModuleStatus.STOPPED;
+      throw error;
     }
-    
-    // Start cleanup intervals
-    setInterval(() => {
-      this.tokenService.cleanupExpiredTokens().catch(err => 
-        this.logger.error('Token cleanup failed', err)
-      );
-    }, 24 * 60 * 60 * 1000); // Daily
-    
-    setInterval(() => {
-      this.auditService.cleanupOldEntries().catch(err => 
-        this.logger.error('Audit cleanup failed', err)
-      );
-    }, 24 * 60 * 60 * 1000); // Daily
-    
-    this.logger.info('Auth module started');
   }
-  
+
+  /**
+   * Stop the auth module.
+   */
   async stop(): Promise<void> {
     if (this.tunnelService) {
       await this.tunnelService.stop();
     }
+    this.status = ModuleStatus.STOPPED;
+    this.started = false;
     this.logger.info('Auth module stopped');
   }
-  
+
+  /**
+   * Health check.
+   */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
-      const providers = this.providerRegistry?.getProviders() || [];
+      const providers = this.providerRegistry?.getAllProviders() || [];
       return {
         healthy: true,
-        message: `Auth module healthy. ${providers.length} provider(s) loaded.`
+        message: `Auth module healthy. ${providers.length} provider(s) loaded.`,
       };
     } catch (error) {
       return {
         healthy: false,
-        message: `Auth module unhealthy: ${error}`
+        message: `Auth module unhealthy: ${error}`,
       };
     }
   }
-  
+
+  /**
+   * Get logger instance.
+   */
+  getLogger(): ILogger {
+    return this.logger;
+  }
+
   // Auth service methods
-  
+
   async login(input: LoginInput): Promise<LoginResult> {
-    return this.authService.login(input);
+    return await this.authService.login(input);
   }
-  
-  async completeMFALogin(sessionId: string, code: string): Promise<LoginResult> {
-    return this.authService.completeMFALogin(sessionId, code);
-  }
-  
+
   async logout(sessionId: string): Promise<void> {
-    return this.authService.logout(sessionId);
+    await this.authService.logout(sessionId);
   }
-  
+
   async refreshAccessToken(refreshToken: string): Promise<{
     accessToken: string;
     refreshToken: string;
   }> {
-    return this.authService.refreshAccessToken(refreshToken);
+    return await this.authService.refreshAccessToken(refreshToken);
   }
-  
-  // MFA methods
-  
-  async setupMFA(userId: string): Promise<MFASetupResult> {
-    // Get user email
-    const { DatabaseService } = await import('../database/services/database.service.js');
-    const db = DatabaseService.getInstance();
-    const result = await db.query<{ email: string }>('SELECT email FROM auth_users WHERE id = ?', [userId]);
-    const email = result[0]?.email || userId;
-    
-    return this.mfaService.setupMFA(userId, email);
-  }
-  
-  async enableMFA(userId: string, code: string): Promise<boolean> {
-    return this.mfaService.enableMFA(userId, code);
-  }
-  
-  async disableMFA(userId: string): Promise<void> {
-    return this.mfaService.disableMFA(userId);
-  }
-  
-  async verifyMFA(userId: string, code: string): Promise<boolean> {
-    return this.mfaService.verifyMFA({ userId, code });
-  }
-  
-  async regenerateBackupCodes(userId: string): Promise<string[]> {
-    return this.mfaService.regenerateBackupCodes(userId);
-  }
-  
+
   // Token methods
-  
+
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
-    return this.tokenService.createToken(input);
+    return await this.tokenService.createToken(input);
   }
-  
+
   async validateToken(token: string): Promise<TokenValidationResult> {
-    return this.tokenService.validateToken(token);
+    return await this.tokenService.validateToken(token);
   }
-  
+
   async revokeToken(tokenId: string): Promise<void> {
-    return this.tokenService.revokeToken(tokenId);
+    await this.tokenService.revokeToken(tokenId);
   }
-  
+
   async revokeUserTokens(userId: string, type?: string): Promise<void> {
-    return this.tokenService.revokeUserTokens(userId, type);
+    await this.tokenService.revokeUserTokens(userId, type);
   }
-  
+
   async listUserTokens(userId: string): Promise<AuthToken[]> {
-    return this.tokenService.listUserTokens(userId);
+    return await this.tokenService.listUserTokens(userId);
   }
-  
+
   async cleanupExpiredTokens(): Promise<number> {
-    return this.tokenService.cleanupExpiredTokens();
+    return await this.tokenService.cleanupExpiredTokens();
   }
-  
-  // Audit methods
-  
-  async getAuditLogs(filters?: Record<string, unknown>): Promise<AuthAuditEntry[]> {
-    return this.auditService.getAuditEntries(filters);
-  }
-  
-  async getFailedLoginAttempts(email: string, since: Date): Promise<number> {
-    return this.auditService.getFailedLoginAttempts(email, since);
-  }
-  
-  async cleanupAuditLogs(): Promise<number> {
-    return this.auditService.cleanupOldEntries();
-  }
-  
-  // Provider methods (existing)
-  
+
+  // Provider methods
+
   getProvider(providerId: string): IdentityProvider | undefined {
     return this.providerRegistry?.getProvider(providerId);
   }
-  
+
   getAllProviders(): IdentityProvider[] {
-    return this.providerRegistry?.getProviders() || [];
+    return this.providerRegistry?.getAllProviders() || [];
   }
-  
+
   hasProvider(providerId: string): boolean {
     return this.providerRegistry?.hasProvider(providerId) || false;
   }
-  
-  async reloadProviders(): Promise<void> {
-    await this.providerRegistry?.loadProviders();
+
+  getProviderRegistry(): ProviderRegistry | null {
+    return this.providerRegistry;
   }
-  
+
+  async reloadProviders(): Promise<void> {
+    await this.providerRegistry?.initialize();
+  }
+
   // Tunnel service methods
-  
+
   getTunnelService(): TunnelService | null {
     return this.tunnelService;
   }
-  
-  // CLI command
-  
-  async getCommand(): Promise<unknown> {
-    const { Command } = await import('commander');
-    const { createGenerateKeyCommand } = await import('./cli/generatekey.command.js');
-    const { createProvidersCommand } = await import('./cli/providers.command.js');
-    const { createDatabaseCommand } = await import('./cli/database.command.js');
-    const { createRoleCommand } = await import('./cli/role.command.js');
-    const { createMFACommand } = await import('./cli/mfa.command.js');
-    const { createTokenCommand } = await import('./cli/token.command.js');
-    const { createAuditCommand } = await import('./cli/audit.command.js');
-    
-    const cmd = new Command('auth')
-      .description('Authentication and authorization utilities');
-    
-    // Add existing commands
-    cmd.addCommand(createGenerateKeyCommand(this));
-    cmd.addCommand(createProvidersCommand(this));
-    cmd.addCommand(createDatabaseCommand());
-    cmd.addCommand(createRoleCommand());
-    
-    // Add new commands
-    cmd.addCommand(createMFACommand(this));
-    cmd.addCommand(createTokenCommand(this));
-    cmd.addCommand(createAuditCommand(this));
-    
-    return cmd;
+
+  getTunnelStatus(): any {
+    if (!this.tunnelService) {
+      return {
+ active: false,
+type: 'none'
+};
+    }
+    return this.tunnelService.getStatus();
   }
-  
+
+  getPublicUrl(): string | null {
+    if (!this.tunnelService) {
+      return null;
+    }
+    return this.tunnelService.getPublicUrl();
+  }
+
   /**
-   * Build configuration with defaults
+   * Build configuration with defaults.
    */
-  private buildConfig(contextConfig?: Record<string, unknown>): AuthConfig {
-    // Helper to safely access nested config properties
-    const getConfigValue = (path: string, defaultValue: unknown): unknown => {
-      const keys = path.split('.');
-      let value: unknown = contextConfig;
-      
-      for (const key of keys) {
-        if (value && typeof value === 'object' && key in value) {
-          value = (value as Record<string, unknown>)[key];
-        } else {
-          return defaultValue;
-        }
-      }
-      
-      return value ?? defaultValue;
-    };
+  private buildConfig(): AuthConfig {
     return {
       jwt: {
-        algorithm: String(getConfigValue('jwt.algorithm', 'RS256')),
-        issuer: String(getConfigValue('jwt.issuer', 'systemprompt-os')),
-        audience: String(getConfigValue('jwt.audience', 'systemprompt-os')),
-        accessTokenTTL: Number(getConfigValue('jwt.accessTokenTTL', 900)), // 15 minutes
-        refreshTokenTTL: Number(getConfigValue('jwt.refreshTokenTTL', 2592000)), // 30 days
-        keyStorePath: String(getConfigValue('keyStorePath', './state/auth/keys')),
+        algorithm: 'RS256',
+        issuer: 'systemprompt-os',
+        audience: 'systemprompt-os',
+        accessTokenTTL: 900, // 15 minutes
+        refreshTokenTTL: 2592000, // 30 days
+        keyStorePath: process.env['JWT_KEY_PATH'] || './state/auth/keys',
         privateKey: '', // Loaded at runtime
-        publicKey: ''   // Loaded at runtime
-      },
-      mfa: {
-        enabled: getConfigValue('mfa.enabled', true) !== false,
-        appName: String(getConfigValue('mfa.appName', 'SystemPrompt OS')),
-        backupCodeCount: Number(getConfigValue('mfa.backupCodeCount', 8)),
-        windowSize: Number(getConfigValue('mfa.windowSize', 1))
+        publicKey: '', // Loaded at runtime
       },
       session: {
-        maxConcurrent: Number(getConfigValue('session.maxConcurrent', 5)),
-        absoluteTimeout: Number(getConfigValue('session.absoluteTimeout', 86400)), // 24 hours
-        inactivityTimeout: Number(getConfigValue('session.inactivityTimeout', 3600)) // 1 hour
+        maxConcurrent: 5,
+        absoluteTimeout: 86400, // 24 hours
+        inactivityTimeout: 3600, // 1 hour
       },
       security: {
-        maxLoginAttempts: Number(getConfigValue('security.maxLoginAttempts', 5)),
-        lockoutDuration: Number(getConfigValue('security.lockoutDuration', 900)), // 15 minutes
-        passwordMinLength: Number(getConfigValue('security.passwordMinLength', 8)),
-        requirePasswordChange: Boolean(getConfigValue('security.requirePasswordChange', false))
+        maxLoginAttempts: 5,
+        lockoutDuration: 900, // 15 minutes
+        passwordMinLength: 8,
+        requirePasswordChange: false,
       },
-      audit: {
-        enabled: getConfigValue('audit.enabled', true) !== false,
-        retentionDays: Number(getConfigValue('audit.retentionDays', 90))
-      }
     };
   }
 }
 
-// Export for dynamic loading
+// Factory function for core module pattern
+export const createModule = (): AuthModule => {
+  return new AuthModule();
+};
+
+// Module initialization function pattern
+export const initialize = async (): Promise<AuthModule> => {
+  const authModule = new AuthModule();
+  await authModule.initialize();
+  return authModule;
+};
+
+// Export class as default for module loader
 export default AuthModule;

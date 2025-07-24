@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "@/cli/src/types";
-import { ensureDatabaseInitialized } from "./utils";
+import type { CLICommand, CLIContext } from "@/modules/core/cli/types/index.js";
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils.js';
 
 export const command: CLICommand = {
   name: "migrate",
@@ -22,13 +22,13 @@ export const command: CLICommand = {
   async execute(context: CLIContext): Promise<void> {
     try {
       const dryRun = context.args["dry-run"] || false;
-      const moduleFilter = context.args.module;
-      
+      const moduleFilter = context.args['module'];
+
       const { dbService, migrationService } = await ensureDatabaseInitialized();
 
       // Check if database is initialized
       const isInitialized = await dbService.isInitialized();
-      
+
       if (!isInitialized) {
         console.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
         process.exit(1);
@@ -36,10 +36,10 @@ export const command: CLICommand = {
 
       // Get pending migrations
       let pendingMigrations = await migrationService.getPendingMigrations();
-      
+
       // Filter by module if specified
       if (moduleFilter) {
-        pendingMigrations = pendingMigrations.filter(m => m.module === moduleFilter);
+        pendingMigrations = pendingMigrations.filter(m => { return m.module === moduleFilter });
       }
 
       if (pendingMigrations.length === 0) {
@@ -48,7 +48,7 @@ export const command: CLICommand = {
       }
 
       console.log(`Found ${pendingMigrations.length} pending migration(s):\n`);
-      
+
       for (const migration of pendingMigrations) {
         console.log(`  - ${migration.module}/${migration.filename} (${migration.version})`);
       }
@@ -72,7 +72,7 @@ export const command: CLICommand = {
         } catch (error: any) {
           console.error(`  ✗ Failed: ${error.message}`);
           failureCount++;
-          
+
           // Stop on first failure to maintain consistency
           if (failureCount > 0) {
             break;

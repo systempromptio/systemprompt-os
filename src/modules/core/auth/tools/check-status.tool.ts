@@ -1,13 +1,19 @@
 /**
- * @fileoverview System status check tool
+ * @file System status check tool.
  * @module auth/tools/check-status
  */
 
-import type { ToolDefinition } from '../../tools/types/index.js';
+// Tool definition interface (temporary until MCP types are available)
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: any;
+  execute: (input: any, context: any) => Promise<any>;
+}
 
 /**
  * Check Status tool definition
- * Returns system operational status
+ * Returns system operational status.
  */
 export const tool: ToolDefinition = {
   name: 'checkstatus',
@@ -44,12 +50,7 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  scope: 'remote',
-  metadata: {
-    requiredRole: 'admin',
-    requiredPermissions: ['system:read']
-  },
-  handler: async (params: any, context: any) => {
+  execute: async (params: any, context: any) => {
     const {
       includeContainers = false,
       includeUsers = false,
@@ -57,7 +58,7 @@ export const tool: ToolDefinition = {
       includeTunnels = false,
       includeAuditLog = false
     } = params || {};
-    
+
     // Basic status information
     const result: any = {
       message: 'System operational',
@@ -68,7 +69,7 @@ export const tool: ToolDefinition = {
         timestamp: new Date().toISOString()
       }
     };
-    
+
     // Add resource information if requested
     if (includeResources) {
       const memUsage = process.memoryUsage();
@@ -84,7 +85,7 @@ export const tool: ToolDefinition = {
         }
       };
     }
-    
+
     // Add container status if requested
     if (includeContainers) {
       result.result.containers = {
@@ -99,7 +100,7 @@ export const tool: ToolDefinition = {
         ]
       };
     }
-    
+
     // Add user statistics if requested
     if (includeUsers) {
       result.result.users = {
@@ -108,7 +109,7 @@ export const tool: ToolDefinition = {
         admins: context.role === 'admin' ? 1 : 0
       };
     }
-    
+
     // Add tunnel status if requested
     if (includeTunnels) {
       result.result.tunnels = {
@@ -116,7 +117,7 @@ export const tool: ToolDefinition = {
         active: 0
       };
     }
-    
+
     // Add audit log if requested
     if (includeAuditLog) {
       result.result.auditLog = {
@@ -124,27 +125,27 @@ export const tool: ToolDefinition = {
         latest: []
       };
     }
-    
+
     return result;
   }
 };
 
 /**
- * Format uptime in human-readable format
- * @param seconds - Uptime in seconds
- * @returns Formatted uptime string
+ * Format uptime in human-readable format.
+ * @param seconds - Uptime in seconds.
+ * @returns Formatted uptime string.
  */
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+  const hours = Math.floor(seconds % 86400 / 3600);
+  const minutes = Math.floor(seconds % 3600 / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   const parts = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
-  
+  if (days > 0) { parts.push(`${days}d`); }
+  if (hours > 0) { parts.push(`${hours}h`); }
+  if (minutes > 0) { parts.push(`${minutes}m`); }
+  if (secs > 0 || parts.length === 0) { parts.push(`${secs}s`); }
+
   return parts.join(' ');
 }

@@ -644,7 +644,7 @@ describe('OAuth2 Token Endpoint', () => {
 
         expect(mockRes.status).toHaveBeenCalledWith(500);
         expect(mockRes.json).toHaveBeenCalledWith({
-          error: 'server_error',
+          error: 'servererror',
           error_description: 'Internal server error'
         });
       });

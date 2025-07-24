@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { CREATEUNIT_TESTS_PROMPT, UNITTESTING_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/unit-testing';
+import { CREATEUNIT_TESTS_PROMPT, UNITTESTING_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/unit-testing.js';
 
 describe('Unit Testing Prompts', () => {
   describe('CREATEUNIT_TESTS_PROMPT', () => {

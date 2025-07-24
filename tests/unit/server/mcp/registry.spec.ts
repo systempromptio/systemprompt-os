@@ -9,12 +9,12 @@ import {
   MCPServerRegistry, 
   initializeMCPServerRegistry, 
   getMCPServerRegistry 
-} from '../../../../src/server/mcp/registry';
+} from '../../../../src/server/mcp/registry.js';
 import { 
   MCPServerType, 
   LocalMCPServer, 
   RemoteMCPServer 
-} from '../../../../src/server/mcp/types';
+} from '../../../../src/server/mcp/types.js';
 
 // Mock dependencies
 vi.mock('../../../../src/server/mcp/auth-adapter', () => ({

@@ -11,7 +11,7 @@ describe('API Utils', () => {
       const success = (data: any) => ({
         success: true,
         data,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       const response = success({ id: 1, name: 'Test' });
@@ -24,13 +24,13 @@ describe('API Utils', () => {
         success: false,
         error: {
           code,
-          message
-        }
+          message,
+        },
       });
 
-      const response = error('VALIDATION_ERROR', 'Invalid input');
+      const response = error('VALIDATIONerror', 'Invalid input');
       expect(response.success).toBe(false);
-      expect(response.error.code).toBe('VALIDATION_ERROR');
+      expect(response.error.code).toBe('VALIDATIONerror');
     });
   });
 
@@ -71,7 +71,7 @@ describe('API Utils', () => {
         limit,
         pages: Math.ceil(total / limit),
         hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1
+        hasPrev: page > 1,
       });
 
       const pagination = paginate(100, 2, 10);

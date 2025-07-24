@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import { TEST_CONFIG } from './bootstrap';
+import { TEST_CONFIG } from './bootstrap.js';
 
 /**
  * Server Auth Domain E2E Tests

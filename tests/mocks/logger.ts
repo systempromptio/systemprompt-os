@@ -9,12 +9,12 @@ export const mockLogger = {
   info: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
-  warn: vi.fn()
+  warn: vi.fn(),
 };
 
 export function setupLoggerMocks() {
-  vi.mock('@/utils/logger.js', () => ({
+  vi.mock('@/modules/core/logger/index.js', () => ({
     logger: mockLogger,
-    setModuleRegistry: vi.fn()
+    setModuleRegistry: vi.fn(),
   }));
 }

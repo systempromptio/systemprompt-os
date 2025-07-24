@@ -1,265 +1,52 @@
-# Permissions Module Configuration
 name: permissions
+type: core
 version: 1.0.0
-type: service
-description: Fine-grained permission management for resources and actions
-
-dependencies:
+description: Role-based access control module for SystemPrompt OS
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+singleton: true
+enabled: true
+dependencies: 
+  - database
   - users
-
-configuration:
-  defaultPermissions:
-    guest:
-      - resource: system
-        actions: [view]
-      - resource: users
-        actions: [view:self]
-    
-    user:
-      - resource: system
-        actions: [view]
-      - resource: users
-        actions: [view:self, update:self]
-      - resource: sessions
-        actions: [create:self, view:self, delete:self]
-    
-    admin:
-      - resource: "*"
-        actions: ["*"]
-  
-  resources:
-    system:
-      actions: [view, status, health, metrics, backup, restore, restart, update]
-    
-    users:
-      actions: [view, create, update, delete, enable, disable]
-      scopes: [self, all]
-    
-    sessions:
-      actions: [view, create, delete]
-      scopes: [self, all]
-    
-    permissions:
-      actions: [view, grant, revoke, create, update, delete]
-    
-    roles:
-      actions: [view, create, update, delete, assign, unassign]
-    
-    tools:
-      actions: [view, execute, create, update, delete]
-    
-    resources:
-      actions: [view, access, create, update, delete]
-    
-    prompts:
-      actions: [view, use, create, update, delete]
-
+exports:
+  - services
+  - types
+config:
+  defaultRole: user
+  adminRole: admin
 cli:
   commands:
-    - name: permissions
-      description: Permission management commands
-      aliases: [perms, perm]
-      subcommands:
-        - name: list
-          description: List permissions
-          aliases: [ls]
-          options:
-            - name: user
-              type: string
-              description: Filter by user ID
-            - name: role
-              type: string
-              description: Filter by role
-            - name: resource
-              type: string
-              description: Filter by resource
-            - name: json
-              type: boolean
-              description: Output as JSON
-        
-        - name: check
-          description: Check if user has permission
-          arguments:
-            - name: user
-              type: string
-              required: true
-              description: User ID or email
-            - name: resource
-              type: string
-              required: true
-              description: Resource name
-            - name: action
-              type: string
-              required: true
-              description: Action to check
-          options:
-            - name: scope
-              type: string
-              description: Permission scope (self, all)
-        
-        - name: grant
-          description: Grant permission to user or role
-          arguments:
-            - name: target
-              type: string
-              required: true
-              description: User ID or role name
-            - name: resource
-              type: string
-              required: true
-              description: Resource name
-            - name: action
-              type: string
-              required: true
-              description: Action to grant
-          options:
-            - name: role
-              type: boolean
-              description: Target is a role, not a user
-            - name: scope
-              type: string
-              description: Permission scope
-            - name: conditions
-              type: string
-              description: Permission conditions as JSON
-        
-        - name: revoke
-          description: Revoke permission from user or role
-          arguments:
-            - name: target
-              type: string
-              required: true
-              description: User ID or role name
-            - name: resource
-              type: string
-              required: true
-              description: Resource name
-            - name: action
-              type: string
-              required: true
-              description: Action to revoke
-          options:
-            - name: role
-              type: boolean
-              description: Target is a role, not a user
-            - name: scope
-              type: string
-              description: Permission scope
-    
-    - name: roles
-      description: Role management commands
-      aliases: [role]
-      subcommands:
-        - name: list
-          description: List roles
-          aliases: [ls]
-          options:
-            - name: json
-              type: boolean
-              description: Output as JSON
-        
-        - name: create
-          description: Create a new role
-          arguments:
-            - name: name
-              type: string
-              required: true
-              description: Role name
-          options:
-            - name: description
-              type: string
-              description: Role description
-            - name: permissions
-              type: string
-              description: Initial permissions as JSON
-        
-        - name: update
-          description: Update role
-          arguments:
-            - name: name
-              type: string
-              required: true
-              description: Role name
-          options:
-            - name: description
-              type: string
-              description: New description
-            - name: rename
-              type: string
-              description: New role name
-        
-        - name: delete
-          description: Delete role
-          aliases: [rm]
-          arguments:
-            - name: name
-              type: string
-              required: true
-              description: Role name to delete
-          options:
-            - name: force
-              type: boolean
-              description: Skip confirmation
-        
-        - name: assign
-          description: Assign role to user
-          arguments:
-            - name: role
-              type: string
-              required: true
-              description: Role name
-            - name: user
-              type: string
-              required: true
-              description: User ID or email
-        
-        - name: unassign
-          description: Remove role from user
-          arguments:
-            - name: role
-              type: string
-              required: true
-              description: Role name
-            - name: user
-              type: string
-              required: true
-              description: User ID or email
-        
-        - name: members
-          description: List role members
-          arguments:
-            - name: role
-              type: string
-              required: true
-              description: Role name
-          options:
-            - name: json
-              type: boolean
-              description: Output as JSON
-
-lifecycle:
-  hooks:
-    - event: user.created
-      handler: onUserCreated
-      description: Assign default permissions to new users
-    
-    - event: user.deleted
-      handler: onUserDeleted
-      description: Clean up user permissions
-    
-    - event: role.deleted
-      handler: onRoleDeleted
-      description: Clean up role assignments
-
-exports:
-  functions:
-    - checkPermission
-    - grantPermission
-    - revokePermission
-    - getUserPermissions
-    - getRolePermissions
-    - createRole
-    - deleteRole
-    - assignRole
-    - unassignRole
-    - getUserRoles
+    - name: roles:list
+      description: List all roles
+    - name: roles:create
+      description: Create a new role
+      options:
+        - name: name
+          type: string
+          description: Role name
+          required: true
+        - name: description
+          type: string
+          description: Role description
+    - name: permissions:grant
+      description: Grant permission to role
+      options:
+        - name: role
+          type: string
+          description: Role name
+          required: true
+        - name: permission
+          type: string
+          description: Permission to grant
+          required: true
+    - name: permissions:check
+      description: Check if user has permission
+      options:
+        - name: user
+          type: string
+          description: User ID
+          required: true
+        - name: permission
+          type: string
+          description: Permission to check
+          required: true

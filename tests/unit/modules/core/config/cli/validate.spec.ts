@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
-import { command } from '../../../../../../src/modules/core/config/cli/validate';
-import { ConfigModule } from '../../../../../../src/modules/core/config';
+import { command } from '../../../../../../src/modules/core/config/cli/validate.js';
+import { ConfigModule } from '../../../../../../src/modules/core/config.js';
 
 // Mock dependencies
 vi.mock('fs');

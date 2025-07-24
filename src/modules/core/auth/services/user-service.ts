@@ -1,11 +1,11 @@
 /**
- * @fileoverview User management service with proper role assignment
+ * @file User management service with proper role assignment.
  * @module modules/core/auth/services/user-service
  */
 
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '@/modules/core/database';
-import { Logger } from '@/modules/types';
+import type { DatabaseService } from '@/modules/core/database/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
 
 export interface CreateUserOptions {
   provider: string;
@@ -42,28 +42,17 @@ interface DatabaseConnection {
 }
 
 /**
- * Service for managing users with proper first-user detection and role assignment
+ * Service for managing users with proper first-user detection and role assignment.
  */
 export class UserService {
-  private static instance: UserService;
-  private logger?: Logger;
-  
-  private constructor(private db: DatabaseService) {}
-  
-  static getInstance(): UserService {
-    if (!this.instance) {
-      this.instance = new UserService(DatabaseService.getInstance());
-    }
-    return this.instance;
-  }
-  
-  setLogger(logger: Logger): void {
-    this.logger = logger;
-  }
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly logger: ILogger,
+  ) {}
 
   /**
    * Check if any admin users exist in the system
-   * This is checked BEFORE any user creation to avoid race conditions
+   * This is checked BEFORE any user creation to avoid race conditions.
    */
   async hasAdminUsers(): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
@@ -77,16 +66,22 @@ export class UserService {
 
   /**
    * Create or update a user from OAuth login
-   * Handles first-user admin assignment properly
+   * Handles first-user admin assignment properly.
+   * @param options
    */
   async createOrUpdateUserFromOAuth(options: CreateUserOptions): Promise<User> {
-    const { provider, providerId, email, name, avatar } = options;
-    
+    const {
+ provider, providerId, email, name, avatar
+} = options;
+
     // Check if admins exist BEFORE starting the transaction
     const hasAdmins = await this.hasAdminUsers();
-    this.logger?.info('Creating/updating user', { email, hasAdmins });
+    this.logger.info('Creating/updating user', {
+ email,
+hasAdmins
+});
 
-    return this.db.transaction<User>(async (conn: DatabaseConnection) => {
+    return await this.db.transaction<User>(async (conn: DatabaseConnection) => {
       // Check if OAuth identity exists
       const identityResult = await conn.query<{ user_id: string }>(
         `SELECT user_id FROM auth_oauth_identities 
@@ -106,11 +101,14 @@ export class UserService {
            WHERE id = ?`,
           [name || null, avatar || null, userId]
         );
-        this.logger?.info('Updated existing user', { userId, email });
+        this.logger.info('Updated existing user', {
+ userId,
+email
+});
       } else {
         // Create new user
         userId = randomUUID();
-        
+
         await conn.execute(
           `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at) 
            VALUES (?, ?, ?, ?, datetime('now'))`,
@@ -122,22 +120,28 @@ export class UserService {
           `INSERT INTO auth_oauth_identities 
            (id, user_id, provider, provider_user_id, provider_data) 
            VALUES (?, ?, ?, ?, ?)`,
-          [randomUUID(), userId, provider, providerId, JSON.stringify({ email, name, avatar })]
+          [randomUUID(), userId, provider, providerId, JSON.stringify({
+ email,
+name,
+avatar
+})]
         );
 
-        // Assign role based on whether admins exist
-        // This decision was made BEFORE the transaction started
+        /*
+         * Assign role based on whether admins exist
+         * This decision was made BEFORE the transaction started
+         */
         const roleId = hasAdmins ? 'role_user' : 'role_admin';
-        
+
         await conn.execute(
           `INSERT INTO auth_user_roles (user_id, role_id) VALUES (?, ?)`,
           [userId, roleId]
         );
-        
-        this.logger?.info('Created new user with role', { 
-          userId, 
-          email, 
-          role: hasAdmins ? 'user' : 'admin' 
+
+        this.logger.info('Created new user with role', {
+          userId,
+          email,
+          role: hasAdmins ? 'user' : 'admin'
         });
       }
 
@@ -152,14 +156,16 @@ export class UserService {
   }
 
   /**
-   * Get user by ID with roles using a specific connection
+   * Get user by ID with roles using a specific connection.
+   * @param userId
+   * @param conn
    */
   private async getUserByIdWithConnection(userId: string, conn: DatabaseConnection): Promise<User | null> {
     const userResult = await conn.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId]
     );
-    
+
     const userRow = userResult.rows[0];
     if (!userRow) {
       return null;
@@ -178,21 +184,22 @@ export class UserService {
       email: userRow.email,
       name: userRow.name,
       avatar_url: userRow.avatar_url,
-      roles: rolesResult.rows.map(r => r.name),
+      roles: rolesResult.rows.map(r => { return r.name }),
       created_at: userRow.created_at,
       updated_at: userRow.updated_at
     };
   }
 
   /**
-   * Get user by ID with roles
+   * Get user by ID with roles.
+   * @param userId
    */
   async getUserById(userId: string): Promise<User | null> {
     const userRows = await this.db.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId]
     );
-    
+
     const userRow = userRows[0];
     if (!userRow) {
       return null;
@@ -211,26 +218,27 @@ export class UserService {
       email: userRow.email,
       name: userRow.name,
       avatar_url: userRow.avatar_url,
-      roles: roles.map((r: { name: string }) => r.name),
+      roles: roles.map((r: { name: string }) => { return r.name }),
       created_at: userRow.created_at,
       updated_at: userRow.updated_at
     };
   }
 
   /**
-   * Get user by email
+   * Get user by email.
+   * @param email
    */
   async getUserByEmail(email: string): Promise<User | null> {
     const userRows = await this.db.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE email = ?',
       [email]
     );
-    
+
     const userRow = userRows[0];
     if (!userRow) {
       return null;
     }
 
-    return this.getUserById(userRow.id);
+    return await this.getUserById(userRow.id);
   }
 }

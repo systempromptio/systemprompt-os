@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { googleLiveAPIProvider, getModelConfig, getClientOptions } from '../../../../../../src/modules/core/config/providers/google';
+import { googleLiveAPIProvider, getModelConfig, getClientOptions } from '../../../../../../src/modules/core/config/providers/google.js';
 import { HarmCategory, HarmBlockThreshold } from '@google/genai';
 
 // Mock environment variables

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { tunnelStatus } from '../../../../../src/modules/core/auth/tunnel-status';
+import { tunnelStatus } from '../../../../../src/modules/core/auth/tunnel-status.js';
 
 describe('TunnelStatus', () => {
   let originalConsoleLog: any;

@@ -1,4 +1,4 @@
-import type { User } from '../../src/types/user';
+import type { User } from '../../src/types/user.js';
 
 export function createUserFixture(overrides?: Partial<User>): User {
   return {

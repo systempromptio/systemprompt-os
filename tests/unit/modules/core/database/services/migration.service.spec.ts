@@ -3,11 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service';
-import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service';
+import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service.js';
+import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.js';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
-import { logger } from '../../../../../../src/utils/logger';
+import { logger } from '../../../../../../src/utils/logger.js';
 
 // Mock dependencies
 vi.mock('node:fs/promises');
@@ -73,7 +73,7 @@ describe('MigrationService', () => {
 
   describe('discoverMigrations', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should discover migrations from filesystem', async () => {
@@ -157,7 +157,7 @@ describe('MigrationService', () => {
 
   describe('runMigrations', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should run pending migrations', async () => {
@@ -237,7 +237,7 @@ describe('MigrationService', () => {
 
   describe('getPendingMigrations', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should return pending migrations', async () => {
@@ -285,7 +285,7 @@ describe('MigrationService', () => {
 
   describe('getExecutedMigrations', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should return executed migrations', async () => {
@@ -331,7 +331,7 @@ describe('MigrationService', () => {
 
   describe('executeMigration', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should execute single migration', async () => {
@@ -355,7 +355,7 @@ describe('MigrationService', () => {
 
   describe('rollbackMigration', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should rollback migration with rollback file', async () => {
@@ -420,7 +420,7 @@ describe('MigrationService', () => {
 
   describe('version comparison', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should compare numeric versions correctly', async () => {
@@ -462,7 +462,7 @@ describe('MigrationService', () => {
 
   describe('checksum calculation', () => {
     beforeEach(() => {
-      migrationService = MigrationService.initialize(mockDatabaseService);
+      migrationService = MigrationService.initialize(mockDatabaseService, logger);
     });
 
     it('should calculate consistent checksums', async () => {

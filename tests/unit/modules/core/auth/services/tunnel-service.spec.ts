@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TunnelService } from '../../../../../../src/modules/core/auth/services/tunnel-service';
+import { TunnelService } from '../../../../../../src/modules/core/auth/services/tunnel-service.js';
 import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 

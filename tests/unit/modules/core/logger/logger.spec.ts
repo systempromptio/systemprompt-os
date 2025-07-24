@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { LoggerModule } from '../../../../../src/modules/core/logger/index';
-import type { LoggerConfig } from '../../../../../src/modules/core/logger/index';
+import { LoggerModule } from '../../../../../src/modules/core/logger/index.js';
+import type { LoggerConfig } from '../../../../../src/modules/core/logger/index.js';
 import { existsSync, mkdirSync, appendFileSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 

@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "@/cli/src/types";
-import { ensureDatabaseInitialized } from "./utils";
+import type { CLICommand, CLIContext } from "@/modules/core/cli/types/index.js";
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils.js';
 
 export const command: CLICommand = {
   name: "status",
@@ -15,12 +15,14 @@ export const command: CLICommand = {
   ],
   async execute(context: CLIContext): Promise<void> {
     try {
-      const format = context.args.format || "table";
-      const { dbService, migrationService, schemaService } = await ensureDatabaseInitialized();
+      const format = context.args['format'] || "table";
+      const {
+ dbService, migrationService, schemaService
+} = await ensureDatabaseInitialized();
 
       // Check if database is initialized
       const isInitialized = await dbService.isInitialized();
-      
+
       if (!isInitialized) {
         console.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
         process.exit(1);
@@ -28,13 +30,13 @@ export const command: CLICommand = {
 
       // Get connection info
       const connection = await dbService.getConnection();
-      const databaseType = process.env.DATABASE_TYPE || "sqlite";
-      const databaseFile = process.env.DATABASE_FILE || "/data/state/systemprompt.db";
-      
+      const databaseType = process.env['DATABASE_TYPE'] || "sqlite";
+      const databaseFile = process.env['DATABASE_FILE'] || "/data/state/systemprompt.db";
+
       // Get migration status
       const pendingMigrations = await migrationService.getPendingMigrations();
       const executedMigrations = await migrationService.getExecutedMigrations();
-      
+
       // Get schema info
       const schemas = await schemaService.getInstalledSchemas();
 
@@ -42,8 +44,8 @@ export const command: CLICommand = {
         connection: {
           type: databaseType,
           file: databaseType === "sqlite" ? databaseFile : undefined,
-          host: databaseType === "postgres" ? process.env.POSTGRES_HOST : undefined,
-          database: databaseType === "postgres" ? process.env.POSTGRES_DB : undefined,
+          host: databaseType === "postgres" ? process.env['POSTGRES_HOST'] : undefined,
+          database: databaseType === "postgres" ? process.env['POSTGRES_DB'] : undefined,
           status: connection ? "connected" : "disconnected",
         },
         migrations: {
@@ -53,7 +55,7 @@ export const command: CLICommand = {
         },
         schemas: {
           installed: schemas.length,
-          modules: schemas.map(s => s.module_name),
+          modules: schemas.map(s => { return s.module_name }),
         },
       };
 
@@ -61,7 +63,7 @@ export const command: CLICommand = {
         console.log(JSON.stringify(status, null, 2));
       } else {
         console.log("\n=== Database Status ===\n");
-        
+
         console.log("Connection:");
         console.log(`  Type: ${status.connection.type}`);
         if (status.connection.file) {
@@ -72,18 +74,18 @@ export const command: CLICommand = {
           console.log(`  Database: ${status.connection.database}`);
         }
         console.log(`  Status: ${status.connection.status}`);
-        
+
         console.log("\nMigrations:");
         console.log(`  Executed: ${status.migrations.executed}`);
         console.log(`  Pending: ${status.migrations.pending}`);
         console.log(`  Last Executed: ${status.migrations.lastExecuted}`);
-        
+
         console.log("\nSchemas:");
         console.log(`  Installed: ${status.schemas.installed}`);
         if (status.schemas.modules.length > 0) {
           console.log(`  Modules: ${status.schemas.modules.join(", ")}`);
         }
-        
+
         console.log("");
       }
     } catch (error: any) {

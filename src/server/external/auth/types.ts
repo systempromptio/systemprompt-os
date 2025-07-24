@@ -1,5 +1,5 @@
 /**
- * OAuth and authentication types
+ * OAuth and authentication types.
  */
 
 export interface OAuthClient {

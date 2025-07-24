@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { CREATEREACT_COMPONENT_PROMPT, REACTCOMPONENT_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/react-components';
+import { CREATEREACT_COMPONENT_PROMPT, REACTCOMPONENT_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/react-components.js';
 
 describe('React Components Prompts', () => {
   describe('CREATEREACT_COMPONENT_PROMPT', () => {

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ProviderRegistry } from '../../../../../../src/modules/core/auth/providers/registry';
+import { ProviderRegistry } from '../../../../../../src/modules/core/auth/providers/registry.js';
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { parse as parseYaml } from 'yaml';
 

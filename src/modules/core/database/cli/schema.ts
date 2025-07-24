@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "@/cli/src/types";
-import { ensureDatabaseInitialized } from "./utils";
+import type { CLICommand, CLIContext } from "@/modules/core/cli/types/index.js";
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils.js';
 
 export const command: CLICommand = {
   name: "schema",
@@ -27,25 +27,25 @@ export const command: CLICommand = {
   ],
   async execute(context: CLIContext): Promise<void> {
     try {
-      const action = context.args.action;
-      const moduleFilter = context.args.module;
-      const force = context.args.force || false;
-      
+      const action = context.args['action'];
+      const moduleFilter = context.args['module'];
+      const force = context.args['force'] || false;
+
       const { dbService, schemaService } = await ensureDatabaseInitialized();
 
       switch (action) {
         case "list":
           await listSchemas(dbService, schemaService);
           break;
-          
+
         case "init":
           await initializeSchema(dbService, schemaService, moduleFilter, force);
           break;
-          
+
         case "validate":
           await validateSchemas(dbService, schemaService, moduleFilter);
           break;
-          
+
         default:
           console.error(`Unknown action: ${action}`);
           console.error("Valid actions are: list, init, validate");
@@ -60,14 +60,14 @@ export const command: CLICommand = {
 
 async function listSchemas(dbService: any, schemaService: any): Promise<void> {
   const isInitialized = await dbService.isInitialized();
-  
+
   if (!isInitialized) {
     console.log("Database is not initialized. No schemas installed.");
     return;
   }
 
   const schemas = await schemaService.getInstalledSchemas();
-  
+
   if (schemas.length === 0) {
     console.log("No schemas found.");
     return;
@@ -76,25 +76,26 @@ async function listSchemas(dbService: any, schemaService: any): Promise<void> {
   console.log("\nInstalled Schemas:\n");
   console.log("Module Name           Version    Installed At");
   console.log("-".repeat(60));
-  
+
   for (const schema of schemas) {
     const moduleName = schema.module_name.padEnd(20);
     const version = (schema.version || "1.0.0").padEnd(10);
-    const installedAt = new Date(schema.installed_at).toISOString().split('T')[0];
+    const installedAt = new Date(schema.installed_at).toISOString()
+.split('T')[0];
     console.log(`${moduleName} ${version} ${installedAt}`);
   }
-  
+
   console.log("");
 }
 
 async function initializeSchema(
-  dbService: any, 
-  schemaService: any, 
+  dbService: any,
+  schemaService: any,
   moduleFilter: string | undefined,
   force: boolean
 ): Promise<void> {
   const isInitialized = await dbService.isInitialized();
-  
+
   if (isInitialized && !force) {
     console.error("Database is already initialized. Use --force to reinitialize.");
     process.exit(1);
@@ -115,8 +116,8 @@ async function initializeSchema(
     // If module specified, initialize only that module's schema
     if (moduleFilter) {
       const moduleSchemas = await schemaService.discoverSchemasArray();
-      const moduleSchema = moduleSchemas.find((s: any) => s.moduleName === moduleFilter);
-      
+      const moduleSchema = moduleSchemas.find((s: any) => { return s.moduleName === moduleFilter });
+
       if (!moduleSchema) {
         console.error(`Module '${moduleFilter}' not found or has no schema.`);
         process.exit(1);
@@ -128,10 +129,10 @@ async function initializeSchema(
     } else {
       // Initialize all discovered schemas
       const moduleSchemas = await schemaService.discoverSchemasArray();
-      
+
       if (moduleSchemas.length > 0) {
         console.log(`\nFound ${moduleSchemas.length} module schema(s) to install:\n`);
-        
+
         for (const schema of moduleSchemas) {
           console.log(`Installing schema for ${schema.moduleName}...`);
           try {
@@ -152,12 +153,12 @@ async function initializeSchema(
 }
 
 async function validateSchemas(
-  dbService: any, 
+  dbService: any,
   schemaService: any,
   moduleFilter: string | undefined
 ): Promise<void> {
   const isInitialized = await dbService.isInitialized();
-  
+
   if (!isInitialized) {
     console.error("Database is not initialized. Nothing to validate.");
     process.exit(1);
@@ -168,17 +169,17 @@ async function validateSchemas(
   try {
     const installedSchemas = await schemaService.getInstalledSchemas();
     const discoveredSchemas = await schemaService.discoverSchemasArray();
-    
+
     let hasErrors = false;
 
     // Check for missing schemas
     for (const discovered of discoveredSchemas) {
-      if (moduleFilter && (discovered as any).moduleName !== moduleFilter) {
+      if (moduleFilter && discovered.moduleName !== moduleFilter) {
         continue;
       }
 
-      const installed = installedSchemas.find((s: any) => s.module_name === (discovered as any).moduleName);
-      
+      const installed = installedSchemas.find((s: any) => { return s.module_name === discovered.moduleName });
+
       if (!installed) {
         console.log(`⚠️  Schema for '${discovered.moduleName}' is not installed`);
         hasErrors = true;
@@ -193,8 +194,8 @@ async function validateSchemas(
         continue;
       }
 
-      const discovered = discoveredSchemas.find((s: any) => s.moduleName === installed.module_name);
-      
+      const discovered = discoveredSchemas.find((s: any) => { return s.moduleName === installed.module_name });
+
       if (!discovered) {
         console.log(`⚠️  Installed schema for '${installed.module_name}' has no corresponding module`);
         hasErrors = true;

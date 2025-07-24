@@ -1,10 +1,5 @@
 /**
- * @fileoverview Base layout template for configuration pages
- * @module server/external/templates/config/layout
- */
-
-/**
- * Configuration for page layout rendering
+ * Configuration for page layout rendering.
  */
 export interface LayoutConfig {
   title: string;
@@ -13,7 +8,8 @@ export interface LayoutConfig {
 }
 
 /**
- * Renders the base HTML layout for configuration pages
+ * Renders the base HTML layout for configuration pages.
+ * @param config
  */
 export function renderLayout(config: LayoutConfig): string {
   return `
@@ -40,7 +36,7 @@ export function renderLayout(config: LayoutConfig): string {
 }
 
 /**
- * Returns base CSS styles shared across all configuration pages
+ * Returns base CSS styles shared across all configuration pages.
  */
 function getBaseStyles(): string {
   return `

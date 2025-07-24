@@ -1,27 +1,31 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install necessary packages
 # Note: coreutils is needed for full 'env' command support (npx uses env -S)
-RUN apk add --no-cache tini git bash curl coreutils wget
+RUN apk add --no-cache tini git bash curl coreutils wget sqlite
 
 # Install cloudflared for OAuth tunnel support
 RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && \
     chmod +x /usr/local/bin/cloudflared
 
-# Create app user and group (use node user if conflicts)
-RUN addgroup -S appgroup || true && \
-    adduser -S appuser -G appgroup || true
+# Create app user and group with specific UID/GID for consistency
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
 
 # Create necessary directories with proper permissions
 # Include custom code directories that will be mounted or linked
 RUN mkdir -p /app /data/state /data/projects \
     /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports \
+    /data/state/auth /data/state/auth/keys \
     /app/modules/custom \
     /app/server/mcp/custom \
     /app/custom-modules \
-    /app/custom-mcp && \
+    /app/custom-mcp \
+    /app/logs && \
     chown -R appuser:appgroup /app /data && \
-    chmod -R 775 /data/state
+    chmod -R 777 /data && \
+    chmod -R 777 /app/logs && \
+    chmod 700 /data/state/auth/keys
 
 WORKDIR /app
 
@@ -42,13 +46,10 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Build the application
-RUN npm run build:main
+RUN npm run build
 
-# Copy non-TypeScript resource files to build directory for runtime access
-RUN find /app/src/modules -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.json" \) -exec bash -c 'mkdir -p "/app/build/modules/$(dirname "${1#/app/src/modules/}")" && cp "$1" "/app/build/modules/${1#/app/src/modules/}"' _ {} \;
-
-# Copy scripts directory to build
-RUN cp -r /app/scripts /app/build/scripts || mkdir -p /app/build/scripts
+# Ensure loader.mjs is executable and in the right place
+RUN chmod +x /app/loader.mjs
 
 # Make the CLI globally available by creating a symlink in /usr/local/bin
 RUN chmod +x /app/bin/systemprompt && \
@@ -61,8 +62,12 @@ RUN touch /app/modules/custom/.gitkeep \
     echo '# Custom Modules\nPlace custom modules here or mount via volume' > /app/modules/custom/README.md && \
     echo '# Custom MCP Servers\nPlace custom MCP servers here or mount via volume' > /app/server/mcp/custom/README.md
 
-# Change ownership of app files
-RUN chown -R appuser:appgroup /app
+# Change ownership of app files and ensure data directories are writable
+RUN chown -R appuser:appgroup /app && \
+    chown -R appuser:appgroup /data && \
+    # Ensure specific directories have correct permissions before switching user
+    chmod -R 755 /data/state && \
+    chmod 700 /data/state/auth/keys
 
 # Switch to non-root user
 USER appuser
@@ -74,5 +79,5 @@ EXPOSE ${PORT}
 # Use tini and our entrypoint for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 
-# Run the application
-CMD ["node", "build/index.js"]
+# Run the built application
+CMD ["node", "--loader", "./loader.mjs", "build/index.js"]

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { jwtSign, jwtVerify } from '../../../../../src/server/external/auth/jwt';
+import { jwtSign, jwtVerify } from '../../../../../src/server/external/auth/jwt.js';
 import { readFileSync } from 'fs';
 
 vi.mock('fs', () => ({

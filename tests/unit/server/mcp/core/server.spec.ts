@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createMCPServer, CoreMCPServer } from '../../../../../src/server/mcp/core/server';
+import { createMCPServer, CoreMCPServer } from '../../../../../src/server/mcp/core/server.js';
 
 describe('MCPServer', () => {
   let server: CoreMCPServer;

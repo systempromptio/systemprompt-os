@@ -1,9 +1,9 @@
 /**
- * @fileoverview Provider management CLI commands
+ * @file Provider management CLI commands.
  * @module modules/core/auth/cli/providers
  */
 
-import { getAuthModule } from '../singleton.js';
+import { getAuthModule } from '@/modules/core/auth/singleton.js';
 
 // Local interface definition
 export interface CLIContext {
@@ -13,13 +13,14 @@ export interface CLIContext {
 }
 
 export const command = {
+  description: 'List configured OAuth2/OIDC providers',
   subcommands: {
     list: {
       execute: async (_context: CLIContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
-          const providers = authModule.getAllProviders();
-          
+          const providers = authModule.exports.getAllProviders();
+
           if (providers.length === 0) {
             console.log('No OAuth2/OIDC providers are currently configured.');
             console.log('\nTo enable providers, set the following environment variables:');
@@ -28,9 +29,9 @@ export const command = {
             console.log('\nOr add custom providers in src/modules/core/auth/providers/custom/');
             return;
           }
-          
+
           console.log(`Found ${providers.length} configured provider(s):\n`);
-          
+
           for (const provider of providers) {
             console.log(`  ${provider.id}:`);
             console.log(`    Name: ${provider.name}`);
@@ -42,20 +43,20 @@ export const command = {
           console.error('Error listing providers:', error);
           process.exit(1);
         }
-      }
+      },
     },
-    
+
     reload: {
       execute: async (_context: CLIContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
-          
+
           console.log('Reloading provider configurations...');
-          await authModule.reloadProviders();
-          
-          const providers = authModule.getAllProviders();
+          await authModule.exports.reloadProviders();
+
+          const providers = authModule.exports.getAllProviders();
           console.log(`✓ Reloaded successfully. ${providers.length} provider(s) available.`);
-          
+
           if (providers.length > 0) {
             console.log('\nActive providers:');
             for (const provider of providers) {
@@ -66,7 +67,7 @@ export const command = {
           console.error('Error reloading providers:', error);
           process.exit(1);
         }
-      }
-    }
-  }
+      },
+    },
+  },
 };

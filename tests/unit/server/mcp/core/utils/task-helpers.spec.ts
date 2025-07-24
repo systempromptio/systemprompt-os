@@ -8,7 +8,7 @@ import {
   enhanceTask, 
   validateTaskId, 
   formatTaskForResponse 
-} from '../../../../../../src/server/mcp/core/utils/task-helpers';
+} from '../../../../../../src/server/mcp/core/utils/task-helpers.js';
 
 describe('Task Helper Utilities', () => {
   beforeEach(() => {

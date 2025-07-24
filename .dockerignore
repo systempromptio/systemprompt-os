@@ -30,11 +30,14 @@ dist/
 coverage/
 .nyc_output/
 e2e-test/
+tests/
+__tests__/
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
+server.log
 
 # OS files
 .DS_Store
@@ -45,3 +48,15 @@ Thumbs.db
 *.temp
 output/
 agent/
+
+# State and data (will be created in container)
+state/
+data/
+workspace/
+
+# Development scripts
+scripts/
+referencecode/
+
+# ESLint cache
+.eslintcache

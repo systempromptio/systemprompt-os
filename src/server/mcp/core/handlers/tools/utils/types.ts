@@ -1,31 +1,34 @@
 /**
- * @fileoverview Orchestrator tool type definitions and schemas
+ * @file Orchestrator tool type definitions and schemas.
  * @module handlers/tools/orchestrator/utils/types
  */
 
 import { z } from "zod";
-import { Task } from "../../../types/task.js";
+import type { Task } from '@/server/mcp/core/types/task.js';
 
 /**
- * Schema for create task arguments
+ * Schema for create task arguments.
  */
 export const CreateTaskArgsSchema = z.object({
-  title: z.string().min(1).max(255),
-  instructions: z.string().min(1).max(10000),
+  title: z.string().min(1)
+.max(255),
+  instructions: z.string().min(1)
+.max(10000),
 });
 export type CreateTaskArgs = z.infer<typeof CreateTaskArgsSchema>;
 
 /**
- * Schema for update task arguments
+ * Schema for update task arguments.
  */
 export const UpdateTaskArgsSchema = z.object({
   id: z.string(),
-  instructions: z.string().min(1).max(10000),
+  instructions: z.string().min(1)
+.max(10000),
 });
 export type UpdateTaskArgs = z.infer<typeof UpdateTaskArgsSchema>;
 
 /**
- * Schema for end task arguments
+ * Schema for end task arguments.
  */
 export const EndTaskArgsSchema = z.object({
   id: z.string(),
@@ -33,7 +36,7 @@ export const EndTaskArgsSchema = z.object({
 export type EndTaskArgs = z.infer<typeof EndTaskArgsSchema>;
 
 /**
- * Schema for report task arguments
+ * Schema for report task arguments.
  */
 export const ReportTaskArgsSchema = z.object({
   id: z.string().optional(),
@@ -41,19 +44,19 @@ export const ReportTaskArgsSchema = z.object({
 export type ReportTaskArgs = z.infer<typeof ReportTaskArgsSchema>;
 
 /**
- * Schema for clean state arguments
+ * Schema for clean state arguments.
  */
 export const CleanStateArgsSchema = z.object({});
 export type CleanStateArgs = z.infer<typeof CleanStateArgsSchema>;
 
 /**
- * Schema for check status arguments
+ * Schema for check status arguments.
  */
 export const CheckStatusArgsSchema = z.object({});
 export type CheckStatusArgs = z.infer<typeof CheckStatusArgsSchema>;
 
 /**
- * System status enumeration
+ * System status enumeration.
  */
 export enum SystemStatus {
   ACTIVE = "active",
@@ -62,7 +65,7 @@ export enum SystemStatus {
 }
 
 /**
- * Service status enumeration
+ * Service status enumeration.
  */
 export enum ServiceStatus {
   ACTIVE = "active",
@@ -70,7 +73,7 @@ export enum ServiceStatus {
 }
 
 /**
- * Session status enumeration
+ * Session status enumeration.
  */
 export enum SessionStatus {
   ACTIVE = "active",
@@ -79,7 +82,7 @@ export enum SessionStatus {
 }
 
 /**
- * Task status enumeration
+ * Task status enumeration.
  */
 export enum TaskStatus {
   PENDING = "pending",
@@ -90,7 +93,7 @@ export enum TaskStatus {
 }
 
 /**
- * Response structure for check status operation
+ * Response structure for check status operation.
  */
 export interface CheckStatusResponse {
   status: SystemStatus;
@@ -122,7 +125,7 @@ export interface CheckStatusResponse {
 }
 
 /**
- * Generic tool response structure
+ * Generic tool response structure.
  */
 export interface ToolResponse<T = unknown> {
   readonly success: boolean;
@@ -135,7 +138,7 @@ export interface ToolResponse<T = unknown> {
 }
 
 /**
- * Session context information
+ * Session context information.
  */
 export interface SessionContext {
   readonly sessionId?: string;
@@ -144,7 +147,7 @@ export interface SessionContext {
 }
 
 /**
- * Validation error with field information
+ * Validation error with field information.
  */
 export class ValidationError extends Error {
   constructor(
@@ -152,33 +155,33 @@ export class ValidationError extends Error {
     public readonly field?: string,
     public readonly value?: unknown,
   ) {
-    super( message);
+    super(message);
     this.name = "ValidationError";
   }
 }
 
 /**
- * Task not found error
+ * Task not found error.
  */
 export class TaskNotFoundError extends Error {
-  constructor( taskId: string) {
+  constructor(taskId: string) {
     super(`Task not found: ${taskId}`);
     this.name = "TaskNotFoundError";
   }
 }
 
 /**
- * Tool not available error
+ * Tool not available error.
  */
 export class ToolNotAvailableError extends Error {
-  constructor( tool: string) {
+  constructor(tool: string) {
     super(`Tool not available: ${tool}`);
     this.name = "ToolNotAvailableError";
   }
 }
 
 /**
- * Git operation error
+ * Git operation error.
  */
 export class GitOperationError extends Error {
   constructor(
@@ -191,20 +194,20 @@ export class GitOperationError extends Error {
 }
 
 /**
- * Status check error
+ * Status check error.
  */
 export class StatusCheckError extends Error {
   constructor(
     message: string,
     public readonly details?: unknown,
   ) {
-    super( message);
+    super(message);
     this.name = "StatusCheckError";
   }
 }
 
 /**
- * Task report structure
+ * Task report structure.
  */
 export interface TaskReport {
   readonly task: Task;

@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { 
   getTaskOutputResource, 
   listTaskOutputResources 
-} from '../../../../../../../src/server/mcp/core/handlers/resources/task-output';
-import { logger } from '../../../../../../../src/utils/logger';
+} from '../../../../../../../src/server/mcp/core/handlers/resources/task-output.js';
+import { logger } from '../../../../../../../src/utils/logger.js';
 
 // Mock logger
 vi.mock('../../../../../../../src/utils/logger', () => ({

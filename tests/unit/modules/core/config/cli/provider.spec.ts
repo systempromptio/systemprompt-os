@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/config/cli/provider';
+import { command } from '../../../../../../src/modules/core/config/cli/provider.js';
 import { 
   providers, 
   getEnabledProviders, 
@@ -13,7 +13,7 @@ import {
   enableProvider, 
   disableProvider, 
   setDefaultProvider 
-} from '../../../../../../src/modules/core/config/providers';
+} from '../../../../../../src/modules/core/config/providers.js';
 
 // Mock dependencies
 vi.mock('../../../../../../src/modules/core/config/providers', () => ({

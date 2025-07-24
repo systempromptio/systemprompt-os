@@ -1,6 +1,5 @@
 /**
- * Database Module Types
- * 
+ * Database Module Types.
  * Central export point for all database-related types and interfaces.
  * This ensures consistent type usage across the SystemPrompt OS platform.
  */
@@ -19,14 +18,25 @@ export type {
   ColumnDefinition,
   IndexDefinition,
   ConstraintDefinition
-} from '../interfaces/database.interface';
+} from '@/modules/core/database/interfaces/database.interface.js';
+
+// Database service interface
+export type {
+  IDatabaseService,
+  IPreparedStatement
+} from '@/modules/core/database/types/db-service.interface.js';
 
 // Module adapter types
 export type {
   ModuleDatabaseAdapter,
   ModuleQueryResult,
   ModuleTransaction
-} from '../adapters/module-adapter';
+} from '@/modules/core/database/adapters/module-adapter.js';
+
+// Import types that are used in this file
+import type {
+ DatabaseConfig, MigrationFile, QueryResult
+} from '@/modules/core/database/interfaces/database.interface.js';
 
 // Service configurations
 export interface DatabaseServiceConfig extends DatabaseConfig {
@@ -115,17 +125,19 @@ export type TransactionIsolationLevel = 'READ UNCOMMITTED' | 'READ COMMITTED' | 
 
 // Type guards
 export function isDatabaseConfig(obj: any): obj is DatabaseConfig {
-  return obj && 
-    typeof obj === 'object' && 
-    ['sqlite', 'postgres'].includes(obj.type);
+  return obj
+    && typeof obj === 'object'
+    && ['sqlite', 'postgres'].includes(obj.type);
 }
 
 export function isQueryResult<T = any>(obj: any): obj is QueryResult<T> {
-  return obj && 
-    typeof obj === 'object' && 
-    Array.isArray(obj.rows) && 
-    typeof obj.rowCount === 'number';
+  return obj
+    && typeof obj === 'object'
+    && Array.isArray(obj.rows)
+    && typeof obj.rowCount === 'number';
 }
 
 // Re-export for backward compatibility
-export { DatabaseConfig as DatabaseConfiguration } from '../interfaces/database.interface';
+export type { DatabaseConfig as DatabaseConfiguration } from '@/modules/core/database/interfaces/database.interface.js';
+
+// Dependency injection tokens removed - using self-contained modules

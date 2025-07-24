@@ -1,128 +1,180 @@
 /**
- * @fileoverview Express middleware for MCP server including rate limiting, protocol validation,
+ * @file Express middleware for MCP server including rate limiting, protocol validation,
  * and request size limits. Provides security and validation layers for the MCP protocol.
  * @module server/middleware
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger.js';
-
-const requestCounts = new Map<string, { count: number; resetTime: number }>();
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import type { IExpressHandler } from '@/server/types/middleware.types.js';
+import {
+  DEFAULT_MAX_REQUESTS,
+  HTTP_BAD_REQUEST,
+  HTTP_PAYLOAD_TOO_LARGE,
+  HTTP_TOO_MANY_REQUESTS,
+  INCREMENT_VALUE,
+  MCP_ERROR_CODE,
+  MCP_INVALID_REQUEST,
+  ONE_MINUTE_MS,
+  ONE_SECOND_MS,
+  RADIX_DECIMAL,
+  REQUEST_COUNTS,
+  TEN_MB_BYTES
+} from '@/server/constants/middleware.constants.js';
 
 /**
- * Rate limiting middleware for MCP endpoints
- * @param windowMs - Time window in milliseconds ( default: 60000ms = 1 minute)
- * @param maxRequests - Maximum requests allowed per window ( default: 100)
- * @returns Express middleware function
+ * Get logger instance.
+ */
+const getLogger = (): LoggerService => {
+  return LoggerService.getInstance();
+};
+
+/**
+ * Rate limiting middleware for MCP endpoints.
+ * @param windowMs - Time window in milliseconds ( default: 60000ms = 1 minute).
+ * @param maxRequests - Maximum requests allowed per window ( default: 100).
+ * @returns Express middleware function.
  * @example
  * ```typescript
  * app.use('/mcp', rateLimitMiddleware(60000, 100));
  * ```
  */
-export function rateLimitMiddleware(
-  windowMs: number = 60000,
-  maxRequests: number = 100
-) {
-  return ( req: Request, res: Response, next: NextFunction): void => {
-    const key = req.ip || 'unknown';
+export const rateLimitMiddleware = (
+  windowMs: number = ONE_MINUTE_MS,
+  maxRequests: number = DEFAULT_MAX_REQUESTS,
+): IExpressHandler => {
+  return (req, res, next): void => {
+    const key = req.ip ?? 'unknown';
     const now = Date.now();
-    
-    let rateData = requestCounts.get( key);
-    if (!rateData || now > rateData.resetTime) {
-      rateData = { count: 0, resetTime: now + windowMs };
-      requestCounts.set(key, rateData);
+    const logger = getLogger();
+
+    let rateData = REQUEST_COUNTS.get(key);
+    if (rateData === undefined || now > rateData.resetTime) {
+      rateData = {
+        count: 0,
+        resetTime: now + windowMs,
+      };
+      REQUEST_COUNTS.set(key, rateData);
     }
-    
+
     if (rateData.count >= maxRequests) {
-      logger.warn('Rate limit exceeded', { ip: key, count: rateData.count });
-      res.status(429).json({
+      logger.warn('Rate limit exceeded', {
+        ip: key,
+        count: rateData.count,
+      });
+      res.status(HTTP_TOO_MANY_REQUESTS).json({
         jsonrpc: '2.0',
         error: {
-          code: -32000,
+          code: MCP_ERROR_CODE,
           message: 'Too many requests',
-          data: { retryAfter: Math.ceil((rateData.resetTime - now) / 1000) },
+          information: {
+            retryAfter: Math.ceil((rateData.resetTime - now) / ONE_SECOND_MS),
+          },
         },
         id: null,
       });
       return;
     }
-    
-    rateData.count++;
+
+    rateData.count += INCREMENT_VALUE;
     next();
   };
-}
+};
 
 /**
- * Validate MCP protocol version
- * @param req - Express request object
- * @param res - Express response object
- * @param next - Express next function
+ * Validate MCP protocol version.
+ * @param req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next function.
  */
-export function validateProtocolVersion( req: Request, res: Response, next: NextFunction): void {
-  const version = req.headers['mcp-protocol-version'];
-  
-  if (!version) {
+export const validateProtocolVersion: IExpressHandler = (req, res, next): void => {
+  const { headers } = req;
+  const { 'mcp-protocol-version': versionHeader } = headers;
+  const logger = getLogger();
+
+  if (versionHeader === undefined) {
     next();
     return;
   }
-  
+
   const supportedVersions = ['2025-06-18', '2025-03-26', '2024-11-05'];
-  if (!supportedVersions.includes(version as string)) {
+  const version = String(versionHeader);
+
+  if (!supportedVersions.includes(version)) {
     logger.warn('Unsupported protocol version', { version });
-    res.status(400).json({
+    res.status(HTTP_BAD_REQUEST).json({
       jsonrpc: '2.0',
       error: {
-        code: -32600,
+        code: MCP_INVALID_REQUEST,
         message: 'Unsupported protocol version',
-        data: { supported: supportedVersions, requested: version },
+        information: {
+          supported: supportedVersions,
+          requested: version,
+        },
       },
       id: null,
     });
     return;
   }
-  
+
   next();
-}
+};
 
 /**
- * Request size limit middleware
- * @param maxSize - Maximum request size in bytes ( default: 10MB)
- * @returns Express middleware function
+ * Request size limit middleware.
+ * @param maxSize - Maximum request size in bytes ( default: 10MB).
+ * @returns Express middleware function.
  * @example
  * ```typescript
  * app.use('/mcp', requestSizeLimit(10 * 1024 * 1024));
  * ```
  */
-export function requestSizeLimit( maxSize: number = 10 * 1024 * 1024) {
-  return ( req: Request, res: Response, next: NextFunction): void => {
-    const contentLength = parseInt(req.headers['content-length'] || '0', 10);
-    
+export const requestSizeLimit = (maxSize: number = TEN_MB_BYTES): IExpressHandler => {
+  return (req, res, next): void => {
+    const contentLengthHeader = req.headers['content-length'] ?? '0';
+    const contentLength = parseInt(contentLengthHeader, RADIX_DECIMAL);
+    const logger = getLogger();
+
     if (contentLength > maxSize) {
-      logger.warn('Request too large', { size: contentLength, maxSize });
-      res.status(413).json({
+      logger.warn('Request too large', {
+        size: contentLength,
+        maxSize,
+      });
+      res.status(HTTP_PAYLOAD_TOO_LARGE).json({
         jsonrpc: '2.0',
         error: {
-          code: -32000,
+          code: MCP_ERROR_CODE,
           message: 'Request entity too large',
-          data: { maxSize, received: contentLength },
+          information: {
+            maxSize,
+            received: contentLength,
+          },
         },
         id: null,
       });
       return;
     }
-    
+
     next();
   };
-}
+};
 
 /**
- * Clean up old rate limit entries periodically
+ * Clean up old rate limit entries periodically.
  */
-setInterval(() => {
+const cleanupInterval = setInterval((): void => {
   const now = Date.now();
-  for (const [key, data] of requestCounts.entries()) {
-    if (now > data.resetTime) {
-      requestCounts.delete( key);
+
+  REQUEST_COUNTS.forEach((rateData, key) => {
+    if (now > rateData.resetTime) {
+      REQUEST_COUNTS.delete(key);
     }
-  }
-}, 60000);
+  });
+}, ONE_MINUTE_MS);
+
+/**
+ * Cleanup function for testing.
+ */
+export const cleanup = (): void => {
+  clearInterval(cleanupInterval);
+  REQUEST_COUNTS.clear();
+};

@@ -1,9 +1,9 @@
 /**
- * Token management CLI commands
+ * Token management CLI commands.
  */
 
 import { Command } from 'commander';
-import type { AuthModule } from '../index.js';
+import type { AuthModule } from '@/modules/core/auth/index.js';
 
 export function createTokenCommand(module: AuthModule): Command {
   const cmd = new Command('token')
@@ -33,8 +33,8 @@ export function createTokenCommand(module: AuthModule): Command {
           userId: options.user,
           type: options.type,
           scope: options.scope,
-          expiresIn: options.expires ? parseInt(options.expires, 10) : undefined,
-          metadata
+          ...options.expires && { expiresIn: parseInt(options.expires, 10) },
+          ...metadata && { metadata }
         });
 
         console.log('\n✓ Token created successfully!');
@@ -56,7 +56,7 @@ export function createTokenCommand(module: AuthModule): Command {
     .action(async (userId, options) => {
       try {
         const tokens = await module.listUserTokens(userId);
-        
+
         if (options.json) {
           console.log(JSON.stringify(tokens, null, 2));
         } else {
@@ -68,17 +68,18 @@ export function createTokenCommand(module: AuthModule): Command {
           console.log('\nTokens:');
           console.log('ID                                Type        Scopes              Expires                   Last Used');
           console.log('--------------------------------  ----------  ------------------  ------------------------  ------------------------');
-          
+
           tokens.forEach(token => {
             const id = token.id.substring(0, 32);
             const type = token.type.padEnd(10);
-            const scopes = token.scope.join(',').substring(0, 18).padEnd(18);
+            const scopes = token.scope.join(',').substring(0, 18)
+.padEnd(18);
             const expires = token.expiresAt ? token.expiresAt.toISOString() : 'Never'.padEnd(24);
             const lastUsed = token.lastUsedAt ? token.lastUsedAt.toISOString() : 'Never'.padEnd(24);
-            
+
             console.log(`${id}  ${type}  ${scopes}  ${expires}  ${lastUsed}`);
           });
-          
+
           console.log(`\nTotal: ${tokens.length} token(s)`);
         }
       } catch (error: any) {

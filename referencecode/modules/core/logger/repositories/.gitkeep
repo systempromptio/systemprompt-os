@@ -1,0 +1,2 @@
+# Logger module does not require database repositories
+# This directory is maintained for structural consistency with other modules

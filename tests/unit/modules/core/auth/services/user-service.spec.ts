@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { UserService } from '../../../../../../src/modules/core/auth/services/user-service';
-import { DatabaseService } from '../../../../../../src/modules/core/database/index';
-import { logger } from '../../../../../../src/utils/logger';
+import { UserService } from '../../../../../../src/modules/core/auth/services/user-service.js';
+import { DatabaseService } from '../../../../../../src/modules/core/database/index.js';
+import { logger } from '../../../../../../src/utils/logger.js';
 import { randomUUID } from 'node:crypto';
 
 // Mock dependencies

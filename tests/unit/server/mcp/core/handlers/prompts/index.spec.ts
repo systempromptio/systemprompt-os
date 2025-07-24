@@ -10,7 +10,7 @@ import {
   UNITTESTING_PROMPTS,
   REACTCOMPONENT_PROMPTS,
   REDDITPOST_PROMPTS
-} from '../../../../../../../src/server/mcp/core/handlers/prompts/index';
+} from '../../../../../../../src/server/mcp/core/handlers/prompts/index.js';
 
 describe('Prompts Index', () => {
   describe('CODINGPROMPTS', () => {

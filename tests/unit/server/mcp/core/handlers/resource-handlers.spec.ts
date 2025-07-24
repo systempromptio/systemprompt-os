@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleListResources, handleResourceCall } from '../../../../../../src/server/mcp/core/handlers/resource-handlers';
+import { handleListResources, handleResourceCall } from '../../../../../../src/server/mcp/core/handlers/resource-handlers.js';
 import type { ReadResourceRequest } from '@modelcontextprotocol/sdk/types.js';
 
 describe('Resource Handlers', () => {

@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
-import type { MCPServer, MCPSession } from '../../src/server/mcp/types';
+import type { MCPServer, MCPSession } from '../../src/server/mcp/types.js';
 
 export function createMockMCPServer(): MockedMCPServer {
   const sessions = new Map<string, MCPSession>();

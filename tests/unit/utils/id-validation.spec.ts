@@ -3,7 +3,7 @@ import {
   isValidUUID, 
   validateTaskId,
   sanitizeTaskId 
-} from '../../../src/utils/id-validation';
+} from '../../../src/utils/id-validation.js';
 
 describe('ID Validation Utils', () => {
   describe('isValidUUID', () => {

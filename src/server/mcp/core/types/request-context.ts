@@ -1,11 +1,14 @@
 /**
- * Request Context Types - STUB
- * TODO: Define proper request context types
+ * MCP Request Context Types.
  */
 
-export interface MCPToolContext {
-  requestId?: string;
-  sessionId?: string;
+export interface RequestContext {
   userId?: string;
-  metadata?: Record<string, any>;
+  sessionId?: string;
+  permissions?: string[];
+}
+
+export interface MCPToolContext extends RequestContext {
+  toolName?: string;
+  requestId?: string;
 }

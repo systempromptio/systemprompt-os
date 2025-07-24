@@ -1,62 +1,66 @@
 /**
- * @fileoverview CLI service for command management and execution
+ * @file CLI service for command management and execution.
  * @module modules/core/cli/services/cli.service
  */
 
-import { CommandDiscovery } from '@/cli/src/discovery.js';
-import {
+import type {
   CLICommand,
   CLILogger,
+  CLIOption,
   CommandMetadata,
-  CommandDiscoveryResult,
-  CLIOption
-} from '@/modules/core/cli/types';
+} from '@/modules/core/cli/types/index.js';
 import {
-  CommandNotFoundError,
-  CommandExecutionError,
   CLIInitializationError,
+  CommandNotFoundError,
+  DocumentationGenerationError,
   OutputFormattingError,
-  DocumentationGenerationError
-} from '@/modules/core/cli/utils/errors';
+} from '@/modules/core/cli/utils/errors.js';
+import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { join, dirname } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { parse } from 'yaml';
 
 /**
- * Service for managing CLI commands and operations
+ * Service for managing CLI commands and operations.
  */
 export class CLIService {
   private static instance: CLIService;
-  private commandDiscovery: CommandDiscovery | null = null;
   private logger: CLILogger | null = null;
+  private database: DatabaseService | null = null;
   private initialized = false;
 
   /**
-   * Private constructor to enforce singleton pattern
+   * Private constructor to enforce singleton pattern.
    */
   private constructor() {}
 
   /**
-   * Get the singleton instance of CLIService
-   * @returns The CLIService instance
+   * Get the singleton instance of CLIService.
+   * @returns The CLIService instance.
    */
   public static getInstance(): CLIService {
-    if (!CLIService.instance) {
-      CLIService.instance = new CLIService();
-    }
+    CLIService.instance ||= new CLIService();
     return CLIService.instance;
   }
 
   /**
-   * Initialize the CLI service
-   * @param logger - Logger instance
-   * @throws {CLIInitializationError} If initialization fails
+   * Initialize the CLI service.
+   * @param logger - Logger instance.
+   * @param database - Database service instance.
+   * @throws {CLIInitializationError} If initialization fails.
    */
-  public async initialize(logger: CLILogger): Promise<void> {
+  public async initialize(logger: CLILogger, database: DatabaseService): Promise<void> {
     if (this.initialized) {
       return;
     }
 
     try {
       this.logger = logger;
-      this.commandDiscovery = new CommandDiscovery();
+      this.database = database;
+
+      // Initialize database schema
+      await this.initializeDatabase();
+
       this.initialized = true;
       this.logger.info('CLI service initialized');
     } catch (error) {
@@ -65,31 +69,57 @@ export class CLIService {
   }
 
   /**
-   * Check if service is initialized
-   * @returns Whether the service is initialized
+   * Initialize CLI database tables.
+   */
+  private async initializeDatabase(): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const __filename = import.meta.url.replace('file://', '');
+    const __dirname = join(__filename, '..');
+    const schemaPath = join(__dirname, '../../database/schema.sql');
+
+    if (existsSync(schemaPath)) {
+      const schema = readFileSync(schemaPath, 'utf-8');
+      await this.database.execute(schema);
+    }
+  }
+
+  /**
+   * Check if service is initialized.
+   * @returns Whether the service is initialized.
    */
   public isInitialized(): boolean {
     return this.initialized;
   }
 
   /**
-   * Get all available commands
-   * @returns Map of command names to command definitions
-   * @throws {CommandDiscoveryError} If command discovery fails
+   * Get all available commands.
+   * @returns Map of command names to command definitions.
+   * @throws {CommandDiscoveryError} If command discovery fails.
    */
   public async getAllCommands(): Promise<Map<string, CLICommand>> {
     this.ensureInitialized();
 
-    if (!this.commandDiscovery) {
-      this.commandDiscovery = new CommandDiscovery();
+    const commands = await this.getCommandsFromDatabase();
+    const commandMap = new Map<string, CLICommand>();
+
+    for (const cmd of commands) {
+      commandMap.set(cmd.command_path, {
+        name: cmd.command_name,
+        description: cmd.description,
+        options: cmd.options,
+        executorPath: cmd.executor_path,
+      });
     }
 
-    return await this.commandDiscovery.discoverCommands();
+    return commandMap;
   }
 
   /**
-   * Get metadata for all commands
-   * @returns Array of command metadata
+   * Get metadata for all commands.
+   * @returns Array of command metadata.
    */
   public async getCommandMetadata(): Promise<CommandMetadata[]> {
     const commands = await this.getAllCommands();
@@ -100,28 +130,29 @@ export class CLIService {
       const module = parts.length > 1 ? parts[0] : 'core';
       const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
-      metadata.push({
+      const meta: CommandMetadata = {
         name,
-        module,
+        module: module || 'core',
         commandName,
         description: command.description || 'No description available',
         usage: `systemprompt ${name}`,
         options: command.options || [],
-        positionals: command.positionals
-      });
+        ...command.positionals && { positionals: command.positionals },
+      };
+      metadata.push(meta);
     });
 
     return metadata;
   }
 
   /**
-   * Get help text for a specific command
-   * @param commandName - Name of the command
-   * @returns Help text for the command
-   * @throws {CommandNotFoundError} If command is not found
+   * Get help text for a specific command.
+   * @param commandName - Name of the command.
+   * @param commands - Map of all available commands.
+   * @returns Help text for the command.
+   * @throws {CommandNotFoundError} If command is not found.
    */
-  public async getCommandHelp(commandName: string): Promise<string> {
-    const commands = await this.getAllCommands();
+  public getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string {
     const command = commands.get(commandName);
 
     if (!command) {
@@ -133,7 +164,7 @@ export class CLIService {
 
     if (command.positionals && command.positionals.length > 0) {
       help += '\nPositional Arguments:\n';
-      command.positionals.forEach(pos => {
+      command.positionals.forEach((pos) => {
         const requiredText = pos.required ? ' [required]' : ' [optional]';
         help += `  ${pos.name}${requiredText}\n`;
         help += `    ${pos.description}\n`;
@@ -159,7 +190,7 @@ export class CLIService {
 
     if (command.examples && command.examples.length > 0) {
       help += '\nExamples:\n';
-      command.examples.forEach(example => {
+      command.examples.forEach((example) => {
         help += `  ${example}\n`;
       });
     }
@@ -168,17 +199,30 @@ export class CLIService {
   }
 
   /**
-   * Format commands for display
-   * @param format - Output format ('text', 'json', or 'table')
-   * @returns Formatted command list
-   * @throws {OutputFormattingError} If formatting fails
+   * Format commands for display.
+   * @param commands - Map of commands to format.
+   * @param format - Output format ('text', 'json', or 'table').
+   * @returns Formatted command list.
+   * @throws {OutputFormattingError} If formatting fails.
    */
-  public async formatCommands(format: string = 'text'): Promise<string> {
+  public formatCommands(commands: Map<string, CLICommand>, format: string = 'text'): string {
     try {
-      const commands = await this.getAllCommands();
-
       if (format === 'json') {
-        const metadata = await this.getCommandMetadata();
+        const metadata: CommandMetadata[] = [];
+        commands.forEach((command, name) => {
+          const parts = name.split(':');
+          const module = parts.length > 1 ? parts[0]! : 'core';
+          const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
+
+          metadata.push({
+            name,
+            module,
+            commandName,
+            description: command.description || 'No description available',
+            usage: `systemprompt ${name}`,
+            options: command.options || []
+          });
+        });
         return JSON.stringify(metadata, null, 2);
       }
 
@@ -190,13 +234,13 @@ export class CLIService {
         const moduleName = parts.length > 1 ? parts[0] : 'core';
         const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
-        if (!modules.has(moduleName)) {
-          modules.set(moduleName, []);
+        if (!modules.has(moduleName || '')) {
+          modules.set(moduleName!, []);
         }
 
-        modules.get(moduleName)!.push({
+        modules.get(moduleName || '')!.push({
           name: commandName,
-          description: command.description || 'No description'
+          description: command.description || 'No description',
         });
       });
 
@@ -208,18 +252,16 @@ export class CLIService {
       }
 
       // Sort modules alphabetically
-      const sortedModules = Array.from(modules.entries()).sort((a, b) =>
-        a[0].localeCompare(b[0])
-      );
+      const sortedModules = Array.from(modules.entries()).sort((a, b) => { return a[0].localeCompare(b[0]) });
 
       sortedModules.forEach(([moduleName, moduleCommands]) => {
         output += `\n${moduleName} commands:\n`;
-        output += '-'.repeat(moduleName.length + 10) + '\n';
+        output += `${'-'.repeat(moduleName.length + 10)}\n`;
 
         // Sort commands within module
-        moduleCommands.sort((a, b) => a.name.localeCompare(b.name));
+        moduleCommands.sort((a, b) => { return a.name.localeCompare(b.name) });
 
-        moduleCommands.forEach(cmd => {
+        moduleCommands.forEach((cmd) => {
           if (format === 'table') {
             output += `  ${moduleName}:${cmd.name.padEnd(20)} ${cmd.description}\n`;
           } else {
@@ -235,15 +277,14 @@ export class CLIService {
   }
 
   /**
-   * Generate documentation for all commands
-   * @param format - Documentation format ('markdown', 'html', or 'json')
-   * @returns Generated documentation
-   * @throws {DocumentationGenerationError} If generation fails
+   * Generate documentation for all commands.
+   * @param commands - Map of commands to document.
+   * @param format - Documentation format ('markdown', 'html', or 'json').
+   * @returns Generated documentation.
+   * @throws {DocumentationGenerationError} If generation fails.
    */
-  public async generateDocs(format: string = 'markdown'): Promise<string> {
+  public generateDocs(commands: Map<string, CLICommand>, format: string = 'markdown'): string {
     try {
-      const commands = await this.getAllCommands();
-
       if (format === 'markdown') {
         let doc = '# SystemPrompt OS CLI Commands\n\n';
         doc += 'This document contains all available CLI commands for SystemPrompt OS.\n\n';
@@ -257,22 +298,25 @@ export class CLIService {
           const parts = name.split(':');
           const moduleName = parts.length > 1 ? parts[0] : 'core';
 
-          if (!modules.has(moduleName)) {
-            modules.set(moduleName, []);
+          if (!modules.has(moduleName || '')) {
+            modules.set(moduleName!, []);
           }
 
-          modules.get(moduleName)!.push({ name, ...command });
+          modules.get(moduleName || '')!.push({
+ name,
+...command
+});
         });
 
         // Sort and generate docs
         Array.from(modules.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
+          .sort((a, b) => { return a[0].localeCompare(b[0]) })
           .forEach(([moduleName, moduleCommands]) => {
             doc += `### ${moduleName} module\n\n`;
 
             moduleCommands
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .forEach(cmd => {
+              .sort((a, b) => { return a.name.localeCompare(b.name) })
+              .forEach((cmd) => {
                 doc += `#### ${cmd.name}\n\n`;
                 doc += `${cmd.description || 'No description available'}\n\n`;
 
@@ -280,7 +324,8 @@ export class CLIService {
                   doc += '**Positional Arguments:**\n\n';
                   cmd.positionals.forEach((pos: any) => {
                     const requiredText = pos.required ? ' **[required]**' : '';
-                    const defaultText = pos.default !== undefined ? ` (default: ${pos.default})` : '';
+                    const defaultText
+                      = pos.default !== undefined ? ` (default: ${pos.default})` : '';
                     doc += `- \`${pos.name}\`: ${pos.description}${defaultText}${requiredText}\n`;
                   });
                   doc += '\n';
@@ -290,7 +335,8 @@ export class CLIService {
                   doc += '**Options:**\n\n';
                   cmd.options.forEach((opt: any) => {
                     const aliasText = opt.alias ? `, -${opt.alias}` : '';
-                    const defaultText = opt.default !== undefined ? ` (default: ${opt.default})` : '';
+                    const defaultText
+                      = opt.default !== undefined ? ` (default: ${opt.default})` : '';
                     const requiredText = opt.required ? ' **[required]**' : '';
                     doc += `- \`--${opt.name}${aliasText}\`: ${opt.description}${defaultText}${requiredText}\n`;
                     if (opt.choices) {
@@ -313,7 +359,21 @@ export class CLIService {
       }
 
       // For other formats, return JSON for now
-      const metadata = await this.getCommandMetadata();
+      const metadata: CommandMetadata[] = [];
+      commands.forEach((command, name) => {
+        const parts = name.split(':');
+        const module = parts.length > 1 ? parts[0]! : 'core';
+        const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
+
+        metadata.push({
+          name,
+          module,
+          commandName,
+          description: command.description || 'No description available',
+          usage: `systemprompt ${name}`,
+          options: command.options || []
+        });
+      });
       return JSON.stringify(metadata, null, 2);
     } catch (error) {
       throw new DocumentationGenerationError(format, error as Error);
@@ -321,12 +381,109 @@ export class CLIService {
   }
 
   /**
-   * Ensure service is initialized
-   * @throws {Error} If service is not initialized
+   * Ensure service is initialized.
+   * @throws {Error} If service is not initialized.
    */
   private ensureInitialized(): void {
     if (!this.initialized) {
       throw new Error('CLI service not initialized. Call initialize() first.');
+    }
+  }
+
+  /**
+   * Register commands from a module.
+   * @param moduleName - Name of the module.
+   * @param moduleYamlPath - Path to module.yaml file.
+   */
+  public async registerModuleCommands(moduleName: string, moduleYamlPath: string): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const content = readFileSync(moduleYamlPath, 'utf-8');
+      const manifest = parse(content);
+
+      if (manifest.cli?.commands) {
+        for (const cmd of manifest.cli.commands) {
+          const commandPath = `${moduleName}:${cmd.name}`;
+          const executorPath = join(
+            process.cwd(),
+            'build/modules/core',
+            moduleName,
+            'cli',
+            `${cmd.name}.js`
+          );
+
+          await this.database.execute(
+            `INSERT OR REPLACE INTO cli_commands 
+             (module_name, command_name, command_path, description, executor_path, options, aliases, active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              moduleName,
+              cmd.name,
+              commandPath,
+              cmd.description || '',
+              executorPath,
+              JSON.stringify(cmd.options || []),
+              JSON.stringify(cmd.aliases || []),
+              1
+            ]
+          );
+        }
+
+        this.logger?.info(`Registered ${manifest.cli.commands.length} CLI commands for module '${moduleName}'`);
+      }
+    } catch (error) {
+      this.logger?.error(`Failed to register commands for module ${moduleName}:`, error);
+    }
+  }
+
+  /**
+   * Get commands from database.
+   * @returns Array of registered commands.
+   */
+  public async getCommandsFromDatabase(): Promise<any[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = await this.database.query(
+      `SELECT * FROM cli_commands WHERE active = 1 ORDER BY command_path`
+    );
+
+    return result.map((row: any) => { return {
+      ...row,
+      options: JSON.parse(row.options || '[]'),
+      aliases: JSON.parse(row.aliases || '[]')
+    } });
+  }
+
+  /**
+   * Scan all modules and register their commands.
+   */
+  public async scanAndRegisterAllCommands(): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    // Get all enabled modules from database
+    const result = await this.database.query(
+      `SELECT name, path FROM modules WHERE enabled = 1`
+    );
+
+    for (const module of result) {
+      const mod = module as any;
+      // Module.yaml files are in source directory, not build directory
+      const sourcePath = mod.path.replace('/build/', '/src/').replace('.js', '');
+      const moduleDir = dirname(sourcePath);
+      const moduleYamlPath = join(moduleDir, 'module.yaml');
+      
+      if (existsSync(moduleYamlPath)) {
+        await this.registerModuleCommands(mod.name, moduleYamlPath);
+      } else {
+        this.logger?.debug(`No module.yaml found for ${mod.name} at ${moduleYamlPath}`);
+      }
     }
   }
 }

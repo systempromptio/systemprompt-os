@@ -1,0 +1,4 @@
+# Custom OAuth2/OIDC Provider Configurations
+
+Place your custom provider configuration files here.
+Copy template.yaml and customize for your needs.

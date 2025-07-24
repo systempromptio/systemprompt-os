@@ -1,15 +1,32 @@
 /**
- * @fileoverview Health check endpoint
+ * @file Health check endpoint.
  * @module server/external/rest/health
  */
 
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import os from 'os';
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { CONFIG } from '../../config.js';
-import { logger } from '../../../utils/logger.js';
-import { HeartbeatStatus } from '../../../modules/core/heartbeat/types.js';
+import { CONFIG } from '@/server/config.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+
+const logger = LoggerService.getInstance();
+
+/*
+ * Import { HeartbeatStatus } from '../../../modules/core/heartbeat/types.js';
+ * Heartbeat functionality has been absorbed into the system module
+ */
+
+interface HeartbeatStatus {
+  pid: number;
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  memory: {
+    used: number;
+    total: number;
+  };
+  uptime: number;
+}
 
 export interface HealthResponse {
   status: 'ok' | 'degraded' | 'error';
@@ -46,54 +63,57 @@ export interface HealthResponse {
 
 export class HealthEndpoint {
   /**
-   * Read heartbeat data from file
+   * Read heartbeat data from file.
    */
   private readHeartbeat(): HeartbeatStatus | null {
     try {
       const heartbeatPath = join(CONFIG.STATEDIR, 'data', 'heartbeat.json');
-      if (!existsSync( heartbeatPath)) {
+      if (!existsSync(heartbeatPath)) {
         return null;
       }
-      
+
       const content = readFileSync(heartbeatPath, 'utf-8');
-      return JSON.parse( content);
-    } catch ( error) {
+      return JSON.parse(content);
+    } catch (error) {
       logger.error('Failed to read heartbeat data:', error);
       return null;
     }
   }
-  
+
   /**
-   * Check if heartbeat is stale (older than 2 minutes)
+   * Check if heartbeat is stale (older than 2 minutes).
+   * @param heartbeat
    */
-  private isHeartbeatStale( heartbeat: HeartbeatStatus): boolean {
+  private isHeartbeatStale(heartbeat: HeartbeatStatus): boolean {
     const heartbeatTime = new Date(heartbeat.timestamp).getTime();
     const now = Date.now();
     const staleThreshold = 2 * 60 * 1000; // 2 minutes
-    return (now - heartbeatTime) > staleThreshold;
+    return now - heartbeatTime > staleThreshold;
   }
-  
+
   /**
    * GET /health
-   * Returns system health information
+   * Returns system health information.
+   * @param _req
+   * @param res
    */
-  getHealth = async ( _req: Request, res: Response): Promise<Response> => {
+  getHealth = async (_req: Request, res: Response): Promise<Response> => {
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
     const cpus = os.cpus();
     const warnings: string[] = [];
     let status: 'ok' | 'degraded' | 'error' = 'ok';
-    
+
     // Read heartbeat data
     const heartbeat = this.readHeartbeat();
-    if ( heartbeat) {
+    if (heartbeat) {
       // Check if heartbeat is stale
-      if (this.isHeartbeatStale( heartbeat)) {
+      if (this.isHeartbeatStale(heartbeat)) {
         warnings.push('Heartbeat is stale');
         status = 'degraded';
       }
-      
+
       // Check heartbeat status
       if (heartbeat.status !== 'healthy') {
         warnings.push('Heartbeat reports unhealthy status');
@@ -102,14 +122,14 @@ export class HealthEndpoint {
     } else {
       logger.debug('No heartbeat data available');
     }
-    
+
     const health: HealthResponse = {
       status,
       timestamp: new Date().toISOString(),
       service: 'systemprompt-os',
       version: '0.1.0',
-      heartbeat: heartbeat,
-      warnings: warnings.length > 0 ? warnings : undefined,
+      heartbeat,
+      ...warnings.length > 0 && { warnings },
       system: {
         platform: os.platform(),
         arch: os.arch(),
@@ -120,7 +140,7 @@ export class HealthEndpoint {
           total: totalMem,
           free: freeMem,
           used: usedMem,
-          percentUsed: Math.round((usedMem / totalMem) * 100),
+          percentUsed: Math.round(usedMem / totalMem * 100),
         },
         cpu: {
           model: cpus[0]?.model || 'Unknown',
@@ -129,10 +149,12 @@ export class HealthEndpoint {
         },
       },
     };
-    
-    // TODO: Add disk space information
-    // This would require additional dependencies or native calls
-    
-    return res.json( health);
+
+    /*
+     * TODO: Add disk space information
+     * This would require additional dependencies or native calls
+     */
+
+    return res.json(health);
   };
 }

@@ -373,7 +373,7 @@ import { ToolRegistry } from "../services/tool-registry.js";
 import { PermissionEvaluator, PermissionContext } from "../services/permission-evaluator.js";
 import { AuditLogger } from "../services/audit-logger.js";
 import { RateLimiter } from "../services/rate-limiter.js";
-import { logger } from "@/utils/logger.js";
+import { logger } from "'@/modules/core/logger/index.js'";
 import type { MCPToolContext } from "../types/request-context.js";
 
 // Import all tool handlers

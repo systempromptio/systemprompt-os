@@ -1,14 +1,14 @@
 /**
- * @fileoverview Type definitions for MCP server including session management,
+ * @file Type definitions for MCP server including session management,
  * error codes, and request context structures.
  * @module server/types
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 /**
- * MCP session data
+ * MCP session data.
  */
 export interface MCPSession {
   id: string;
@@ -19,16 +19,16 @@ export interface MCPSession {
 }
 
 /**
- * Session manager configuration
+ * Session manager configuration.
  */
 export interface SessionConfig {
   sessionTimeout: number;
   maxSessions?: number;
-  onSessionExpired?: ( sessionId: string) => void;
+  onSessionExpired?: (sessionId: string) => void;
 }
 
 /**
- * MCP error codes following JSON-RPC 2.0 specification
+ * MCP error codes following JSON-RPC 2.0 specification.
  * @example
  * ```typescript
  * res.status(400).json({
@@ -51,7 +51,7 @@ export enum MCPErrorCode {
 }
 
 /**
- * MCP request context for tracking and auditing
+ * MCP request context for tracking and auditing.
  */
 export interface MCPRequestContext {
   requestId: string;

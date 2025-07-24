@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/auth/cli/providers';
-import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton';
+import { command } from '../../../../../../src/modules/core/auth/cli/providers.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton.js';
 
 // Mock the singleton
 vi.mock('../../../../../../src/modules/core/auth/singleton', () => ({

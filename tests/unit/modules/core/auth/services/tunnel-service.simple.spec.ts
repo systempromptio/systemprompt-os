@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TunnelService } from '../../../../../../src/modules/core/auth/services/tunnel-service';
+import { TunnelService } from '../../../../../../src/modules/core/auth/services/tunnel-service.js';
 
 describe('TunnelService - Simple Tests', () => {
   let tunnelService: TunnelService;

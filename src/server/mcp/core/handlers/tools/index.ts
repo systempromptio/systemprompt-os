@@ -1,13 +1,13 @@
 /**
- * @fileoverview Main export file for tool handlers
+ * @file Main export file for tool handlers.
  * @module handlers/tools
  */
 
-export * from './types.js';
+export * from '@/server/mcp/core/handlers/tools/types.js';
 
 export type {
   ToolHandler,
   ToolHandlerContext,
-} from './types.js';
+} from '@/server/mcp/core/handlers/tools/types.js';
 
-export { handleCheckStatus } from './check-status.js';
+export { handleCheckStatus } from '@/server/mcp/core/handlers/tools/check-status.js';

@@ -1,15 +1,13 @@
 /**
  * Migration service that manages database version changes
- * for all modules
+ * for all modules.
  */
 
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import { Logger } from '@/modules/core/logger/types';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { MigrationError, DatabaseError } from '@/modules/core/database/utils/errors';
-import type { MigrationFile, MigrationStatus, MigrationPlan } from '@/modules/core/database/types';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 export interface Migration {
   module: string;
@@ -25,46 +23,44 @@ export interface ExecutedMigration extends Migration {
 }
 
 /**
- * Service for managing database migrations across modules
+ * Service for managing database migrations across modules.
  */
 export class MigrationService {
   private static instance: MigrationService;
   private migrations: Migration[] = [];
-  private logger?: Logger;
+  private logger?: ILogger;
   private initialized = false;
 
-  private constructor(private databaseService: DatabaseService) {}
+  private constructor(private readonly databaseService: DatabaseService) {}
 
   /**
-   * Initialize the migration service
-   * @param databaseService Database service instance
-   * @param logger Optional logger instance
+   * Initialize the migration service.
+   * @param databaseService - Database service instance.
+   * @param logger - Optional logger instance.
    */
-  static initialize(databaseService: DatabaseService, logger?: Logger): MigrationService {
-    if (!MigrationService.instance) {
-      MigrationService.instance = new MigrationService(databaseService);
+  static initialize(databaseService: DatabaseService, logger?: ILogger): MigrationService {
+    MigrationService.instance ||= new MigrationService(databaseService);
+    if (logger) {
+      MigrationService.instance.logger = logger;
     }
-    MigrationService.instance.logger = logger;
     MigrationService.instance.initialized = true;
     return MigrationService.instance;
   }
 
   /**
-   * Get the migration service instance
-   * @throws {DatabaseError} If service not initialized
+   * Get the migration service instance.
+   * @throws {DatabaseError} If service not initialized.
    */
   static getInstance(): MigrationService {
-    if (!MigrationService.instance || !MigrationService.instance.initialized) {
-      throw new DatabaseError(
-        'MigrationService not initialized. Call initialize() first.',
-        'SERVICE_NOT_INITIALIZED'
-      );
+    if (!MigrationService.instance?.initialized) {
+      throw new Error('MigrationService not initialized. Call initialize() first.');
     }
     return MigrationService.instance;
   }
 
   /**
-   * Discover all migrations from modules
+   * Discover all migrations from modules.
+   * @param baseDir
    */
   async discoverMigrations(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
@@ -72,7 +68,7 @@ export class MigrationService {
 
       const migrationFiles = await glob('**/database/migrations/*.sql', {
         cwd: baseDir,
-        absolute: true
+        absolute: true,
       });
 
       this.migrations = [];
@@ -89,17 +85,15 @@ export class MigrationService {
           version,
           filename,
           sql,
-          checksum
+          checksum,
         });
       }
 
       // Sort migrations by version
-      this.migrations.sort((a, b) => 
-        this.compareVersions(a.version, b.version)
-      );
+      this.migrations.sort((a, b) => { return this.compareVersions(a.version, b.version) });
 
-      this.logger?.info('Migrations discovered', { 
-        count: this.migrations.length 
+      this.logger?.info('Migrations discovered', {
+        count: this.migrations.length,
       });
     } catch (error) {
       this.logger?.error('Migration discovery failed', { error });
@@ -108,15 +102,13 @@ export class MigrationService {
   }
 
   /**
-   * Run all pending migrations
+   * Run all pending migrations.
    */
   async runMigrations(): Promise<void> {
     await this.createMigrationTable();
 
     const applied = await this.getAppliedMigrations();
-    const pending = this.migrations.filter(m => 
-      !applied.has(this.getMigrationKey(m))
-    );
+    const pending = this.migrations.filter((m) => { return !applied.has(this.getMigrationKey(m)) });
 
     if (pending.length === 0) {
       this.logger?.info('No pending migrations');
@@ -133,13 +125,14 @@ export class MigrationService {
   }
 
   /**
-   * Run a single migration
+   * Run a single migration.
+   * @param migration
    */
   private async runMigration(migration: Migration): Promise<void> {
     try {
-      this.logger?.info('Running migration', { 
+      this.logger?.info('Running migration', {
         module: migration.module,
-        version: migration.version 
+        version: migration.version,
       });
 
       await this.databaseService.transaction(async (conn) => {
@@ -150,31 +143,26 @@ export class MigrationService {
         await conn.execute(
           `INSERT INTO _migrations (module, version, filename, checksum, applied_at)
            VALUES (?, ?, ?, ?, datetime('now'))`,
-          [
-            migration.module,
-            migration.version,
-            migration.filename,
-            migration.checksum
-          ]
+          [migration.module, migration.version, migration.filename, migration.checksum],
         );
       });
 
-      this.logger?.info('Migration completed', { 
-        module: migration.module,
-        version: migration.version 
-      });
-    } catch (error) {
-      this.logger?.error('Migration failed', { 
+      this.logger?.info('Migration completed', {
         module: migration.module,
         version: migration.version,
-        error 
+      });
+    } catch (error) {
+      this.logger?.error('Migration failed', {
+        module: migration.module,
+        version: migration.version,
+        error,
       });
       throw error;
     }
   }
 
   /**
-   * Create migration tracking table
+   * Create migration tracking table.
    */
   private async createMigrationTable(): Promise<void> {
     const sql = `
@@ -192,73 +180,83 @@ export class MigrationService {
   }
 
   /**
-   * Get applied migrations
+   * Get applied migrations.
    */
   private async getAppliedMigrations(): Promise<Set<string>> {
     const rows = await this.databaseService.query<{
       module: string;
       version: string;
     }>('SELECT module, version FROM _migrations');
-    
-    return new Set(rows.map(r => this.getMigrationKey(r)));
+
+    return new Set(rows.map((r) => { return this.getMigrationKey(r) }));
   }
 
   /**
-   * Generate unique key for a migration
+   * Generate unique key for a migration.
+   * @param migration
+   * @param migration.module
+   * @param migration.version
    */
   private getMigrationKey(migration: { module: string; version: string }): string {
     return `${migration.module}:${migration.version}`;
   }
 
   /**
-   * Extract module name from path
+   * Extract module name from path.
+   * @param filepath
+   * @param baseDir
    */
   private extractModuleName(filepath: string, baseDir: string): string {
-    const relativePath = filepath.replace(baseDir + '/', '');
+    const relativePath = filepath.replace(`${baseDir}/`, '');
     const parts = relativePath.split('/');
-    
+
     if (parts[0] === 'core' && parts.length > 1) {
       return `core/${parts[1]}`;
     }
-    
-    return parts[0];
+
+    return parts[0] || '';
   }
 
   /**
    * Extract version from filename
-   * Expected format: 001_description.sql or v1.0.0_description.sql
+   * Expected format: 001_description.sql or v1.0.0_description.sql.
+   * @param filename
    */
   private extractVersion(filename: string): string {
-    const match = filename.match(/^([\d]+|v[\d\.]+)_/);
+    const match = filename.match(/^([\d]+|v[\d.]+)_/);
     if (!match) {
       throw new Error(`Invalid migration filename: ${filename}`);
     }
-    return match[1];
+    return match[1] || '';
   }
 
   /**
-   * Calculate checksum for migration SQL
+   * Calculate checksum for migration SQL.
+   * @param sql
    */
   private calculateChecksum(sql: string): string {
     // Simple checksum - in production use crypto.createHash
-    return Buffer.from(sql).toString('base64').substring(0, 16);
+    return Buffer.from(sql).toString('base64')
+.substring(0, 16);
   }
 
   /**
-   * Compare version strings
+   * Compare version strings.
+   * @param a
+   * @param b
    */
   private compareVersions(a: string, b: string): number {
     // Handle numeric versions (001, 002, etc)
-    if (/^\d+$/.test(a) && /^\d+$/.test(b)) {
-      return parseInt(a) - parseInt(b);
+    if ((/^\d+$/).test(a) && (/^\d+$/).test(b)) {
+      return parseInt(a) || 0 - parseInt(b) || 0;
     }
-    
+
     // Handle semantic versions
     return a.localeCompare(b);
   }
 
   /**
-   * Get pending migrations that haven't been applied
+   * Get pending migrations that haven't been applied.
    */
   async getPendingMigrations(): Promise<Migration[]> {
     // Ensure migrations are discovered
@@ -267,16 +265,16 @@ export class MigrationService {
     }
 
     const applied = await this.getAppliedMigrations();
-    return this.migrations.filter(m => 
-      !applied.has(this.getMigrationKey(m))
-    ).map(m => ({
-      ...m,
-      name: m.filename
-    }));
+    return this.migrations
+      .filter((m) => { return !applied.has(this.getMigrationKey(m)) })
+      .map((m) => { return {
+        ...m,
+        name: m.filename,
+      } });
   }
 
   /**
-   * Get list of executed migrations
+   * Get list of executed migrations.
    */
   async getExecutedMigrations(): Promise<ExecutedMigration[]> {
     try {
@@ -287,16 +285,16 @@ export class MigrationService {
         checksum: string;
         applied_at: string;
       }>('SELECT * FROM _migrations ORDER BY applied_at DESC');
-      
-      return rows.map(row => ({
+
+      return rows.map((row) => { return {
         module: row.module,
         version: row.version,
         filename: row.filename,
         name: row.filename,
         sql: '', // Not stored in DB
         checksum: row.checksum,
-        executed_at: row.applied_at
-      }));
+        executed_at: row.applied_at,
+      } });
     } catch (error) {
       this.logger?.debug('No migrations table found', { error });
       return [];
@@ -304,52 +302,54 @@ export class MigrationService {
   }
 
   /**
-   * Execute a single migration
+   * Execute a single migration.
+   * @param migration
    */
   async executeMigration(migration: Migration): Promise<void> {
     await this.runMigration(migration);
   }
 
   /**
-   * Rollback a migration
+   * Rollback a migration.
+   * @param migration
    */
   async rollbackMigration(migration: ExecutedMigration): Promise<void> {
     try {
-      this.logger?.info('Rolling back migration', { 
+      this.logger?.info('Rolling back migration', {
         module: migration.module,
-        version: migration.version 
+        version: migration.version,
       });
 
       await this.databaseService.transaction(async (conn) => {
         // Look for rollback file
         const rollbackPath = migration.filename.replace('.sql', '.rollback.sql');
-        
+
         try {
           const rollbackSql = await readFile(rollbackPath, 'utf-8');
           await conn.execute(rollbackSql);
-        } catch (error) {
-          this.logger?.warn('No rollback file found, removing record only', { 
+        } catch {
+          this.logger?.warn('No rollback file found, removing record only', {
             module: migration.module,
-            version: migration.version 
+            version: migration.version,
           });
         }
 
         // Remove migration record
-        await conn.execute(
-          'DELETE FROM _migrations WHERE module = ? AND version = ?',
-          [migration.module, migration.version]
-        );
+        await conn.execute('DELETE FROM _migrations WHERE module = ? AND version = ?', [
+          migration.module,
+          migration.version,
+        ]);
       });
 
-      this.logger?.info('Migration rolled back', { 
-        module: migration.module,
-        version: migration.version 
-      });
-    } catch (error) {
-      this.logger?.error('Rollback failed', { 
+      this.logger?.info('Migration rolled back', {
         module: migration.module,
         version: migration.version,
-        error 
+      });
+    } catch (error) {
+      this.logger?.error('Rollback failed', {
+        module: migration.module,
+        version: migration.version,
+        error,
       });
       throw error;
     }

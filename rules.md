@@ -475,7 +475,7 @@ export class ModuleError extends Error {
 
 export class ValidationError extends ModuleError {
   constructor(message: string, cause?: Error) {
-    super(message, 'VALIDATION_ERROR', 400, cause);
+    super(message, 'VALIDATIONerror', 400, cause);
     this.name = 'ValidationError';
   }
 }

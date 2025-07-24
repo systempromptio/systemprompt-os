@@ -1,27 +1,28 @@
 /**
- * @fileoverview MCP Authentication Adapter
+ * @file MCP Authentication Adapter.
  * @module server/mcp/auth-adapter
- * 
  * Adapts the existing auth middleware to return MCP-compliant responses
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { authMiddleware } from '../external/middleware/auth.js';
-import { CONFIG } from '../config.js';
-import { tunnelStatus } from '../../modules/core/auth/tunnel-status.js';
+import type {
+ NextFunction, Request, Response
+} from 'express';
+import { authMiddleware } from '@/server/external/middleware/auth.js';
+import { CONFIG } from '@/server/config.js';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
  * Wraps the existing auth middleware to return MCP-compliant error responses
- * Following the MCP specification for OAuth2 authentication
+ * Following the MCP specification for OAuth2 authentication.
+ * @param req
+ * @param res
+ * @param next
  */
-export function mcpAuthAdapter(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
+export function mcpAuthAdapter(req: Request, res: Response, next: NextFunction): void {
   // Allow disabling auth for development
-  if (process.env.MCP_AUTH_DISABLED === 'true') {
-    return next();
+  if (process.env['MCP_AUTH_DISABLED'] === 'true') {
+    next();
+    return;
   }
 
   // Create a custom response handler to intercept auth errors
@@ -30,29 +31,30 @@ export function mcpAuthAdapter(
   let statusCode = 200;
 
   // Override status to capture the status code
-  res.status = function(code: number) {
+  res.status = function (code: number) {
     statusCode = code;
     return originalStatus(code);
   };
 
   // Override json to transform auth errors to MCP format
-  res.json = function(body: any) {
+  res.json = function (body: any) {
     if (statusCode === 401) {
       // Set WWW-Authenticate header as required by RFC 9728
       const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
-      res.setHeader('WWW-Authenticate', 
-        `Bearer realm="${baseUrl}/mcp", ` +
-        `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`
+      res.setHeader(
+        'WWW-Authenticate',
+        `Bearer realm="${baseUrl}/mcp", `
+          + `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`,
       );
-      
+
       // Transform to MCP-compliant error response
       const mcpError = {
         jsonrpc: '2.0',
         error: {
           code: -32001, // Authentication required
-          message: body.error_description || 'Authentication required'
+          message: body.error_description || 'Authentication required',
         },
-        id: req.body?.id || null
+        id: req.body?.id || null,
       };
       return originalJson(mcpError);
     }

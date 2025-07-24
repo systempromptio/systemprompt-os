@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ProtectedResourceEndpoint } from '../../../../../../src/server/external/rest/oauth2/protected-resource';
-import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status';
+import { ProtectedResourceEndpoint } from '../../../../../../src/server/external/rest/oauth2/protected-resource.js';
+import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status.js';
 import type { Request, Response } from 'express';
 
 // Mock dependencies

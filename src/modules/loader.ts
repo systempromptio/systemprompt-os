@@ -1,23 +1,26 @@
 /**
- * @fileoverview Module loader for dynamically loading and managing system modules.
- * Provides a centralized system for loading, initializing, and managing the lifecycle
- * of system modules with configuration-based control.
+ * @file Dynamic module loader that automatically discovers and manages system modules.
  * @module modules/loader
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { ModuleRegistry } from './registry.js';
-import { CONFIG } from '../server/config.js';
+import { ModuleRegistry } from '@/modules/registry.js';
+import { CONFIG } from '@/server/config.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+const logger = LoggerService.getInstance();
+import {
+  type ModuleConfig as IModuleConfig,
+  type ModuleInfo,
+  type ModuleScannerService,
+  ModuleStatus,
+} from '@/modules/core/modules/types/index.js';
 
 /**
- * Configuration for an individual module.
- * @interface ModuleConfig
- * @property {boolean} enabled - Whether the module should be loaded
- * @property {boolean} [autoStart] - Whether to automatically start the module after loading
- * @property {Record<string, unknown>} [config] - Module-specific configuration parameters
+ * Configuration for an individual module from config file.
  */
-export interface ModuleConfig {
+export interface ModuleConfig extends IModuleConfig {
   enabled: boolean;
   autoStart?: boolean;
   config?: Record<string, unknown>;
@@ -25,330 +28,313 @@ export interface ModuleConfig {
 
 /**
  * Root configuration structure for all modules.
- * @interface ModulesConfig
- * @property {Record<string, ModuleConfig>} modules - Map of module names to their configurations
  */
 export interface ModulesConfig {
   modules: Record<string, ModuleConfig>;
 }
 
 /**
- * Core logger module configuration type.
- * @interface LoggerModuleConfig
- * @property {string} stateDir - Directory for storing log files
- * @property {'debug' | 'info' | 'warn' | 'error'} logLevel - Minimum log level to capture
- * @property {string} maxSize - Maximum size of log files before rotation
- * @property {number} maxFiles - Maximum number of rotated log files to keep
- * @property {Array<'console' | 'file'>} outputs - Output destinations for logs
- * @property {Record<string, string>} files - Map of log types to file names
+ * Module service interface that provides scanner access.
  */
-interface LoggerModuleConfig {
-  stateDir: string;
-  logLevel: 'debug' | 'info' | 'warn' | 'error';
-  maxSize: string;
-  maxFiles: number;
-  outputs: Array<'console' | 'file'>;
-  files: {
-    system: string;
-    error: string;
-    access: string;
-  };
-  [key: string]: unknown;
+interface ModuleService {
+  getScannerService(): ModuleScannerService;
 }
 
 /**
- * Core heartbeat module configuration type.
- * @interface HeartbeatModuleConfig
- * @property {string} interval - Interval between heartbeats (e.g., '30s', '1m')
- * @property {string} outputPath - Path to write heartbeat status file
- * @property {boolean} [autoStart] - Whether to start heartbeat monitoring automatically
+ * Module instance with service property.
  */
-interface HeartbeatModuleConfig {
-  interval: string;
-  outputPath: string;
-  autoStart?: boolean;
-  [key: string]: unknown;
+interface ModuleWithService {
+  name: string;
+  service: ModuleService;
+  [key: string]: any;
 }
 
 /**
- * Manages the lifecycle of system modules including loading, initialization, and shutdown.
+ * Type guard to check if a module has a service property.
+ * @param module
+ */
+function hasModuleService(module: any): module is ModuleWithService {
+  return (
+    module
+    && typeof module.service === 'object'
+    && typeof module.service.getScannerService === 'function'
+  );
+}
+
+/**
+ * Dynamic module loader that discovers and manages system modules.
  * @class ModuleLoader
+ * @description Provides automatic module discovery, loading, and lifecycle management.
+ * Uses a database-backed module registry to track available modules and their states.
+ * @example
+ * ```typescript
+ * const loader = ModuleLoader.getInstance();
+ * await loader.loadModules();
+ * const module = loader.getModule('api');
+ * ```
  */
 export class ModuleLoader {
+  private static instance: ModuleLoader;
   private readonly registry: ModuleRegistry;
   private readonly configPath: string;
-  
+  private scannerService: ModuleScannerService | null = null;
+
   /**
    * Creates a new ModuleLoader instance.
-   * @param {string} [configPath] - Path to the modules configuration file. Defaults to CONFIG.CONFIGPATH/modules.json
+   * @param configPath - Optional path to modules configuration file.
+   * @private
    */
-  constructor(configPath?: string) {
+  private constructor(configPath?: string) {
     this.registry = new ModuleRegistry();
     this.configPath = configPath || join(CONFIG.CONFIGPATH, 'modules.json');
   }
-  
+
+  /**
+   * Gets the singleton instance of the module loader.
+   * @param configPath - Optional path to modules configuration file.
+   * @returns The singleton ModuleLoader instance.
+   * @static
+   */
+  static getInstance(configPath?: string): ModuleLoader {
+    ModuleLoader.instance ||= new ModuleLoader(configPath);
+    return ModuleLoader.instance;
+  }
+
   /**
    * Loads module configuration from disk.
+   * @returns The parsed modules configuration or default empty configuration.
    * @private
-   * @returns {ModulesConfig} The loaded configuration or an empty configuration if loading fails
    */
   private loadConfig(): ModulesConfig {
     if (!existsSync(this.configPath)) {
-      console.warn(`[ModuleLoader] Module config not found at ${this.configPath}, using defaults`);
+      logger.warn(`Module config not found at ${this.configPath}, using defaults`);
       return { modules: {} };
     }
-    
+
     try {
-      const content = readFileSync(this.configPath, 'utf-8');
-      return JSON.parse(content);
+      const configData = readFileSync(this.configPath, 'utf-8');
+      return JSON.parse(configData);
     } catch (error) {
-      console.error('[ModuleLoader] Failed to load module config:', error);
+      logger.error(`Failed to load module config from ${this.configPath}:`, error);
       return { modules: {} };
     }
   }
-  
+
   /**
-   * Loads and initializes all enabled modules according to configuration.
-   * @returns {Promise<void>} Resolves when all modules are loaded and initialized
+   * Loads all configured modules.
+   * @description First loads core modules required for system operation,
+   * then uses the module scanner to discover and load additional modules.
+   * @returns Promise that resolves when all modules are loaded.
+   * @public
    */
   async loadModules(): Promise<void> {
+    logger.info('Starting dynamic module loading...');
     const config = this.loadConfig();
-    
+
     await this.loadCoreModules(config);
-    
-    // Import logger for initialization context
-    const { getLogger } = await import('../utils/logger.js');
-    await this.registry.initializeAll({ logger: getLogger() });
-    
-    // Set the module registry in the logger utility after modules are loaded
-    const { setModuleRegistry } = await import('../utils/logger.js');
-    setModuleRegistry(this.registry);
-    
-    console.info(`[ModuleLoader] Loaded ${this.registry.getAll().length} modules`);
+    await this.scanAndLoadModules(config);
   }
-  
+
   /**
-   * Loads core system modules based on configuration.
+   * Loads core modules required for system operation.
+   * @param config - Modules configuration.
+   * @returns Promise that resolves when core modules are loaded.
    * @private
-   * @param {ModulesConfig} config - The modules configuration
-   * @returns {Promise<void>} Resolves when all core modules are loaded
    */
   private async loadCoreModules(config: ModulesConfig): Promise<void> {
-    if (config.modules.logger?.enabled !== false) {
-      await this.loadLoggerModule(config);
-    }
-    
-    // Database must be loaded before auth
-    if (config.modules.database?.enabled !== false) {
-      await this.loadDatabaseModule(config);
-    }
-    
-    if (config.modules.heartbeat?.enabled !== false) {
-      await this.loadHeartbeatModule(config);
-    }
-    
-    if (config.modules.auth?.enabled !== false) {
-      await this.loadAuthModule();
-    }
-    
-    // Load prompts module
-    if (config.modules.prompts?.enabled !== false) {
-      await this.loadPromptsModule();
-    }
-    
-    // Load resources module
-    if (config.modules.resources?.enabled !== false) {
-      await this.loadResourcesModule();
-    }
-    
-    // Load tools module
-    if (config.modules.tools?.enabled !== false) {
-      await this.loadToolsModule();
+    /*
+     * Core modules are now loaded by bootstrap
+     * Skip loading logger, database, and cli here
+     */
+    logger.debug('Core modules already loaded by bootstrap');
+
+    // Only load the modules module if not already loaded
+    if (!this.registry.get('modules')) {
+      await this.loadModule('modules', './core/modules/index.js', config);
     }
   }
-  
+
   /**
-   * Loads and configures the logger module.
+   * Scans for and loads all available modules using the module scanner service.
+   * @param config - Modules configuration.
+   * @returns Promise that resolves when all modules are scanned and loaded.
    * @private
-   * @param {ModulesConfig} config - The modules configuration
-   * @returns {Promise<void>} Resolves when the logger module is loaded
    */
-  private async loadLoggerModule(config: ModulesConfig): Promise<void> {
+  private async scanAndLoadModules(config: ModulesConfig): Promise<void> {
     try {
-      const { LoggerModule } = await import('./core/logger/index.js');
-      const loggerConfig: LoggerModuleConfig = {
-        stateDir: CONFIG.STATEDIR,
-        logLevel: 'info',
-        maxSize: '10m',
-        maxFiles: 7,
-        outputs: ['console', 'file'],
-        files: {
-          system: 'system.log',
-          error: 'error.log',
-          access: 'access.log'
-        },
-        ...config.modules.logger?.config
-      };
-      
-      const loggerModule = new LoggerModule(loggerConfig);
-      this.registry.register(loggerModule as any);
-    } catch (error) {
-      console.error('[ModuleLoader] Failed to load logger module:', error);
-    }
-  }
-  
-  /**
-   * Loads and configures the heartbeat module.
-   * @private
-   * @param {ModulesConfig} config - The modules configuration
-   * @returns {Promise<void>} Resolves when the heartbeat module is loaded
-   */
-  private async loadHeartbeatModule(config: ModulesConfig): Promise<void> {
-    try {
-      const { HeartbeatModule } = await import('./core/heartbeat/index.js');
-      const heartbeatConfig: HeartbeatModuleConfig = {
-        interval: '30s',
-        outputPath: join(CONFIG.STATEDIR, 'data', 'heartbeat.json'),
-        ...config.modules.heartbeat?.config
-      };
-      
-      const heartbeat = new HeartbeatModule(heartbeatConfig);
-      this.registry.register(heartbeat as any);
-      
-      if (config.modules.heartbeat?.config?.autoStart) {
-        await heartbeat.start();
+      const modulesModule = this.registry.get('modules');
+      if (!hasModuleService(modulesModule)) {
+        logger.error('Modules module not properly initialized or missing service');
+        return;
+      }
+
+      this.scannerService = modulesModule.service.getScannerService();
+      if (!this.scannerService) {
+        logger.error('Scanner service not available');
+        return;
+      }
+
+      logger.info('Scanning for available modules...');
+      const scannedModules = await this.scannerService.scan({
+        deep: true,
+        includeDisabled: false,
+      });
+
+      logger.info(`Found ${scannedModules.length} modules`);
+
+      const enabledModules = await this.scannerService.getEnabledModules();
+
+      for (const moduleInfo of enabledModules) {
+        // Skip core modules that are loaded by bootstrap
+        if (['logger', 'database', 'cli', 'modules'].includes(moduleInfo.name)) {
+          logger.debug(`Skipping core module ${moduleInfo.name} - already loaded by bootstrap`);
+          continue;
+        }
+
+        const moduleConfig = config.modules[moduleInfo.name];
+        if (moduleConfig?.enabled === false) {
+          logger.debug(`Module ${moduleInfo.name} disabled in config`);
+          continue;
+        }
+
+        await this.loadModuleFromInfo(moduleInfo, config);
       }
     } catch (error) {
-      console.error('[ModuleLoader] Failed to load heartbeat module:', error);
+      logger.error('Failed to scan and load modules:', error);
     }
   }
-  
+
   /**
-   * Loads and configures the auth module.
+   * Loads a module from scanned module information.
+   * @param moduleInfo - Information about the module from database.
+   * @param config - Modules configuration.
+   * @returns Promise that resolves when module is loaded.
    * @private
-   * @returns {Promise<void>} Resolves when the auth module is loaded
    */
-  private async loadDatabaseModule(config: ModulesConfig): Promise<void> {
+  private async loadModuleFromInfo(moduleInfo: ModuleInfo, config: ModulesConfig): Promise<void> {
     try {
-      const { initializeDatabase } = await import('./core/database/index.js');
-      await initializeDatabase(config.modules.database?.config);
-      console.info('[ModuleLoader] Database module initialized');
+      if (this.scannerService) {
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.LOADING);
+      }
+
+      const relativePath = moduleInfo.path.replace(process.cwd(), '.');
+      const importPath = join(relativePath, 'index.js');
+
+      await this.loadModule(moduleInfo.name, importPath, config);
+
+      if (this.scannerService) {
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.RUNNING);
+      }
     } catch (error) {
-      console.error('[ModuleLoader] Failed to load database module:', error);
-      throw error; // Database is critical, don't continue if it fails
+      logger.error(`Failed to load module ${moduleInfo.name}:`, error);
+      if (this.scannerService) {
+        await this.scannerService.updateModuleStatus(
+          moduleInfo.name,
+          ModuleStatus.ERROR,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     }
   }
-  
-  private async loadAuthModule(): Promise<void> {
-    try {
-      const { AuthModule } = await import('./core/auth/index.js');
-      const authModule = new AuthModule();
-      this.registry.register(authModule as any);
-    } catch (error) {
-      console.error('[ModuleLoader] Failed to load auth module:', error);
-    }
-  }
-  
-  private async loadPromptsModule(): Promise<void> {
-    try {
-      const { PromptsModule } = await import('./core/prompts/index.js');
-      const promptsModule = new PromptsModule();
-      this.registry.register(promptsModule as any);
-    } catch (error) {
-      console.error('[ModuleLoader] Failed to load prompts module:', error);
-    }
-  }
-  
-  private async loadResourcesModule(): Promise<void> {
-    try {
-      const { ResourcesModule } = await import('./core/resources/index.js');
-      const resourcesModule = new ResourcesModule();
-      this.registry.register(resourcesModule as any);
-    } catch (error) {
-      console.error('[ModuleLoader] Failed to load resources module:', error);
-    }
-  }
-  
-  private async loadToolsModule(): Promise<void> {
-    try {
-      const { ToolsModule } = await import('./core/tools/index.js');
-      const toolsModule = new ToolsModule();
-      this.registry.register(toolsModule as any);
-    } catch (error) {
-      console.error('[ModuleLoader] Failed to load tools module:', error);
-    }
-  }
-  
+
   /**
-   * Gets the module registry containing all loaded modules.
-   * @returns {ModuleRegistry} The module registry instance
+   * Loads a single module by name and import path.
+   * @param name - Module name.
+   * @param importPath - Path to import the module from.
+   * @param config - Modules configuration.
+   * @returns Promise that resolves when module is loaded and initialized.
+   * @private
+   */
+  private async loadModule(name: string, importPath: string, config: ModulesConfig): Promise<void> {
+    try {
+      logger.debug(`Loading module: ${name} from ${importPath}`);
+
+      const moduleExports = await import(importPath);
+
+      const moduleClassName = Object.keys(moduleExports).find(
+        (key) => { return key.toLowerCase().includes(name.toLowerCase()) && key.includes('Module') },
+      );
+
+      if (!moduleClassName) {
+        throw new Error(`No module class found in ${importPath}`);
+      }
+
+      const ModuleClass = moduleExports[moduleClassName];
+      const moduleInstance = new ModuleClass();
+
+      const context = {
+        config: config.modules[name]?.config || {},
+        logger,
+      };
+
+      await moduleInstance.initialize(context);
+
+      this.registry.register(moduleInstance);
+
+      if (config.modules[name]?.autoStart) {
+        await moduleInstance.start();
+      }
+
+      logger.info(`Module ${name} loaded successfully`);
+    } catch (error) {
+      logger.error(`Failed to load module ${name}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Shuts down all loaded modules in reverse order.
+   * @returns Promise that resolves when all modules are shut down.
+   * @public
+   */
+  async shutdown(): Promise<void> {
+    logger.info('Shutting down modules...');
+
+    const modules = this.registry.getAll();
+
+    for (const module of modules.reverse()) {
+      try {
+        if (module.stop) {
+          await module.stop();
+        }
+
+        if (this.scannerService) {
+          await this.scannerService.updateModuleStatus(module.name, ModuleStatus.STOPPED);
+        }
+      } catch (error) {
+        logger.error(`Error stopping module ${module.name}:`, error);
+      }
+    }
+
+    logger.info('All modules shut down');
+  }
+
+  /**
+   * Gets the module registry.
+   * @returns The module registry instance.
+   * @public
    */
   getRegistry(): ModuleRegistry {
     return this.registry;
   }
-  
-  /**
-   * Gets all loaded modules from the registry.
-   * @returns {Array<import('./registry.js').ExtendedModule>} Array of loaded modules
-   */
-  getAllModules(): Array<import('./registry.js').ExtendedModule> {
-    return this.registry.getAll();
-  }
-  
+
   /**
    * Gets a specific module by name.
-   * @param {string} name - Module name
-   * @returns {import('./registry.js').ExtendedModule | undefined} Module instance or undefined
+   * @param name - Module name to retrieve.
+   * @returns The module instance or undefined if not found.
+   * @public
    */
-  getModule(name: string): import('./registry.js').ExtendedModule | undefined {
+  getModule(name: string): any {
     return this.registry.get(name);
   }
-  
-  /**
-   * Gracefully shuts down all loaded modules.
-   * @returns {Promise<void>} Resolves when all modules are shut down
-   */
-  async shutdown(): Promise<void> {
-    await this.registry.shutdownAll();
-  }
-}
-
-let moduleLoader: ModuleLoader | null = null;
-let lastConfigPath: string | undefined;
-let lastStateDir: string | undefined;
-
-/**
- * Gets or creates the singleton module loader instance.
- * Creates a new instance if the environment configuration has changed.
- * @returns {ModuleLoader} The module loader instance
- */
-export function getModuleLoader(): ModuleLoader {
-  const currentConfigPath = CONFIG.CONFIGPATH;
-  const currentStateDir = CONFIG.STATEDIR;
-  
-  if (moduleLoader && (lastConfigPath !== currentConfigPath || lastStateDir !== currentStateDir)) {
-    moduleLoader.shutdown().catch(() => {});
-    moduleLoader = null;
-  }
-  
-  if (!moduleLoader) {
-    moduleLoader = new ModuleLoader();
-    lastConfigPath = currentConfigPath;
-    lastStateDir = currentStateDir;
-  }
-  return moduleLoader;
 }
 
 /**
- * Resets the module loader singleton instance.
- * Primarily used for testing to ensure a clean state between tests.
- * @returns {void}
+ * Gets the singleton module loader instance.
+ * @param configPath - Optional path to modules configuration file.
+ * @returns The singleton ModuleLoader instance.
+ * @public
  */
-export function resetModuleLoader(): void {
-  if (moduleLoader) {
-    moduleLoader.shutdown().catch(() => {});
-    moduleLoader = null;
-    lastConfigPath = undefined;
-    lastStateDir = undefined;
-  }
+export function getModuleLoader(configPath?: string): ModuleLoader {
+  return ModuleLoader.getInstance(configPath);
 }

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CommandDiscovery } from '../../../../src/cli/src/discovery';
+import { CommandDiscovery } from '../../../../src/cli/src/discovery.js';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 

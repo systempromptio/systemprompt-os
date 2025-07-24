@@ -1,203 +1,159 @@
 /**
- * Core Database Module
- * 
+ * Core Database Module.
  * Provides centralized database management for all SystemPrompt OS modules.
  * Supports SQLite by default with PostgreSQL compatibility for future migration.
  */
 
-import { ModuleInterface, ModuleContext } from '@/modules/types';
-import { DatabaseService } from './services/database.service';
-import { SchemaService } from './services/schema.service';
-import { MigrationService } from './services/migration.service';
-import { Logger } from '@/modules/core/logger/types';
-import type { DatabaseConfig } from './types';
+import type { IModule } from '@/modules/core/modules/types/index.js';
+import { ModuleStatus } from '@/modules/core/modules/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { SchemaService } from '@/modules/core/database/services/schema.service.js';
+import { MigrationService } from '@/modules/core/database/services/migration.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import type { DatabaseConfig } from '@/modules/core/database/types/index.js';
 
 // Re-export all types
-export * from './types';
+export * from '@/modules/core/database/types/index.js';
 
 // Re-export services
-export { DatabaseService, SchemaService, MigrationService };
+export {
+ DatabaseService, SchemaService, MigrationService
+};
 
 // Re-export adapters
-export { createModuleAdapter, type ModuleDatabaseAdapter } from './adapters/module-adapter';
+export { createModuleAdapter, type ModuleDatabaseAdapter } from '@/modules/core/database/adapters/module-adapter.js';
 
 /**
- * Database Module Implementation
+ * Database Module Implementation - self-contained.
  */
-export class DatabaseModule implements ModuleInterface {
+export class DatabaseModule implements IModule {
   name = 'database';
   version = '1.0.0';
-  type: 'core' = 'core';
-
-  private config?: DatabaseConfig;
-  private logger?: Logger;
-  private initialized = false;
-
-  /**
-   * Initialize the database module with context
-   */
-  async initialize(context: ModuleContext): Promise<void> {
-    if (this.initialized) {
-      throw new Error(`Module ${this.name} already initialized`);
-    }
-
-    this.logger = context.logger;
-    
-    // Build configuration from context and environment
-    this.config = this.buildConfig(context.config);
-    
-    this.logger?.info(`Initializing module ${this.name}`, {
-      type: this.config.type
-    });
-
-    // Initialize services with configuration
-    const dbService = DatabaseService.initialize(this.config, this.logger);
-    SchemaService.initialize(dbService, this.logger);
-    MigrationService.initialize(dbService, this.logger);
-
-    this.initialized = true;
-    this.logger?.info(`Module ${this.name} initialized successfully`);
+  type = 'service' as const;
+  status = ModuleStatus.STOPPED;
+  dependencies = ['logger'];
+  // @ts-expect-error - Will be used when database configuration is implemented
+  private readonly config?: DatabaseConfig;
+  // @ts-expect-error - Will be used for initialization tracking
+  private readonly initialized = false;
+  private readonly logger = LoggerService.getInstance();
+  get exports() {
+    return {
+      service: DatabaseService.getInstance(),
+      services: {
+        database: DatabaseService.getInstance(),
+        schema: SchemaService.getInstance(),
+        migration: MigrationService.getInstance(),
+      },
+      adapters: {
+        createModuleAdapter: null, // Will be loaded dynamically when needed
+      },
+      types: import('./types/index.js'),
+    };
   }
 
   /**
-   * Start the database module
+   * Build database configuration from environment.
+   */
+  private buildConfig(): DatabaseConfig {
+    const config: DatabaseConfig = {
+      type: (process.env['DATABASE_TYPE'] as 'sqlite' | 'postgres') || 'sqlite',
+      pool: {
+        min: parseInt(process.env['DB_POOL_MIN'] || '1'),
+        max: parseInt(process.env['DB_POOL_MAX'] || '10'),
+        idleTimeout: parseInt(process.env['DB_IDLE_TIMEOUT'] || '30000'),
+      },
+      migrations: {
+        autoRun: process.env['DB_AUTO_MIGRATE'] !== 'false',
+        directory: 'database/migrations',
+      },
+    };
+
+    // Add SQLite config if type is sqlite
+    if (config.type === 'sqlite') {
+      config.sqlite = {
+        filename: process.env['SQLITE_FILENAME'] || './state/database.db',
+      };
+    }
+
+    return config;
+  }
+
+  /**
+   * Initialize the database module.
+   */
+  async initialize(): Promise<void> {
+    this.logger.info('Initializing module database', { config: this.buildConfig() });
+
+    // Initialize the database service first (this creates the singleton instance)
+    const config = this.buildConfig();
+    await DatabaseService.initialize(config, this.logger);
+
+    // Now we can get the instance
+    const dbService = DatabaseService.getInstance();
+
+    // Initialize schema service
+    const schemaService = SchemaService.initialize(dbService, this.logger);
+
+    // Initialize migration service
+    // @ts-expect-error - Migration service initialized but not used yet
+    const migrationService = MigrationService.initialize(dbService, this.logger);
+
+    // Discover and import schemas
+    const modulesPath
+      = process.env['NODE_ENV'] === 'production'
+        ? '/app/src/modules'
+        : `${process.cwd()}/src/modules`;
+
+    await schemaService.discoverSchemas(modulesPath);
+    await schemaService.initializeSchemas();
+
+    this.logger.info('Module database initialized successfully');
+  }
+
+  /**
+   * Start the database module.
    */
   async start(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error(`Module ${this.name} not initialized`);
-    }
-
-    this.logger?.info(`Starting module ${this.name}`);
-
-    try {
-      const dbService = DatabaseService.getInstance();
-      const schemaService = SchemaService.getInstance();
-      const migrationService = MigrationService.getInstance();
-
-      // Connect to database
-      await dbService.getConnection();
-
-      // Discover and initialize schemas
-      const modulesPath = process.env.NODE_ENV === 'production' 
-        ? '/app/src/modules'
-        : new URL('../../', import.meta.url).pathname;
-      
-      await schemaService.discoverSchemas(modulesPath);
-      await schemaService.initializeSchemas();
-
-      // Run migrations if auto-run is enabled
-      if (this.config?.migrations?.autoRun !== false) {
-        await migrationService.discoverMigrations(modulesPath);
-        await migrationService.runMigrations();
-      }
-
-      this.logger?.info(`Module ${this.name} started successfully`);
-    } catch (error) {
-      this.logger?.error(`Failed to start module ${this.name}`, { error });
-      throw error;
-    }
+    this.status = ModuleStatus.RUNNING;
+    this.logger.info('Database module started');
   }
 
   /**
-   * Stop the database module
+   * Stop the database module.
    */
   async stop(): Promise<void> {
-    this.logger?.info(`Stopping module ${this.name}`);
-
-    try {
-      const dbService = DatabaseService.getInstance();
-      await dbService.disconnect();
-      this.logger?.info(`Module ${this.name} stopped successfully`);
-    } catch (error) {
-      this.logger?.error(`Error stopping module ${this.name}`, { error });
-      throw error;
-    }
+    this.status = ModuleStatus.STOPPED;
+    await DatabaseService.getInstance().disconnect();
+    this.logger.info('Database module stopped');
   }
 
   /**
-   * Perform health check on the database module
+   * Health check for the database module.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
       const dbService = DatabaseService.getInstance();
-      const isConnected = await dbService.isConnected();
-      
-      if (!isConnected) {
-        return {
-          healthy: false,
-          message: 'Database connection is not active'
-        };
-      }
-
-      // Test database connectivity with a simple query
       await dbService.query('SELECT 1');
-
       return {
-        healthy: true,
-        message: `Module ${this.name} is healthy`
-      };
+ healthy: true,
+message: 'Database is healthy'
+};
     } catch (error) {
       return {
         healthy: false,
-        message: `Database health check failed: ${error.message}`
+        message: `Database health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
-
-  /**
-   * Get module exports
-   */
-  get exports() {
-    return {
-      services: {
-        database: DatabaseService.getInstance(),
-        schema: SchemaService.getInstance(), 
-        migration: MigrationService.getInstance()
-      },
-      adapters: {
-        createModuleAdapter
-      },
-      types: require('./types')
-    };
-  }
-
-  /**
-   * Build database configuration from context and environment
-   */
-  private buildConfig(contextConfig?: any): DatabaseConfig {
-    return {
-      type: contextConfig?.type || process.env.DATABASE_TYPE as 'sqlite' | 'postgres' || 'sqlite',
-      sqlite: {
-        filename: contextConfig?.sqlite?.filename || process.env.DATABASE_FILE || '/data/state/systemprompt.db',
-        mode: contextConfig?.sqlite?.mode || process.env.SQLITE_MODE || 'wal'
-      },
-      postgres: {
-        host: contextConfig?.postgres?.host || process.env.POSTGRES_HOST || 'localhost',
-        port: contextConfig?.postgres?.port || parseInt(process.env.POSTGRES_PORT || '5432'),
-        database: contextConfig?.postgres?.database || process.env.POSTGRES_DB || 'systemprompt',
-        user: contextConfig?.postgres?.user || process.env.POSTGRES_USER || 'systemprompt',
-        password: contextConfig?.postgres?.password || process.env.POSTGRES_PASSWORD,
-        ssl: contextConfig?.postgres?.ssl || process.env.POSTGRES_SSL === 'true'
-      },
-      pool: {
-        min: contextConfig?.pool?.min || parseInt(process.env.DB_POOL_MIN || '1'),
-        max: contextConfig?.pool?.max || parseInt(process.env.DB_POOL_MAX || '10'),
-        idleTimeout: contextConfig?.pool?.idleTimeout || parseInt(process.env.DB_IDLE_TIMEOUT || '30000')
-      },
-      migrations: {
-        autoRun: contextConfig?.migrations?.auto_run !== false && process.env.DB_AUTO_MIGRATE !== 'false',
-        directory: contextConfig?.migrations?.directory || 'database/migrations'
-      },
-      schema: {
-        scanPattern: contextConfig?.schema?.scan_pattern || '*/database/schema.sql',
-        initPattern: contextConfig?.schema?.init_pattern || '*/database/init.sql'
-      }
-    };
-  }
 }
 
-// Export default instance
-export default new DatabaseModule();
+/**
+ * Factory function for creating the module.
+ */
+export function createModule(): DatabaseModule {
+  return new DatabaseModule();
+}
 
 // Legacy compatibility exports (deprecated)
 export function getDatabase(): DatabaseService {
@@ -213,16 +169,4 @@ export function getSchemaService(): SchemaService {
 export function getMigrationService(): MigrationService {
   console.warn('getMigrationService() is deprecated. Use MigrationService.getInstance() instead.');
   return MigrationService.getInstance();
-}
-
-export async function initializeDatabase(config?: Partial<DatabaseConfig>): Promise<void> {
-  console.warn('initializeDatabase() is deprecated. Module initialization is handled by the module loader.');
-  // This function is kept for backward compatibility but does nothing
-  // The module loader will handle initialization through the ModuleInterface
-}
-
-export async function shutdownDatabase(): Promise<void> {
-  console.warn('shutdownDatabase() is deprecated. Module shutdown is handled by the module loader.');
-  // This function is kept for backward compatibility but does nothing
-  // The module loader will handle shutdown through the ModuleInterface
 }

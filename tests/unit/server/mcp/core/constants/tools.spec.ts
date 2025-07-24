@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { TOOLS } from '../../../../../../src/server/mcp/core/constants/tools';
+import { TOOLS } from '../../../../../../src/server/mcp/core/constants/tools.js';
 
 describe('tools constants', () => {
   describe('TOOLS array', () => {

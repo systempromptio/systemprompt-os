@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
-import type { ModuleRegistry } from '../../../src/modules/registry';
-import type { Logger } from '../../../src/modules/core/logger/index';
+import type { ModuleRegistry } from '../../../src/modules/registry.js';
+import type { Logger } from '../../../src/modules/core/logger/index.js';
 
 describe('Logger', () => {
   let logger: any;

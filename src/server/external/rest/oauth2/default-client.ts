@@ -1,9 +1,11 @@
 /**
- * Default OAuth client for registration/login pages
+ * Default OAuth client for registration/login pages.
  */
 
-import { RegisterEndpoint } from './register.js';
-import { logger } from '@/utils/logger.js';
+import { RegisterEndpoint } from '@/server/external/rest/oauth2/register.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+
+const logger = LoggerService.getInstance();
 
 export interface DefaultClient {
   client_id: string;
@@ -14,7 +16,8 @@ export interface DefaultClient {
 let defaultClient: DefaultClient | null = null;
 
 /**
- * Get or create the default OAuth client for the registration/login flow
+ * Get or create the default OAuth client for the registration/login flow.
+ * @param baseUrl
  */
 export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultClient> {
   if (defaultClient) {
@@ -27,7 +30,7 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     defaultClient = {
       client_id: existingClient.client_id,
       client_secret: existingClient.client_secret || '',
-      redirect_uris: existingClient.redirect_uris || []
+      redirect_uris: existingClient.redirect_uris || [],
     };
     return defaultClient;
   }
@@ -39,26 +42,26 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     redirect_uris: [
       `${baseUrl}/oauth2/callback/google`,
       `${baseUrl}/oauth2/callback/github`,
-      `${baseUrl}/auth/callback`
+      `${baseUrl}/auth/callback`,
     ],
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     scope: 'openid profile email',
-    token_endpoint_auth_method: 'none' // Public client
+    token_endpoint_auth_method: 'none', // Public client
   };
 
   // Register the client
   const registeredClient = await RegisterEndpoint.registerClient(registration);
-  
+
   defaultClient = {
     client_id: registeredClient.client_id,
     client_secret: registeredClient.client_secret || '',
-    redirect_uris: registeredClient.redirect_uris || []
+    redirect_uris: registeredClient.redirect_uris || [],
   };
 
   logger.info('Created default OAuth client', {
     client_id: defaultClient.client_id,
-    redirect_uris: defaultClient.redirect_uris
+    redirect_uris: defaultClient.redirect_uris,
   });
 
   return defaultClient;

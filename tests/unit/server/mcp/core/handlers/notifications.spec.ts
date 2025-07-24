@@ -12,7 +12,7 @@ import {
   sendRootsListChangedNotification,
   sendResourcesUpdatedNotification,
   sendResourcesListChangedNotification
-} from '../../../../../../src/server/mcp/core/handlers/notifications';
+} from '../../../../../../src/server/mcp/core/handlers/notifications.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 // Mock the MCP handler

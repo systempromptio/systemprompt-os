@@ -13,23 +13,23 @@ import {
   CommandDiscoveryError,
   CLIInitializationError,
   OutputFormattingError,
-  DocumentationGenerationError
+  DocumentationGenerationError,
 } from '@/modules/core/cli/utils/errors';
 
 describe('CLI Error Classes', () => {
   describe('CLIError', () => {
     it('should create error with message and code', () => {
-      const error = new CLIError('Test error', 'TEST_ERROR');
+      const error = new CLIError('Test error', 'TESTerror');
 
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(CLIError);
       expect(error.message).toBe('Test error');
-      expect(error.code).toBe('TEST_ERROR');
+      expect(error.code).toBe('TESTerror');
       expect(error.name).toBe('CLIError');
     });
 
     it('should have stack trace', () => {
-      const error = new CLIError('Test error', 'TEST_ERROR');
+      const error = new CLIError('Test error', 'TESTerror');
       expect(error.stack).toBeDefined();
     });
   });
@@ -61,7 +61,11 @@ describe('CLI Error Classes', () => {
 
     it('should use custom message if provided', () => {
       const originalError = new Error('Execution failed');
-      const error = new CommandExecutionError('test:command', originalError, 'Custom error message');
+      const error = new CommandExecutionError(
+        'test:command',
+        originalError,
+        'Custom error message',
+      );
 
       expect(error.message).toBe('Custom error message');
     });
@@ -72,7 +76,9 @@ describe('CLI Error Classes', () => {
       const error = new InvalidArgumentsError('test:command', 'Missing required argument');
 
       expect(error).toBeInstanceOf(CLIError);
-      expect(error.message).toBe('Invalid arguments for command "test:command": Missing required argument');
+      expect(error.message).toBe(
+        'Invalid arguments for command "test:command": Missing required argument',
+      );
       expect(error.code).toBe('INVALID_ARGUMENTS');
       expect(error.name).toBe('InvalidArgumentsError');
       expect(error.commandName).toBe('test:command');
@@ -99,7 +105,9 @@ describe('CLI Error Classes', () => {
       const error = new CommandDiscoveryError('/path/to/commands', originalError);
 
       expect(error).toBeInstanceOf(CLIError);
-      expect(error.message).toBe('Failed to discover commands at "/path/to/commands": File not found');
+      expect(error.message).toBe(
+        'Failed to discover commands at "/path/to/commands": File not found',
+      );
       expect(error.code).toBe('COMMAND_DISCOVERY_FAILED');
       expect(error.name).toBe('CommandDiscoveryError');
       expect(error.path).toBe('/path/to/commands');
@@ -140,7 +148,9 @@ describe('CLI Error Classes', () => {
       const error = new DocumentationGenerationError('markdown', originalError);
 
       expect(error).toBeInstanceOf(CLIError);
-      expect(error.message).toBe('Failed to generate documentation in "markdown" format: Template error');
+      expect(error.message).toBe(
+        'Failed to generate documentation in "markdown" format: Template error',
+      );
       expect(error.code).toBe('DOCUMENTATION_GENERATION_FAILED');
       expect(error.name).toBe('DocumentationGenerationError');
       expect(error.format).toBe('markdown');
@@ -158,10 +168,10 @@ describe('CLI Error Classes', () => {
         new CommandDiscoveryError('/path', new Error()),
         new CLIInitializationError(new Error()),
         new OutputFormattingError('json', new Error()),
-        new DocumentationGenerationError('markdown', new Error())
+        new DocumentationGenerationError('markdown', new Error()),
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error).toBeInstanceOf(Error);
         expect(error).toBeInstanceOf(CLIError);
         expect(error.stack).toBeDefined();

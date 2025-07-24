@@ -203,7 +203,7 @@ import { getPrompt } from "../constants/tool/get-prompt.js";
 import { updateTask } from "../constants/tool/update-task.js";
 import { endTask } from "../constants/tool/end-task.js";
 import { reportTask } from "../constants/tool/report-task.js";
-import { logger } from "@/utils/logger.js";
+import { logger } from "'@/modules/core/logger/index.js'";
 
 export class ToolRegistry {
   private static tools: Map<string, PermissionTool> = new Map();
@@ -280,7 +280,7 @@ import { PermissionEvaluator } from "../services/permission-evaluator.js";
 import { getUserPermissionContext } from "../services/user-context.js";
 import { AuditLogger } from "../services/audit-logger.js";
 import { RateLimiter } from "../services/rate-limiter.js";
-import { logger } from "@/utils/logger.js";
+import { logger } from "'@/modules/core/logger/index.js'";
 import type { MCPToolContext } from "../types/request-context.js";
 
 // Tool handlers
@@ -467,7 +467,7 @@ export async function handleToolCall(
 // src/server/mcp/core/services/permission-evaluator.ts
 import { PermissionTool } from "../types/permission-tool.js";
 import { checkPermission } from "../../../services/permissions/capability-validator.js";
-import { logger } from "@/utils/logger.js";
+import { logger } from "'@/modules/core/logger/index.js'";
 
 export interface PermissionContext {
   userId: string;
@@ -649,7 +649,7 @@ export class PermissionEvaluator {
 import { MCPToolContext } from "../types/request-context.js";
 import { PermissionContext } from "./permission-evaluator.js";
 import { db } from "../../../database/index.js";
-import { logger } from "@/utils/logger.js";
+import { logger } from "'@/modules/core/logger/index.js'";
 
 export async function getUserPermissionContext(
   context: MCPToolContext

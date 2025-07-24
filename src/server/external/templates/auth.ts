@@ -1,14 +1,14 @@
 /**
- * @fileoverview Authentication page templates for SystemPrompt OS
+ * @file Authentication page templates for SystemPrompt OS.
  * @module server/external/templates/auth
  */
 
-import { renderLayout } from './config/layout.js';
+import { renderLayout } from '@/server/external/templates/config/layout.js';
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
- * Authentication page configuration
+ * Authentication page configuration.
  */
 export interface AuthPageConfig {
   providers: IdentityProvider[];
@@ -18,36 +18,43 @@ export interface AuthPageConfig {
 }
 
 /**
- * Renders the authentication page combining login and registration
+ * Renders the authentication page combining login and registration.
+ * @param config
  */
 export function renderAuthPage(config: AuthPageConfig): string {
-  const content = config.isAuthenticated 
+  const content = config.isAuthenticated
     ? renderLogoutSection(config.userEmail)
     : renderLoginSection(config.providers, config.error);
 
   return renderLayout({
     title: config.isAuthenticated ? 'Account' : 'Sign In',
     content,
-    styles: getAuthStyles()
+    styles: getAuthStyles(),
   });
 }
 
 /**
- * Renders the login/register section for unauthenticated users
+ * Renders the login/register section for unauthenticated users.
+ * @param providers
+ * @param error
  */
 function renderLoginSection(providers: IdentityProvider[], error?: string): string {
   return `
     <h1>Sign In to SystemPrompt</h1>
     <p class="subtitle">Access your AI operating system</p>
 
-    ${error ? `
+    ${
+      error
+        ? `
     <div class="error-message">
       <svg class="error-icon" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
       </svg>
       <span>${error}</span>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
     <div class="auth-section">
       <div class="section-header">
@@ -58,7 +65,11 @@ function renderLoginSection(providers: IdentityProvider[], error?: string): stri
       </div>
       
       <div class="provider-list">
-        ${providers.map(provider => renderProviderButton(provider)).join('')}
+        ${providers
+          .map((provider) => {
+            return renderProviderButton(provider);
+          })
+          .join('')}
       </div>
     </div>
 
@@ -84,7 +95,8 @@ function renderLoginSection(providers: IdentityProvider[], error?: string): stri
 }
 
 /**
- * Renders the logout section for authenticated users
+ * Renders the logout section for authenticated users.
+ * @param userEmail
  */
 function renderLogoutSection(userEmail?: string): string {
   return `
@@ -135,25 +147,26 @@ function renderLogoutSection(userEmail?: string): string {
 }
 
 /**
- * Renders an OAuth provider button
+ * Renders an OAuth provider button.
+ * @param provider
  */
 function renderProviderButton(provider: IdentityProvider): string {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  
+
   // Use the tunnel URL if available
   const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
-  
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'auth-client',
     redirect_uri: `${baseUrl}/auth/callback`,
     scope: 'openid profile email',
     state: 'auth-flow',
-    provider: providerName
+    provider: providerName,
   });
-  
+
   return `
     <a href="/oauth2/authorize?${params.toString()}" class="provider-button">
       <span class="provider-icon">${icon}</span>
@@ -163,7 +176,7 @@ function renderProviderButton(provider: IdentityProvider): string {
 }
 
 /**
- * Returns CSS styles specific to the authentication pages
+ * Returns CSS styles specific to the authentication pages.
  */
 function getAuthStyles(): string {
   return `

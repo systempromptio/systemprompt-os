@@ -1,6 +1,6 @@
 /**
  * SQLite adapter implementation
- * Provides database operations using better-sqlite3
+ * Provides database operations using better-sqlite3.
  */
 
 import Database from 'better-sqlite3';
@@ -10,36 +10,36 @@ import type {
   DatabaseAdapter,
   DatabaseConfig,
   DatabaseConnection,
-  QueryResult,
   PreparedStatement,
-  Transaction
-} from '@/modules/core/database/types';
-import { ConnectionError, QueryError, TransactionError } from '@/modules/core/database/utils/errors';
+  QueryResult,
+  Transaction,
+} from '@/modules/core/database/types/index.js';
+import { ConnectionError } from '@/modules/core/database/utils/errors.js';
 
 class SQLitePreparedStatement implements PreparedStatement {
-  constructor(private stmt: Database.Statement) {}
+  constructor(private readonly stmt: Database.Statement) {}
 
   async execute(params?: unknown[]): Promise<QueryResult> {
-    const rows = this.stmt.all(...(params || []));
+    const rows = this.stmt.all(...params || []);
     return {
       rows,
-      rowCount: rows.length
+      rowCount: rows.length,
     };
   }
 
   async all<T = unknown>(params?: unknown[]): Promise<T[]> {
-    return this.stmt.all(...(params || [])) as T[];
+    return this.stmt.all(...params || []) as T[];
   }
 
   async get<T = unknown>(params?: unknown[]): Promise<T | undefined> {
-    return this.stmt.get(...(params || [])) as T | undefined;
+    return this.stmt.get(...params || []) as T | undefined;
   }
 
   async run(params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | string }> {
-    const result = this.stmt.run(...(params || []));
+    const result = this.stmt.run(...params || []);
     return {
       changes: result.changes,
-      lastInsertRowid: result.lastInsertRowid as number
+      lastInsertRowid: result.lastInsertRowid as number,
     };
   }
 
@@ -49,14 +49,14 @@ class SQLitePreparedStatement implements PreparedStatement {
 }
 
 class SQLiteTransaction implements Transaction {
-  constructor(private db: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
     const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...(params || []));
+    const rows = stmt.all(...params || []);
     return {
       rows: rows as T[],
-      rowCount: rows.length
+      rowCount: rows.length,
     };
   }
 
@@ -83,14 +83,14 @@ class SQLiteTransaction implements Transaction {
 }
 
 class SQLiteConnection implements DatabaseConnection {
-  constructor(private db: Database.Database) {}
+  constructor(private readonly db: Database.Database) {}
 
   async query<T = unknown>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
     const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...(params || []));
+    const rows = stmt.all(...params || []);
     return {
       rows: rows as T[],
-      rowCount: rows.length
+      rowCount: rows.length,
     };
   }
 
@@ -110,7 +110,7 @@ class SQLiteConnection implements DatabaseConnection {
   async transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T> {
     this.db.exec('BEGIN');
     const tx = new SQLiteTransaction(this.db);
-    
+
     try {
       const result = await callback(tx);
       await tx.commit();
@@ -134,7 +134,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
       throw new ConnectionError('SQLite configuration is required', { type: 'sqlite' });
     }
 
-    const { filename, mode = 'wal' } = config.sqlite;
+    const { filename } = config.sqlite;
 
     try {
       // Ensure directory exists
@@ -142,7 +142,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
       // Open database
       this.db = new Database(filename);
-      
+
       // Configure SQLite for better concurrency
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('busy_timeout = 5000');
@@ -150,15 +150,18 @@ export class SQLiteAdapter implements DatabaseAdapter {
       this.db.pragma('cache_size = -64000'); // 64MB cache
       this.db.pragma('foreign_keys = ON');
       this.db.pragma('temp_store = MEMORY');
-      
+
       // SQLite database connected successfully
-      
+
       return new SQLiteConnection(this.db);
     } catch (error) {
       throw new ConnectionError(
         `Failed to connect to SQLite database at ${filename}`,
-        { type: 'sqlite', host: filename },
-        error as Error
+        {
+ type: 'sqlite',
+host: filename
+},
+        error as Error,
       );
     }
   }

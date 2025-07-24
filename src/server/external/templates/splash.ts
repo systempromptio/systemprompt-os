@@ -1,12 +1,12 @@
 /**
- * @fileoverview Splash page template for SystemPrompt OS
+ * @file Splash page template for SystemPrompt OS.
  * @module server/external/templates/splash
  */
 
-import { renderLayout } from './config/layout.js';
+import { renderLayout } from '@/server/external/templates/config/layout.js';
 
 /**
- * Renders the welcome splash page content
+ * Renders the welcome splash page content.
  */
 export function renderSplashPage(): string {
   const content = `
@@ -90,7 +90,7 @@ export function renderSplashPage(): string {
 }
 
 /**
- * Returns CSS styles specific to the splash page
+ * Returns CSS styles specific to the splash page.
  */
 function getSplashStyles(): string {
   return `

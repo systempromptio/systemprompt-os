@@ -1,12 +1,13 @@
 /**
- * @fileoverview Initial setup template for creating the first admin user
+ * @file Initial setup template for creating the first admin user.
  * @module server/external/templates/config/initial-setup
  */
 
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 
 /**
- * Renders the initial setup page when no admin users exist
+ * Renders the initial setup page when no admin users exist.
+ * @param providers
  */
 export function renderInitialSetup(providers: IdentityProvider[]): string {
   return `
@@ -28,7 +29,11 @@ export function renderInitialSetup(providers: IdentityProvider[]): string {
       </p>
       
       <div class="provider-grid">
-        ${providers.map(provider => renderProviderButton(provider)).join('')}
+        ${providers
+          .map((provider) => {
+            return renderProviderButton(provider);
+          })
+          .join('')}
       </div>
     </div>
 
@@ -67,22 +72,23 @@ export function renderInitialSetup(providers: IdentityProvider[]): string {
 }
 
 /**
- * Renders an OAuth provider button
+ * Renders an OAuth provider button.
+ * @param provider
  */
 function renderProviderButton(provider: IdentityProvider): string {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-  const authUrl = `${baseUrl}/oauth2/authorize?` + new URLSearchParams({
+
+  const baseUrl = process.env['BASE_URL'] || 'http://localhost:3000';
+  const authUrl = `${baseUrl}/oauth2/authorize?${new URLSearchParams({
     response_type: 'code',
     client_id: 'systemprompt-os',
     redirect_uri: baseUrl,
     scope: 'openid profile email',
-    provider: providerName
-  }).toString();
-  
+    provider: providerName,
+  }).toString()}`;
+
   return `
     <a href="${authUrl}" class="provider-button">
       <span class="provider-icon">${icon}</span>
@@ -92,7 +98,7 @@ function renderProviderButton(provider: IdentityProvider): string {
 }
 
 /**
- * Returns CSS styles specific to the initial setup page
+ * Returns CSS styles specific to the initial setup page.
  */
 export function getInitialSetupStyles(): string {
   return `

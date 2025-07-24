@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GitHubProvider } from '../../../../../../../src/modules/core/auth/providers/core/github';
+import { GitHubProvider } from '../../../../../../../src/modules/core/auth/providers/core/github.js';
 
 // Mock fetch
 global.fetch = vi.fn();

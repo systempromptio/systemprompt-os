@@ -1,5 +1,5 @@
 import { beforeAll, afterAll } from 'vitest';
-import { bootstrapTestEnvironment, cleanupTestEnvironment, TEST_CONFIG } from './bootstrap';
+import { bootstrapTestEnvironment, cleanupTestEnvironment, TEST_CONFIG } from './bootstrap.js';
 
 // Global setup for all E2E tests
 beforeAll(async () => {

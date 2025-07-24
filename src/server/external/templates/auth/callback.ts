@@ -1,11 +1,5 @@
 /**
- * @fileoverview OAuth callback handling template
- * @module server/external/templates/auth/callback
- */
-
-/**
- * Renders the OAuth callback handler page
- * 
+ * Renders the OAuth callback handler page.
  * This page automatically exchanges the authorization code for tokens
  * and completes the login process.
  */

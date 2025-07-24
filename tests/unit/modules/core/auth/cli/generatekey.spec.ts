@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/auth/cli/generatekey';
+import { command } from '../../../../../../src/modules/core/auth/cli/generatekey.js';
 import { existsSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 

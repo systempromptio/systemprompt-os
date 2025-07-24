@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { oauthFixtures } from '../fixtures/oauth.fixtures';
-import { userFixtures } from '../fixtures/user.fixtures';
+import { oauthFixtures } from '../fixtures/oauth.fixtures.js';
+import { userFixtures } from '../fixtures/user.fixtures.js';
 
 export interface MockAuthContext {
   isAuthenticated: boolean;

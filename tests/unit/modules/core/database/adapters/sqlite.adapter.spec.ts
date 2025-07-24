@@ -103,7 +103,9 @@ describe('SQLiteAdapter', () => {
         }
       };
 
-      await expect(adapter.connect(config)).rejects.toThrow('Connection failed');
+      await expect(adapter.connect(config)).rejects.toThrow(
+        'Failed to connect to SQLite database at /path/to/db.sqlite'
+      );
     });
   });
 

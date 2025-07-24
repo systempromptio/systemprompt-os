@@ -1,4 +1,4 @@
-import type { OAuthClient, OAuthToken, OAuthCode } from '../../src/server/external/auth/types';
+import type { OAuthClient, OAuthToken, OAuthCode } from '../../src/server/external/auth/types.js';
 
 export function createOAuthClientFixture(overrides?: Partial<OAuthClient>): OAuthClient {
   return {

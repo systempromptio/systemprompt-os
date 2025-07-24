@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { tunnelStatus, startTunnel, setupDomain } from '../../../../../../src/modules/core/auth/cli/tunnel';
-import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton';
+import { tunnelStatus, startTunnel, setupDomain } from '../../../../../../src/modules/core/auth/cli/tunnel.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton.js';
 
 // Mock the singleton
 vi.mock('../../../../../../src/modules/core/auth/singleton', () => ({

@@ -240,7 +240,7 @@ interface TaskLogEntry {
 - `TOOL_START`: Tool execution began
 - `TOOL_END`: Tool execution completed
 - `TOOL_OUTPUT`: Tool output data
-- `TOOL_ERROR`: Tool execution error
+- `TOOLerror`: Tool execution error
 
 ### User Logs
 - `USER_REQUEST`: User input/request

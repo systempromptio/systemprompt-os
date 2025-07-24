@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { HealthEndpoint } from '../../../../../src/server/external/rest/health';
+import { HealthEndpoint } from '../../../../../src/server/external/rest/health.js';
 import { Request, Response } from 'express';
 import { readFileSync, existsSync } from 'fs';
-import { setupTestEnvironment } from '../../../../helpers/test-utils';
-import type { HeartbeatData } from '../../../../../src/modules/core/heartbeat/types';
+import { setupTestEnvironment } from '../../../../helpers/test-utils.js';
+import type { HeartbeatData } from '../../../../../src/modules/core/heartbeat/types.js';
 
 vi.mock('fs', () => ({
   readFileSync: vi.fn(),

@@ -1,26 +1,21 @@
 /**
- * @fileoverview OAuth2 error utilities
- * @module server/external/rest/oauth2/errors
- */
-
-/**
- * OAuth2 error types following RFC 6749
+ * OAuth2 error types following RFC 6749.
  * @see https://tools.ietf.org/html/rfc6749#section-5.2
  */
 export enum OAuth2ErrorType {
   InvalidRequest = 'invalid_request',
-  InvalidClient = 'invalid_client', 
+  InvalidClient = 'invalid_client',
   InvalidGrant = 'invalid_grant',
   UnauthorizedClient = 'unauthorized_client',
   UnsupportedGrantType = 'unsupported_grant_type',
   UnsupportedResponseType = 'unsupported_response_type',
   InvalidScope = 'invalid_scope',
   AccessDenied = 'access_denied',
-  ServerError = 'server_error'
+  ServerError = 'servererror',
 }
 
 /**
- * OAuth2 error response interface
+ * OAuth2 error response interface.
  */
 export interface OAuth2ErrorResponse {
   error: OAuth2ErrorType;
@@ -29,7 +24,7 @@ export interface OAuth2ErrorResponse {
 }
 
 /**
- * OAuth2 error class
+ * OAuth2 error class.
  */
 export class OAuth2Error extends Error {
   public readonly code: number;
@@ -41,27 +36,26 @@ export class OAuth2Error extends Error {
     errorType: OAuth2ErrorType,
     errorDescription?: string,
     code: number = 400,
-    errorUri?: string
+    errorUri?: string,
   ) {
     super(errorDescription || errorType);
     this.name = 'OAuth2Error';
     this.code = code;
     this.errorType = errorType;
-    this.errorDescription = errorDescription;
-    this.errorUri = errorUri;
+    if (errorDescription !== undefined) {
+      this.errorDescription = errorDescription;
+    }
+    if (errorUri !== undefined) {
+      this.errorUri = errorUri;
+    }
   }
 
   toJSON(): OAuth2ErrorResponse {
-    const response: OAuth2ErrorResponse = {
-      error: this.errorType
+    return {
+      error: this.errorType,
+      ...this.errorDescription && { error_description: this.errorDescription },
+      ...this.errorUri && { error_uri: this.errorUri },
     };
-    if (this.errorDescription) {
-      response.error_description = this.errorDescription;
-    }
-    if (this.errorUri) {
-      response.error_uri = this.errorUri;
-    }
-    return response;
   }
 
   // Static factory methods for common errors

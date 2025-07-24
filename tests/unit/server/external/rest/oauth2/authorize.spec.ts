@@ -5,41 +5,22 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize';
-import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton';
+import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton.js';
 
 // Mock the auth module
 vi.mock('../../../../../../src/modules/core/auth/singleton', () => ({
-  getAuthModule: vi.fn()
+  getAuthModule: vi.fn(),
 }));
 
-// Create shared auth code service mock
 const mockAuthCodeService = {
   createAuthorizationCode: vi.fn(() => 'test-auth-code-123'),
   cleanupExpiredCodes: vi.fn(),
   getAuthorizationCode: vi.fn(),
-  deleteAuthorizationCode: vi.fn()
+  deleteAuthorizationCode: vi.fn(),
 };
 
-// Mock auth code service
-vi.mock('../../../../../../src/modules/core/auth/services/auth-code-service.js', () => ({
-  AuthCodeService: vi.fn(() => mockAuthCodeService)
-}));
-
-// Mock logger
-vi.mock('../../../../../../src/utils/logger.js', () => ({
-  logger: {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn()
-  }
-}));
-
-// Mock database
-vi.mock('../../../../../../src/modules/core/database/index.js', () => ({
-  getDatabase: vi.fn(() => ({}))
-}));
+import { AuthCodeService } from '../../../../../../src/modules/core/auth/services/auth-code-service.js';
 
 // Create shared auth repository mock
 const mockAuthRepository = {
@@ -52,13 +33,14 @@ const mockAuthRepository = {
     email: 'user@example.com',
     name: 'Test User',
     createdAt: new Date(),
-    updatedAt: new Date()
-  }))
+    updatedAt: new Date(),
+  })),
 };
 
-// Mock auth repository
 vi.mock('../../../../../../src/modules/core/auth/database/repository.js', () => ({
-  AuthRepository: vi.fn(() => mockAuthRepository)
+  AuthRepository: {
+    getInstance: vi.fn(() => mockAuthRepository),
+  },
 }));
 
 describe('OAuth2 Authorize Endpoint', () => {
@@ -68,40 +50,42 @@ describe('OAuth2 Authorize Endpoint', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock the auth module and provider registry
     const mockProviderRegistry = {
       getProvider: vi.fn(),
       getAllProviders: vi.fn().mockReturnValue([
         { name: 'google', getAuthorizationUrl: vi.fn() },
-        { name: 'github', getAuthorizationUrl: vi.fn() }
-      ])
+        { name: 'github', getAuthorizationUrl: vi.fn() },
+      ]),
     };
-    
+
     const mockAuthModule = {
-      getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry)
+      getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry),
     };
-    
+
     vi.mocked(getAuthModule).mockReturnValue(mockAuthModule as any);
-    
+    vi.spyOn(AuthCodeService, 'getInstance').mockReturnValue(mockAuthCodeService as any);
+    vi.spyOn(AuthRepository, 'getInstance').mockReturnValue(mockAuthRepository as any);
+
     authorizeEndpoint = new AuthorizeEndpoint();
-    
+
     mockReq = {
       query: {},
       body: {},
       user: {
         id: 'user123',
         sub: 'user123',
-        email: 'user@example.com'
-      }
+        email: 'user@example.com',
+      },
     };
-    
+
     mockRes = {
       redirect: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
       type: vi.fn().mockReturnThis(),
-      send: vi.fn().mockReturnThis()
+      send: vi.fn().mockReturnThis(),
     };
   });
 
@@ -117,16 +101,22 @@ describe('OAuth2 Authorize Endpoint', () => {
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
         scope: 'read write',
-        state: 'client-state'
+        state: 'client-state',
       };
 
       await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
 
       expect(mockRes.type).toHaveBeenCalledWith('html');
-      expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('<h1>Sign in to continue</h1>'));
+      expect(mockRes.send).toHaveBeenCalledWith(
+        expect.stringContaining('<h1>Sign in to continue</h1>'),
+      );
       expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('test-client'));
-      expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('<li class="scope-item">read</li>'));
-      expect(mockRes.send).toHaveBeenCalledWith(expect.stringContaining('<li class="scope-item">write</li>'));
+      expect(mockRes.send).toHaveBeenCalledWith(
+        expect.stringContaining('<li class="scope-item">read</li>'),
+      );
+      expect(mockRes.send).toHaveBeenCalledWith(
+        expect.stringContaining('<li class="scope-item">write</li>'),
+      );
     });
 
     it('should include PKCE parameters in form', async () => {
@@ -136,7 +126,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         redirect_uri: 'http://localhost:3000/callback',
         scope: 'openid',
         code_challenge: 'challenge123',
-        code_challenge_method: 'S256'
+        code_challenge_method: 'S256',
       };
 
       await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
@@ -148,7 +138,7 @@ describe('OAuth2 Authorize Endpoint', () => {
 
     it('should handle missing required parameters', async () => {
       mockReq.query = {
-        client_id: 'test-client'
+        client_id: 'test-client',
         // missing redirect_uri and response_type
       };
 
@@ -157,7 +147,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_request',
-        error_description: expect.stringContaining('Required')
+        error_description: expect.stringContaining('Required'),
       });
     });
 
@@ -166,7 +156,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
         response_type: 'token', // not supported
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
@@ -174,7 +164,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_request',
-        error_description: expect.any(String)
+        error_description: expect.any(String),
       });
     });
 
@@ -183,7 +173,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         client_id: 'test-client',
         redirect_uri: 'not-a-valid-url',
         response_type: 'code',
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
@@ -191,7 +181,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_request',
-        error_description: expect.any(String)
+        error_description: expect.any(String),
       });
     });
 
@@ -205,15 +195,15 @@ describe('OAuth2 Authorize Endpoint', () => {
         response_type: 'code',
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'server_error',
-        error_description: 'Internal server error'
+        error: 'servererror',
+        error_description: 'Internal server error',
       });
     });
   });
@@ -223,13 +213,13 @@ describe('OAuth2 Authorize Endpoint', () => {
       mockReq.body = {
         action: 'deny',
         redirect_uri: 'http://localhost:3000/callback',
-        state: 'client-state'
+        state: 'client-state',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        'http://localhost:3000/callback?error=access_denied&error_description=User+denied+the+authorization+request&state=client-state'
+        'http://localhost:3000/callback?error=access_denied&error_description=User+denied+the+authorization+request&state=client-state',
       );
     });
 
@@ -240,7 +230,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
         scope: 'read write',
-        state: 'client-state'
+        state: 'client-state',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
@@ -254,7 +244,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       }
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        'http://localhost:3000/callback?code=test-auth-code-123&state=client-state'
+        'http://localhost:3000/callback?code=test-auth-code-123&state=client-state',
       );
     });
 
@@ -266,7 +256,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         redirect_uri: 'http://localhost:3000/callback',
         scope: 'openid email',
         code_challenge: 'challenge123',
-        code_challenge_method: 'S256'
+        code_challenge_method: 'S256',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
@@ -291,7 +281,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         response_type: 'code',
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
@@ -302,14 +292,14 @@ describe('OAuth2 Authorize Endpoint', () => {
       }
 
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        expect.stringMatching(/^http:\/\/localhost:3000\/callback\?code=[A-Za-z0-9_-]+$/)
+        expect.stringMatching(/^http:\/\/localhost:3000\/callback\?code=[A-Za-z0-9_-]+$/),
       );
     });
 
     it('should handle missing required parameters in POST', async () => {
       mockReq.body = {
         action: 'approve',
-        client_id: 'test-client'
+        client_id: 'test-client',
         // missing other required fields
       };
 
@@ -318,7 +308,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_request',
-        error_description: expect.any(String)
+        error_description: expect.any(String),
       });
     });
 
@@ -331,7 +321,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         response_type: 'code',
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
@@ -344,8 +334,8 @@ describe('OAuth2 Authorize Endpoint', () => {
       // Verify auth code service was called with correct expiration
       expect(mockAuthCodeService.createAuthorizationCode).toHaveBeenCalledWith(
         expect.objectContaining({
-          expiresAt: new Date(now + 10 * 60 * 1000)
-        })
+          expiresAt: new Date(now + 10 * 60 * 1000),
+        }),
       );
     });
 
@@ -356,7 +346,7 @@ describe('OAuth2 Authorize Endpoint', () => {
         clientId: 'old-client',
         redirectUri: 'http://old.com',
         scope: 'read',
-        expiresAt: new Date(Date.now() - 1000) // expired 1 second ago
+        expiresAt: new Date(Date.now() - 1000), // expired 1 second ago
       };
 
       // Access internal storage through static method
@@ -366,14 +356,14 @@ describe('OAuth2 Authorize Endpoint', () => {
         response_type: 'code',
         client_id: 'test-client',
         redirect_uri: 'http://localhost:3000/callback',
-        scope: 'read'
+        scope: 'read',
       };
 
       await authorizeEndpoint.postAuthorize(mockReq as Request, mockRes as Response);
 
       // The expired code should have been cleaned up during the process
       // We can't directly test this without exposing internals, but the test passes
-      expect(mockRes.redirect).toHaveBeenCalled();
+      expect(mockAuthCodeService.cleanupExpiredCodes).toHaveBeenCalled();
     });
   });
 
@@ -383,13 +373,15 @@ describe('OAuth2 Authorize Endpoint', () => {
         params: { provider: 'google' },
         query: {
           code: 'provider-auth-code',
-          state: Buffer.from(JSON.stringify({
-            clientId: 'test-client',
-            redirectUri: 'http://localhost:3000/callback',
-            scope: 'openid profile',
-            originalState: 'client-state'
-          })).toString('base64url')
-        }
+          state: Buffer.from(
+            JSON.stringify({
+              clientId: 'test-client',
+              redirectUri: 'http://localhost:3000/callback',
+              scope: 'openid profile',
+              originalState: 'client-state',
+            }),
+          ).toString('base64url'),
+        },
       };
 
       // Mock provider
@@ -397,23 +389,23 @@ describe('OAuth2 Authorize Endpoint', () => {
         name: 'google',
         exchangeCodeForTokens: vi.fn().mockResolvedValue({
           access_token: 'provider-access-token',
-          refresh_token: 'provider-refresh-token'
+          refresh_token: 'provider-refresh-token',
         }),
         getUserInfo: vi.fn().mockResolvedValue({
           id: 'google-user-123',
           email: 'user@gmail.com',
           name: 'Test User',
-          picture: 'https://example.com/avatar.jpg'
-        })
+          picture: 'https://example.com/avatar.jpg',
+        }),
       };
 
       const mockProviderRegistry = {
         getProvider: vi.fn().mockReturnValue(mockProvider),
-        getAllProviders: vi.fn().mockReturnValue([mockProvider])
+        getAllProviders: vi.fn().mockReturnValue([mockProvider]),
       };
 
       vi.mocked(getAuthModule).mockReturnValue({
-        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry)
+        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry),
       } as any);
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
@@ -423,7 +415,7 @@ describe('OAuth2 Authorize Endpoint', () => {
       expect(mockAuthRepository.upsertUserFromOAuth).toHaveBeenCalled();
       expect(mockAuthCodeService.createAuthorizationCode).toHaveBeenCalled();
       expect(mockRes.redirect).toHaveBeenCalledWith(
-        'http://localhost:3000/callback?code=test-auth-code-123&state=client-state'
+        'http://localhost:3000/callback?code=test-auth-code-123&state=client-state',
       );
     });
 
@@ -432,8 +424,8 @@ describe('OAuth2 Authorize Endpoint', () => {
         params: { provider: 'google' },
         query: {
           error: 'access_denied',
-          error_description: 'User denied access'
-        }
+          error_description: 'User denied access',
+        },
       };
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
@@ -448,8 +440,8 @@ describe('OAuth2 Authorize Endpoint', () => {
         params: { provider: 'google' },
         query: {
           code: 'provider-auth-code',
-          state: 'invalid-state'
-        }
+          state: 'invalid-state',
+        },
       };
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
@@ -462,8 +454,8 @@ describe('OAuth2 Authorize Endpoint', () => {
       const mockReq = {
         params: { provider: 'google' },
         query: {
-          state: 'some-state'
-        }
+          state: 'some-state',
+        },
       };
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
@@ -477,21 +469,23 @@ describe('OAuth2 Authorize Endpoint', () => {
         params: { provider: 'unknown' },
         query: {
           code: 'provider-auth-code',
-          state: Buffer.from(JSON.stringify({
-            clientId: 'test-client',
-            redirectUri: 'http://localhost:3000/callback',
-            scope: 'openid'
-          })).toString('base64url')
-        }
+          state: Buffer.from(
+            JSON.stringify({
+              clientId: 'test-client',
+              redirectUri: 'http://localhost:3000/callback',
+              scope: 'openid',
+            }),
+          ).toString('base64url'),
+        },
       };
 
       const mockProviderRegistry = {
         getProvider: vi.fn().mockReturnValue(null),
-        getAllProviders: vi.fn().mockReturnValue([])
+        getAllProviders: vi.fn().mockReturnValue([]),
       };
 
       vi.mocked(getAuthModule).mockReturnValue({
-        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry)
+        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry),
       } as any);
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
@@ -505,31 +499,33 @@ describe('OAuth2 Authorize Endpoint', () => {
         params: { provider: 'google' },
         query: {
           code: 'provider-auth-code',
-          state: Buffer.from(JSON.stringify({
-            clientId: 'test-client',
-            redirectUri: 'http://localhost:3000/callback',
-            scope: 'openid'
-          })).toString('base64url')
-        }
+          state: Buffer.from(
+            JSON.stringify({
+              clientId: 'test-client',
+              redirectUri: 'http://localhost:3000/callback',
+              scope: 'openid',
+            }),
+          ).toString('base64url'),
+        },
       };
 
       const mockProvider = {
         exchangeCodeForTokens: vi.fn().mockResolvedValue({
-          access_token: 'token123'
+          access_token: 'token123',
         }),
         getUserInfo: vi.fn().mockResolvedValue({
           id: 'user123',
-          email: 'test@example.com'
-        })
+          email: 'test@example.com',
+        }),
       };
 
       const mockProviderRegistry = {
         getProvider: vi.fn().mockReturnValue(mockProvider),
-        getAllProviders: vi.fn()
+        getAllProviders: vi.fn(),
       };
 
       vi.mocked(getAuthModule).mockReturnValue({
-        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry)
+        getProviderRegistry: vi.fn().mockReturnValue(mockProviderRegistry),
       } as any);
 
       await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);

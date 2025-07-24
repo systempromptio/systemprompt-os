@@ -58,7 +58,7 @@ vi.mock('../../../../../../src/server/mcp/core/handlers/prompts/index', () => ({
 }));
 
 // Import after mock
-import { handleListPrompts, handleGetPrompt } from '../../../../../../src/server/mcp/core/handlers/prompt-handlers';
+import { handleListPrompts, handleGetPrompt } from '../../../../../../src/server/mcp/core/handlers/prompt-handlers.js';
 
 describe('Prompt Handlers', () => {
   beforeEach(() => {

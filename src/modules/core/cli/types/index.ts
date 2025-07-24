@@ -1,78 +1,55 @@
 /**
- * @fileoverview Type definitions for CLI module
- * @module modules/core/cli/types
- */
-
-/**
- * Context passed to CLI commands
+ * Context passed to CLI commands.
  */
 export interface CLIContext {
-  /** Current working directory */
-  cwd: string;
-  /** Command arguments */
-  args: Record<string, any>;
-  /** Command options */
-  options?: Record<string, any>;
-  /** Logger instance */
-  logger?: CLILogger;
+    cwd: string;
+    args: Record<string, any>;
+    flags: Record<string, any>;
+    options?: Record<string, any>;
+    env: Record<string, string>;
+    logger?: CLILogger;
 }
 
 /**
- * CLI command option definition
+ * CLI command option definition.
  */
 export interface CLIOption {
-  /** Option name */
-  name: string;
-  /** Option type */
-  type: 'string' | 'boolean' | 'number' | 'array';
-  /** Option description */
-  description: string;
-  /** Short alias for the option */
-  alias?: string;
-  /** Default value */
-  default?: any;
-  /** Whether the option is required */
-  required?: boolean;
-  /** Allowed values for string options */
-  choices?: string[];
+    name: string;
+    type: 'string' | 'boolean' | 'number' | 'array';
+    description: string;
+    alias?: string;
+    default?: any;
+    required?: boolean;
+    choices?: string[];
 }
 
 /**
- * CLI command positional argument definition
+ * CLI command positional argument definition.
  */
 export interface CLIPositional {
-  /** Argument name */
-  name: string;
-  /** Argument type */
-  type: 'string' | 'number' | 'array';
-  /** Argument description */
-  description: string;
-  /** Whether the argument is required */
-  required?: boolean;
-  /** Default value */
-  default?: any;
+    name: string;
+    type: 'string' | 'number' | 'array';
+    description: string;
+    required?: boolean;
+    default?: any;
 }
 
 /**
- * CLI command definition
+ * CLI command definition.
  */
 export interface CLICommand {
-  /** Command description */
-  description: string;
-  /** Command options */
-  options?: CLIOption[];
-  /** Positional arguments */
-  positionals?: CLIPositional[];
-  /** Command execution function */
-  execute: (context: CLIContext) => Promise<void>;
-  /** Command examples */
-  examples?: string[];
-  /** Command aliases */
-  aliases?: string[];
+    name?: string;
+    description: string;
+    options?: CLIOption[];
+    positionals?: CLIPositional[];
+    execute?: (context: CLIContext) => Promise<void>;
+    executorPath?: string;
+    examples?: string[];
+    aliases?: string[];
 }
 
 /**
- * CLI logger interface
+ * CLI logger interface.
  */
 export interface CLILogger {
   debug(message: string, ...args: any[]): void;
@@ -82,57 +59,54 @@ export interface CLILogger {
 }
 
 /**
- * Command metadata
+ * Command metadata.
  */
 export interface CommandMetadata {
-  /** Full command name (including module prefix) */
-  name: string;
-  /** Module name */
-  module: string;
-  /** Command name without module prefix */
-  commandName: string;
-  /** Command description */
-  description: string;
-  /** Usage example */
-  usage: string;
-  /** Command options */
-  options: CLIOption[];
-  /** Positional arguments */
-  positionals?: CLIPositional[];
+    name: string;
+    module: string;
+    commandName: string;
+    description: string;
+    usage: string;
+    options: CLIOption[];
+    positionals?: CLIPositional[];
 }
 
 /**
- * CLI configuration
+ * CLI configuration.
  */
 export interface CLIConfig {
-  /** Whether to show colors in output */
-  showColors: boolean;
-  /** Default output format */
-  outputFormat: 'text' | 'json' | 'table';
-  /** Whether to enable interactive mode */
-  interactiveMode: boolean;
+    showColors: boolean;
+    outputFormat: 'text' | 'json' | 'table';
+    interactiveMode: boolean;
 }
 
 /**
- * Command discovery result
+ * Command discovery result.
  */
 export interface CommandDiscoveryResult {
-  /** Discovered commands */
-  commands: Map<string, CLICommand>;
-  /** Discovery errors */
-  errors: Array<{ command: string; error: Error }>;
+    commands: Map<string, CLICommand>;
+    errors: Array<{ command: string; error: Error }>;
 }
 
 /**
- * CLI module exports
+ * CLI module exports.
  */
 export interface CLIModuleExports {
-  /** Get all available commands */
-  getAllCommands(): Promise<Map<string, CLICommand>>;
-  /** Get help for a specific command */
-  getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string;
-  /** Format commands for display */
-  formatCommands(commands: Map<string, CLICommand>, format: string): string;
-  /** Generate documentation for all commands */
-  generateDocs(commands: Map<string, CLICommand>, format: string): string;
+    service(): any;
+    getAllCommands(): Promise<Map<string, CLICommand>>;
+    getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string;
+    formatCommands(commands: Map<string, CLICommand>, format: string): string;
+    generateDocs(commands: Map<string, CLICommand>, format: string): string;
 }
+
+/**
+ * CLI Service interface.
+ */
+export interface ICLIService {
+  initialize(logger: CLILogger): Promise<void>;
+  isInitialized(): boolean;
+  getAllCommands(): Promise<Map<string, CLICommand>>;
+  getCommandMetadata(): Promise<CommandMetadata[]>;
+}
+
+// Dependency injection token removed - using self-contained modules

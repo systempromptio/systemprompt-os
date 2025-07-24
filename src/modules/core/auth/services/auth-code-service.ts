@@ -1,11 +1,11 @@
 /**
- * @fileoverview Authorization code persistence service
+ * @file Authorization code persistence service.
  * @module modules/core/auth/services/auth-code-service
  */
 
 import { randomBytes } from 'crypto';
-import { DatabaseService } from '@/modules/core/database';
-import { Logger } from '@/modules/types';
+import type { DatabaseService } from '@/modules/core/database/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
 
 export interface AuthorizationCodeData {
   clientId: string;
@@ -36,31 +36,21 @@ interface AuthCodeRow {
 }
 
 /**
- * Service for managing OAuth authorization codes with database persistence
+ * Service for managing OAuth authorization codes with database persistence.
  */
 export class AuthCodeService {
-  private static instance: AuthCodeService;
-  private logger?: Logger;
-  
-  private constructor(private db: DatabaseService) {}
-  
-  static getInstance(): AuthCodeService {
-    if (!this.instance) {
-      this.instance = new AuthCodeService(DatabaseService.getInstance());
-    }
-    return this.instance;
-  }
-  
-  setLogger(logger: Logger): void {
-    this.logger = logger;
-  }
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly logger: ILogger,
+  ) {}
 
   /**
-   * Generate and store a new authorization code
+   * Generate and store a new authorization code.
+   * @param data
    */
   async createAuthorizationCode(data: AuthorizationCodeData): Promise<string> {
     const code = randomBytes(32).toString('base64url');
-    
+
     await this.db.execute(
       `INSERT INTO auth_authorization_codes 
        (code, client_id, redirect_uri, scope, user_id, user_email, 
@@ -80,17 +70,18 @@ export class AuthCodeService {
         data.expiresAt.toISOString()
       ]
     );
-    
-    this.logger?.info('Authorization code created', { 
-      code: code.substring(0, 8) + '...', 
-      clientId: data.clientId 
+
+    this.logger.info('Authorization code created', {
+      code: `${code.substring(0, 8)}...`,
+      clientId: data.clientId
     });
-    
+
     return code;
   }
 
   /**
-   * Retrieve and validate an authorization code
+   * Retrieve and validate an authorization code.
+   * @param code
    */
   async getAuthorizationCode(code: string): Promise<AuthorizationCodeData | null> {
     const rows = await this.db.query<AuthCodeRow>(
@@ -98,28 +89,29 @@ export class AuthCodeService {
        WHERE code = ? AND datetime(expires_at) > datetime('now')`,
       [code]
     );
-    
+
     const row = rows[0];
     if (!row) {
       return null;
     }
-    
+
     return {
       clientId: row.client_id,
       redirectUri: row.redirect_uri,
       scope: row.scope,
-      userId: row.user_id || undefined,
-      userEmail: row.user_email || undefined,
-      provider: row.provider || undefined,
-      providerTokens: row.provider_tokens ? JSON.parse(row.provider_tokens) : undefined,
-      codeChallenge: row.code_challenge || undefined,
-      codeChallengeMethod: row.code_challenge_method || undefined,
+      ...row.user_id && { userId: row.user_id },
+      ...row.user_email && { userEmail: row.user_email },
+      ...row.provider && { provider: row.provider },
+      ...row.provider_tokens && { providerTokens: JSON.parse(row.provider_tokens) },
+      ...row.code_challenge && { codeChallenge: row.code_challenge },
+      ...row.code_challenge_method && { codeChallengeMethod: row.code_challenge_method },
       expiresAt: new Date(row.expires_at)
     };
   }
 
   /**
-   * Delete an authorization code after use
+   * Delete an authorization code after use.
+   * @param code
    */
   async deleteAuthorizationCode(code: string): Promise<void> {
     await this.db.execute(
@@ -129,7 +121,7 @@ export class AuthCodeService {
   }
 
   /**
-   * Clean up expired authorization codes
+   * Clean up expired authorization codes.
    */
   async cleanupExpiredCodes(): Promise<void> {
     await this.db.execute(

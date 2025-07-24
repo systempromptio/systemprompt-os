@@ -1,15 +1,5 @@
 /**
- * @fileoverview Simple module registry for core modules
- * @module modules/registry
- */
-
-import { AuthModule } from './core/auth/index.js';
-import { ConfigModule } from './core/config/index.js';
-import { CLIModule } from './core/cli/index.js';
-import { ExtensionModule } from './core/extension/index.js';
-
-/**
- * Module configuration interface
+ * Module configuration interface.
  */
 export interface ModuleConfig {
   enabled?: boolean;
@@ -17,7 +7,7 @@ export interface ModuleConfig {
 }
 
 /**
- * Module interface for core modules
+ * Module interface for core modules.
  */
 export interface ModuleInterface {
   name: string;
@@ -30,28 +20,28 @@ export interface ModuleInterface {
 }
 
 /**
- * Service module type
+ * Service module type.
  */
 export type ServiceModule = ModuleInterface & {
   type: 'service';
 };
 
 /**
- * Daemon module type
+ * Daemon module type.
  */
 export type DaemonModule = ModuleInterface & {
   type: 'daemon';
 };
 
 /**
- * Plugin module type
+ * Plugin module type.
  */
 export type PluginModule = ModuleInterface & {
   type: 'plugin';
 };
 
 /**
- * Extended module type for loader
+ * Extended module type for loader.
  */
 export type ExtendedModule = ModuleInterface & {
   config?: ModuleConfig;
@@ -59,54 +49,50 @@ export type ExtendedModule = ModuleInterface & {
 };
 
 /**
- * Registry of core modules
+ * Registry of core modules.
  */
 export class ModuleRegistry {
-  private modules: Map<string, ModuleInterface> = new Map();
-  
+  private readonly modules: Map<string, ModuleInterface> = new Map();
+
   constructor() {
-    // Register core modules
-    this.registerCoreModules();
+    /*
+     * Core modules are now handled by bootstrap
+     * this.registerCoreModules();
+     */
   }
-  
-  private registerCoreModules(): void {
-    // Register each core module
-    const coreModules = [
-      new AuthModule(),
-      new ConfigModule(),
-      new CLIModule(),
-      new ExtensionModule()
-    ];
-    
-    coreModules.forEach(module => {
-      this.modules.set(module.name, module);
-    });
-  }
-  
+
   register(module: ModuleInterface): void {
     this.modules.set(module.name, module);
   }
-  
+
   async initializeAll(context: any): Promise<void> {
     for (const module of this.modules.values()) {
-      await module.initialize(context);
+      // Check if module has stored config
+      const moduleWithConfig = module as any;
+      const moduleContext = moduleWithConfig._config
+        ? {
+            ...context,
+            config: moduleWithConfig._config,
+          }
+        : context;
+      await module.initialize(moduleContext);
     }
   }
-  
+
   async shutdownAll(): Promise<void> {
     for (const module of this.modules.values()) {
       await module.stop();
     }
   }
-  
+
   get(name: string): ModuleInterface | undefined {
     return this.modules.get(name);
   }
-  
+
   getAll(): ModuleInterface[] {
     return Array.from(this.modules.values());
   }
-  
+
   has(name: string): boolean {
     return this.modules.has(name);
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/cli/cli/docs';
+import { command } from '../../../../../../src/modules/core/cli/cli/docs.js';
 import { CLIModule } from '../../../../../../src/modules/core/cli/index.js';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';

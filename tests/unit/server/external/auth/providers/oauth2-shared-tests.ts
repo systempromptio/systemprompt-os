@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type { OAuth2Provider } from '../../../../../src/server/external/auth/providers/interface';
+import type { OAuth2Provider } from '../../../../../src/server/external/auth/providers/interface.js';
 
 interface OAuth2ProviderTestConfig {
   providerName: string;

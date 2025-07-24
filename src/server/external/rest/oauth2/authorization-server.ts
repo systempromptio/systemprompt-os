@@ -1,16 +1,15 @@
 /**
- * @fileoverview OAuth 2.0 Authorization Server Metadata endpoint (RFC 8414)
+ * @file OAuth 2.0 Authorization Server Metadata endpoint (RFC 8414).
  * @module server/external/rest/oauth2/authorization-server
- * 
  * @see {@link https://datatracker.ietf.org/doc/rfc8414/}
  */
 
-import { Request, Response } from 'express';
-import { tunnelStatus } from '../../../../modules/core/auth/tunnel-status.js';
+import type { Request, Response } from 'express';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
  * OAuth 2.0 Authorization Server Metadata Response
- * Following RFC 8414 specification
+ * Following RFC 8414 specification.
  */
 export interface AuthorizationServerMetadata {
   issuer: string;
@@ -42,20 +41,16 @@ export interface AuthorizationServerMetadata {
 }
 
 export class AuthorizationServerEndpoint {
-  private baseUrl: string;
+  private readonly baseUrl: string;
   
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl || process.env['BASE_URL'] || 'http://localhost:3000';
   }
   
-  /**
-   * GET /.well-known/oauth-authorization-server
-   * Returns OAuth 2.0 Authorization Server Metadata
-   */
   getAuthorizationServerMetadata = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-    
+
     const metadata: AuthorizationServerMetadata = {
       issuer: currentBaseUrl,
       authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
@@ -66,11 +61,7 @@ export class AuthorizationServerEndpoint {
       response_types_supported: ['code', 'code id_token'],
       response_modes_supported: ['query', 'fragment'],
       grant_types_supported: ['authorization_code', 'refresh_token'],
-      token_endpoint_auth_methods_supported: [
-        'client_secret_basic',
-        'client_secret_post',
-        'none'
-      ],
+      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
       service_documentation: `${currentBaseUrl}/docs/api`,
       code_challenge_methods_supported: ['S256', 'plain'],
       // OpenID Connect fields
@@ -88,10 +79,10 @@ export class AuthorizationServerEndpoint {
         'email',
         'email_verified',
         'agent_id',
-        'agent_type'
-      ]
+        'agent_type',
+      ],
     };
-    
+
     return res.json(metadata);
   };
 }

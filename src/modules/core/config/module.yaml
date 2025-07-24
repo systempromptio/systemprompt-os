@@ -1,73 +1,28 @@
 name: config
-type: service
+type: core
 version: 1.0.0
-description: Configuration management for SystemPrompt OS with AI provider support
-author: systemprompt-os
-
+description: Configuration management module for SystemPrompt OS
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+singleton: true
+enabled: true
+dependencies: 
+  - database
+exports:
+  - services
+  - types
 config:
-  # Configuration storage paths
-  configPath: ./state/config
-  envFile: .env
-  
-  # Provider configuration
-  providers:
-    # Available providers (immutable list of supported providers)
-    available:
-      - google-liveapi
-      # - openai        # Future support
-      # - anthropic     # Future support
-      # - local-llm     # Future support
-    
-    # Enabled providers (can be modified at runtime)
-    enabled:
-      - google-liveapi
-    
-    # Default provider to use
-    default: google-liveapi
-  
-  # System-wide defaults
   defaults:
-    system:
-      port: 8080
-      host: localhost
-      environment: development
-      logLevel: info
-    
-    # Memory and storage configuration
-    storage:
-      provider: filesystem
-      path: ./state
-    
-    # Action executor configuration
-    action:
-      executor: local
-      timeout: 30000
-    
-    # Scheduler configuration
-    scheduler:
-      type: cron
-      timezone: UTC
-    
-    # Authentication configuration
-    auth:
-      provider: oauth2
-      sessionTimeout: 3600
-
-# Module dependencies
-dependencies:
-  - logger
-
-# CLI commands
+    environment: production
+    debug: false
 cli:
   commands:
-    # Basic configuration commands
     - name: get
-      description: Get configuration value(s)
+      description: Get configuration value
       options:
         - name: key
           type: string
-          description: Configuration key (optional, shows all if omitted)
-    
+          description: Configuration key
+          required: true
     - name: set
       description: Set configuration value
       options:
@@ -79,110 +34,7 @@ cli:
           type: string
           description: Configuration value
           required: true
-    
     - name: list
       description: List all configuration values
-      options:
-        - name: format
-          type: string
-          description: Output format (json, yaml, tree)
-          default: tree
-    
     - name: validate
       description: Validate configuration
-      options:
-        - name: file
-          alias: f
-          type: string
-          description: Configuration file to validate
-    
-    # Provider management commands
-    - name: provider
-      description: Manage AI providers
-      subcommands:
-        - name: list
-          description: List all providers
-          options:
-            - name: enabled
-              type: boolean
-              description: Show only enabled providers
-        
-        - name: show
-          description: Show provider details
-          options:
-            - name: name
-              type: string
-              description: Provider name
-              required: true
-            - name: models
-              type: boolean
-              description: Include model configurations
-        
-        - name: enable
-          description: Enable a provider
-          options:
-            - name: name
-              type: string
-              description: Provider name
-              required: true
-        
-        - name: disable
-          description: Disable a provider
-          options:
-            - name: name
-              type: string
-              description: Provider name
-              required: true
-        
-        - name: set-default
-          description: Set default provider
-          options:
-            - name: name
-              type: string
-              description: Provider name
-              required: true
-    
-    # Model management commands
-    - name: model
-      description: Manage AI models
-      subcommands:
-        - name: list
-          description: List all models
-          options:
-            - name: provider
-              type: string
-              description: Filter by provider
-        
-        - name: show
-          description: Show model configuration
-          options:
-            - name: provider
-              type: string
-              description: Provider name
-              required: true
-            - name: model
-              type: string
-              description: Model name
-              required: true
-        
-        - name: test
-          description: Test a model configuration
-          options:
-            - name: provider
-              type: string
-              description: Provider name
-              required: true
-            - name: model
-              type: string
-              description: Model name
-              required: true
-            - name: prompt
-              type: string
-              description: Test prompt
-              default: "Hello, please respond with 'Test successful!'"
-
-# Module exports
-exports:
-  - ConfigModule
-  - providers
-  - providerRegistry

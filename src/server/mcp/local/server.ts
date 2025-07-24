@@ -1,36 +1,36 @@
 /**
- * @fileoverview Local MCP server implementation for STDIO transport
+ * @file Local MCP server implementation for STDIO transport.
  * @module server/mcp/local/server
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
-  ServerCapabilities,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
-  ListToolsRequestSchema,
+import type {ServerCapabilities} from '@modelcontextprotocol/sdk/types.js';
+import {
+  type CallToolRequest,
   CallToolRequestSchema,
-  type ListResourcesRequest,
-  type ReadResourceRequest,
-  type ListPromptsRequest,
   type GetPromptRequest,
+  GetPromptRequestSchema,
+  type ListPromptsRequest,
+  ListPromptsRequestSchema,
+  type ListResourcesRequest,
+  ListResourcesRequestSchema,
   type ListToolsRequest,
-  type CallToolRequest
+  ListToolsRequestSchema,
+  type ReadResourceRequest,
+  ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import { handleListResources, handleResourceCall } from '../core/handlers/resource-handlers.js';
-import { handleGetPrompt, handleListPrompts } from '../core/handlers/prompt-handlers.js';
-import { handleListTools, handleToolCall } from '../core/handlers/tool-handlers.js';
-import type { MCPToolContext } from '../core/types/request-context.js';
+import { handleListResources, handleResourceCall } from '@/server/mcp/core/handlers/resource-handlers.js';
+import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
+import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
+import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
 /**
  * Local MCP Server implementation
- * Provides full access to all tools via STDIO transport
+ * Provides full access to all tools via STDIO transport.
  */
 export class LocalMCPServer {
-  private server: Server;
+  private readonly server: Server;
   private isRunning = false;
 
   constructor() {
@@ -55,7 +55,7 @@ export class LocalMCPServer {
 
   /**
    * Sets up request handlers for resources, prompts, and tools
-   * All handlers use the 'local' scope for tool filtering
+   * All handlers use the 'local' scope for tool filtering.
    */
   private setupHandlers(): void {
     this.setupResourceHandlers();
@@ -66,32 +66,24 @@ export class LocalMCPServer {
   private setupResourceHandlers(): void {
     this.server.setRequestHandler(
       ListResourcesRequestSchema,
-      async (_request: ListResourcesRequest) => {
-        return await handleListResources();
-      }
+      async (_request: ListResourcesRequest) => { return await handleListResources() }
     );
 
     this.server.setRequestHandler(
       ReadResourceRequestSchema,
-      async (request: ReadResourceRequest) => {
-        return await handleResourceCall(request);
-      }
+      async (request: ReadResourceRequest) => { return await handleResourceCall(request) }
     );
   }
 
   private setupPromptHandlers(): void {
     this.server.setRequestHandler(
       ListPromptsRequestSchema,
-      async (_request: ListPromptsRequest) => {
-        return await handleListPrompts();
-      }
+      async (_request: ListPromptsRequest) => { return await handleListPrompts() }
     );
 
     this.server.setRequestHandler(
       GetPromptRequestSchema,
-      async (request: GetPromptRequest) => {
-        return await handleGetPrompt(request);
-      }
+      async (request: GetPromptRequest) => { return await handleGetPrompt(request) }
     );
   }
 
@@ -122,7 +114,7 @@ export class LocalMCPServer {
   }
 
   /**
-   * Start the STDIO server
+   * Start the STDIO server.
    */
   async start(): Promise<void> {
     if (this.isRunning) {
@@ -131,7 +123,7 @@ export class LocalMCPServer {
 
     const transport = new StdioServerTransport();
     this.isRunning = true;
-    
+
     try {
       await this.server.connect(transport);
     } finally {
@@ -140,7 +132,7 @@ export class LocalMCPServer {
   }
 
   /**
-   * Stop the server
+   * Stop the server.
    */
   async stop(): Promise<void> {
     if (this.isRunning) {

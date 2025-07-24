@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response } from 'express';
-import { WellKnownEndpoint } from '../../../../../../src/server/external/rest/oauth2/well-known';
-import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status';
+import { WellKnownEndpoint } from '../../../../../../src/server/external/rest/oauth2/well-known.js';
+import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status.js';
 
 // Mock tunnel status
 vi.mock('../../../../../../src/modules/core/auth/tunnel-status', () => ({

@@ -1,43 +1,44 @@
 /**
- * @fileoverview User API endpoints
+ * @file User API endpoints.
  * @module server/external/rest/api/users
  */
 
-import type { Request, Response, Router } from 'express';
+import type {
+ Request, Response, Router
+} from 'express';
 import { getDatabase } from '@/modules/core/database/index.js';
 
 /**
- * User API endpoints
+ * User API endpoints.
  */
 export class UsersAPI {
   /**
    * Get count of users in the system
-   * Used to determine if this is initial setup
+   * Used to determine if this is initial setup.
+   * @param _req
+   * @param res
    */
   public async getUserCount(_req: Request, res: Response): Promise<void> {
     try {
       const db = getDatabase();
-      const result = await db.query<{ count: number }>(
-        'SELECT COUNT(*) as count FROM auth_users'
-      );
-      
+      const result = await db.query<{ count: number }>('SELECT COUNT(*) as count FROM auth_users');
+
       res.json({ count: result[0]?.count || 0 });
-    } catch (error) {
-      res.status(500).json({ 
-        error: 'server_error',
-        error_description: 'Failed to get user count' 
+    } catch {
+      res.status(500).json({
+        error: 'servererror',
+        error_description: 'Failed to get user count',
       });
     }
   }
 }
 
 /**
- * Sets up user API routes
- * 
- * @param router Express router instance
+ * Sets up user API routes.
+ * @param router - Express router instance.
  */
 export function setupRoutes(router: Router): void {
   const usersAPI = new UsersAPI();
-  
-  router.get('/api/users/count', (req, res) => usersAPI.getUserCount(req, res));
+
+  router.get('/api/users/count', async (req, res) => { await usersAPI.getUserCount(req, res); });
 }

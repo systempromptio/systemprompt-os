@@ -1,105 +1,185 @@
 /**
- * @fileoverview Centralized route configuration
+ * Centralized route configuration module.
+ * @file Centralized route configuration.
  * @module server/external/routes
  */
 
-import { Express, Router } from 'express';
-import { createAuthMiddleware } from './middleware/auth.js';
-import { setupOAuth2Routes } from './rest/oauth2/index.js';
-import { HealthEndpoint } from './rest/health.js';
-import { setupRoutes as setupSplashRoutes } from './rest/splash.js';
-import { setupRoutes as setupAuthRoutes } from './rest/auth.js';
-import { setupRoutes as setupConfigRoutes } from './rest/config.js';
-import { setupRoutes as setupCallbackRoutes } from './rest/callback.js';
-import { setupRoutes as setupUsersAPIRoutes } from './rest/api/users.js';
-import { setupRoutes as setupDashboardRoutes } from './rest/dashboard.js';
-import { setupRoutes as setupTerminalAPIRoutes } from './rest/api/terminal.js';
-import { logger } from '@/utils/logger.js';
+import { type Express, Router } from 'express';
+import { HTTP_STATUS } from '@/server/external/constants/http.constants.js';
+import { createAuthMiddleware } from '@/server/external/middleware/auth.js';
+import { setupOAuth2Routes } from '@/server/external/rest/oauth2/index.js';
+import { HealthEndpoint } from '@/server/external/rest/health.js';
+import { setupRoutes as splashSetup } from '@/server/external/rest/splash.js';
+import { setupRoutes as authSetup } from '@/server/external/rest/auth.js';
+import { setupRoutes as configSetup } from '@/server/external/rest/config.js';
+import { setupRoutes as callbackSetup } from '@/server/external/rest/callback.js';
+import { setupRoutes as usersApiSetup } from '@/server/external/rest/api/users.js';
+import { setupRoutes as dashboardSetup } from '@/server/external/rest/dashboard.js';
+import { setupRoutes as terminalApiSetup } from '@/server/external/rest/api/terminal.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+import type {
+  IExpressLayer,
+  IRouteContext,
+  IRouteInfo,
+} from '@/server/external/types/routes.types.js';
 
 /**
- * Configure all application routes
+ * Logger instance.
  */
-export function configureRoutes(app: Express): void {
-  logger.info('Configuring application routes');
-  
-  // ===== PUBLIC ROUTES (No authentication required) =====
-  const publicRouter = Router();
-  
-  // Health check endpoint
+const logger = LoggerService.getInstance();
+
+/**
+ * Setup public routes that don't require authentication.
+ * @param {Router} publicRouter - Express router for public routes.
+ * @returns {void} Nothing.
+ */
+const setupPublicRoutes = (publicRouter: Router): void => {
   const healthEndpoint = new HealthEndpoint();
-  publicRouter.get('/health', (req, res) => healthEndpoint.getHealth(req, res));
-  
-  // Splash page (landing page)
-  setupSplashRoutes(publicRouter);
-  
-  // OAuth2 endpoints (authorization, token exchange)
-  setupOAuth2Routes(publicRouter, process.env.BASE_URL || 'http://localhost:3000');
-  
-  // OAuth callbacks from providers
-  setupCallbackRoutes(publicRouter);
-  
-  // Auth page (login/logout) - public but shows different content based on auth status
-  setupAuthRoutes(publicRouter);
-  
-  // ===== PROTECTED WEB ROUTES (Authentication required, redirects to login) =====
-  const webRouter = Router();
+  publicRouter.get('/health', (req, res): void => {
+    healthEndpoint.getHealth(req, res).catch((error: unknown): void => {
+      logger.error('Health endpoint error:', error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
+    });
+  });
+
+  splashSetup(publicRouter);
+
+  const baseUrl = process.env['BASE_URL'] ?? 'http://localhost:3000';
+  void setupOAuth2Routes(publicRouter, baseUrl);
+
+  callbackSetup(publicRouter);
+  authSetup(publicRouter);
+};
+
+/**
+ * Setup protected web routes that require authentication.
+ * @param {Router} webRouter - Express router for web routes.
+ * @returns {void} Nothing.
+ */
+const setupProtectedWebRoutes = (webRouter: Router): void => {
   webRouter.use(createAuthMiddleware({ redirectToLogin: true }));
-  
-  // Dashboard (home for authenticated users)
-  setupDashboardRoutes(webRouter);
-  
-  // Configuration pages
-  setupConfigRoutes(webRouter);
-  
-  // ===== PROTECTED API ROUTES (Authentication required, returns 401) =====
-  const apiRouter = Router();
+  dashboardSetup(webRouter);
+  configSetup(webRouter);
+};
+
+/**
+ * Setup protected API routes that require authentication.
+ * @param {Router} apiRouter - Express router for API routes.
+ * @returns {void} Nothing.
+ */
+const setupProtectedApiRoutes = (apiRouter: Router): void => {
   apiRouter.use('/api', createAuthMiddleware({ redirectToLogin: false }));
-  
-  // User management API
-  setupUsersAPIRoutes(apiRouter);
-  
-  // Terminal execution API
-  setupTerminalAPIRoutes(apiRouter);
-  
-  // ===== ADMIN ROUTES (Admin role required) =====
+  usersApiSetup(apiRouter);
+  terminalApiSetup(apiRouter);
+};
+
+/**
+ * Setup admin routes that require admin role.
+ * @param {Router} adminRouter - Express router for admin routes.
+ * @returns {void} Nothing.
+ */
+const setupAdminRoutes = (adminRouter: Router): void => {
+  adminRouter.use(
+    '/admin',
+    createAuthMiddleware({
+      redirectToLogin: true,
+      requiredRoles: ['admin'],
+    }),
+  );
+};
+
+/**
+ * Configure all application routes.
+ * @param {Express} app - Express application instance.
+ * @returns {void} Nothing.
+ */
+export const configureRoutes = (app: Express): void => {
+  logger.info('Configuring application routes');
+
+  const publicRouter = Router();
+  const webRouter = Router();
+  const apiRouter = Router();
   const adminRouter = Router();
-  adminRouter.use('/admin', createAuthMiddleware({ 
-    redirectToLogin: true, 
-    requiredRoles: ['admin'] 
-  }));
-  
-  // Admin routes would go here
-  // setupAdminRoutes(adminRouter);
-  
-  // Apply all routers to the app
+
+  setupPublicRoutes(publicRouter);
+  setupProtectedWebRoutes(webRouter);
+  setupProtectedApiRoutes(apiRouter);
+  setupAdminRoutes(adminRouter);
+
   app.use(publicRouter);
   app.use(webRouter);
   app.use(apiRouter);
   app.use(adminRouter);
-  
+
   logger.info('Routes configured successfully');
-}
+};
 
 /**
- * Get route summary for debugging
+ * Process single layer in the stack.
+ * @param {IExpressLayer} layer - Express layer to process.
+ * @param {IRouteContext} context - Route extraction context.
+ * @param {Function} extractFn - Extract routes function.
+ * @returns {void} Nothing.
  */
-export function getRouteSummary(app: Express): Array<{path: string, methods: string[], auth: string}> {
-  const routes: Array<{path: string, methods: string[], auth: string}> = [];
-  
-  function extractRoutes(stack: any[], prefix = '', authType = 'public') {
-    stack.forEach((layer: any) => {
-      if (layer.route) {
-        routes.push({
-          path: prefix + layer.route.path,
-          methods: Object.keys(layer.route.methods),
-          auth: authType
-        });
-      } else if (layer.name === 'router' && layer.handle.stack) {
-        extractRoutes(layer.handle.stack, prefix + (layer.regexp.source.match(/\\\/([^\\]+)/) || ['', ''])[1], authType);
-      }
+const processLayer = (
+  layer: IExpressLayer,
+  context: IRouteContext,
+  extractFn: (stack: IExpressLayer[], ctx: IRouteContext) => void,
+): void => {
+  if (layer.route !== undefined) {
+    context.routes.push({
+      path: context.prefix + layer.route.path,
+      methods: Object.keys(layer.route.methods),
+      auth: context.authType,
+    });
+  } else if (layer.name === 'router' && layer.handle.stack !== undefined) {
+    const regexMatch = layer.regexp.source.match(/\\\/(?<route>[^\\]+)/u);
+    const routePrefix = regexMatch === null || regexMatch.groups === undefined ? '' : regexMatch.groups['route'] ?? '';
+    extractFn(layer.handle.stack, {
+      routes: context.routes,
+      prefix: context.prefix + routePrefix,
+      authType: context.authType,
     });
   }
-  
-  extractRoutes(app._router.stack);
+};
+
+/**
+ * Extract routes from Express layer stack.
+ * @param {IExpressLayer[]} stack - Express layer stack.
+ * @param {IRouteContext} context - Route extraction context.
+ * @returns {void} Nothing.
+ */
+const extractRoutes = (stack: IExpressLayer[], context: IRouteContext): void => {
+  stack.forEach((layer: IExpressLayer): void => {
+    processLayer(layer, context, extractRoutes);
+  });
+};
+
+/**
+ * Get route summary for debugging.
+ * @param {Express} app - Express application instance.
+ * @returns {IRouteInfo[]} Array of route information.
+ */
+export const getRouteSummary = (app: Express): IRouteInfo[] => {
+  const routes: IRouteInfo[] = [];
+  const expressApp = app;
+  const routerProp = '_router';
+  const appWithRouter = expressApp;
+
+  if (routerProp in appWithRouter) {
+    const routerObj = appWithRouter[routerProp];
+    if (routerObj !== null && typeof routerObj === 'object' && 'stack' in routerObj) {
+      const { stack: routerStack } = routerObj as { stack: unknown };
+      if (Array.isArray(routerStack)) {
+        const context: IRouteContext = {
+          routes,
+          prefix: '',
+          authType: 'public',
+        };
+        extractRoutes(routerStack as IExpressLayer[], context);
+      }
+    }
+  }
+
   return routes;
-}
+};

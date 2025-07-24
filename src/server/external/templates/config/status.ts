@@ -1,10 +1,5 @@
 /**
- * @fileoverview Status page template for non-admin users
- * @module server/external/templates/config/status
- */
-
-/**
- * Configuration data for status page rendering
+ * Configuration data for status page rendering.
  */
 export interface StatusPageData {
   cloudflareUrl: string;
@@ -12,7 +7,8 @@ export interface StatusPageData {
 }
 
 /**
- * Renders the status page for non-admin users with limited system information
+ * Renders the status page for non-admin users with limited system information.
+ * @param data
  */
 export function renderStatusPage(data: StatusPageData): string {
   return `
@@ -60,7 +56,7 @@ export function renderStatusPage(data: StatusPageData): string {
 }
 
 /**
- * Returns CSS styles specific to the status page
+ * Returns CSS styles specific to the status page.
  */
 export function getStatusPageStyles(): string {
   return `

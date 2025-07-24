@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/database/cli/migrate';
-import type { CLIContext } from '../../../../../../src/cli/src/types';
+import { command } from '../../../../../../src/modules/core/database/cli/migrate.js';
+import type { CLIContext } from '../../../../../../src/cli/src/types.js';
 
 // Mock dependencies
 vi.mock('../../../../../../src/modules/core/database/cli/utils', () => ({

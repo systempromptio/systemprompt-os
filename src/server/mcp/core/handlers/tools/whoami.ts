@@ -1,17 +1,22 @@
 /**
- * @fileoverview Whoami tool handler for retrieving current user information
+ * @file Whoami tool handler for retrieving current user information.
  * @module handlers/tools/whoami
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from "./types.js";
-import { formatToolResponse } from "./types.js";
-import { logger } from "@/utils/logger.js";
-import type { MCPToolContext } from "../../types/request-context.js";
-import type { UserPermissionContext } from "../../types/permissions.js";
-import { ROLE_PERMISSIONS } from "../../types/permissions.js";
+import type {
+ CallToolResult, ToolHandler, ToolHandlerContext
+} from '@/server/mcp/core/handlers/tools/types.js';
+import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
+import type { UserPermissionContext } from '@/server/mcp/core/types/permissions.js';
+import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions.js';
+
+// Initialize logger
+const logger = LoggerService.getInstance();
 
 /**
- * Whoami tool arguments
+ * Whoami tool arguments.
  */
 interface WhoamiArgs {
   includePermissions?: boolean;
@@ -19,7 +24,7 @@ interface WhoamiArgs {
 }
 
 /**
- * Whoami response structure
+ * Whoami response structure.
  */
 interface WhoamiResponse {
   userId: string;
@@ -35,7 +40,8 @@ interface WhoamiResponse {
 }
 
 /**
- * Get user permission context (imported from tool-handlers.ts logic)
+ * Get user permission context (imported from tool-handlers.ts logic).
+ * @param context
  */
 async function getUserContext(context: MCPToolContext): Promise<UserPermissionContext> {
   if (!context.sessionId) {
@@ -46,29 +52,31 @@ async function getUserContext(context: MCPToolContext): Promise<UserPermissionCo
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = context.userId && adminUserIds.includes(context.userId);
   const role = isAdmin ? 'admin' : 'basic';
-  
+
   return {
     userId: context.userId || 'anonymous',
     email: isAdmin ? 'admin@systemprompt.io' : 'user@systemprompt.io',
     role,
     permissions: ROLE_PERMISSIONS[role],
-    customPermissions: []
+    customPermissions: [],
   };
 }
 
 /**
- * Whoami tool handler accessible to all authenticated users
+ * Whoami tool handler accessible to all authenticated users.
+ * @param args
+ * @param context
  */
 export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
   args: WhoamiArgs | undefined,
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    logger.info("Whoami tool invoked", {
+    logger.info('Whoami tool invoked', {
       sessionId: context?.sessionId,
       userId: context?.userId,
       includePermissions: args?.includePermissions,
-      includeSession: args?.includeSession
+      includeSession: args?.includeSession,
     });
 
     if (!context) {
@@ -83,7 +91,7 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       userId: userContext.userId,
       email: userContext.email,
       role: userContext.role,
-      isAdmin: userContext.role === 'admin'
+      isAdmin: userContext.role === 'admin',
     };
 
     // Add permissions if requested
@@ -98,16 +106,16 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
     if (args?.includeSession && context.sessionId) {
       response.session = {
         sessionId: context.sessionId,
-        createdAt: new Date().toISOString() // In production, this would come from session storage
+        createdAt: new Date().toISOString(), // In production, this would come from session storage
       };
     }
 
-    logger.info("Whoami tool completed", {
+    logger.info('Whoami tool completed', {
       sessionId: context?.sessionId,
       userId: userContext.userId,
       role: userContext.role,
-      includePermissions: !!response.permissions,
-      includeSession: !!response.session
+      includePermissions: Boolean(response.permissions),
+      includeSession: Boolean(response.session),
     });
 
     return formatToolResponse({
@@ -115,17 +123,17 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       result: response,
     });
   } catch (error) {
-    logger.error("Failed to get user information", { 
-      error, 
+    logger.error('Failed to get user information', {
+      error,
       args,
-      sessionId: context?.sessionId
+      sessionId: context?.sessionId,
     });
 
     return formatToolResponse({
-      status: "error",
-      message: error instanceof Error ? error.message : "Failed to get user information",
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to get user information',
       error: {
-        type: "whoami_error",
+        type: 'whoamierror',
         details: error instanceof Error ? error.stack : undefined,
       },
     });

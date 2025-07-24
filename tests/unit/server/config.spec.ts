@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { ServerConfig } from '../../../src/server/types';
+import type { ServerConfig } from '../../../src/server/types.js';
 
 describe('ServerConfig', () => {
   beforeEach(() => {

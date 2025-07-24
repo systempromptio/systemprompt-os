@@ -30,13 +30,19 @@ database commands:
   database:schema - Manage database schemas
   database:status - Show database connection status and information
 
-extension commands:
-  extension:create - Create a new module with proper structure
-  extension:info - Show detailed information about an extension
-  extension:install - Install an extension
-  extension:list - List installed extensions and modules
-  extension:remove - Remove an extension
-  extension:validate - Validate module/extension structure and configuration
+modules commands:
+  modules:create - Create a new module with proper structure
+  modules:info - Show detailed information about a module
+  modules:install - Install a module
+  modules:list - List installed modules
+  modules:remove - Remove a module
+  modules:validate - Validate module structure and configuration
+  modules:enable - Enable a module
+  modules:disable - Disable a module
+  modules:restart - Restart a module
+  modules:logs - View module logs
+  modules:config - Configure module settings
+  modules:health - Check module health
 
 heartbeat commands:
   heartbeat:reset - Reset heartbeat state
@@ -457,7 +463,7 @@ All modules MUST follow the standardized implementation patterns defined in:
    - Proper error handling and exit codes
 
 5. **Module Verification**
-   - Every module MUST pass: `systemprompt extension:validate <module-name>`
+   - Every module MUST pass: `systemprompt modules:validate <module-name>`
    - Automated validation in CI/CD pipeline
    - Pre-commit hooks for module validation
    - Runtime validation in module loader

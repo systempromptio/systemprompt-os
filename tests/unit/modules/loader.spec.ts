@@ -5,8 +5,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
-import { ModuleLoader, getModuleLoader, resetModuleLoader } from '../../../src/modules/loader';
-import { ModuleRegistry } from '../../../src/modules/registry';
+import { ModuleLoader, getModuleLoader, resetModuleLoader } from '../../../src/modules/loader.js';
+import { ModuleRegistry } from '../../../src/modules/registry.js';
 
 // Mock dependencies
 vi.mock('fs', () => ({

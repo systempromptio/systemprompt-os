@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import checkStatus from '../../../../../../../src/server/mcp/core/constants/tool/check-status';
+import checkStatus from '../../../../../../../src/server/mcp/core/constants/tool/check-status.js';
 
 describe('check-status tool definition', () => {
   it('has correct name and description', () => {

@@ -1,54 +1,40 @@
 /**
- * @fileoverview Tunnel Service for OAuth Development
+ * @file Tunnel Service for OAuth Development.
  * @module modules/core/auth/services/tunnel-service
  */
 
-import { spawn, spawnSync, ChildProcess } from "child_process";
+import type { ChildProcess } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { EventEmitter } from "events";
-import { tunnelStatus } from "../tunnel-status.js";
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
 
 /**
- * Tunnel configuration options
+ * Tunnel configuration options.
  */
 export interface TunnelConfig {
-  /**
-   * Local port to tunnel
-   */
-  port: number;
-  
-  /**
-   * Permanent domain (if configured)
-   */
-  permanentDomain?: string;
-  
-  /**
-   * Cloudflare tunnel token (for permanent tunnels)
-   */
-  tunnelToken?: string;
-  
-  /**
-   * Cloudflare tunnel URL (required when using tunnel token)
-   */
-  tunnelUrl?: string;
-  
-  /**
-   * Enable tunnel in development
-   */
-  enableInDevelopment?: boolean;
+    port: number;
+
+    permanentDomain?: string;
+
+    tunnelToken?: string;
+
+    tunnelUrl?: string;
+
+    enableInDevelopment?: boolean;
 }
 
 /**
- * Tunnel status information
+ * Tunnel status information.
  */
 export interface TunnelStatus {
   active: boolean;
-  url?: string;
+  url?: string | undefined;
   type: "cloudflared" | "permanent" | "none";
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
- * Logger interface
+ * Logger interface.
  */
 interface Logger {
   info(message: string, ...args: unknown[]): void;
@@ -57,14 +43,13 @@ interface Logger {
 }
 
 /**
- * Service for managing Cloudflare tunnels for OAuth development
- * 
+ * Service for managing Cloudflare tunnels for OAuth development.
  * Automatically creates public URLs for OAuth callbacks when localhost
  * is not suitable (e.g., Google OAuth restrictions).
  */
 export class TunnelService extends EventEmitter {
   private readonly config: TunnelConfig;
-  private readonly logger?: Logger;
+  private readonly logger: Logger | undefined;
   private tunnelProcess?: ChildProcess;
   private tunnelUrl?: string;
   private status: TunnelStatus = {
@@ -73,10 +58,9 @@ export class TunnelService extends EventEmitter {
   };
 
   /**
-   * Creates a new TunnelService instance
-   * 
-   * @param config - Tunnel configuration
-   * @param logger - Optional logger instance
+   * Creates a new TunnelService instance.
+   * @param config - Tunnel configuration.
+   * @param logger - Optional logger instance.
    */
   constructor(config: TunnelConfig, logger?: Logger) {
     super();
@@ -85,9 +69,8 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
-   * Starts the tunnel service
-   * 
-   * @returns Promise resolving to the public URL
+   * Starts the tunnel service.
+   * @returns Promise resolving to the public URL.
    */
   async start(): Promise<string> {
     // Priority 1: Use permanent domain if configured
@@ -119,18 +102,18 @@ export class TunnelService extends EventEmitter {
 
     // Priority 3: Create temporary cloudflared tunnel
     this.logger?.info("No permanent domain configured, creating temporary tunnel...");
-    return this.startCloudflaredTunnel();
+    return await this.startCloudflaredTunnel();
   }
 
   /**
-   * Stops the tunnel service
+   * Stops the tunnel service.
    */
   async stop(): Promise<void> {
     if (this.tunnelProcess) {
       this.logger?.info("Stopping tunnel...");
       this.tunnelProcess.kill();
-      this.tunnelProcess = undefined;
-      this.tunnelUrl = undefined;
+      delete this.tunnelProcess;
+      delete this.tunnelUrl;
       this.status = {
         active: false,
         type: "none"
@@ -140,61 +123,55 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
-   * Gets the current tunnel status
-   * 
-   * @returns Current tunnel status
+   * Gets the current tunnel status.
+   * @returns Current tunnel status.
    */
   getStatus(): TunnelStatus {
     return { ...this.status };
   }
 
   /**
-   * Gets the public URL for OAuth callbacks
-   * 
-   * @returns Public URL or localhost URL
+   * Gets the public URL for OAuth callbacks.
+   * @returns Public URL or localhost URL.
    */
   getPublicUrl(): string {
     return this.tunnelUrl || `http://localhost:${this.config.port}`;
   }
 
   /**
-   * Checks if tunnel should be enabled
-   * 
-   * @returns True if tunnel should be started
+   * Checks if tunnel should be enabled.
+   * @returns True if tunnel should be started.
    */
   private shouldEnableTunnel(): boolean {
     // Check environment variables
-    const enableTunnel = process.env.ENABLE_OAUTH_TUNNEL === "true";
-    const isDevelopment = process.env.NODE_ENV !== "production";
-    
+    const enableTunnel = process.env['ENABLE_OAUTH_TUNNEL'] === "true";
+    const isDevelopment = process.env['NODE_ENV'] !== "production";
+
     // Enable if explicitly requested or in development with OAuth providers configured
-    return enableTunnel || (
-      isDevelopment && 
-      this.config.enableInDevelopment !== false &&
-      this.hasOAuthProviders()
-    );
-  }
+    return enableTunnel
+      || isDevelopment
+      && this.config.enableInDevelopment !== false
+      && this.hasOAuthProviders();
+}
 
   /**
-   * Checks if OAuth providers are configured
-   * 
-   * @returns True if any OAuth provider has credentials
+   * Checks if OAuth providers are configured.
+   * @returns True if any OAuth provider has credentials.
    */
   private hasOAuthProviders(): boolean {
     return Boolean(
-      process.env.GOOGLE_CLIENT_ID ||
-      process.env.GITHUB_CLIENT_ID ||
-      process.env.OAUTH_TUNNEL_REQUIRED === "true"
+      process.env['GOOGLE_CLIENT_ID']
+      || process.env['GITHUB_CLIENT_ID']
+      || process.env['OAUTH_TUNNEL_REQUIRED'] === "true"
     );
   }
 
   /**
-   * Starts a cloudflared tunnel
-   * 
-   * @returns Promise resolving to the tunnel URL
+   * Starts a cloudflared tunnel.
+   * @returns Promise resolving to the tunnel URL.
    */
   private async startCloudflaredTunnel(): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       this.logger?.info("Starting cloudflared tunnel...");
 
       // Check if cloudflared is installed
@@ -212,7 +189,7 @@ export class TunnelService extends EventEmitter {
 
       // Start cloudflared with appropriate command
       let args: string[];
-      
+
       if (this.config.tunnelToken) {
         // Use named tunnel with token
         args = ["tunnel", "--no-autoupdate", "run", "--token", this.config.tunnelToken];
@@ -232,25 +209,26 @@ export class TunnelService extends EventEmitter {
       const handleTunnelReady = () => {
         this.status = {
           active: true,
-          url: this.tunnelUrl,
+          url: this.tunnelUrl ?? undefined,
           type: "cloudflared"
         };
         this.logger?.info(`🚇 Tunnel established: ${this.tunnelUrl}`);
         this.logger?.info(`📍 Public URL: ${this.tunnelUrl}`);
         this.logger?.info(`🔗 OAuth Redirect Base: ${this.tunnelUrl}/oauth2/callback`);
-        
+
         // Emit tunnel ready event
         this.emit('tunnel-ready', {
           url: this.tunnelUrl,
           type: this.status.type,
           timestamp: new Date().toISOString()
         });
-        
+
         // Update OAuth configuration immediately
         this.updateOAuthProviders(this.tunnelUrl!).then(() => {
           this.logger?.info("✅ OAuth providers updated with tunnel URL");
           this.emit("ready", this.tunnelUrl);
-        }).catch((err) => {
+        })
+.catch((err) => {
           this.logger?.error("Failed to update OAuth providers:", err);
           this.emit("ready", this.tunnelUrl);
         });
@@ -265,16 +243,18 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = match[0];
               handleTunnelReady();
-              resolve(this.tunnelUrl!);
+              resolve(this.tunnelUrl);
             }
-          } 
+          }
           // For named tunnels, look for connection registered message
           else {
             // Check if tunnel connection is registered
             if (output.match(namedTunnelRegex)) {
               this.logger?.info("Named tunnel connection registered");
-              // For token-based tunnels, we don't get the URL in output
-              // The URL is pre-configured in Cloudflare dashboard
+              /*
+               * For token-based tunnels, we don't get the URL in output
+               * The URL is pre-configured in Cloudflare dashboard
+               */
               if (!urlFound) {
                 urlFound = true;
                 this.logger?.warn("Token-based tunnel connected but URL not available in output");
@@ -290,7 +270,7 @@ export class TunnelService extends EventEmitter {
                   this.logger?.error("Please set CLOUDFLARE_TUNNEL_URL in your .env file");
                 }
                 handleTunnelReady();
-                resolve(this.tunnelUrl!);
+                resolve(this.tunnelUrl);
               }
             }
             // Also check for URL in case it's printed
@@ -299,7 +279,7 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = urlMatch[0];
               handleTunnelReady();
-              resolve(this.tunnelUrl!);
+              resolve(this.tunnelUrl);
             }
           }
         }
@@ -314,12 +294,12 @@ export class TunnelService extends EventEmitter {
 
       // Buffer to accumulate stderr output
       let stderrBuffer = "";
-      
+
       // Parse stderr for tunnel URL (cloudflared outputs URL here)
       this.tunnelProcess.stderr?.on("data", (data: Buffer) => {
         const output = data.toString();
         stderrBuffer += output;
-        
+
         // Log stderr output (cloudflared uses stderr for info messages)
         const lines = output.trim().split('\n');
         lines.forEach(line => {
@@ -327,7 +307,7 @@ export class TunnelService extends EventEmitter {
             this.logger?.info(`Cloudflared: ${line.trim()}`);
           }
         });
-        
+
         // Check accumulated buffer for URL
         checkForUrl(stderrBuffer);
       });
@@ -341,7 +321,7 @@ export class TunnelService extends EventEmitter {
           error: `Process exited with code ${code}`
         };
         this.emit("stopped");
-        
+
         if (!urlFound) {
           reject(new Error(`Cloudflared exited without providing URL (code ${code})`));
         }
@@ -375,9 +355,8 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
-   * Checks if cloudflared is installed
-   * 
-   * @returns True if cloudflared is available
+   * Checks if cloudflared is installed.
+   * @returns True if cloudflared is available.
    */
   private isCloudflaredInstalled(): boolean {
     try {
@@ -389,18 +368,17 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
-   * Updates OAuth provider configurations with tunnel URL
-   * 
-   * @param url - The public tunnel URL
+   * Updates OAuth provider configurations with tunnel URL.
+   * @param url - The public tunnel URL.
    */
   async updateOAuthProviders(url: string): Promise<void> {
     // Update environment variables for current process
-    process.env.BASE_URL = url;
-    process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
-    
+    process.env['BASE_URL'] = url;
+    process.env['OAUTH_REDIRECT_URI'] = `${url}/oauth2/callback`;
+
     // Update global tunnel status
     tunnelStatus.setBaseUrl(url);
-    
+
     this.logger?.info(`Updated OAuth configuration with tunnel URL: ${url}`);
     this.emit("oauth-updated", {
       baseUrl: url,

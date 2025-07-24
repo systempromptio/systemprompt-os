@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
-import { MCPHandler, setMCPHandlerInstance, getMCPHandlerInstance } from '../../../src/server/mcp';
+import { MCPHandler, setMCPHandlerInstance, getMCPHandlerInstance } from '../../../src/server/mcp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 

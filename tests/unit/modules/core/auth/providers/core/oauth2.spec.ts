@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GenericOAuth2Provider } from '../../../../../../../src/modules/core/auth/providers/core/oauth2';
+import { GenericOAuth2Provider } from '../../../../../../../src/modules/core/auth/providers/core/oauth2.js';
 
 // Mock fetch
 global.fetch = vi.fn();

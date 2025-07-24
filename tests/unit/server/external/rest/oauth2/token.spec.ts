@@ -5,8 +5,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Request, Response } from 'express';
-import { TokenEndpoint } from '../../../../../../src/server/external/rest/oauth2/token';
-import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize';
+import { TokenEndpoint } from '../../../../../../src/server/external/rest/oauth2/token.js';
+import { AuthorizeEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorize.js';
 import { createHash } from 'crypto';
 
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { authMiddleware } from '../../../../../src/server/external/middleware/auth';
-import { jwtVerify } from '../../../../../src/server/external/auth/jwt';
+import { authMiddleware } from '../../../../../src/server/external/middleware/auth.js';
+import { jwtVerify } from '../../../../../src/server/external/auth/jwt.js';
 import type { Request, Response, NextFunction } from 'express';
 
 vi.mock('../../../../../src/server/external/auth/jwt', () => ({

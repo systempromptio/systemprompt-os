@@ -1,5 +1,5 @@
 /**
- * @fileoverview Core type definitions and interfaces for orchestrator tool handlers
+ * @file Core type definitions and interfaces for orchestrator tool handlers.
  * @module handlers/tools/types
  */
 
@@ -8,7 +8,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 export type { CallToolResult };
 
 /**
- * Context passed to individual tool handlers
+ * Context passed to individual tool handlers.
  */
 export interface ToolHandlerContext {
   userId?: string;
@@ -17,7 +17,7 @@ export interface ToolHandlerContext {
 }
 
 /**
- * Tool handler function type
+ * Tool handler function type.
  */
 export type ToolHandler<T = any> = (
   args: T,
@@ -25,7 +25,7 @@ export type ToolHandler<T = any> = (
 ) => Promise<CallToolResult>;
 
 /**
- * Standard response type for all tool handlers
+ * Standard response type for all tool handlers.
  */
 export interface ToolResponse<T = any> {
   status: "success" | "error";
@@ -38,11 +38,9 @@ export interface ToolResponse<T = any> {
 }
 
 /**
- * Helper function to format tool responses
- * 
- * @param response - Partial response object with required message
- * @returns Formatted CallToolResult with structured content
- * 
+ * Helper function to format tool responses.
+ * @param response - Partial response object with required message.
+ * @returns Formatted CallToolResult with structured content.
  * @example
  * ```typescript
  * return formatToolResponse({
@@ -57,8 +55,8 @@ export function formatToolResponse<T>(
   const standardResponse: ToolResponse<T> = {
     status: response.status || "success",
     message: response.message,
-    ...(response.result && { result: response.result }),
-    ...(response.error && { error: response.error }),
+    ...response.result && { result: response.result },
+    ...response.error && { error: response.error },
   };
 
   return {

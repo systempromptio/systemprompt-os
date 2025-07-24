@@ -1,17 +1,22 @@
 /**
- * @fileoverview Check status tool handler for admin system overview
+ * @file Check status tool handler for admin system overview.
  * @module handlers/tools/check-status
  */
 
-import type { ToolHandler, CallToolResult, ToolHandlerContext } from "./types.js";
-import { formatToolResponse } from "./types.js";
-import { logger } from "@/utils/logger.js";
-import { execSync } from "node:child_process";
-import * as os from "os";
-import { getDatabase } from "@/modules/core/database/index.js";
+import type {
+ CallToolResult, ToolHandler, ToolHandlerContext
+} from '@/server/mcp/core/handlers/tools/types.js';
+import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+import { execSync } from 'node:child_process';
+import * as os from 'os';
+import { getDatabase } from '@/modules/core/database/index.js';
+
+// Initialize logger
+const logger = LoggerService.getInstance();
 
 /**
- * Check status arguments
+ * Check status arguments.
  */
 interface CheckStatusArgs {
   includeContainers?: boolean;
@@ -22,7 +27,7 @@ interface CheckStatusArgs {
 }
 
 /**
- * System status response
+ * System status response.
  */
 interface SystemStatus {
   timestamp: string;
@@ -99,16 +104,18 @@ interface SystemStatus {
 }
 
 /**
- * Admin-only system status check handler
+ * Admin-only system status check handler.
+ * @param args
+ * @param context
  */
 export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async (
   args: CheckStatusArgs | undefined,
   context?: ToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    logger.info("Admin checking system status", {
+    logger.info('Admin checking system status', {
       sessionId: context?.sessionId,
-      options: args
+      options: args,
     });
 
     // Get basic system info
@@ -137,26 +144,29 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
       status.auditLog = await getRecentAuditLog();
     }
 
-    logger.info("Admin status check completed", {
+    logger.info('Admin status check completed', {
       sessionId: context?.sessionId,
-      includesContainers: !!status.containers,
-      includesUsers: !!status.users,
-      includesTunnels: !!status.tunnels,
-      includesAudit: !!status.auditLog
+      includesContainers: Boolean(status.containers),
+      includesUsers: Boolean(status.users),
+      includesTunnels: Boolean(status.tunnels),
+      includesAudit: Boolean(status.auditLog),
     });
 
     return formatToolResponse({
-      message: "System status retrieved successfully",
+      message: 'System status retrieved successfully',
       result: status,
     });
   } catch (error) {
-    logger.error("Failed to check system status", { error, args });
+    logger.error('Failed to check system status', {
+ error,
+args
+});
 
     return formatToolResponse({
-      status: "error",
-      message: error instanceof Error ? error.message : "Failed to check status",
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to check status',
       error: {
-        type: "status_check_error",
+        type: 'status_check_error',
         details: error instanceof Error ? error.stack : undefined,
       },
     });
@@ -164,7 +174,7 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
 };
 
 /**
- * Get system resource usage
+ * Get system resource usage.
  */
 async function getResourceUsage() {
   const cpus = os.cpus();
@@ -175,7 +185,7 @@ async function getResourceUsage() {
   // Calculate CPU usage
   let totalIdle = 0;
   let totalTick = 0;
-  cpus.forEach(cpu => {
+  cpus.forEach((cpu) => {
     for (const type in cpu.times) {
       totalTick += cpu.times[type as keyof typeof cpu.times];
     }
@@ -184,62 +194,73 @@ async function getResourceUsage() {
   const cpuUsage = 100 - ~~(100 * totalIdle / totalTick);
 
   // Get disk usage (simplified - you might want to use a library like 'diskusage')
-  let diskInfo = { total: 0, free: 0, used: 0, usagePercent: 0 };
+  let diskInfo = {
+ total: 0,
+free: 0,
+used: 0,
+usagePercent: 0
+};
   try {
     const dfOutput = execSync('df -k / | tail -1', { encoding: 'utf-8' });
     const parts = dfOutput.trim().split(/\s+/);
     if (parts.length >= 4) {
       diskInfo = {
-        total: parseInt(parts[1]) * 1024,
-        used: parseInt(parts[2]) * 1024,
-        free: parseInt(parts[3]) * 1024,
-        usagePercent: parseInt(parts[4])
+        total: (parseInt(parts[1] || '0') || 0) * 1024,
+        used: (parseInt(parts[2] || '0') || 0) * 1024,
+        free: (parseInt(parts[3] || '0') || 0) * 1024,
+        usagePercent: parseInt(parts[4] || '0') || 0,
       };
     }
-  } catch (e) {
-    logger.warn("Could not get disk usage", e);
+  } catch (_e) {
+    logger.warn('Could not get disk usage', _e);
   }
 
   return {
     cpu: {
-      model: cpus[0].model,
+      model: cpus[0]?.model || 'Unknown',
       cores: cpus.length,
-      usage: cpuUsage
+      usage: cpuUsage,
     },
     memory: {
       total: totalMemory,
       free: freeMemory,
       used: usedMemory,
-      usagePercent: Math.round((usedMemory / totalMemory) * 100)
+      usagePercent: Math.round(usedMemory / totalMemory * 100),
     },
-    disk: diskInfo
+    disk: diskInfo,
   };
 }
 
 /**
- * Get service status
+ * Get service status.
  */
 async function getServiceStatus() {
   const services: any = {
     mcp: {
-      status: "active",
-      version: process.env.npm_package_version || "unknown",
-      activeSessions: 0 // Would query from database
+      status: 'active',
+      version: process.env['npm_package_version'] || 'unknown',
+      activeSessions: 0, // Would query from database
     },
     oauth: {
-      status: "active",
+      status: 'active',
       tunnelActive: false,
-      providers: []
-    }
+      providers: [],
+    },
   };
 
   // Check OAuth providers
-  if (process.env.GOOGLE_CLIENT_ID) services.oauth.providers.push("google");
-  if (process.env.GITHUB_CLIENT_ID) services.oauth.providers.push("github");
-  if (process.env.MICROSOFT_CLIENT_ID) services.oauth.providers.push("microsoft");
+  if (process.env['GOOGLE_CLIENT_ID']) {
+    services.oauth.providers.push('google');
+  }
+  if (process.env['GITHUB_CLIENT_ID']) {
+    services.oauth.providers.push('github');
+  }
+  if (process.env['MICROSOFT_CLIENT_ID']) {
+    services.oauth.providers.push('microsoft');
+  }
 
   // Check OAuth tunnel
-  if (process.env.ENABLE_OAUTH_TUNNEL === 'true' || process.env.OAUTH_DOMAIN) {
+  if (process.env['ENABLE_OAUTH_TUNNEL'] === 'true' || process.env['OAUTH_DOMAIN']) {
     services.oauth.tunnelActive = true;
   }
 
@@ -248,15 +269,15 @@ async function getServiceStatus() {
     const dockerVersion = execSync('docker --version', { encoding: 'utf-8' }).trim();
     const containerCount = execSync('docker ps -q | wc -l', { encoding: 'utf-8' }).trim();
     services.docker = {
-      status: "active",
+      status: 'active',
       version: dockerVersion,
-      containers: parseInt(containerCount)
+      containers: parseInt(containerCount) || 0,
     };
-  } catch (e) {
+  } catch {
     services.docker = {
-      status: "unavailable",
-      version: "n/a",
-      containers: 0
+      status: 'unavailable',
+      version: 'n/a',
+      containers: 0,
     };
   }
 
@@ -264,26 +285,26 @@ async function getServiceStatus() {
 }
 
 /**
- * Mock functions for additional status - would be implemented with real database queries
+ * Mock functions for additional status - would be implemented with real database queries.
  */
 async function getContainerStatus() {
   // In real implementation, query database for container info
   return [
     {
-      id: "container-123",
-      name: "user-john-dev",
-      userId: "user-123",
-      status: "running",
+      id: 'container-123',
+      name: 'user-john-dev',
+      userId: 'user-123',
+      status: 'running',
       created: new Date().toISOString(),
-      tunnelStatus: "active"
-    }
+      tunnelStatus: 'active',
+    },
   ];
 }
 
 async function getUserStatus() {
   try {
     const db = getDatabase();
-    
+
     // Query all users from the database
     const users = await db.query<any>(`
       SELECT 
@@ -301,8 +322,18 @@ async function getUserStatus() {
       ORDER BY u.created_at DESC
     `);
 
+    interface UserStatusRow {
+      id: string;
+      email: string;
+      name?: string;
+      roles?: string;
+      last_login_at?: string;
+      is_active: number;
+      created_at: string;
+    }
+
     // Format the user data
-    return users.map(user => ({
+    return users.map((user: UserStatusRow) => { return {
       id: user.id,
       email: user.email,
       name: user.name || 'N/A',
@@ -310,10 +341,10 @@ async function getUserStatus() {
       lastLogin: user.last_login_at || 'Never',
       isActive: Boolean(user.is_active),
       createdAt: user.created_at,
-      activeContainers: 0 // TODO: Implement container counting when container module is added
-    }));
+      activeContainers: 0, // TODO: Implement container counting when container module is added
+    } });
   } catch (error) {
-    logger.error("Failed to get user status from database", { error });
+    logger.error('Failed to get user status from database', { error });
     return [];
   }
 }
@@ -322,12 +353,12 @@ async function getTunnelStatus() {
   // In real implementation, query Cloudflare API
   return [
     {
-      id: "tunnel-123",
-      name: "user-john-dev",
-      status: "healthy",
-      hostname: "john-dev.containers.example.com",
-      created: new Date().toISOString()
-    }
+      id: 'tunnel-123',
+      name: 'user-john-dev',
+      status: 'healthy',
+      hostname: 'john-dev.containers.example.com',
+      created: new Date().toISOString(),
+    },
   ];
 }
 
@@ -336,10 +367,10 @@ async function getRecentAuditLog() {
   return [
     {
       timestamp: new Date().toISOString(),
-      userId: "user-123",
-      action: "container.create",
-      resource: "container-123",
-      result: "success"
-    }
+      userId: 'user-123',
+      action: 'container.create',
+      resource: 'container-123',
+      result: 'success',
+    },
   ];
 }

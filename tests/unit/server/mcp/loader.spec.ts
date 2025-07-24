@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CustomMCPLoader } from '../../../../src/server/mcp/loader';
-import { MCPServerRegistry } from '../../../../src/server/mcp/registry';
+import { CustomMCPLoader } from '../../../../src/server/mcp/loader.js';
+import { MCPServerRegistry } from '../../../../src/server/mcp/registry.js';
 import fs from 'fs';
 import path from 'path';
 

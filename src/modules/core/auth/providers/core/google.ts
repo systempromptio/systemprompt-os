@@ -1,9 +1,11 @@
 /**
- * @fileoverview Google Identity Provider
+ * @file Google Identity Provider.
  * @module modules/core/auth/services/providers/google
  */
 
-import { IdentityProvider, IDPConfig, IDPTokens, IDPUserInfo } from "../../types/provider-interface.js";
+import type {
+ IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
+} from '@/modules/core/auth/types/provider-interface.js';
 
 export interface GoogleConfig extends IDPConfig {
   discoveryurl?: string;
@@ -13,12 +15,11 @@ export class GoogleProvider implements IdentityProvider {
   id = "google";
   name = "Google";
   type = "oidc" as const;
-
-  private config: GoogleConfig;
-  private authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
-  private tokenEndpoint = "https://oauth2.googleapis.com/token";
-  private userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
-  private revocationEndpoint = "https://oauth2.googleapis.com/revoke";
+  private readonly config: GoogleConfig;
+  private readonly authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
+  private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
+  private readonly userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
+  private readonly revocationEndpoint = "https://oauth2.googleapis.com/revoke";
 
   constructor(config: GoogleConfig) {
     this.config = {

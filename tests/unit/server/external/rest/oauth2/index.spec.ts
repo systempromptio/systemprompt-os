@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Router } from 'express';
-import { setupOAuth2Routes } from '../../../../../../src/server/external/rest/oauth2/index';
+import { setupOAuth2Routes } from '../../../../../../src/server/external/rest/oauth2/index.js';
 
 // Mock all the endpoint classes
 vi.mock('../../../../../../src/server/external/rest/oauth2/well-known', () => ({

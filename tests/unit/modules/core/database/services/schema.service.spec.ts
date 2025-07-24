@@ -3,11 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SchemaService } from '../../../../../../src/modules/core/database/services/schema.service';
-import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service';
+import { SchemaService } from '../../../../../../src/modules/core/database/services/schema.service.js';
+import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.js';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
-import { logger } from '../../../../../../src/utils/logger';
+import { logger } from '../../../../../../src/utils/logger.js';
 
 // Mock dependencies
 vi.mock('node:fs/promises');
@@ -73,7 +73,7 @@ describe('SchemaService', () => {
 
   describe('discoverSchemas', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should discover schema files from filesystem', async () => {
@@ -197,7 +197,7 @@ describe('SchemaService', () => {
 
   describe('initializeSchemas', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should initialize all discovered schemas', async () => {
@@ -278,7 +278,7 @@ describe('SchemaService', () => {
 
   describe('getInstalledSchemas', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should return installed schemas', async () => {
@@ -319,7 +319,7 @@ describe('SchemaService', () => {
 
   describe('discoverSchemasArray', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should return schemas as array', async () => {
@@ -346,7 +346,7 @@ describe('SchemaService', () => {
 
   describe('initializeBaseSchema', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should create base schema tables', async () => {
@@ -363,7 +363,7 @@ describe('SchemaService', () => {
 
   describe('installModuleSchema', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should install specific module schema', async () => {
@@ -393,7 +393,7 @@ describe('SchemaService', () => {
 
   describe('getSchema', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should return schema for module', () => {
@@ -417,7 +417,7 @@ describe('SchemaService', () => {
 
   describe('getAllSchemas', () => {
     beforeEach(() => {
-      schemaService = SchemaService.initialize(mockDatabaseService);
+      schemaService = SchemaService.initialize(mockDatabaseService, logger);
     });
 
     it('should return copy of all schemas', () => {

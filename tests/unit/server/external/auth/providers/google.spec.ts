@@ -4,8 +4,8 @@
  */
 
 import { vi } from 'vitest';
-import { GoogleProvider } from '../../../../../../src/server/external/auth/providers/google';
-import { generateOAuth2ProviderTests } from './oauth2-shared-tests';
+import { GoogleProvider } from '../../../../../../src/server/external/auth/providers/google.js';
+import { generateOAuth2ProviderTests } from './oauth2-shared-tests.js';
 
 // Mock global fetch
 global.fetch = vi.fn();

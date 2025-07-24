@@ -1,17 +1,12 @@
 /**
- * @fileoverview Custom error classes for the auth module
- * @module modules/core/auth/utils/errors
- */
-
-/**
- * Base error class for all auth-related errors
+ * Base error class for all auth-related errors.
  */
 export class AuthError extends Error {
   constructor(
-    message: string,
+    override message: string,
     public readonly code: string,
     public readonly statusCode: number = 500,
-    public readonly cause?: Error
+    public override readonly cause?: Error,
   ) {
     super(message);
     this.name = 'AuthError';
@@ -20,7 +15,7 @@ export class AuthError extends Error {
 }
 
 /**
- * Error thrown when authentication fails
+ * Error thrown when authentication fails.
  */
 export class AuthenticationError extends AuthError {
   constructor(message: string = 'Authentication failed', cause?: Error) {
@@ -30,7 +25,7 @@ export class AuthenticationError extends AuthError {
 }
 
 /**
- * Error thrown when user is not authorized
+ * Error thrown when user is not authorized.
  */
 export class AuthorizationError extends AuthError {
   constructor(message: string = 'Access denied', cause?: Error) {
@@ -40,21 +35,25 @@ export class AuthorizationError extends AuthError {
 }
 
 /**
- * Error thrown when validation fails
+ * Error thrown when validation fails.
  */
 export class ValidationError extends AuthError {
-  constructor(message: string, public readonly fields?: Record<string, string>, cause?: Error) {
+  constructor(
+    message: string,
+    public readonly fields?: Record<string, string>,
+    cause?: Error,
+  ) {
     super(message, 'VALIDATION_ERROR', 400, cause);
     this.name = 'ValidationError';
   }
 }
 
 /**
- * Error thrown when a resource is not found
+ * Error thrown when a resource is not found.
  */
 export class NotFoundError extends AuthError {
   constructor(resource: string, identifier?: string, cause?: Error) {
-    const message = identifier 
+    const message = identifier
       ? `${resource} with identifier '${identifier}' not found`
       : `${resource} not found`;
     super(message, 'NOT_FOUND', 404, cause);
@@ -63,7 +62,7 @@ export class NotFoundError extends AuthError {
 }
 
 /**
- * Error thrown when a conflict occurs (e.g., duplicate resource)
+ * Error thrown when a conflict occurs (e.g., duplicate resource).
  */
 export class ConflictError extends AuthError {
   constructor(message: string, cause?: Error) {
@@ -73,13 +72,13 @@ export class ConflictError extends AuthError {
 }
 
 /**
- * Error thrown when rate limit is exceeded
+ * Error thrown when rate limit is exceeded.
  */
 export class RateLimitError extends AuthError {
   constructor(
     public readonly retryAfter?: number,
-    message: string = 'Rate limit exceeded',
-    cause?: Error
+    override message: string = 'Rate limit exceeded',
+    override cause?: Error,
   ) {
     super(message, 'RATE_LIMIT_EXCEEDED', 429, cause);
     this.name = 'RateLimitError';
@@ -87,7 +86,7 @@ export class RateLimitError extends AuthError {
 }
 
 /**
- * Error thrown for invalid token operations
+ * Error thrown for invalid token operations.
  */
 export class TokenError extends AuthError {
   constructor(message: string, code: string = 'INVALID_TOKEN', cause?: Error) {
@@ -97,7 +96,7 @@ export class TokenError extends AuthError {
 }
 
 /**
- * Error thrown when token has expired
+ * Error thrown when token has expired.
  */
 export class TokenExpiredError extends TokenError {
   constructor(message: string = 'Token has expired', cause?: Error) {
@@ -107,7 +106,7 @@ export class TokenExpiredError extends TokenError {
 }
 
 /**
- * Error thrown when token is invalid
+ * Error thrown when token is invalid.
  */
 export class InvalidTokenError extends TokenError {
   constructor(message: string = 'Invalid token', cause?: Error) {
@@ -117,7 +116,7 @@ export class InvalidTokenError extends TokenError {
 }
 
 /**
- * Error thrown for MFA-related issues
+ * Error thrown for MFA-related issues.
  */
 export class MFAError extends AuthError {
   constructor(message: string, code: string = 'MFA_ERROR', cause?: Error) {
@@ -127,13 +126,13 @@ export class MFAError extends AuthError {
 }
 
 /**
- * Error thrown when MFA is required
+ * Error thrown when MFA is required.
  */
 export class MFARequiredError extends MFAError {
   constructor(
     public readonly sessionId: string,
-    message: string = 'MFA verification required',
-    cause?: Error
+    override message: string = 'MFA verification required',
+    override cause?: Error,
   ) {
     super(message, 'MFA_REQUIRED', cause);
     this.name = 'MFARequiredError';
@@ -141,7 +140,7 @@ export class MFARequiredError extends MFAError {
 }
 
 /**
- * Error thrown when MFA code is invalid
+ * Error thrown when MFA code is invalid.
  */
 export class InvalidMFACodeError extends MFAError {
   constructor(message: string = 'Invalid MFA code', cause?: Error) {
@@ -151,14 +150,14 @@ export class InvalidMFACodeError extends MFAError {
 }
 
 /**
- * Error thrown for provider-related issues
+ * Error thrown for provider-related issues.
  */
 export class ProviderError extends AuthError {
   constructor(
     public readonly provider: string,
-    message: string,
-    code: string = 'PROVIDER_ERROR',
-    cause?: Error
+    override message: string,
+    override code: string = 'PROVIDER_ERROR',
+    override cause?: Error,
   ) {
     super(message, code, 500, cause);
     this.name = 'ProviderError';
@@ -166,7 +165,7 @@ export class ProviderError extends AuthError {
 }
 
 /**
- * Error thrown when provider is not configured
+ * Error thrown when provider is not configured.
  */
 export class ProviderNotConfiguredError extends ProviderError {
   constructor(provider: string, cause?: Error) {
@@ -176,7 +175,7 @@ export class ProviderNotConfiguredError extends ProviderError {
 }
 
 /**
- * Error thrown for session-related issues
+ * Error thrown for session-related issues.
  */
 export class SessionError extends AuthError {
   constructor(message: string, code: string = 'SESSION_ERROR', cause?: Error) {
@@ -186,7 +185,7 @@ export class SessionError extends AuthError {
 }
 
 /**
- * Error thrown when session is invalid
+ * Error thrown when session is invalid.
  */
 export class InvalidSessionError extends SessionError {
   constructor(message: string = 'Invalid session', cause?: Error) {
@@ -196,7 +195,7 @@ export class InvalidSessionError extends SessionError {
 }
 
 /**
- * Error thrown when session has expired
+ * Error thrown when session has expired.
  */
 export class SessionExpiredError extends SessionError {
   constructor(message: string = 'Session has expired', cause?: Error) {
@@ -206,13 +205,13 @@ export class SessionExpiredError extends SessionError {
 }
 
 /**
- * Error thrown when account is locked
+ * Error thrown when account is locked.
  */
 export class AccountLockedError extends AuthError {
   constructor(
     public readonly lockoutEndTime?: Date,
-    message: string = 'Account is locked due to too many failed login attempts',
-    cause?: Error
+    override message: string = 'Account is locked due to too many failed login attempts',
+    override cause?: Error,
   ) {
     super(message, 'ACCOUNT_LOCKED', 423, cause);
     this.name = 'AccountLockedError';
@@ -220,7 +219,7 @@ export class AccountLockedError extends AuthError {
 }
 
 /**
- * Error thrown for configuration issues
+ * Error thrown for configuration issues.
  */
 export class ConfigurationError extends AuthError {
   constructor(message: string, cause?: Error) {

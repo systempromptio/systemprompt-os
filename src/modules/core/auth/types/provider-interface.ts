@@ -1,17 +1,31 @@
 /**
- * @fileoverview Identity Provider Interface
+ * @file Identity Provider Interface.
  * @module modules/core/auth/types/provider-interface
- * 
  * This file defines the interfaces for OAuth2/OIDC providers
  * Using standard OAuth2 types from RFC 6749
  */
 
-import type { OAuth2TokenResponse, OAuth2ClientCredentials } from '@/types/oauth2.js';
+// OAuth2 types embedded directly to avoid external dependencies
+export interface OAuth2TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+  id_token?: string; // For OpenID Connect
+}
+
+export interface OAuth2ClientCredentials {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+  scope?: string;
+}
 
 export interface IDPUserInfo {
   id: string;
   email?: string;
-  email_verified?: boolean;  // Standard OpenID Connect claim
+  email_verified?: boolean; // Standard OpenID Connect claim
   name?: string;
   picture?: string;
   locale?: string;
@@ -27,29 +41,14 @@ export interface IdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc' | 'saml';
-  
-  /**
-   * Get the authorization URL for this provider
-   */
-  getAuthorizationUrl(state: string, nonce?: string): string;
-  
-  /**
-   * Exchange authorization code for tokens
-   */
-  exchangeCodeForTokens(code: string): Promise<IDPTokens>;
-  
-  /**
-   * Get user information from the provider
-   */
-  getUserInfo(accessToken: string): Promise<IDPUserInfo>;
-  
-  /**
-   * Refresh tokens if supported
-   */
-  refreshTokens?(refreshToken: string): Promise<IDPTokens>;
-  
-  /**
-   * Revoke tokens if supported
-   */
-  revokeTokens?(token: string): Promise<void>;
+
+    getAuthorizationUrl(state: string, nonce?: string): string;
+
+    exchangeCodeForTokens(code: string): Promise<IDPTokens>;
+
+    getUserInfo(accessToken: string): Promise<IDPUserInfo>;
+
+    refreshTokens?(refreshToken: string): Promise<IDPTokens>;
+
+    revokeTokens?(token: string): Promise<void>;
 }

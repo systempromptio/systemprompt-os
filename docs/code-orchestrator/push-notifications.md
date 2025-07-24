@@ -159,7 +159,7 @@ npm run send-push "🎉 Success" "All tests passed!"
   "title": "🚨 System Error",
   "body": "Agent session crashed unexpectedly",
   "data": {
-    "type": "system_error",
+    "type": "systemerror",
     "component": "agent_manager",
     "severity": "high"
   }
@@ -276,7 +276,7 @@ const NOTIFICATION_RULES = {
   task_failed: true,
   task_started: false,  // Too noisy
   agent_progress: (progress) => progress % 25 === 0,  // Every 25%
-  system_error: true,
+  systemerror: true,
   system_warning: (severity) => severity === 'high'
 };
 ```

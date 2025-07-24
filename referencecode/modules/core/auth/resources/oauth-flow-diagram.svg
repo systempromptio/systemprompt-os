@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <title>OAuth 2.0 Authorization Code Flow</title>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="24" font-weight="bold">OAuth 2.0 Authorization Code Flow</text>
+  
+  <!-- Actors -->
+  <g id="user">
+    <rect x="50" y="80" width="120" height="60" fill="#e8f4f8" stroke="#333" stroke-width="2"/>
+    <text x="110" y="115" text-anchor="middle" font-size="16">User</text>
+  </g>
+  
+  <g id="client">
+    <rect x="50" y="200" width="120" height="60" fill="#e8f8e8" stroke="#333" stroke-width="2"/>
+    <text x="110" y="235" text-anchor="middle" font-size="16">Client App</text>
+  </g>
+  
+  <g id="auth-server">
+    <rect x="350" y="140" width="150" height="60" fill="#f8e8e8" stroke="#333" stroke-width="2"/>
+    <text x="425" y="165" text-anchor="middle" font-size="16">Authorization</text>
+    <text x="425" y="185" text-anchor="middle" font-size="16">Server</text>
+  </g>
+  
+  <g id="resource-server">
+    <rect x="600" y="140" width="150" height="60" fill="#f8f8e8" stroke="#333" stroke-width="2"/>
+    <text x="675" y="165" text-anchor="middle" font-size="16">Resource</text>
+    <text x="675" y="185" text-anchor="middle" font-size="16">Server</text>
+  </g>
+  
+  <!-- Flow arrows and labels -->
+  <!-- Step 1: User initiates login -->
+  <line x1="170" y1="110" x2="170" y2="200" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="180" y="155" font-size="14">1. Login</text>
+  
+  <!-- Step 2: Redirect to auth server -->
+  <line x1="170" y1="230" x2="350" y2="170" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="240" y="190" font-size="14">2. Redirect to authorize</text>
+  
+  <!-- Step 3: User authorizes -->
+  <line x1="110" y1="140" x2="380" y2="140" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="200" y="135" font-size="14">3. User authorizes</text>
+  
+  <!-- Step 4: Return auth code -->
+  <line x1="350" y1="200" x2="170" y2="240" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="240" y="230" font-size="14">4. Auth code</text>
+  
+  <!-- Step 5: Exchange code for token -->
+  <line x1="170" y1="250" x2="350" y2="190" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="240" y="250" font-size="14">5. Exchange code</text>
+  
+  <!-- Step 6: Return access token -->
+  <line x1="350" y1="180" x2="170" y2="220" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="240" y="270" font-size="14">6. Access token</text>
+  
+  <!-- Step 7: Access resources -->
+  <line x1="170" y1="260" x2="600" y2="170" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="350" y="300" font-size="14">7. API request with token</text>
+  
+  <!-- Step 8: Return resources -->
+  <line x1="600" y1="160" x2="170" y2="210" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="350" y="320" font-size="14">8. Protected resources</text>
+  
+  <!-- Notes -->
+  <text x="50" y="380" font-size="14" font-weight="bold">Key Security Points:</text>
+  <text x="50" y="405" font-size="12">• State parameter prevents CSRF attacks</text>
+  <text x="50" y="425" font-size="12">• Authorization code is single-use and short-lived</text>
+  <text x="50" y="445" font-size="12">• Client credentials are never exposed to the browser</text>
+  <text x="50" y="465" font-size="12">• Access tokens should have limited scope and lifetime</text>
+</svg>

@@ -1,113 +1,129 @@
 /**
- * @fileoverview Authentication middleware for validating OAuth2 tokens
+ * @file Authentication middleware for validating OAuth2 tokens.
  * @module server/external/middleware/auth
  */
 
-import { Request, Response, NextFunction } from 'express';
-import { jwtVerify } from '../auth/jwt.js';
-import { CONFIG } from '../../config.js';
-import { AccessTokenPayload, AuthUser } from '../types/auth.js';
-import { logger } from '@/utils/logger.js';
+import type {
+ NextFunction, Request, Response
+} from 'express';
+import { jwtVerify } from '@/server/external/auth/jwt.js';
+import { CONFIG } from '@/server/config.js';
+import type { AccessTokenPayload, AuthUser } from '@/server/external/types/auth.js';
+import { LoggerService } from '@/modules/core/logger/index.js';
+
+const logger = LoggerService.getInstance();
 
 /**
- * Options for auth middleware
+ * Options for auth middleware.
  */
 export interface AuthMiddlewareOptions {
-  /** Redirect to login instead of returning 401 */
-  redirectToLogin?: boolean;
-  /** Required roles for access */
-  requiredRoles?: string[];
+    redirectToLogin?: boolean;
+    requiredRoles?: string[];
 }
 
 /**
- * Creates authentication middleware with options
+ * Creates authentication middleware with options.
+ * @param options
  */
 export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
   return async function authMiddleware(
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): Promise<void> {
     try {
       // Extract token from Authorization header or cookie
       let token: string | undefined;
-      
+
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         token = authHeader.substring(7);
-      } else if (req.cookies?.auth_token) {
-        token = req.cookies.auth_token;
+      } else if (req.cookies?.['auth_token']) {
+        token = req.cookies['auth_token'];
       }
-      
+
       if (!token) {
         if (options.redirectToLogin) {
           // For web requests, redirect to login
-          return res.redirect('/auth');
+          res.redirect('/auth'); return;
         }
-        res.status(401).json({ error: 'unauthorized', error_description: 'Missing authentication token' });
+        res
+          .status(401)
+          .json({
+ error: 'unauthorized',
+error_description: 'Missing authentication token'
+});
         return;
       }
       // Verify token with issuer and audience validation
       const { payload } = await jwtVerify(token, {
         issuer: CONFIG.JWTISSUER,
-        audience: CONFIG.JWTAUDIENCE
+        audience: CONFIG.JWTAUDIENCE,
       });
-      
+
       const tokenPayload = payload as AccessTokenPayload;
-      
+
       // Check token type
       if (tokenPayload.tokentype !== 'access') {
         if (options.redirectToLogin) {
-          return res.redirect('/auth');
+          res.redirect('/auth'); return;
         }
-        res.status(401).json({ error: 'unauthorized', error_description: 'Invalid token type' });
+        res.status(401).json({
+ error: 'unauthorized',
+error_description: 'Invalid token type'
+});
         return;
       }
-      
+
       // Extract user data from strongly typed payload
       const authUser: AuthUser = {
         id: tokenPayload.sub,
         email: tokenPayload.user?.email || tokenPayload.email || '',
         roles: tokenPayload.user?.roles || tokenPayload.roles || [],
-        clientId: tokenPayload.clientid,
-        scope: tokenPayload.scope
+        ...tokenPayload.clientid !== undefined && { clientId: tokenPayload.clientid },
+        ...tokenPayload.scope !== undefined && { scope: tokenPayload.scope },
       };
-      
+
       // Check required roles if specified
       if (options.requiredRoles && options.requiredRoles.length > 0) {
-        const hasRequiredRole = options.requiredRoles.some(role => authUser.roles.includes(role));
+        const hasRequiredRole = options.requiredRoles.some((role) => { return authUser.roles.includes(role) });
         if (!hasRequiredRole) {
-          logger.warn('Access denied - missing required role', { 
-            userId: authUser.id, 
+          logger.warn('Access denied - missing required role', {
+            userId: authUser.id,
             requiredRoles: options.requiredRoles,
-            userRoles: authUser.roles 
+            userRoles: authUser.roles,
           });
-          res.status(403).json({ error: 'forbidden', error_description: 'Insufficient permissions' });
+          res
+            .status(403)
+            .json({
+ error: 'forbidden',
+error_description: 'Insufficient permissions'
+});
           return;
         }
       }
-      
+
       // Attach user info to request
       req.user = {
         id: authUser.id,
         sub: authUser.id,
         email: authUser.email,
         roles: authUser.roles,
-        clientid: authUser.clientId,
-        scope: authUser.scope
+        ...authUser.clientId !== undefined && { clientid: authUser.clientId },
+        ...authUser.scope !== undefined && { scope: authUser.scope },
       };
-      
+
       next();
     } catch (error) {
       logger.error('Auth middleware error', { error });
-      
+
       if (options.redirectToLogin) {
         // For web requests, redirect to login
-        return res.redirect('/auth');
+        res.redirect('/auth'); return;
       }
-      
+
       let errorDescription = 'Invalid token';
-      
+
       if (error instanceof Error) {
         if (error.message === 'Invalid issuer' || error.message === 'Invalid audience') {
           errorDescription = 'Invalid token issuer or audience';
@@ -117,13 +133,16 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
           errorDescription = 'Invalid token signature';
         }
       }
-      
-      res.status(401).json({ error: 'unauthorized', error_description: errorDescription });
+
+      res.status(401).json({
+ error: 'unauthorized',
+error_description: errorDescription
+});
     }
   };
 }
 
 /**
- * Default auth middleware for API endpoints
+ * Default auth middleware for API endpoints.
  */
 export const authMiddleware = createAuthMiddleware();

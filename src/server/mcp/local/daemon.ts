@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * @fileoverview Local MCP server daemon
+ * @file Local MCP server daemon.
  * @module server/mcp/local/daemon
  */
 
-import { LocalMCPServer } from './server.js';
+import { LocalMCPServer } from '@/server/mcp/local/server.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -12,7 +12,7 @@ const PIDFILE = '/app/state/mcp-local.pid';
 const LOGFILE = '/app/logs/mcp-local.log';
 
 /**
- * Write process ID to file for daemon management
+ * Write process ID to file for daemon management.
  */
 async function writePidFile(): Promise<void> {
   const dir = path.dirname(PIDFILE);
@@ -21,23 +21,24 @@ async function writePidFile(): Promise<void> {
 }
 
 /**
- * Remove PID file on exit
+ * Remove PID file on exit.
  */
 async function removePidFile(): Promise<void> {
   try {
     await fs.unlink(PIDFILE);
-  } catch (error) {
+  } catch {
     // Ignore if file doesn't exist
   }
 }
 
 /**
- * Log message to file
+ * Log message to file.
+ * @param message
  */
 async function log(message: string): Promise<void> {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
-  
+
   try {
     await fs.appendFile(LOGFILE, logMessage);
   } catch (error) {
@@ -46,16 +47,16 @@ async function log(message: string): Promise<void> {
 }
 
 /**
- * Main daemon process
+ * Main daemon process.
  */
 async function main(): Promise<void> {
   await log('Starting MCP local server daemon');
-  
+
   try {
     await writePidFile();
-    
+
     const server = new LocalMCPServer();
-    
+
     // Handle shutdown signals
     const shutdown = async (signal: string) => {
       await log(`Received ${signal}, shutting down...`);
@@ -63,15 +64,14 @@ async function main(): Promise<void> {
       await removePidFile();
       process.exit(0);
     };
-    
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('SIGHUP', () => shutdown('SIGHUP'));
-    
+
+    process.on('SIGTERM', async () => { return await shutdown('SIGTERM') });
+    process.on('SIGINT', async () => { return await shutdown('SIGINT') });
+    process.on('SIGHUP', async () => { return await shutdown('SIGHUP') });
+
     // Start the server
     await log('Starting STDIO server');
     await server.start();
-    
   } catch (error) {
     await log(`Fatal error: ${error}`);
     await removePidFile();

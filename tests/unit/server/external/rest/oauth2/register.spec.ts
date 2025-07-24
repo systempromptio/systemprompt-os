@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { RegisterEndpoint } from '../../../../../../src/server/external/rest/oauth2/register';
-import { logger } from '../../../../../../src/utils/logger';
+import { RegisterEndpoint } from '../../../../../../src/server/external/rest/oauth2/register.js';
+import { logger } from '../../../../../../src/utils/logger.js';
 import type { Request, Response } from 'express';
 
 // Mock dependencies
@@ -13,12 +13,12 @@ vi.mock('../../../../../../src/utils/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
 }));
 
 vi.mock('uuid', () => ({
-  v4: vi.fn(() => 'mock-uuid-123')
+  v4: vi.fn(() => 'mock-uuid-123'),
 }));
 
 describe('RegisterEndpoint', () => {
@@ -28,7 +28,7 @@ describe('RegisterEndpoint', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Clear registered clients
     const registeredClients = (RegisterEndpoint as any).registeredClients;
     if (registeredClients) {
@@ -36,14 +36,14 @@ describe('RegisterEndpoint', () => {
     }
 
     registerEndpoint = new RegisterEndpoint();
-    
+
     mockReq = {
-      body: {}
+      body: {},
     };
-    
+
     mockRes = {
       status: vi.fn().mockReturnThis(),
-      json: vi.fn()
+      json: vi.fn(),
     };
   });
 
@@ -54,7 +54,7 @@ describe('RegisterEndpoint', () => {
   describe('register', () => {
     it('should register client with minimal required fields', async () => {
       mockReq.body = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
 
       await registerEndpoint.register(mockReq as Request, mockRes as Response);
@@ -70,13 +70,13 @@ describe('RegisterEndpoint', () => {
         token_endpoint_auth_method: 'client_secret_basic',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
-        scope: 'openid profile email'
+        scope: 'openid profile email',
       });
 
       expect(logger.info).toHaveBeenCalledWith('Client registered successfully', {
         clientId: 'mcp-mock-uuid-123',
         clientName: 'MCP Client',
-        redirectUris: ['http://localhost:3000/callback']
+        redirectUris: ['http://localhost:3000/callback'],
       });
     });
 
@@ -95,7 +95,7 @@ describe('RegisterEndpoint', () => {
         policy_uri: 'https://app.example.com/privacy',
         jwks_uri: 'https://app.example.com/.well-known/jwks.json',
         software_id: 'test-software-v1',
-        software_version: '1.0.0'
+        software_version: '1.0.0',
       };
 
       await registerEndpoint.register(mockReq as Request, mockRes as Response);
@@ -119,13 +119,13 @@ describe('RegisterEndpoint', () => {
         policy_uri: 'https://app.example.com/privacy',
         jwks_uri: 'https://app.example.com/.well-known/jwks.json',
         software_id: 'test-software-v1',
-        software_version: '1.0.0'
+        software_version: '1.0.0',
       });
     });
 
     it('should reject registration without redirect_uris', async () => {
       mockReq.body = {
-        client_name: 'Test App'
+        client_name: 'Test App',
       };
 
       await registerEndpoint.register(mockReq as Request, mockRes as Response);
@@ -133,13 +133,13 @@ describe('RegisterEndpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_redirect_uri',
-        error_description: 'At least one redirect_uri is required'
+        error_description: 'At least one redirect_uri is required',
       });
     });
 
     it('should reject registration with empty redirect_uris array', async () => {
       mockReq.body = {
-        redirect_uris: []
+        redirect_uris: [],
       };
 
       await registerEndpoint.register(mockReq as Request, mockRes as Response);
@@ -147,13 +147,13 @@ describe('RegisterEndpoint', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: 'invalid_redirect_uri',
-        error_description: 'At least one redirect_uri is required'
+        error_description: 'At least one redirect_uri is required',
       });
     });
 
     it('should handle registration errors', async () => {
       mockReq.body = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
 
       // Force an error
@@ -167,8 +167,8 @@ describe('RegisterEndpoint', () => {
       expect(logger.error).toHaveBeenCalledWith('Client registration failed', { error });
       expect(mockRes.status).toHaveBeenCalledWith(500);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'server_error',
-        error_description: 'An error occurred during client registration'
+        error: 'servererror',
+        error_description: 'An error occurred during client registration',
       });
     });
   });
@@ -177,7 +177,7 @@ describe('RegisterEndpoint', () => {
     it('should retrieve registered client', () => {
       // Register a client first
       const registration = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
       const registeredClient = RegisterEndpoint.registerClient(registration);
 
@@ -198,13 +198,13 @@ describe('RegisterEndpoint', () => {
     it('should validate client with correct credentials', () => {
       // Register a client first
       const registration = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
       const registeredClient = RegisterEndpoint.registerClient(registration);
 
       const isValid = RegisterEndpoint.validateClient(
         registeredClient.client_id,
-        registeredClient.client_secret
+        registeredClient.client_secret,
       );
 
       expect(isValid).toBe(true);
@@ -213,14 +213,11 @@ describe('RegisterEndpoint', () => {
     it('should reject client with incorrect secret', () => {
       // Register a client first
       const registration = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
       const registeredClient = RegisterEndpoint.registerClient(registration);
 
-      const isValid = RegisterEndpoint.validateClient(
-        registeredClient.client_id,
-        'wrong-secret'
-      );
+      const isValid = RegisterEndpoint.validateClient(registeredClient.client_id, 'wrong-secret');
 
       expect(isValid).toBe(false);
     });
@@ -235,7 +232,7 @@ describe('RegisterEndpoint', () => {
       // Register a public client
       const registration = {
         redirect_uris: ['http://localhost:3000/callback'],
-        token_endpoint_auth_method: 'none'
+        token_endpoint_auth_method: 'none',
       };
       const registeredClient = RegisterEndpoint.registerClient(registration);
 
@@ -248,14 +245,11 @@ describe('RegisterEndpoint', () => {
       // Register a public client
       const registration = {
         redirect_uris: ['http://localhost:3000/callback'],
-        token_endpoint_auth_method: 'none'
+        token_endpoint_auth_method: 'none',
       };
       const registeredClient = RegisterEndpoint.registerClient(registration);
 
-      const isValid = RegisterEndpoint.validateClient(
-        registeredClient.client_id,
-        'any-secret'
-      );
+      const isValid = RegisterEndpoint.validateClient(registeredClient.client_id, 'any-secret');
 
       expect(isValid).toBe(true);
     });
@@ -266,7 +260,7 @@ describe('RegisterEndpoint', () => {
       const registration = {
         client_id: 'custom-client-id',
         client_name: 'Custom Client',
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
 
       const client = RegisterEndpoint.registerClient(registration);
@@ -280,7 +274,7 @@ describe('RegisterEndpoint', () => {
       const registration = {
         client_name: 'Public Client',
         redirect_uris: ['http://localhost:3000/callback'],
-        token_endpoint_auth_method: 'none'
+        token_endpoint_auth_method: 'none',
       };
 
       const client = RegisterEndpoint.registerClient(registration);
@@ -305,12 +299,12 @@ describe('RegisterEndpoint', () => {
 
     it('should set timestamps correctly', () => {
       const beforeTime = Math.floor(Date.now() / 1000);
-      
+
       const registration = {
-        redirect_uris: ['http://localhost:3000/callback']
+        redirect_uris: ['http://localhost:3000/callback'],
       };
       const client = RegisterEndpoint.registerClient(registration);
-      
+
       const afterTime = Math.floor(Date.now() / 1000);
 
       expect(client.client_id_issued_at).toBeGreaterThanOrEqual(beforeTime);

@@ -1,12 +1,10 @@
 /**
- * @fileoverview Custom MCP Server Loader
+ * @file Custom MCP Server Loader.
  * @module server/mcp/custom-loader
- * 
  * @remarks
  * This module handles the discovery and loading of custom MCP servers from the
  * file system. It supports both local embedded servers (Express handlers) and
  * remote server configurations.
- * 
  * Directory structure:
  * ```
  * server/mcp/custom/
@@ -20,18 +18,20 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import { MCPServerRegistry } from './registry.js';
-import { 
-  MCPServerType, 
-  LocalMCPServer, 
-  RemoteMCPServer,
+import type { MCPServerRegistry } from '@/server/mcp/registry.js';
+import type {
+  LocalMCPServer,
+  MCPLoaderOptions,
   MCPServerModule,
   RemoteMCPConfig,
-  MCPLoaderOptions
-} from './types.js';
+  RemoteMCPServer
+} from '@/server/mcp/types.js';
+import {
+  MCPServerType
+} from '@/server/mcp/types.js';
 
 /**
- * Default options for the MCP loader
+ * Default options for the MCP loader.
  */
 const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
   loadRemoteConfigs: true,
@@ -39,12 +39,10 @@ const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
 };
 
 /**
- * Custom MCP Server Loader
- * 
+ * Custom MCP Server Loader.
  * @remarks
  * Responsible for discovering and loading MCP servers from the custom directory.
  * Supports both local embedded servers and remote server configurations.
- * 
  * @example
  * ```typescript
  * const loader = new CustomMCPLoader( registry);
@@ -52,16 +50,15 @@ const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
  * ```
  */
 export class CustomMCPLoader {
-  private options: MCPLoaderOptions;
+  private readonly options: MCPLoaderOptions;
 
   /**
-   * Creates a new CustomMCPLoader instance
-   * 
-   * @param registry - The MCP server registry to register servers with
-   * @param options - Loader options
+   * Creates a new CustomMCPLoader instance.
+   * @param registry - The MCP server registry to register servers with.
+   * @param options - Loader options.
    */
   constructor(
-    private registry: MCPServerRegistry,
+    private readonly registry: MCPServerRegistry,
     options?: Partial<MCPLoaderOptions>
   ) {
     this.options = {
@@ -72,59 +69,57 @@ export class CustomMCPLoader {
   }
 
   /**
-   * Load all custom MCP servers from the custom directory
-   * 
-   * @param customDir - Optional override for the custom directory path
-   * @returns Promise that resolves when all servers are loaded
+   * Load all custom MCP servers from the custom directory.
+   * @param customDir - Optional override for the custom directory path.
+   * @returns Promise that resolves when all servers are loaded.
    */
   async loadAllServers(customDir?: string): Promise<void> {
     const dir = customDir || this.options.customDir;
-    
+
     try {
       // Load local embedded servers
-      const localServers = await this.discoverLocalServers( dir);
+      const localServers = await this.discoverLocalServers(dir);
       for (const serverDir of localServers) {
         await this.loadLocalServer(serverDir, dir);
       }
 
       // Load remote server configurations
       if (this.options.loadRemoteConfigs) {
-        await this.loadRemoteConfigs( dir);
+        await this.loadRemoteConfigs(dir);
       }
 
       console.log(`✅ Loaded ${this.registry.getServerCount()} custom MCP servers`);
-    } catch ( error) {
+    } catch (error) {
       console.error('❌ Failed to load custom MCP servers:', error);
     }
   }
 
   /**
-   * Discover local MCP server directories
-   * 
-   * @param customDir - Directory to search for servers
-   * @returns Array of directory names containing potential MCP servers
+   * Discover local MCP server directories.
+   * @param customDir - Directory to search for servers.
+   * @returns Array of directory names containing potential MCP servers.
    */
-  private async discoverLocalServers( customDir: string): Promise<string[]> {
-    if (!fs.existsSync( customDir)) {
+  private async discoverLocalServers(customDir: string): Promise<string[]> {
+    if (!fs.existsSync(customDir)) {
       console.log(`📁 Custom directory does not exist: ${customDir}`);
       return [];
     }
 
-    const entries = fs.readdirSync( customDir);
+    const entries = fs.readdirSync(customDir);
     const servers: string[] = [];
 
     for (const entry of entries) {
       const fullPath = path.join(customDir, entry);
-      const stat = fs.statSync( fullPath);
-      
+      const stat = fs.statSync(fullPath);
+
       if (stat.isDirectory() && !entry.startsWith('.')) {
         // Check if it looks like a Node.js module
         const packageJsonPath = path.join(fullPath, 'package.json');
         const indexPath = path.join(fullPath, 'index.js');
         const buildIndexPath = path.join(fullPath, 'build', 'index.js');
-        
-        if (fs.existsSync( packageJsonPath) || fs.existsSync( indexPath) || fs.existsSync( buildIndexPath)) {
-          servers.push( entry);
+
+        if (fs.existsSync(packageJsonPath) || fs.existsSync(indexPath) || fs.existsSync(buildIndexPath)) {
+          servers.push(entry);
         }
       }
     }
@@ -134,28 +129,27 @@ export class CustomMCPLoader {
   }
 
   /**
-   * Load a single local MCP server
-   * 
-   * @param serverDir - Directory name of the server
-   * @param customDir - Parent custom directory
-   * @returns Promise that resolves when the server is loaded
+   * Load a single local MCP server.
+   * @param serverDir - Directory name of the server.
+   * @param customDir - Parent custom directory.
+   * @returns Promise that resolves when the server is loaded.
    */
-  private async loadLocalServer( serverDir: string, customDir: string): Promise<void> {
+  private async loadLocalServer(serverDir: string, customDir: string): Promise<void> {
     const serverPath = path.join(customDir, serverDir);
-    
+
     try {
       console.log(`📦 Loading local MCP server: ${serverDir}`);
-      
+
       // Determine entry point
-      const entryPoint = this.findEntryPoint( serverPath);
+      const entryPoint = this.findEntryPoint(serverPath);
       if (!entryPoint) {
         throw new Error(`No entry point found for server: ${serverDir}`);
       }
 
       // Dynamic import of the server module
-      const moduleUrl = pathToFileURL( entryPoint).href;
-      const module = await import( moduleUrl) as MCPServerModule;
-      
+      const moduleUrl = pathToFileURL(entryPoint).href;
+      const module = await import(moduleUrl) as MCPServerModule;
+
       // Validate the module exports
       if (!module.createMCPHandler || typeof module.createMCPHandler !== 'function') {
         throw new Error(`Invalid MCP server module: ${serverDir} - missing createMCPHandler export`);
@@ -174,40 +168,38 @@ export class CustomMCPLoader {
         type: MCPServerType.LOCAL,
         description: serverDescription,
         createHandler: module.createMCPHandler,
-        getActiveSessionCount: () => 0, // TODO: Implement session tracking
+        getActiveSessionCount: () => { return 0 }, // TODO: Implement session tracking
         shutdown: async () => {
           console.log(`🛑 Shutting down ${serverName}`);
         }
       };
 
       // Register with the registry
-      await this.registry.registerServer( localServer);
+      await this.registry.registerServer(localServer);
       console.log(`✅ Loaded local server: ${serverName} v${serverVersion}`);
-      
-    } catch ( error) {
+    } catch (error) {
       console.error(`❌ Failed to load local server ${serverDir}:`, error);
     }
   }
 
   /**
-   * Find the entry point for a server module
-   * 
-   * @param serverPath - Path to the server directory
-   * @returns Path to the entry point file, or null if not found
+   * Find the entry point for a server module.
+   * @param serverPath - Path to the server directory.
+   * @returns Path to the entry point file, or null if not found.
    */
-  private findEntryPoint( serverPath: string): string | null {
+  private findEntryPoint(serverPath: string): string | null {
     // Check package.json for main field
     const packageJsonPath = path.join(serverPath, 'package.json');
-    if (fs.existsSync( packageJsonPath)) {
+    if (fs.existsSync(packageJsonPath)) {
       try {
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
         if (packageJson.main) {
           const mainPath = path.join(serverPath, packageJson.main);
-          if (fs.existsSync( mainPath)) {
+          if (fs.existsSync(mainPath)) {
             return mainPath;
           }
         }
-      } catch ( error) {
+      } catch (error) {
         console.warn(`⚠️  Failed to parse package.json for ${serverPath}:`, error);
       }
     }
@@ -222,7 +214,7 @@ export class CustomMCPLoader {
 
     for (const entry of commonEntryPoints) {
       const entryPath = path.join(serverPath, entry);
-      if (fs.existsSync( entryPath)) {
+      if (fs.existsSync(entryPath)) {
         return entryPath;
       }
     }
@@ -231,24 +223,25 @@ export class CustomMCPLoader {
   }
 
   /**
-   * Load remote server configurations from YAML file
-   * 
-   * @param customDir - Custom directory containing the config file
-   * @returns Promise that resolves when remote configs are loaded
+   * Load remote server configurations from YAML file.
+   * @param customDir - Custom directory containing the config file.
+   * @returns Promise that resolves when remote configs are loaded.
    */
-  private async loadRemoteConfigs( customDir: string): Promise<void> {
-    const configPath = path.join(customDir, this.options.remoteConfigFile!);
-    
-    if (!fs.existsSync( configPath)) {
+  private async loadRemoteConfigs(customDir: string): Promise<void> {
+    const configPath = path.join(customDir, this.options.remoteConfigFile || 'remote-servers.yaml');
+
+    if (!fs.existsSync(configPath)) {
       console.log(`📄 No remote server config found at: ${configPath}`);
       return;
     }
 
     try {
-      // For now, we'll use JSON instead of YAML for simplicity
-      // In production, you'd use a YAML parser like js-yaml
+      /*
+       * For now, we'll use JSON instead of YAML for simplicity
+       * In production, you'd use a YAML parser like js-yaml
+       */
       const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
-      const configs = JSON.parse( configContent) as RemoteMCPConfig[];
+      const configs = JSON.parse(configContent) as RemoteMCPConfig[];
 
       for (const config of configs) {
         const remoteServer: RemoteMCPServer = {
@@ -260,10 +253,10 @@ export class CustomMCPLoader {
           config
         };
 
-        await this.registry.registerServer( remoteServer);
+        await this.registry.registerServer(remoteServer);
         console.log(`✅ Loaded remote server config: ${config.name} -> ${config.url}`);
       }
-    } catch ( error) {
+    } catch (error) {
       console.error('❌ Failed to load remote server configs:', error);
     }
   }

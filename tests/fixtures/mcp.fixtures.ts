@@ -1,4 +1,4 @@
-import type { MCPSession, MCPRequest, MCPResponse } from '../../src/server/mcp/types';
+import type { MCPSession, MCPRequest, MCPResponse } from '../../src/server/mcp/types.js';
 
 export function createMCPSessionFixture(overrides?: Partial<MCPSession>): MCPSession {
   return {

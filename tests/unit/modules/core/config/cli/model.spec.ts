@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/config/cli/model';
-import { providers, getEnabledProviders, getProvider } from '../../../../../../src/modules/core/config/providers';
+import { command } from '../../../../../../src/modules/core/config/cli/model.js';
+import { providers, getEnabledProviders, getProvider } from '../../../../../../src/modules/core/config/providers.js';
 import { GoogleGenAI } from '@google/genai';
 
 // Mock dependencies

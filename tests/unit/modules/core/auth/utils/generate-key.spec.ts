@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateJWTKeyPair, GenerateKeyOptions } from '../../../../../../src/modules/core/auth/utils/generate-key';
+import { generateJWTKeyPair, GenerateKeyOptions } from '../../../../../../src/modules/core/auth/utils/generate-key.js';
 import { generateKeyPairSync } from 'crypto';
 import { writeFileSync } from 'fs';
 import { join } from 'path';

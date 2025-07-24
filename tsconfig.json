@@ -1,38 +1,61 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
+    "module": "NodeNext",
     "lib": ["ES2022"],
-    "outDir": "./build",
-    "rootDir": "src",
+    "moduleResolution": "NodeNext",
+    
+    // MAXIMUM STRICTNESS - ALL FLAGS ON
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    // DO NOT CHANGE
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    
+    // NO UNUSED CODE
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    
+    // NO UNREACHABLE CODE
+    "allowUnreachableCode": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["node"],
+    
+    // FORCE CONSISTENT CODE
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    
+    // ERROR ON ANY ISSUE
+    "noEmitOnError": true,
+    
+    // Module settings
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
+    // Paths
+    "outDir": "./build",
+    "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@cli/*": ["src/cli/*"],
-      "@server/*": ["src/server/*"],
-      "@modules/*": ["src/modules/*"],
-      "@tools/*": ["src/tools/*"],
-      "@services/*": ["src/services/*"],
-      "@types/*": ["src/types/*"],
-      "@utils/*": ["src/utils/*"]
+      "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "dist", "scripts", "tests", "**/*.test.ts", "**/*.spec.ts"]
+  "include": ["src/**/*", "tests/unit/modules/core/database/tests", "tests/unit/modules/core/database/cli/migrate.test.ts", "tests/unit/modules/core/database/cli/query.test.ts", "tests/unit/modules/core/database/cli/rollback.test.ts", "tests/unit/modules/core/database/cli/schema.test.ts"],
+  "exclude": ["node_modules", "build", "dist"]
 }

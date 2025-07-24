@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { FIXBUG_PROMPT, BUGFIXING_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/bug-fixing';
+import { FIXBUG_PROMPT, BUGFIXING_PROMPTS } from '../../../../../../../src/server/mcp/core/handlers/prompts/bug-fixing.js';
 
 describe('Bug Fixing Prompts', () => {
   describe('FIXBUG_PROMPT', () => {

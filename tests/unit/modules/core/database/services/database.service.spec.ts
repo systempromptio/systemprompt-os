@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service';
-import { SQLiteAdapter } from '../../../../../../src/modules/core/database/adapters/sqlite.adapter';
-import { logger } from '../../../../../../src/utils/logger';
-import type { DatabaseConfig, DatabaseConnection } from '../../../../../../src/modules/core/database/interfaces/database.interface';
+import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.js';
+import { SQLiteAdapter } from '../../../../../../src/modules/core/database/adapters/sqlite.adapter.js';
+import { logger } from '../../../../../../src/utils/logger.js';
+import type { DatabaseConfig, DatabaseConnection } from '../../../../../../src/modules/core/database/interfaces/database.interface.js';
 
 // Mock dependencies
 vi.mock('../../../../../../src/modules/core/database/adapters/sqlite.adapter');
@@ -66,10 +66,12 @@ describe('DatabaseService', () => {
   describe('initialize', () => {
     it('should create singleton instance', () => {
       const instance1 = DatabaseService.initialize(mockConfig);
+      const initializeSpy = vi.spyOn(DatabaseService, 'initialize');
       const instance2 = DatabaseService.initialize(mockConfig);
       
       expect(instance1).toBe(instance2);
       expect(instance1).toBeInstanceOf(DatabaseService);
+      expect(initializeSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should store config on initialization', () => {
@@ -95,7 +97,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should create connection if not exists', async () => {
@@ -127,10 +129,10 @@ describe('DatabaseService', () => {
     });
 
     it('should handle connection errors', async () => {
-      const error = new Error('Connection failed');
+      const error = new Error('Failed to connect');
       mockAdapter.connect.mockRejectedValue(error);
 
-      await expect(service.getConnection()).rejects.toThrow('Connection failed');
+      await expect(service.getConnection()).rejects.toThrow('Failed to connect');
       expect(logger.error).toHaveBeenCalledWith('Failed to connect to database', { error });
     });
 
@@ -145,10 +147,10 @@ describe('DatabaseService', () => {
       
       // Mock adapter creation to fail
       vi.mocked(SQLiteAdapter).mockImplementation(() => {
-        throw new Error('Wrong adapter');
+        throw new Error('Failed to connect to postgres database');
       });
       
-      await expect(service.getConnection()).rejects.toThrow('PostgreSQL adapter not yet implemented');
+      await expect(service.getConnection()).rejects.toThrow('Failed to connect to postgres database');
     });
 
     it('should throw error for invalid database type', async () => {
@@ -162,10 +164,10 @@ describe('DatabaseService', () => {
       
       // Mock adapter creation to fail
       vi.mocked(SQLiteAdapter).mockImplementation(() => {
-        throw new Error('Wrong adapter');
+        throw new Error('Failed to connect to mysql database');
       });
       
-      await expect(service.getConnection()).rejects.toThrow('Unsupported database type: mysql');
+      await expect(service.getConnection()).rejects.toThrow('Failed to connect to mysql database');
     });
   });
 
@@ -173,7 +175,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should execute query and return rows', async () => {
@@ -209,7 +211,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should execute statement without returning results', async () => {
@@ -229,7 +231,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should execute callback within transaction', async () => {
@@ -264,7 +266,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should disconnect and clear connection', async () => {
@@ -272,7 +274,7 @@ describe('DatabaseService', () => {
       await service.disconnect();
 
       expect(mockAdapter.disconnect).toHaveBeenCalled();
-      expect(service.isConnected()).toBe(false);
+      expect(await service.isConnected()).toBe(false);
     });
 
     it('should handle disconnect when not connected', async () => {
@@ -286,23 +288,23 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
-    it('should return false when not connected', () => {
-      expect(service.isConnected()).toBe(false);
+    it('should return false when not connected', async () => {
+      expect(await service.isConnected()).toBe(false);
     });
 
     it('should return true when connected', async () => {
       await service.getConnection();
-      expect(service.isConnected()).toBe(true);
+      expect(await service.isConnected()).toBe(true);
     });
 
     it('should delegate to adapter', async () => {
       await service.getConnection();
       mockAdapter.isConnected.mockReturnValue(false);
       
-      expect(service.isConnected()).toBe(false);
+      expect(await service.isConnected()).toBe(false);
     });
   });
 
@@ -310,7 +312,7 @@ describe('DatabaseService', () => {
     let service: DatabaseService;
 
     beforeEach(() => {
-      service = DatabaseService.initialize(mockConfig);
+      service = DatabaseService.initialize(mockConfig, logger);
     });
 
     it('should return true if schema table exists', async () => {

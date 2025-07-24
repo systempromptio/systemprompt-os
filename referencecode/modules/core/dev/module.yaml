@@ -1,0 +1,97 @@
+name: dev
+version: 1.0.0
+description: Development and debugging tools for SystemPrompt OS
+author: SystemPrompt OS Team
+type: extension
+
+dependencies:
+  - logger
+  - database
+  - cli
+
+cli:
+  commands:
+    - name: repl
+      description: Start interactive REPL
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Module to load in REPL context
+    - name: debug
+      description: Enable debug mode
+      options:
+        - name: enable
+          alias: e
+          type: boolean
+          description: Enable debug mode
+          default: true
+        - name: module
+          alias: m
+          type: string
+          description: Enable debug for specific module
+    - name: profile
+      description: Profile performance
+      options:
+        - name: duration
+          alias: d
+          type: number
+          description: Profile duration in seconds
+          default: 60
+        - name: output
+          alias: o
+          type: string
+          description: Output file for profile data
+    - name: test
+      description: Run tests
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Test specific module
+        - name: watch
+          alias: w
+          type: boolean
+          description: Watch mode
+          default: false
+        - name: coverage
+          alias: c
+          type: boolean
+          description: Generate coverage report
+          default: false
+    - name: lint
+      description: Run linter
+      options:
+        - name: fix
+          alias: f
+          type: boolean
+          description: Auto-fix linting issues
+          default: false
+        - name: module
+          alias: m
+          type: string
+          description: Lint specific module
+    - name: format
+      description: Format code
+      options:
+        - name: check
+          alias: c
+          type: boolean
+          description: Check formatting without applying changes
+          default: false
+        - name: module
+          alias: m
+          type: string
+          description: Format specific module
+    - name: watch
+      description: Watch for changes
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Watch specific module
+        - name: rebuild
+          alias: r
+          type: boolean
+          description: Rebuild on changes
+          default: true

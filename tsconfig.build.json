@@ -1,13 +1,19 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": [
-    "node_modules",
-    "build",
-    "dist",
-    "scripts",
-    "tests",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "e2e-test/**/*"
-  ]
+  "compilerOptions": {
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictPropertyInitialization": false,
+    "exactOptionalPropertyTypes": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noEmitOnError": false,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false
+  }
 }

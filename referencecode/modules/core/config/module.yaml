@@ -1,0 +1,298 @@
+name: config
+type: service
+version: 1.0.0
+description: Configuration management for SystemPrompt OS with AI provider support
+author: systemprompt-os
+
+config:
+  # Configuration storage paths
+  configPath: ./state/config
+  envFile: .env
+  
+  # Provider configuration
+  providers:
+    # Available providers (immutable list of supported providers)
+    available:
+      - google-liveapi
+      # - openai        # Future support
+      # - anthropic     # Future support
+      # - local-llm     # Future support
+    
+    # Enabled providers (can be modified at runtime)
+    enabled:
+      - google-liveapi
+    
+    # Default provider to use
+    default: google-liveapi
+  
+  # System-wide defaults
+  defaults:
+    system:
+      port: 8080
+      host: localhost
+      environment: development
+      logLevel: info
+    
+    # Memory and storage configuration
+    storage:
+      provider: filesystem
+      path: ./state
+    
+    # Action executor configuration
+    action:
+      executor: local
+      timeout: 30000
+    
+    # Scheduler configuration
+    scheduler:
+      type: cron
+      timezone: UTC
+    
+    # Authentication configuration
+    auth:
+      provider: oauth2
+      sessionTimeout: 3600
+
+# Module dependencies
+dependencies:
+  - logger
+
+# CLI commands
+cli:
+  commands:
+    # Basic configuration commands
+    - name: get
+      description: Get configuration value(s)
+      options:
+        - name: key
+          type: string
+          description: Configuration key (optional, shows all if omitted)
+    
+    - name: set
+      description: Set configuration value
+      options:
+        - name: key
+          type: string
+          description: Configuration key
+          required: true
+        - name: value
+          type: string
+          description: Configuration value
+          required: true
+    
+    - name: list
+      description: List all configuration values
+      options:
+        - name: format
+          type: string
+          description: Output format (json, yaml, tree)
+          default: tree
+    
+    - name: validate
+      description: Validate configuration
+      options:
+        - name: file
+          alias: f
+          type: string
+          description: Configuration file to validate
+    
+    - name: export
+      description: Export all configurations
+      options:
+        - name: output
+          alias: o
+          type: string
+          description: Output file path
+          default: ./backup/config-export.json
+        - name: format
+          alias: f
+          type: string
+          description: Export format (json, yaml)
+          default: json
+        - name: include-secrets
+          type: boolean
+          description: Include sensitive values
+          default: false
+    
+    - name: import
+      description: Import configurations
+      options:
+        - name: file
+          alias: f
+          type: string
+          description: Configuration file to import
+          required: true
+        - name: dry-run
+          type: boolean
+          description: Preview changes without applying
+          default: false
+        - name: merge
+          type: boolean
+          description: Merge with existing config (vs replace)
+          default: true
+    
+    - name: diff
+      description: Show config differences
+      options:
+        - name: file1
+          type: string
+          description: First config file (default current)
+        - name: file2
+          type: string
+          description: Second config file to compare
+          required: true
+        - name: format
+          type: string
+          description: Output format (unified, context, json)
+          default: unified
+    
+    - name: history
+      description: View config change history
+      options:
+        - name: limit
+          alias: n
+          type: number
+          description: Number of entries to show
+          default: 10
+        - name: since
+          type: string
+          description: Show changes since date
+        - name: key
+          type: string
+          description: Filter by config key
+    
+    - name: rollback
+      description: Rollback configuration
+      options:
+        - name: to
+          type: string
+          description: Rollback to timestamp or version
+          required: true
+        - name: key
+          type: string
+          description: Rollback specific key only
+        - name: dry-run
+          type: boolean
+          description: Preview rollback without applying
+          default: false
+    
+    - name: validate-all
+      description: Validate all configurations
+      options:
+        - name: fix
+          type: boolean
+          description: Attempt to fix issues
+          default: false
+        - name: strict
+          type: boolean
+          description: Use strict validation
+          default: false
+    
+    - name: env
+      description: Manage environment variables
+      options:
+        - name: action
+          type: string
+          description: Action (list, get, set, unset, export)
+          default: list
+        - name: key
+          type: string
+          description: Environment variable name
+        - name: value
+          type: string
+          description: Environment variable value (for set)
+        - name: file
+          type: string
+          description: .env file path
+          default: .env
+    
+    # Provider management commands
+    - name: provider
+      description: Manage AI providers
+      subcommands:
+        - name: list
+          description: List all providers
+          options:
+            - name: enabled
+              type: boolean
+              description: Show only enabled providers
+        
+        - name: show
+          description: Show provider details
+          options:
+            - name: name
+              type: string
+              description: Provider name
+              required: true
+            - name: models
+              type: boolean
+              description: Include model configurations
+        
+        - name: enable
+          description: Enable a provider
+          options:
+            - name: name
+              type: string
+              description: Provider name
+              required: true
+        
+        - name: disable
+          description: Disable a provider
+          options:
+            - name: name
+              type: string
+              description: Provider name
+              required: true
+        
+        - name: set-default
+          description: Set default provider
+          options:
+            - name: name
+              type: string
+              description: Provider name
+              required: true
+    
+    # Model management commands
+    - name: model
+      description: Manage AI models
+      subcommands:
+        - name: list
+          description: List all models
+          options:
+            - name: provider
+              type: string
+              description: Filter by provider
+        
+        - name: show
+          description: Show model configuration
+          options:
+            - name: provider
+              type: string
+              description: Provider name
+              required: true
+            - name: model
+              type: string
+              description: Model name
+              required: true
+        
+        - name: test
+          description: Test a model configuration
+          options:
+            - name: provider
+              type: string
+              description: Provider name
+              required: true
+            - name: model
+              type: string
+              description: Model name
+              required: true
+            - name: prompt
+              type: string
+              description: Test prompt
+              default: "Hello, please respond with 'Test successful!'"
+
+# Module exports
+exports:
+  - ConfigModule
+  - providers
+  - providerRegistry

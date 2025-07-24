@@ -1,5 +1,5 @@
 import { beforeAll, afterAll } from 'vitest';
-import { DockerTestEnvironment } from './utils/docker-test-utils';
+import { DockerTestEnvironment } from './utils/docker-test-utils.js';
 import { config } from 'dotenv';
 
 // Load environment variables from .env file

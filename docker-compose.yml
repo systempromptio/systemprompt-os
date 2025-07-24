@@ -13,6 +13,7 @@ services:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
       - DATABASE_FILE=/data/state/systemprompt.db
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
       - OAUTH_DOMAIN=${OAUTH_DOMAIN:-https://democontainer.systemprompt.io}
       - STATE_PATH=/data/state
       - PROJECTS_PATH=/data/projects
@@ -29,6 +30,11 @@ services:
       # Cloudflare Tunnel (optional)
       - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      # Core module settings
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - CONFIG_PATH=/data/config
+      # MCP Settings
+      - MCP_AUTH_REQUIRED=${MCP_AUTH_REQUIRED:-true}
     volumes:
       # Persistent data storage
       - systemprompt-data:/data

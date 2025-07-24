@@ -1,54 +1,62 @@
 /**
- * @fileoverview Identity Provider Interface
- * @module server/external/auth/providers/interface
+ * OAuth2 provider interface.
  */
 
-import type { OAuth2TokenResponse, OAuth2ClientCredentials } from '@/types/oauth2.js';
-
-export interface IDPUserInfo {
-  id: string;
-  email?: string;
-  email_verified?: boolean;  // Standard OpenID Connect claim
-  name?: string;
-  picture?: string;
-  locale?: string;
-  // Additional provider-specific fields
-  raw?: Record<string, any>;
-}
-
-// Use standard OAuth2 token response
-export type IDPTokens = OAuth2TokenResponse;
-
-// Use standard OAuth2 client credentials
-export type IDPConfig = OAuth2ClientCredentials;
-
-export interface IdentityProvider {
+export interface OAuth2Provider {
   id: string;
   name: string;
-  type: 'oauth2' | 'oidc' | 'saml';
-  
-  /**
-   * Get the authorization URL for this provider
-   */
-  getAuthorizationUrl( state: string, nonce?: string): string;
-  
-  /**
-   * Exchange authorization code for tokens
-   */
-  exchangeCodeForTokens( code: string): Promise<IDPTokens>;
-  
-  /**
-   * Get user information from the provider
-   */
-  getUserInfo( accessToken: string): Promise<IDPUserInfo>;
-  
-  /**
-   * Refresh tokens if supported
-   */
-  refreshTokens?( refreshToken: string): Promise<IDPTokens>;
-  
-  /**
-   * Revoke tokens if supported
-   */
-  revokeTokens?( token: string): Promise<void>;
+  getAuthorizationUrl(state: string): string;
+  exchangeCodeForToken(code: string): Promise<OAuth2TokenResponse>;
+  getUserInfo(accessToken: string): Promise<OAuth2UserInfo>;
+  refreshToken?(refreshToken: string): Promise<OAuth2TokenResponse>;
 }
+
+export interface OAuth2Config {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint?: string;
+  scope?: string;
+}
+
+export interface OAuth2TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+}
+
+export interface OAuth2UserInfo {
+  id: string;
+  email?: string;
+  name?: string;
+  avatar?: string;
+  [key: string]: unknown;
+}
+
+export interface GenericOAuth2Config extends OAuth2Config {
+  id: string;
+  name: string;
+  issuer?: string;
+  jwks_uri?: string;
+  userinfo_mapping?: Record<string, string>;
+}
+
+export interface GoogleConfig extends OAuth2Config {
+  id: string;
+  name: string;
+}
+
+export interface GitHubConfig extends OAuth2Config {
+  id: string;
+  name: string;
+}
+
+// Legacy aliases for backward compatibility
+export type IDPConfig = OAuth2Config;
+export type IDPTokens = OAuth2TokenResponse;
+export type IDPUserInfo = OAuth2UserInfo;
+export type IdentityProvider = OAuth2Provider;

@@ -1,128 +1,96 @@
 /**
- * @fileoverview Enterprise-grade JWT implementation with RSA and HMAC support
+ * @file Enterprise-grade JWT implementation with RSA and HMAC support.
  * @module server/external/auth/jwt
  */
 
-import { 
-  createSign, 
-  createVerify, 
+import type {KeyObject} from 'crypto';
+import {
   createHmac,
-  createPrivateKey, 
-  createPublicKey, 
-  KeyObject,
-  randomBytes 
+  createPrivateKey,
+  createPublicKey,
+  createSign,
+  createVerify,
+  randomBytes,
 } from 'crypto';
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 /**
- * Supported JWT algorithms
+ * Supported JWT algorithms.
  */
 export type JWTAlgorithm = 'RS256' | 'RS384' | 'RS512' | 'HS256' | 'HS384' | 'HS512';
 
 /**
- * JWT header structure compliant with RFC 7519
+ * JWT header structure compliant with RFC 7519.
  */
 export interface JWTHeader {
-  /** Algorithm used for signing */
-  alg: JWTAlgorithm;
-  /** Token type (always 'JWT') */
-  typ: 'JWT';
-  /** Key ID for key rotation support */
-  kid?: string;
+    alg: JWTAlgorithm;
+    typ: 'JWT';
+    kid?: string;
 }
 
 /**
- * JWT payload structure with standard registered claims
+ * JWT payload structure with standard registered claims.
  * @see https://datatracker.ietf.org/doc/html/rfc7519#section-4.1
  */
 export interface JWTPayload {
-  /** Issuer */
-  iss?: string;
-  /** Subject */
-  sub?: string;
-  /** Audience */
-  aud?: string | string[];
-  /** Expiration time (seconds since epoch) */
-  exp?: number;
-  /** Not before time (seconds since epoch) */
-  nbf?: number;
-  /** Issued at time (seconds since epoch) */
-  iat?: number;
-  /** JWT ID for one-time use tokens */
-  jti?: string;
-  /** Additional claims */
-  [key: string]: any;
+    iss?: string;
+    sub?: string;
+    aud?: string | string[];
+    exp?: number;
+    nbf?: number;
+    iat?: number;
+    jti?: string;
+    [key: string]: any;
 }
 
 /**
- * JWT signing options
+ * JWT signing options.
  */
 export interface SignOptions {
-  /** Algorithm to use (defaults based on available keys) */
-  algorithm?: JWTAlgorithm;
-  /** Key ID for rotation support */
-  keyId?: string;
-  /** Token lifetime in seconds (default: 3600) */
-  expiresIn?: number;
-  /** Delay before token is valid in seconds */
-  notBefore?: number;
-  /** Token issuer */
-  issuer?: string;
-  /** Token audience */
-  audience?: string | string[];
-  /** JWT ID (auto-generated if not provided) */
-  jwtId?: string;
-  /** Include issued at claim (default: true) */
-  includeIssuedAt?: boolean;
+    algorithm?: JWTAlgorithm;
+    keyId?: string;
+    expiresIn?: number;
+    notBefore?: number;
+    issuer?: string;
+    audience?: string | string[];
+    jwtId?: string;
+    includeIssuedAt?: boolean;
 }
 
 /**
- * JWT verification options
+ * JWT verification options.
  */
 export interface VerifyOptions {
-  /** Allowed algorithms (default: all RSA if keys exist, else HS256) */
-  algorithms?: JWTAlgorithm[];
-  /** Expected issuer */
-  issuer?: string | string[];
-  /** Expected audience */
-  audience?: string | string[];
-  /** Clock tolerance in seconds for time-based claims */
-  clockTolerance?: number;
-  /** Ignore expiration check */
-  ignoreExpiration?: boolean;
-  /** Ignore not before check */
-  ignoreNotBefore?: boolean;
-  /** Maximum token age in seconds */
-  maxAge?: number;
+    algorithms?: JWTAlgorithm[];
+    issuer?: string | string[];
+    audience?: string | string[];
+    clockTolerance?: number;
+    ignoreExpiration?: boolean;
+    ignoreNotBefore?: boolean;
+    maxAge?: number;
 }
 
 /**
- * JWT verification result
+ * JWT verification result.
  */
 export interface JWTVerifyResult {
-  /** Decoded payload */
-  payload: JWTPayload;
-  /** Decoded header */
-  header: JWTHeader;
+    payload: JWTPayload;
+    header: JWTHeader;
 }
 
 /**
- * Crypto key configuration
+ * Crypto key configuration.
  */
 interface KeyConfig {
-  /** RSA private key */
-  privateKey?: KeyObject;
-  /** RSA public key */
-  publicKey?: KeyObject;
-  /** HMAC secret */
-  secret?: string;
-  /** Available algorithms based on loaded keys */
-  availableAlgorithms: JWTAlgorithm[];
+    privateKey?: KeyObject;
+    publicKey?: KeyObject;
+    secret?: string;
+    availableAlgorithms: JWTAlgorithm[];
 }
 
 /**
- * Singleton key manager for efficient key handling
+ * Singleton key manager for efficient key handling.
  */
 class KeyManager {
   private static instance: KeyManager;
@@ -131,25 +99,23 @@ class KeyManager {
   private readonly keyPath: string;
 
   private constructor() {
-    this.keyPath = process.env.JWT_KEY_PATH || 
-      resolve(process.env.STATE_PATH || './state', 'auth/keys');
+    this.keyPath
+      = process.env['JWT_KEY_PATH'] || resolve(process.env['STATE_PATH'] || './state', 'auth/keys');
   }
 
   /**
-   * Get singleton instance
+   * Get singleton instance.
    */
   static getInstance(): KeyManager {
-    if (!KeyManager.instance) {
-      KeyManager.instance = new KeyManager();
-    }
+    KeyManager.instance ||= new KeyManager();
     return KeyManager.instance;
   }
 
   /**
-   * Initialize keys based on available configuration
+   * Initialize keys based on available configuration.
    */
   private async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.initialized) { return; }
 
     const algorithms: JWTAlgorithm[] = [];
 
@@ -169,8 +135,10 @@ class KeyManager {
 
     // In production, we require RSA keys
     if (algorithms.length === 0) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error('JWT RSA keys not found in production. Keys should be generated during container startup.');
+      if (process.env['NODE_ENV'] === 'production') {
+        throw new Error(
+          'JWT RSA keys not found in production. Keys should be generated during container startup.',
+        );
       } else {
         // Development only: use ephemeral HMAC secret
         console.warn('No JWT RSA keys found, using ephemeral HMAC secret (development only)');
@@ -184,7 +152,7 @@ class KeyManager {
   }
 
   /**
-   * Get configuration
+   * Get configuration.
    */
   async getConfig(): Promise<KeyConfig> {
     await this.initialize();
@@ -192,7 +160,7 @@ class KeyManager {
   }
 
   /**
-   * Get default algorithm based on available keys
+   * Get default algorithm based on available keys.
    */
   async getDefaultAlgorithm(): Promise<JWTAlgorithm> {
     const config = await this.getConfig();
@@ -201,7 +169,7 @@ class KeyManager {
   }
 
   /**
-   * Clear cache for key rotation
+   * Clear cache for key rotation.
    */
   clearCache(): void {
     this.initialized = false;
@@ -210,41 +178,40 @@ class KeyManager {
 }
 
 /**
- * Sign a JWT token
- * @param payload - Token payload
- * @param options - Signing options
- * @returns Signed JWT token
+ * Sign a JWT token.
+ * @param payload - Token payload.
+ * @param options - Signing options.
+ * @returns Signed JWT token.
  */
-export async function jwtSign(
-  payload: JWTPayload,
-  options: SignOptions = {}
-): Promise<string> {
+export async function jwtSign(payload: JWTPayload, options: SignOptions = {}): Promise<string> {
   const keyManager = KeyManager.getInstance();
   const config = await keyManager.getConfig();
   const algorithm = options.algorithm || await keyManager.getDefaultAlgorithm();
 
   // Validate algorithm is available
   if (!config.availableAlgorithms.includes(algorithm)) {
-    throw new Error(`Algorithm ${algorithm} not available. Available: ${config.availableAlgorithms.join(', ')}`);
+    throw new Error(
+      `Algorithm ${algorithm} not available. Available: ${config.availableAlgorithms.join(', ')}`,
+    );
   }
 
   // Build header
   const header: JWTHeader = {
     alg: algorithm,
     typ: 'JWT',
-    ...(options.keyId && { kid: options.keyId })
+    ...options.keyId && { kid: options.keyId },
   };
 
   // Build payload with standard claims
   const now = Math.floor(Date.now() / 1000);
   const finalPayload: JWTPayload = {
     ...payload,
-    ...(options.includeIssuedAt !== false && { iat: now }),
-    ...(options.expiresIn && { exp: now + options.expiresIn }),
-    ...(options.notBefore && { nbf: now + options.notBefore }),
-    ...(options.issuer && { iss: options.issuer }),
-    ...(options.audience && { aud: options.audience }),
-    ...(options.jwtId && { jti: options.jwtId })
+    ...options.includeIssuedAt !== false && { iat: now },
+    ...options.expiresIn && { exp: now + options.expiresIn },
+    ...options.notBefore && { nbf: now + options.notBefore },
+    ...options.issuer && { iss: options.issuer },
+    ...options.audience && { aud: options.audience },
+    ...options.jwtId && { jti: options.jwtId },
   };
 
   // Set default expiration if not provided
@@ -265,9 +232,9 @@ export async function jwtSign(
     }
     // Map RS algorithms to their digest names
     const digestMap: Record<string, string> = {
-      'RS256': 'RSA-SHA256',
-      'RS384': 'RSA-SHA384',
-      'RS512': 'RSA-SHA512'
+      RS256: 'RSA-SHA256',
+      RS384: 'RSA-SHA384',
+      RS512: 'RSA-SHA512',
     };
     const digest = digestMap[algorithm];
     if (!digest) {
@@ -289,14 +256,14 @@ export async function jwtSign(
 }
 
 /**
- * Verify a JWT token
- * @param token - JWT token to verify
- * @param options - Verification options
- * @returns Verification result with payload and header
+ * Verify a JWT token.
+ * @param token - JWT token to verify.
+ * @param options - Verification options.
+ * @returns Verification result with payload and header.
  */
 export async function jwtVerify(
   token: string,
-  options: VerifyOptions = {}
+  options: VerifyOptions = {},
 ): Promise<JWTVerifyResult> {
   // Parse token
   const parts = token.split('.');
@@ -309,10 +276,10 @@ export async function jwtVerify(
   // Decode header and payload
   let header: JWTHeader;
   let payload: JWTPayload;
-  
+
   try {
-    header = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString());
-    payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString());
+    header = JSON.parse(Buffer.from(encodedHeader!, 'base64url').toString());
+    payload = JSON.parse(Buffer.from(encodedPayload!, 'base64url').toString());
   } catch {
     throw new Error('Invalid token encoding');
   }
@@ -334,16 +301,16 @@ export async function jwtVerify(
 
   // Verify signature
   const message = `${encodedHeader}.${encodedPayload}`;
-  
+
   if (header.alg.startsWith('RS')) {
     if (!config.publicKey) {
       throw new Error('RSA public key not available');
     }
     // Map RS algorithms to their digest names
     const digestMap: Record<string, string> = {
-      'RS256': 'RSA-SHA256',
-      'RS384': 'RSA-SHA384',
-      'RS512': 'RSA-SHA512'
+      RS256: 'RSA-SHA256',
+      RS384: 'RSA-SHA384',
+      RS512: 'RSA-SHA512',
     };
     const digest = digestMap[header.alg];
     if (!digest) {
@@ -351,7 +318,7 @@ export async function jwtVerify(
     }
     const verifier = createVerify(digest);
     verifier.update(message);
-    if (!verifier.verify(config.publicKey, signature, 'base64url')) {
+    if (!verifier.verify(config.publicKey, signature!, 'base64url')) {
       throw new Error('Invalid signature');
     }
   } else {
@@ -359,12 +326,12 @@ export async function jwtVerify(
       throw new Error('HMAC secret not available');
     }
     const expectedSignature = createHmac(
-      header.alg.toLowerCase().replace('hs', 'sha'), 
-      config.secret
+      header.alg.toLowerCase().replace('hs', 'sha'),
+      config.secret,
     )
       .update(message)
       .digest('base64url');
-    
+
     if (signature !== expectedSignature) {
       throw new Error('Invalid signature');
     }
@@ -402,58 +369,60 @@ export async function jwtVerify(
 
   // Verify audience
   if (options.audience !== undefined) {
-    const expectedAudiences = Array.isArray(options.audience) 
-      ? options.audience 
+    const expectedAudiences = Array.isArray(options.audience)
+      ? options.audience
       : [options.audience];
-    const tokenAudiences = Array.isArray(payload.aud) 
-      ? payload.aud 
-      : payload.aud ? [payload.aud] : [];
-    
-    const hasValidAudience = expectedAudiences.some(
-      aud => tokenAudiences.includes(aud)
-    );
-    
+    const tokenAudiences = Array.isArray(payload.aud)
+      ? payload.aud
+      : payload.aud
+        ? [payload.aud]
+        : [];
+
+    const hasValidAudience = expectedAudiences.some((aud) => { return tokenAudiences.includes(aud) });
+
     if (!hasValidAudience) {
       throw new Error('Invalid audience');
     }
   }
 
-  return { payload, header };
+  return {
+ payload,
+header
+};
 }
 
 /**
- * Decode JWT without verification (for debugging only)
- * @param token - JWT token
- * @returns Decoded token or null if invalid
+ * Decode JWT without verification (for debugging only).
+ * @param token - JWT token.
+ * @returns Decoded token or null if invalid.
  */
 export function jwtDecode(token: string): JWTVerifyResult | null {
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) { return null; }
 
-    const header = JSON.parse(
-      Buffer.from(parts[0], 'base64url').toString()
-    ) as JWTHeader;
-    
-    const payload = JSON.parse(
-      Buffer.from(parts[1], 'base64url').toString()
-    ) as JWTPayload;
+    const header = JSON.parse(Buffer.from(parts[0]!, 'base64url').toString()) as JWTHeader;
 
-    return { header, payload };
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as JWTPayload;
+
+    return {
+ header,
+payload
+};
   } catch {
     return null;
   }
 }
 
 /**
- * Reload keys (for key rotation)
+ * Reload keys (for key rotation).
  */
 export function reloadKeys(): void {
   KeyManager.getInstance().clearCache();
 }
 
 /**
- * Get current JWT configuration for diagnostics
+ * Get current JWT configuration for diagnostics.
  */
 export async function getJWTInfo(): Promise<{
   mode: 'rsa' | 'hmac' | 'hybrid';
@@ -462,7 +431,7 @@ export async function getJWTInfo(): Promise<{
 }> {
   const keyManager = KeyManager.getInstance();
   const config = await keyManager.getConfig();
-  
+
   let mode: 'rsa' | 'hmac' | 'hybrid';
   if (config.privateKey && config.secret) {
     mode = 'hybrid';
@@ -475,6 +444,6 @@ export async function getJWTInfo(): Promise<{
   return {
     mode,
     algorithms: config.availableAlgorithms,
-    keyPath: process.env.JWT_KEY_PATH
+    ...process.env['JWT_KEY_PATH'] !== undefined && { keyPath: process.env['JWT_KEY_PATH'] },
   };
 }

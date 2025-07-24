@@ -1,13 +1,19 @@
 /**
- * @fileoverview Who Am I tool for user identification
+ * @file Who Am I tool for user identification.
  * @module auth/tools/whoami
  */
 
-import type { ToolDefinition } from '../../tools/types/index.js';
+// Tool definition interface (temporary until MCP types are available)
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: any;
+  execute: (input: any, context: any) => Promise<any>;
+}
 
 /**
  * Who Am I tool definition
- * Returns information about the current user
+ * Returns information about the current user.
  */
 export const tool: ToolDefinition = {
   name: 'whoami',
@@ -29,14 +35,9 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  scope: 'all',
-  metadata: {
-    requiredRole: undefined,
-    requiredPermissions: []
-  },
-  handler: async (params: any, context: any) => {
+  execute: async (params: any, context: any) => {
     const { includePermissions = false, includeSession = false } = params || {};
-    
+
     // Mock implementation for demonstration
     const result: any = {
       message: `User: ${context.userEmail || 'user@example.com'} (${context.userId || 'anonymous'})`,
@@ -47,18 +48,18 @@ export const tool: ToolDefinition = {
         isAdmin: context.role === 'admin'
       }
     };
-    
+
     if (includePermissions) {
       result.result.permissions = context.permissions || ['read:own'];
     }
-    
+
     if (includeSession) {
       result.result.session = {
         id: context.sessionId || 'local-session',
         isLocal: context.isLocal || false
       };
     }
-    
+
     return result;
   }
 };

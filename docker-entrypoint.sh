@@ -1,9 +1,25 @@
 #!/bin/sh
 set -e
 
-# Ensure state directories exist with correct permissions
+# Initialize state directories
 echo "Initializing state directories..."
-mkdir -p /data/state/tasks /data/state/sessions /data/state/logs /data/state/reports /data/state/auth/keys
+
+# If /data exists but we can't write to it, it's likely a fresh Docker volume owned by root
+# Since we're running as appuser, we need to use a writable location
+if [ -d /data ] && [ ! -w /data ]; then
+    echo "⚠️  /data exists but is not writable (likely a fresh Docker volume)"
+    echo "    Using local directory instead"
+    export STATE_PATH="/app/state"
+    export DATABASE_FILE="/app/state/systemprompt.db"
+    mkdir -p /app/state/tasks /app/state/sessions /app/state/logs /app/state/reports /app/state/auth/keys
+elif [ -d /data/state ] && [ -w /data/state ]; then
+    echo "✓ State directory is ready and writable at /data/state"
+else
+    echo "⚠️  Creating state directory in app directory"
+    export STATE_PATH="/app/state"
+    export DATABASE_FILE="/app/state/systemprompt.db"
+    mkdir -p /app/state/tasks /app/state/sessions /app/state/logs /app/state/reports /app/state/auth/keys
+fi
 
 # Handle custom code directories
 echo "Setting up custom code directories..."
@@ -43,15 +59,7 @@ if mountpoint -q /app/server/mcp/custom 2>/dev/null; then
     echo "✓ Custom MCP servers bind mount detected"
 fi
 
-# Check if we can write to the directories
-if ! touch /data/state/.write-test 2>/dev/null; then
-    echo "Warning: Cannot write to /data/state. Falling back to local directory."
-    export STATE_PATH="./coding-agent-state"
-    mkdir -p ./coding-agent-state/tasks ./coding-agent-state/sessions ./coding-agent-state/logs ./coding-agent-state/reports
-else
-    rm -f /data/state/.write-test
-    echo "✓ State directory is writable: /data/state"
-fi
+# Directory writability is already verified above
 
 # Set default environment variables
 export NODE_ENV=${NODE_ENV:-production}
@@ -60,74 +68,33 @@ export STATE_PATH=${STATE_PATH:-/data/state}
 export PROJECTS_PATH=${PROJECTS_PATH:-/data/projects}
 export DATABASE_FILE=${DATABASE_FILE:-/data/state/database.db}
 
-# Initialize database if not already initialized
-if [ ! -f "$DATABASE_FILE" ] || ! /usr/local/bin/systemprompt database:status >/dev/null 2>&1; then
-    echo "Initializing database..."
-    /usr/local/bin/systemprompt database:schema --action=init
-    echo "✓ Database initialized"
-fi
-
-# Initialize JWT keys if not already present
-JWT_KEY_PATH="$STATE_PATH/auth/keys"
-
-# Ensure key directory exists with secure permissions
-mkdir -p "$JWT_KEY_PATH"
-chmod 700 "$JWT_KEY_PATH"
-
-if [ ! -f "$JWT_KEY_PATH/private.key" ] || [ ! -f "$JWT_KEY_PATH/public.key" ]; then
-    echo "Generating secure RSA-2048 JWT signing keys..."
+# Initialize database - always start fresh for now to avoid schema conflicts
+if [ -w "$(dirname "$DATABASE_FILE")" ]; then
+    echo "Setting up database at: $DATABASE_FILE"
+    # Create directory if needed
+    mkdir -p "$(dirname "$DATABASE_FILE")"
     
-    # Create temporary directory with restricted permissions in memory
-    TEMP_KEY_DIR=$(mktemp -d -p /dev/shm 2>/dev/null || mktemp -d)
-    chmod 700 "$TEMP_KEY_DIR"
-    
-    # Generate RSA-2048 keys using the CLI tool
-    if /usr/local/bin/systemprompt auth:generatekey --type jwt --algorithm RS256 --format pem --output "$TEMP_KEY_DIR"; then
-        # Use atomic move operations to prevent partial writes
-        mv -f "$TEMP_KEY_DIR/private.key" "$JWT_KEY_PATH/private.key"
-        mv -f "$TEMP_KEY_DIR/public.key" "$JWT_KEY_PATH/public.key"
-        
-        # Set secure permissions (only readable by owner)
-        chmod 400 "$JWT_KEY_PATH/private.key"
-        chmod 444 "$JWT_KEY_PATH/public.key"
-        
-        echo "✓ RSA-2048 JWT keys generated and secured at: $JWT_KEY_PATH"
-    else
-        echo "✗ Failed to generate JWT keys"
-        exit 1
+    # For now, always start with a fresh database to avoid schema migration issues
+    if [ -f "$DATABASE_FILE" ]; then
+        echo "Removing existing database to ensure clean start..."
+        rm -f "$DATABASE_FILE" "$DATABASE_FILE-shm" "$DATABASE_FILE-wal"
     fi
     
-    # Clean up temp directory
-    rm -rf "$TEMP_KEY_DIR"
-fi
-
-# In production, RSA keys are required and generated above
-# No HMAC fallback needed
-
-# Verify key permissions and ownership on every startup
-if [ -f "$JWT_KEY_PATH/private.key" ]; then
-    chmod 400 "$JWT_KEY_PATH/private.key"
-    echo "✓ Private key permissions verified"
-fi
-if [ -f "$JWT_KEY_PATH/public.key" ]; then
-    chmod 444 "$JWT_KEY_PATH/public.key"
-    echo "✓ Public key permissions verified"
-fi
-
-# Verify keys are readable by checking they exist
-if [ -f "$JWT_KEY_PATH/private.key" ] && [ -f "$JWT_KEY_PATH/public.key" ]; then
-    echo "✓ JWT RSA keys verified and ready"
+    echo "Database will be initialized on first application start"
 else
-    echo "✗ JWT keys missing - authentication will not work"
-    exit 1
+    echo "Warning: Cannot write to database directory $(dirname "$DATABASE_FILE")"
+    echo "Database will be created in local directory on first access"
 fi
+
+# JWT keys will be generated automatically by the auth module on first run
+# No need for manual generation here
 
 # Check and start Cloudflare tunnel if token is provided
 if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
     echo "Starting Cloudflare tunnel..."
     
     # Start cloudflared in the background
-    cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" > /data/state/logs/cloudflared.log 2>&1 &
+    cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" > "$STATE_PATH/logs/cloudflared.log" 2>&1 &
     TUNNEL_PID=$!
     
     # Wait a moment for tunnel to establish
@@ -138,8 +105,8 @@ if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
         echo "✓ Cloudflare tunnel started (PID: $TUNNEL_PID)"
         
         # Try to extract the tunnel URL from the logs
-        if [ -f "/data/state/logs/cloudflared.log" ]; then
-            TUNNEL_URL=$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' /data/state/logs/cloudflared.log | head -n1)
+        if [ -f "$STATE_PATH/logs/cloudflared.log" ]; then
+            TUNNEL_URL=$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' "$STATE_PATH/logs/cloudflared.log" | head -n1)
             if [ -n "$TUNNEL_URL" ]; then
                 echo "✓ Tunnel URL: $TUNNEL_URL"
                 export CLOUDFLARE_TUNNEL_URL="$TUNNEL_URL"
@@ -149,7 +116,7 @@ if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
         fi
     else
         echo "✗ Failed to start Cloudflare tunnel"
-        echo "Check logs at: /data/state/logs/cloudflared.log"
+        echo "Check logs at: $STATE_PATH/logs/cloudflared.log"
     fi
 else
     echo "- No Cloudflare tunnel token provided"
@@ -158,23 +125,30 @@ fi
 # Start local MCP server daemon
 echo "Starting local MCP server daemon..."
 
-# Start the daemon using the startup script
-if [ -f "/app/scripts/start-local-mcp.sh" ]; then
-    /app/scripts/start-local-mcp.sh
+# Start the daemon using built version
+if [ -f "/app/build/server/mcp/local/daemon.js" ]; then
+    echo "Starting local MCP daemon..."
+    cd /app && node --loader ./loader.mjs build/server/mcp/local/daemon.js 2>&1 > "$STATE_PATH/logs/mcp-local.log" &
+    echo $! > "$STATE_PATH/mcp-local.pid"
+    echo "✓ Local MCP server daemon started (PID: $(cat $STATE_PATH/mcp-local.pid))"
 else
-    echo "⚠️  Local MCP startup script not found, starting directly..."
-    node /app/build/server/mcp/local/daemon.js 2>&1 > /data/state/logs/mcp-local.log &
-    echo $! > /var/run/mcp-local.pid
-    echo "✓ Local MCP server daemon started (PID: $(cat /var/run/mcp-local.pid))"
+    echo "⚠️  Local MCP daemon script not found"
 fi
 
 
 
-echo "Starting SystemPrompt OS MCP Server..."
+echo "Starting SystemPrompt OS..."
 echo "- Environment: $NODE_ENV"
 echo "- Port: $PORT"
 echo "- State Path: $STATE_PATH"
 echo "- Projects Path: $PROJECTS_PATH"
+echo "- Base URL: ${BASE_URL:-http://localhost:$PORT}"
+
+# If using Cloudflare tunnel, update BASE_URL
+if [ -n "$CLOUDFLARE_TUNNEL_URL" ]; then
+    export BASE_URL="$CLOUDFLARE_TUNNEL_URL"
+    echo "- Using Cloudflare URL: $BASE_URL"
+fi
 
 # Configure Git to trust the workspace directory
 if [ -d "/workspace/.git" ]; then
@@ -183,12 +157,6 @@ if [ -d "/workspace/.git" ]; then
     git config --system --add safe.directory /workspace 2>/dev/null || \
     git config --global --add safe.directory /workspace 2>/dev/null || \
     echo "Warning: Could not configure Git safe directory"
-fi
-
-# Start the local MCP daemon
-if [ -f "/app/scripts/start-local-mcp.sh" ]; then
-    echo "Starting local MCP daemon..."
-    /app/scripts/start-local-mcp.sh
 fi
 
 # Execute the main command

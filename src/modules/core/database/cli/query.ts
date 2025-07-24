@@ -1,6 +1,6 @@
-import type { CLICommand, CLIContext } from "@/cli/src/types";
-import { ensureDatabaseInitialized } from "./utils";
-import { DatabaseService } from "@/modules/core/database/services/database.service";
+import type { CLICommand, CLIContext } from "@/modules/core/cli/types/index.js";
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils.js';
+import { DatabaseService } from "@/modules/core/database/services/database.service.js";
 import * as readline from "readline";
 
 export const command: CLICommand = {
@@ -44,20 +44,20 @@ export const command: CLICommand = {
   async execute(context: CLIContext): Promise<void> {
     try {
       const { dbService } = await ensureDatabaseInitialized();
-      
+
       // Check if database is initialized
       const isInitialized = await dbService.isInitialized();
-      
+
       if (!isInitialized) {
         console.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
         process.exit(1);
       }
 
-      const readonly = context.args.readonly !== false;
-      const format = context.args.format || "table";
-      const interactive = context.args.interactive || false;
-      const sqlQuery = context.args.sql;
-      const sqlFile = context.args.file;
+      const readonly = context.args['readonly'] !== false;
+      const format = context.args['format'] || "table";
+      const interactive = context.args['interactive'] || false;
+      const sqlQuery = context.args['sql'];
+      const sqlFile = context.args['file'];
 
       if (interactive) {
         await startInteractiveShell(dbService, readonly, format);
@@ -69,16 +69,16 @@ export const command: CLICommand = {
         console.error("Please provide --sql, --file, or --interactive option.");
         process.exit(1);
       }
-    } catch (error: any) {
-      console.error("Error executing query:", error.message);
+    } catch (error) {
+      console.error("Error executing query:", (error as Error).message);
       process.exit(1);
     }
   },
 };
 
 async function executeQuery(
-  dbService: any, 
-  sql: string, 
+  dbService: DatabaseService,
+  sql: string,
   readonly: boolean,
   format: string
 ): Promise<void> {
@@ -103,42 +103,42 @@ async function executeQuery(
       // No results or write query
       console.log(`Query executed successfully (${duration}ms)`);
     }
-  } catch (error: any) {
-    console.error("Query failed:", error.message);
+  } catch (error) {
+    console.error("Query failed:", (error as Error).message);
     process.exit(1);
   }
 }
 
 async function executeFile(
-  dbService: any,
+  dbService: DatabaseService,
   filePath: string,
   readonly: boolean,
   format: string
 ): Promise<void> {
   const fs = await import('fs/promises');
-  
+
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     const queries = content
       .split(';')
-      .map(q => q.trim())
-      .filter(q => q.length > 0);
+      .map(q => { return q.trim() })
+      .filter(q => { return q.length > 0 });
 
     console.log(`Executing ${queries.length} queries from ${filePath}...\n`);
 
     for (let i = 0; i < queries.length; i++) {
       console.log(`Query ${i + 1}/${queries.length}:`);
-      await executeQuery(dbService, queries[i], readonly, format);
+      await executeQuery(dbService, queries[i]!, readonly, format);
       console.log("");
     }
-  } catch (error: any) {
-    console.error("Error reading file:", error.message);
+  } catch (error) {
+    console.error("Error reading file:", (error as Error).message);
     process.exit(1);
   }
 }
 
 async function startInteractiveShell(
-  dbService: any,
+  dbService: DatabaseService,
   readonly: boolean,
   format: string
 ): Promise<void> {
@@ -167,7 +167,7 @@ async function startInteractiveShell(
     }
 
     // Accumulate multiline queries
-    multilineQuery += line + ' ';
+    multilineQuery += `${line} `;
 
     // Check if query is complete (ends with semicolon)
     if (trimmed.endsWith(';')) {
@@ -176,10 +176,10 @@ async function startInteractiveShell(
 
       try {
         await executeQuery(dbService, query.slice(0, -1), readonly, format);
-      } catch (error: any) {
-        console.error("Error:", error.message);
+      } catch (error) {
+        console.error("Error:", (error as Error).message);
       }
-      
+
       rl.prompt();
     } else {
       // Continue multiline input
@@ -200,7 +200,7 @@ async function handleCommand(command: string, rl: readline.Interface): Promise<v
     case '.quit':
       rl.close();
       break;
-      
+
     case '.help':
       console.log("\nCommands:");
       console.log("  .exit    Exit the shell");
@@ -209,32 +209,33 @@ async function handleCommand(command: string, rl: readline.Interface): Promise<v
       console.log("\nSQL queries must end with a semicolon (;)");
       console.log("Multi-line queries are supported\n");
       break;
-      
-    case '.tables':
-      const dbService = DatabaseService.getInstance();
-      
+
+    case '.tables': {
+      const _dbService = DatabaseService.getInstance();
+
       try {
-        let tables: any[];
-        const dbType = dbService.getDatabaseType();
-        
-        if (dbType === 'sqlite') {
-          tables = await dbService.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
+        let _tables: any[];
+        const _dbType = _dbService.getDatabaseType();
+
+        if (_dbType === 'sqlite') {
+          _tables = await _dbService.query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
         } else {
-          tables = await dbService.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
+          _tables = await _dbService.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
         }
-        
-        if (tables.length > 0) {
+
+        if (_tables.length > 0) {
           console.log("\nTables:");
-          tables.forEach(t => console.log(`  ${t.name || t.tablename}`));
+          _tables.forEach(t => { console.log(`  ${t.name || t.tablename}`); });
           console.log("");
         } else {
           console.log("\nNo tables found.\n");
         }
-      } catch (error: any) {
-        console.error("Error listing tables:", error.message);
+      } catch (error) {
+        console.error("Error listing tables:", (error as Error).message);
       }
       break;
-      
+    }
+
     default:
       console.log(`Unknown command: ${command}`);
       console.log("Type '.help' for help\n");
@@ -244,8 +245,8 @@ async function handleCommand(command: string, rl: readline.Interface): Promise<v
 function isReadOnlyQuery(sql: string): boolean {
   const query = sql.trim().toLowerCase();
   const readOnlyKeywords = ['select', 'show', 'describe', 'explain', 'with'];
-  
-  return readOnlyKeywords.some(keyword => query.startsWith(keyword));
+
+  return readOnlyKeywords.some(keyword => { return query.startsWith(keyword) });
 }
 
 function formatOutput(rows: any[], format: string): void {
@@ -258,14 +259,14 @@ function formatOutput(rows: any[], format: string): void {
     case 'json':
       console.log(JSON.stringify(rows, null, 2));
       break;
-      
-    case 'csv':
+
+    case 'csv': {
       const headers = Object.keys(rows[0]);
       console.log(headers.join(','));
       rows.forEach(row => {
         const values = headers.map(h => {
           const value = row[h];
-          if (value === null) return '';
+          if (value === null) { return ''; }
           if (typeof value === 'string' && value.includes(',')) {
             return `"${value.replace(/"/g, '""')}"`;
           }
@@ -274,33 +275,36 @@ function formatOutput(rows: any[], format: string): void {
         console.log(values.join(','));
       });
       break;
-      
+    }
+
     case 'table':
-    default:
+    default: {
       // Calculate column widths
-      const columns = Object.keys(rows[0]);
-      const widths: Record<string, number> = {};
-      
-      columns.forEach(col => {
-        widths[col] = col.length;
+      const _columns = Object.keys(rows[0]);
+      const _widths: Record<string, number> = {};
+
+      _columns.forEach(col => {
+        _widths[col] = col.length;
         rows.forEach(row => {
-          const value = String(row[col] ?? 'NULL');
-          widths[col] = Math.max(widths[col], value.length);
+          const _value = String(row[col] ?? 'NULL');
+          _widths[col] = Math.max(_widths[col]!, _value.length);
         });
       });
 
       // Print header
-      const header = columns.map(col => col.padEnd(widths[col])).join(' | ');
+      const header = _columns.map(col => { return col.padEnd(_widths[col]!) }).join(' | ');
       console.log(header);
       console.log('-'.repeat(header.length));
 
       // Print rows
       rows.forEach(row => {
-        const values = columns.map(col => {
+        const values = _columns.map(col => {
           const value = row[col] === null ? 'NULL' : String(row[col]);
-          return value.padEnd(widths[col]);
+          return value.padEnd(_widths[col]!);
         });
         console.log(values.join(' | '));
       });
+      break;
+    }
   }
 }

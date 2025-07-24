@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/config/cli/get';
+import { command } from '../../../../../../src/modules/core/config/cli/get.js';
 import { ConfigModule } from '../../../../../../src/modules/core/config/index.js';
 
 vi.mock('../../../../../../src/modules/core/config/index.js');

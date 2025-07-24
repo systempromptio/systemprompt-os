@@ -1,0 +1,73 @@
+name: cli
+type: service
+version: 1.0.0
+description: CLI utilities and help system for SystemPrompt OS
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+config:
+  showColors: true
+  outputFormat: text
+  interactiveMode: true
+dependencies:
+  - logger
+cli:
+  commands:
+    - name: help
+      description: Show help information for commands
+      options:
+        - name: command
+          type: string
+          description: Specific command to get help for
+        - name: all
+          alias: a
+          type: boolean
+          description: Show all available commands
+    - name: list
+      description: List all available commands
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Filter commands by module
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json, table)
+          default: text
+    - name: docs
+      description: Generate command documentation
+      options:
+        - name: output
+          alias: o
+          type: string
+          description: Output file path
+        - name: format
+          alias: f
+          type: string
+          description: Documentation format (markdown, html, json)
+          default: markdown
+    - name: mcp:list
+      description: List available MCP tools
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (json, table)
+          default: table
+    - name: mcp:call
+      description: Call an MCP tool
+      positionals:
+        - name: tool
+          type: string
+          description: Tool name to call
+          required: true
+      options:
+        - name: args
+          alias: a
+          type: string
+          description: Tool arguments as JSON string
+          default: '{}'
+        - name: format
+          alias: f
+          type: string
+          description: Output format (json, pretty)
+          default: pretty

@@ -1,21 +1,25 @@
 /**
- * @fileoverview Dashboard page for authenticated users
+ * @file Dashboard page for authenticated users.
  * @module server/external/rest/dashboard
  */
 
-import type { Request, Response, Router } from 'express';
-import { renderLayout } from '../templates/config/layout.js';
+import type {
+ Request, Response, Router
+} from 'express';
+import { renderLayout } from '@/server/external/templates/config/layout.js';
 
 /**
- * Dashboard endpoint for authenticated users
+ * Dashboard endpoint for authenticated users.
  */
 export class DashboardEndpoint {
   /**
-   * Render the dashboard page
+   * Render the dashboard page.
+   * @param req
+   * @param res
    */
   public async handleDashboard(req: Request, res: Response): Promise<void> {
     const user = req.user!; // Guaranteed by auth middleware
-    
+
     const content = `
       <div class="dashboard">
         <h1>Welcome to SystemPrompt OS</h1>
@@ -54,19 +58,19 @@ export class DashboardEndpoint {
         </div>
       </div>
     `;
-    
+
     const html = renderLayout({
       title: 'Dashboard',
       content,
       styles: getDashboardStyles()
     });
-    
+
     res.type('html').send(html);
   }
 }
 
 /**
- * Dashboard-specific styles
+ * Dashboard-specific styles.
  */
 function getDashboardStyles(): string {
   return `
@@ -149,11 +153,12 @@ function getDashboardStyles(): string {
 }
 
 /**
- * Configure dashboard routes
+ * Configure dashboard routes.
+ * @param router
  */
 export function setupRoutes(router: Router): void {
   const dashboardEndpoint = new DashboardEndpoint();
-  
-  router.get('/dashboard', (req, res) => dashboardEndpoint.handleDashboard(req, res));
-  router.get('/', (req, res) => dashboardEndpoint.handleDashboard(req, res)); // Root redirects to dashboard for authenticated users
+
+  router.get('/dashboard', async (req, res) => { await dashboardEndpoint.handleDashboard(req, res); });
+  router.get('/', async (req, res) => { await dashboardEndpoint.handleDashboard(req, res); }); // Root redirects to dashboard for authenticated users
 }

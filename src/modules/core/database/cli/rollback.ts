@@ -1,5 +1,5 @@
-import type { CLICommand, CLIContext } from "@/cli/src/types";
-import { ensureDatabaseInitialized } from "./utils";
+import type { CLICommand, CLIContext } from "@/modules/core/cli/types/index.js";
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils.js';
 
 export const command: CLICommand = {
   name: "rollback",
@@ -28,15 +28,15 @@ export const command: CLICommand = {
   ],
   async execute(context: CLIContext): Promise<void> {
     try {
-      const steps = context.args.steps || 1;
-      const moduleFilter = context.args.module;
-      const force = context.args.force || false;
-      
+      const steps = context.args['steps'] || 1;
+      const moduleFilter = context.args['module'];
+      const force = context.args['force'] || false;
+
       const { dbService, migrationService } = await ensureDatabaseInitialized();
 
       // Check if database is initialized
       const isInitialized = await dbService.isInitialized();
-      
+
       if (!isInitialized) {
         console.error("Database is not initialized. Nothing to rollback.");
         process.exit(1);
@@ -44,10 +44,10 @@ export const command: CLICommand = {
 
       // Get executed migrations
       let executedMigrations = await migrationService.getExecutedMigrations();
-      
+
       // Filter by module if specified
       if (moduleFilter) {
-        executedMigrations = executedMigrations.filter(m => m.module === moduleFilter);
+        executedMigrations = executedMigrations.filter(m => { return m.module === moduleFilter });
       }
 
       if (executedMigrations.length === 0) {
@@ -59,7 +59,7 @@ export const command: CLICommand = {
       const migrationsToRollback = executedMigrations.slice(0, steps);
 
       console.log(`Planning to rollback ${migrationsToRollback.length} migration(s):\n`);
-      
+
       for (const migration of migrationsToRollback) {
         console.log(`  - ${migration.module}/${migration.name} (executed: ${migration.executed_at})`);
       }
@@ -84,7 +84,7 @@ export const command: CLICommand = {
         } catch (error: any) {
           console.error(`  ✗ Failed: ${error.message}`);
           failureCount++;
-          
+
           // Stop on first failure to maintain consistency
           if (failureCount > 0) {
             break;

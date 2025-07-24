@@ -1,11 +1,11 @@
 /**
- * @fileoverview List all available CLI commands
+ * @file List all available CLI commands.
  * @module modules/core/cli/cli/list
  */
 
-import { CLIModule } from '@/modules/core/cli';
-import { CLIContext, CLICommand } from '@/modules/core/cli/types';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { getModuleLoader } from '@/modules/loader.js';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index.js';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
 
 export const command: CLICommand = {
   description: 'List all available commands',
@@ -14,7 +14,7 @@ export const command: CLICommand = {
       name: 'module',
       alias: 'm',
       type: 'string',
-      description: 'Filter commands by module'
+      description: 'Filter commands by module',
     },
     {
       name: 'format',
@@ -22,53 +22,61 @@ export const command: CLICommand = {
       type: 'string',
       description: 'Output format (text, json, table)',
       default: 'text',
-      choices: ['text', 'json', 'table']
-    }
+      choices: ['text', 'json', 'table'],
+    },
   ],
   examples: [
     'systemprompt cli:list',
     'systemprompt cli:list --format json',
-    'systemprompt cli:list --module auth'
+    'systemprompt cli:list --module auth',
   ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
-    const format = args.format || 'text';
-    const filterModule = args.module;
-    
+    const format = args['format'] || 'text';
+    const filterModule = args['module'];
+
     try {
-      const cliModule = new CLIModule();
-      await cliModule.initialize({ logger: context.logger });
-      
+      const moduleLoader = getModuleLoader();
+      const cliModule = moduleLoader.getModule('cli');
+      if (!cliModule || !cliModule.exports) {
+        throw new Error('CLI module not loaded');
+      }
+
+      const cliService = cliModule.exports['service']?.();
+      if (!cliService) {
+        throw new Error('CLI service not available');
+      }
+
       // Get all available commands
-      const commands = await cliModule.getAllCommands();
-      
+      const commands = await cliService.getAllCommands();
+
       // Filter by module if specified
       let filteredCommands = commands;
       if (filterModule) {
+        const commandsArray = Array.from(commands.entries()) as Array<[string, any]>;
         filteredCommands = new Map(
-          Array.from(commands.entries()).filter(([name]) => 
-            name.startsWith(`${filterModule}:`)
-          )
+          commandsArray.filter(([name]) => name.startsWith(`${filterModule}:`))
         );
       }
-      
+
       if (format === 'json') {
         // Output commands in JSON format for the API
-        const commandsArray = Array.from(filteredCommands.entries()).map(([name, cmd]) => {
+        const commandsArray = Array.from(filteredCommands.entries()) as Array<[string, any]>;
+        const mappedCommands = commandsArray.map(([name, cmd]) => {
           const parts = name.split(':');
           const module = parts.length > 1 ? parts[0] : 'core';
           const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
-          
+
           return {
             command: commandName,
-            module: module,
+            module,
             description: cmd.description || 'No description available',
             usage: `systemprompt ${name}`,
             options: cmd.options || [],
-            positionals: cmd.positionals || []
+            positionals: cmd.positionals || [],
           };
         });
-        
+
         console.log(JSON.stringify(commandsArray, null, 2));
       } else {
         // Display commands in text format
@@ -80,5 +88,5 @@ export const command: CLICommand = {
     } catch (error) {
       throw new CommandExecutionError('cli:list', error as Error);
     }
-  }
+  },
 };

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { RESOURCES } from '../../../../../../src/server/mcp/core/constants/resources';
+import { RESOURCES } from '../../../../../../src/server/mcp/core/constants/resources.js';
 
 describe('resources constants', () => {
   describe('RESOURCES array', () => {

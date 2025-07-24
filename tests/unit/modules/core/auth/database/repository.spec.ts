@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AuthRepository } from '../../../../../../src/modules/core/auth/database/repository';
-import { DatabaseService } from '../../../../../../src/modules/core/database/index';
-import { UserService } from '../../../../../../src/modules/core/auth/services/user-service';
+import { AuthRepository } from '../../../../../../src/modules/core/auth/database/repository.js';
+import { DatabaseService } from '../../../../../../src/modules/core/database/index.js';
+import { UserService } from '../../../../../../src/modules/core/auth/services/user-service.js';
 import { randomUUID } from 'node:crypto';
 
 // Mock dependencies

@@ -1,10 +1,5 @@
 /**
- * @fileoverview Custom error classes for CLI module
- * @module modules/core/cli/utils/errors
- */
-
-/**
- * Base error class for CLI-related errors
+ * Base error class for CLI-related errors.
  */
 export class CLIError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -15,7 +10,7 @@ export class CLIError extends Error {
 }
 
 /**
- * Error thrown when a command is not found
+ * Error thrown when a command is not found.
  */
 export class CommandNotFoundError extends CLIError {
   constructor(public readonly commandName: string) {
@@ -25,7 +20,7 @@ export class CommandNotFoundError extends CLIError {
 }
 
 /**
- * Error thrown when command execution fails
+ * Error thrown when command execution fails.
  */
 export class CommandExecutionError extends CLIError {
   constructor(
@@ -42,7 +37,7 @@ export class CommandExecutionError extends CLIError {
 }
 
 /**
- * Error thrown when command arguments are invalid
+ * Error thrown when command arguments are invalid.
  */
 export class InvalidArgumentsError extends CLIError {
   constructor(
@@ -58,7 +53,7 @@ export class InvalidArgumentsError extends CLIError {
 }
 
 /**
- * Error thrown when required options are missing
+ * Error thrown when required options are missing.
  */
 export class MissingRequiredOptionError extends CLIError {
   constructor(
@@ -74,7 +69,7 @@ export class MissingRequiredOptionError extends CLIError {
 }
 
 /**
- * Error thrown when command discovery fails
+ * Error thrown when command discovery fails.
  */
 export class CommandDiscoveryError extends CLIError {
   constructor(
@@ -90,7 +85,7 @@ export class CommandDiscoveryError extends CLIError {
 }
 
 /**
- * Error thrown when CLI module initialization fails
+ * Error thrown when CLI module initialization fails.
  */
 export class CLIInitializationError extends CLIError {
   constructor(public readonly originalError: Error) {
@@ -103,7 +98,7 @@ export class CLIInitializationError extends CLIError {
 }
 
 /**
- * Error thrown when output formatting fails
+ * Error thrown when output formatting fails.
  */
 export class OutputFormattingError extends CLIError {
   constructor(
@@ -119,7 +114,7 @@ export class OutputFormattingError extends CLIError {
 }
 
 /**
- * Error thrown when documentation generation fails
+ * Error thrown when documentation generation fails.
  */
 export class DocumentationGenerationError extends CLIError {
   constructor(

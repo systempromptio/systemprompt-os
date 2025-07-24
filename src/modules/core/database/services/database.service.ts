@@ -1,26 +1,28 @@
 /**
  * Core database service that manages connections and provides
- * a unified interface for all modules
+ * a unified interface for all modules.
  */
 
-import type { 
-  DatabaseAdapter, 
-  DatabaseConfig, 
-  DatabaseConnection 
-} from '@/modules/core/database/types';
-import { SQLiteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
-import { Logger } from '@/modules/core/logger/types';
-import { ConnectionError, DatabaseError, TimeoutError, TransactionError, QueryError } from '@/modules/core/database/utils/errors';
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  DatabaseConnection
+} from '@/modules/core/database/types/index.js';
+import { SQLiteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import {
+ ConnectionError, DatabaseError, TransactionError
+} from '@/modules/core/database/utils/errors.js';
 
 /**
- * Database service singleton for managing database connections
+ * Database service singleton for managing database connections.
  */
 export class DatabaseService {
   private static instance: DatabaseService;
   private adapter: DatabaseAdapter | null = null;
   private connection: DatabaseConnection | null = null;
-  private config: DatabaseConfig;
-  private logger?: Logger;
+  private readonly config: DatabaseConfig;
+  private logger?: ILogger;
   private initialized = false;
 
   private constructor(config: DatabaseConfig) {
@@ -28,25 +30,25 @@ export class DatabaseService {
   }
 
   /**
-   * Initialize the database service with configuration
-   * @param config Database configuration
-   * @param logger Optional logger instance
+   * Initialize the database service with configuration.
+   * @param config - Database configuration.
+   * @param logger - Optional logger instance.
    */
-  static initialize(config: DatabaseConfig, logger?: Logger): DatabaseService {
-    if (!DatabaseService.instance) {
-      DatabaseService.instance = new DatabaseService(config);
+  static initialize(config: DatabaseConfig, logger?: ILogger): DatabaseService {
+    DatabaseService.instance ||= new DatabaseService(config);
+    if (logger) {
+      DatabaseService.instance.logger = logger;
     }
-    DatabaseService.instance.logger = logger;
     DatabaseService.instance.initialized = true;
     return DatabaseService.instance;
   }
 
   /**
-   * Get the database service instance
-   * @throws {DatabaseError} If service not initialized
+   * Get the database service instance.
+   * @throws {DatabaseError} If service not initialized.
    */
   static getInstance(): DatabaseService {
-    if (!DatabaseService.instance || !DatabaseService.instance.initialized) {
+    if (!DatabaseService.instance?.initialized) {
       throw new DatabaseError(
         'DatabaseService not initialized. Call initialize() first.',
         'SERVICE_NOT_INITIALIZED'
@@ -56,27 +58,27 @@ export class DatabaseService {
   }
 
   /**
-   * Get a database connection, creating one if needed
-   * @returns {Promise<DatabaseConnection>} The active database connection
-   * @throws {ConnectionError} If connection cannot be established
+   * Get a database connection, creating one if needed.
+   * @returns {Promise<DatabaseConnection>} The active database connection.
+   * @throws {ConnectionError} If connection cannot be established.
    */
   async getConnection(): Promise<DatabaseConnection> {
     if (!this.connection || !this.adapter?.isConnected()) {
       await this.connect();
     }
-    
+
     if (!this.connection) {
       throw new ConnectionError(
         'Failed to establish database connection',
         { type: this.config.type }
       );
     }
-    
+
     return this.connection;
   }
 
   /**
-   * Connect to the database based on configuration
+   * Connect to the database based on configuration.
    */
   private async connect(): Promise<void> {
     try {
@@ -105,37 +107,41 @@ export class DatabaseService {
   }
 
   /**
-   * Execute a raw SQL query
-   * @param sql SQL query string
-   * @param params Query parameters
-   * @returns Array of result rows
+   * Execute a raw SQL query.
+   * @param sql - SQL query string.
+   * @param params - Query parameters.
+   * @returns Array of result rows.
    */
   async query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
-    const conn = await this.getConnection();
-    const result = await conn.query<T>(sql, params);
-    return result.rows;
+    const _conn = await this.getConnection();
+    const _result = await _conn.query<T>(sql, params);
+    return _result.rows;
   }
 
   /**
-   * Execute a SQL statement without returning results
-   * @param sql SQL statement
-   * @param params Statement parameters
+   * Execute a SQL statement without returning results.
+   * @param sql - SQL statement.
+   * @param params - Statement parameters.
    */
   async execute(sql: string, params?: unknown[]): Promise<void> {
-    const conn = await this.getConnection();
-    await conn.execute(sql, params);
+    const _conn = await this.getConnection();
+    await _conn.execute(sql, params);
   }
 
   /**
-   * Execute a callback within a database transaction
-   * @param callback Function to execute within the transaction
-   * @returns {Promise<T>} The result of the callback function
-   * @throws {TransactionError} If transaction fails or nested transactions attempted
+   * Execute a callback within a database transaction.
+   * @param callback - Function to execute within the transaction.
+   * @returns {Promise<T>} The result of the callback function.
+   * @throws {TransactionError} If transaction fails or nested transactions attempted.
    * @example
    * ```typescript
+   *    {
    * const result = await dbService.transaction(async (conn) => {
+   *    }
    *   await conn.execute('INSERT INTO users (name) VALUES (?)', ['John']);
+   *    {
    *   const users = await conn.query('SELECT * FROM users');
+   *    }
    *   return users;
    * });
    * ```
@@ -143,8 +149,8 @@ export class DatabaseService {
   async transaction<T>(
     callback: (conn: DatabaseConnection) => Promise<T>
   ): Promise<T> {
-    const conn = await this.getConnection();
-    return conn.transaction(async (tx) => {
+    const _conn = await this.getConnection();
+    return await _conn.transaction(async (tx) => {
       // Create a pseudo-connection that uses the transaction
       const txConn: DatabaseConnection = {
         query: tx.query.bind(tx),
@@ -157,12 +163,12 @@ export class DatabaseService {
           // No-op for transaction
         }
       };
-      return callback(txConn);
+      return await callback(txConn);
     });
   }
 
   /**
-   * Disconnect from the database and cleanup resources
+   * Disconnect from the database and cleanup resources.
    * @returns {Promise<void>}
    */
   async disconnect(): Promise<void> {
@@ -174,29 +180,29 @@ export class DatabaseService {
   }
 
   /**
-   * Get the current database type
-   * @returns {'sqlite' | 'postgres'} The configured database type
+   * Get the current database type.
+   * @returns {'sqlite' | 'postgres'} The configured database type.
    */
   getDatabaseType(): 'sqlite' | 'postgres' {
     return this.config.type;
   }
 
   /**
-   * Check if the database is currently connected
-   * @returns {boolean} True if connected, false otherwise
+   * Check if the database is currently connected.
+   * @returns {boolean} True if connected, false otherwise.
    */
   async isConnected(): Promise<boolean> {
     return this.adapter?.isConnected() ?? false;
   }
 
   /**
-   * Check if database is initialized with base schema
-   * @returns {Promise<boolean>} True if database has been initialized with schema
+   * Check if database is initialized with base schema.
+   * @returns {Promise<boolean>} True if database has been initialized with schema.
    */
   async isInitialized(): Promise<boolean> {
     try {
       // Check if we can connect
-      if (!(await this.isConnected())) {
+      if (!await this.isConnected()) {
         await this.connect();
       }
 
@@ -206,7 +212,7 @@ export class DatabaseService {
          WHERE type='table' AND name='_schema_versions'`
       );
 
-      return result.length > 0 && result[0].count > 0;
+      return Boolean(result && result.length > 0 && result[0] && result[0].count > 0);
     } catch (error) {
       this.logger?.debug('Database not initialized', { error });
       return false;

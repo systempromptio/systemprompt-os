@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execInContainer, TEST_CONFIG } from './bootstrap';
+import { execInContainer, TEST_CONFIG } from './bootstrap.js';
 
 /**
  * Tools CLI Domain E2E Tests

@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AuthorizationServerEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorization-server';
-import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status';
+import { AuthorizationServerEndpoint } from '../../../../../../src/server/external/rest/oauth2/authorization-server.js';
+import { tunnelStatus } from '../../../../../../src/modules/core/auth/tunnel-status.js';
 import type { Request, Response } from 'express';
 
 // Mock dependencies

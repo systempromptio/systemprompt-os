@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GoogleProvider } from '../../../../../../../src/modules/core/auth/providers/core/google';
+import { GoogleProvider } from '../../../../../../../src/modules/core/auth/providers/core/google.js';
 
 // Mock fetch
 global.fetch = vi.fn();

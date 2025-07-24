@@ -1,5 +1,5 @@
 /**
- * Auth module data models
+ * Auth module data models.
  */
 
 export interface User {

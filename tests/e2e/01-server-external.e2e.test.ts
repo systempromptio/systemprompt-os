@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import { TEST_CONFIG, getContainerLogs } from './bootstrap';
+import { TEST_CONFIG, getContainerLogs } from './bootstrap.js';
 
 /**
  * Server External Domain E2E Tests
