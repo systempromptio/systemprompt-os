@@ -4,10 +4,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { ZERO } from '@/const/numbers.js';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { ZERO } from '@/const/numbers';
 
 /**
  *  *
@@ -81,7 +81,6 @@ export class UserService {
   }
 
   private constructor() {
-    // Initialize lazily
   }
 
   /**
@@ -109,18 +108,12 @@ export class UserService {
  provider, providerId, email, name, avatar
 } = _options;
 
-    /**
-     * Check if admins exist BEFORE starting the transaction.
-     */
     const hasAdmins = await this.hasAdminUsers();
     this.logger.info(LogSource.AUTH, 'Creating/updating user', {
       email,
       hasAdmins,
     });
 
-    /**
-     * TODO: Refactor this function to reduce complexity.
-     */
     return await this.db.transaction<IUser>(async (conn: IDatabaseConnection) => {
       const identityResult = await conn.query<{ userId: string }>(
         `SELECT userId FROM auth_oauth_identities
@@ -169,10 +162,6 @@ export class UserService {
           ],
         );
 
-        /**
-         * Assign role based on whether admins exist
-         * This decision was made BEFORE the transaction started.
-         */
         const roleId = hasAdmins ? 'role_user' : 'role_admin';
 
         await conn.execute(`INSERT INTO auth_user_roles (userId, roleId) VALUES (?, ?)`, [

@@ -3,10 +3,10 @@
  * @module modules/core/database/cli/rebuild
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { SchemaService } from '@/modules/core/database/services/schema.service.js';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service.js';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { SchemaService } from '@/modules/core/database/services/schema.service';
+import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 export const command = {
   description: 'Rebuild database - drop all tables and recreate from schema files',
@@ -23,7 +23,6 @@ export const command = {
         process.exit(1);
       }
 
-      // Get all tables (including system tables for complete rebuild)
       const allTables = await dbService.query<{ name: string }>(
         `SELECT name FROM sqlite_master 
          WHERE type='table' 
@@ -71,12 +70,10 @@ export const command = {
       console.log('🗑️  Phase 1: Dropping all tables...');
       console.log('');
 
-      // Drop all tables
       let droppedCount = 0;
       const failedDrops: string[] = [];
 
       await dbService.transaction(async (conn) => {
-        // Disable foreign key constraints temporarily
         await conn.execute('PRAGMA foreign_keys = OFF');
 
         for (const table of allTables) {
@@ -90,7 +87,6 @@ export const command = {
           }
         }
 
-        // Re-enable foreign key constraints
         await conn.execute('PRAGMA foreign_keys = ON');
       });
 
@@ -111,7 +107,6 @@ export const command = {
       console.log('🔍 Phase 2: Discovering schema files...');
       console.log('');
 
-      // Get schema service and discover schemas
       const schemaService = SchemaService.getInstance();
       await schemaService.discoverSchemas();
 
@@ -128,7 +123,6 @@ export const command = {
       for (const [moduleKey, schema] of schemas) {
         console.log(`  - ${moduleKey}`);
 
-        // Calculate checksum for the schema
         const crypto = await import('crypto');
         const checksum = crypto.createHash('sha256').update(schema.sql)
 .digest('hex');
@@ -140,7 +134,6 @@ export const command = {
           content: schema.sql,
         });
 
-        // If there's an init file, add it too
         if (schema.initPath && schema.initSql) {
           const initChecksum = crypto.createHash('sha256').update(schema.initSql)
 .digest('hex');
@@ -161,7 +154,6 @@ export const command = {
       console.log('🔨 Phase 3: Importing schemas...');
       console.log('');
 
-      // Import schemas
       const importService = SchemaImportService.getInstance();
       await importService.initialize();
 
@@ -196,7 +188,6 @@ export const command = {
         });
       }
 
-      // Run VACUUM to optimize
       console.log('');
       console.log('🗜️  Phase 4: Optimizing database...');
       try {
@@ -206,7 +197,6 @@ export const command = {
         console.warn(`Warning: VACUUM failed: ${error}`);
       }
 
-      // Final status
       console.log('');
       console.log('🎉 Database Rebuild Complete!');
       console.log('=============================');

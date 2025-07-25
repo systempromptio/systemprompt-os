@@ -5,9 +5,9 @@
  */
 
 import { createInterface } from 'readline';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 interface ClearLogsOptions {
   level?: string;
@@ -119,15 +119,12 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       dryRun: args?.['dry-run'] as boolean
     };
 
-    // Validate level if provided
     if (options.level && !['debug', 'info', 'warn', 'error'].includes(options.level.toLowerCase())) {
       throw new Error('Invalid log level. Must be one of: debug, info, warn, error');
     }
 
-    // Get database service
     const dbService = DatabaseService.getInstance();
 
-    // Get count of logs that would be affected
     const logCount = await getLogCount(options, dbService);
 
     if (logCount === 0) {
@@ -135,12 +132,10 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       return;
     }
 
-    // Build query
     const {
  sql, params, description
 } = buildClearQuery(options);
 
-    // Show what would be done
     console.log(`Found ${logCount} ${description} to clear.`);
 
     if (options.dryRun) {
@@ -149,7 +144,6 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       return;
     }
 
-    // Confirm deletion unless --confirm flag is used
     if (!options.confirm) {
       const confirmed = await promptConfirmation(`Are you sure you want to delete ${logCount} ${description}?`);
       if (!confirmed) {
@@ -158,12 +152,10 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       }
     }
 
-    // Execute deletion
     await dbService.execute(sql, params);
 
     console.log(`Successfully deleted ${logCount} ${description}.`);
 
-    // Show remaining log count
     const remainingCount = await getLogCount({}, dbService);
     console.log(`${remainingCount} logs remaining in database.`);
   } catch (error) {

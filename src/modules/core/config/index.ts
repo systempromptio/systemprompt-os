@@ -4,8 +4,8 @@
  * @module modules/core/config
  */
 
-import { ConfigService } from '@/modules/core/config/services/config.service.js';
-import type { IConfigService } from '@/modules/core/config/types/index.js';
+import { ConfigService } from '@/modules/core/config/services/config.service';
+import type { IConfigService } from '@/modules/core/config/types/index';
 
 /**
  * Config module implementation.

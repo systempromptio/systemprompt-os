@@ -24,7 +24,7 @@
 
 import type { ServerNotification } from '@modelcontextprotocol/sdk/types.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { getMcpHandlerInstance } from '@/server/mcp.js';
+import { getMcpHandlerInstance } from '@/server/mcp';
 
 /**
  * Configuration change notification type.

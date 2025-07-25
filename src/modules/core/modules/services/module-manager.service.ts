@@ -10,13 +10,13 @@ import {
 } from 'fs';
 import { join, resolve } from 'path';
 import { parse } from 'yaml';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { DatabaseService } from '@/modules/core/database/index';
 import type {
  ModuleHealthStatus, ModuleInfo, ModuleStatus, ScannedModule
-} from '@/modules/core/modules/types/index.js';
-import { ModuleType } from '@/modules/core/modules/types/index.js';
+} from '@/modules/core/modules/types/index';
+import { ModuleType } from '@/modules/core/modules/types/index';
 
 interface ModuleManagerConfig {
   modulesPath: string;

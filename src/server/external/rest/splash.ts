@@ -6,7 +6,7 @@
 import type {
  Request, Response, Router
 } from 'express';
-import { renderSplashPage } from '@/server/external/templates/splash.js';
+import { renderSplashPage } from '@/server/external/templates/splash';
 
 /**
  * Splash page endpoint handler providing the main welcome screen.
@@ -33,7 +33,6 @@ export function setupRoutes(router: Router): void {
   const splashEndpoint = new SplashEndpoint();
 
   router.get('/', (req, res, next) => {
-    // Skip if there's an OAuth callback code
     if (req.query['code']) {
       next(); return;
     }

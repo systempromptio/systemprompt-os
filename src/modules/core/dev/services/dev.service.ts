@@ -6,15 +6,15 @@
  * Provides business logic for development operations.
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type {DevSessionType} from '@/modules/core/dev/types/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type {DevSessionType} from '@/modules/core/dev/types/index';
 import {
   DevSessionStatus,
   type IDevProfile,
   type IDevService,
   type IDevSession
-} from '@/modules/core/dev/types/index.js';
+} from '@/modules/core/dev/types/index';
 
 /**
  * Service for managing development tools - placeholder implementation.
@@ -28,7 +28,6 @@ export class DevService implements IDevService {
    * Private constructor for singleton.
    */
   private constructor() {
-    // Singleton pattern
   }
 
   /**
@@ -59,7 +58,6 @@ export class DevService implements IDevService {
       return;
     }
 
-    // Placeholder initialization
     this.initialized = true;
     this.logger?.info(LogSource.DEV, 'DevService initialized');
   }
@@ -73,7 +71,6 @@ export class DevService implements IDevService {
   async createProfile(name: string, config?: Record<string, unknown>): Promise<IDevProfile> {
     await this.ensureInitialized();
 
-    // Placeholder implementation
     const profile: IDevProfile = {
       id: 1,
       name,
@@ -94,7 +91,6 @@ export class DevService implements IDevService {
   async getProfile(name: string): Promise<IDevProfile | null> {
     await this.ensureInitialized();
 
-    // Placeholder implementation
     this.logger?.debug(LogSource.DEV, `Getting profile: ${name}`);
     return null;
   }
@@ -108,7 +104,6 @@ export class DevService implements IDevService {
   async startSession(type: DevSessionType, profileId?: number): Promise<IDevSession> {
     await this.ensureInitialized();
 
-    // Placeholder implementation
     const session: IDevSession = {
       id: 1,
       profileId: profileId || 0,
@@ -130,7 +125,6 @@ export class DevService implements IDevService {
   async endSession(sessionId: number, status: DevSessionStatus): Promise<void> {
     await this.ensureInitialized();
 
-    // Placeholder implementation
     this.logger?.info(LogSource.DEV, `Ended session ${sessionId} with status: ${status}`);
   }
 

@@ -33,12 +33,10 @@ export abstract class ApplicationError extends Error {
     this.timestamp = new Date();
     this.metadata = options?.metadata;
 
-    // Maintain proper stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor);
     }
 
-    // Set cause if provided
     if (options?.cause) {
       (this as any).cause = options.cause;
     }

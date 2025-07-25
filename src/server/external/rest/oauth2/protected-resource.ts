@@ -5,7 +5,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import { getAuthModule } from '@/modules/core/auth/singleton';
 
 /**
  * OAuth 2.0 Protected Resource Metadata Response

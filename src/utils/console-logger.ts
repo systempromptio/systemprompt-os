@@ -4,7 +4,7 @@
  * @module utils/console-logger
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
 
 /**
  * Console logger info method.

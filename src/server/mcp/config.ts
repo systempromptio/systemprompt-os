@@ -8,7 +8,7 @@
  */
 
 import type { Implementation, ServerCapabilities } from "@modelcontextprotocol/sdk/types.js";
-import { CONFIG } from '@/server/config.js';
+import { CONFIG } from '@/server/config';
 
 /**
  * Server implementation metadata.

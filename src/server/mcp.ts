@@ -18,29 +18,29 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { serverCapabilities, serverConfig } from '@/server/mcp/config.js';
+import { serverCapabilities, serverConfig } from '@/server/mcp/config';
 import {
   rateLimitMiddleware,
   requestSizeLimit,
   validateProtocolVersion,
-} from '@/server/middleware.js';
-import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
+} from '@/server/middleware';
+import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers';
 import {
   handleListResources,
   handleResourceCall,
-} from '@/server/mcp/core/handlers/resource-handlers.js';
+} from '@/server/mcp/core/handlers/resource-handlers';
 import {
   handleListResourceTemplates,
-} from '@/server/mcp/core/handlers/resource-templates-handler.js';
-import { handleListRoots } from '@/server/mcp/core/handlers/roots-handlers.js';
-import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+} from '@/server/mcp/core/handlers/resource-templates-handler';
+import { handleListRoots } from '@/server/mcp/core/handlers/roots-handlers';
+import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 import {
   type IMcpHandler,
   type ISessionInfo,
   MCP_CONSTANTS,
-} from '@/server/types/mcp.types.js';
+} from '@/server/types/mcp.types';
 
 /**
  * Logger instance.

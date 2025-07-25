@@ -3,8 +3,8 @@
  * @module modules/core/database/cli/status
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 export const command = {
   description: 'Show database connection health and status',

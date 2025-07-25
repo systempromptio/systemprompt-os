@@ -5,10 +5,10 @@
  * @module database/services/cli-handler
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { MigrationService } from '@/modules/core/database/services/migration.service.js';
-import { SchemaService } from '@/modules/core/database/services/schema.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { MigrationService } from '@/modules/core/database/services/migration.service';
+import { SchemaService } from '@/modules/core/database/services/schema.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
 
 /**
  * CLI handler service for database commands.

@@ -14,9 +14,9 @@
 import {
  createHash, randomBytes, randomUUID
 } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { UsersRepository } from '@/modules/core/users/repositories/users-repository.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { UsersRepository } from '@/modules/core/users/repositories/users-repository';
 import {
   type IAuthResult,
   type IUser,
@@ -26,7 +26,7 @@ import {
   type IUserUpdateData,
   type IUsersService,
   UserStatusEnum
-} from '@/modules/core/users/types/index.js';
+} from '@/modules/core/users/types/index';
 
 const SESSION_EXPIRY_HOURS = 24;
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -90,7 +90,6 @@ export class UsersService implements IUsersService {
   async createUser(data: IUserCreateData): Promise<IUser> {
     await this.ensureInitialized();
 
-    // Check for existing username/email
     const existingUsername = await this.repository.findByUsername(data.username);
     if (existingUsername !== null) {
       throw new Error(`Username already exists: ${data.username}`);
@@ -107,7 +106,6 @@ export class UsersService implements IUsersService {
     const passwordHash = data.password ? this.hashPassword(data.password) : undefined;
     const user = await this.repository.createUser(id, data.username, data.email, passwordHash);
 
-    // Assign default role if specified
     if (data.role) {
       try {
         const { PermissionsService } = await import('@/modules/core/permissions/services/permissions.service.js');
@@ -179,7 +177,6 @@ export class UsersService implements IUsersService {
       throw new Error(`User not found: ${id}`);
     }
 
-    // Check email uniqueness if updating
     if (data.email && data.email !== user.email) {
       const existingEmail = await this.repository.findByEmail(data.email);
       if (existingEmail !== null) {
@@ -221,7 +218,6 @@ export class UsersService implements IUsersService {
   async authenticateUser(username: string, password: string): Promise<IAuthResult> {
     await this.ensureInitialized();
 
-    // Find user by username or email
     let user = await this.repository.findByUsername(username);
     if (user === null) {
       user = await this.repository.findByEmail(username);
@@ -234,7 +230,6 @@ export class UsersService implements IUsersService {
       };
     }
 
-    // Check if account is locked
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return {
         success: false,
@@ -242,7 +237,6 @@ export class UsersService implements IUsersService {
       };
     }
 
-    // Check password
     if (!user.passwordHash || !this.verifyPassword(password, user.passwordHash)) {
       await this.handleFailedLogin(user);
       return {
@@ -251,7 +245,6 @@ export class UsersService implements IUsersService {
       };
     }
 
-    // Check account status
     if (user.status !== UserStatusEnum.ACTIVE) {
       return {
         success: false,
@@ -259,7 +252,6 @@ export class UsersService implements IUsersService {
       };
     }
 
-    // Success - create session
     await this.repository.updateLoginInfo(user.id, true);
     const session = await this.createSession(user.id);
 
@@ -298,7 +290,6 @@ export class UsersService implements IUsersService {
       userAgent
     );
 
-    // Return session with unhashed token for the client
     return {
       ...session,
       tokenHash: token
@@ -320,17 +311,14 @@ export class UsersService implements IUsersService {
       return null;
     }
 
-    // Check if expired
     if (session.expiresAt < new Date()) {
       return null;
     }
 
-    // Check if revoked
     if (session.revokedAt !== undefined) {
       return null;
     }
 
-    // Update last activity
     await this.repository.updateSessionActivity(session.id);
 
     return await this.repository.findById(session.userId);
@@ -397,12 +385,10 @@ apiKey
       return null;
     }
 
-    // Check if expired
     if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
       return null;
     }
 
-    // Update last used
     await this.repository.updateApiKeyUsage(apiKey.id);
 
     return await this.repository.findById(apiKey.userId);
@@ -442,7 +428,6 @@ apiKey
    * @returns The hashed password.
    */
   private hashPassword(password: string): string {
-    // Simplified for demo - use bcrypt or argon2 in production
     return createHash('sha256').update(password)
 .digest('hex');
   }

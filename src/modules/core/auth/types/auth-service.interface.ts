@@ -5,7 +5,7 @@ import type {
   MFASetupResult,
   TokenCreateInput,
   TokenValidationResult,
-} from '@/modules/core/auth/types/index.js';
+} from '@/modules/core/auth/types/index';
 
 /**
  *

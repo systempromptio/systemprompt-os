@@ -10,13 +10,13 @@ import type {
   ITaskHandler,
   ITaskService,
   ITaskStatistics
-} from '@/modules/core/tasks/types/index.js';
+} from '@/modules/core/tasks/types/index';
 import {
  TaskExecutionStatus, TaskPriority, TaskStatus
-} from '@/modules/core/tasks/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+} from '@/modules/core/tasks/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 
 export class TaskService implements ITaskService {
   private static instance: TaskService | null = null;
@@ -62,7 +62,6 @@ export class TaskService implements ITaskService {
       metadata: task.metadata ? JSON.stringify(task.metadata) : null
     };
 
-    // Insert task and get the ID back
     await this.database.execute(
       `INSERT INTO tasks_queue 
        (type, module_id, payload, priority, status, retry_count, max_retries, scheduled_at, created_by, metadata)
@@ -81,7 +80,6 @@ export class TaskService implements ITaskService {
       ]
     );
 
-    // Get the last inserted ID
     const idResult = await this.database.query<{id: number}>('SELECT last_insert_rowid() as id');
     const taskId = idResult[0]?.id;
 
@@ -98,9 +96,9 @@ export class TaskService implements ITaskService {
       status: taskData.status,
       retryCount: taskData.retry_count,
       maxRetries: taskData.max_retries,
-      ...(task.scheduledAt && { scheduledAt: task.scheduledAt }),
-      ...(taskData.created_by && { createdBy: taskData.created_by }),
-      ...(task.metadata && { metadata: task.metadata })
+      ...task.scheduledAt && { scheduledAt: task.scheduledAt },
+      ...taskData.created_by && { createdBy: taskData.created_by },
+      ...task.metadata && { metadata: task.metadata }
     };
 
     this.logger.info(LogSource.MODULES, `Task added: ${newTask.id} (${newTask.type})`);
@@ -137,10 +135,8 @@ export class TaskService implements ITaskService {
     const row = result[0];
     const taskId = row.id as number;
 
-    // Mark task as in progress
     await this.database.execute('UPDATE tasks_queue SET status = ? WHERE id = ?', [TaskStatus.IN_PROGRESS, taskId]);
 
-    // Create execution record
     await this.database.execute('INSERT INTO tasks_executions (task_id, status) VALUES (?, ?)', [taskId, TaskExecutionStatus.RUNNING]);
 
     const task: ITask = {
@@ -152,11 +148,11 @@ export class TaskService implements ITaskService {
       status: TaskStatus.IN_PROGRESS,
       retryCount: row.retry_count as number,
       maxRetries: row.max_retries as number,
-      ...(row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) }),
+      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
-      ...(row.created_by && { createdBy: row.created_by as string }),
-      ...(row.metadata && { metadata: JSON.parse(row.metadata as string) })
+      ...row.created_by && { createdBy: row.created_by as string },
+      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
     };
 
     this.logger.info(LogSource.MODULES, `Task received: ${task.id} (${task.type})`);
@@ -170,7 +166,6 @@ export class TaskService implements ITaskService {
 
     await this.database.execute('UPDATE tasks_queue SET status = ? WHERE id = ?', [status, taskId]);
 
-    // Update execution record if task is completed, failed, or cancelled
     if ([TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED].includes(status)) {
       const executionStatus = status === TaskStatus.COMPLETED
         ? TaskExecutionStatus.SUCCESS
@@ -211,11 +206,11 @@ export class TaskService implements ITaskService {
       status: row.status as TaskStatus,
       retryCount: row.retry_count as number,
       maxRetries: row.max_retries as number,
-      ...(row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) }),
+      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
-      ...(row.created_by && { createdBy: row.created_by as string }),
-      ...(row.metadata && { metadata: JSON.parse(row.metadata as string) })
+      ...row.created_by && { createdBy: row.created_by as string },
+      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
     };
   }
 
@@ -269,11 +264,11 @@ export class TaskService implements ITaskService {
       status: row.status as TaskStatus,
       retryCount: row.retry_count as number,
       maxRetries: row.max_retries as number,
-      ...(row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) }),
+      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
-      ...(row.created_by && { createdBy: row.created_by as string }),
-      ...(row.metadata && { metadata: JSON.parse(row.metadata as string) })
+      ...row.created_by && { createdBy: row.created_by as string },
+      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
     } });
   }
 
@@ -292,7 +287,6 @@ export class TaskService implements ITaskService {
 
     this.handlers.set(handler.type, handler);
 
-    // Register task type in database
     await this.database.execute(
       `INSERT OR REPLACE INTO tasks_types (type, module_id, description, enabled)
        VALUES (?, ?, ?, ?)`,
@@ -309,7 +303,6 @@ export class TaskService implements ITaskService {
 
     this.handlers.delete(type);
 
-    // Disable task type in database
     await this.database.execute('UPDATE tasks_types SET enabled = 0 WHERE type = ?', [type]);
 
     this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
@@ -320,7 +313,6 @@ export class TaskService implements ITaskService {
       throw new Error('TaskService not initialized');
     }
 
-    // Get task counts by status
     const statusCountsResult = await this.database.query<{status: string; count: number}>(
       `SELECT status, COUNT(*) as count FROM tasks_queue GROUP BY status`
     );
@@ -332,7 +324,6 @@ export class TaskService implements ITaskService {
       }
     }
 
-    // Get task counts by type
     const typeCountsResult = await this.database.query<{type: string; count: number}>(
       `SELECT type, COUNT(*) as count FROM tasks_queue GROUP BY type`
     );
@@ -344,7 +335,6 @@ export class TaskService implements ITaskService {
       }
     }
 
-    // Get average execution time
     const avgTimeResult = await this.database.query<{avg_time: number | null}>(
       `SELECT AVG(duration_ms) as avg_time FROM tasks_executions WHERE status = ?`,
       [TaskExecutionStatus.SUCCESS]
@@ -360,7 +350,7 @@ export class TaskService implements ITaskService {
       completed: statusCounts[TaskStatus.COMPLETED] || 0,
       failed: statusCounts[TaskStatus.FAILED] || 0,
       cancelled: statusCounts[TaskStatus.CANCELLED] || 0,
-      ...(avgTime && { averageExecutionTime: avgTime }),
+      ...avgTime && { averageExecutionTime: avgTime },
       tasksByType
     };
   }

@@ -6,8 +6,8 @@
 import type { Router } from 'express';
 import type { Request, Response } from 'express';
 import { spawn } from 'child_process';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Execute terminal commands through the API
@@ -18,9 +18,6 @@ import { LogSource } from '@/modules/core/logger/types/index.js';
 const logger = LoggerService.getInstance();
 
 export function setupRoutes(router: Router): void {
-  /**
-   * Get system summary stats.
-   */
   router.get('/api/terminal/summary', async (_req: Request, res: Response) => {
     try {
       const summary = {
@@ -30,7 +27,6 @@ export function setupRoutes(router: Router): void {
         database: 'Active',
       };
 
-      // Get user count
       try {
         const child = spawn('/app/bin/systemprompt', ['auth:db', 'users', '--format', 'json'], {
           cwd: '/app',
@@ -52,17 +48,14 @@ FORCE_COLOR: '0'
               const users = JSON.parse(output);
               summary.users = Array.isArray(users) ? users.length : 0;
             } catch {
-              // Fallback to 0 if parsing fails
             }
             resolve(null);
           });
-          setTimeout(() => { resolve(null); }, 2000); // 2s timeout
+          setTimeout(() => { resolve(null); }, 2000)
         });
       } catch {
-        // Continue with default value
       }
 
-      // Get module count
       try {
         const child = spawn('/app/bin/systemprompt', ['extension:list', '--format', 'json'], {
           cwd: '/app',
@@ -84,17 +77,14 @@ FORCE_COLOR: '0'
               const modules = JSON.parse(output);
               summary.modules = Array.isArray(modules) ? modules.length : 0;
             } catch {
-              // Fallback to 0 if parsing fails
             }
             resolve(null);
           });
-          setTimeout(() => { resolve(null); }, 2000); // 2s timeout
+          setTimeout(() => { resolve(null); }, 2000)
         });
       } catch {
-        // Continue with default value
       }
 
-      // Get tool count
       try {
         const child = spawn('/app/bin/systemprompt', ['tools:list', '--format', 'json'], {
           cwd: '/app',
@@ -116,14 +106,12 @@ FORCE_COLOR: '0'
               const tools = JSON.parse(output);
               summary.tools = Array.isArray(tools) ? tools.length : 0;
             } catch {
-              // Fallback to 0 if parsing fails
             }
             resolve(null);
           });
-          setTimeout(() => { resolve(null); }, 2000); // 2s timeout
+          setTimeout(() => { resolve(null); }, 2000)
         });
       } catch {
-        // Continue with default value
       }
 
       res.json({
@@ -148,12 +136,8 @@ database: 'Unknown'
     }
   });
 
-  /**
-   * Get available CLI commands.
-   */
   router.get('/api/terminal/commands', async (_req: Request, res: Response) => {
     try {
-      // Execute cli:list to get all available commands
       const child = spawn('/app/bin/systemprompt', ['cli:list', '--format', 'json'], {
         cwd: '/app',
         env: {
@@ -215,7 +199,6 @@ category: 'terminal'
         });
       });
 
-      // Set timeout
       setTimeout(() => {
         if (!res.headersSent) {
           child.kill();
@@ -251,7 +234,6 @@ category: 'terminal'
         return;
       }
 
-      // Security: Only allow systemprompt commands
       const trimmedCommand = command.trim();
       if (!trimmedCommand.startsWith('systemprompt ')) {
         res.json({
@@ -261,9 +243,8 @@ category: 'terminal'
         return;
       }
 
-      // Parse the command and arguments
       const parts = trimmedCommand.split(/\s+/);
-      const args = parts.slice(1); // Remove 'systemprompt' from the beginning
+      const args = parts.slice(1)
 
       logger.info(LogSource.API, 'Executing terminal command', {
  category: 'terminal',
@@ -271,13 +252,12 @@ action: 'execute',
 persistToDb: true
 });
 
-      // Execute the command
       const child = spawn('/app/bin/systemprompt', args, {
         cwd: '/app',
         env: {
           ...process.env,
           NODE_ENV: 'production',
-          FORCE_COLOR: '0', // Disable color output for cleaner terminal display
+          FORCE_COLOR: '0'
         },
       });
 
@@ -318,7 +298,6 @@ action: 'execute'
         });
       });
 
-      // Set a timeout to prevent hanging commands
       setTimeout(() => {
         if (!res.headersSent) {
           child.kill();
@@ -327,7 +306,7 @@ action: 'execute'
             error: 'Command execution timeout',
           });
         }
-      }, 30000); // 30 second timeout
+      }, 30000)
     } catch (error) {
       logger.error(LogSource.API, 'Terminal API error', {
  error: error instanceof Error ? error : new Error(String(error)),

@@ -28,10 +28,10 @@ import {
 import {
   handleListResources,
   handleResourceCall
-} from '@/server/mcp/core/handlers/resource-handlers.js';
-import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
-import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
-import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
+} from '@/server/mcp/core/handlers/resource-handlers';
+import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers';
+import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
 
 /**
  * Local MCP Server implementation.

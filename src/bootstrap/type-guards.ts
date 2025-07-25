@@ -4,7 +4,7 @@
  * @module bootstrap/type-guards
  */
 
-import type { IModuleExports } from '@/types/bootstrap-module.js';
+import type { IModuleExports } from '@/types/bootstrap-module';
 
 /**
  * Type guard to check if an object is a valid IModuleExports.

@@ -381,14 +381,14 @@ export interface IUserListRow {
   lastLoginAt?: string | null;
 }
 
-import type { AuthService } from '@/modules/core/auth/services/auth.service.js';
-import type { TokenService } from '@/modules/core/auth/services/token.service.js';
-import type { UserService } from '@/modules/core/auth/services/user-service.js';
-import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
-import type { MFAService } from '@/modules/core/auth/services/mfa.service.js';
-import type { AuditService } from '@/modules/core/auth/services/audit.service.js';
-import type { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service.js';
-import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+import type { AuthService } from '@/modules/core/auth/services/auth.service';
+import type { TokenService } from '@/modules/core/auth/services/token.service';
+import type { UserService } from '@/modules/core/auth/services/user-service';
+import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
+import type { MFAService } from '@/modules/core/auth/services/mfa.service';
+import type { AuditService } from '@/modules/core/auth/services/audit.service';
+import type { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service';
+import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface';
 
 /**
  *
@@ -413,8 +413,8 @@ export interface IAuthModuleExports {
   reloadProviders: () => Promise<void>;
 }
 
-export type * from '@/modules/core/auth/types/provider-interface.js';
-export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface.js';
+export type * from '@/modules/core/auth/types/provider-interface';
+export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface';
 
 // Type aliases for compatibility
 export type AuthUser = IAuthUser;

@@ -33,7 +33,7 @@ export class DashboardEndpoint {
    * @param res
    */
   public async handleDashboard(req: Request, res: Response): Promise<void> {
-    const user = req.user!; // Guaranteed by auth middleware
+    const user = req.user!
 
     const content = `
       <div class="dashboard">
@@ -175,5 +175,5 @@ export function setupRoutes(router: Router): void {
   const dashboardEndpoint = new DashboardEndpoint();
 
   router.get('/dashboard', async (req, res) => { await dashboardEndpoint.handleDashboard(req, res); });
-  router.get('/', async (req, res) => { await dashboardEndpoint.handleDashboard(req, res); }); // Root redirects to dashboard for authenticated users
+  router.get('/', async (req, res) => { await dashboardEndpoint.handleDashboard(req, res); })
 }

@@ -9,11 +9,11 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection
-} from '@/modules/core/database/types/database.types.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
-import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
+} from '@/modules/core/database/types/database.types';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { ZERO } from '@/modules/core/database/constants/index';
+import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
 
 /**
  * Database service singleton for managing database connections.
@@ -177,7 +177,6 @@ export class DatabaseService {
         await this.connect();
       }
 
-      // Check if database has any user tables (not sqlite system tables)
       const result = await this.query<{ count: number }>(
         `SELECT COUNT(*) as count FROM sqlite_master 
          WHERE type='table' AND name NOT LIKE 'sqlite_%'`

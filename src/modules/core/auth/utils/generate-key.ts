@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 import {
   TWO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 // Constants are already imported above
 

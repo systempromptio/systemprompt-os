@@ -4,7 +4,7 @@
  * @module server/mcp/local/daemon
  */
 
-import { LocalMcpServer } from '@/server/mcp/local/server.js';
+import { LocalMcpServer } from '@/server/mcp/local/server';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 

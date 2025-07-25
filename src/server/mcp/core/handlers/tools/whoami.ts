@@ -7,12 +7,12 @@ import type {
   CallToolResult,
   IToolHandlerContext,
   ToolHandler,
-} from '@/server/mcp/core/handlers/tools/types.js';
-import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
-import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
-import type { IUserPermissionContext } from '@/server/mcp/core/types/permissions.js';
-import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions.js';
+} from '@/server/mcp/core/handlers/tools/types';
+import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
+import type { IUserPermissionContext } from '@/server/mcp/core/types/permissions';
+import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions';
 
 const logger = LoggerService.getInstance();
 

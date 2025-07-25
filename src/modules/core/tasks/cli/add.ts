@@ -4,7 +4,7 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand } from '@/modules/core/cli/types/index.js';
+import type { CLICommand } from '@/modules/core/cli/types/index';
 
 /**
  * Tasks add command.

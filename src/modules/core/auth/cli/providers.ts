@@ -6,11 +6,11 @@
  * @module modules/core/auth/cli/providers
  */
 
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import { getAuthModule } from '@/modules/core/auth/singleton';
 import {
  ONE, ZERO
-} from '@/const/numbers.js';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
+} from '@/const/numbers';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',

@@ -6,8 +6,8 @@
  * @module server/middleware
  */
 
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
-import type { IExpressHandler } from '@/server/types/middleware.types.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
+import type { IExpressHandler } from '@/server/types/middleware.types';
 import {
   DEFAULT_MAX_REQUESTS,
   HTTP_BAD_REQUEST,
@@ -21,7 +21,7 @@ import {
   RADIX_DECIMAL,
   REQUEST_COUNTS,
   TEN_MB_BYTES
-} from '@/server/constants/middleware.constants.js';
+} from '@/server/constants/middleware.constants';
 
 /**
  * Get logger instance.

@@ -8,7 +8,7 @@
  */
 
 import { Command } from 'commander';
-import { PermissionsService } from '@/modules/core/permissions/services/permissions.service.js';
+import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 
 const ERROR_EXIT_CODE = 1;
 

@@ -5,8 +5,8 @@
 
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 // Mock imports for missing modules - these need to be implemented
 const OAuth2Error = {
@@ -110,7 +110,6 @@ export class AuthorizeEndpoint {
     try {
       const params = AuthorizeRequestSchema.parse(req.query);
 
-      // Get the auth module to access provider registry
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
 
@@ -118,7 +117,6 @@ export class AuthorizeEndpoint {
         throw new Error('Provider registry not initialized');
       }
 
-      // If a specific provider is requested, redirect to that provider
       if (params.provider) {
         logger.info(LogSource.AUTH, 'Redirecting to OAuth provider', {
           category: 'oauth2',
@@ -126,16 +124,11 @@ export class AuthorizeEndpoint {
           persistToDb: false
         });
 
-        // Provider names are case-insensitive
         const provider = providerRegistry.getProvider(params.provider.toLowerCase());
         if (!provider) {
           throw new Error(`Unknown provider: ${params.provider}`);
         }
 
-        /*
-         * Store the original request parameters in session
-         * In production, use proper session management
-         */
         const stateData = {
           clientId: params.client_id,
           redirectUri: params.redirect_uri,
@@ -145,23 +138,17 @@ export class AuthorizeEndpoint {
           codeChallengeMethod: params.code_challenge_method,
         };
 
-        // Generate state parameter for provider
         const providerState = Buffer.from(JSON.stringify(stateData)).toString('base64url');
 
-        // Get the provider's authorization URL
         if (!provider) {
           throw new Error('provider is required');
         }
         const providerAuthUrl = provider.getAuthorizationUrl(providerState);
 
-        // Redirect to the provider
         res.redirect(providerAuthUrl);
         return;
       }
 
-      // If no provider specified, show provider selection
-
-      // Get available providers
       const availableProviders = providerRegistry.getAllProviders();
 
       const html = `
@@ -280,16 +267,13 @@ export class AuthorizeEndpoint {
         return;
       }
 
-      // User approved - generate authorization code
       const params = AuthorizeRequestSchema.parse(req.body);
 
-      // Get authenticated user from session/token
       const { user } = req;
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Store authorization code in database
       const authCodeService = getAuthCodeService();
       const code = await authCodeService.createAuthorizationCode({
         clientId: params.client_id,
@@ -304,10 +288,8 @@ export class AuthorizeEndpoint {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       });
 
-      // Clean up expired codes
       await authCodeService.cleanupExpiredCodes();
 
-      // Redirect back to client with authorization code
       const responseParams = new URLSearchParams({ code });
       if (params.state) {
         responseParams.append('state', params.state);
@@ -341,7 +323,6 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      // Handle error from provider
       if (error) {
         logger.error(LogSource.AUTH, 'Provider returned error', {
           error: typeof error === 'string' ? new Error(error) : error instanceof Error ? error : new Error(String(error)),
@@ -364,7 +345,6 @@ export class AuthorizeEndpoint {
         throw new Error('Missing code or state parameter');
       }
 
-      // Decode the state to get original request parameters
       let stateData: any;
       try {
         stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
@@ -377,7 +357,6 @@ export class AuthorizeEndpoint {
         throw new Error('Invalid state parameter');
       }
 
-      // Get the auth module and provider
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
 
@@ -391,10 +370,8 @@ export class AuthorizeEndpoint {
         throw new Error(`Unknown provider: ${provider}`);
       }
 
-      // Exchange the provider's code for tokens
       const providerTokens = await providerInstance.exchangeCodeForTokens(code as string);
 
-      // Get user info from provider
       const userInfo = await providerInstance.getUserInfo(providerTokens.access_token);
 
       logger.info(LogSource.AUTH, 'User authenticated via provider', {
@@ -403,7 +380,6 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      // Create or update user in database
       const authRepo = AuthRepository.getInstance();
       const avatarUrl
         = userInfo.picture
@@ -422,7 +398,6 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      // Store authorization code with user info
       const authCodeService = getAuthCodeService();
       const authCode = await authCodeService.createAuthorizationCode({
         clientId: stateData.clientId,
@@ -434,13 +409,11 @@ export class AuthorizeEndpoint {
         providerTokens: providerTokens as unknown as Record<string, unknown>,
         codeChallenge: stateData.codeChallenge,
         codeChallengeMethod: stateData.codeChallengeMethod,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
       });
 
-      // Clean up expired codes
       await authCodeService.cleanupExpiredCodes();
 
-      // Redirect back to client with authorization code
       const responseParams = new URLSearchParams({ code: authCode });
       if (stateData.originalState) {
         responseParams.append('state', stateData.originalState);

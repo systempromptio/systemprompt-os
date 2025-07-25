@@ -6,9 +6,9 @@
  * @module modules/core/auth/cli/role
  */
 
-import { getDatabase } from '@/modules/core/database/index.js';
-import { ONE, ZERO } from '@/const/numbers.js';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
+import { getDatabase } from '@/modules/core/database/index';
+import { ONE, ZERO } from '@/const/numbers';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
 export const command = {
   description: 'Role management commands',

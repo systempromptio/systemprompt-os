@@ -3,8 +3,8 @@
  * @module modules/core/database/cli/clear
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 export const command = {
   description: 'Clear all data from database tables (preserves schema)',
@@ -21,7 +21,6 @@ export const command = {
         process.exit(1);
       }
 
-      // Get all user tables (exclude sqlite system tables and underscore prefixed tables)
       const tables = await dbService.query<{ name: string }>(
         `SELECT name FROM sqlite_master 
          WHERE type='table' 
@@ -62,20 +61,17 @@ export const command = {
         console.log('');
       }
 
-      // Clear tables in a transaction
       let clearedCount = 0;
       const failedTables: string[] = [];
 
       await dbService.transaction(async (conn) => {
         for (const table of tables) {
           try {
-            // Get row count before clearing
             const beforeCount = await conn.query<{ count: number }>(
               `SELECT COUNT(*) as count FROM \`${table.name}\``,
             );
             const rowsBefore = beforeCount.rows.length > 0 && beforeCount.rows[0] ? beforeCount.rows[0].count : 0;
 
-            // Clear the table
             await conn.execute(`DELETE FROM \`${table.name}\``);
 
             console.log(`✓ Cleared ${table.name} (${rowsBefore.toLocaleString()} rows deleted)`);
@@ -100,7 +96,6 @@ export const command = {
         });
       }
 
-      // Run VACUUM to reclaim space
       try {
         console.log('');
         console.log('Running VACUUM to reclaim disk space...');

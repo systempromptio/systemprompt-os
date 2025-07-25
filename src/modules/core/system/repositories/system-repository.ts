@@ -16,7 +16,7 @@ import {
   type ISystemModule,
   type MaintenanceTypeEnum,
   type ModuleStatusEnum
-} from '@/modules/core/system/types/index.js';
+} from '@/modules/core/system/types/index';
 
 /**
  * Repository for system data operations.
@@ -48,7 +48,6 @@ export class SystemRepository {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    // Placeholder - would initialize database connections
   }
 
   /**
@@ -56,10 +55,6 @@ export class SystemRepository {
    * @returns Promise that resolves when checked.
    */
   async checkDatabase(): Promise<void> {
-    /*
-     * Placeholder - would check actual database connection
-     * Simulate potential failure for testing
-     */
     if (Math.random() > 0.95) {
       throw new Error('Database connection failed');
     }

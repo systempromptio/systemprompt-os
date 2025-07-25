@@ -5,9 +5,9 @@
  */
 
 import { spawn } from 'child_process';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 interface LogEntry {
   id: number;
@@ -109,7 +109,6 @@ const sendToPager = async (content: string): Promise<void> => {
     });
 
     pager.on('error', () => {
-      // Fallback to console if pager fails
       console.log(content);
       resolve();
     });
@@ -133,10 +132,8 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       format: args?.['format'] as string || 'text'
     };
 
-    // Get database service
     const dbService = DatabaseService.getInstance();
 
-    // Build and execute query
     const { sql, params } = buildQuery(options);
     const logs = await dbService.query<LogEntry>(sql, params);
 
@@ -145,7 +142,6 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       return;
     }
 
-    // Format output
     let output: string;
 
     if (options.format === 'json') {
@@ -155,7 +151,6 @@ export const execute = async (context: ICLIContext): Promise<void> => {
       output = formattedLogs.join('\n');
     }
 
-    // Output with or without pager
     if (options.pager && process.stdout.isTTY) {
       await sendToPager(output);
     } else {

@@ -4,9 +4,7 @@
  * @module modules/core/logger/services
  */
 
-import {
- appendFileSync, existsSync, mkdirSync
-} from 'fs';
+import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type {
@@ -15,11 +13,9 @@ import type {
   ILoggerConfig,
   LogArgs,
   LogLevelName,
-} from '@/modules/core/logger/types/index.js';
-import {
- LogOutput, LogSource, LoggerMode
-} from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+} from '@/modules/core/logger/types/index';
+import { LogOutput, LogSource, LoggerMode } from '@/modules/core/logger/types/index';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import {
   InvalidLogLevelError,
   LoggerDirectoryError,
@@ -27,7 +23,7 @@ import {
   LoggerFileReadError,
   LoggerFileWriteError,
   LoggerInitializationError,
-} from '@/modules/core/logger/utils/errors.js';
+} from '@/modules/core/logger/utils/errors';
 
 /**
  * Logger service implementation following singleton pattern.
@@ -89,7 +85,7 @@ export class LoggerService implements ILogger {
     try {
       this.config = {
         ...config,
-        mode: config.mode ?? LoggerMode.SERVER // Default to server mode
+        mode: config.mode ?? LoggerMode.SERVER,
       };
       this.logsDir = join(config.stateDir, 'logs');
 
@@ -114,9 +110,8 @@ export class LoggerService implements ILogger {
    */
   setDatabaseService(databaseService: DatabaseService): void {
     this.databaseService = databaseService;
-    // Initialize logs table if database logging is enabled
     if (this.config?.database?.enabled && this.config.outputs.includes(LogOutput.DATABASE)) {
-      this.initializeLogsTable().catch(error => {
+      this.initializeLogsTable().catch((error) => {
         console.error('Failed to initialize logs table:', error);
       });
     }
@@ -338,7 +333,6 @@ export class LoggerService implements ILogger {
       return false;
     }
 
-    // In CLI mode, only show warnings and errors to console
     if (this.config.mode === LoggerMode.CLI) {
       return level === 'warn' || level === 'error';
     }
@@ -365,16 +359,14 @@ export class LoggerService implements ILogger {
    * @returns {boolean} True if should log to database.
    */
   private shouldLogToDatabase(level: LogLevelName): boolean {
-    if (!this.config.outputs.includes(LogOutput.DATABASE)
-        || !this.config.database?.enabled
-        || !this.databaseService) {
+    if (
+      !this.config.outputs.includes(LogOutput.DATABASE) ||
+      !this.config.database?.enabled ||
+      !this.databaseService
+    ) {
       return false;
     }
 
-    /*
-     * Only save important logs to database (warn and error levels)
-     * This reduces database storage overhead while keeping critical information
-     */
     return level === 'warn' || level === 'error';
   }
 
@@ -401,7 +393,6 @@ export class LoggerService implements ILogger {
     const userId = args.userId ? `[user:${args.userId}]` : '';
     const duration = args.duration ? `[${args.duration}ms]` : '';
 
-    // Format: [timestamp] [LEVEL] [source][category][requestId][userId][duration] message
     return `[${timestamp}] [${level}] [${source}]${category}${requestId}${userId}${duration} ${message}`;
   }
 
@@ -432,7 +423,13 @@ export class LoggerService implements ILogger {
    * @param {LogArgs} args - Additional args.
    * @param {string} timestamp - Timestamp.
    */
-  private writeToDatabase(level: LogLevelName, source: LogSource, message: string, args: LogArgs, timestamp: string): void {
+  private writeToDatabase(
+    level: LogLevelName,
+    source: LogSource,
+    message: string,
+    args: LogArgs,
+    timestamp: string,
+  ): void {
     if (!this.databaseService || !this.config.database?.enabled) {
       return;
     }
@@ -441,12 +438,14 @@ export class LoggerService implements ILogger {
       const tableName = this.config.database.tableName || 'system_logs';
       const argsJson = JSON.stringify(args);
 
-      this.databaseService.execute(
-        `INSERT INTO ${tableName} (timestamp, level, source, category, message, args) VALUES (?, ?, ?, ?, ?, ?)`,
-        [timestamp, level, source, args.category || null, message, argsJson]
-      ).catch(error => {
-        this.writeToStderr(`Logger database write error: ${String(error)}\n`);
-      });
+      this.databaseService
+        .execute(
+          `INSERT INTO ${tableName} (timestamp, level, source, category, message, args) VALUES (?, ?, ?, ?, ?, ?)`,
+          [timestamp, level, source, args.category || null, message, argsJson],
+        )
+        .catch((error) => {
+          this.writeToStderr(`Logger database write error: ${String(error)}\n`);
+        });
     } catch (error) {
       this.writeToStderr(`Logger database write error: ${String(error)}\n`);
     }

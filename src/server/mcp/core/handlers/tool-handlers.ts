@@ -26,12 +26,12 @@ import type {
   ListToolsResult,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { getModuleLoader } from '@/modules/loader.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
-import { ROLE_PERMISSIONS, hasPermission } from '@/server/mcp/core/types/permissions.js';
-import type { IUserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions.js';
+import { getModuleLoader } from '@/modules/loader';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
+import { ROLE_PERMISSIONS, hasPermission } from '@/server/mcp/core/types/permissions';
+import type { IUserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions';
 
 const logger = LoggerService.getInstance();
 

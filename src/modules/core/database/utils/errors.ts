@@ -9,7 +9,7 @@ import {
   HTTP_500,
   HTTP_503,
   HTTP_504
-} from '@/modules/core/database/constants/index.js';
+} from '@/modules/core/database/constants/index';
 
 /**
  * Base error class for all database-related errors.

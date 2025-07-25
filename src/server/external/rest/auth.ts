@@ -5,13 +5,13 @@
 
 import type { Request, Response } from 'express';
 import type { Router } from 'express';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { getAuthModule } from '@/modules/core/auth/singleton';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 const logger = LoggerService.getInstance();
-import { renderAuthPage } from '@/server/external/templates/auth.js';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { renderAuthPage } from '@/server/external/templates/auth';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 
 /**
  * Unified authentication endpoint handling login, registration, and logout.
@@ -37,10 +37,6 @@ export class AuthEndpoint {
 
       const providers = providerRegistry.getAllProviders();
 
-      /*
-       * Auth page is always shown as login page
-       * If user is authenticated, they should be on protected routes
-       */
       const html = renderAuthPage({
         providers,
         isAuthenticated: false,

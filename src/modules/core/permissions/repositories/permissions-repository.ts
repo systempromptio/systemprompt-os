@@ -11,7 +11,7 @@ import {
   type IPermission,
   type IRole,
   type IUserRole
-} from '@/modules/core/permissions/types/index.js';
+} from '@/modules/core/permissions/types/index';
 
 /**
  * Repository for permissions data operations.
@@ -42,7 +42,6 @@ export class PermissionsRepository {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    // Placeholder - would initialize database connections
   }
 
   /**

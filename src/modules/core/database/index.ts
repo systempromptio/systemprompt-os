@@ -5,18 +5,18 @@
  * @module database
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { SchemaService } from '@/modules/core/database/services/schema.service.js';
-import { MigrationService } from '@/modules/core/database/services/migration.service.js';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service.js';
-import { SQLParserService } from '@/modules/core/database/services/sql-parser.service.js';
-import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IDatabaseConfig } from '@/modules/core/database/types/database.types.js';
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
-import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { SchemaService } from '@/modules/core/database/services/schema.service';
+import { MigrationService } from '@/modules/core/database/services/migration.service';
+import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
+import { SQLParserService } from '@/modules/core/database/services/sql-parser.service';
+import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
+import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Strongly typed exports interface for Database module.
@@ -37,19 +37,25 @@ export interface IDatabaseModuleExports {
  * @returns True if module is a Database module.
  */
 export function isDatabaseModule(module: any): module is IModule<IDatabaseModuleExports> {
-  return module?.name === 'database'
-         && Boolean(module.exports)
-         && typeof module.exports === 'object'
-         && 'service' in module.exports
-         && typeof module.exports.service === 'function';
+  return (
+    module?.name === 'database' &&
+    Boolean(module.exports) &&
+    typeof module.exports === 'object' &&
+    'service' in module.exports &&
+    typeof module.exports.service === 'function'
+  );
 }
 
 /**
  * Export services.
  */
 export {
- DatabaseService, SchemaService, MigrationService, SchemaImportService, SQLParserService,
- DatabaseCLIHandlerService
+  DatabaseService,
+  SchemaService,
+  MigrationService,
+  SchemaImportService,
+  SQLParserService,
+  DatabaseCLIHandlerService,
 };
 
 /**
@@ -70,16 +76,30 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   public status: ModuleStatus = 'stopped' as ModuleStatus;
   private initialized = false;
   private started = false;
-  private logger?: ILogger;
+  private logger!: ILogger;
   get exports(): IDatabaseModuleExports {
     return {
-      service: () => { return this.getService() },
-      schemaService: () => { return SchemaService.getInstance() },
-      migrationService: () => { return MigrationService.getInstance() },
-      schemaImportService: () => { return SchemaImportService.getInstance() },
-      sqlParserService: () => { return SQLParserService.getInstance() },
-      cliHandlerService: () => { return DatabaseCLIHandlerService.getInstance() },
-      createModuleAdapter: async (moduleName: string) => { return await createModuleAdapter(moduleName) },
+      service: () => {
+        return this.getService();
+      },
+      schemaService: () => {
+        return SchemaService.getInstance();
+      },
+      migrationService: () => {
+        return MigrationService.getInstance();
+      },
+      schemaImportService: () => {
+        return SchemaImportService.getInstance();
+      },
+      sqlParserService: () => {
+        return SQLParserService.getInstance();
+      },
+      cliHandlerService: () => {
+        return DatabaseCLIHandlerService.getInstance();
+      },
+      createModuleAdapter: async (moduleName: string) => {
+        return await createModuleAdapter(moduleName);
+      },
     };
   }
 
@@ -88,6 +108,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
    * @returns {Promise<void>} Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
+    this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new Error('Database module already initialized');
     }
@@ -95,29 +116,29 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
     try {
       const config = buildConfig();
 
-      // Get logger singleton
-      this.logger = LoggerService.getInstance();
-
       const dbService = DatabaseService.initialize(config, this.logger);
       const sqlParser = SQLParserService.initialize(this.logger);
       const schemaImport = SchemaImportService.initialize(dbService as any, sqlParser, this.logger);
       const schemaService = SchemaService.initialize(dbService, schemaImport, this.logger);
       MigrationService.initialize(dbService, this.logger);
 
-      const modulesPath = process.env['NODE_ENV'] === 'production'
-        ? '/app/src/modules'
-        : `${process.cwd()}/src/modules`;
+      const modulesPath =
+        process.env['NODE_ENV'] === 'production'
+          ? '/app/src/modules'
+          : `${process.cwd()}/src/modules`;
 
       await schemaService.discoverSchemas(modulesPath);
       await schemaService.initializeSchemas();
 
       this.initialized = true;
-      this.logger?.info(LogSource.DATABASE, 'Database module initialized successfully', { category: 'initialization' });
+      this.logger?.info(LogSource.DATABASE, 'Database module initialized successfully', {
+        category: 'initialization',
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger?.error(LogSource.DATABASE, 'Database module initialization failed', {
         category: 'initialization',
-        error: error as Error
+        error: error as Error,
       });
       throw new Error(`Failed to initialize database module: ${errorMessage}`);
     }
@@ -228,7 +249,7 @@ const buildConfig = (): IDatabaseConfig => {
       min: parseInt(process.env['DB_POOL_MIN'] ?? DEFAULT_POOL_MIN, RADIX_BASE),
       max: parseInt(process.env['DB_POOL_MAX'] ?? DEFAULT_POOL_MAX, RADIX_BASE),
       idleTimeout: parseInt(process.env['DB_IDLE_TIMEOUT'] ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
-    }
+    },
   };
 
   if (config.type === 'sqlite') {
@@ -254,14 +275,15 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
   const schemaService = SchemaService.initialize(dbService, schemaImport, logger);
   MigrationService.initialize(dbService, logger);
 
-  const modulesPath = process.env['NODE_ENV'] === 'production'
-    ? '/app/src/modules'
-    : `${process.cwd()}/src/modules`;
+  const modulesPath =
+    process.env['NODE_ENV'] === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
 
   await schemaService.discoverSchemas(modulesPath);
   await schemaService.initializeSchemas();
 
-  logger?.info(LogSource.DATABASE, 'Database module initialized successfully', { category: 'initialization' });
+  logger?.info(LogSource.DATABASE, 'Database module initialized successfully', {
+    category: 'initialization',
+  });
 };
 
 /**

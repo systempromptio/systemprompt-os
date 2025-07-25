@@ -6,7 +6,7 @@
 import type {
  Request, Response, Router
 } from 'express';
-import { renderCallbackHandler } from '@/server/external/templates/auth/callback.js';
+import { renderCallbackHandler } from '@/server/external/templates/auth/callback';
 
 /**
  * OAuth callback handler endpoint.
@@ -35,9 +35,7 @@ export class CallbackEndpoint {
 export function setupRoutes(router: Router): void {
   const callbackEndpoint = new CallbackEndpoint();
 
-  // Root URL handles OAuth callbacks
   router.get('/', (req, res, next) => {
-    // Only handle if there's a code parameter
     if (req.query['code']) {
       callbackEndpoint.handleCallback(req, res);
     } else {

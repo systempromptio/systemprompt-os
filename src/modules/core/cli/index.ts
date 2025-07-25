@@ -4,13 +4,13 @@
  * Provides command-line interface utilities, help system, and command management functionality.
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { CliService } from '@/modules/core/cli/services/cli.service.js';
-import type { CLICommand } from '@/modules/core/cli/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/index.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { CliService } from '@/modules/core/cli/services/cli.service';
+import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Strongly typed exports interface for CLI module.
@@ -21,7 +21,9 @@ export interface ICLIModuleExports {
   readonly getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) => string;
   readonly formatCommands: (commands: Map<string, CLICommand>, format: string) => string;
   readonly generateDocs: (commands: Map<string, CLICommand>, format: string) => string;
-  readonly scanAndRegisterModuleCommands: (modules: Map<string, { path: string }>) => Promise<unknown>;
+  readonly scanAndRegisterModuleCommands: (
+    modules: Map<string, { path: string }>,
+  ) => Promise<unknown>;
 }
 
 /**
@@ -48,11 +50,11 @@ export class CLIModule implements IModule<ICLIModuleExports> {
     return {
       service: () => this.getService(),
       getAllCommands: async () => await this.getAllCommands(),
-      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) => 
+      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) =>
         this.getCommandHelp(commandName, commands),
-      formatCommands: (commands: Map<string, CLICommand>, format: string) => 
+      formatCommands: (commands: Map<string, CLICommand>, format: string) =>
         this.formatCommands(commands, format),
-      generateDocs: (commands: Map<string, CLICommand>, format: string) => 
+      generateDocs: (commands: Map<string, CLICommand>, format: string) =>
         this.generateDocs(commands, format),
       scanAndRegisterModuleCommands: async (modules: Map<string, { path: string }>) => {
         const service = this.getService();
@@ -94,12 +96,11 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * @returns Health check result.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
-    const isHealthy = this.status === ('running' as ModuleStatus) && this.cliService?.isInitialized();
+    const isHealthy =
+      this.status === ('running' as ModuleStatus) && this.cliService?.isInitialized();
     return {
       healthy: Boolean(isHealthy),
-      message: isHealthy
-        ? 'CLI module is healthy'
-        : 'CLI module is not running or not initialized',
+      message: isHealthy ? 'CLI module is healthy' : 'CLI module is not running or not initialized',
     };
   }
 
@@ -134,10 +135,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * @returns Formatted help text.
    * @throws {Error} If CLI service is not initialized.
    */
-  getCommandHelp(
-    commandName: string,
-    commands: Map<string, CLICommand>,
-  ): string {
+  getCommandHelp(commandName: string, commands: Map<string, CLICommand>): string {
     if (this.cliService === undefined || this.cliService === null) {
       throw new Error('CLI service not initialized');
     }
@@ -151,10 +149,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * @returns Formatted commands list.
    * @throws {Error} If CLI service is not initialized.
    */
-  formatCommands(
-    commands: Map<string, CLICommand>,
-    format: string,
-  ): string {
+  formatCommands(commands: Map<string, CLICommand>, format: string): string {
     if (this.cliService === undefined || this.cliService === null) {
       throw new Error('CLI service not initialized');
     }
@@ -168,10 +163,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * @returns Generated documentation.
    * @throws {Error} If CLI service is not initialized.
    */
-  generateDocs(
-    commands: Map<string, CLICommand>,
-    format: string,
-  ): string {
+  generateDocs(commands: Map<string, CLICommand>, format: string): string {
     if (this.cliService === undefined || this.cliService === null) {
       throw new Error('CLI service not initialized');
     }
@@ -199,26 +191,17 @@ export const getAllCommands = async (): Promise<Map<string, CLICommand>> => {
   return await cliModule.getAllCommands();
 };
 
-export const getCommandHelp = (
-  commandName: string, 
-  commands: Map<string, CLICommand>
-): string => {
+export const getCommandHelp = (commandName: string, commands: Map<string, CLICommand>): string => {
   const cliModule = new CLIModule();
   return cliModule.getCommandHelp(commandName, commands);
 };
 
-export const formatCommands = (
-  commands: Map<string, CLICommand>, 
-  format: string
-): string => {
+export const formatCommands = (commands: Map<string, CLICommand>, format: string): string => {
   const cliModule = new CLIModule();
   return cliModule.formatCommands(commands, format);
 };
 
-export const generateDocs = (
-  commands: Map<string, CLICommand>, 
-  format: string
-): string => {
+export const generateDocs = (commands: Map<string, CLICommand>, format: string): string => {
   const cliModule = new CLIModule();
   return cliModule.generateDocs(commands, format);
 };

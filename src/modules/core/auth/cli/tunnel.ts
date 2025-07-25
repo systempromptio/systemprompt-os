@@ -1,5 +1,5 @@
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import { ONE, TWO } from '@/const/numbers.js';
+import { getAuthModule } from '@/modules/core/auth/singleton';
+import { ONE, TWO } from '@/const/numbers';
 
 /**
  *  *  * TunnelStatus function.

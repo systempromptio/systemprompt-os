@@ -4,8 +4,8 @@
  */
 
 import type { Request, Response } from 'express';
-import { OAuth2Error } from '@/server/external/rest/oauth2/errors.js';
-import { AuthRepository } from '@/modules/core/auth/database/repository.js';
+import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
+import { AuthRepository } from '@/modules/core/auth/database/repository';
 
 export interface UserInfo {
   sub: string;
@@ -32,7 +32,6 @@ export class UserInfoEndpoint {
       return;
     }
 
-    // Fetch actual user data from database
     const authRepo = AuthRepository.getInstance();
     const user = await authRepo.getIUserById(req.user.id);
 
@@ -42,19 +41,17 @@ export class UserInfoEndpoint {
       return;
     }
 
-    // Build userInfo response
     const userInfo: UserInfo = {
       sub: user.id,
       ...user.name && { name: user.name },
       ...user.email.split('@')[0] && { preferred_username: user.email.split('@')[0] },
       email: user.email,
-      email_verified: true, // OAuth users are verified by provider
+      email_verified: true,
       agent_id: `agent-${user.id}`,
       agent_type: 'autonomous',
       ...user.avatarUrl && { picture: user.avatarUrl },
     };
 
-    // Filter response based on requested scopes
     const scopes = req.user.scope?.split(' ') || [];
     const response: Partial<UserInfo> = { sub: userInfo.sub };
 
@@ -79,7 +76,6 @@ export class UserInfoEndpoint {
       }
     }
 
-    // Custom scopes for systemprompt-os
     if (scopes.includes('agent')) {
       if (userInfo.agent_id) {
         response.agent_id = userInfo.agent_id;

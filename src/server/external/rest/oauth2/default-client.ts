@@ -2,9 +2,9 @@
  * Default OAuth client for registration/login pages.
  */
 
-import { RegisterEndpoint } from '@/server/external/rest/oauth2/register.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { RegisterEndpoint } from '@/server/external/rest/oauth2/register';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 const logger = LoggerService.getInstance();
 
@@ -25,7 +25,6 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     return defaultClient;
   }
 
-  // Check if we have a persisted default client
   const existingClient = RegisterEndpoint.getClient('default-web-client');
   if (existingClient) {
     defaultClient = {
@@ -36,10 +35,9 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     return defaultClient;
   }
 
-  // Create a new default client
   const registration = {
     client_name: 'SystemPrompt Web Client',
-    client_id: 'default-web-client', // Use predictable ID
+    client_id: 'default-web-client',
     redirect_uris: [
       `${baseUrl}/oauth2/callback/google`,
       `${baseUrl}/oauth2/callback/github`,
@@ -48,10 +46,9 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     scope: 'openid profile email',
-    token_endpoint_auth_method: 'none', // Public client
+    token_endpoint_auth_method: 'none'
   };
 
-  // Register the client
   const registeredClient = await RegisterEndpoint.registerClient(registration);
 
   defaultClient = {

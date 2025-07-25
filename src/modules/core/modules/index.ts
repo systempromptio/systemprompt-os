@@ -6,13 +6,11 @@
  * @module modules/core/modules
  */
 
-import {
- type IModule, type ModuleInfo, ModuleStatus
-} from '@/modules/core/modules/types/index.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service.js';
+import { type IModule, type ModuleInfo, ModuleStatus } from '@/modules/core/modules/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
 
 /**
  * Strongly typed exports interface for Modules module.
@@ -24,7 +22,11 @@ export interface IModulesModuleExports {
   readonly getModule: (name: string) => Promise<ModuleInfo | undefined>;
   readonly enableModule: (name: string) => Promise<void>;
   readonly disableModule: (name: string) => Promise<void>;
-  readonly registerCoreModule: (name: string, path: string, dependencies?: string[]) => Promise<void>;
+  readonly registerCoreModule: (
+    name: string,
+    path: string,
+    dependencies?: string[],
+  ) => Promise<void>;
 }
 
 /**
@@ -37,39 +39,53 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
   status = ModuleStatus.STOPPED;
   dependencies = ['logger', 'database'];
   private service?: ModuleManagerService;
-  private logger?: LoggerService;
-  private database?: DatabaseService;
+  private logger!: LoggerService;
+  private database!: DatabaseService;
   get exports(): IModulesModuleExports {
     return {
-      service: () => { return this.getService() },
+      service: () => {
+        return this.getService();
+      },
       scanForModules: async () => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         return await svc.scanForModules();
       },
       getEnabledModules: async () => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         return await svc.getEnabledModules();
       },
       getModule: async (name: string) => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         return await svc.getModule(name);
       },
       enableModule: async (name: string) => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         await svc.enableModule(name);
       },
       disableModule: async (name: string) => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         await svc.disableModule(name);
       },
       registerCoreModule: async (name: string, path: string, dependencies: string[] = []) => {
         const svc = this.getService();
-        if (!svc) { throw new Error('Module service not initialized'); }
+        if (!svc) {
+          throw new Error('Module service not initialized');
+        }
         await svc.registerCoreModule(name, path, dependencies);
       },
     };
@@ -118,7 +134,7 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
     const healthy = this.status === ModuleStatus.RUNNING && this.service !== undefined;
     return {
       healthy,
-      message: healthy ? 'Modules module is healthy' : 'Modules module is not running'
+      message: healthy ? 'Modules module is healthy' : 'Modules module is not running',
     };
   }
 

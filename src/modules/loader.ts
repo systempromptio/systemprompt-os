@@ -5,10 +5,10 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { ModuleRegistry } from '@/modules/registry.js';
-import { CONFIG } from '@/server/config.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { ModuleRegistry } from '@/modules/registry';
+import { CONFIG } from '@/server/config';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 const logger = LoggerService.getInstance();
 import {
@@ -16,7 +16,7 @@ import {
   type ModuleInfo,
   type ModuleScannerService,
   ModuleStatus,
-} from '@/modules/core/modules/types/index.js';
+} from '@/modules/core/modules/types/index';
 
 /**
  * Configuration for an individual module from config file.
@@ -143,13 +143,8 @@ export class ModuleLoader {
    * @private
    */
   private async loadCoreModules(config: ModulesConfig): Promise<void> {
-    /*
-     * Core modules are now loaded by bootstrap
-     * Skip loading logger, database, and cli here
-     */
     logger.debug(LogSource.MODULES, 'Core modules already loaded by bootstrap');
 
-    // Only load the modules module if not already loaded
     if (!this.registry.get('modules')) {
       await this.loadModule('modules', './core/modules/index.js', config);
     }
@@ -186,7 +181,6 @@ export class ModuleLoader {
       const enabledModules = await this.scannerService.getEnabledModules();
 
       for (const moduleInfo of enabledModules) {
-        // Skip core modules that are loaded by bootstrap
         if (['logger', 'database', 'cli', 'modules'].includes(moduleInfo.name)) {
           logger.debug(LogSource.MODULES, `Skipping core module ${moduleInfo.name} - already loaded by bootstrap`);
           continue;

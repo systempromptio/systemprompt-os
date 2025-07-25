@@ -4,7 +4,7 @@
  * This file now delegates to the auth module for provider management
  */
 
-import { getProviderRegistry as getAuthModuleRegistry } from '@/server/external/auth/providers/auth-module-adapter.js';
+import { getProviderRegistry as getAuthModuleRegistry } from '@/server/external/auth/providers/auth-module-adapter';
 
 /**
  * Get the provider registry from the auth module

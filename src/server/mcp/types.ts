@@ -4,4 +4,4 @@
  * @module server/mcp/types
  */
 
-export * from '@/server/types/mcp-server.types.js';
+export * from '@/server/types/mcp-server.types';

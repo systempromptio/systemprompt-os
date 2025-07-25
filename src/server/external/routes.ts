@@ -5,24 +5,24 @@
  */
 
 import { type Express, Router } from 'express';
-import { HTTP_STATUS } from '@/server/external/constants/http.constants.js';
-import { createAuthMiddleware } from '@/server/external/middleware/auth.js';
-import { setupOAuth2Routes } from '@/server/external/rest/oauth2/index.js';
-import { HealthEndpoint } from '@/server/external/rest/health.js';
-import { setupRoutes as splashSetup } from '@/server/external/rest/splash.js';
-import { setupRoutes as authSetup } from '@/server/external/rest/auth.js';
-import { setupRoutes as configSetup } from '@/server/external/rest/config.js';
-import { setupRoutes as callbackSetup } from '@/server/external/rest/callback.js';
-import { setupRoutes as usersApiSetup } from '@/server/external/rest/api/users.js';
-import { setupRoutes as dashboardSetup } from '@/server/external/rest/dashboard.js';
-import { setupRoutes as terminalApiSetup } from '@/server/external/rest/api/terminal.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { HTTP_STATUS } from '@/server/external/constants/http.constants';
+import { createAuthMiddleware } from '@/server/external/middleware/auth';
+import { setupOAuth2Routes } from '@/server/external/rest/oauth2/index';
+import { HealthEndpoint } from '@/server/external/rest/health';
+import { setupRoutes as splashSetup } from '@/server/external/rest/splash';
+import { setupRoutes as authSetup } from '@/server/external/rest/auth';
+import { setupRoutes as configSetup } from '@/server/external/rest/config';
+import { setupRoutes as callbackSetup } from '@/server/external/rest/callback';
+import { setupRoutes as usersApiSetup } from '@/server/external/rest/api/users';
+import { setupRoutes as dashboardSetup } from '@/server/external/rest/dashboard';
+import { setupRoutes as terminalApiSetup } from '@/server/external/rest/api/terminal';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 import type {
   IExpressLayer,
   IRouteContext,
   IRouteInfo,
-} from '@/server/external/types/routes.types.js';
+} from '@/server/external/types/routes.types';
 
 /**
  * Logger instance.

@@ -27,7 +27,7 @@ import type {
   PromptMessage,
   TextContent,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getModuleLoader } from '@/modules/loader.js';
+import { getModuleLoader } from '@/modules/loader';
 
 /**
  * Handles MCP prompt listing requests.

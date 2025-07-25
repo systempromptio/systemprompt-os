@@ -3,12 +3,12 @@ import {
 } from "fs";
 import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
-import type { ILogger } from "@/modules/core/logger/types/index.js";
-import { LogSource } from "@/modules/core/logger/types/index.js";
-import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
-import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2.js';
-import { GoogleProvider } from '@/modules/core/auth/providers/core/google.js';
-import { GitHubProvider } from '@/modules/core/auth/providers/core/github.js';
+import type { ILogger } from "@/modules/core/logger/types/index";
+import { LogSource } from "@/modules/core/logger/types/index";
+import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
+import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2';
+import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
+import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
 
 /**
  *

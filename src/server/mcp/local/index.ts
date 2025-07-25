@@ -7,7 +7,7 @@
 // eslint-disable-next-line systemprompt-os/no-block-comments
 /* eslint-disable systemprompt-os/no-console-with-help */
 
-import { LocalMcpServer } from '@/server/mcp/local/server.js';
+import { LocalMcpServer } from '@/server/mcp/local/server';
 
 /**
  * Legacy class name for compatibility.

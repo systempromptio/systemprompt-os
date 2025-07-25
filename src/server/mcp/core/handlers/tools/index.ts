@@ -3,11 +3,11 @@
  * @module handlers/tools
  */
 
-export * from '@/server/mcp/core/handlers/tools/types.js';
+export * from '@/server/mcp/core/handlers/tools/types';
 
 export type {
   ToolHandler,
   IToolHandlerContext,
-} from '@/server/mcp/core/handlers/tools/types.js';
+} from '@/server/mcp/core/handlers/tools/types';
 
-export { handleCheckStatus } from '@/server/mcp/core/handlers/tools/check-status.js';
+export { handleCheckStatus } from '@/server/mcp/core/handlers/tools/check-status';

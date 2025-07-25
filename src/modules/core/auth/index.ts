@@ -5,22 +5,22 @@ import {
  dirname, join, resolve
 } from 'path';
 import { fileURLToPath } from 'url';
-import type { IModule } from '@/modules/core/modules/types/index.js';
-import { ModuleStatus } from '@/modules/core/modules/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { ProviderRegistry } from '@/modules/core/auth/providers/registry.js';
-import { TunnelService } from '@/modules/core/auth/services/tunnel-service.js';
-import { TokenService } from '@/modules/core/auth/services/token.service.js';
-import { AuthService } from '@/modules/core/auth/services/auth.service.js';
-import { UserService } from '@/modules/core/auth/services/user-service.js';
-import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
-import { MFAService } from '@/modules/core/auth/services/mfa.service.js';
-import { AuditService } from '@/modules/core/auth/services/audit.service.js';
-import { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service.js';
-import { ConfigurationError } from '@/modules/core/auth/utils/errors.js';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatus } from '@/modules/core/modules/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
+import { TunnelService } from '@/modules/core/auth/services/tunnel-service';
+import { TokenService } from '@/modules/core/auth/services/token.service';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { UserService } from '@/modules/core/auth/services/user-service';
+import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
+import { MFAService } from '@/modules/core/auth/services/mfa.service';
+import { AuditService } from '@/modules/core/auth/services/audit.service';
+import { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service';
+import { ConfigurationError } from '@/modules/core/auth/utils/errors';
 import type {
   AuthConfig,
   AuthModuleExports,
@@ -30,12 +30,12 @@ import type {
   LoginResult,
   TokenCreateInput,
   TokenValidationResult
-} from '@/modules/core/auth/types/index.js';
+} from '@/modules/core/auth/types/index';
 
 const _filename = fileURLToPath(import.meta.url);
 import {
  FIVE, TEN
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 const _dirname = dirname(_filename);
 
@@ -89,6 +89,7 @@ export class AuthModule implements IModule {
    *  * Initialize the auth module.
    */
   async initialize(): Promise<void> {
+    this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new ConfigurationError('Auth module already initialized');
     }
@@ -198,7 +199,7 @@ export class AuthModule implements IModule {
             }); });
         },
         24 * 60 * 60 * 1000
-      ); // Daily
+      )
 
       this.status = ModuleStatus.RUNNING;
       this.started = true;
@@ -335,20 +336,20 @@ export class AuthModule implements IModule {
         algorithm: 'RS256',
         issuer: 'systemprompt-os',
         audience: 'systemprompt-os',
-        accessTokenTTL: 900, // 15 minutes
-        refreshTokenTTL: 2592000, // THIRTY days
+        accessTokenTTL: 900,
+        refreshTokenTTL: 2592000,
         keyStorePath: process.env['JWT_KEY_PATH'] ?? './state/auth/keys',
-        privateKey: '', // Loaded at runtime
-        publicKey: '', // Loaded at runtime
+        privateKey: '',
+        publicKey: ''
       },
       session: {
         maxConcurrent: FIVE,
-        absoluteTimeout: 86400, // 24 hours in seconds
-        inactivityTimeout: 3600, // 1 hour in seconds
+        absoluteTimeout: 86400,
+        inactivityTimeout: 3600
       },
       security: {
         maxLoginAttempts: FIVE,
-        lockoutDuration: 900, // 15 minutes
+        lockoutDuration: 900,
         passwordMinLength: 8,
         requirePasswordChange: false,
       },

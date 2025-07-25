@@ -8,8 +8,8 @@
  */
 
 import { Command } from 'commander';
-import { SystemService } from '@/modules/core/system/services/system.service.js';
-import type { ConfigTypeEnum } from '@/modules/core/system/types/index.js';
+import { SystemService } from '@/modules/core/system/services/system.service';
+import type { ConfigTypeEnum } from '@/modules/core/system/types/index';
 
 const ERROR_EXIT_CODE = 1;
 

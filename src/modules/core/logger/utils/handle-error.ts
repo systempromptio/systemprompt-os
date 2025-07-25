@@ -22,9 +22,7 @@ export function handleError(
 ): void {
   const errorService = ErrorHandlingService.getInstance();
 
-  // Process error asynchronously to not block the main thread
   errorService.processError(source, error, options).catch(processingError => {
-    // If error processing itself fails, log to console as fallback
     console.error('Error processing failed:', {
       originalError: error,
       processingError,
@@ -58,14 +56,12 @@ export async function handleErrorAsync(
   try {
     await errorService.processError(source, error, options);
   } catch (processingError) {
-    // If error processing itself fails, log to console as fallback
     console.error('Error processing failed:', {
       originalError: error,
       processingError,
       source
     });
 
-    // Re-throw the original error if rethrow is enabled
     if (options?.rethrow !== false) {
       throw error;
     }

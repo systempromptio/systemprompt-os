@@ -4,7 +4,7 @@
  * @module types/bootstrap-module
  */
 
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
+import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
 
 /**
  * Type alias for module constructor.

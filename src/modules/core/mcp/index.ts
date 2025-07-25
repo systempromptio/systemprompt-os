@@ -4,8 +4,8 @@
  * Model Context Protocol integration for managing AI model contexts.
  */
 
-import { getCommands } from '@/modules/core/mcp/cli/index.js';
-import { MCPService } from '@/modules/core/mcp/services/mcp.service.js';
+import { getCommands } from '@/modules/core/mcp/cli/index';
+import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 
 /**
  * Initialize function for core module pattern.
@@ -32,4 +32,4 @@ export { MCPService };
 export {
   MCPRoleEnum,
   MCPSessionStatusEnum
-} from '@/modules/core/mcp/types/index.js';
+} from '@/modules/core/mcp/types/index';

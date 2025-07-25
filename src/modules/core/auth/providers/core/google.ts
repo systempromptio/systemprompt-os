@@ -1,6 +1,6 @@
 import type {
   IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface.js';
+} from '@/modules/core/auth/types/provider-interface';
 // Removed unused imports
 
 /**
@@ -91,10 +91,6 @@ export class GoogleProvider implements IIdentityProvider {
       throw new Error(`Failed to get user info: ${response.statusText}`);
     }
 
-    /**
-     *  * Description.
-     * Data function.
-     */
     const data = (await response.json()) as any;
 
     return {

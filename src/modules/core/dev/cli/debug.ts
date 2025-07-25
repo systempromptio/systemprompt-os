@@ -4,8 +4,8 @@
  */
 
 import { Command } from 'commander';
-import { DevService } from '@/modules/core/dev/services/dev.service.js';
-import { DevSessionType } from '@/modules/core/dev/types/index.js';
+import { DevService } from '@/modules/core/dev/services/dev.service';
+import { DevSessionType } from '@/modules/core/dev/types/index';
 
 /**
  * Creates a command for debugging.

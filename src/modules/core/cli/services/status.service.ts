@@ -4,7 +4,7 @@
  * Provides status information and listing for CLI commands.
  */
 
-import type { ICliService } from '@/modules/core/cli/types/index.js';
+import type { ICliService } from '@/modules/core/cli/types/index';
 
 export interface CommandSummary {
   totalCommands: number;

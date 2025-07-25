@@ -6,7 +6,7 @@
 import type {
  Request, Response, Router
 } from 'express';
-import { getDatabase } from '@/modules/core/database/index.js';
+import { getDatabase } from '@/modules/core/database/index';
 
 /**
  * User API endpoints.

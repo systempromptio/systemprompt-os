@@ -6,13 +6,13 @@
  * @module index
  */
 
-import { type Bootstrap, runBootstrap } from './bootstrap.js';
+import { type Bootstrap, runBootstrap } from './bootstrap';
 import { type Server } from 'http';
-import { startServer } from './server/index.js';
-import { tunnelStatus } from './modules/core/auth/tunnel-status.js';
-import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants.js';
-import { LogSource } from './modules/core/logger/types/index.js';
-import type { ILogger } from './modules/core/logger/types/index.js';
+import { startServer } from './server/index';
+import { tunnelStatus } from './modules/core/auth/tunnel-status';
+import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants';
+import { LogSource } from './modules/core/logger/types/index';
+import type { ILogger } from './modules/core/logger/types/index';
 
 /**
  * Bootstrap instance for shutdown handling.
@@ -38,7 +38,7 @@ const consoleFallback: ILogger = {
   error: (_source: LogSource, message: string, _args?: unknown): void => { console.error(message); },
   log: (_level: string, _source: LogSource, message: string, _args?: unknown): void => { console.log(message); },
   access: (message: string): void => { console.log(message); },
-  clearLogs: async (): Promise<void> => { /* Noop */ },
+  clearLogs: async (): Promise<void> => {},
   getLogs: async (): Promise<string[]> => { return [] }
 };
 

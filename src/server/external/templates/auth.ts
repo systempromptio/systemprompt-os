@@ -175,7 +175,6 @@ function renderProviderButton(provider: IdentityProvider): string {
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
 
-  // Use the tunnel URL if available
   const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
 
   const params = new URLSearchParams({

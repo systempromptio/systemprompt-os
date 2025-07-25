@@ -4,7 +4,7 @@
  * Provides help information and formatting for CLI commands.
  */
 
-import type { ICliService } from '@/modules/core/cli/types/index.js';
+import type { ICliService } from '@/modules/core/cli/types/index';
 
 /**
  * Service for providing help information for CLI commands.

@@ -4,10 +4,10 @@
  * @module database/services/sql-parser
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQL parser service for parsing and validating SQL statements.
@@ -99,13 +99,11 @@ export class SQLParserService {
         statementStartLine = lineIndex + 1;
       }
 
-      // Check for trigger start
       if (trimmedLine.toUpperCase().startsWith('CREATE TRIGGER')) {
         inTrigger = true;
         triggerBeginCount = ZERO;
       }
 
-      // Count BEGIN/END blocks in triggers
       if (inTrigger) {
         const upperLine = trimmedLine.toUpperCase();
         if (upperLine === 'BEGIN') {

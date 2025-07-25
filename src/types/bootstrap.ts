@@ -4,7 +4,7 @@
  * @module types/bootstrap
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
 
 /**
  * Bootstrap phase enumeration.

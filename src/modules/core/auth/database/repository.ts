@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { getAuthModule } from '@/modules/core/auth/singleton';
 import type {
  IPermission, IRole, IUser
-} from '@/modules/core/auth/database/models/index.js';
+} from '@/modules/core/auth/database/models/index';
 import {
  ZERO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 /**
  *

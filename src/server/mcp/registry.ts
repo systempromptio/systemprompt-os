@@ -14,10 +14,10 @@ import {
   type IRemoteMcpServer,
   type McpServer,
   McpServerTypeEnum,
-} from '@/server/mcp/types.js';
-import { mcpAuthAdapter } from '@/server/mcp/auth-adapter.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
-import { DEFAULT_PROXY_TIMEOUT } from '@/server/constants/mcp.constants.js';
+} from '@/server/mcp/types';
+import { mcpAuthAdapter } from '@/server/mcp/auth-adapter';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
+import { DEFAULT_PROXY_TIMEOUT } from '@/server/constants/mcp.constants';
 
 /**
  * HTTP Status Codes.
@@ -83,8 +83,10 @@ export class McpServerRegistry {
     }
 
     this.servers.set(server.id, server);
-    logger.debug(LogSource.MCP, 
-      `Registered ${server.type} MCP server: ${server.name} (${server.id})`);
+    logger.debug(
+LogSource.MCP,
+      `Registered ${server.type} MCP server: ${server.name} (${server.id})`
+);
   }
 
   /**
@@ -101,8 +103,10 @@ export class McpServerRegistry {
 
     app.get('/mcp/status', this.createStatusHandler());
 
-    logger.debug(LogSource.MCP, 
-      `Configured routes for ${String(this.servers.size)} MCP servers`);
+    logger.debug(
+LogSource.MCP,
+      `Configured routes for ${String(this.servers.size)} MCP servers`
+);
   }
 
   /**
@@ -132,8 +136,10 @@ export class McpServerRegistry {
     app.all(endpoint, mcpAuthAdapter, handler);
 
     if (server.type === McpServerTypeEnum.LOCAL) {
-      logger.debug(LogSource.MCP, 
-        `Local server '${server.name}' mounted at ${endpoint} (auth enabled)`);
+      logger.debug(
+LogSource.MCP,
+        `Local server '${server.name}' mounted at ${endpoint} (auth enabled)`
+);
 
       if (id === 'core') {
         app.all('/mcp', mcpAuthAdapter, handler);
@@ -143,8 +149,8 @@ export class McpServerRegistry {
       const remoteServer = server;
       logger.debug(
         LogSource.MCP,
-        `Remote server '${server.name}' proxied at ${endpoint} -> ` +
-        `${remoteServer.config.url} (auth enabled)`,
+        `Remote server '${server.name}' proxied at ${endpoint} -> `
+        + `${remoteServer.config.url} (auth enabled)`,
         {
           data: {
             serverName: server.name,
@@ -204,8 +210,8 @@ export class McpServerRegistry {
     const requestHeaders = this.buildRequestHeaders(headers, auth);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout((): void => { 
-      controller.abort(); 
+    const timeoutId = setTimeout((): void => {
+      controller.abort();
     }, timeout ?? DEFAULT_PROXY_TIMEOUT);
 
     try {
@@ -260,9 +266,9 @@ export class McpServerRegistry {
       return `Bearer ${auth.token}`;
     }
 
-    if (auth.type === 'basic' && 
-        auth.username !== null && auth.username !== undefined && auth.username !== '' &&
-        auth.password !== null && auth.password !== undefined && auth.password !== '') {
+    if (auth.type === 'basic'
+        && auth.username !== null && auth.username !== undefined && auth.username !== ''
+        && auth.password !== null && auth.password !== undefined && auth.password !== '') {
       const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString('base64');
       return `Basic ${credentials}`;
     }
@@ -274,6 +280,7 @@ export class McpServerRegistry {
    * Forwards the remote server response back to the client.
    * @param {globalThis.Response} response - Response from remote server.
    * @param {Response} res - Express response object.
+   * @param req
    * @returns {Promise<void>}
    */
   private async forwardResponse(

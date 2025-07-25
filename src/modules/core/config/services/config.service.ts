@@ -5,7 +5,7 @@
 
 import type {
  ConfigValue, IConfigEntry, IConfigService
-} from '@/modules/core/config/types/index.js';
+} from '@/modules/core/config/types/index';
 
 /**
  * Service for managing configuration with singleton pattern.

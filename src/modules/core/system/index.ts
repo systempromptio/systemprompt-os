@@ -4,8 +4,8 @@
  * Core system management and configuration functionality.
  */
 
-import { getCommands } from '@/modules/core/system/cli/index.js';
-import { SystemService } from '@/modules/core/system/services/system.service.js';
+import { getCommands } from '@/modules/core/system/cli/index';
+import { SystemService } from '@/modules/core/system/services/system.service';
 
 /**
  * Initialize function for core module pattern.
@@ -34,4 +34,4 @@ export {
   ModuleStatusEnum,
   EventSeverityEnum,
   MaintenanceTypeEnum
-} from '@/modules/core/system/types/index.js';
+} from '@/modules/core/system/types/index';

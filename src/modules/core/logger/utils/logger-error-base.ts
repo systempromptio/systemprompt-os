@@ -4,7 +4,7 @@
  * @module modules/core/logger/utils/logger-error-base
  */
 
-import type { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index.js';
+import type { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index';
 
 /**
  * Base error class for logger-related errors.

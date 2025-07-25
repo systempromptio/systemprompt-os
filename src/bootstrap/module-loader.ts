@@ -5,13 +5,13 @@
  */
 
 import { Container } from 'typedi';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
+import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
 import type {
   GlobalConfiguration,
   ICoreModuleDefinition,
-} from '@/types/bootstrap.js';
-import type { ModuleConstructor } from '@/types/bootstrap-module.js';
-import { MIN_MODULE_NAME_LENGTH } from '@/const/bootstrap.js';
+} from '@/types/bootstrap';
+import type { ModuleConstructor } from '@/types/bootstrap-module';
+import { MIN_MODULE_NAME_LENGTH } from '@/const/bootstrap';
 
 /**
  * Find module class in exports.
@@ -136,7 +136,6 @@ export const loadCoreModule = async (
     }
   }
 
-  // Resolve path relative to project root
   const resolvedPath = new URL(path, `file://${process.cwd()}/`).href;
   const moduleExports = await import(resolvedPath) as Record<string, unknown>;
   const moduleInstance = createModuleInstance(moduleExports, name, type);

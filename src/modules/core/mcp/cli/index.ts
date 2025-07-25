@@ -3,9 +3,9 @@
  */
 
 import type { Command } from 'commander';
-import { createListCommand } from '@/modules/core/mcp/cli/list.js';
-import { createCreateCommand } from '@/modules/core/mcp/cli/create.js';
-import { createDeleteCommand } from '@/modules/core/mcp/cli/delete.js';
+import { createListCommand } from '@/modules/core/mcp/cli/list';
+import { createCreateCommand } from '@/modules/core/mcp/cli/create';
+import { createDeleteCommand } from '@/modules/core/mcp/cli/delete';
 
 /**
  * Get all CLI commands for the MCP module.

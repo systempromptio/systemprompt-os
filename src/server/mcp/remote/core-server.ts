@@ -20,18 +20,18 @@ import {
   type ReadResourceRequest,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
 // HTTP Status constants
 const HTTP_INTERNAL_ERROR = 500;
 const HTTP_NOT_FOUND = 404;
-import type { IServerConfig, ISessionInfo } from '@/server/mcp/remote/types.js';
-import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
-import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
+import type { IServerConfig, ISessionInfo } from '@/server/mcp/remote/types';
+import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
+import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers';
 import {
   handleListResources,
   handleResourceCall,
-} from '@/server/mcp/core/handlers/resource-handlers.js';
-import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
+} from '@/server/mcp/core/handlers/resource-handlers';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
 
 const logger = LoggerService.getInstance();
 

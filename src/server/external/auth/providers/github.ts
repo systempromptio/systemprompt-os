@@ -5,7 +5,7 @@
 
 import type {
  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/server/external/auth/providers/interface.js';
+} from '@/server/external/auth/providers/interface';
 
 export type GitHubConfig = IDPConfig;
 
@@ -61,7 +61,6 @@ export class GitHubProvider implements IdentityProvider {
 
     const data = await response.json() as any;
 
-    // Return standard OAuth2 token response
     return data as IDPTokens;
   }
 
@@ -70,7 +69,6 @@ export class GitHubProvider implements IdentityProvider {
   }
 
   async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
-    // Get basic user info
     const userResponse = await fetch(this.userEndpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -84,7 +82,6 @@ export class GitHubProvider implements IdentityProvider {
 
     const userData = await userResponse.json() as any;
 
-    // Get primary email if not public
     let email = userData.email as string | undefined;
     let email_verified = true;
 

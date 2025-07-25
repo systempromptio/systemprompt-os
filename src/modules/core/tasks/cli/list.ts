@@ -4,8 +4,8 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand } from '@/modules/core/cli/types/index.js';
-import { TaskStatus } from '@/modules/core/tasks/types/index.js';
+import type { CLICommand } from '@/modules/core/cli/types/index';
+import { TaskStatus } from '@/modules/core/tasks/types/index';
 
 /**
  * Tasks list command.

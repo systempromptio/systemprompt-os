@@ -7,9 +7,9 @@ import type { Request, Response } from 'express';
 import os from 'os';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { CONFIG } from '@/server/config.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { CONFIG } from '@/server/config';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 const logger = LoggerService.getInstance();
 
@@ -92,7 +92,7 @@ persistToDb: false
   private isHeartbeatStale(heartbeat: HeartbeatStatus): boolean {
     const heartbeatTime = new Date(heartbeat.timestamp).getTime();
     const now = Date.now();
-    const staleThreshold = 2 * 60 * 1000; // 2 minutes
+    const staleThreshold = 2 * 60 * 1000
     return now - heartbeatTime > staleThreshold;
   }
 
@@ -110,16 +110,13 @@ persistToDb: false
     const warnings: string[] = [];
     let status: 'ok' | 'degraded' | 'error' = 'ok';
 
-    // Read heartbeat data
     const heartbeat = this.readHeartbeat();
     if (heartbeat) {
-      // Check if heartbeat is stale
       if (this.isHeartbeatStale(heartbeat)) {
         warnings.push('Heartbeat is stale');
         status = 'degraded';
       }
 
-      // Check heartbeat status
       if (heartbeat.status !== 'healthy') {
         warnings.push('Heartbeat reports unhealthy status');
         status = 'degraded';
@@ -157,11 +154,6 @@ persistToDb: false
         },
       },
     };
-
-    /*
-     * TODO: Add disk space information
-     * This would require additional dependencies or native calls
-     */
 
     return res.json(health);
   };

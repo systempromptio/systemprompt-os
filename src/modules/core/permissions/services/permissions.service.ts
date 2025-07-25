@@ -12,15 +12,15 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { PermissionsRepository } from '@/modules/core/permissions/repositories/permissions-repository.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { PermissionsRepository } from '@/modules/core/permissions/repositories/permissions-repository';
 import {
   type IPermission,
   type IPermissionCheck,
   type IPermissionsService,
   type IRole
-} from '@/modules/core/permissions/types/index.js';
+} from '@/modules/core/permissions/types/index';
 
 /**
  * Service for managing permissions and roles.

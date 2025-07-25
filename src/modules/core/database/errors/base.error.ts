@@ -4,7 +4,7 @@
  * @module database/errors/base.error
  */
 
-import { HTTP_500 } from '@/modules/core/database/constants/index.js';
+import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Base error class for all database-related errors.

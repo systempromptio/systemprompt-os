@@ -5,10 +5,10 @@
  * @module modules/core/modules/services/mcp-content-scanner.service
  */
 
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 import * as fs from 'fs/promises';
 import type { Stats } from 'fs';
 import * as path from 'path';

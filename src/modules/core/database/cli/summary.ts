@@ -3,8 +3,8 @@
  * @module modules/core/database/cli/summary
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 interface TableInfo {
   name: string;
@@ -29,7 +29,6 @@ export const command = {
         return;
       }
 
-      // Get all tables
       let tableQuery = "SELECT name FROM sqlite_master WHERE type='table'";
       if (!includeSystem) {
         tableQuery += " AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%'";
@@ -42,13 +41,11 @@ export const command = {
 
       for (const table of tables) {
         try {
-          // Get row count
           const rowCountResult = await dbService.query<{ count: number }>(
             `SELECT COUNT(*) as count FROM \`${table.name}\``
           );
           const rowCount = rowCountResult[0]?.count ?? 0;
 
-          // Get column information
           const columns = await dbService.query<{
             name: string;
             type: string;
@@ -74,7 +71,6 @@ export const command = {
         }
       }
 
-      // Sort tables
       tableInfos.sort((a, b) => {
         switch (sortBy) {
           case 'rows':

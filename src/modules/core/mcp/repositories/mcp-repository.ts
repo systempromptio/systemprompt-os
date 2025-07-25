@@ -9,7 +9,7 @@ import {
   type IMCPSession,
   type MCPRoleEnum,
   MCPSessionStatusEnum,
-} from '@/modules/core/mcp/types/index.js';
+} from '@/modules/core/mcp/types/index';
 
 /**
  * Repository for MCP data operations.
@@ -40,7 +40,6 @@ export class MCPRepository {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    // Placeholder - would initialize database connections
   }
 
   /**

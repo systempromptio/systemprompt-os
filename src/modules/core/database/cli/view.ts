@@ -3,8 +3,8 @@
  * @module modules/core/database/cli/view
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import type { ICLIContext } from '@/modules/core/cli/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 export const command = {
   description: 'View table contents and data',
@@ -33,7 +33,6 @@ export const command = {
         return;
       }
 
-      // Validate table exists
       const tableExists = await dbService.query<{ count: number }>(
         "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name=?",
         [tableName]
@@ -44,7 +43,6 @@ export const command = {
         process.exit(1);
       }
 
-      // Get table schema
       const schema = await dbService.query<{
         cid: number;
         name: string;
@@ -91,7 +89,6 @@ columns: columnInfo
         return;
       }
 
-      // Build query for data
       let selectColumns = '*';
       if (columns) {
         const requestedColumns = columns.split(',').map(c => { return c.trim() });
@@ -122,7 +119,6 @@ columns: columnInfo
 
       const rows = await dbService.query(query, params);
 
-      // Get total count for pagination info
       let countQuery = `SELECT COUNT(*) as count FROM \`${tableName}\``;
       if (where) {
         countQuery += ` WHERE ${where}`;

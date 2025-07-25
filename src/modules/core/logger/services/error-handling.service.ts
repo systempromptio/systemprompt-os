@@ -63,21 +63,16 @@ export class ErrorHandlingService {
     };
     const context = this.buildErrorContext(source, mergedOptions);
 
-    // Convert unknown error to structured format
     const processedError = this.structureError(error, context, mergedOptions);
 
-    // Sanitize sensitive information
     if (mergedOptions.logToDatabase || mergedOptions.logToFile) {
       this.sanitizeError(processedError);
     }
 
-    // Track error occurrences
     this.trackErrorOccurrence(processedError);
 
-    // Log the error
     await this.logError(processedError, mergedOptions);
 
-    // Handle rethrow
     if (mergedOptions.rethrow) {
       throw this.createRethrowError(processedError);
     }
@@ -94,7 +89,6 @@ export class ErrorHandlingService {
       const message = error.message.toLowerCase();
       const name = error.name.toLowerCase();
 
-      // Check for authentication errors
       if (
         message.includes('unauthorized')
         || message.includes('authentication')
@@ -103,7 +97,6 @@ export class ErrorHandlingService {
         return 'AUTHENTICATION';
       }
 
-      // Check for authorization errors
       if (
         message.includes('forbidden')
         || message.includes('permission')
@@ -112,7 +105,6 @@ export class ErrorHandlingService {
         return 'AUTHORIZATION';
       }
 
-      // Check for validation errors
       if (
         message.includes('validation')
         || message.includes('invalid')
@@ -121,7 +113,6 @@ export class ErrorHandlingService {
         return 'VALIDATION';
       }
 
-      // Check for database errors
       if (
         message.includes('database')
         || message.includes('sql')
@@ -131,7 +122,6 @@ export class ErrorHandlingService {
         return 'DATABASE';
       }
 
-      // Check for external service errors
       if (
         message.includes('api')
         || message.includes('service')
@@ -141,7 +131,6 @@ export class ErrorHandlingService {
         return 'EXTERNAL_SERVICE';
       }
 
-      // Check for system errors
       if (
         message.includes('system')
         || message.includes('memory')
@@ -162,22 +151,18 @@ export class ErrorHandlingService {
    * @param category
    */
   public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
-    // Critical errors
     if (category === 'SYSTEM' || category === 'DATABASE') {
       return 'error';
     }
 
-    // High severity
     if (category === 'AUTHENTICATION' || category === 'AUTHORIZATION') {
       return 'warn';
     }
 
-    // Medium severity
     if (category === 'VALIDATION' || category === 'BUSINESS_LOGIC') {
       return 'info';
     }
 
-    // Default
     return 'warn';
   }
 
@@ -237,7 +222,6 @@ export class ErrorHandlingService {
       type = 'UnknownError';
     }
 
-    // Truncate if needed
     if (this.config.maxMessageLength && message.length > this.config.maxMessageLength) {
       message = `${message.substring(0, this.config.maxMessageLength)}...`;
     }
@@ -293,11 +277,10 @@ export class ErrorHandlingService {
    * @param source
    */
   private generateFingerprint(message: string, type: string, source: string): string {
-    // Simple fingerprint based on error characteristics
     const normalized = message
-      .replace(/\d+/g, 'N') // Replace numbers
-      .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID') // UUIDs
-      .replace(/\S+@\S+/g, 'EMAIL') // Emails
+      .replace(/\d+/g, 'N')
+      .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID')
+      .replace(/\S+@\S+/g, 'EMAIL')
       .substring(0, 100);
 
     return `${type}:${source}:${normalized}`;
@@ -339,7 +322,6 @@ export class ErrorHandlingService {
       },
     };
 
-    // Log based on severity
     switch (error.severity) {
       case 'error':
         this.logger.error(logSource, error.message, logArgs);

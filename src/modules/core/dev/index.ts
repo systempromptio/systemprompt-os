@@ -4,8 +4,8 @@
  * Provides development utilities for the SystemPrompt OS.
  */
 
-import { getCommands } from '@/modules/core/dev/cli/index.js';
-import { DevService } from '@/modules/core/dev/services/dev.service.js';
+import { getCommands } from '@/modules/core/dev/cli/index';
+import { DevService } from '@/modules/core/dev/services/dev.service';
 
 /**
  * Initialize function for core module pattern.

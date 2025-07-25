@@ -6,10 +6,10 @@
 
 import type { Express } from 'express';
 import * as path from 'path';
-import { initializeMcpServerRegistry } from '@/server/mcp/registry.js';
-import { createRemoteMcpServer } from '@/server/mcp/remote/index.js';
-import { CustomMCPLoader } from '@/server/mcp/loader.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+import { initializeMcpServerRegistry } from '@/server/mcp/registry';
+import { createRemoteMcpServer } from '@/server/mcp/remote/index';
+import { CustomMCPLoader } from '@/server/mcp/loader';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
 
 /**
  * Logger instance.

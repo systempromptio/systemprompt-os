@@ -5,8 +5,8 @@
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { CLICommand, ModuleManifest } from '@/modules/core/modules/types/index.js';
-import { ModuleType } from '@/modules/core/modules/types/index.js';
+import type { CLICommand, ModuleManifest } from '@/modules/core/modules/types/index';
+import { ModuleType } from '@/modules/core/modules/types/index';
 
 /**
  * Parse error for manifest validation failures.

@@ -55,10 +55,6 @@ export class ModuleRegistry {
   private readonly modules: Map<string, ModuleInterface> = new Map();
 
   constructor() {
-    /*
-     * Core modules are now handled by bootstrap
-     * this.registerCoreModules();
-     */
   }
 
   register(module: ModuleInterface): void {
@@ -67,7 +63,6 @@ export class ModuleRegistry {
 
   async initializeAll(context: any): Promise<void> {
     for (const module of this.modules.values()) {
-      // Check if module has stored config
       const moduleWithConfig = module as any;
       const moduleContext = moduleWithConfig._config
         ? {

@@ -6,8 +6,8 @@
 
 import type { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Client registration request as per RFC 7591.
@@ -66,7 +66,6 @@ export class RegisterEndpoint {
 
       const registrationRequest = req.body as ClientRegistrationRequest;
 
-      // Validate required fields
       if (!registrationRequest.redirect_uris || registrationRequest.redirect_uris.length === 0) {
         return res.status(400).json({
           error: 'invalid_redirect_uri',
@@ -74,17 +73,15 @@ export class RegisterEndpoint {
         });
       }
 
-      // Generate client credentials
       const clientId = `mcp-${uuidv4()}`;
       const clientSecret = uuidv4();
       const issuedAt = Math.floor(Date.now() / 1000);
 
-      // Build registration response
       const registrationResponse: ClientRegistrationResponse = {
         client_id: clientId,
         client_secret: clientSecret,
         client_id_issued_at: issuedAt,
-        client_secret_expires_at: 0, // Never expires
+        client_secret_expires_at: 0,
         client_name: registrationRequest.client_name || 'MCP Client',
         redirect_uris: registrationRequest.redirect_uris,
         token_endpoint_auth_method:
@@ -92,7 +89,6 @@ export class RegisterEndpoint {
         grant_types: registrationRequest.grant_types || ['authorization_code', 'refresh_token'],
         response_types: registrationRequest.response_types || ['code'],
         scope: registrationRequest.scope || 'openid profile email',
-        // Copy over optional fields
         ...registrationRequest.client_uri && { client_uri: registrationRequest.client_uri },
         ...registrationRequest.logo_uri && { logo_uri: registrationRequest.logo_uri },
         ...registrationRequest.contacts && { contacts: registrationRequest.contacts },
@@ -105,7 +101,6 @@ export class RegisterEndpoint {
         },
       };
 
-      // Store client (in production, save to database)
       registeredClients.set(clientId, registrationResponse);
 
       logger.info(LogSource.AUTH, 'Client registered successfully', {
@@ -114,7 +109,6 @@ export class RegisterEndpoint {
         persistToDb: true
       });
 
-      // Return registration response
       return res.status(201).json(registrationResponse);
     } catch (error) {
       logger.error(LogSource.AUTH, 'Client registration failed', {
@@ -148,12 +142,10 @@ export class RegisterEndpoint {
       return false;
     }
 
-    // If no secret is required (public client)
     if (client.token_endpoint_auth_method === 'none') {
       return true;
     }
 
-    // Validate secret
     return client.client_secret === clientSecret;
   }
 

@@ -6,11 +6,11 @@
  */
 
 import { Command } from 'commander';
-import type { CLIContext } from '@/modules/core/cli/types/index.js';
-import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service.js';
-import type { CliService } from '@/modules/core/cli/services/cli.service.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { CLIContext } from '@/modules/core/cli/types/index';
+import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service';
+import type { CliService } from '@/modules/core/cli/services/cli.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 const program = new Command();
 

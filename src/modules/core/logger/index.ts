@@ -4,20 +4,20 @@
  * @module modules/core/logger
  */
 
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LoggerInitializationError } from '@/modules/core/logger/utils/errors.js';
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
+import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
 import type {
   ILogFiles,
   ILogger,
   ILoggerConfig,
   LogLevelName,
-} from '@/modules/core/logger/types/index.js';
+} from '@/modules/core/logger/types/index';
 import {
   LogOutput,
   LogSource,
   LoggerMode
-} from '@/modules/core/logger/types/index.js';
+} from '@/modules/core/logger/types/index';
 
 /**
  * Strongly typed exports interface for Logger module.
@@ -219,7 +219,6 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
         return output === LogOutput.CONSOLE || output === LogOutput.FILE || output === LogOutput.DATABASE;
       });
     }
-    // Default to console and database (database will only write if enabled and service is available)
     return [LogOutput.CONSOLE, LogOutput.DATABASE];
   }
 
@@ -255,7 +254,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
       outputs: this.getOutputs(),
       files: this.getFiles(),
       database: {
-        enabled: true, // Always enable database logging when available
+        enabled: true,
         tableName: 'system_logs'
       }
     };
@@ -266,12 +265,10 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    * @returns {LoggerMode} Logger mode.
    */
   private getLoggerMode(): LoggerMode {
-    // Check if CLI mode is explicitly set
     if (process.env['LOG_MODE'] === 'cli') {
       return LoggerMode.CLI;
     }
 
-    // Check if we're running in a CLI context (e.g., no stdin/stdout redirected)
     if (process.argv.length > 2 && process.argv[1]?.includes('cli')) {
       return LoggerMode.CLI;
     }

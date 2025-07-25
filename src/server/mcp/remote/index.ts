@@ -4,9 +4,9 @@
  * @module server/mcp/remote
  */
 
-import { type ILocalMcpServer, McpServerTypeEnum } from '@/server/mcp/types.js';
+import { type ILocalMcpServer, McpServerTypeEnum } from '@/server/mcp/types';
 import type { RequestHandler } from 'express';
-import { CoreMcpServer } from '@/server/mcp/remote/core-server.js';
+import { CoreMcpServer } from '@/server/mcp/remote/core-server';
 
 /**
  * Create the remote MCP server configuration.

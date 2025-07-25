@@ -8,7 +8,7 @@
  */
 
 import { Command } from 'commander';
-import { MCPService } from '@/modules/core/mcp/services/mcp.service.js';
+import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 
 const ERROR_EXIT_CODE = 1;
 

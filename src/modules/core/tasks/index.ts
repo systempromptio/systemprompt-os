@@ -4,12 +4,16 @@
  * @module modules/core/tasks
  */
 
-import { TaskService } from '@/modules/core/tasks/services/task.service.js';
-import type { ITaskService, ITasksModuleExports } from '@/modules/core/tasks/types/index.js';
-import { TaskExecutionStatus, TaskPriority, TaskStatus } from '@/modules/core/tasks/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { TaskService } from '@/modules/core/tasks/services/task.service';
+import type { ITaskService, ITasksModuleExports } from '@/modules/core/tasks/types/index';
+import {
+ TaskExecutionStatus, TaskPriority, TaskStatus
+} from '@/modules/core/tasks/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService as DatabaseServiceImpl } from '@/modules/core/database/services/database.service';
 
 /**
  * Module interface to avoid circular dependency.
@@ -69,7 +73,6 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
       throw new Error('Database module not found');
     }
 
-    // Get services from dependencies
     const loggerExports = loggerModule.exports as any;
     const databaseExports = databaseModule.exports as any;
 
@@ -82,15 +85,15 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
    * @returns {Promise<void>} Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
+    this.database = DatabaseServiceImpl.getInstance();
+    this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new Error('Tasks module already initialized');
     }
 
     try {
-      // Initialize task service
       this.taskService = TaskService.getInstance();
 
-      // Ensure dependencies were set
       if (!this.logger || !this.database) {
         throw new Error('Dependencies not set. Call setDependencies first.');
       }
@@ -160,7 +163,6 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
     }
 
     try {
-      // Try to get statistics to verify database connection
       await this.taskService.getStatistics();
       return {
         healthy: true,
@@ -201,7 +203,6 @@ export const createModule = (): TasksModule => {
  */
 export const initialize = async (): Promise<TasksModule> => {
   const tasksModule = new TasksModule();
-  // Note: actual initialization happens via the module system
   return tasksModule;
 };
 

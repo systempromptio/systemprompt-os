@@ -4,7 +4,7 @@
  * Defines the core modules that must be loaded in a specific order
  */
 
-import type { ICoreModuleDefinition } from '@/types/bootstrap.js';
+import type { ICoreModuleDefinition } from '@/types/bootstrap';
 
 /**
  * Core modules that are essential for system operation

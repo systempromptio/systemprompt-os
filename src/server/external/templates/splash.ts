@@ -3,7 +3,7 @@
  * @module server/external/templates/splash
  */
 
-import { renderLayout } from '@/server/external/templates/config/layout.js';
+import { renderLayout } from '@/server/external/templates/config/layout';
 
 /**
  * Renders the welcome splash page content.

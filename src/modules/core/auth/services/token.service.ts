@@ -1,4 +1,4 @@
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 /**
  *  *  * Token management service.
  */
@@ -11,13 +11,13 @@ import type {
   TokenCreateInput,
   TokenType,
   TokenValidationResult,
-} from '@/modules/core/auth/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+} from '@/modules/core/auth/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 import {
  MILLISECONDS_PER_SECOND, SIXTY, THREE, TWO, ZERO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 /**
  *  *
@@ -43,7 +43,6 @@ export class TokenService {
    *  * Private constructor for singleton.
    */
   private constructor() {
-    // Initialize lazily when first used
   }
 
   private getLogger(): ILogger {
@@ -58,7 +57,6 @@ export class TokenService {
 
   private getConfig(): any {
     this.config ??= {
-      // Default config - should be injected properly
       jwt: {
         accessTokenTTL: 900,
         refreshTokenTTL: 2592000,
@@ -106,7 +104,7 @@ export class TokenService {
       const token: AuthToken = {
         id,
         userId: input.userId,
-        token: `${id}.${tokenValue}`, // Prefix with ID for easy lookup
+        token: `${id}.${tokenValue}`,
         type: input.type,
         scope: input.scope,
         expiresAt,
@@ -179,16 +177,10 @@ export class TokenService {
    */
   async validateToken(tokenString: string): Promise<TokenValidationResult> {
     try {
-      /**
-       * Check if it's a JWT.
-       */
       if (tokenString.includes('.') && tokenString.split('.').length === THREE) {
         return this.validateJWT(tokenString);
       }
 
-      /**
-       * API token format: id.value.
-       */
       const parts = tokenString.split('.');
       if (parts.length !== TWO) {
         return {
@@ -230,9 +222,6 @@ export class TokenService {
         };
       }
 
-      /**
-       * Update last used.
-       */
       await this.getDb().execute(
         `
         UPDATE auth_tokens
@@ -368,7 +357,7 @@ export class TokenService {
       return result.map((row): AuthToken => { return {
         id: row.id,
         userId: row.userId,
-        token: `${row.id}.***`, // Don't expose actual token
+        token: `${row.id}.***`,
         type: row.type as TokenType,
         scope: JSON.parse(row.scope),
         expiresAt: new Date(row.expires_at),
@@ -448,13 +437,13 @@ export class TokenService {
       case 'refresh':
         return this.getConfig().jwt.refreshTokenTTL;
       case 'api':
-        return 365 * 24 * SIXTY * SIXTY; // ONE year
+        return 365 * 24 * SIXTY * SIXTY;
       case 'personal':
-        return 90 * 24 * SIXTY * SIXTY; // 90 days
+        return 90 * 24 * SIXTY * SIXTY;
       case 'service':
-        return ZERO; // No expiry
+        return ZERO;
       default:
-        return 24 * SIXTY * SIXTY; // 24 hours
+        return 24 * SIXTY * SIXTY;
     }
   }
 }

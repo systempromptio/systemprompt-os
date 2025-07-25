@@ -3,11 +3,11 @@
  * @module modules/core/auth/services/audit.service
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { ONE_HUNDRED } from '@/const/numbers.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { ONE_HUNDRED } from '@/const/numbers';
 
 /**
  * AuditEvent interface.

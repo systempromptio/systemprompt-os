@@ -3,7 +3,7 @@
  */
 
 import type { Command } from 'commander';
-import { createDebugCommand } from '@/modules/core/dev/cli/debug.js';
+import { createDebugCommand } from '@/modules/core/dev/cli/debug';
 
 /**
  * Get all CLI commands for the dev module.
@@ -12,6 +12,5 @@ import { createDebugCommand } from '@/modules/core/dev/cli/debug.js';
 export const getCommands = (): Command[] => {
   return [
     createDebugCommand()
-    // Additional commands will be added here
   ];
 };

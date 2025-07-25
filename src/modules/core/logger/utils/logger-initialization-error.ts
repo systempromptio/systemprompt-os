@@ -4,8 +4,8 @@
  * @module modules/core/logger/utils/logger-initialization-error
  */
 
-import { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index.js';
-import { LoggerError } from '@/modules/core/logger/utils/logger-error-base.js';
+import { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index';
+import { LoggerError } from '@/modules/core/logger/utils/logger-error-base';
 
 /**
  * Error thrown when logger initialization fails.

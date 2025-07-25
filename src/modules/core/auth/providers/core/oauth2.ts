@@ -1,6 +1,6 @@
 import type {
   IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface.js';
+} from '@/modules/core/auth/types/provider-interface';
 
 /**
  *
@@ -68,9 +68,6 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       params.append('nonce', nonce);
     }
 
-    /**
-     * Add any additional parameters from config.
-     */
     if ('authorization_params' in this.config && this.config.authorization_params) {
       Object.entries(this.config.authorization_params).forEach(([key, value]) : void => {
         params.append(key, value as string);
@@ -126,9 +123,6 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     const data = await response.json() as any;
     const mapping = this.config.userinfo_mapping!;
 
-    /**
-     * Map the response to our standard format.
-     */
     return {
       id: String(this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id),
       email: String(this.getNestedValue(data, mapping.email || 'email')),

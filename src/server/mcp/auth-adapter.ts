@@ -7,9 +7,9 @@
 import type {
  Request as ExpressRequest, Response as ExpressResponse, NextFunction
 } from 'express';
-import { authMiddleware } from '@/server/external/middleware/auth.js';
-import { CONFIG } from '@/server/config.js';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { authMiddleware } from '@/server/external/middleware/auth';
+import { CONFIG } from '@/server/config';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 
 /**
  * HTTP Status Codes.

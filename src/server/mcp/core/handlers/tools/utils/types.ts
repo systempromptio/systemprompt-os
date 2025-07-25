@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import type { ITask } from '@/server/mcp/core/types/task.js';
+import type { ITask } from '@/server/mcp/core/types/task';
 
 /**
  * Schema for create task arguments.

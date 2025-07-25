@@ -4,7 +4,7 @@
  * @description Centralized OAuth2 URL and configuration management.
  */
 
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 
 /**
  * OAuth2 Server Metadata following RFC 8414
@@ -96,7 +96,6 @@ export class OAuth2ConfigService {
       token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
       service_documentation: `${baseUrl}/docs/api`,
       code_challenge_methods_supported: ['S256', 'plain'],
-      // OpenID Connect specific fields
       userinfo_endpoint: `${baseUrl}/oauth2/userinfo`,
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256', 'HS256'],
@@ -139,10 +138,6 @@ export class OAuth2ConfigService {
   getOpenIDConfiguration() {
     const metadata = this.getAuthorizationServerMetadata();
 
-    /*
-     * OpenID Configuration is essentially the same as Authorization Server Metadata
-     * but we ensure all required OpenID fields are present
-     */
     return {
       issuer: metadata.issuer,
       authorization_endpoint: metadata.authorization_endpoint,

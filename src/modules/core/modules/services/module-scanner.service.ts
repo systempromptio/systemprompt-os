@@ -7,19 +7,19 @@ import {
  existsSync, readFileSync, readdirSync, statSync
 } from 'fs';
 import { join, resolve } from 'path';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type {
   ModuleScannerService as IModuleScannerService,
   ModuleInfo,
   ModuleScanOptions,
   ScannedModule,
-} from '@/modules/core/modules/types/index.js';
+} from '@/modules/core/modules/types/index';
 import {
  ModuleEventType, ModuleHealthStatus, ModuleStatus, ModuleType
-} from '@/modules/core/modules/types/index.js';
-import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-parser.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+} from '@/modules/core/modules/types/index';
+import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-parser';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Database row type for modules table.

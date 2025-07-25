@@ -8,7 +8,7 @@
  */
 
 import { Command } from 'commander';
-import { SystemService } from '@/modules/core/system/services/system.service.js';
+import { SystemService } from '@/modules/core/system/services/system.service';
 
 const ERROR_EXIT_CODE = 1;
 

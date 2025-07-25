@@ -9,10 +9,10 @@
  */
 
 import { Command } from 'commander';
-import type { AuthModule } from '@/modules/core/auth/index.js';
+import type { AuthModule } from '@/modules/core/auth/index';
 import {
  ONE, TEN, TWO, ZERO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 /**
  *  *
@@ -24,9 +24,6 @@ export function createTokenCommand(module: AuthModule): Command {
   const cmd = new Command('token')
     .description('Token management commands');
 
-  /**
-   * Create token.
-   */
   cmd.command('create')
     .description('Create a new token')
     .requiredOption('-u, --user <userId>', 'User ID')

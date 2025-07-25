@@ -42,28 +42,23 @@ export interface ServerConfig {
  */
 function getConfig(): ServerConfig {
   return {
-    // Server settings
     PORT: process.env['PORT'] || "3000",
     BASEURL: process.env['BASE_URL'] || process.env['BASEURL'] || `http://localhost:${process.env['PORT'] || "3000"}`,
     NODEENV: process.env['NODEENV'] || "development",
     SERVERNAME: "systemprompt-os",
     SERVERVERSION: "0.1.0",
 
-    // OAuth2 settings
     JWTISSUER: process.env['JWTISSUER'] || "systemprompt-os",
     JWTAUDIENCE: process.env['JWTAUDIENCE'] || "systemprompt-os-clients",
     ACCESSTOKEN_EXPIRY: process.env['ACCESSTOKEN_EXPIRY'] || "1h",
     REFRESHTOKEN_EXPIRY: process.env['REFRESHTOKEN_EXPIRY'] || "30d",
     AUTHORIZATIONCODE_EXPIRY: process.env['AUTHORIZATIONCODE_EXPIRY'] || "10m",
 
-    // Security settings
     BCRYPTROUNDS: parseInt(process.env['BCRYPTROUNDS'] || "10", 10),
 
-    // Path settings - Now dynamic!
     CONFIGPATH: process.env['CONFIGPATH'] || join(process.cwd(), "config"),
     STATEDIR: process.env['STATEDIR'] || join(process.cwd(), "state"),
 
-    // Logging settings
     LOGLEVEL: process.env['LOGLEVEL'] || "info",
     LOGMAX_SIZE: process.env['LOGMAX_SIZE'] || "10m",
     LOGMAX_FILES: parseInt(process.env['LOGMAX_FILES'] || "7", 10),

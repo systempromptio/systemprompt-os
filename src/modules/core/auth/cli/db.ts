@@ -3,19 +3,19 @@
  * @module modules/core/auth/cli/db
  */
 
-import type { IUserListRow } from '@/modules/core/auth/types/index.js';
+import type { IUserListRow } from '@/modules/core/auth/types/index';
 import readline from 'readline';
 import {
  ONE, ZERO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 const EIGHTY = 80;
-import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import type { AuthModule } from '@/modules/core/auth/index.js';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { getAuthModule } from '@/modules/core/auth/singleton';
+import type { AuthModule } from '@/modules/core/auth/index';
 
 interface AuthDatabase {
   execute: (sql: string, params?: unknown[]) => Promise<void>;

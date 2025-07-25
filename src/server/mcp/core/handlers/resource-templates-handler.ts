@@ -28,7 +28,7 @@ import type {
   ListResourceTemplatesResult,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
 
 const logger = LoggerService.getInstance();
 

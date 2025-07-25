@@ -4,8 +4,8 @@
  * Bootstrap process for CLI commands using the main bootstrap with server components disabled.
  */
 
-import { Bootstrap } from '@/bootstrap.js';
-import { CliService } from '@/modules/core/cli/services/cli.service.js';
+import { Bootstrap } from '@/bootstrap';
+import { CliService } from '@/modules/core/cli/services/cli.service';
 
 /**
  * Bootstrap services needed for CLI using the main bootstrap process.

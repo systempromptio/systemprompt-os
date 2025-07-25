@@ -7,10 +7,10 @@
 
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQL parser service interface.
@@ -219,7 +219,6 @@ export class SchemaImportService {
 
     await this.database.transaction(async (conn): Promise<void> => {
       try {
-        // Execute the entire SQL file at once - better-sqlite3's exec() handles multiple statements correctly
         await conn.execute(schema.content);
       } catch (error) {
         throw new Error(

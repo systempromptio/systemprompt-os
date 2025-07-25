@@ -9,15 +9,15 @@ import type {
   CLILogger,
   CLIOption,
   CommandMetadata,
-} from '@/modules/core/cli/types/index.js';
+} from '@/modules/core/cli/types/index';
 import {
   CliInitializationError,
   CommandNotFoundError,
   DocumentationGenerationError,
   OutputFormattingError,
-} from '@/modules/core/cli/utils/errors.js';
-import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+} from '@/modules/core/cli/utils/errors';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';

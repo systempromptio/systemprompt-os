@@ -4,9 +4,9 @@
  * @module bootstrap/shutdown-helper
  */
 
-import type { IModule } from '@/modules/core/modules/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IModule } from '@/modules/core/modules/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Check if module has a specific method.

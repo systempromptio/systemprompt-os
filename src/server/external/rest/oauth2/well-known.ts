@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import { getAuthModule } from '@/modules/core/auth/singleton';
 
 /*
  * Import { exportJWK, generateKeyPair } from 'jose';
@@ -42,11 +42,6 @@ export class WellKnownEndpoint {
     return res.json(config);
   };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
-    /*
-     * Initialize keys if needed
-     * TODO: Implement key initialization when JWT service is available
-     */
-
     if (!this.publicKeyJWK) {
       return res.status(500).json({ error: 'Keys not initialized' });
     }

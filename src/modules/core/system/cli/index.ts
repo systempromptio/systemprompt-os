@@ -3,9 +3,9 @@
  */
 
 import type { Command } from 'commander';
-import { createInfoCommand } from '@/modules/core/system/cli/info.js';
-import { createConfigCommand } from '@/modules/core/system/cli/config.js';
-import { createHealthCommand } from '@/modules/core/system/cli/health.js';
+import { createInfoCommand } from '@/modules/core/system/cli/info';
+import { createConfigCommand } from '@/modules/core/system/cli/config';
+import { createHealthCommand } from '@/modules/core/system/cli/health';
 
 /**
  * Get all CLI commands for the system module.

@@ -5,7 +5,7 @@
 
 import type {
  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/server/external/auth/providers/interface.js';
+} from '@/server/external/auth/providers/interface';
 
 export interface GenericOAuth2Config extends IDPConfig {
   id: string;
@@ -58,7 +58,6 @@ export class GenericOAuth2Provider implements IdentityProvider {
       params.append('nonce', nonce);
     }
 
-    // Add any additional parameters from config
     if ('authorization_params' in this.config && this.config.authorization_params) {
       Object.entries(this.config.authorization_params).forEach(([key, value]) => {
         params.append(key, value as string);
@@ -118,7 +117,6 @@ export class GenericOAuth2Provider implements IdentityProvider {
     const data = await response.json() as any;
     const mapping = this.config.userinfo_mapping!;
 
-    // Map the response to our standard format
     return {
       id: this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id,
       email: this.getNestedValue(data, mapping.email || 'email'),

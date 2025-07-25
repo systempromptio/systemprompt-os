@@ -4,4 +4,4 @@
  * @module server/types
  */
 
-export * from '@/server/types/session.types.js';
+export * from '@/server/types/session.types';

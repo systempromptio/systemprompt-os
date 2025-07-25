@@ -8,10 +8,10 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * Service for managing database migrations across modules.

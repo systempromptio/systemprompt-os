@@ -4,8 +4,8 @@
  * Role-based access control and permissions management.
  */
 
-import { getCommands } from '@/modules/core/permissions/cli/index.js';
-import { PermissionsService } from '@/modules/core/permissions/services/permissions.service.js';
+import { getCommands } from '@/modules/core/permissions/cli/index';
+import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 
 /**
  * Initialize function for core module pattern.
@@ -31,4 +31,4 @@ export { PermissionsService };
  */
 export {
   PermissionActionEnum
-} from '@/modules/core/permissions/types/index.js';
+} from '@/modules/core/permissions/types/index';

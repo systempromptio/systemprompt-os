@@ -22,10 +22,10 @@
 import type {
  NextFunction, Request, Response, Router
 } from 'express';
-import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known.js';
-import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource.js';
-import { AuthorizationServerEndpoint } from '@/server/external/rest/oauth2/authorization-server.js';
-import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize.js';
+import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known';
+import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource';
+import { AuthorizationServerEndpoint } from '@/server/external/rest/oauth2/authorization-server';
+import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize';
 
 // Mock implementations for missing modules
 class RegisterEndpoint {
@@ -90,10 +90,6 @@ const authMiddleware = (_req: Request, _res: Response, next: NextFunction) => {
  * @async
  */
 export async function setupOAuth2Routes(router: Router): Promise<void> {
-  /**
-   * Initialize endpoint handlers
-   * Each handler class encapsulates the logic for a specific OAuth2 endpoint.
-   */
   const wellKnown = new WellKnownEndpoint();
   const protectedResource = new ProtectedResourceEndpoint();
   const authorizationServer = new AuthorizationServerEndpoint();
@@ -102,83 +98,37 @@ export async function setupOAuth2Routes(router: Router): Promise<void> {
   const token = new TokenEndpoint();
   const userinfo = new UserInfoEndpoint();
 
-  /**
-   * OAuth 2.0 Protected Resource Metadata Endpoint (RFC 9728)
-   * Returns metadata about the protected resource for MCP clients.
-   * @see {@link https://datatracker.ietf.org/doc/rfc9728/}
-   */
   router.get('/.well-known/oauth-protected-resource', (req, res) => {
     protectedResource.getProtectedResourceMetadata(req, res);
   });
 
-  /**
-   * OAuth 2.0 Authorization Server Metadata Endpoint (RFC 8414)
-   * Returns metadata about the authorization server.
-   * @see {@link https://datatracker.ietf.org/doc/rfc8414/}
-   */
   router.get('/.well-known/oauth-authorization-server', (req, res) => {
     authorizationServer.getAuthorizationServerMetadata(req, res);
   });
 
-  /**
-   * JSON Web Key Set (JWKS) Endpoint
-   * Returns the public keys used for JWT token verification.
-   * @see {@link https://tools.ietf.org/html/rfc7517}
-   */
   router.get('/.well-known/jwks.json', (req, res) => {
     wellKnown.getJWKS(req, res);
   });
 
-  /**
-   * OAuth2 Dynamic Client Registration Endpoint
-   * Allows clients to register dynamically.
-   * @see {@link https://datatracker.ietf.org/doc/rfc7591/}
-   */
   router.post('/oauth2/register', (req, res) => {
     register.register(req, res);
   });
 
-  /**
-   * OAuth2 Authorization Endpoint
-   * Initiates the authorization flow by redirecting users to their chosen identity provider.
-   * @see {@link https://tools.ietf.org/html/rfc6749#section-3.1}
-   */
   router.get('/oauth2/authorize', (req, res) => {
     authorize.getAuthorize(req, res);
   });
 
-  /**
-   * OAuth2 Authorization POST Endpoint
-   * Handles form submission for authorization approval/denial.
-   */
   router.post('/oauth2/authorize', (req, res) => {
     authorize.postAuthorize(req, res);
   });
 
-  /**
-   * Identity Provider Callback Endpoint
-   * Handles the callback from OAuth providers after user authentication.
-   * @param {string} provider - The identity provider name (e.g., 'google', 'github').
-   */
   router.get('/oauth2/callback/:provider', (req, res) => {
     authorize.handleProviderCallback(req, res);
   });
 
-  /**
-   * OAuth2 Token Endpoint
-   * Exchanges authorization codes for access tokens
-   * Requires client authentication via Basic Auth or client credentials in the request body.
-   * @see {@link https://tools.ietf.org/html/rfc6749#section-3.2}
-   */
   router.post('/oauth2/token', (req, res) => {
     token.postToken(req, res);
   });
 
-  /**
-   * OAuth2 UserInfo Endpoint
-   * Returns information about the authenticated user
-   * Requires a valid access token in the Authorization header.
-   * @see {@link https://openid.net/specs/openid-connect-core-1_0.html#UserInfo}
-   */
   router.get('/oauth2/userinfo', authMiddleware, async (req, res) => { await userinfo.getUserInfo(req, res); });
 }

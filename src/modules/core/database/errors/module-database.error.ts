@@ -4,8 +4,8 @@
  * @module database/errors/module-database.error
  */
 
-import { DatabaseError } from '@/modules/core/database/errors/base.error.js';
-import { HTTP_500 } from '@/modules/core/database/constants/index.js';
+import { DatabaseError } from '@/modules/core/database/errors/base.error';
+import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when module database operations fail.

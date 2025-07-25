@@ -13,9 +13,9 @@
 
 import { randomUUID } from 'crypto';
 import * as os from 'os';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { SystemRepository } from '@/modules/core/system/repositories/system-repository.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { SystemRepository } from '@/modules/core/system/repositories/system-repository';
 import {
   type ConfigTypeEnum,
   EventSeverityEnum,
@@ -26,7 +26,7 @@ import {
   type ISystemService,
   type MaintenanceTypeEnum,
   type ModuleStatusEnum
-} from '@/modules/core/system/types/index.js';
+} from '@/modules/core/system/types/index';
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -226,7 +226,6 @@ export class SystemService implements ISystemService {
     const checks = [];
     const startTime = Date.now();
 
-    // Check database
     try {
       await this.repository.checkDatabase();
       checks.push({
@@ -243,7 +242,6 @@ export class SystemService implements ISystemService {
       });
     }
 
-    // Check modules
     const modules = await this.repository.findAllModules();
     const errorModules = modules.filter(m => { return m.status === 'error' });
 
@@ -260,7 +258,6 @@ export class SystemService implements ISystemService {
       });
     }
 
-    // Determine overall status
     const hasFailures = checks.some(c => { return c.status === 'fail' });
     const status = hasFailures ? 'unhealthy' : 'healthy';
 

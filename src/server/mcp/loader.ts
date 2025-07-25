@@ -17,17 +17,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import type { McpServerRegistry } from '@/server/mcp/registry.js';
+import type { McpServerRegistry } from '@/server/mcp/registry';
 import type {
   ILocalMcpServer,
   IMcpLoaderOptions,
   IMcpServerModule,
   IRemoteMcpConfig,
   IRemoteMcpServer
-} from '@/server/mcp/types.js';
+} from '@/server/mcp/types';
 import {
   McpServerTypeEnum
-} from '@/server/mcp/types.js';
+} from '@/server/mcp/types';
 
 const ZERO = 0;
 

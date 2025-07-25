@@ -23,8 +23,8 @@
 import type {
  ListRootsRequest, ListRootsResult, Root
 } from '@modelcontextprotocol/sdk/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
-import { sendRootsListChangedNotification } from '@/server/mcp/core/handlers/notifications.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
+import { sendRootsListChangedNotification } from '@/server/mcp/core/handlers/notifications';
 
 const logger = LoggerService.getInstance();
 import * as path from 'path';

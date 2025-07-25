@@ -5,12 +5,12 @@
 
 import type {
  CallToolResult, IToolHandlerContext, ToolHandler
-} from '@/server/mcp/core/handlers/tools/types.js';
-import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+} from '@/server/mcp/core/handlers/tools/types';
+import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
 import { execSync } from 'node:child_process';
 import * as os from 'os';
-import { getDatabase } from '@/modules/core/database/index.js';
+import { getDatabase } from '@/modules/core/database/index';
 
 const logger = LoggerService.getInstance();
 
@@ -234,7 +234,7 @@ const getServiceStatus = async function () {
     mcp: {
       status: 'active',
       version: process.env['npm_package_version'] || 'unknown',
-      activeSessions: 0, // Would query from database
+      activeSessions: 0
     },
     oauth: {
       status: 'active',
@@ -330,7 +330,7 @@ const getUserStatus = async function () {
       lastLogin: user.last_login_at || 'Never',
       isActive: Boolean(user.is_active),
       createdAt: user.created_at,
-      activeContainers: 0, // TODO: Implement container counting when container module is added
+      activeContainers: 0
     } });
   } catch (error) {
     logger.error(LogSource.MCP, 'Failed to get user status from database', { error: error instanceof Error ? error : new Error(String(error)) });

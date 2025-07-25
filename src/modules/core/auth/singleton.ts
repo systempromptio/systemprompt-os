@@ -1,7 +1,7 @@
-import type { IModule } from '@/modules/core/modules/types/index.js';
-import type { AuthModuleExports, IdentityProvider } from '@/modules/core/auth/types/index.js';
-import type { ProviderRegistry } from '@/modules/core/auth/providers/registry.js';
-import { getModuleLoader } from '@/modules/loader.js';
+import type { IModule } from '@/modules/core/modules/types/index';
+import type { AuthModuleExports, IdentityProvider } from '@/modules/core/auth/types/index';
+import type { ProviderRegistry } from '@/modules/core/auth/providers/registry';
+import { getModuleLoader } from '@/modules/loader';
 
 /**
  *

@@ -8,10 +8,10 @@
 import { readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * MCP content scanner interface.

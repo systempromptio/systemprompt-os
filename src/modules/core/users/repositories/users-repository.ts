@@ -13,7 +13,7 @@ import {
   type IUserSession,
   type IUserUpdateData,
   UserStatusEnum
-} from '@/modules/core/users/types/index.js';
+} from '@/modules/core/users/types/index';
 
 /**
  * Repository for users data operations.
@@ -43,7 +43,6 @@ export class UsersRepository {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    // Placeholder - would initialize database connections
   }
 
   /**
@@ -155,14 +154,12 @@ export class UsersRepository {
   async deleteUser(id: string): Promise<void> {
     this.users.delete(id);
 
-    // Delete related sessions
     for (const [sessionId, session] of this.sessions.entries()) {
       if (session.userId === id) {
         this.sessions.delete(sessionId);
       }
     }
 
-    // Delete related API keys
     for (const [keyId, apiKey] of this.apiKeys.entries()) {
       if (apiKey.userId === id) {
         this.apiKeys.delete(keyId);

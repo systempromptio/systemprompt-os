@@ -6,11 +6,11 @@
 import express from 'express';
 import cors from 'cors';
 // Import helmet from 'helmet';
-import { CONFIG } from '@/server/config.js';
-import { setupExternalEndpoints } from '@/server/external/index.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { getModuleLoader } from '@/modules/loader.js';
+import { CONFIG } from '@/server/config';
+import { setupExternalEndpoints } from '@/server/external/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { getModuleLoader } from '@/modules/loader';
 
 const logger = LoggerService.getInstance();
 
@@ -21,24 +21,13 @@ const logger = LoggerService.getInstance();
 export const createApp = async (): Promise<express.Application> => {
   const app = express();
 
-  // Modules are now loaded by bootstrap, just get reference for auth check
   const moduleLoader = getModuleLoader();
 
-  // Ensure auth providers are initialized
   const authModule = moduleLoader.getModule('auth');
   if (authModule?.start && !authModule.initialized) {
     await authModule.start();
   }
 
-  /*
-   * Security middleware
-   * TODO: Add helmet when available
-   * app.use(helmet({
-   *   contentSecurityPolicy: false, // We'll configure this per-route
-   * }));
-   */
-
-  // CORS configuration
   app.use(
     cors({
       origin: true,
@@ -55,11 +44,9 @@ export const createApp = async (): Promise<express.Application> => {
     }),
   );
 
-  // Body parsing
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Setup REST API endpoints only (MCP is handled by bootstrap)
   await setupExternalEndpoints(app);
 
   return app;
@@ -84,7 +71,6 @@ export const startServer = async (
       `🔐 OAuth2 discovery: http://localhost:${String(serverPort)}/.well-known/oauth-protected-resource`
     );
 
-    // Log OAuth tunnel status after a brief delay to ensure it's initialized
     const AUTH_STATUS_DELAY = 2000;
     setTimeout((): void => {
       const moduleLoaderDelayed = getModuleLoader();
@@ -109,8 +95,6 @@ export const startServer = async (
       }
     }, AUTH_STATUS_DELAY);
   });
-
-  // Server close is now simpler - modules are handled by bootstrap
 
   return server;
 };

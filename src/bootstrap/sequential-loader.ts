@@ -5,10 +5,10 @@
  * @module bootstrap/sequential-loader
  */
 
-import type { ICoreModuleDefinition } from '@/types/bootstrap.js';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { ICoreModuleDefinition } from '@/types/bootstrap';
+import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Sequentially processes an array of items using a reducer pattern.

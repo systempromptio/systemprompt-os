@@ -5,9 +5,9 @@
 
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { generateJWTKeyPair } from '@/modules/core/auth/utils/generate-key.js';
-import { ONE } from '@/const/numbers.js';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
+import { generateJWTKeyPair } from '@/modules/core/auth/utils/generate-key';
+import { ONE } from '@/const/numbers';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
 export const command = {
   description: 'Generate cryptographic keys for JWT signing',

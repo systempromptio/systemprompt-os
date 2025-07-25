@@ -7,14 +7,14 @@
 import type { Request, Response } from 'express';
 import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
-import { CONFIG } from '@/server/config.js';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import { OAuth2Error } from '@/server/external/rest/oauth2/errors.js';
-import { jwtSign, jwtVerify } from '@/server/external/auth/jwt.js';
-import { AuthRepository } from '@/modules/core/auth/database/repository.js';
-import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { CONFIG } from '@/server/config';
+import { getAuthModule } from '@/modules/core/auth/singleton';
+import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
+import { jwtSign, jwtVerify } from '@/server/external/auth/jwt';
+import { AuthRepository } from '@/modules/core/auth/database/repository';
+import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
+import { LoggerService } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Schema for OAuth2 token request validation.
@@ -327,7 +327,6 @@ export class TokenEndpoint {
   ): Promise<TokenResponse> {
     const now = Math.floor(Date.now() / 1000);
 
-    // Fetch user data from database
     let userData: any = null;
     let userRoles: string[] = [];
     try {
@@ -339,9 +338,8 @@ export class TokenEndpoint {
           email: user.email,
           name: user.name,
           avatar: user.avatarUrl,
-          roles: [], // Will be populated below
+          roles: []
         };
-        // Get user roles
         const roles = await authRepo.getIUserIRoles(userId);
         userRoles = roles.map((r: any) => {
           return r.name;
@@ -354,7 +352,6 @@ export class TokenEndpoint {
         category: 'oauth2',
         action: 'user_fetch'
       });
-      // Use provided email if database lookup fails
       if (userEmail) {
         userData = {
           id: userId,
@@ -375,9 +372,7 @@ export class TokenEndpoint {
       iat: now,
       exp: now + 3600,
       jti: randomBytes(16).toString('hex'),
-      // Include user data in the token
       user: userData,
-      // Include roles at top level for backward compatibility
       roles: userRoles,
       email: userData?.email,
     };
@@ -415,7 +410,6 @@ export class TokenEndpoint {
         exp: now + 3600,
         auth_time: now,
         nonce: randomBytes(16).toString('hex'),
-        // Include user data in ID token for OpenID Connect
         ...userData && {
           email: userData.email,
           name: userData.name,

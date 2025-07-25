@@ -23,7 +23,7 @@ import type {
   ReadResourceRequest,
   ReadResourceResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getModuleLoader } from '@/modules/loader.js';
+import { getModuleLoader } from '@/modules/loader';
 /**
  * Lists all available MCP resources including static and dynamic task resources.
  * @returns List of available resources with metadata.

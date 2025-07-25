@@ -5,8 +5,8 @@
  * while maintaining the existing provider registry interface
  */
 
-import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
-import { getAuthModule } from '@/modules/core/auth/singleton.js';
+import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface';
+import { getAuthModule } from '@/modules/core/auth/singleton';
 
 export class AuthModuleProviderRegistry {
   /**

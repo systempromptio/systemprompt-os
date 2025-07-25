@@ -4,15 +4,15 @@
  * Refreshes CLI commands by rescanning enabled modules.
  */
 
-import { getModuleLoader } from '@/modules/loader.js';
+import { getModuleLoader } from '@/modules/loader';
 import type {
   CLICommand,
   CLIContext,
   ICliModule,
   ICliService
-} from '@/modules/core/cli/types/index.js';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
-import { RefreshService } from '@/modules/core/cli/services/refresh.service.js';
+} from '@/modules/core/cli/types/index';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { RefreshService } from '@/modules/core/cli/services/refresh.service';
 
 /**
  * Gets the CLI service from the module loader.

@@ -1,16 +1,16 @@
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 /**
  *  *  * @file Authorization code persistence service.
  * @module modules/core/auth/services/auth-code-service
  */
 
 import { randomBytes } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
 import {
  ZERO
-} from '@/const/numbers.js';
+} from '@/const/numbers';
 
 /**
  *  *
@@ -61,7 +61,6 @@ export class AuthCodeService {
   private db!: DatabaseService;
 
   private constructor() {
-    // Initialize lazily when first used
   }
 
   public static getInstance(): AuthCodeService {

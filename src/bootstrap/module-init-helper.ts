@@ -4,10 +4,10 @@
  * @module bootstrap/module-init-helper
  */
 
-import type { IModule } from '@/modules/core/modules/types/index.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { moduleHasMethod } from '@/bootstrap/shutdown-helper.js';
+import type { IModule } from '@/modules/core/modules/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { moduleHasMethod } from '@/bootstrap/shutdown-helper';
 
 /**
  * Initialize a single module safely.
@@ -86,21 +86,17 @@ export const checkLoggerUpgrade = (
 
   const serviceAccessor = (moduleExports as any).service;
 
-  // Check if it's a function (getter pattern) and call it
   if (typeof serviceAccessor === 'function') {
     try {
       const loggerInstance = serviceAccessor();
-      // Verify it has logger methods
       if (loggerInstance && typeof loggerInstance.info === 'function') {
         return loggerInstance as ILogger;
       }
     } catch (error) {
-      // Failed to get logger, return undefined
       return undefined;
     }
   }
 
-  // If it's not a function, it might be the service directly (legacy pattern)
   if (serviceAccessor && typeof serviceAccessor.info === 'function') {
     return serviceAccessor as ILogger;
   }

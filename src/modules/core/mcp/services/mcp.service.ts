@@ -12,9 +12,9 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import { MCPRepository } from '@/modules/core/mcp/repositories/mcp-repository.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { MCPRepository } from '@/modules/core/mcp/repositories/mcp-repository';
 import {
   type IMCPConfig,
   type IMCPContext,
@@ -23,7 +23,7 @@ import {
   type IMCPSession,
   type MCPRoleEnum,
   MCPSessionStatusEnum
-} from '@/modules/core/mcp/types/index.js';
+} from '@/modules/core/mcp/types/index';
 
 /**
  * Service for managing MCP contexts and sessions.

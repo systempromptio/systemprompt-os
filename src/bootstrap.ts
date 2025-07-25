@@ -5,28 +5,28 @@
  */
 
 import type { Express } from 'express';
-import { CORE_MODULES } from './const/bootstrap.js';
-import { setupMcpServers } from './server/mcp/index.js';
-import { ZERO } from './const/numbers.js';
+import { CORE_MODULES } from './const/bootstrap';
+import { setupMcpServers } from './server/mcp/index';
+import { ZERO } from './const/numbers';
 import {
  consoleDebug, consoleError, createConsoleLogger
-} from './utils/console-logger.js';
+} from './utils/console-logger';
 import {
   BootstrapPhaseEnum,
   type GlobalConfiguration,
   type IBootstrapOptions,
   type ICoreModuleDefinition,
-} from './types/bootstrap.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { LogSource } from '@/modules/core/logger/types/index.js';
-import type { IModulesModuleExports } from '@/modules/core/modules/index.js';
-import type { ICLIModuleExports } from '@/modules/core/cli/index.js';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
-import type { IDatabaseModuleExports } from '@/modules/core/database/index.js';
-import type { ILoggerModuleExports } from '@/modules/core/logger/index.js';
-import type { IModuleExports } from './types/bootstrap-module.js';
-import { isLoggerModule } from '@/modules/core/logger/index.js';
-import { isDatabaseModule } from '@/modules/core/database/index.js';
+} from './types/bootstrap';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { IModulesModuleExports } from '@/modules/core/modules/index';
+import type { ICLIModuleExports } from '@/modules/core/cli/index';
+import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
+import type { IDatabaseModuleExports } from '@/modules/core/database/index';
+import type { ILoggerModuleExports } from '@/modules/core/logger/index';
+import type { IModuleExports } from './types/bootstrap-module';
+import { isLoggerModule } from '@/modules/core/logger/index';
+import { isDatabaseModule } from '@/modules/core/database/index';
 
 type CoreModuleType =
   | IModule<IModulesModuleExports>
@@ -34,7 +34,7 @@ type CoreModuleType =
   | IModule<IDatabaseModuleExports>
   | IModule<ILoggerModuleExports>
   | IModule;
-import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader.js';
+import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
 
 // Type guard functions
 function isModulesModule(module: CoreModuleType): module is IModule<IModulesModuleExports> {
@@ -50,20 +50,20 @@ function isCLIModule(module: CoreModuleType): module is IModule<ICLIModuleExport
          && typeof module.exports === 'object'
          && 'scanAndRegisterModuleCommands' in module.exports!;
 }
-import { shutdownAllModules } from './bootstrap/shutdown-helper.js';
+import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import {
   checkLoggerUpgrade,
   initializeSingleModule,
   startSingleModule,
-} from './bootstrap/module-init-helper.js';
+} from './bootstrap/module-init-helper';
 import {
   initializeModulesInOrder,
   loadCoreModulesInOrder,
   loadEnabledExtensionModules,
   startModulesInOrder,
-} from './bootstrap/sequential-loader.js';
-import { isModuleExports } from './bootstrap/type-guards.js';
-import { loadExpressApp } from './bootstrap/express-loader.js';
+} from './bootstrap/sequential-loader';
+import { isModuleExports } from './bootstrap/type-guards';
+import { loadExpressApp } from './bootstrap/express-loader';
 
 /**
  * Bootstrap class manages the initialization lifecycle of SystemPrompt OS.
@@ -123,7 +123,6 @@ export class Bootstrap {
         await this.executeModuleDiscoveryPhase();
       }
 
-      // Register CLI commands from all loaded modules
       await this.registerCliCommands();
 
       const { READY } = BootstrapPhaseEnum;
@@ -228,7 +227,6 @@ persistToDb: false
     await this.initializeModules();
     await this.startCriticalModules();
 
-    // Register core modules in database after they're loaded
     await this.registerCoreModulesInDatabase();
 
     this.logger.debug(LogSource.BOOTSTRAP, `Core modules loaded: ${Array.from(this.modules.keys()).join(', ')}`, {
@@ -400,7 +398,6 @@ persistToDb: false
       return;
     }
 
-    // Type guard: if we're getting 'modules' module, it should have IModulesModuleExports
     if (!isModulesModule(modulesModule)) {
       this.logger.warn(LogSource.BOOTSTRAP, 'Modules module does not have expected exports interface', { category: 'database' });
       return;
@@ -413,7 +410,6 @@ persistToDb: false
     }
 
     try {
-      // Register each core module in the database
       for (const definition of this.coreModules) {
         await registerCoreModule(definition.name, definition.path, definition.dependencies);
       }
@@ -450,7 +446,6 @@ persistToDb: false
       return;
     }
 
-    // Type guard: if we're getting 'cli' module, it should have ICLIModuleExports
     if (!isCLIModule(cliModule)) {
       this.logger.warn(LogSource.BOOTSTRAP, 'CLI module does not have expected exports interface', { category: 'cli' });
       return;
@@ -463,10 +458,8 @@ persistToDb: false
     }
 
     try {
-      // Build a map of modules with their paths
       const moduleMap = new Map<string, { path: string }>();
 
-      // Add core modules - always use source path for YAML files since they're not copied to build
       const baseModulePath = `${process.cwd()}/src/modules/core/`;
 
       for (const coreModule of this.coreModules) {
@@ -478,8 +471,6 @@ persistToDb: false
 persistToDb: false
 });
       }
-
-      // TODO: Add extension modules when they're loaded
 
       await scanAndRegister(moduleMap);
       this.logger.debug(LogSource.BOOTSTRAP, 'CLI commands registered successfully', {
@@ -546,7 +537,6 @@ persistToDb: false
       if (newLogger !== undefined) {
         this.logger = newLogger;
 
-        // Configure logger for CLI mode if enabled
         if (this.options.cliMode && name === 'logger') {
           this.configureLoggerForCliMode();
         }
@@ -554,7 +544,6 @@ persistToDb: false
         this.logger.info(LogSource.BOOTSTRAP, 'Logger upgraded', { category: 'modules' });
       }
 
-      // If database module is initialized, inject it into logger for database logging
       if (name === 'database' && this.modules.has('logger')) {
         this.injectDatabaseServiceIntoLogger(moduleInstance);
       }
@@ -613,10 +602,6 @@ error: error as Error
    * @returns {void} Nothing.
    */
   private configureLoggerForCliMode(): void {
-    /*
-     * The logger is already configured with LoggerMode.CLI in its initialization
-     * CLI mode suppresses info/debug console output, only showing warn/error
-     */
     this.logger.debug(LogSource.BOOTSTRAP, 'Logger configured for CLI mode', {
  category: 'logger',
 persistToDb: false
@@ -636,19 +621,16 @@ persistToDb: false
         return;
       }
 
-      // Use type guard to ensure proper typing
       if (!isLoggerModule(loggerModule)) {
         this.logger.warn(LogSource.BOOTSTRAP, 'Logger module does not have expected exports interface', { category: 'database' });
         return;
       }
 
-      // Use type guard to ensure proper typing
       if (!isDatabaseModule(databaseModule)) {
         this.logger.warn(LogSource.BOOTSTRAP, 'Database module does not have expected exports interface', { category: 'database' });
         return;
       }
 
-      // Get properly typed services
       const loggerService = loggerModule.exports!.service();
       const databaseService = databaseModule.exports!.service();
 
@@ -657,7 +639,6 @@ persistToDb: false
         return;
       }
 
-      // Inject database service into logger
       loggerService.setDatabaseService(databaseService);
       this.logger.debug(LogSource.BOOTSTRAP, 'Database service injected into logger', {
  category: 'database',

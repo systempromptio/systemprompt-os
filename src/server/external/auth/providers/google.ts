@@ -5,7 +5,7 @@
 
 import type {
  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/server/external/auth/providers/interface.js';
+} from '@/server/external/auth/providers/interface';
 
 export interface GoogleConfig extends IDPConfig {
   discoveryurl?: string;

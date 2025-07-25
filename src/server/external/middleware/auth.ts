@@ -6,7 +6,7 @@
 import type {
  NextFunction, Request, Response
 } from 'express';
-import { LogSource } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 // Mock imports for missing modules
 const jwtVerify = async (_token: string, _options: any) => {
@@ -75,7 +75,6 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
     next: NextFunction,
   ): Promise<void> {
     try {
-      // Extract token from Authorization header or cookie
       let token: string | undefined;
 
       const authHeader = req.headers.authorization;
@@ -87,7 +86,6 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
 
       if (!token) {
         if (options.redirectToLogin) {
-          // For web requests, redirect to login
           res.redirect('/auth'); return;
         }
         res
@@ -98,7 +96,6 @@ error_description: 'Missing authentication token'
 });
         return;
       }
-      // Verify token with issuer and audience validation
       const { payload } = await jwtVerify(token, {
         issuer: CONFIG.JWTISSUER,
         audience: CONFIG.JWTAUDIENCE,
@@ -106,7 +103,6 @@ error_description: 'Missing authentication token'
 
       const tokenPayload = payload as AccessTokenPayload;
 
-      // Check token type
       if (tokenPayload.tokentype !== 'access') {
         if (options.redirectToLogin) {
           res.redirect('/auth'); return;
@@ -118,7 +114,6 @@ error_description: 'Invalid token type'
         return;
       }
 
-      // Extract user data from strongly typed payload
       const authUser: AuthUser = {
         id: tokenPayload.sub,
         email: tokenPayload.user?.email || tokenPayload.email || '',
@@ -127,7 +122,6 @@ error_description: 'Invalid token type'
         ...tokenPayload.scope !== undefined && { scope: tokenPayload.scope },
       };
 
-      // Check required roles if specified
       if (options.requiredRoles && options.requiredRoles.length > 0) {
         const hasRequiredRole = options.requiredRoles.some((role) => { return authUser.roles.includes(role) });
         if (!hasRequiredRole) {
@@ -146,7 +140,6 @@ error_description: 'Insufficient permissions'
         }
       }
 
-      // Attach user info to request
       req.user = {
         id: authUser.id,
         sub: authUser.id,
@@ -161,7 +154,6 @@ error_description: 'Insufficient permissions'
       logger.error(LogSource.AUTH, 'Auth middleware error', { error });
 
       if (options.redirectToLogin) {
-        // For web requests, redirect to login
         res.redirect('/auth'); return;
       }
 

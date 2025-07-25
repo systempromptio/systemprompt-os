@@ -3,9 +3,9 @@
  */
 
 import type { Command } from 'commander';
-import { createListCommand } from '@/modules/core/permissions/cli/list.js';
-import { createRolesCommand } from '@/modules/core/permissions/cli/roles.js';
-import { createGrantCommand } from '@/modules/core/permissions/cli/grant.js';
+import { createListCommand } from '@/modules/core/permissions/cli/list';
+import { createRolesCommand } from '@/modules/core/permissions/cli/roles';
+import { createGrantCommand } from '@/modules/core/permissions/cli/grant';
 
 /**
  * Get all CLI commands for the permissions module.

@@ -3,7 +3,7 @@ import type {
   IDPTokens,
   IDPUserInfo,
   IIdentityProvider,
-} from '@/modules/core/auth/types/provider-interface.js';
+} from '@/modules/core/auth/types/provider-interface';
 
 /**
  *
@@ -71,16 +71,10 @@ export class GitHubProvider implements IIdentityProvider {
 
     const data = (await response.json()) as any;
 
-    /**
-     * Return standard OAuth2 token response.
-     */
     return data as IDPTokens;
   }
 
   async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
-    /**
-     * Get basic user info.
-     */
     const userResponse = await fetch(this.userEndpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -94,9 +88,6 @@ export class GitHubProvider implements IIdentityProvider {
 
     const userData = (await userResponse.json()) as any;
 
-    /**
-     * Get primary email if not public.
-     */
     let email = userData.email as string | undefined;
     let emailverified = true;
 

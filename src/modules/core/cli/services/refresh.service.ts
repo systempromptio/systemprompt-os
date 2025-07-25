@@ -4,7 +4,7 @@
  * Provides functionality to refresh and rescan CLI commands from modules.
  */
 
-import type { ICliService } from '@/modules/core/cli/types/index.js';
+import type { ICliService } from '@/modules/core/cli/types/index';
 
 /**
  * Service for refreshing and rescanning CLI commands.

@@ -5,7 +5,7 @@
  * @module modules/core/modules/repositories/module.repository
  */
 
-import type { ExtensionInfo, ExtensionType } from '@/modules/core/modules/types/index.js';
+import type { ExtensionInfo, ExtensionType } from '@/modules/core/modules/types/index';
 
 /**
  * Repository for managing module metadata and persistence.
