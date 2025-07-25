@@ -11,9 +11,11 @@ import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service'
 import type { CliService } from '@/modules/core/cli/services/cli.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 
 // Global bootstrap instance for cleanup
 let globalBootstrap: any = null;
+
 
 // Ensure clean exit on process termination
 process.on('SIGINT', async () => {
@@ -37,7 +39,19 @@ program
   .description(
     'An operating system for autonomous agents that run locally, remember persistently, and act purposefully.',
   )
-  .version('0.1.0');
+  .version('0.1.0')
+  .configureHelp({
+    formatHelp: (cmd) => {
+      try {
+        const formatter = CliFormatterService.getInstance();
+        return formatter.formatHelp(cmd, true);
+      } catch (error) {
+        // Fallback to default help if formatting fails
+        console.error('CLI formatting error:', error);
+        return cmd.helpInformation();
+      }
+    }
+  });
 
 interface ICommandOptions {
   name: string;
@@ -140,6 +154,7 @@ const createCommandAction = (cmd: IDatabaseCommand):
 const registerCommand = (cmd: IDatabaseCommand): void => {
   const commandParts = cmd.command_path.split(':');
   let command = program;
+  const formatter = CliFormatterService.getInstance();
 
   for (let i = 0; i < commandParts.length; i++) {
     const part = commandParts[i];
@@ -168,9 +183,23 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
         }
       }
 
+      // Apply consistent formatting to subcommands
+      newCommand.configureHelp({
+        formatHelp: (subCmd) => {
+          return formatter.formatHelp(subCmd, false);
+        }
+      });
+
       newCommand.action(createCommandAction(cmd));
     } else {
       command = command.command(part!);
+      
+      // Apply consistent formatting to parent commands too
+      command.configureHelp({
+        formatHelp: (parentCmd) => {
+          return formatter.formatHelp(parentCmd, false);
+        }
+      });
     }
   }
 };
@@ -225,13 +254,14 @@ const main = async (): Promise<void> => {
       .command('help [command]')
       .description('Display help for a command')
       .action((commandName?: string): void => {
+        const formatter = CliFormatterService.getInstance();
         if (commandName !== undefined) {
           const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
           if (cmd !== undefined) {
             cmd.outputHelp();
           } else {
-            const logger = LoggerService.getInstance();
-            logger.error(LogSource.CLI, `Unknown command: ${commandName}`);
+            console.log(formatter.formatError(`Unknown command: ${commandName}`));
+            console.log(`\nUse ${formatter.highlight('systemprompt help')} to see all available commands.`);
           }
         } else {
           program.outputHelp();

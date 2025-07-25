@@ -13,16 +13,6 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 /**
  * Strongly typed exports interface for Modules module.

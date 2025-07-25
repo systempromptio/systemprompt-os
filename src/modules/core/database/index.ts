@@ -17,11 +17,6 @@ import type { IDatabaseConfig } from '@/modules/core/database/types/database.typ
 import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Strongly typed exports interface for Database module.

@@ -7,13 +7,23 @@
 import type { ILogger } from '@/modules/core/logger/types/index';
 
 /**
+ * Check if running in CLI mode.
+ * @returns {boolean} True if in CLI mode.
+ */
+const isCliMode = (): boolean => {
+  return process.env.LOG_MODE === 'cli' || process.argv[1]?.includes('cli') === true;
+};
+
+/**
  * Console logger info method.
  * @param {string} message - Message to log.
  * @param {unknown[]} args - Additional arguments.
  * @returns {void} Nothing.
  */
 export const consoleInfo = (message: string, ...args: unknown[]): void => {
-  console.log(`[BOOT] ${message}`, ...args);
+  if (!isCliMode()) {
+    console.log(`[BOOT] ${message}`, ...args);
+  }
 };
 
 /**
@@ -23,7 +33,9 @@ export const consoleInfo = (message: string, ...args: unknown[]): void => {
  * @returns {void} Nothing.
  */
 export const consoleError = (message: string, ...args: unknown[]): void => {
-  console.error(`[BOOT ERROR] ${message}`, ...args);
+  if (!isCliMode()) {
+    console.error(`[BOOT ERROR] ${message}`, ...args);
+  }
 };
 
 /**
@@ -33,7 +45,9 @@ export const consoleError = (message: string, ...args: unknown[]): void => {
  * @returns {void} Nothing.
  */
 export const consoleWarn = (message: string, ...args: unknown[]): void => {
-  console.warn(`[BOOT WARN] ${message}`, ...args);
+  if (!isCliMode()) {
+    console.warn(`[BOOT WARN] ${message}`, ...args);
+  }
 };
 
 /**
@@ -43,7 +57,9 @@ export const consoleWarn = (message: string, ...args: unknown[]): void => {
  * @returns {void} Nothing.
  */
 export const consoleDebug = (message: string, ...args: unknown[]): void => {
-  console.log(`[BOOT DEBUG] ${message}`, ...args);
+  if (!isCliMode()) {
+    console.log(`[BOOT DEBUG] ${message}`, ...args);
+  }
 };
 
 /**

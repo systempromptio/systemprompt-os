@@ -24,10 +24,13 @@ import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
 import type { IDatabaseModuleExports } from '@/modules/core/database/index';
 import type { ILoggerModuleExports } from '@/modules/core/logger/index';
-import type { IModuleExports } from './types/bootstrap-module';
 import { isLoggerModule } from '@/modules/core/logger/index';
 import { isDatabaseModule } from '@/modules/core/database/index';
+import type { IModuleExports } from './types/bootstrap-module';
 
+/**
+ * Type definition for core module types.
+ */
 type CoreModuleType =
   | IModule<IModulesModuleExports>
   | IModule<ICLIModuleExports>
@@ -36,20 +39,29 @@ type CoreModuleType =
   | IModule;
 import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
 
-// Type guard functions
-function isModulesModule(module: CoreModuleType): module is IModule<IModulesModuleExports> {
+/**
+ * Type guard function to check if module is a modules module.
+ * @param {CoreModuleType} module - Module to check.
+ * @returns {boolean} True if module is a modules module.
+ */
+const isModulesModule = (module: CoreModuleType): module is IModule<IModulesModuleExports> => {
   return module.name === 'modules'
          && Boolean(module.exports)
          && typeof module.exports === 'object'
-         && 'registerCoreModule' in module.exports!;
-}
+         && 'registerCoreModule' in module.exports;
+};
 
-function isCLIModule(module: CoreModuleType): module is IModule<ICLIModuleExports> {
+/**
+ * Type guard function to check if module is a CLI module.
+ * @param {CoreModuleType} module - Module to check.
+ * @returns {boolean} True if module is a CLI module.
+ */
+const isCLIModule = (module: CoreModuleType): module is IModule<ICLIModuleExports> => {
   return module.name === 'cli'
          && Boolean(module.exports)
          && typeof module.exports === 'object'
-         && 'scanAndRegisterModuleCommands' in module.exports!;
-}
+         && 'scanAndRegisterModuleCommands' in module.exports;
+};
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import {
   checkLoggerUpgrade,

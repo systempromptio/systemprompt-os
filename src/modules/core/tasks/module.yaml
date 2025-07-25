@@ -30,6 +30,10 @@ cli:
           type: number
           description: Number of tasks to show
           default: 10
+        - name: errors
+          type: boolean
+          description: Show error reports instead of tasks
+          default: false
     - name: add
       description: Add a new task to the queue
       options:
@@ -50,4 +54,11 @@ cli:
         - name: id
           type: number
           description: Task ID
+          required: true
+    - name: delete
+      description: Delete tasks by type
+      options:
+        - name: type
+          type: string
+          description: Task type to delete (lint, typecheck, or all)
           required: true

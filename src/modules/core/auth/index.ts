@@ -36,16 +36,6 @@ const _filename = fileURLToPath(import.meta.url);
 import {
  FIVE, TEN
 } from '@/const/numbers';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 const _dirname = dirname(_filename);
 

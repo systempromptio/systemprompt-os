@@ -51,6 +51,14 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     description: 'Module registry and discovery service',
     type: 'self-contained',
   },
+  {
+    name: 'tasks',
+    path: './src/modules/core/tasks/index.ts',
+    dependencies: ['logger', 'database'],
+    critical: false,
+    description: 'Task queue and execution system',
+    type: 'self-contained',
+  },
   /*
    * Temporarily disabled - being worked on separately
    * {
