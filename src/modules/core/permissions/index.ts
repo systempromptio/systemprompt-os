@@ -31,7 +31,6 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
   private logger!: ILogger;
   private initialized = false;
   private started = false;
-
   get exports(): IPermissionsModuleExports {
     return {
       service: () => { return this.getService(); },
@@ -92,12 +91,21 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
-      return { healthy: false, message: 'Permissions module not initialized' };
+      return {
+ healthy: false,
+message: 'Permissions module not initialized'
+};
     }
     if (!this.started) {
-      return { healthy: false, message: 'Permissions module not started' };
+      return {
+ healthy: false,
+message: 'Permissions module not started'
+};
     }
-    return { healthy: true, message: 'Permissions module is healthy' };
+    return {
+ healthy: true,
+message: 'Permissions module is healthy'
+};
   }
 
   /**

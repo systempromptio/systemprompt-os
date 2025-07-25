@@ -19,7 +19,11 @@ const child = spawn('npx', [
   ...process.argv.slice(2)
 ], {
   stdio: 'inherit',
-  cwd: projectRoot
+  cwd: projectRoot,
+  env: {
+    ...process.env,
+    NODE_OPTIONS: '--max-old-space-size=8192'
+  }
 });
 
 child.on('exit', (code) => {

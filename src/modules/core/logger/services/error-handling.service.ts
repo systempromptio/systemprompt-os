@@ -1,15 +1,17 @@
 import { randomUUID } from 'crypto';
 import { hostname } from 'os';
 import {
-  ErrorCategoryMapping,
   type ErrorCategory,
+  ErrorCategoryMapping,
   type ErrorSeverity,
   type IErrorContext,
   type IErrorHandlingConfig,
   type IErrorHandlingOptions,
   type IProcessedError,
 } from '@/modules/core/logger/types/error-handling.types';
-import { LogCategory, LogSource, type LogArgs } from '@/modules/core/logger/types';
+import {
+ type LogArgs, LogCategory, LogSource
+} from '@/modules/core/logger/types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
@@ -31,7 +33,7 @@ export class ErrorHandlingService {
 
   /**
    * Get the singleton instance.
-   * @returns The singleton instance of ErrorHandlingService
+   * @returns The singleton instance of ErrorHandlingService.
    */
   public static getInstance(): ErrorHandlingService {
     ErrorHandlingService.instance ||= new ErrorHandlingService();
@@ -40,7 +42,7 @@ export class ErrorHandlingService {
 
   /**
    * Configure the error handling service.
-   * @param config - The configuration options to merge with existing config
+   * @param config - The configuration options to merge with existing config.
    */
   public configure(config: Partial<IErrorHandlingConfig>): void {
     this.config = {
@@ -51,10 +53,10 @@ export class ErrorHandlingService {
 
   /**
    * Main error processing method.
-   * @param source - The source identifier where the error originated
-   * @param error - The error to be processed
-   * @param options - Optional processing options
-   * @returns Promise resolving to the processed error
+   * @param source - The source identifier where the error originated.
+   * @param error - The error to be processed.
+   * @param options - Optional processing options.
+   * @returns Promise resolving to the processed error.
    */
   public async processError(
     source: string,
@@ -86,76 +88,135 @@ export class ErrorHandlingService {
 
   /**
    * Categorize error based on type and content.
-   * @param error - The error to categorize
-   * @returns The determined error category
+   * @param error - The error to categorize.
+   * @returns The determined error category.
    */
   public categorizeError(error: unknown): ErrorCategory {
-    if (error instanceof Error) {
-      const message = error.message.toLowerCase();
-      const name = error.name.toLowerCase();
+    if (!(error instanceof Error)) {
+      return 'UNKNOWN';
+    }
 
-      if (
-        message.includes('unauthorized')
-        || message.includes('authentication')
-        || name.includes('auth')
-      ) {
-        return 'AUTHENTICATION';
-      }
+    const message = error.message.toLowerCase();
+    const name = error.name.toLowerCase();
 
-      if (
-        message.includes('forbidden')
-        || message.includes('permission')
-        || message.includes('access denied')
-      ) {
-        return 'AUTHORIZATION';
-      }
+    return this.determineErrorCategory(message, name);
+  }
 
-      if (
-        message.includes('validation')
-        || message.includes('invalid')
-        || name.includes('validation')
-      ) {
-        return 'VALIDATION';
-      }
+  /**
+   * Determine error category based on message and name patterns.
+   * @param message - The lowercase error message.
+   * @param name - The lowercase error name.
+   * @returns The determined error category.
+   */
+  private determineErrorCategory(message: string, name: string): ErrorCategory {
+    if (this.isAuthenticationError(message, name)) {
+      return 'AUTHENTICATION';
+    }
 
-      if (
-        message.includes('database')
-        || message.includes('sql')
-        || message.includes('connection')
-        || name.includes('sequelize')
-      ) {
-        return 'DATABASE';
-      }
+    if (this.isAuthorizationError(message)) {
+      return 'AUTHORIZATION';
+    }
 
-      if (
-        message.includes('api')
-        || message.includes('service')
-        || message.includes('timeout')
-        || message.includes('network')
-      ) {
-        return 'EXTERNAL_SERVICE';
-      }
+    if (this.isValidationError(message, name)) {
+      return 'VALIDATION';
+    }
 
-      if (
-        message.includes('system')
-        || message.includes('memory')
-        || message.includes('disk')
-        || name.includes('system')
-      ) {
-        return 'SYSTEM';
-      }
+    if (this.isDatabaseError(message, name)) {
+      return 'DATABASE';
+    }
+
+    if (this.isExternalServiceError(message)) {
+      return 'EXTERNAL_SERVICE';
+    }
+
+    if (this.isSystemError(message, name)) {
+      return 'SYSTEM';
     }
 
     return 'UNKNOWN';
   }
 
   /**
-   * Determine error severity.
-   * @param error - The error to analyze
-   * @param category - The error category
-   * @returns The determined error severity
+   * Check if error is an authentication error.
+   * @param message - The error message.
+   * @param name - The error name.
+   * @returns True if authentication error.
    */
-  public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
+  private isAuthenticationError(message: string, name: string): boolean {
+    return message.includes('unauthorized')
+      || message.includes('authentication')
+      || name.includes('auth');
+  }
+
+  /**
+   * Check if error is an authorization error.
+   * @param message - The error message.
+   * @returns True if authorization error.
+   */
+  private isAuthorizationError(message: string): boolean {
+    return message.includes('forbidden')
+      || message.includes('permission')
+      || message.includes('access denied');
+  }
+
+  /**
+   * Check if error is a validation error.
+   * @param message - The error message.
+   * @param name - The error name.
+   * @returns True if validation error.
+   */
+  private isValidationError(message: string, name: string): boolean {
+    return message.includes('validation')
+      || message.includes('invalid')
+      || name.includes('validation');
+  }
+
+  /**
+   * Check if error is a database error.
+   * @param message - The error message.
+   * @param name - The error name.
+   * @returns True if database error.
+   */
+  private isDatabaseError(message: string, name: string): boolean {
+    return message.includes('database')
+      || message.includes('sql')
+      || message.includes('connection')
+      || name.includes('sequelize');
+  }
+
+  /**
+   * Check if error is an external service error.
+   * @param message - The error message.
+   * @returns True if external service error.
+   */
+  private isExternalServiceError(message: string): boolean {
+    return message.includes('api')
+      || message.includes('service')
+      || message.includes('timeout')
+      || message.includes('network');
+  }
+
+  /**
+   * Check if error is a system error.
+   * @param message - The error message.
+   * @param name - The error name.
+   * @returns True if system error.
+   */
+  private isSystemError(message: string, name: string): boolean {
+    return message.includes('system')
+      || message.includes('memory')
+      || message.includes('disk')
+      || name.includes('system');
+  }
+
+  /**
+   * Determine error severity.
+   * @param error - The error to analyze.
+   * @param _error
+   * @param category - The error category.
+   * @returns The determined error severity.
+   */
+  public determineErrorSeverity(error: unknown, category: ErrorCategory): ErrorSeverity {
     if (category === 'SYSTEM' || category === 'DATABASE') {
       return 'error';
     }
@@ -173,9 +234,9 @@ export class ErrorHandlingService {
 
   /**
    * Build error context.
-   * @param source - The source identifier
-   * @param options - The error handling options
-   * @returns The built error context
+   * @param source - The source identifier.
+   * @param options - The error handling options.
+   * @returns The built error context.
    */
   private buildErrorContext(source: string, options: IErrorHandlingOptions): IErrorContext {
     return {
@@ -184,28 +245,28 @@ export class ErrorHandlingService {
       environment: process.env.NODE_ENV ?? 'development',
       hostname: hostname(),
       pid: process.pid,
-      requestId: options.metadata?.requestId as string,
-      userId: options.metadata?.userId as string,
-      sessionId: options.metadata?.sessionId as string,
-      correlationId: (options.metadata?.correlationId as string) ?? randomUUID(),
+      requestId: options.metadata?.requestId ? String(options.metadata.requestId) : undefined,
+      userId: options.metadata?.userId ? String(options.metadata.userId) : undefined,
+      sessionId: options.metadata?.sessionId ? String(options.metadata.sessionId) : undefined,
+      correlationId: options.metadata?.correlationId ? String(options.metadata.correlationId) : randomUUID(),
       metadata: options.metadata,
     };
   }
 
   /**
    * Structure unknown error into IProcessedError.
-   * @param error - The error to structure
-   * @param context - The error context
-   * @param options - The error handling options
-   * @returns The structured processed error
+   * @param error - The error to structure.
+   * @param context - The error context.
+   * @param options - The error handling options.
+   * @returns The structured processed error.
    */
   private structureError(
     error: unknown,
     context: IErrorContext,
     options: IErrorHandlingOptions,
   ): IProcessedError {
-    const category = options.category || this.categorizeError(error);
-    const severity = options.severity || this.determineErrorSeverity(error, category);
+    const category = options.category ?? this.categorizeError(error);
+    const severity = options.severity ?? this.determineErrorSeverity(error, category);
 
     let message: string;
     let stack: string | undefined;
@@ -213,19 +274,19 @@ export class ErrorHandlingService {
     let type: string;
 
     if (error instanceof Error) {
-      message = options.message || error.message;
+      message = options.message ?? error.message;
       stack = error.stack;
       type = error.constructor.name;
-      code = (error as any).code;
+      code = 'code' in error && typeof error.code === 'string' ? error.code : undefined;
     } else if (typeof error === 'string') {
       message = error;
       type = 'StringError';
-    } else if (error && typeof error === 'object') {
-      message = options.message || JSON.stringify(error);
+    } else if (error !== null && typeof error === 'object') {
+      message = options.message ?? JSON.stringify(error);
       type = 'ObjectError';
-      code = (error as any).code;
+      code = 'code' in error && typeof error.code === 'string' ? error.code : undefined;
     } else {
-      message = options.message || String(error);
+      message = options.message ?? String(error);
       type = 'UnknownError';
     }
 
@@ -258,7 +319,7 @@ export class ErrorHandlingService {
 
   /**
    * Sanitize sensitive information from error.
-   * @param error - The processed error to sanitize
+   * @param error - The processed error to sanitize.
    */
   private sanitizeError(error: IProcessedError): void {
     const patterns = this.config.sanitizePatterns || [
@@ -279,10 +340,10 @@ export class ErrorHandlingService {
 
   /**
    * Generate error fingerprint for deduplication.
-   * @param message - The error message
-   * @param type - The error type
-   * @param source - The error source
-   * @returns The generated fingerprint
+   * @param message - The error message.
+   * @param type - The error type.
+   * @param source - The error source.
+   * @returns The generated fingerprint.
    */
   private generateFingerprint(message: string, type: string, source: string): string {
     const normalized = message
@@ -296,7 +357,7 @@ export class ErrorHandlingService {
 
   /**
    * Track error occurrences.
-   * @param error - The processed error to track
+   * @param error - The processed error to track.
    */
   private trackErrorOccurrence(error: IProcessedError): void {
     const count = this.errorFingerprints.get(error.fingerprint) ?? 0;
@@ -306,15 +367,15 @@ export class ErrorHandlingService {
 
   /**
    * Log the processed error.
-   * @param error - The processed error to log
-   * @param options - The error handling options
+   * @param error - The processed error to log.
+   * @param options - The error handling options.
    */
   private async logError(error: IProcessedError, options: IErrorHandlingOptions): Promise<void> {
     const logSource = options.logSource ?? LogSource.SYSTEM;
     const logArgs: LogArgs = {
       category: options.logCategory ?? error.logCategory,
       persistToDb: options.logToDatabase ?? true,
-      error: error.originalError as Error,
+      error: error.originalError instanceof Error ? error.originalError : undefined,
       requestId: error.context.requestId,
       userId: error.context.userId,
       sessionId: error.context.sessionId,
@@ -348,8 +409,8 @@ export class ErrorHandlingService {
 
   /**
    * Create error for rethrowing.
-   * @param processedError - The processed error to create a throwable error from
-   * @returns The created error for rethrowing
+   * @param processedError - The processed error to create a throwable error from.
+   * @returns The created error for rethrowing.
    */
   private createRethrowError(processedError: IProcessedError): Error {
     const error = new Error(processedError.message);
@@ -357,14 +418,16 @@ export class ErrorHandlingService {
     if (processedError.stack !== undefined && processedError.stack.length > 0) {
       error.stack = processedError.stack;
     }
-    (error as any).errorId = processedError.id;
-    (error as any).code = processedError.code;
+    Object.assign(error, {
+      errorId: processedError.id,
+      code: processedError.code,
+    });
     return error;
   }
 
   /**
    * Get default configuration.
-   * @returns The default error handling configuration
+   * @returns The default error handling configuration.
    */
   private getDefaultConfig(): IErrorHandlingConfig {
     return {

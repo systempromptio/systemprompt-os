@@ -62,9 +62,10 @@ export class AuthModule implements IModule {
   private database!: DatabaseService;
   private initialized = false;
   private started = false;
+
   /**
    * Get the module's exported services and methods.
-   * @returns The exported authentication services and utilities
+   * @returns The exported authentication services and utilities.
    */
   get exports(): AuthModuleExports {
     return {
@@ -76,8 +77,8 @@ export class AuthModule implements IModule {
       auditService: (): AuditService => { return this.auditService },
       getProvider: (id: string): IdentityProvider | undefined => { return this.getProvider(id) },
       getAllProviders: (): IdentityProvider[] => { return this.getAllProviders() },
-      createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
-      validateToken: async (token: string) => { return await this.validateToken(token) },
+      createToken: async (input: TokenCreateInput): Promise<AuthToken> => { return await this.createToken(input) },
+      validateToken: async (token: string): Promise<TokenValidationResult> => { return await this.validateToken(token) },
       hasProvider: (id: string): boolean => { return this.hasProvider(id) },
       getProviderRegistry: (): ProviderRegistry | null => { return this.getProviderRegistry() },
       reloadProviders: async (): Promise<void> => { await this.reloadProviders(); },
@@ -86,7 +87,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Initialize the auth module.
+   * Initialize the auth module.
    */
   async initialize(): Promise<void> {
     this.database = DatabaseService.getInstance();
@@ -102,7 +103,7 @@ export class AuthModule implements IModule {
 
       this.config = this.buildConfig();
 
-      const keyStorePath = this.config.jwt.keyStorePath ?? './state/auth/keys';
+      const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
       if (!existsSync(absolutePath)) {
@@ -128,14 +129,14 @@ export class AuthModule implements IModule {
         this.logger.info(LogSource.AUTH, 'JWT keys generated successfully');
       }
 
-      this.tokenService = (TokenService as any).getInstance();
-      this.userService = (UserService as any).getInstance();
-      this.authCodeService = (AuthCodeService as any).getInstance();
-      this.mfaService = (MFAService as any).getInstance();
-      this.auditService = (AuditService as any).getInstance();
+      this.tokenService = TokenService.getInstance();
+      this.userService = UserService.getInstance();
+      this.authCodeService = AuthCodeService.getInstance();
+      this.mfaService = MFAService.getInstance();
+      this.auditService = AuditService.getInstance();
       this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
 
-      this.authService = (AuthService as any).getInstance();
+      this.authService = AuthService.getInstance();
 
       const providersPath = join(currentDirname, 'providers');
       this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
@@ -159,7 +160,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Start the auth module.
+   * Start the auth module.
    */
   async start(): Promise<void> {
     if (!this.initialized) {
@@ -216,7 +217,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Stop the auth module.
+   * Stop the auth module.
    */
   async stop(): Promise<void> {
     if ((this as any)._cleanupInterval) {
@@ -233,7 +234,7 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Health check.
+   * Health check.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
@@ -252,7 +253,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get logger instance.
-   * @returns The logger instance
+   * @returns The logger instance.
    */
   getLogger(): ILogger {
     return this.logger;
@@ -260,8 +261,8 @@ export class AuthModule implements IModule {
 
   /**
    * Authenticate a user with the provided credentials.
-   * @param input - The login input containing credentials
-   * @returns Promise resolving to login result with tokens and user info
+   * @param input - The login input containing credentials.
+   * @returns Promise resolving to login result with tokens and user info.
    */
   async login(input: LoginInput): Promise<LoginResult> {
     return await this.authService.login(input);
@@ -269,8 +270,8 @@ export class AuthModule implements IModule {
 
   /**
    * Log out a user by terminating their session.
-   * @param sessionId - The session ID to terminate
-   * @returns Promise that resolves when logout is complete
+   * @param sessionId - The session ID to terminate.
+   * @returns Promise that resolves when logout is complete.
    */
   async logout(sessionId: string): Promise<void> {
     await this.authService.logout(sessionId);
@@ -278,8 +279,8 @@ export class AuthModule implements IModule {
 
   /**
    * Refresh an access token using a valid refresh token.
-   * @param refreshToken - The refresh token to use
-   * @returns Promise resolving to new access and refresh tokens
+   * @param refreshToken - The refresh token to use.
+   * @returns Promise resolving to new access and refresh tokens.
    */
   async refreshAccessToken(refreshToken: string): Promise<{
     accessToken: string;
@@ -290,8 +291,8 @@ export class AuthModule implements IModule {
 
   /**
    * Create a new authentication token.
-   * @param input - The token creation input parameters
-   * @returns Promise resolving to the created token
+   * @param input - The token creation input parameters.
+   * @returns Promise resolving to the created token.
    */
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
     return await this.tokenService.createToken(input);
@@ -299,8 +300,8 @@ export class AuthModule implements IModule {
 
   /**
    * Validate an authentication token.
-   * @param token - The token to validate
-   * @returns Promise resolving to validation result
+   * @param token - The token to validate.
+   * @returns Promise resolving to validation result.
    */
   async validateToken(token: string): Promise<TokenValidationResult> {
     return await this.tokenService.validateToken(token);
@@ -308,8 +309,8 @@ export class AuthModule implements IModule {
 
   /**
    * Revoke a specific token by its ID.
-   * @param tokenId - The ID of the token to revoke
-   * @returns Promise that resolves when token is revoked
+   * @param tokenId - The ID of the token to revoke.
+   * @returns Promise that resolves when token is revoked.
    */
   async revokeToken(tokenId: string): Promise<void> {
     await this.tokenService.revokeToken(tokenId);
@@ -317,9 +318,9 @@ export class AuthModule implements IModule {
 
   /**
    * Revoke all tokens for a specific user, optionally filtered by type.
-   * @param userId - The user ID whose tokens to revoke
-   * @param type - Optional token type filter
-   * @returns Promise that resolves when tokens are revoked
+   * @param userId - The user ID whose tokens to revoke.
+   * @param type - Optional token type filter.
+   * @returns Promise that resolves when tokens are revoked.
    */
   async revokeUserTokens(userId: string, type?: string): Promise<void> {
     await this.tokenService.revokeUserTokens(userId, type);
@@ -327,8 +328,8 @@ export class AuthModule implements IModule {
 
   /**
    * List all active tokens for a specific user.
-   * @param userId - The user ID to list tokens for
-   * @returns Promise resolving to array of user's tokens
+   * @param userId - The user ID to list tokens for.
+   * @returns Promise resolving to array of user's tokens.
    */
   async listUserTokens(userId: string): Promise<AuthToken[]> {
     return await this.tokenService.listUserTokens(userId);
@@ -336,7 +337,7 @@ export class AuthModule implements IModule {
 
   /**
    * Clean up expired tokens from the system.
-   * @returns Promise resolving to number of tokens cleaned up
+   * @returns Promise resolving to number of tokens cleaned up.
    */
   async cleanupExpiredTokens(): Promise<number> {
     return await this.tokenService.cleanupExpiredTokens();
@@ -344,8 +345,8 @@ export class AuthModule implements IModule {
 
   /**
    * Get an identity provider by its ID.
-   * @param providerId - The provider ID to look up
-   * @returns The identity provider or undefined if not found
+   * @param providerId - The provider ID to look up.
+   * @returns The identity provider or undefined if not found.
    */
   getProvider(providerId: string): IdentityProvider | undefined {
     return this.providerRegistry?.getProvider(providerId);
@@ -353,7 +354,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get all registered identity providers.
-   * @returns Array of all identity providers
+   * @returns Array of all identity providers.
    */
   getAllProviders(): IdentityProvider[] {
     return this.providerRegistry?.getAllProviders() ?? [];
@@ -361,8 +362,8 @@ export class AuthModule implements IModule {
 
   /**
    * Check if a provider with the given ID exists.
-   * @param providerId - The provider ID to check
-   * @returns True if provider exists, false otherwise
+   * @param providerId - The provider ID to check.
+   * @returns True if provider exists, false otherwise.
    */
   hasProvider(providerId: string): boolean {
     return this.providerRegistry?.hasProvider(providerId) ?? false;
@@ -370,7 +371,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get the provider registry instance.
-   * @returns The provider registry or null if not initialized
+   * @returns The provider registry or null if not initialized.
    */
   getProviderRegistry(): ProviderRegistry | null {
     return this.providerRegistry;
@@ -378,7 +379,7 @@ export class AuthModule implements IModule {
 
   /**
    * Reload all identity providers from the filesystem.
-   * @returns Promise that resolves when providers are reloaded
+   * @returns Promise that resolves when providers are reloaded.
    */
   async reloadProviders(): Promise<void> {
     await this.providerRegistry?.initialize();
@@ -386,7 +387,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get the tunnel service instance for development environments.
-   * @returns The tunnel service or null if not available
+   * @returns The tunnel service or null if not available.
    */
   getTunnelService(): TunnelService | null {
     return this.tunnelService;
@@ -394,7 +395,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get the current tunnel status.
-   * @returns The tunnel status object
+   * @returns The tunnel status object.
    */
   getTunnelStatus(): unknown {
     if (this.tunnelService === null) {
@@ -408,7 +409,7 @@ export class AuthModule implements IModule {
 
   /**
    * Get the public URL from the tunnel service.
-   * @returns The public URL or null if tunnel is not active
+   * @returns The public URL or null if tunnel is not active.
    */
   getPublicUrl(): string | null {
     if (this.tunnelService === null) {
@@ -419,7 +420,7 @@ export class AuthModule implements IModule {
 
   /**
    * Build configuration with defaults.
-   * @returns The complete authentication configuration
+   * @returns The complete authentication configuration.
    */
   private buildConfig(): AuthConfig {
     return {
@@ -450,7 +451,7 @@ export class AuthModule implements IModule {
 
 /**
  * Create a new AuthModule instance.
- * @returns A new AuthModule instance
+ * @returns A new AuthModule instance.
  */
 export const createModule = (): AuthModule => {
   return new AuthModule();
@@ -458,7 +459,7 @@ export const createModule = (): AuthModule => {
 
 /**
  * Create and initialize a new AuthModule instance.
- * @returns Promise resolving to an initialized AuthModule instance
+ * @returns Promise resolving to an initialized AuthModule instance.
  */
 export const initialize = async (): Promise<AuthModule> => {
   const authModule = new AuthModule();

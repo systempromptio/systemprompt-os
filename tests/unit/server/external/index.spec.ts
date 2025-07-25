@@ -15,6 +15,12 @@ vi.mock('@/server/config.js', () => ({
 }));
 
 vi.mock('@/modules/core/logger/index.js', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => ({
+      info: vi.fn(),
+      debug: vi.fn(),
+    })),
+  },
   logger: {
     info: vi.fn(),
     debug: vi.fn(),
@@ -58,116 +64,96 @@ vi.mock('@/server/external/rest/config.js', () => ({
 }));
 
 vi.mock('@/server/external/middleware/auth.js', () => ({
+  createAuthMiddleware: vi.fn(() => vi.fn()),
   authMiddleware: vi.fn(),
+}));
+
+vi.mock('@/server/external/constants/http.constants.js', () => ({
+  HTTP_STATUS: {
+    INTERNAL_SERVER_ERROR: 500,
+  },
+}));
+
+vi.mock('@/server/external/rest/callback.js', () => ({
+  setupRoutes: vi.fn(),
+}));
+
+vi.mock('@/server/external/rest/api/users.js', () => ({
+  setupRoutes: vi.fn(),
+}));
+
+vi.mock('@/server/external/rest/dashboard.js', () => ({
+  setupRoutes: vi.fn(),
+}));
+
+vi.mock('@/server/external/rest/api/terminal.js', () => ({
+  setupRoutes: vi.fn(),
+}));
+
+vi.mock('@/server/external/types/routes.types.js', () => ({}));
+
+vi.mock('@/server/external/routes.js', () => ({
+  configureRoutes: vi.fn(),
 }));
 
 describe('External API Setup', () => {
   let mockApp: Express;
-  let mockRouter: any;
 
   beforeEach(() => {
     mockApp = {
       use: vi.fn(),
     } as any;
 
-    mockRouter = {
-      get: vi.fn(),
-      post: vi.fn(),
-      use: vi.fn(),
-      stack: [],
-    };
-
     vi.clearAllMocks();
   });
 
   it('should set up all external endpoints', async () => {
     const { setupExternalEndpoints } = await import('@/server/external/index.js');
-    const { setupOAuth2Routes } = await import('@/server/external/rest/oauth2/index.js');
-    const { HealthEndpoint } = await import('@/server/external/rest/health.js');
-    const { setupRoutes: setupSplashRoutes } = await import('@/server/external/rest/splash.js');
-    const { setupRoutes: setupAuthRoutes } = await import('@/server/external/rest/auth.js');
-    const { setupRoutes: setupConfigRoutes, setupPublicRoutes } = await import(
-      '@/server/external/rest/config.js'
-    );
     const cookieParser = (await import('cookie-parser')).default;
 
-    await setupExternalEndpoints(mockApp, mockRouter);
+    await setupExternalEndpoints(mockApp);
 
-    expect(mockApp.use).toHaveBeenCalledTimes(3); // cookieParser, router, protectedRouter
-    expect(mockApp.use).toHaveBeenNthCalledWith(1, expect.any(Function)); // cookieParser
-    expect(setupOAuth2Routes).toHaveBeenCalledWith(mockRouter, CONFIG.BASEURL);
-    expect(HealthEndpoint).toHaveBeenCalled();
-    expect(mockRouter.get).toHaveBeenCalledWith('/health', expect.any(Function));
-    expect(setupSplashRoutes).toHaveBeenCalledWith(mockRouter);
-    expect(setupAuthRoutes).toHaveBeenCalledWith(mockRouter);
-    expect(setupPublicRoutes).toHaveBeenCalledWith(mockRouter);
-    expect(mockApp.use).toHaveBeenCalledWith(mockRouter);
+    expect(mockApp.use).toHaveBeenCalledWith(expect.any(Function)); // cookieParser
+    expect(cookieParser).toHaveBeenCalled();
   });
 
-  it('should set up protected routes with auth middleware', async () => {
-    const { Router } = await import('express');
-    const { authMiddleware } = await import('@/server/external/middleware/auth.js');
-    const { setupRoutes: setupConfigRoutes } = await import('@/server/external/rest/config.js');
+  it('should configure routes through configureRoutes', async () => {
+    const { setupExternalEndpoints } = await import('@/server/external/index.js');
+    
+    // Mock the configureRoutes import
+    const mockConfigureRoutes = vi.fn();
+    vi.doMock('@/server/external/routes.js', () => ({
+      configureRoutes: mockConfigureRoutes,
+    }));
 
-    const mockProtectedRouter = {
-      use: vi.fn(),
-    };
+    await setupExternalEndpoints(mockApp);
 
-    vi.mocked(Router).mockReturnValueOnce(mockProtectedRouter as any);
-
-    await setupExternalEndpoints(mockApp, mockRouter);
-
-    expect(Router).toHaveBeenCalled();
-    expect(mockProtectedRouter.use).toHaveBeenCalledWith(authMiddleware);
-    expect(setupConfigRoutes).toHaveBeenCalledWith(mockProtectedRouter);
-    expect(mockApp.use).toHaveBeenCalledWith(mockProtectedRouter);
+    expect(mockConfigureRoutes).toHaveBeenCalledWith(mockApp);
   });
 
-  it('should handle health endpoint requests', async () => {
-    const mockReq = {};
-    const mockRes = {};
-    let healthHandler: Function;
+  it('should use cookie parser middleware', async () => {
+    const { setupExternalEndpoints } = await import('@/server/external/index.js');
+    const cookieParser = (await import('cookie-parser')).default;
 
-    const mockHealthInstance = {
-      getHealth: vi.fn(),
-    };
+    await setupExternalEndpoints(mockApp);
 
-    vi.mocked(await import('@/server/external/rest/health.js')).HealthEndpoint.mockImplementation(
-      () => mockHealthInstance as any,
-    );
-
-    mockRouter.get = vi.fn((path, handler) => {
-      if (path === '/health') {
-        healthHandler = handler;
-      }
-    });
-
-    await setupExternalEndpoints(mockApp, mockRouter);
-
-    healthHandler!(mockReq, mockRes);
-
-    expect(mockHealthInstance.getHealth).toHaveBeenCalledWith(mockReq, mockRes);
+    expect(mockApp.use).toHaveBeenCalledWith(expect.any(Function));
+    expect(cookieParser).toHaveBeenCalled();
   });
 
   it('should log debug information in non-production', async () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
 
-    mockRouter.stack = [
-      { route: { path: '/test', methods: { get: true, post: true } } },
-      { route: { path: '/auth', methods: { post: true } } },
-      { notARoute: true },
-    ];
+    const { setupExternalEndpoints } = await import('@/server/external/index.js');
+    const { LoggerService } = await import('@/modules/core/logger/index.js');
+    const mockLoggerInstance = vi.mocked(LoggerService.getInstance());
 
-    const { logger } = await import('@/modules/core/logger/index.js');
+    await setupExternalEndpoints(mockApp);
 
-    await setupExternalEndpoints(mockApp, mockRouter);
-
-    expect(logger.debug).toHaveBeenCalledWith('External endpoints configured', {
-      routes: [
-        { path: '/test', methods: ['get', 'post'] },
-        { path: '/auth', methods: ['post'] },
-      ],
+    expect(mockLoggerInstance.debug).toHaveBeenCalledWith('SERVER', 'External endpoints configured', {
+      category: 'routes',
+      persistToDb: false,
     });
 
     process.env.NODE_ENV = originalEnv;
@@ -177,11 +163,13 @@ describe('External API Setup', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
 
-    const { logger } = await import('@/modules/core/logger/index.js');
+    const { setupExternalEndpoints } = await import('@/server/external/index.js');
+    const { LoggerService } = await import('@/modules/core/logger/index.js');
+    const mockLoggerInstance = vi.mocked(LoggerService.getInstance());
 
-    await setupExternalEndpoints(mockApp, mockRouter);
+    await setupExternalEndpoints(mockApp);
 
-    expect(logger.debug).not.toHaveBeenCalled();
+    expect(mockLoggerInstance.debug).not.toHaveBeenCalled();
 
     process.env.NODE_ENV = originalEnv;
   });

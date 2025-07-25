@@ -106,6 +106,14 @@ export class DatabaseCLIHandlerService {
   /**
    * Handle view command.
    * @param params - View parameters.
+   * @param params.tableName
+   * @param params.format
+   * @param params.limit
+   * @param params.offset
+   * @param params.columns
+   * @param params.where
+   * @param params.orderBy
+   * @param params.schemaOnly
    * @returns View result.
    */
   public async handleView(params: {
@@ -178,13 +186,13 @@ export class DatabaseCLIHandlerService {
         pk: number;
       }>(`PRAGMA table_info(\`${params.tableName}\`)`);
 
-      const columnInfo = schema.map(col => ({
+      const columnInfo = schema.map(col => { return {
         name: col.name,
         type: col.type,
         nullable: col.notnull === 0,
         primaryKey: col.pk > 0,
         defaultValue: col.dflt_value,
-      }));
+      } });
 
       if (params.schemaOnly === true) {
         return {
@@ -198,9 +206,9 @@ export class DatabaseCLIHandlerService {
 
       let selectColumns = '*';
       if (params.columns !== undefined) {
-        const requestedColumns = params.columns.split(',').map(c => c.trim());
-        const validColumns = columnInfo.map(c => c.name);
-        const invalidColumns = requestedColumns.filter(c => !validColumns.includes(c));
+        const requestedColumns = params.columns.split(',').map(c => { return c.trim() });
+        const validColumns = columnInfo.map(c => { return c.name });
+        const invalidColumns = requestedColumns.filter(c => { return !validColumns.includes(c) });
 
         if (invalidColumns.length > 0) {
           return {
@@ -209,7 +217,7 @@ export class DatabaseCLIHandlerService {
           };
         }
 
-        selectColumns = requestedColumns.map(c => `\`${c}\``).join(', ');
+        selectColumns = requestedColumns.map(c => { return `\`${c}\`` }).join(', ');
       }
 
       let query = `SELECT ${selectColumns} FROM \`${params.tableName}\``;

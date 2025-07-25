@@ -287,9 +287,21 @@ const main = async (): Promise<void> => {
     try {
       await program.parseAsync(process.argv);
     } catch (err: any) {
-      // Commander throws an error with exitCode property for unknown commands
+      // Commander throws an error with exitCode property for built-in commands like --version, --help
       if (err.exitCode !== undefined) {
         process.exitCode = err.exitCode;
+        
+        // If exitCode is 0, it's a successful operation (like --version or --help)
+        if (err.exitCode === 0) {
+          // Clean shutdown and exit successfully
+          if (bootstrap) {
+            await bootstrap.shutdown();
+          }
+          setTimeout(() => {
+            process.exit(0);
+          }, 100);
+          return;
+        }
       }
       throw err;
     }
@@ -300,7 +312,9 @@ const main = async (): Promise<void> => {
     }
     
     // Force exit to ensure the process terminates
-    process.exit(0);
+    setTimeout(() => {
+      process.exit(0);
+    }, 100);
   } catch (error) {
     // Don't use logger here as it may not be initialized if bootstrap failed
     console.error('CLI initialization failed:', error);

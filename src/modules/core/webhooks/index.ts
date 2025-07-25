@@ -26,9 +26,7 @@ class WebhookService implements IWebhookService {
    * Get singleton instance.
    */
   static getInstance(): WebhookService {
-    if (!this.instance) {
-      this.instance = new WebhookService();
-    }
+    this.instance ||= new WebhookService();
     return this.instance;
   }
 
@@ -36,7 +34,6 @@ class WebhookService implements IWebhookService {
    * Initialize the webhook service.
    */
   async initialize(): Promise<void> {
-    // Basic initialization
     await Promise.resolve();
   }
 }
@@ -62,7 +59,6 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
   private logger!: ILogger;
   private initialized = false;
   private started = false;
-
   get exports(): IWebhooksModuleExports {
     return {
       service: () => { return this.getService(); },
@@ -123,12 +119,21 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
-      return { healthy: false, message: 'Webhooks module not initialized' };
+      return {
+ healthy: false,
+message: 'Webhooks module not initialized'
+};
     }
     if (!this.started) {
-      return { healthy: false, message: 'Webhooks module not started' };
+      return {
+ healthy: false,
+message: 'Webhooks module not started'
+};
     }
-    return { healthy: true, message: 'Webhooks module is healthy' };
+    return {
+ healthy: true,
+message: 'Webhooks module is healthy'
+};
   }
 
   /**

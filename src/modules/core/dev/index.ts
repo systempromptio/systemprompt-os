@@ -31,7 +31,6 @@ export class DevModule implements IModule<IDevModuleExports> {
   private logger!: ILogger;
   private initialized = false;
   private started = false;
-
   get exports(): IDevModuleExports {
     return {
       service: () => { return this.getService(); },
@@ -92,12 +91,21 @@ export class DevModule implements IModule<IDevModuleExports> {
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
-      return { healthy: false, message: 'Dev module not initialized' };
+      return {
+ healthy: false,
+message: 'Dev module not initialized'
+};
     }
     if (!this.started) {
-      return { healthy: false, message: 'Dev module not started' };
+      return {
+ healthy: false,
+message: 'Dev module not started'
+};
     }
-    return { healthy: true, message: 'Dev module is healthy' };
+    return {
+ healthy: true,
+message: 'Dev module is healthy'
+};
   }
 
   /**

@@ -2,8 +2,11 @@
  * @fileoverview Integration test for auth module provider configuration
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { AuthModule } from '../../src/modules/core/auth/index.js';
+import { DatabaseService } from '../../src/modules/core/database/services/database.service.js';
+import { LoggerService } from '../../src/modules/core/logger/services/logger.service.js';
+import { LogOutput, LoggerMode } from '../../src/modules/core/logger/types/index.js';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -15,14 +18,59 @@ describe('Auth Module Provider Configuration', () => {
   let authModule: AuthModule;
 
   beforeAll(async () => {
-    authModule = new AuthModule();
-    await authModule.initialize({
-      config: {
-        keyStorePath: './state/auth/keys'
+    // Initialize LoggerService first
+    const logger = LoggerService.getInstance();
+    logger.initialize({
+      logLevel: 'info',
+      stateDir: './state',
+      mode: LoggerMode.SERVER,
+      maxSize: '10MB',
+      maxFiles: 5,
+      outputs: [LogOutput.CONSOLE],
+      files: {
+        system: 'system.log',
+        error: 'error.log',
+        access: 'access.log'
       },
-      logger: console
+      database: {
+        enabled: false
+      }
     });
+
+    // Initialize DatabaseService with test configuration
+    DatabaseService.initialize({
+      type: 'sqlite',
+      sqlite: {
+        filename: ':memory:' // Use in-memory database for tests
+      },
+      pool: {
+        min: 1,
+        max: 10,
+        idleTimeout: 30000
+      }
+    }, logger);
+
+    authModule = new AuthModule();
+    await authModule.initialize();
     await authModule.start();
+  });
+
+  afterAll(async () => {
+    // Clean up
+    if (authModule) {
+      await authModule.stop();
+    }
+    
+    // Disconnect database
+    try {
+      const dbService = DatabaseService.getInstance();
+      await dbService.disconnect();
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+
+    // Reset logger instance for clean state
+    LoggerService.resetInstance();
   });
 
   it('should load provider configurations from YAML files', () => {

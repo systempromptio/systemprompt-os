@@ -1,69 +1,73 @@
 /**
  * @file Module Scanner Service - Dynamically discovers and registers modules.
  * @module modules/core/modules/services/module-scanner
+ * @description Service for scanning filesystem directories to discover available modules
+ * and register them in the database for the module management system.
  */
 
 import {
- existsSync, readFileSync, readdirSync, statSync
+  existsSync, readFileSync, readdirSync, statSync
 } from 'fs';
 import { join, resolve } from 'path';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+/*
+ * Note: Using database service directly as repository doesn't have required database methods
+ * This should be refactored to use a proper repository pattern in the future
+ */
 import type {
+  IDatabaseModuleRow,
   ModuleScannerService as IModuleScannerService,
+  ModuleEventType,
+  ModuleHealthStatus,
   ModuleInfo,
   ModuleScanOptions,
-  ScannedModule,
-} from '@/modules/core/modules/types/index';
-import {
- ModuleEventType, ModuleHealthStatus, ModuleStatus, ModuleType
+  ModuleStatus,
+  ModuleType,
+  ScannedModule
 } from '@/modules/core/modules/types/index';
 import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-parser';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Database row type for modules table.
- */
-interface DatabaseModuleRow {
-  id: number;
-  name: string;
-  version: string;
-  type: string;
-  path: string;
-  enabled: number;
-  auto_start: number;
-  dependencies: string;
-  config: string;
-  status: string;
-  lasterror: string | null;
-  discovered_at?: string;
-  last_started_at?: string;
-  last_stopped_at?: string;
-  health_status: string;
-  health_message: string | null;
-  last_health_check?: string;
-  metadata: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { ILogger, LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Service for scanning and discovering available modules.
+ * Implements singleton pattern as required for core modules.
  */
 export class ModuleScannerService implements IModuleScannerService {
+  private static instance: ModuleScannerService | null = null;
   private readonly logger: ILogger | undefined;
-  private db!: DatabaseService;
   private readonly defaultPaths = ['src/modules/core', 'src/modules/custom', 'extensions/modules'];
+  private database: {
+    execute: (sql: string, params?: unknown[]) => Promise<void>;
+    query: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
+  } | null = null;
 
-  constructor(logger?: ILogger) {
+  /**
+   * Private constructor to enforce singleton pattern.
+   * @param logger - Optional logger instance.
+   */
+  private constructor(logger?: ILogger) {
     this.logger = logger;
+  }
+
+  /**
+   * Get singleton instance of ModuleScannerService.
+   * @param logger - Optional logger instance (only used on first call).
+   * @returns The singleton instance.
+   */
+  public static getInstance(logger?: ILogger): ModuleScannerService {
+    ModuleScannerService.instance ||= new ModuleScannerService(logger);
+    return ModuleScannerService.instance;
   }
 
   /**
    * Initialize the scanner service.
    */
-  async initialize(): Promise<void> {
-    this.db = DatabaseService.getInstance();
+  public async initialize(): Promise<void> {
+    const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+    const dbService = DatabaseService.getInstance();
+    this.database = {
+      execute: dbService.execute.bind(dbService),
+      query: dbService.query.bind(dbService)
+    };
     await this.ensureSchema();
   }
 
@@ -71,7 +75,7 @@ export class ModuleScannerService implements IModuleScannerService {
    * Set the module manager service for validation.
    * @param _service - The module manager service instance.
    */
-  setModuleManagerService(_service: unknown): void {
+  public setModuleManagerService(_service: unknown): void {
   }
 
   /**
@@ -84,8 +88,9 @@ export class ModuleScannerService implements IModuleScannerService {
   /**
    * Scan for available modules.
    * @param options - Options for scanning modules.
+   * @returns Promise resolving to array of scanned modules.
    */
-  async scan(options: ModuleScanOptions = {}): Promise<ScannedModule[]> {
+  public async scan(options: ModuleScanOptions = {}): Promise<ScannedModule[]> {
     const paths = options.paths || this.defaultPaths;
     const modules: ScannedModule[] = [];
 
@@ -129,10 +134,10 @@ export class ModuleScannerService implements IModuleScannerService {
 
         const moduleYamlPath = join(fullPath, 'module.yaml');
         if (existsSync(moduleYamlPath)) {
-          const module = await this.loadModuleInfo(fullPath);
-          if (module) {
-            modules.push(module);
-            this.logger?.debug(LogSource.MODULES, `Discovered module: ${module.name} at ${fullPath}`);
+          const moduleInfo = await this.loadModuleInfo(fullPath);
+          if (moduleInfo) {
+            modules.push(moduleInfo);
+            this.logger?.debug(LogSource.MODULES, `Discovered module: ${moduleInfo.name} at ${fullPath}`);
           }
         } else if (options.deep) {
           const subModules = await this.scanDirectory(fullPath, options);
@@ -157,11 +162,11 @@ export class ModuleScannerService implements IModuleScannerService {
       const parseResult = parseModuleManifestSafe(moduleYaml);
 
       if (!parseResult.manifest) {
-        this.logger?.warn(LogSource.MODULES, `Skipping ${moduleYamlPath}: ${parseResult.errors?.join(', ')}`);
+        this.logger?.warn(LogSource.MODULES, `Skipping ${moduleYamlPath}: ${parseResult.errors?.join(', ') ?? 'Unknown parsing error'}`);
         return null;
       }
 
-      const {manifest} = parseResult;
+      const { manifest } = parseResult;
 
       if (!manifest.name || !manifest.version) {
         this.logger?.error(LogSource.MODULES, `Module at ${modulePath} has invalid manifest: missing name or version`);
@@ -178,7 +183,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
       let moduleType: ModuleType | null;
       if (modulePath.includes('/modules/core/')) {
-        moduleType = ModuleType.CORE;
+        moduleType = 'core' as ModuleType;
         this.logger?.debug(LogSource.MODULES, `Module ${manifest.name} is in core directory, setting type to CORE`);
       } else {
         moduleType = this.parseModuleType(manifest.type);
@@ -210,17 +215,18 @@ export class ModuleScannerService implements IModuleScannerService {
   /**
    * Parse module type string to enum.
    * @param type - The module type string.
+   * @returns The parsed module type or null if invalid.
    */
   private parseModuleType(type: string): ModuleType | null {
     const typeMap: Record<string, ModuleType> = {
-      core: ModuleType.CORE,
-      service: ModuleType.SERVICE,
-      daemon: ModuleType.DAEMON,
-      plugin: ModuleType.PLUGIN,
-      extension: ModuleType.EXTENSION,
+      core: 'core' as ModuleType,
+      service: 'service' as ModuleType,
+      daemon: 'daemon' as ModuleType,
+      plugin: 'plugin' as ModuleType,
+      extension: 'extension' as ModuleType,
     };
 
-    return typeMap[type.toLowerCase()] || null;
+    return typeMap[type.toLowerCase()] ?? null;
   }
 
   /**
@@ -230,73 +236,92 @@ export class ModuleScannerService implements IModuleScannerService {
   private async storeModules(modules: ScannedModule[]): Promise<void> {
     for (const module of modules) {
       try {
-        if (!Object.values(ModuleType).includes(module.type)) {
-          this.logger?.error(LogSource.MODULES, `Invalid module type for ${module.name}: ${module.type}`);
+        const validTypes = ['core', 'service', 'daemon', 'plugin', 'extension'] as const;
+        if (!validTypes.includes(moduleInfo.type as typeof validTypes[number])) {
+          this.logger?.error(LogSource.MODULES, `Invalid module type for ${moduleInfo.name}: ${moduleInfo.type}`);
           continue;
         }
 
-        await this.db.execute(`
+        if (!this.database) {
+          throw new Error('Database not initialized');
+        }
+        await this.database.execute(`
           INSERT OR REPLACE INTO modules (
             name, version, type, path, enabled, auto_start,
             dependencies, config, status, health_status, metadata
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-          module.name,
-          module.version,
-          module.type,
-          module.path,
+          moduleInfo.name,
+          moduleInfo.version,
+          moduleInfo.type,
+          moduleInfo.path,
           1,
           0,
-          JSON.stringify(module.dependencies || []),
-          JSON.stringify(module.config || {}),
-          ModuleStatus.INSTALLED,
-          ModuleHealthStatus.UNKNOWN,
-          JSON.stringify(module.metadata || {}),
+          JSON.stringify(moduleInfo.dependencies ?? []),
+          JSON.stringify(moduleInfo.config ?? {}),
+          'installed' as ModuleStatus,
+          'unknown' as ModuleHealthStatus,
+          JSON.stringify(moduleInfo.metadata ?? {}),
         ]);
 
-        await this.db.execute(`
+        if (!this.database) {
+          throw new Error('Database not initialized');
+        }
+        await this.database.execute(`
           INSERT INTO module_events (module_id, event_type, event_data)
           VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
         `, [
-          module.name,
-          ModuleEventType.DISCOVERED,
+          moduleInfo.name,
+          'discovered' as ModuleEventType,
           JSON.stringify({
-            version: module.version,
-            path: module.path
+            version: moduleInfo.version,
+            path: moduleInfo.path
           }),
         ]);
       } catch (error) {
-        this.logger?.error(LogSource.MODULES, `Error storing module ${module.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+        this.logger?.error(LogSource.MODULES, `Error storing module ${moduleInfo.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
   }
 
   /**
    * Get all registered modules from database.
+   * @returns Promise resolving to array of module information.
    */
-  async getRegisteredModules(): Promise<ModuleInfo[]> {
-    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules');
-    return rows.map(row => { return this.mapRowToModuleInfo(row) });
+  public async getRegisteredModules(): Promise<ModuleInfo[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    const rows = await this.database.query<IDatabaseModuleRow>('SELECT * FROM modules');
+    return rows.map((row) => { return this.mapRowToModuleInfo(row) });
   }
 
   /**
    * Get enabled modules.
+   * @returns Promise resolving to array of enabled modules.
    */
-  async getEnabledModules(): Promise<ModuleInfo[]> {
-    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules WHERE enabled = 1');
-    return rows.map(row => { return this.mapRowToModuleInfo(row) });
+  public async getEnabledModules(): Promise<ModuleInfo[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    const rows = await this.database.query<IDatabaseModuleRow>('SELECT * FROM modules WHERE enabled = 1');
+    return rows.map((row) => { return this.mapRowToModuleInfo(row) });
   }
 
   /**
    * Get module by name.
    * @param name - The name of the module.
+   * @returns Promise resolving to module information or undefined if not found.
    */
-  async getModule(name: string): Promise<ModuleInfo | undefined> {
-    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules WHERE name = ?', [name]);
+  public async getModule(name: string): Promise<ModuleInfo | undefined> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    const rows = await this.database.query<IDatabaseModuleRow>('SELECT * FROM modules WHERE name = ?', [name]);
     if (rows.length === 0) {
       return undefined;
     }
-    const row = rows[0];
+    const [row] = rows;
     if (!row) {
       return undefined;
     }
@@ -306,8 +331,9 @@ export class ModuleScannerService implements IModuleScannerService {
   /**
    * Map database row to ModuleInfo.
    * @param row - The database row.
+   * @returns Mapped module information object.
    */
-  private mapRowToModuleInfo(row: DatabaseModuleRow): ModuleInfo {
+  private mapRowToModuleInfo(row: IDatabaseModuleRow): ModuleInfo {
     const result: ModuleInfo = {
       id: row.id,
       name: row.name,
@@ -315,33 +341,33 @@ export class ModuleScannerService implements IModuleScannerService {
       type: row.type as ModuleType,
       path: row.path,
       enabled: Boolean(row.enabled),
-      autoStart: Boolean(row.auto_start),
-      dependencies: row.dependencies ? JSON.parse(row.dependencies) : [],
-      config: row.config ? JSON.parse(row.config) : {},
+      autoStart: Boolean(row.autoStart),
+      dependencies: row.dependencies ? JSON.parse(row.dependencies) as string[] : [],
+      config: row.config ? JSON.parse(row.config) as Record<string, unknown> : {},
       status: row.status as ModuleStatus,
-      healthStatus: (row.health_status as ModuleHealthStatus) || ModuleHealthStatus.UNKNOWN,
-      metadata: row.metadata ? JSON.parse(row.metadata) : {},
-      createdAt: new Date(row.created_at || Date.now()),
-      updatedAt: new Date(row.updated_at || Date.now()),
+      healthStatus: (row.healthStatus as ModuleHealthStatus) ?? 'unknown' as ModuleHealthStatus,
+      metadata: row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {},
+      createdAt: new Date(row.createdAt ?? Date.now()),
+      updatedAt: new Date(row.updatedAt ?? Date.now()),
     };
 
-    if (row.lasterror) {
+    if (row.lasterror !== null && row.lasterror !== undefined) {
       result.lastError = row.lasterror;
     }
-    if (row.discovered_at) {
-      result.discoveredAt = new Date(row.discovered_at);
+    if (row.discoveredAt !== null && row.discoveredAt !== undefined) {
+      result.discoveredAt = new Date(row.discoveredAt);
     }
-    if (row.last_started_at) {
-      result.lastStartedAt = new Date(row.last_started_at);
+    if (row.lastStartedAt !== null && row.lastStartedAt !== undefined) {
+      result.lastStartedAt = new Date(row.lastStartedAt);
     }
-    if (row.last_stopped_at) {
-      result.lastStoppedAt = new Date(row.last_stopped_at);
+    if (row.lastStoppedAt !== null && row.lastStoppedAt !== undefined) {
+      result.lastStoppedAt = new Date(row.lastStoppedAt);
     }
-    if (row.health_message) {
-      result.healthMessage = row.health_message;
+    if (row.healthMessage !== null && row.healthMessage !== undefined) {
+      result.healthMessage = row.healthMessage;
     }
-    if (row.last_health_check) {
-      result.lastHealthCheck = new Date(row.last_health_check);
+    if (row.lastHealthCheck !== null && row.lastHealthCheck !== undefined) {
+      result.lastHealthCheck = new Date(row.lastHealthCheck);
     }
 
     return result;
@@ -353,16 +379,22 @@ export class ModuleScannerService implements IModuleScannerService {
    * @param status - The new status.
    * @param error - Optional error message.
    */
-  async updateModuleStatus(name: string, status: ModuleStatus, error?: string): Promise<void> {
-    await this.db.execute(`
+  public async updateModuleStatus(name: string, status: ModuleStatus, error?: string): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    await this.database.execute(`
       UPDATE modules 
       SET status = ?, lasterror = ?, updated_at = CURRENT_TIMESTAMP
       WHERE name = ?
-    `, [status, error || null, name]);
+    `, [status, error ?? null, name]);
 
     const eventType = this.mapStatusToEventType(status);
-    if (eventType) {
-      await this.db.execute(`
+    if (eventType !== null && eventType !== undefined) {
+      if (!this.database) {
+        throw new Error('Database not initialized');
+      }
+      await this.database.execute(`
         INSERT INTO module_events (module_id, event_type, event_data)
         VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
       `, [name, eventType, JSON.stringify({
@@ -375,16 +407,22 @@ export class ModuleScannerService implements IModuleScannerService {
   /**
    * Map module status to event type.
    * @param status - The module status.
+   * @returns The corresponding event type or null if no mapping exists.
    */
   private mapStatusToEventType(status: ModuleStatus): ModuleEventType | null {
     switch (status) {
-      case ModuleStatus.LOADING:
-      case ModuleStatus.RUNNING:
-        return ModuleEventType.STARTED;
-      case ModuleStatus.STOPPED:
-        return ModuleEventType.STOPPED;
-      case ModuleStatus.ERROR:
-        return ModuleEventType.ERROR;
+      case 'loading' as ModuleStatus:
+      case 'running' as ModuleStatus:
+        return 'started' as ModuleEventType;
+      case 'stopped' as ModuleStatus:
+        return 'stopped' as ModuleEventType;
+      case 'error' as ModuleStatus:
+        return 'error' as ModuleEventType;
+      case 'pending' as ModuleStatus:
+      case 'initializing' as ModuleStatus:
+      case 'stopping' as ModuleStatus:
+      case 'installed' as ModuleStatus:
+        return null;
       default:
         return null;
     }
@@ -395,13 +433,13 @@ export class ModuleScannerService implements IModuleScannerService {
    * @param name - The module name.
    * @param enabled - Whether to enable or disable.
    */
-  async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
-    await this.db.execute('UPDATE modules SET enabled = ? WHERE name = ?', [enabled ? 1 : 0, name]);
+  public async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
+    await this.repository.execute('UPDATE modules SET enabled = ? WHERE name = ?', [enabled ? 1 : 0, name]);
 
-    await this.db.execute(`
+    await this.repository.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-    `, [name, ModuleEventType.CONFIG_CHANGED, JSON.stringify({ enabled })]);
+    `, [name, 'config_changed' as ModuleEventType, JSON.stringify({ enabled })]);
   }
 
   /**
@@ -410,18 +448,18 @@ export class ModuleScannerService implements IModuleScannerService {
    * @param healthy - Whether the module is healthy.
    * @param message - Optional health message.
    */
-  async updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void> {
-    const healthStatus = healthy ? ModuleHealthStatus.HEALTHY : ModuleHealthStatus.UNHEALTHY;
-    await this.db.execute(`
+  public async updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void> {
+    const healthStatus = healthy ? 'healthy' as ModuleHealthStatus : 'unhealthy' as ModuleHealthStatus;
+    await this.repository.execute(`
       UPDATE modules 
       SET health_status = ?, health_message = ?, last_health_check = CURRENT_TIMESTAMP
       WHERE name = ?
-    `, [healthStatus, message || null, name]);
+    `, [healthStatus, message ?? null, name]);
 
-    await this.db.execute(`
+    await this.repository.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-    `, [name, ModuleEventType.HEALTH_CHECK, JSON.stringify({
+    `, [name, 'health_check' as ModuleEventType, JSON.stringify({
       healthy,
       message
     })]);

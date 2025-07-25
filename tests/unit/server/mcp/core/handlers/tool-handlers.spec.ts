@@ -7,16 +7,92 @@ import { z } from 'zod';
 import type { MCPToolContext } from '@/server/mcp/core/types/request-context';
 import type { ListToolsRequest, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 
-// Mock the LoggerService
-vi.mock('@/modules/core/logger/index', () => ({
-  LoggerService: {
-    getInstance: vi.fn(() => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn()
-    }))
-  }
+// Mock the LoggerService - must be hoisted
+const mockLogger = vi.hoisted(() => ({
+  info: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  log: vi.fn(),
+  access: vi.fn(),
+  clearLogs: vi.fn(),
+  getLogs: vi.fn()
+}));
+
+vi.mock('@/modules/core/logger/index', () => {
+  return {
+    LoggerService: {
+      getInstance: vi.fn(() => mockLogger),
+      resetInstance: vi.fn()
+    },
+    LogSource: {
+      MCP: 'mcp',
+      LOGGER: 'logger',
+      ACCESS: 'access'
+    }
+  };
+});
+
+// Mock the module loader
+vi.mock('@/modules/loader', () => ({
+  getModuleLoader: vi.fn(() => ({
+    loadModules: vi.fn(() => Promise.resolve()),
+    getModule: vi.fn((name: string) => {
+      if (name === 'tools') {
+        return {
+          exports: {
+            getEnabledToolsByScope: vi.fn(() => Promise.resolve([
+              {
+                name: 'checkstatus',
+                description: 'Get comprehensive system status (admin only)',
+                inputSchema: {
+                  type: 'object',
+                  properties: {
+                    includeContainers: { type: 'boolean' },
+                    includeUsers: { type: 'boolean' }
+                  }
+                },
+                metadata: {
+                  requiredRole: 'admin'
+                }
+              }
+            ])),
+            getTool: vi.fn((toolName: string) => {
+              if (toolName === 'checkstatus') {
+                return Promise.resolve({
+                  name: 'checkstatus',
+                  description: 'Get comprehensive system status (admin only)',
+                  metadata: {
+                    requiredRole: 'admin'
+                  }
+                });
+              }
+              return Promise.resolve(null);
+            }),
+            executeTool: vi.fn(() => Promise.resolve({
+              status: 'success',
+              message: 'System status retrieved successfully',
+              result: {
+                timestamp: new Date().toISOString(),
+                uptime: 12345,
+                platform: 'Linux 5.15',
+                resources: {
+                  cpu: { model: 'Test CPU', cores: 4, usage: 25 },
+                  memory: { total: 8000000000, free: 4000000000, used: 4000000000, usagePercent: 50 },
+                  disk: { total: 100000000000, free: 50000000000, used: 50000000000, usagePercent: 50 }
+                },
+                services: {
+                  mcp: { status: 'active', version: '0.1.0', activeSessions: 1 },
+                  oauth: { status: 'active', tunnelActive: false, providers: [] }
+                }
+              }
+            }))
+          }
+        };
+      }
+      return null;
+    })
+  }))
 }));
 
 // Mock the check-status handler
@@ -57,12 +133,19 @@ vi.mock('node:crypto', () => ({
 
 describe('MCP Tool Handlers', () => {
   let mockHandleCheckStatus: any;
+  let mockExecuteTool: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     // Get the mocked function
     const checkStatusModule = await import('@/server/mcp/core/handlers/tools/check-status');
     mockHandleCheckStatus = checkStatusModule.handleCheckStatus as any;
+    
+    // Get reference to the executeTool mock for per-test customization
+    const loaderModule = await import('@/modules/loader');
+    const loader = (loaderModule.getModuleLoader as any)();
+    const toolsModule = loader.getModule('tools');
+    mockExecuteTool = toolsModule.exports.executeTool;
   });
 
   afterEach(() => {
@@ -107,7 +190,6 @@ describe('MCP Tool Handlers', () => {
     });
 
     it('should log tool filtering process', async () => {
-      const { logger } = await import('@/utils/logger');
       const context: MCPToolContext = {
         sessionId: 'admin-session-123',
         userId: '113783121475955670750' // Admin user ID
@@ -115,9 +197,10 @@ describe('MCP Tool Handlers', () => {
 
       await handleListTools({}, context);
 
-      // Check first call
-      expect(logger.info).toHaveBeenNthCalledWith(
+      // Check first call - includes LogSource.MCP as first parameter
+      expect(mockLogger.info).toHaveBeenNthCalledWith(
         1,
+        'mcp',
         'Tool listing requested',
         expect.objectContaining({
           sessionId: 'admin-session-123',
@@ -125,9 +208,10 @@ describe('MCP Tool Handlers', () => {
         })
       );
 
-      // Check third call
-      expect(logger.info).toHaveBeenNthCalledWith(
+      // Check third call - includes LogSource.MCP as first parameter
+      expect(mockLogger.info).toHaveBeenNthCalledWith(
         3,
+        'mcp',
         'Tool filtering completed',
         expect.objectContaining({
           userId: '113783121475955670750',
@@ -146,8 +230,8 @@ describe('MCP Tool Handlers', () => {
 
       await expect(handleListTools({}, context)).rejects.toThrow();
       
-      const { logger } = await import('@/utils/logger');
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'MCP',
         'Tool listing failed',
         expect.objectContaining({
           error: expect.any(String)
@@ -175,12 +259,14 @@ describe('MCP Tool Handlers', () => {
       const result = await handleToolCall(request, context);
 
       expect(result).toHaveProperty('content');
-      expect(result.content).toEqual([{
-        type: 'text',
-        text: 'System status retrieved successfully'
-      }]);
-      expect(result).toHaveProperty('structuredContent');
-      expect(result.structuredContent.status).toBe('success');
+      expect(result.content).toHaveLength(1);
+      expect(result.content[0]).toHaveProperty('type', 'text');
+      expect(result.content[0]).toHaveProperty('text');
+      
+      // Parse the JSON stringified result
+      const resultData = JSON.parse(result.content[0].text);
+      expect(resultData.status).toBe('success');
+      expect(resultData.message).toBe('System status retrieved successfully');
 
       expect(mockHandleCheckStatus).toHaveBeenCalledWith(
         { includeContainers: true, includeUsers: true },
@@ -238,7 +324,6 @@ describe('MCP Tool Handlers', () => {
     });
 
     it('should log permission denial attempts', async () => {
-      const { logger } = await import('@/utils/logger');
       const request: CallToolRequest = {
         params: {
           name: 'checkstatus',
@@ -255,7 +340,8 @@ describe('MCP Tool Handlers', () => {
         // Expected to throw
       }
 
-      expect(logger.warn).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'MCP',
         'Tool access denied',
         expect.objectContaining({
           userId: 'anonymous',
@@ -269,7 +355,6 @@ describe('MCP Tool Handlers', () => {
     });
 
     it('should log successful tool execution', async () => {
-      const { logger } = await import('@/utils/logger');
       const request: CallToolRequest = {
         params: {
           name: 'checkstatus',
@@ -284,8 +369,9 @@ describe('MCP Tool Handlers', () => {
       await handleToolCall(request, context);
 
       // Check that the 3rd call to logger.info was 'Tool execution completed'
-      expect(logger.info).toHaveBeenNthCalledWith(
+      expect(mockLogger.info).toHaveBeenNthCalledWith(
         3,
+        'MCP',
         'Tool execution completed',
         expect.objectContaining({
           userId: '113783121475955670750',
@@ -297,7 +383,8 @@ describe('MCP Tool Handlers', () => {
     });
 
     it('should handle tool execution errors', async () => {
-      mockHandleCheckStatus.mockRejectedValueOnce(new Error('Tool execution failed'));
+      // Mock the executeTool to throw an error
+      mockExecuteTool.mockRejectedValueOnce(new Error('Tool execution failed'));
 
       const request: CallToolRequest = {
         params: {
@@ -314,8 +401,8 @@ describe('MCP Tool Handlers', () => {
         'Tool execution failed'
       );
 
-      const { logger } = await import('@/utils/logger');
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'MCP',
         'Tool execution failed',
         expect.objectContaining({
           toolName: 'checkstatus',

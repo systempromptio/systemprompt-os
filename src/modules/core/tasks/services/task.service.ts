@@ -26,13 +26,9 @@ import type { DatabaseService } from '@/modules/core/database/services/database.
  */
 export class TaskService implements ITaskService {
   private static instance: TaskService | null = null;
-  
   private readonly handlers: Map<string, ITaskHandler> = new Map();
-  
   private logger!: ILogger;
-  
   private database!: DatabaseService;
-  
   private initialized = false;
 
   /**
@@ -78,17 +74,24 @@ export class TaskService implements ITaskService {
       throw new Error('TaskService not initialized');
     }
 
+    if (task.type === null || task.type === undefined) {
+      throw new Error('Task type is required');
+    }
+    if (task.moduleId === null || task.moduleId === undefined) {
+      throw new Error('Task moduleId is required');
+    }
+
     const taskData = {
-      type: task.type!,
-      module_id: task.moduleId!,
-      payload: task.payload ? JSON.stringify(task.payload) : null,
+      type: task.type,
+      moduleId: task.moduleId,
+      payload: task.payload !== null && task.payload !== undefined ? JSON.stringify(task.payload) : null,
       priority: task.priority ?? TaskPriority.NORMAL,
       status: TaskStatus.PENDING,
-      retry_count: 0,
-      max_retries: task.maxRetries ?? 3,
-      scheduled_at: task.scheduledAt?.toISOString(),
-      created_by: task.createdBy,
-      metadata: task.metadata ? JSON.stringify(task.metadata) : null
+      retryCount: 0,
+      maxRetries: task.maxRetries ?? 3,
+      scheduledAt: task.scheduledAt?.toISOString(),
+      createdBy: task.createdBy,
+      metadata: task.metadata !== null && task.metadata !== undefined ? JSON.stringify(task.metadata) : null
     };
 
     await this.database.execute(
@@ -97,14 +100,14 @@ export class TaskService implements ITaskService {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         taskData.type,
-        taskData.module_id,
+        taskData.moduleId,
         taskData.payload,
         taskData.priority,
         taskData.status,
-        taskData.retry_count,
-        taskData.max_retries,
-        taskData.scheduled_at,
-        taskData.created_by,
+        taskData.retryCount,
+        taskData.maxRetries,
+        taskData.scheduledAt,
+        taskData.createdBy,
         taskData.metadata
       ]
     );
@@ -112,22 +115,22 @@ export class TaskService implements ITaskService {
     const idResult = await this.database.query<{id: number}>('SELECT last_insert_rowid() as id');
     const taskId = idResult[0]?.id;
 
-    if (!taskId) {
+    if (taskId === null || taskId === undefined) {
       throw new Error('Failed to get task ID after insert');
     }
 
     const newTask: ITask = {
       id: taskId,
       type: taskData.type,
-      moduleId: taskData.module_id,
+      moduleId: taskData.moduleId,
       payload: task.payload,
       priority: taskData.priority,
       status: taskData.status,
-      retryCount: taskData.retry_count,
-      maxRetries: taskData.max_retries,
-      ...task.scheduledAt && { scheduledAt: task.scheduledAt },
-      ...taskData.created_by && { createdBy: taskData.created_by },
-      ...task.metadata && { metadata: task.metadata }
+      retryCount: taskData.retryCount,
+      maxRetries: taskData.maxRetries,
+      ...task.scheduledAt !== null && task.scheduledAt !== undefined && { scheduledAt: task.scheduledAt },
+      ...taskData.createdBy !== null && taskData.createdBy !== undefined && { createdBy: taskData.createdBy },
+      ...task.metadata !== null && task.metadata !== undefined && { metadata: task.metadata }
     };
 
     this.logger.info(LogSource.MODULES, `Task added: ${newTask.id} (${newTask.type})`);

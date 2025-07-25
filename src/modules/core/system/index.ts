@@ -31,7 +31,6 @@ export class SystemModule implements IModule<ISystemModuleExports> {
   private logger!: ILogger;
   private initialized = false;
   private started = false;
-
   get exports(): ISystemModuleExports {
     return {
       service: () => { return this.getService(); },
@@ -92,12 +91,21 @@ export class SystemModule implements IModule<ISystemModuleExports> {
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
-      return { healthy: false, message: 'System module not initialized' };
+      return {
+ healthy: false,
+message: 'System module not initialized'
+};
     }
     if (!this.started) {
-      return { healthy: false, message: 'System module not started' };
+      return {
+ healthy: false,
+message: 'System module not started'
+};
     }
-    return { healthy: true, message: 'System module is healthy' };
+    return {
+ healthy: true,
+message: 'System module is healthy'
+};
   }
 
   /**

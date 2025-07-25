@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import { setupMCPServers } from '../../src/server/mcp/index.js';
-import { setupExternalAPI } from '../../src/server/external/index.js';
+import { setupMcpServers } from '../../src/server/mcp/index';
+import { setupExternalEndpoints } from '../../src/server/external/index';
 
 describe('MCP OAuth2 Authentication Flow', () => {
   let app: express.Express;
@@ -24,8 +24,8 @@ describe('MCP OAuth2 Authentication Flow', () => {
     app.use(express.json());
     
     // Setup OAuth2 endpoints and MCP servers
-    await setupExternalAPI(app);
-    await setupMCPServers(app);
+    await setupExternalEndpoints(app);
+    await setupMcpServers(app);
   });
 
   afterAll(() => {

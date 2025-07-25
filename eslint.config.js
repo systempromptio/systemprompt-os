@@ -109,6 +109,7 @@ export default [
       "systemprompt-os/no-orphaned-jsdoc": "error",
       "systemprompt-os/warn-inline-eslint-comments": "warn",
       "systemprompt-os/no-js-extensions-in-imports": "error",
+      "systemprompt-os/enforce-logsource-enum": "error",
 
       // TypeScript strict rules - using recommended-type-checked and strict
       // These provide type-aware linting for maximum safety

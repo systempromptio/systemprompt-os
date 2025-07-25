@@ -38,11 +38,11 @@ export interface IDatabaseModuleExports {
  */
 export function isDatabaseModule(module: any): module is IModule<IDatabaseModuleExports> {
   return (
-    module?.name === 'database' &&
-    Boolean(module.exports) &&
-    typeof module.exports === 'object' &&
-    'service' in module.exports &&
-    typeof module.exports.service === 'function'
+    module?.name === 'database'
+    && Boolean(module.exports)
+    && typeof module.exports === 'object'
+    && 'service' in module.exports
+    && typeof module.exports.service === 'function'
   );
 }
 
@@ -122,8 +122,8 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       const schemaService = SchemaService.initialize(dbService, schemaImport, this.logger);
       MigrationService.initialize(dbService, this.logger);
 
-      const modulesPath =
-        process.env.NODE_ENV === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
+      const modulesPath
+        = process.env.NODE_ENV === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
 
       await schemaService.discoverSchemas(modulesPath);
       await schemaService.initializeSchemas();
@@ -166,6 +166,17 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   async stop(): Promise<void> {
     if (this.started) {
       this.logger?.info(LogSource.DATABASE, 'Database module stopping', { category: 'shutdown' });
+
+      try {
+        await this.databaseService?.disconnect();
+        this.logger?.info(LogSource.DATABASE, 'Database connection closed', { category: 'shutdown' });
+      } catch (error) {
+        this.logger?.error(LogSource.DATABASE, 'Error closing database connection', {
+          category: 'shutdown',
+          error: error instanceof Error ? error : new Error(String(error))
+        });
+      }
+
       this.started = false;
     }
   }
@@ -273,8 +284,8 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
   const schemaService = SchemaService.initialize(dbService, schemaImport, logger);
   MigrationService.initialize(dbService, logger);
 
-  const modulesPath =
-    process.env.NODE_ENV === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
+  const modulesPath
+    = process.env.NODE_ENV === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
 
   await schemaService.discoverSchemas(modulesPath);
   await schemaService.initializeSchemas();
