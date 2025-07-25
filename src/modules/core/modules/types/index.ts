@@ -1,7 +1,7 @@
 /**
  * Base interface for all SystemPrompt OS modules.
  */
-export interface IModule {
+export interface IModule<TExports = unknown> {
     readonly name: string;
 
     readonly version: string;
@@ -12,7 +12,7 @@ export interface IModule {
 
     status: ModuleStatus;
 
-    readonly exports?: Record<string, unknown>;
+    readonly exports?: TExports;
 
     setDependencies?(modules: Map<string, IModule>): void;
 

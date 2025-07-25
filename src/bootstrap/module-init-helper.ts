@@ -6,6 +6,7 @@
 
 import type { IModule } from '@/modules/core/modules/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { moduleHasMethod } from '@/bootstrap/shutdown-helper.js';
 
 /**
@@ -46,12 +47,12 @@ export const startSingleModule = async (
     return;
   }
 
-  logger.debug(`Starting module: ${name}`);
+  logger.debug(LogSource.BOOTSTRAP, `Starting module: ${name}`, { persistToDb: false });
   const { start: startMethod } = moduleInstance;
   if (startMethod !== undefined) {
     await startMethod.call(moduleInstance);
   }
-  logger.debug(`Started module: ${name}`);
+  logger.debug(LogSource.BOOTSTRAP, `Started module: ${name}`, { persistToDb: false });
 };
 
 /**
@@ -74,11 +75,35 @@ export const checkLoggerUpgrade = (
   }
 
   const { exports: moduleExports } = moduleInstance;
-  const hasService = moduleExports !== undefined && 'service' in moduleExports;
+  if (!moduleExports || typeof moduleExports !== 'object') {
+    return undefined;
+  }
+
+  const hasService = 'service' in moduleExports;
   if (!hasService) {
     return undefined;
   }
 
-  const service = moduleExports['service'];
-  return service as ILogger;
+  const serviceAccessor = (moduleExports as any).service;
+
+  // Check if it's a function (getter pattern) and call it
+  if (typeof serviceAccessor === 'function') {
+    try {
+      const loggerInstance = serviceAccessor();
+      // Verify it has logger methods
+      if (loggerInstance && typeof loggerInstance.info === 'function') {
+        return loggerInstance as ILogger;
+      }
+    } catch (error) {
+      // Failed to get logger, return undefined
+      return undefined;
+    }
+  }
+
+  // If it's not a function, it might be the service directly (legacy pattern)
+  if (serviceAccessor && typeof serviceAccessor.info === 'function') {
+    return serviceAccessor as ILogger;
+  }
+
+  return undefined;
 };

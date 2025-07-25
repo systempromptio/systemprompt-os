@@ -7,7 +7,7 @@ import type {
  CallToolResult, IToolHandlerContext, ToolHandler
 } from '@/server/mcp/core/handlers/tools/types.js';
 import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
 import { execSync } from 'node:child_process';
 import * as os from 'os';
 import { getDatabase } from '@/modules/core/database/index.js';
@@ -112,7 +112,7 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
   context?: IToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    logger.info('Admin checking system status', {
+    logger.info(LogSource.MCP, 'Admin checking system status', {
       sessionId: context?.sessionId,
       options: args,
     });
@@ -141,7 +141,7 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
       status.auditLog = await getRecentAuditLog();
     }
 
-    logger.info('Admin status check completed', {
+    logger.info(LogSource.MCP, 'Admin status check completed', {
       sessionId: context?.sessionId,
       includesContainers: Boolean(status.containers),
       includesUsers: Boolean(status.users),
@@ -154,10 +154,10 @@ export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async
       result: status,
     });
   } catch (error) {
-    logger.error('Failed to check system status', {
- error,
-args
-});
+    logger.error(LogSource.MCP, 'Failed to check system status', {
+      error: error instanceof Error ? error : new Error(String(error)),
+      args
+    });
 
     return formatToolResponse({
       status: 'error',
@@ -207,7 +207,7 @@ usagePercent: 0
       };
     }
   } catch (_e) {
-    logger.warn('Could not get disk usage', _e);
+    logger.warn(LogSource.MCP, 'Could not get disk usage', { error: _e instanceof Error ? _e : new Error(String(_e)) });
   }
 
   return {
@@ -333,7 +333,7 @@ const getUserStatus = async function () {
       activeContainers: 0, // TODO: Implement container counting when container module is added
     } });
   } catch (error) {
-    logger.error('Failed to get user status from database', { error });
+    logger.error(LogSource.MCP, 'Failed to get user status from database', { error: error instanceof Error ? error : new Error(String(error)) });
     return [];
   }
 }

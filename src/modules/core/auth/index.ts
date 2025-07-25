@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import type { IModule } from '@/modules/core/modules/types/index.js';
 import { ModuleStatus } from '@/modules/core/modules/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { ProviderRegistry } from '@/modules/core/auth/providers/registry.js';
@@ -18,6 +19,7 @@ import { UserService } from '@/modules/core/auth/services/user-service.js';
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
 import { MFAService } from '@/modules/core/auth/services/mfa.service.js';
 import { AuditService } from '@/modules/core/auth/services/audit.service.js';
+import { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service.js';
 import { ConfigurationError } from '@/modules/core/auth/utils/errors.js';
 import type {
   AuthConfig,
@@ -59,6 +61,7 @@ export class AuthModule implements IModule {
   private authCodeService!: AuthCodeService;
   private mfaService!: MFAService;
   private auditService!: AuditService;
+  private oauth2ConfigService!: OAuth2ConfigService;
   private logger!: ILogger;
   private database!: DatabaseService;
   private initialized = false;
@@ -78,6 +81,7 @@ export class AuthModule implements IModule {
       hasProvider: (id: string) => { return this.hasProvider(id) },
       getProviderRegistry: () => { return this.getProviderRegistry() },
       reloadProviders: async () => { await this.reloadProviders(); },
+      oauth2ConfigService: () => { return this.oauth2ConfigService },
     };
   }
 
@@ -101,14 +105,14 @@ export class AuthModule implements IModule {
 
       if (!existsSync(absolutePath)) {
         mkdirSync(absolutePath, { recursive: true });
-        this.logger.info(`Created key store directory: ${absolutePath}`);
+        this.logger.info(LogSource.AUTH, `Created key store directory: ${absolutePath}`);
       }
 
       const privateKeyPath = join(absolutePath, 'private.key');
       const publicKeyPath = join(absolutePath, 'public.key');
 
       if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
-        this.logger.info('JWT keys not found, generating new keys...');
+        this.logger.info(LogSource.AUTH, 'JWT keys not found, generating new keys...');
 
         const { generateJWTKeyPair } = await import('@/modules/core/auth/utils/generate-key.js');
 
@@ -119,7 +123,7 @@ export class AuthModule implements IModule {
           format: 'pem'
         });
 
-        this.logger.info('JWT keys generated successfully');
+        this.logger.info(LogSource.AUTH, 'JWT keys generated successfully');
       }
 
       this.tokenService = (TokenService as any).getInstance();
@@ -127,6 +131,7 @@ export class AuthModule implements IModule {
       this.authCodeService = (AuthCodeService as any).getInstance();
       this.mfaService = (MFAService as any).getInstance();
       this.auditService = (AuditService as any).getInstance();
+      this.oauth2ConfigService = OAuth2ConfigService.getInstance();
 
       this.authService = (AuthService as any).getInstance();
 
@@ -143,7 +148,7 @@ export class AuthModule implements IModule {
       }
 
       this.initialized = true;
-      this.logger.info('Auth module initialized', { version: this.version });
+      this.logger.info(LogSource.AUTH, 'Auth module initialized', { version: this.version });
     } catch (error) {
       throw new ConfigurationError(
         `Failed to initialize auth module: ${error instanceof Error ? error.message : String(error)}`
@@ -175,27 +180,29 @@ export class AuthModule implements IModule {
               await this.database.execute(statement);
             } catch (error) {
               if (error instanceof Error && !error.message.includes('duplicate column')) {
-                this.logger.warn('Schema statement warning', { error: error.message });
+                this.logger.warn(LogSource.AUTH, 'Schema statement warning', { error: error.message });
               }
             }
           }
         }
 
-        this.logger.info('Auth database schema updated');
+        this.logger.info(LogSource.AUTH, 'Auth database schema updated');
       }
 
       setInterval(
         () => {
           this.tokenService
             .cleanupExpiredTokens()
-            .catch((err) => { this.logger.error('Token cleanup failed', err); });
+            .catch((err) => { this.logger.error(LogSource.AUTH, 'Token cleanup failed', {
+              error: err instanceof Error ? err : new Error(String(err))
+            }); });
         },
         24 * 60 * 60 * 1000
       ); // Daily
 
       this.status = ModuleStatus.RUNNING;
       this.started = true;
-      this.logger.info('Auth module started');
+      this.logger.info(LogSource.AUTH, 'Auth module started');
     } catch (error) {
       this.status = ModuleStatus.STOPPED;
       throw error;
@@ -211,7 +218,7 @@ export class AuthModule implements IModule {
     }
     this.status = ModuleStatus.STOPPED;
     this.started = false;
-    this.logger.info('Auth module stopped');
+    this.logger.info(LogSource.AUTH, 'Auth module stopped');
   }
 
   /**

@@ -1,6 +1,6 @@
 import type {
   IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface';
+} from '@/modules/core/auth/types/provider-interface.js';
 // Removed unused imports
 
 /**

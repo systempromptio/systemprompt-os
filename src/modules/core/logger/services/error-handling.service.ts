@@ -1,0 +1,402 @@
+import { randomUUID } from 'crypto';
+import { hostname } from 'os';
+import type {
+  ErrorCategory,
+  ErrorSeverity,
+  IErrorContext,
+  IErrorHandlingConfig,
+  IErrorHandlingOptions,
+  IProcessedError,
+} from '@/modules/core/logger/types/error-handling.types';
+import { ErrorCategoryMapping } from '@/modules/core/logger/types/error-handling.types';
+import type { LogArgs } from '@/modules/core/logger/types';
+import { LogCategory, LogSource } from '@/modules/core/logger/types';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+
+/**
+ * Service for centralized error handling and processing.
+ */
+export class ErrorHandlingService {
+  private static instance: ErrorHandlingService;
+  private readonly logger: LoggerService;
+  private config: IErrorHandlingConfig;
+  private readonly errorFingerprints: Map<string, number> = new Map();
+
+  private constructor() {
+    this.logger = LoggerService.getInstance();
+    this.config = this.getDefaultConfig();
+  }
+
+  /**
+   * Get the singleton instance.
+   */
+  public static getInstance(): ErrorHandlingService {
+    ErrorHandlingService.instance ||= new ErrorHandlingService();
+    return ErrorHandlingService.instance;
+  }
+
+  /**
+   * Configure the error handling service.
+   * @param config
+   */
+  public configure(config: Partial<IErrorHandlingConfig>): void {
+    this.config = {
+      ...this.config,
+      ...config,
+    };
+  }
+
+  /**
+   * Main error processing method.
+   * @param source
+   * @param error
+   * @param options
+   */
+  public async processError(
+    source: string,
+    error: unknown,
+    options?: Partial<IErrorHandlingOptions>,
+  ): Promise<IProcessedError> {
+    const mergedOptions = {
+      ...this.config.defaultOptions,
+      ...options,
+    };
+    const context = this.buildErrorContext(source, mergedOptions);
+
+    // Convert unknown error to structured format
+    const processedError = this.structureError(error, context, mergedOptions);
+
+    // Sanitize sensitive information
+    if (mergedOptions.logToDatabase || mergedOptions.logToFile) {
+      this.sanitizeError(processedError);
+    }
+
+    // Track error occurrences
+    this.trackErrorOccurrence(processedError);
+
+    // Log the error
+    await this.logError(processedError, mergedOptions);
+
+    // Handle rethrow
+    if (mergedOptions.rethrow) {
+      throw this.createRethrowError(processedError);
+    }
+
+    return processedError;
+  }
+
+  /**
+   * Categorize error based on type and content.
+   * @param error
+   */
+  public categorizeError(error: unknown): ErrorCategory {
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase();
+      const name = error.name.toLowerCase();
+
+      // Check for authentication errors
+      if (
+        message.includes('unauthorized')
+        || message.includes('authentication')
+        || name.includes('auth')
+      ) {
+        return 'AUTHENTICATION';
+      }
+
+      // Check for authorization errors
+      if (
+        message.includes('forbidden')
+        || message.includes('permission')
+        || message.includes('access denied')
+      ) {
+        return 'AUTHORIZATION';
+      }
+
+      // Check for validation errors
+      if (
+        message.includes('validation')
+        || message.includes('invalid')
+        || name.includes('validation')
+      ) {
+        return 'VALIDATION';
+      }
+
+      // Check for database errors
+      if (
+        message.includes('database')
+        || message.includes('sql')
+        || message.includes('connection')
+        || name.includes('sequelize')
+      ) {
+        return 'DATABASE';
+      }
+
+      // Check for external service errors
+      if (
+        message.includes('api')
+        || message.includes('service')
+        || message.includes('timeout')
+        || message.includes('network')
+      ) {
+        return 'EXTERNAL_SERVICE';
+      }
+
+      // Check for system errors
+      if (
+        message.includes('system')
+        || message.includes('memory')
+        || message.includes('disk')
+        || name.includes('system')
+      ) {
+        return 'SYSTEM';
+      }
+    }
+
+    return 'UNKNOWN';
+  }
+
+  /**
+   * Determine error severity.
+   * @param error
+   * @param _error
+   * @param category
+   */
+  public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
+    // Critical errors
+    if (category === 'SYSTEM' || category === 'DATABASE') {
+      return 'error';
+    }
+
+    // High severity
+    if (category === 'AUTHENTICATION' || category === 'AUTHORIZATION') {
+      return 'warn';
+    }
+
+    // Medium severity
+    if (category === 'VALIDATION' || category === 'BUSINESS_LOGIC') {
+      return 'info';
+    }
+
+    // Default
+    return 'warn';
+  }
+
+  /**
+   * Build error context.
+   * @param source
+   * @param options
+   */
+  private buildErrorContext(source: string, options: IErrorHandlingOptions): IErrorContext {
+    return {
+      source,
+      timestamp: new Date(),
+      environment: process.env['NODE_ENV'] || 'development',
+      hostname: hostname(),
+      pid: process.pid,
+      requestId: options.metadata?.['requestId'] as string,
+      userId: options.metadata?.['userId'] as string,
+      sessionId: options.metadata?.['sessionId'] as string,
+      correlationId: (options.metadata?.['correlationId'] as string) || randomUUID(),
+      metadata: options.metadata,
+    };
+  }
+
+  /**
+   * Structure unknown error into IProcessedError.
+   * @param error
+   * @param context
+   * @param options
+   */
+  private structureError(
+    error: unknown,
+    context: IErrorContext,
+    options: IErrorHandlingOptions,
+  ): IProcessedError {
+    const category = options.category || this.categorizeError(error);
+    const severity = options.severity || this.determineErrorSeverity(error, category);
+
+    let message: string;
+    let stack: string | undefined;
+    let code: string | undefined;
+    let type: string;
+
+    if (error instanceof Error) {
+      message = options.message || error.message;
+      stack = error.stack;
+      type = error.constructor.name;
+      code = (error as any).code;
+    } else if (typeof error === 'string') {
+      message = error;
+      type = 'StringError';
+    } else if (error && typeof error === 'object') {
+      message = options.message || JSON.stringify(error);
+      type = 'ObjectError';
+      code = (error as any).code;
+    } else {
+      message = options.message || String(error);
+      type = 'UnknownError';
+    }
+
+    // Truncate if needed
+    if (this.config.maxMessageLength && message.length > this.config.maxMessageLength) {
+      message = `${message.substring(0, this.config.maxMessageLength)}...`;
+    }
+
+    if (this.config.maxStackLength && stack && stack.length > this.config.maxStackLength) {
+      stack = `${stack.substring(0, this.config.maxStackLength)}...`;
+    }
+
+    const fingerprint = this.generateFingerprint(message, type, context.source);
+
+    return {
+      id: randomUUID(),
+      message,
+      code,
+      type,
+      category,
+      logCategory: ErrorCategoryMapping[category],
+      severity,
+      stack,
+      context,
+      originalError: error,
+      sanitized: false,
+      fingerprint,
+      occurrences: this.errorFingerprints.get(fingerprint) || 0,
+    };
+  }
+
+  /**
+   * Sanitize sensitive information from error.
+   * @param error
+   */
+  private sanitizeError(error: IProcessedError): void {
+    const patterns = this.config.sanitizePatterns || [
+      /password["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+      /token["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+      /api[_-]?key["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+      /secret["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+      /authorization["\s]*[:=]["\s]*["']?Bearer\s+[^"'\s,}]+/gi,
+    ];
+
+    patterns.forEach((pattern) => {
+      error.message = error.message.replace(pattern, '[REDACTED]');
+      error.stack &&= error.stack.replace(pattern, '[REDACTED]');
+    });
+
+    error.sanitized = true;
+  }
+
+  /**
+   * Generate error fingerprint for deduplication.
+   * @param message
+   * @param type
+   * @param source
+   */
+  private generateFingerprint(message: string, type: string, source: string): string {
+    // Simple fingerprint based on error characteristics
+    const normalized = message
+      .replace(/\d+/g, 'N') // Replace numbers
+      .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID') // UUIDs
+      .replace(/\S+@\S+/g, 'EMAIL') // Emails
+      .substring(0, 100);
+
+    return `${type}:${source}:${normalized}`;
+  }
+
+  /**
+   * Track error occurrences.
+   * @param error
+   */
+  private trackErrorOccurrence(error: IProcessedError): void {
+    const count = this.errorFingerprints.get(error.fingerprint) || 0;
+    this.errorFingerprints.set(error.fingerprint, count + 1);
+    error.occurrences = count + 1;
+  }
+
+  /**
+   * Log the processed error.
+   * @param error
+   * @param options
+   */
+  private async logError(error: IProcessedError, options: IErrorHandlingOptions): Promise<void> {
+    const logSource = options.logSource || LogSource.SYSTEM;
+    const logArgs: LogArgs = {
+      category: options.logCategory || error.logCategory,
+      persistToDb: options.logToDatabase ?? true,
+      error: error.originalError as Error,
+      requestId: error.context.requestId,
+      userId: error.context.userId,
+      sessionId: error.context.sessionId,
+      data: {
+        errorId: error.id,
+        errorType: error.type,
+        errorCode: error.code,
+        errorCategory: error.category,
+        source: error.context.source,
+        fingerprint: error.fingerprint,
+        occurrences: error.occurrences,
+        ...error.context.metadata,
+      },
+    };
+
+    // Log based on severity
+    switch (error.severity) {
+      case 'error':
+        this.logger.error(logSource, error.message, logArgs);
+        break;
+      case 'warn':
+        this.logger.warn(logSource, error.message, logArgs);
+        break;
+      case 'info':
+        this.logger.info(logSource, error.message, logArgs);
+        break;
+      case 'debug':
+        this.logger.debug(logSource, error.message, logArgs);
+        break;
+    }
+  }
+
+  /**
+   * Create error for rethrowing.
+   * @param processedError
+   */
+  private createRethrowError(processedError: IProcessedError): Error {
+    const error = new Error(processedError.message);
+    error.name = processedError.type;
+    if (processedError.stack) {
+      error.stack = processedError.stack;
+    }
+    (error as any).errorId = processedError.id;
+    (error as any).code = processedError.code;
+    return error;
+  }
+
+  /**
+   * Get default configuration.
+   */
+  private getDefaultConfig(): IErrorHandlingConfig {
+    return {
+      defaultOptions: {
+        rethrow: true,
+        severity: 'error',
+        logToDatabase: true,
+        logToConsole: true,
+        logToFile: true,
+        notify: false,
+        logSource: LogSource.SYSTEM,
+        logCategory: LogCategory.ERROR,
+      },
+      captureAsyncErrors: true,
+      captureUnhandledRejections: true,
+      maxMessageLength: 1000,
+      maxStackLength: 5000,
+      sanitizePatterns: [
+        /password["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+        /token["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+        /api[_-]?key["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+        /secret["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+        /authorization["\s]*[:=]["\s]*["']?Bearer\s+[^"'\s,}]+/gi,
+      ],
+    };
+  }
+}

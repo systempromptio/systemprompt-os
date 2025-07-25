@@ -4,7 +4,7 @@
  * @module server/mcp/local/daemon
  */
 
-import { LocalMCPServer } from '@/server/mcp/local/server.js';
+import { LocalMcpServer } from '@/server/mcp/local/server.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -55,7 +55,7 @@ const main = async function (): Promise<void> {
   try {
     await writePidFile();
 
-    const server = new LocalMCPServer();
+    const server = new LocalMcpServer();
 
     const shutdown = async (signal: string) => {
       await log(`Received ${signal}, shutting down...`);

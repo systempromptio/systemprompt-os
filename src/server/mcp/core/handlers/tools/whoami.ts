@@ -4,10 +4,12 @@
  */
 
 import type {
- CallToolResult, IToolHandlerContext, ToolHandler
+  CallToolResult,
+  IToolHandlerContext,
+  ToolHandler,
 } from '@/server/mcp/core/handlers/tools/types.js';
 import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 import type { IUserPermissionContext } from '@/server/mcp/core/types/permissions.js';
 import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions.js';
@@ -58,7 +60,7 @@ const getUserContext = async function (context: IMCPToolContext): Promise<IUserP
     permissions: ROLE_PERMISSIONS[role],
     customPermissions: [],
   };
-}
+};
 
 /**
  * Whoami tool handler accessible to all authenticated users.
@@ -70,7 +72,7 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
   context?: IToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
-    logger.info('Whoami tool invoked', {
+    logger.info(LogSource.MCP, 'Whoami tool invoked', {
       sessionId: context?.sessionId,
       userId: context?.userId,
       includePermissions: args?.includePermissions,
@@ -100,16 +102,18 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
     if (args?.includeSession && context.sessionId) {
       response.session = {
         sessionId: context.sessionId,
-        createdAt: new Date().toISOString(), // In production, this would come from session storage
+        createdAt: new Date().toISOString(),
       };
     }
 
-    logger.info('Whoami tool completed', {
+    logger.info(LogSource.MCP, 'Whoami tool completed', {
       sessionId: context?.sessionId,
       userId: userContext.userId,
-      role: userContext.role,
-      includePermissions: Boolean(response.permissions),
-      includeSession: Boolean(response.session),
+      data: {
+        role: userContext.role,
+        includePermissions: Boolean(response.permissions),
+        includeSession: Boolean(response.session),
+      },
     });
 
     return formatToolResponse({
@@ -117,10 +121,10 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       result: response,
     });
   } catch (error) {
-    logger.error('Failed to get user information', {
-      error,
-      args,
+    logger.error(LogSource.MCP, 'Failed to get user information', {
+      error: error instanceof Error ? error : String(error),
       sessionId: context?.sessionId,
+      data: { args },
     });
 
     return formatToolResponse({

@@ -28,7 +28,7 @@ import type {
   ListResourceTemplatesResult,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
 
 const logger = LoggerService.getInstance();
 
@@ -92,7 +92,7 @@ const RESOURCETEMPLATES: ResourceTemplate[] = [
 export const handleListResourceTemplates = async function (
   _request: ListResourceTemplatesRequest,
 ): Promise<ListResourceTemplatesResult> {
-  logger.debug('📋 Listing resource templates', {
+  logger.debug(LogSource.MCP, '📋 Listing resource templates', {
     templateCount: RESOURCETEMPLATES.length,
   });
 

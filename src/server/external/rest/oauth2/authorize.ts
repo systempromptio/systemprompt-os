@@ -5,6 +5,8 @@
 
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 // Mock imports for missing modules - these need to be implemented
 const OAuth2Error = {
@@ -33,13 +35,6 @@ const getAuthModule = () => { return {
     authCodeService: () => { return mockAuthCodeService }
   }
 } };
-
-const LoggerService = {
-  getInstance: () => { return {
-    info: (...args: any[]) => { console.log(...args); },
-    error: (...args: any[]) => { console.error(...args); }
-  } }
-};
 
 // Mock provider interface
 interface IdentityProvider {
@@ -125,7 +120,11 @@ export class AuthorizeEndpoint {
 
       // If a specific provider is requested, redirect to that provider
       if (params.provider) {
-        logger.info('Redirecting to OAuth provider', { provider: params.provider });
+        logger.info(LogSource.AUTH, 'Redirecting to OAuth provider', {
+          category: 'oauth2',
+          action: 'redirect',
+          persistToDb: false
+        });
 
         // Provider names are case-insensitive
         const provider = providerRegistry.getProvider(params.provider.toLowerCase());
@@ -248,7 +247,11 @@ export class AuthorizeEndpoint {
 
       res.type('html').send(html);
     } catch (error) {
-      logger.error('OAuth2 authorize GET error:', error);
+      logger.error(LogSource.AUTH, 'OAuth2 authorize GET error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'oauth2',
+        action: 'authorize'
+      });
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
@@ -332,18 +335,19 @@ export class AuthorizeEndpoint {
  code, state, error, error_description
 } = req.query;
 
-      logger.info('OAuth provider callback received', {
-        provider,
-        hasCode: Boolean(code),
-        hasError: Boolean(error),
+      logger.info(LogSource.AUTH, 'OAuth provider callback received', {
+        category: 'oauth2',
+        action: 'callback',
+        persistToDb: true
       });
 
       // Handle error from provider
       if (error) {
-        logger.error('Provider returned error', {
-          provider,
-          error,
+        logger.error(LogSource.AUTH, 'Provider returned error', {
+          error: typeof error === 'string' ? new Error(error) : error instanceof Error ? error : new Error(String(error)),
           error_description,
+          category: 'oauth2',
+          action: 'callback'
         });
         return res.status(400).send(`
           <html>
@@ -365,9 +369,10 @@ export class AuthorizeEndpoint {
       try {
         stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
       } catch (error) {
-        logger.error('Failed to decode state parameter', {
-          state,
-          error,
+        logger.error(LogSource.AUTH, 'Failed to decode state parameter', {
+          error: error instanceof Error ? error : new Error(String(error)),
+          category: 'oauth2',
+          action: 'callback'
         });
         throw new Error('Invalid state parameter');
       }
@@ -392,10 +397,10 @@ export class AuthorizeEndpoint {
       // Get user info from provider
       const userInfo = await providerInstance.getUserInfo(providerTokens.access_token);
 
-      logger.info('User authenticated via provider', {
-        provider,
-        userId: userInfo.id,
-        email: userInfo.email,
+      logger.info(LogSource.AUTH, 'User authenticated via provider', {
+        category: 'oauth2',
+        action: 'authenticate',
+        persistToDb: true
       });
 
       // Create or update user in database
@@ -411,10 +416,10 @@ export class AuthorizeEndpoint {
         ...avatarUrl && { avatar: avatarUrl },
       });
 
-      logger.info('User upserted in database', {
-        userId: user.id,
-        email: user.email,
-        isNew: user.createdAt === user.updatedAt,
+      logger.info(LogSource.AUTH, 'User upserted in database', {
+        category: 'oauth2',
+        action: 'user_upsert',
+        persistToDb: true
       });
 
       // Store authorization code with user info
@@ -441,14 +446,19 @@ export class AuthorizeEndpoint {
         responseParams.append('state', stateData.originalState);
       }
 
-      logger.info('Redirecting to client with authorization code', {
-        redirectUri: stateData.redirectUri,
-        hasState: Boolean(stateData.originalState),
+      logger.info(LogSource.AUTH, 'Redirecting to client with authorization code', {
+        category: 'oauth2',
+        action: 'auth_code_redirect',
+        persistToDb: true
       });
 
       res.redirect(`${stateData.redirectUri}?${responseParams}`);
     } catch (error) {
-      logger.error('Provider callback error', { error });
+      logger.error(LogSource.AUTH, 'Provider callback error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'oauth2',
+        action: 'callback'
+      });
       res.status(500).send(`
         <html>
         <body>

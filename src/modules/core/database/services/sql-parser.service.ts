@@ -4,9 +4,10 @@
  * @module database/services/sql-parser
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
-import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * SQL parser service for parsing and validating SQL statements.
@@ -55,7 +56,7 @@ export class SQLParserService {
    */
   public parseSQLFile(sql: string, fileName?: string): IParseResult {
     if (fileName !== undefined) {
-      this.logger?.debug('Parsing SQL file', { fileName });
+      this.logger?.debug(LogSource.DATABASE, 'Parsing SQL file', { fileName });
     }
 
     const lines = sql.split('\n');
@@ -67,6 +68,8 @@ export class SQLParserService {
     let inComment = false;
     let inString = false;
     let stringChar = '';
+    let inTrigger = false;
+    let triggerBeginCount = ZERO;
 
     for (let lineIndex = ZERO; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex];
@@ -94,6 +97,25 @@ export class SQLParserService {
 
       if (!currentStatement && trimmedLine) {
         statementStartLine = lineIndex + 1;
+      }
+
+      // Check for trigger start
+      if (trimmedLine.toUpperCase().startsWith('CREATE TRIGGER')) {
+        inTrigger = true;
+        triggerBeginCount = ZERO;
+      }
+
+      // Count BEGIN/END blocks in triggers
+      if (inTrigger) {
+        const upperLine = trimmedLine.toUpperCase();
+        if (upperLine === 'BEGIN') {
+          triggerBeginCount++;
+        } else if (upperLine.startsWith('END;') || upperLine === 'END') {
+          triggerBeginCount--;
+          if (triggerBeginCount === ZERO) {
+            inTrigger = false;
+          }
+        }
       }
 
       let charIndex = ZERO;

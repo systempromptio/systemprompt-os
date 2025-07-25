@@ -3,7 +3,7 @@ import type {
   IDPTokens,
   IDPUserInfo,
   IIdentityProvider,
-} from '@/modules/core/auth/types/provider-interface';
+} from '@/modules/core/auth/types/provider-interface.js';
 
 /**
  *

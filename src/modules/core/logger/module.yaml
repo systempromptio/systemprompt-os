@@ -22,3 +22,50 @@ config:
     system: system.log
     error: error.log
     access: access.log
+cli:
+  commands:
+    - name: show
+      description: Show recent logs from database
+      options:
+        - name: limit
+          alias: l
+          type: number
+          description: Number of recent logs to show
+          default: 50
+        - name: level
+          type: string
+          description: Filter by log level (debug, info, warn, error)
+        - name: module
+          alias: m
+          type: string
+          description: Filter by module name
+        - name: since
+          alias: s
+          type: string
+          description: Show logs since timestamp (YYYY-MM-DD HH:MM:SS)
+        - name: pager
+          alias: p
+          type: boolean
+          description: Use pager for output (less)
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          default: text
+    - name: clear
+      description: Clear logs from database
+      options:
+        - name: level
+          type: string
+          description: Clear only specific log level (debug, info, warn, error)
+        - name: older-than
+          alias: o
+          type: string
+          description: Clear logs older than N days (e.g., 30)
+        - name: confirm
+          alias: y
+          type: boolean
+          description: Skip confirmation prompt
+        - name: dry-run
+          type: boolean
+          description: Show what would be deleted without actually deleting

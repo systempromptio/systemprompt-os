@@ -8,9 +8,10 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * Service for managing database migrations across modules.
@@ -62,7 +63,10 @@ export class MigrationService {
    */
   public async discoverMigrations(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
-      this.logger?.info('Discovering migrations', { baseDir });
+      this.logger?.info(LogSource.DATABASE, 'Discovering migrations', {
+ category: 'migration',
+baseDir
+});
 
       const migrationFiles = await glob('**/database/migrations/*.sql', {
         cwd: baseDir,
@@ -92,11 +96,15 @@ export class MigrationService {
       this.migrations.sort((migrationA, migrationB): number =>
         { return this.compareVersions(migrationA.version, migrationB.version) });
 
-      this.logger?.info('Migrations discovered', {
+      this.logger?.info(LogSource.DATABASE, 'Migrations discovered', {
+        category: 'migration',
         count: this.migrations.length,
       });
     } catch (error) {
-      this.logger?.error('Migration discovery failed', { error });
+      this.logger?.error(LogSource.DATABASE, 'Migration discovery failed', {
+        category: 'migration',
+        error: error as Error
+      });
       throw error;
     }
   }
@@ -113,17 +121,20 @@ export class MigrationService {
       { return !applied.has(this.getMigrationKey(migration)) });
 
     if (pending.length === ZERO) {
-      this.logger?.info('No pending migrations');
+      this.logger?.info(LogSource.DATABASE, 'No pending migrations', { category: 'migration' });
       return;
     }
 
-    this.logger?.info('Running migrations', { pending: pending.length });
+    this.logger?.info(LogSource.DATABASE, 'Running migrations', {
+ category: 'migration',
+pending: pending.length
+});
 
     for (const migration of pending) {
       await this.runMigration(migration);
     }
 
-    this.logger?.info('All migrations completed');
+    this.logger?.info(LogSource.DATABASE, 'All migrations completed', { category: 'migration' });
   }
 
   /**
@@ -133,7 +144,8 @@ export class MigrationService {
    */
   private async runMigration(migration: IMigration): Promise<void> {
     try {
-      this.logger?.info('Running migration', {
+      this.logger?.info(LogSource.DATABASE, 'Running migration', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
       });
@@ -148,15 +160,17 @@ export class MigrationService {
         );
       });
 
-      this.logger?.info('Migration completed', {
+      this.logger?.info(LogSource.DATABASE, 'Migration completed', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
       });
     } catch (error) {
-      this.logger?.error('Migration failed', {
+      this.logger?.error(LogSource.DATABASE, 'Migration failed', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
-        error,
+        error: error as Error,
       });
       throw error;
     }
@@ -306,7 +320,11 @@ export class MigrationService {
         executedAt: row.applied_at,
       } });
     } catch (error) {
-      this.logger?.debug('No migrations table found', { error });
+      this.logger?.debug(LogSource.DATABASE, 'No migrations table found', {
+        category: 'migration',
+        persistToDb: false,
+        error: error as Error
+      });
       return [];
     }
   }
@@ -327,7 +345,8 @@ export class MigrationService {
    */
   public async rollbackMigration(migration: IExecutedMigration): Promise<void> {
     try {
-      this.logger?.info('Rolling back migration', {
+      this.logger?.info(LogSource.DATABASE, 'Rolling back migration', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
       });
@@ -339,7 +358,8 @@ export class MigrationService {
           const rollbackSql = await readFile(rollbackPath, 'utf-8');
           await conn.execute(rollbackSql);
         } catch {
-          this.logger?.warn('No rollback file found, removing record only', {
+          this.logger?.warn(LogSource.DATABASE, 'No rollback file found, removing record only', {
+            category: 'migration',
             module: migration.module,
             version: migration.version,
           });
@@ -351,15 +371,17 @@ export class MigrationService {
         ]);
       });
 
-      this.logger?.info('Migration rolled back', {
+      this.logger?.info(LogSource.DATABASE, 'Migration rolled back', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
       });
     } catch (error) {
-      this.logger?.error('Rollback failed', {
+      this.logger?.error(LogSource.DATABASE, 'Rollback failed', {
+        category: 'migration',
         module: migration.module,
         version: migration.version,
-        error,
+        error: error as Error,
       });
       throw error;
     }

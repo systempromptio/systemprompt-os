@@ -10,13 +10,27 @@ import {
  type IModule, type ModuleInfo, ModuleStatus
 } from '@/modules/core/modules/types/index.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service.js';
 
 /**
+ * Strongly typed exports interface for Modules module.
+ */
+export interface IModulesModuleExports {
+  readonly service: () => ModuleManagerService | undefined;
+  readonly scanForModules: () => Promise<any>;
+  readonly getEnabledModules: () => Promise<ModuleInfo[]>;
+  readonly getModule: (name: string) => Promise<ModuleInfo | undefined>;
+  readonly enableModule: (name: string) => Promise<void>;
+  readonly disableModule: (name: string) => Promise<void>;
+  readonly registerCoreModule: (name: string, path: string, dependencies?: string[]) => Promise<void>;
+}
+
+/**
  * Self-contained modules module for managing SystemPrompt OS modules.
  */
-export class ModulesModule implements IModule {
+export class ModulesModule implements IModule<IModulesModuleExports> {
   name = 'modules';
   version = '1.0.0';
   type = 'service' as const;
@@ -25,6 +39,41 @@ export class ModulesModule implements IModule {
   private service?: ModuleManagerService;
   private logger?: LoggerService;
   private database?: DatabaseService;
+  get exports(): IModulesModuleExports {
+    return {
+      service: () => { return this.getService() },
+      scanForModules: async () => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        return await svc.scanForModules();
+      },
+      getEnabledModules: async () => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        return await svc.getEnabledModules();
+      },
+      getModule: async (name: string) => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        return await svc.getModule(name);
+      },
+      enableModule: async (name: string) => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        await svc.enableModule(name);
+      },
+      disableModule: async (name: string) => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        await svc.disableModule(name);
+      },
+      registerCoreModule: async (name: string, path: string, dependencies: string[] = []) => {
+        const svc = this.getService();
+        if (!svc) { throw new Error('Module service not initialized'); }
+        await svc.registerCoreModule(name, path, dependencies);
+      },
+    };
+  }
 
   /**
    * Initialize the modules module.
@@ -42,7 +91,7 @@ export class ModulesModule implements IModule {
     this.service = ModuleManagerService.getInstance(config, this.logger, this.database);
     await this.service.initialize();
 
-    this.logger.info('Modules module initialized');
+    this.logger.info(LogSource.MODULES, 'Modules module initialized');
   }
 
   /**
@@ -50,7 +99,7 @@ export class ModulesModule implements IModule {
    */
   async start(): Promise<void> {
     this.status = ModuleStatus.RUNNING;
-    this.logger?.info('Modules module started');
+    this.logger?.info(LogSource.MODULES, 'Modules module started');
   }
 
   /**
@@ -58,7 +107,7 @@ export class ModulesModule implements IModule {
    */
   async stop(): Promise<void> {
     this.status = ModuleStatus.STOPPED;
-    this.logger?.info('Modules module stopped');
+    this.logger?.info(LogSource.MODULES, 'Modules module stopped');
   }
 
   /**

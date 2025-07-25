@@ -5,7 +5,7 @@
  */
 
 import type * as BetterSqlite3 from 'better-sqlite3';
-import type { IPreparedStatement, IQueryResult } from '@/modules/core/database/types/database.types';
+import type { IPreparedStatement, IQueryResult } from '@/modules/core/database/types/database.types.js';
 
 /**
  * SQLite prepared statement implementation.

@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { getAuthModule } from '@/modules/core/auth/singleton.js';
 
 /*
  * Import { exportJWK, generateKeyPair } from 'jose';
@@ -33,43 +33,11 @@ export interface OpenIDConfiguration {
 }
 
 export class WellKnownEndpoint {
-  private readonly baseUrl: string;
   private readonly publicKeyJWK: any | null = null;
-
-  constructor(baseUrl: string = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
-  }
   getOpenIDConfiguration = (_req: Request, res: Response): Response => {
-    // Use dynamic base URL from tunnel status or fallback
-    const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-
-    const config: OpenIDConfiguration = {
-      issuer: currentBaseUrl,
-      authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
-      token_endpoint: `${currentBaseUrl}/oauth2/token`,
-      userinfo_endpoint: `${currentBaseUrl}/oauth2/userinfo`,
-      jwks_uri: `${currentBaseUrl}/.well-known/jwks.json`,
-      response_types_supported: ['code', 'code id_token'],
-      subject_types_supported: ['public'],
-      id_token_signing_alg_values_supported: ['RS256', 'HS256'],
-      scopes_supported: ['openid', 'profile', 'email', 'offline_access', 'agent'],
-      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
-      claims_supported: [
-        'sub',
-        'iss',
-        'aud',
-        'exp',
-        'iat',
-        'name',
-        'preferred_username',
-        'email',
-        'email_verified',
-        'agent_id',
-        'agent_type',
-      ],
-      code_challenge_methods_supported: ['S256', 'plain'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
-    };
+    const authModule = getAuthModule();
+    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+    const config = oauth2ConfigService.getOpenIDConfiguration();
 
     return res.json(config);
   };

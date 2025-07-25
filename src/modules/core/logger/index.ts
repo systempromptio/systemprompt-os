@@ -5,29 +5,63 @@
  */
 
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
+import { LoggerInitializationError } from '@/modules/core/logger/utils/errors.js';
+import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
 import type {
   ILogFiles,
   ILogger,
   ILoggerConfig,
   LogLevelName,
-  LogOutput,
 } from '@/modules/core/logger/types/index.js';
+import {
+  LogOutput,
+  LogSource,
+  LoggerMode
+} from '@/modules/core/logger/types/index.js';
+
+/**
+ * Strongly typed exports interface for Logger module.
+ */
+export interface ILoggerModuleExports {
+  readonly service: () => ILogger;
+  readonly logger: () => ILogger;
+  readonly getInstance: () => LoggerService;
+}
+
+/**
+ * Type guard to check if a module is a Logger module.
+ * @param module - Module to check.
+ * @returns True if module is a Logger module.
+ */
+export function isLoggerModule(module: any): module is IModule<ILoggerModuleExports> {
+  return module?.name === 'logger'
+         && Boolean(module.exports)
+         && typeof module.exports === 'object'
+         && 'service' in module.exports
+         && typeof module.exports.service === 'function';
+}
 
 /**
  * Logger module implementation - self-contained.
  * @class LoggerModule
  */
-export class LoggerModule {
+export class LoggerModule implements IModule<ILoggerModuleExports> {
   public readonly name = 'logger';
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
   public readonly description = 'System-wide logging service with file and console output';
   public readonly dependencies = [];
-  public status: 'stopped' | 'starting' | 'running' | 'stopping' = 'stopped';
+  public status: ModuleStatus = 'stopped' as ModuleStatus;
   private readonly loggerService: LoggerService;
   private initialized = false;
   private started = false;
+  get exports(): ILoggerModuleExports {
+    return {
+      service: () => { return this.getService() },
+      logger: () => { return this.getService() },
+      getInstance: () => { return LoggerService.getInstance() },
+    };
+  }
 
   /**
    * Constructor.
@@ -51,7 +85,7 @@ export class LoggerModule {
       const config = this.buildConfig();
       this.loggerService.initialize(config);
       this.initialized = true;
-      this.loggerService.info('Logger module initialized successfully', {
+      this.loggerService.info(LogSource.LOGGER, 'Logger module initialized successfully', {
         version: this.version,
         logLevel: config.logLevel,
         outputs: config.outputs,
@@ -83,7 +117,7 @@ export class LoggerModule {
       }
 
       this.started = true;
-      this.loggerService.info('Logger module started');
+      this.loggerService.info(LogSource.LOGGER, 'Logger module started');
       resolve();
     });
   }
@@ -95,7 +129,7 @@ export class LoggerModule {
   async stop(): Promise<void> {
     await new Promise<void>((resolve): void => {
       if (this.started) {
-        this.loggerService.info('Logger module stopping');
+        this.loggerService.info(LogSource.LOGGER, 'Logger module stopping');
         this.started = false;
       }
       resolve();
@@ -124,7 +158,7 @@ export class LoggerModule {
         message: 'Logger module not started',
       };
     }
-    this.loggerService.debug('Health check test log');
+    this.loggerService.debug(LogSource.LOGGER, 'Health check test log');
     return {
       healthy: true,
       message: 'Logger module is healthy',
@@ -182,10 +216,11 @@ export class LoggerModule {
     const outputs = process.env['LOG_OUTPUTS'] ?? '';
     if (outputs !== '') {
       return outputs.split(',').filter((output): output is LogOutput => {
-        return output === 'console' || output === 'file';
+        return output === LogOutput.CONSOLE || output === LogOutput.FILE || output === LogOutput.DATABASE;
       });
     }
-    return ['console'];
+    // Default to console and database (database will only write if enabled and service is available)
+    return [LogOutput.CONSOLE, LogOutput.DATABASE];
   }
 
   /**
@@ -211,6 +246,7 @@ export class LoggerModule {
     return {
       stateDir: this.getStateDir(),
       logLevel: this.getLogLevel(),
+      mode: this.getLoggerMode(),
       maxSize: process.env['LOG_MAX_SIZE'] ?? DEFAULT_MAX_SIZE,
       maxFiles:
         process.env['LOG_MAX_FILES'] === undefined
@@ -218,7 +254,29 @@ export class LoggerModule {
           : parseInt(process.env['LOG_MAX_FILES'], 10),
       outputs: this.getOutputs(),
       files: this.getFiles(),
+      database: {
+        enabled: true, // Always enable database logging when available
+        tableName: 'system_logs'
+      }
     };
+  }
+
+  /**
+   * Get logger mode from environment or process context.
+   * @returns {LoggerMode} Logger mode.
+   */
+  private getLoggerMode(): LoggerMode {
+    // Check if CLI mode is explicitly set
+    if (process.env['LOG_MODE'] === 'cli') {
+      return LoggerMode.CLI;
+    }
+
+    // Check if we're running in a CLI context (e.g., no stdin/stdout redirected)
+    if (process.argv.length > 2 && process.argv[1]?.includes('cli')) {
+      return LoggerMode.CLI;
+    }
+
+    return LoggerMode.SERVER;
   }
 }
 
@@ -249,9 +307,45 @@ export const getLoggerService = (): ILogger => {
 };
 
 /**
- * Re-export LoggerService.
+ * Re-export LoggerService and types.
  */
-export { LoggerService };
+export { LoggerService, LogSource };
+
+/**
+ * Export error handling utilities.
+ */
+export {
+ handleError, handleErrorAsync, configureErrorHandling
+} from '@/modules/core/logger/utils/handle-error';
+export { ErrorHandlingService } from '@/modules/core/logger/services/error-handling.service';
+
+/**
+ * Export error classes.
+ */
+export {
+  ApplicationError,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  DatabaseError,
+  ExternalServiceError,
+  BusinessLogicError,
+  ConfigurationError
+} from '@/modules/core/logger/errors/index';
+
+/**
+ * Export error handling types.
+ */
+export type {
+  IErrorContext,
+  IProcessedError,
+  IErrorHandlingOptions,
+  IErrorHandlingConfig,
+  ErrorCategory,
+  ErrorSeverity,
+  ErrorHandler,
+  AsyncErrorHandler
+} from '@/modules/core/logger/types/error-handling.types';
 
 /**
  * Default export of initialize for module pattern.

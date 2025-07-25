@@ -1,10 +1,12 @@
 /**
+ * Express middleware for MCP server including rate limiting, protocol validation,
+ * and request size limits. Provides security and validation layers for the MCP protocol.
  * @file Express middleware for MCP server including rate limiting, protocol validation,
  * and request size limits. Provides security and validation layers for the MCP protocol.
  * @module server/middleware
  */
 
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
 import type { IExpressHandler } from '@/server/types/middleware.types.js';
 import {
   DEFAULT_MAX_REQUESTS,
@@ -23,6 +25,7 @@ import {
 
 /**
  * Get logger instance.
+ * @returns Logger service instance.
  */
 const getLogger = (): LoggerService => {
   return LoggerService.getInstance();
@@ -57,7 +60,7 @@ export const rateLimitMiddleware = (
     }
 
     if (rateData.count >= maxRequests) {
-      logger.warn('Rate limit exceeded', {
+      logger.warn(LogSource.SERVER, 'Rate limit exceeded', {
         ip: key,
         count: rateData.count,
       });
@@ -100,7 +103,7 @@ export const validateProtocolVersion: IExpressHandler = (req, res, next): void =
   const version = String(versionHeader);
 
   if (!supportedVersions.includes(version)) {
-    logger.warn('Unsupported protocol version', { version });
+    logger.warn(LogSource.SERVER, 'Unsupported protocol version', { version });
     res.status(HTTP_BAD_REQUEST).json({
       jsonrpc: '2.0',
       error: {
@@ -135,7 +138,7 @@ export const requestSizeLimit = (maxSize: number = TEN_MB_BYTES): IExpressHandle
     const logger = getLogger();
 
     if (contentLength > maxSize) {
-      logger.warn('Request too large', {
+      logger.warn(LogSource.SERVER, 'Request too large', {
         size: contentLength,
         maxSize,
       });
@@ -164,7 +167,7 @@ export const requestSizeLimit = (maxSize: number = TEN_MB_BYTES): IExpressHandle
 const cleanupInterval = setInterval((): void => {
   const now = Date.now();
 
-  REQUEST_COUNTS.forEach((rateData, key) => {
+  REQUEST_COUNTS.forEach((rateData, key): void => {
     if (now > rateData.resetTime) {
       REQUEST_COUNTS.delete(key);
     }

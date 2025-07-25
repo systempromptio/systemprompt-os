@@ -115,6 +115,9 @@ export interface ICLIService {
 export interface ICliService {
   getAllCommands: () => Promise<Map<string, unknown>>;
   getCommandHelp: (name: string, commands: Map<string, unknown>) => string;
+  formatCommands: (commands: Map<string, unknown>, format: string) => string;
+  generateDocs: (commands: Map<string, unknown>, format: string) => string;
+  scanAndRegisterModuleCommands: (modules: Map<string, { path: string }>) => Promise<void>;
 }
 
 /**

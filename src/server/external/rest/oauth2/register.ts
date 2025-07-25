@@ -7,6 +7,7 @@
 import type { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Client registration request as per RFC 7591.
@@ -57,8 +58,10 @@ export class RegisterEndpoint {
    */
   register = async (req: Request, res: Response): Promise<Response> => {
     try {
-      logger.info('Client registration request received', {
-        body: req.body,
+      logger.info(LogSource.AUTH, 'Client registration request received', {
+        category: 'oauth2',
+        action: 'client_register',
+        persistToDb: false
       });
 
       const registrationRequest = req.body as ClientRegistrationRequest;
@@ -105,16 +108,20 @@ export class RegisterEndpoint {
       // Store client (in production, save to database)
       registeredClients.set(clientId, registrationResponse);
 
-      logger.info('Client registered successfully', {
-        clientId,
-        clientName: registrationResponse.client_name,
-        redirectUris: registrationResponse.redirect_uris,
+      logger.info(LogSource.AUTH, 'Client registered successfully', {
+        category: 'oauth2',
+        action: 'client_register',
+        persistToDb: true
       });
 
       // Return registration response
       return res.status(201).json(registrationResponse);
     } catch (error) {
-      logger.error('Client registration failed', { error });
+      logger.error(LogSource.AUTH, 'Client registration failed', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'oauth2',
+        action: 'client_register'
+      });
       return res.status(500).json({
         error: 'servererror',
         error_description: 'An error occurred during client registration',

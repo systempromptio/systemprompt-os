@@ -13,8 +13,13 @@ import type {
   ILogLevel,
   ILogger,
   ILoggerConfig,
+  LogArgs,
   LogLevelName,
 } from '@/modules/core/logger/types/index.js';
+import {
+ LogOutput, LogSource, LoggerMode
+} from '@/modules/core/logger/types/index.js';
+import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import {
   InvalidLogLevelError,
   LoggerDirectoryError,
@@ -43,6 +48,7 @@ export class LoggerService implements ILogger {
   private initialized = false;
   private config!: ILoggerConfig;
   private logsDir!: string;
+  private databaseService?: DatabaseService;
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -81,7 +87,10 @@ export class LoggerService implements ILogger {
     }
 
     try {
-      this.config = config;
+      this.config = {
+        ...config,
+        mode: config.mode ?? LoggerMode.SERVER // Default to server mode
+      };
       this.logsDir = join(config.stateDir, 'logs');
 
       if (!this.isValidLogLevel(config.logLevel)) {
@@ -100,77 +109,108 @@ export class LoggerService implements ILogger {
   }
 
   /**
-   * Log debug message.
-   * @param {string} message - Log message.
-   * @param {...unknown} args - Additional arguments.
+   * Set the database service for database logging.
+   * @param {DatabaseService} databaseService - Database service instance.
    */
-  debug(message: string, ...args: unknown[]): void {
-    this.checkInitialized();
-    if (!this.shouldLog('debug')) {
-      return;
+  setDatabaseService(databaseService: DatabaseService): void {
+    this.databaseService = databaseService;
+    // Initialize logs table if database logging is enabled
+    if (this.config?.database?.enabled && this.config.outputs.includes(LogOutput.DATABASE)) {
+      this.initializeLogsTable().catch(error => {
+        console.error('Failed to initialize logs table:', error);
+      });
     }
-    const formatted = this.formatMessage('DEBUG', message, args);
-    this.writeToConsole('debug', message, args);
-    this.writeToFile(this.config.files.system, formatted);
+  }
+
+  /**
+   * Initialize the logs table in the database.
+   * @throws {Error} If database is not available.
+   */
+  private async initializeLogsTable(): Promise<void> {
+    if (!this.databaseService) {
+      throw new Error('Database service not available');
+    }
+
+    const schemaPath = join(import.meta.url.replace('file://', ''), '../../../database/schema.sql');
+    if (existsSync(schemaPath)) {
+      const schema = await readFile(schemaPath, 'utf-8');
+      await this.databaseService.execute(schema);
+    }
+  }
+
+  /**
+   * Log debug message.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  debug(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('debug', source, message, args);
   }
 
   /**
    * Log info message.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {...unknown} args - Additional arguments.
+   * @param {LogArgs} args - Optional args.
    */
-  info(message: string, ...args: unknown[]): void {
-    this.checkInitialized();
-    if (!this.shouldLog('info')) {
-      return;
-    }
-    const formatted = this.formatMessage('INFO', message, args);
-    this.writeToConsole('info', message, args);
-    this.writeToFile(this.config.files.system, formatted);
+  info(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('info', source, message, args);
   }
 
   /**
    * Log warning message.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {...unknown} args - Additional arguments.
+   * @param {LogArgs} args - Optional args.
    */
-  warn(message: string, ...args: unknown[]): void {
-    this.checkInitialized();
-    if (!this.shouldLog('warn')) {
-      return;
-    }
-    const formatted = this.formatMessage('WARN', message, args);
-    this.writeToConsole('warn', message, args);
-    this.writeToFile(this.config.files.system, formatted);
+  warn(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('warn', source, message, args);
   }
 
   /**
    * Log error message.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {...unknown} args - Additional arguments.
+   * @param {LogArgs} args - Optional args.
    */
-  error(message: string, ...args: unknown[]): void {
-    this.checkInitialized();
-    if (!this.shouldLog('error')) {
-      return;
-    }
-    const formatted = this.formatMessage('ERROR', message, args);
-    this.writeToConsole('error', message, args);
-    this.writeToFile(this.config.files.system, formatted);
-    this.writeToFile(this.config.files.error, formatted);
+  error(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('error', source, message, args);
   }
 
   /**
-   * Add a log with custom level.
-   * @param {string} level - Log level.
+   * Log with custom level.
+   * @param {LogLevelName} level - Log level.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {...unknown} args - Additional arguments.
+   * @param {LogArgs} args - Optional args.
    */
-  addLog(level: string, message: string, ...args: unknown[]): void {
+  log(level: LogLevelName, source: LogSource, message: string, args: LogArgs = {}): void {
     this.checkInitialized();
-    const formatted = this.formatMessage(level.toUpperCase(), message, args);
-    this.writeToConsole(level.toLowerCase(), message, args);
-    this.writeToFile(this.config.files.system, formatted);
+
+    const shouldLogToConsole = this.shouldLogToConsole(level);
+    const shouldLogToFile = this.shouldLogToFile(level);
+    const shouldLogToDatabase = args.persistToDb !== false && this.shouldLogToDatabase(level);
+
+    if (!shouldLogToConsole && !shouldLogToFile && !shouldLogToDatabase) {
+      return;
+    }
+
+    const timestamp = this.formatTimestamp();
+    const formatted = this.formatMessage(level.toUpperCase(), source, message, args);
+
+    if (shouldLogToConsole) {
+      this.writeToConsole(level, source, message, args);
+    }
+    if (shouldLogToFile) {
+      this.writeToFile(this.config.files.system, formatted);
+      if (level === 'error') {
+        this.writeToFile(this.config.files.error, formatted);
+      }
+    }
+    if (shouldLogToDatabase) {
+      this.writeToDatabase(level, source, message, args, timestamp);
+    }
   }
 
   /**
@@ -179,7 +219,7 @@ export class LoggerService implements ILogger {
    */
   access(message: string): void {
     this.checkInitialized();
-    const formatted = this.formatMessage('ACCESS', message, []);
+    const formatted = this.formatMessage('ACCESS', LogSource.ACCESS, message, {});
     this.writeToFile(this.config.files.access, formatted);
   }
 
@@ -289,12 +329,53 @@ export class LoggerService implements ILogger {
   }
 
   /**
-   * Check if logging should occur for a given level.
+   * Check if should log to console for a given level.
    * @param {LogLevelName} level - Log level to check.
-   * @returns {boolean} True if should log.
+   * @returns {boolean} True if should log to console.
    */
-  private shouldLog(level: LogLevelName): boolean {
+  private shouldLogToConsole(level: LogLevelName): boolean {
+    if (!this.config.outputs.includes(LogOutput.CONSOLE)) {
+      return false;
+    }
+
+    // In CLI mode, only show warnings and errors to console
+    if (this.config.mode === LoggerMode.CLI) {
+      return level === 'warn' || level === 'error';
+    }
+
     return this.logLevels[level] >= this.logLevels[this.config.logLevel];
+  }
+
+  /**
+   * Check if should log to file for a given level.
+   * @param {LogLevelName} level - Log level to check.
+   * @returns {boolean} True if should log to file.
+   */
+  private shouldLogToFile(level: LogLevelName): boolean {
+    if (!this.config.outputs.includes(LogOutput.FILE)) {
+      return false;
+    }
+    return this.logLevels[level] >= this.logLevels[this.config.logLevel];
+  }
+
+  /**
+   * Check if should log to database for a given level.
+   * Only important logs (warn and error) should be saved to DB to reduce storage overhead.
+   * @param {LogLevelName} level - Log level to check.
+   * @returns {boolean} True if should log to database.
+   */
+  private shouldLogToDatabase(level: LogLevelName): boolean {
+    if (!this.config.outputs.includes(LogOutput.DATABASE)
+        || !this.config.database?.enabled
+        || !this.databaseService) {
+      return false;
+    }
+
+    /*
+     * Only save important logs to database (warn and error levels)
+     * This reduces database storage overhead while keeping critical information
+     */
+    return level === 'warn' || level === 'error';
   }
 
   /**
@@ -306,29 +387,22 @@ export class LoggerService implements ILogger {
   }
 
   /**
-   * Format log message with arguments.
+   * Format log message with source and args.
    * @param {string} level - Log level.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {unknown[]} args - Additional arguments.
+   * @param {LogArgs} args - Additional args.
    * @returns {string} Formatted message.
    */
-  private formatMessage(level: string, message: string, args: unknown[]): string {
-    const formatted
-      = args.length > Number('0')
-        ? `${message} ${args
-            .map((arg): string => {
-              if (typeof arg === 'object' && arg !== null) {
-                try {
-                  return JSON.stringify(arg);
-                } catch {
-                  return Object.prototype.toString.call(arg);
-                }
-              }
-              return String(arg);
-            })
-            .join(' ')}`
-        : message;
-    return `[${this.formatTimestamp()}] [${level}] ${formatted}`;
+  private formatMessage(level: string, source: LogSource, message: string, args: LogArgs): string {
+    const timestamp = this.formatTimestamp();
+    const category = args.category ? `[${args.category}]` : '';
+    const requestId = args.requestId ? `[req:${args.requestId}]` : '';
+    const userId = args.userId ? `[user:${args.userId}]` : '';
+    const duration = args.duration ? `[${args.duration}ms]` : '';
+
+    // Format: [timestamp] [LEVEL] [source][category][requestId][userId][duration] message
+    return `[${timestamp}] [${level}] [${source}]${category}${requestId}${userId}${duration} ${message}`;
   }
 
   /**
@@ -338,7 +412,7 @@ export class LoggerService implements ILogger {
    * @throws {LoggerFileWriteError} If write fails.
    */
   private writeToFile(filename: string, message: string): void {
-    if (!this.config.outputs.includes('file')) {
+    if (!this.config.outputs.includes(LogOutput.FILE)) {
       return;
     }
 
@@ -351,20 +425,48 @@ export class LoggerService implements ILogger {
   }
 
   /**
+   * Write log message to database.
+   * @param {LogLevelName} level - Log level.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Additional args.
+   * @param {string} timestamp - Timestamp.
+   */
+  private writeToDatabase(level: LogLevelName, source: LogSource, message: string, args: LogArgs, timestamp: string): void {
+    if (!this.databaseService || !this.config.database?.enabled) {
+      return;
+    }
+
+    try {
+      const tableName = this.config.database.tableName || 'system_logs';
+      const argsJson = JSON.stringify(args);
+
+      this.databaseService.execute(
+        `INSERT INTO ${tableName} (timestamp, level, source, category, message, args) VALUES (?, ?, ?, ?, ?, ?)`,
+        [timestamp, level, source, args.category || null, message, argsJson]
+      ).catch(error => {
+        this.writeToStderr(`Logger database write error: ${String(error)}\n`);
+      });
+    } catch (error) {
+      this.writeToStderr(`Logger database write error: ${String(error)}\n`);
+    }
+  }
+
+  /**
    * Write log message to console.
    * @param {string} level - Log level.
+   * @param {LogSource} source - Source module or component.
    * @param {string} message - Log message.
-   * @param {unknown[]} args - Additional arguments.
+   * @param {LogArgs} args - Additional args.
    */
-  private writeToConsole(level: string, message: string, args: unknown[]): void {
-    if (!this.config.outputs.includes('console')) {
+  private writeToConsole(level: string, source: LogSource, message: string, args: LogArgs): void {
+    if (!this.config.outputs.includes(LogOutput.CONSOLE)) {
       return;
     }
 
     const timestamp = this.formatTimestamp();
-    const hasArgs = args.length > 0;
-    const formattedMessage = hasArgs ? `${message} ${args.join(' ')}` : message;
-    const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${formattedMessage}\n`;
+    const category = args.category ? `[${args.category}]` : '';
+    const logMessage = `[${timestamp}] [${level.toUpperCase()}] [${source}]${category} ${message}\n`;
 
     if (level === 'error' || level === 'warn') {
       this.writeToStderr(logMessage);

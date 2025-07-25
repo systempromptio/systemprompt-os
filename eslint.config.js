@@ -65,6 +65,8 @@ export default [
       "systemprompt-os/enforce-file-naming": "error",
       "systemprompt-os/enforce-import-restrictions": "error",
       "systemprompt-os/enforce-required-files": "error",
+      "systemprompt-os/enforce-module-exports": "error",
+      "systemprompt-os/enforce-core-service-initialization": "error",
       "systemprompt-os/enforce-type-exports": ["error", {
         "allowInlineTypes": false,
         "enforcePathMatching": true
@@ -93,7 +95,6 @@ export default [
       "systemprompt-os/jsdoc-compact": "error",
       "systemprompt-os/no-comments-in-functions": "error",
       "systemprompt-os/no-type-reexports": "error",
-      "systemprompt-os/no-exports-getter": "error",
       "systemprompt-os/no-redundant-jsdoc": "error",
       "systemprompt-os/no-blank-lines-between-properties": "error",
       "systemprompt-os/no-jsdoc-in-interfaces": "error",
@@ -107,6 +108,7 @@ export default [
       "systemprompt-os/enforce-extension-module-pattern": "error",
       "systemprompt-os/no-orphaned-jsdoc": "error",
       "systemprompt-os/warn-inline-eslint-comments": "warn",
+      "systemprompt-os/no-js-extensions-in-imports": "error",
 
       // TypeScript strict rules - using recommended-type-checked and strict
       // These provide type-aware linting for maximum safety
@@ -996,7 +998,6 @@ export default [
       "systemprompt-os/jsdoc-compact": "off",
       "systemprompt-os/no-comments-in-functions": "off",
       "systemprompt-os/no-type-reexports": "off",
-      "systemprompt-os/no-exports-getter": "off",
       "systemprompt-os/no-redundant-jsdoc": "off",
       "systemprompt-os/no-blank-lines-between-properties": "off",
       "systemprompt-os/no-jsdoc-in-interfaces": "off",

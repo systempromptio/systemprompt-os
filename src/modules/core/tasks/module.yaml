@@ -1,0 +1,53 @@
+name: tasks
+type: core
+version: 1.0.0
+description: Task queue and execution system for SystemPrompt OS
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+singleton: true
+enabled: true
+dependencies:
+  - logger
+  - database
+exports:
+  - services
+  - types
+config:
+  maxConcurrentTasks: 5
+  defaultRetryCount: 3
+  taskTimeout: 300000 # 5 minutes in milliseconds
+  pollInterval: 1000 # 1 second
+cli:
+  commands:
+    - name: status
+      description: Show task module status and queue statistics
+    - name: list
+      description: List tasks in the queue
+      options:
+        - name: status
+          type: string
+          description: Filter by task status
+        - name: limit
+          type: number
+          description: Number of tasks to show
+          default: 10
+    - name: add
+      description: Add a new task to the queue
+      options:
+        - name: type
+          type: string
+          description: Task type
+          required: true
+        - name: payload
+          type: string
+          description: Task payload (JSON format)
+        - name: priority
+          type: number
+          description: Task priority (higher = more important)
+          default: 0
+    - name: cancel
+      description: Cancel a pending task
+      options:
+        - name: id
+          type: number
+          description: Task ID
+          required: true

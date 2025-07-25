@@ -5,6 +5,7 @@
 
 import type { Express } from 'express';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import cookieParser from 'cookie-parser';
 
 const logger = LoggerService.getInstance();
@@ -20,17 +21,18 @@ const logger = LoggerService.getInstance();
  * @param router - Express router instance.
  */
 export async function setupExternalEndpoints(app: Express): Promise<void> {
-  logger.info('Setting up external REST endpoints');
+  logger.info(LogSource.SERVER, 'Setting up external REST endpoints');
 
   app.use(cookieParser());
 
   // Use the new centralized route configuration
-  const { configureRoutes, getRouteSummary } = await import('./routes.js');
+  const { configureRoutes } = await import('./routes.js');
   configureRoutes(app);
 
   if (process.env['NODE_ENV'] !== 'production') {
-    logger.debug('External endpoints configured', {
-      routes: getRouteSummary(app),
+    logger.debug(LogSource.SERVER, 'External endpoints configured', {
+      category: 'routes',
+      persistToDb: false,
     });
   }
 }

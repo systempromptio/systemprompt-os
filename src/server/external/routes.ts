@@ -17,6 +17,7 @@ import { setupRoutes as usersApiSetup } from '@/server/external/rest/api/users.j
 import { setupRoutes as dashboardSetup } from '@/server/external/rest/dashboard.js';
 import { setupRoutes as terminalApiSetup } from '@/server/external/rest/api/terminal.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import type {
   IExpressLayer,
   IRouteContext,
@@ -37,15 +38,18 @@ const setupPublicRoutes = (publicRouter: Router): void => {
   const healthEndpoint = new HealthEndpoint();
   publicRouter.get('/health', (req, res): void => {
     healthEndpoint.getHealth(req, res).catch((error: unknown): void => {
-      logger.error('Health endpoint error:', error);
+      logger.error(LogSource.SERVER, 'Health endpoint error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'health',
+        persistToDb: false
+      });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
     });
   });
 
   splashSetup(publicRouter);
 
-  const baseUrl = process.env['BASE_URL'] ?? 'http://localhost:3000';
-  void setupOAuth2Routes(publicRouter, baseUrl);
+  void setupOAuth2Routes(publicRouter);
 
   callbackSetup(publicRouter);
   authSetup(publicRouter);
@@ -94,7 +98,11 @@ const setupAdminRoutes = (adminRouter: Router): void => {
  * @returns {void} Nothing.
  */
 export const configureRoutes = (app: Express): void => {
-  logger.info('Configuring application routes');
+  logger.info(LogSource.SERVER, 'Configuring application routes', {
+    category: 'routes',
+    action: 'configure',
+    persistToDb: false
+  });
 
   const publicRouter = Router();
   const webRouter = Router();
@@ -111,7 +119,11 @@ export const configureRoutes = (app: Express): void => {
   app.use(apiRouter);
   app.use(adminRouter);
 
-  logger.info('Routes configured successfully');
+  logger.info(LogSource.SERVER, 'Routes configured successfully', {
+    category: 'routes',
+    action: 'configure',
+    persistToDb: false
+  });
 };
 
 /**

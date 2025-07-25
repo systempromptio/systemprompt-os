@@ -4,6 +4,7 @@
 
 import { RegisterEndpoint } from '@/server/external/rest/oauth2/register.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const logger = LoggerService.getInstance();
 
@@ -59,9 +60,10 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     redirect_uris: registeredClient.redirect_uris || [],
   };
 
-  logger.info('Created default OAuth client', {
-    client_id: defaultClient.client_id,
-    redirect_uris: defaultClient.redirect_uris,
+  logger.info(LogSource.AUTH, 'Created default OAuth client', {
+    category: 'oauth2',
+    action: 'client_create',
+    persistToDb: true
   });
 
   return defaultClient;

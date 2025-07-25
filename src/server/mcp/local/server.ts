@@ -1,24 +1,29 @@
 /**
+ * Local MCP server implementation for STDIO transport providing full access to all tools.
  * @file Local MCP server implementation for STDIO transport.
  * @module server/mcp/local/server
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import type {ServerCapabilities} from '@modelcontextprotocol/sdk/types.js';
 import {
   type CallToolRequest,
   CallToolRequestSchema,
+  type CallToolResult,
   type GetPromptRequest,
   GetPromptRequestSchema,
-  type ListPromptsRequest,
+  type GetPromptResult,
   ListPromptsRequestSchema,
-  type ListResourcesRequest,
+  type ListPromptsResult,
   ListResourcesRequestSchema,
+  type ListResourcesResult,
   type ListToolsRequest,
   ListToolsRequestSchema,
+  type ListToolsResult,
   type ReadResourceRequest,
-  ReadResourceRequestSchema
+  ReadResourceRequestSchema,
+  type ReadResourceResult,
+  type ServerCapabilities
 } from '@modelcontextprotocol/sdk/types.js';
 import {
   handleListResources,
@@ -32,10 +37,13 @@ import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js
  * Local MCP Server implementation.
  * Provides full access to all tools via STDIO transport.
  */
-export class LocalMCPServer {
+export class LocalMcpServer {
   private readonly server: Server;
   private isRunning = false;
 
+  /**
+   * Constructor.
+   */
   constructor() {
     const capabilities: ServerCapabilities = {
       resources: {},
@@ -54,66 +62,6 @@ export class LocalMCPServer {
     );
 
     this.setupHandlers();
-  }
-
-  /**
-   * Sets up request handlers for resources, prompts, and tools
-   * All handlers use the 'local' scope for tool filtering.
-   */
-  private setupHandlers(): void {
-    this.setupResourceHandlers();
-    this.setupPromptHandlers();
-    this.setupToolHandlers();
-  }
-
-  private setupResourceHandlers(): void {
-    this.server.setRequestHandler(
-      ListResourcesRequestSchema,
-      async (_request: ListResourcesRequest) => { return await handleListResources() }
-    );
-
-    this.server.setRequestHandler(
-      ReadResourceRequestSchema,
-      async (request: ReadResourceRequest) => { return await handleResourceCall(request) }
-    );
-  }
-
-  private setupPromptHandlers(): void {
-    this.server.setRequestHandler(
-      ListPromptsRequestSchema,
-      async (_request: ListPromptsRequest) => { return await handleListPrompts() }
-    );
-
-    this.server.setRequestHandler(
-      GetPromptRequestSchema,
-      async (request: GetPromptRequest) => { return await handleGetPrompt(request) }
-    );
-  }
-
-  private setupToolHandlers(): void {
-    this.server.setRequestHandler(
-      ListToolsRequestSchema,
-      async (request: ListToolsRequest) => {
-        const context = this.createLocalContext();
-
-        return await handleListTools(request, context);
-      }
-    );
-
-    this.server.setRequestHandler(
-      CallToolRequestSchema,
-      async (request: CallToolRequest) => {
-        const context = this.createLocalContext();
-        return await handleToolCall(request, context);
-      }
-    );
-  }
-
-  private createLocalContext(): IMCPToolContext {
-    return {
-      sessionId: 'local-stdio',
-      userId: 'local-admin'
-    };
   }
 
   /**
@@ -142,5 +90,86 @@ export class LocalMCPServer {
       await this.server.close();
       this.isRunning = false;
     }
+  }
+
+  /**
+   * Sets up request handlers for resources, prompts, and tools
+   * All handlers use the 'local' scope for tool filtering.
+   */
+  private setupHandlers(): void {
+    this.setupResourceHandlers();
+    this.setupPromptHandlers();
+    this.setupToolHandlers();
+  }
+
+  /**
+   * Setup resource handlers.
+   */
+  private setupResourceHandlers(): void {
+    this.server.setRequestHandler(
+      ListResourcesRequestSchema,
+      async (): Promise<ListResourcesResult> => {
+        return await handleListResources();
+      }
+    );
+
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request: ReadResourceRequest): Promise<ReadResourceResult> => {
+        return await handleResourceCall(request);
+      }
+    );
+  }
+
+  /**
+   * Setup prompt handlers.
+   */
+  private setupPromptHandlers(): void {
+    this.server.setRequestHandler(
+      ListPromptsRequestSchema,
+      async (): Promise<ListPromptsResult> => {
+        return await handleListPrompts();
+      }
+    );
+
+    this.server.setRequestHandler(
+      GetPromptRequestSchema,
+      async (request: GetPromptRequest): Promise<GetPromptResult> => {
+        return await handleGetPrompt(request);
+      }
+    );
+  }
+
+  /**
+   * Setup tool handlers.
+   */
+  private setupToolHandlers(): void {
+    this.server.setRequestHandler(
+      ListToolsRequestSchema,
+      async (request: ListToolsRequest): Promise<ListToolsResult> => {
+        const context = this.createLocalContext();
+
+        return await handleListTools(request, context);
+      }
+    );
+
+    this.server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request: CallToolRequest): Promise<CallToolResult> => {
+        const context = this.createLocalContext();
+        return await handleToolCall(request, context);
+      }
+    );
+  }
+
+  /**
+   * Create local context for tool execution.
+   * @returns Local tool context.
+   */
+  private createLocalContext(): IMCPToolContext {
+    return {
+      sessionId: 'local-stdio',
+      userId: 'local-admin'
+    };
   }
 }

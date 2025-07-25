@@ -18,9 +18,38 @@ import {
   type ICoreModuleDefinition,
 } from './types/bootstrap.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IModulesModuleExports } from '@/modules/core/modules/index.js';
+import type { ICLIModuleExports } from '@/modules/core/cli/index.js';
 import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
+import type { IDatabaseModuleExports } from '@/modules/core/database/index.js';
+import type { ILoggerModuleExports } from '@/modules/core/logger/index.js';
 import type { IModuleExports } from './types/bootstrap-module.js';
+import { isLoggerModule } from '@/modules/core/logger/index.js';
+import { isDatabaseModule } from '@/modules/core/database/index.js';
+
+type CoreModuleType =
+  | IModule<IModulesModuleExports>
+  | IModule<ICLIModuleExports>
+  | IModule<IDatabaseModuleExports>
+  | IModule<ILoggerModuleExports>
+  | IModule;
 import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader.js';
+
+// Type guard functions
+function isModulesModule(module: CoreModuleType): module is IModule<IModulesModuleExports> {
+  return module.name === 'modules'
+         && Boolean(module.exports)
+         && typeof module.exports === 'object'
+         && 'registerCoreModule' in module.exports!;
+}
+
+function isCLIModule(module: CoreModuleType): module is IModule<ICLIModuleExports> {
+  return module.name === 'cli'
+         && Boolean(module.exports)
+         && typeof module.exports === 'object'
+         && 'scanAndRegisterModuleCommands' in module.exports!;
+}
 import { shutdownAllModules } from './bootstrap/shutdown-helper.js';
 import {
   checkLoggerUpgrade,
@@ -44,7 +73,7 @@ import { loadExpressApp } from './bootstrap/express-loader.js';
  */
 export class Bootstrap {
   private readonly config: GlobalConfiguration;
-  private readonly modules: Map<string, IModule> = new Map();
+  private readonly modules: Map<string, CoreModuleType> = new Map();
   private readonly options: IBootstrapOptions;
   private readonly coreModules: ICoreModuleDefinition[] = CORE_MODULES;
   private logger: ILogger;
@@ -82,7 +111,7 @@ export class Bootstrap {
    */
   async bootstrap(): Promise<Map<string, IModule>> {
     try {
-      this.logger.info('🚀 Starting world-class bootstrap process...');
+      this.logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process', { category: 'startup' });
 
       await this.executeCoreModulesPhase();
 
@@ -99,8 +128,7 @@ export class Bootstrap {
 
       const { READY } = BootstrapPhaseEnum;
       this.currentPhase = READY;
-      this.logger.info('✅ Bootstrap process completed successfully');
-      this.logger.info(`📊 Loaded ${String(this.modules.size)} core modules`);
+      this.logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${String(this.modules.size)} modules`, { category: 'startup' });
 
       return this.modules;
     } catch (error) {
@@ -166,10 +194,10 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when shutdown is complete.
    */
   async shutdown(): Promise<void> {
-    this.logger.info('🛑 Shutting down system...');
+    this.logger.info(LogSource.BOOTSTRAP, 'Shutting down system', { category: 'shutdown' });
 
     if (this.hasCompletedPhase(BootstrapPhaseEnum.MODULE_DISCOVERY)) {
-      this.logger.info('Shutting down autodiscovered modules...');
+      this.logger.info(LogSource.BOOTSTRAP, 'Shutting down autodiscovered modules', { category: 'shutdown' });
     }
 
     await shutdownAllModules(this.modules, this.logger);
@@ -177,7 +205,7 @@ export class Bootstrap {
     this.modules.clear();
     const { CORE_MODULES: coreModulesPhase } = BootstrapPhaseEnum;
     this.currentPhase = coreModulesPhase;
-    this.logger.info('✓ All modules shut down');
+    this.logger.info(LogSource.BOOTSTRAP, 'All modules shut down', { category: 'shutdown' });
   }
 
   /**
@@ -186,7 +214,10 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when phase is complete.
    */
   private async executeCoreModulesPhase(): Promise<void> {
-    this.logger.info('📦 Phase 1: Loading core modules...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Loading core modules', {
+ category: 'modules',
+persistToDb: false
+});
     const { CORE_MODULES: coreModulesPhase } = BootstrapPhaseEnum;
     this.currentPhase = coreModulesPhase;
 
@@ -200,8 +231,10 @@ export class Bootstrap {
     // Register core modules in database after they're loaded
     await this.registerCoreModulesInDatabase();
 
-    const moduleNames = Array.from(this.modules.keys()).join(', ');
-    this.logger.info(`✓ Core modules loaded: ${moduleNames}`);
+    this.logger.debug(LogSource.BOOTSTRAP, `Core modules loaded: ${Array.from(this.modules.keys()).join(', ')}`, {
+ category: 'modules',
+persistToDb: false
+});
   }
 
   /**
@@ -210,7 +243,10 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when phase is complete.
    */
   private async executeMcpServersPhase(): Promise<void> {
-    this.logger.info('🔌 Phase 2: Setting up MCP servers...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Setting up MCP servers', {
+ category: 'mcp',
+persistToDb: false
+});
     const { MCP_SERVERS } = BootstrapPhaseEnum;
     this.currentPhase = MCP_SERVERS;
 
@@ -218,9 +254,15 @@ export class Bootstrap {
       this.mcpApp ??= await loadExpressApp();
 
       await setupMcpServers(this.mcpApp);
-      this.logger.info('✓ MCP servers initialized');
+      this.logger.debug(LogSource.BOOTSTRAP, 'MCP servers initialized', {
+ category: 'mcp',
+persistToDb: false
+});
     } catch (error) {
-      this.logger.error('Failed to setup MCP servers:', error);
+      this.logger.error(LogSource.BOOTSTRAP, 'Failed to setup MCP servers', {
+ category: 'mcp',
+error: error as Error
+});
       throw error;
     }
   }
@@ -230,14 +272,17 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when phase is complete.
    */
   private async executeModuleDiscoveryPhase(): Promise<void> {
-    this.logger.info('🔍 Phase 3: Autodiscovering modules...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Autodiscovering modules', {
+ category: 'discovery',
+persistToDb: false
+});
     const { MODULE_DISCOVERY } = BootstrapPhaseEnum;
     this.currentPhase = MODULE_DISCOVERY;
 
     try {
       const modulesModule = this.modules.get('modules');
       if (modulesModule === undefined || modulesModule.exports === undefined) {
-        this.logger.warn('Modules module not found or has no exports');
+        this.logger.warn(LogSource.BOOTSTRAP, 'Modules module not found or has no exports', { category: 'discovery' });
         return;
       }
 
@@ -249,9 +294,15 @@ export class Bootstrap {
       }
       await this.discoverAndLoadModules(moduleExports);
 
-      this.logger.info('✓ Module autodiscovery completed');
+      this.logger.debug(LogSource.BOOTSTRAP, 'Module autodiscovery completed', {
+ category: 'discovery',
+persistToDb: false
+});
     } catch (error) {
-      this.logger.error('Module autodiscovery failed:', error);
+      this.logger.error(LogSource.BOOTSTRAP, 'Module autodiscovery failed', {
+ category: 'discovery',
+error: error as Error
+});
     }
   }
 
@@ -261,12 +312,18 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when discovery is complete.
    */
   private async discoverAndLoadModules(moduleExports: IModuleExports): Promise<void> {
-    this.logger.info('Scanning for injectable modules...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Scanning for injectable modules', {
+ category: 'discovery',
+persistToDb: false
+});
     const discoveredModules = await moduleExports.scanForModules();
-    this.logger.info(`Discovered ${String(discoveredModules.length)} injectable modules`);
+    this.logger.debug(LogSource.BOOTSTRAP, `Discovered ${String(discoveredModules.length)} injectable modules`, {
+ category: 'discovery',
+persistToDb: false
+});
 
     if (discoveredModules.length === ZERO) {
-      this.logger.warn('No modules discovered');
+      this.logger.warn(LogSource.BOOTSTRAP, 'No modules discovered', { category: 'discovery' });
       return;
     }
 
@@ -310,9 +367,15 @@ export class Bootstrap {
     try {
       const moduleInstance = await loadExtensionModule(moduleInfo, this.config);
       this.modules.set(moduleInfo.name, moduleInstance);
-      this.logger.info(`✓ Loaded extension module: ${moduleInfo.name}`);
+      this.logger.debug(LogSource.BOOTSTRAP, `Loaded extension module: ${moduleInfo.name}`, {
+ category: 'modules',
+persistToDb: false
+});
     } catch (error) {
-      this.logger.error(`Failed to load extension module ${moduleInfo.name}:`, error);
+      this.logger.error(LogSource.BOOTSTRAP, `Failed to load extension module ${moduleInfo.name}`, {
+ category: 'modules',
+error: error as Error
+});
     }
   }
 
@@ -321,17 +384,31 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when registration is complete.
    */
   private async registerCoreModulesInDatabase(): Promise<void> {
-    this.logger.info('Registering core modules in database...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Registering core modules in database', {
+ category: 'database',
+persistToDb: false
+});
 
     const modulesModule = this.modules.get('modules');
     if (!modulesModule) {
-      this.logger.warn('Modules module not loaded, skipping core module registration');
+      this.logger.warn(LogSource.BOOTSTRAP, 'Modules module not loaded, skipping core module registration', { category: 'database' });
       return;
     }
 
-    const registerCoreModule = modulesModule.exports?.['registerCoreModule'];
+    if (!modulesModule.exports) {
+      this.logger.warn(LogSource.BOOTSTRAP, 'Modules module not properly initialized (no exports), skipping core module registration', { category: 'database' });
+      return;
+    }
+
+    // Type guard: if we're getting 'modules' module, it should have IModulesModuleExports
+    if (!isModulesModule(modulesModule)) {
+      this.logger.warn(LogSource.BOOTSTRAP, 'Modules module does not have expected exports interface', { category: 'database' });
+      return;
+    }
+
+    const {registerCoreModule} = modulesModule.exports;
     if (!registerCoreModule || typeof registerCoreModule !== 'function') {
-      this.logger.warn('registerCoreModule not available, skipping core module registration');
+      this.logger.warn(LogSource.BOOTSTRAP, 'registerCoreModule not available, skipping core module registration', { category: 'database' });
       return;
     }
 
@@ -340,9 +417,15 @@ export class Bootstrap {
       for (const definition of this.coreModules) {
         await registerCoreModule(definition.name, definition.path, definition.dependencies);
       }
-      this.logger.info('✓ Core modules registered in database');
+      this.logger.debug(LogSource.BOOTSTRAP, 'Core modules registered in database', {
+ category: 'database',
+persistToDb: false
+});
     } catch (error) {
-      this.logger.error('Failed to register core modules:', error);
+      this.logger.error(LogSource.BOOTSTRAP, 'Failed to register core modules', {
+ category: 'database',
+error: error as Error
+});
     }
   }
 
@@ -351,26 +434,63 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when registration is complete.
    */
   private async registerCliCommands(): Promise<void> {
-    this.logger.info('Registering CLI commands...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Registering CLI commands', {
+ category: 'cli',
+persistToDb: false
+});
 
     const cliModule = this.modules.get('cli');
     if (!cliModule) {
-      this.logger.warn('CLI module not loaded, skipping command registration');
+      this.logger.warn(LogSource.BOOTSTRAP, 'CLI module not loaded, skipping command registration', { category: 'cli' });
       return;
     }
 
-    // Get the CLI service from the module
-    const cliService = (cliModule.exports as any)?.service?.();
-    if (!cliService || !cliService.scanAndRegisterAllCommands) {
-      this.logger.warn('CLI service not available, skipping command registration');
+    if (!cliModule.exports) {
+      this.logger.warn(LogSource.BOOTSTRAP, 'CLI module not properly initialized (no exports), skipping command registration', { category: 'cli' });
+      return;
+    }
+
+    // Type guard: if we're getting 'cli' module, it should have ICLIModuleExports
+    if (!isCLIModule(cliModule)) {
+      this.logger.warn(LogSource.BOOTSTRAP, 'CLI module does not have expected exports interface', { category: 'cli' });
+      return;
+    }
+
+    const scanAndRegister = cliModule.exports.scanAndRegisterModuleCommands;
+    if (typeof scanAndRegister !== 'function') {
+      this.logger.warn(LogSource.BOOTSTRAP, 'CLI module does not export scanAndRegisterModuleCommands', { category: 'cli' });
       return;
     }
 
     try {
-      await cliService.scanAndRegisterAllCommands();
-      this.logger.info('✓ CLI commands registered successfully');
+      // Build a map of modules with their paths
+      const moduleMap = new Map<string, { path: string }>();
+
+      // Add core modules - always use source path for YAML files since they're not copied to build
+      const baseModulePath = `${process.cwd()}/src/modules/core/`;
+
+      for (const coreModule of this.coreModules) {
+        const moduleName = coreModule.name;
+        const modulePath = `${baseModulePath}${moduleName}`;
+        moduleMap.set(moduleName, { path: modulePath });
+        this.logger.debug(LogSource.BOOTSTRAP, `Added module to scan: ${moduleName} -> ${modulePath}`, {
+ category: 'cli',
+persistToDb: false
+});
+      }
+
+      // TODO: Add extension modules when they're loaded
+
+      await scanAndRegister(moduleMap);
+      this.logger.debug(LogSource.BOOTSTRAP, 'CLI commands registered successfully', {
+ category: 'cli',
+persistToDb: false
+});
     } catch (error) {
-      this.logger.error('Failed to register CLI commands:', error);
+      this.logger.error(LogSource.BOOTSTRAP, 'Failed to register CLI commands', {
+ category: 'cli',
+error: error as Error
+});
     }
   }
 
@@ -400,7 +520,10 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when modules are initialized.
    */
   private async initializeModules(): Promise<void> {
-    this.logger.info('Initializing core modules...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Initializing core modules', {
+ category: 'modules',
+persistToDb: false
+});
 
     const moduleEntries = Array.from(this.modules.entries());
 
@@ -422,7 +545,18 @@ export class Bootstrap {
       const newLogger = checkLoggerUpgrade(name, moduleInstance);
       if (newLogger !== undefined) {
         this.logger = newLogger;
-        this.logger.info('🔄 Bootstrap logger upgraded to full logger');
+
+        // Configure logger for CLI mode if enabled
+        if (this.options.cliMode && name === 'logger') {
+          this.configureLoggerForCliMode();
+        }
+
+        this.logger.info(LogSource.BOOTSTRAP, 'Logger upgraded', { category: 'modules' });
+      }
+
+      // If database module is initialized, inject it into logger for database logging
+      if (name === 'database' && this.modules.has('logger')) {
+        this.injectDatabaseServiceIntoLogger(moduleInstance);
       }
     } catch (error) {
       this.logModuleError(name, 'initialize', error);
@@ -436,7 +570,10 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when critical modules are started.
    */
   private async startCriticalModules(): Promise<void> {
-    this.logger.info('Starting critical modules...');
+    this.logger.debug(LogSource.BOOTSTRAP, 'Starting critical modules', {
+ category: 'modules',
+persistToDb: false
+});
 
     const criticalModuleNames = this.coreModules
       .filter((mod): boolean => {
@@ -463,8 +600,74 @@ export class Bootstrap {
     try {
       await startSingleModule(name, moduleInstance, this.logger);
     } catch (error) {
-      this.logger.error(`Failed to start module ${name}:`, error);
+      this.logger.error(LogSource.BOOTSTRAP, `Failed to start module ${name}`, {
+ category: 'modules',
+error: error as Error
+});
       throw error;
+    }
+  }
+
+  /**
+   * Configure logger for CLI mode with reduced console output.
+   * @returns {void} Nothing.
+   */
+  private configureLoggerForCliMode(): void {
+    /*
+     * The logger is already configured with LoggerMode.CLI in its initialization
+     * CLI mode suppresses info/debug console output, only showing warn/error
+     */
+    this.logger.debug(LogSource.BOOTSTRAP, 'Logger configured for CLI mode', {
+ category: 'logger',
+persistToDb: false
+});
+  }
+
+  /**
+   * Inject database service into logger for database logging capability.
+   * @param {IModule} databaseModule - Database module instance.
+   * @returns {void} Nothing.
+   */
+  private injectDatabaseServiceIntoLogger(databaseModule: IModule): void {
+    try {
+      const loggerModule = this.modules.get('logger');
+      if (!loggerModule) {
+        this.logger.warn(LogSource.BOOTSTRAP, 'Logger module not available for database service injection', { category: 'database' });
+        return;
+      }
+
+      // Use type guard to ensure proper typing
+      if (!isLoggerModule(loggerModule)) {
+        this.logger.warn(LogSource.BOOTSTRAP, 'Logger module does not have expected exports interface', { category: 'database' });
+        return;
+      }
+
+      // Use type guard to ensure proper typing
+      if (!isDatabaseModule(databaseModule)) {
+        this.logger.warn(LogSource.BOOTSTRAP, 'Database module does not have expected exports interface', { category: 'database' });
+        return;
+      }
+
+      // Get properly typed services
+      const loggerService = loggerModule.exports!.service();
+      const databaseService = databaseModule.exports!.service();
+
+      if (!loggerService || typeof loggerService.setDatabaseService !== 'function') {
+        this.logger.warn(LogSource.BOOTSTRAP, 'Logger service does not support database injection', { category: 'database' });
+        return;
+      }
+
+      // Inject database service into logger
+      loggerService.setDatabaseService(databaseService);
+      this.logger.debug(LogSource.BOOTSTRAP, 'Database service injected into logger', {
+ category: 'database',
+persistToDb: false
+});
+    } catch (error) {
+      this.logger.error(LogSource.BOOTSTRAP, 'Failed to inject database service into logger', {
+ category: 'database',
+error: error as Error
+});
     }
   }
 
@@ -485,7 +688,10 @@ export class Bootstrap {
     if (name === 'logger') {
       consoleDebug(message);
     } else {
-      this.logger.debug(message);
+      this.logger.debug(LogSource.BOOTSTRAP, message, {
+ category: 'debug',
+persistToDb: false
+});
     }
   }
 
@@ -501,7 +707,10 @@ export class Bootstrap {
     if (name === 'logger') {
       consoleError(message, error);
     } else {
-      this.logger.error(message, error);
+      this.logger.error(LogSource.BOOTSTRAP, message, {
+ category: 'error',
+error: error as Error
+});
     }
   }
 }

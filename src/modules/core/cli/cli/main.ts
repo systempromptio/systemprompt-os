@@ -7,7 +7,10 @@
 
 import { Command } from 'commander';
 import type { CLIContext } from '@/modules/core/cli/types/index.js';
-import { type Bootstrap, runBootstrap } from '@/bootstrap.js';
+import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service.js';
+import type { CliService } from '@/modules/core/cli/services/cli.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const program = new Command();
 
@@ -28,18 +31,10 @@ interface ICommandOptions {
 }
 
 interface IDatabaseCommand {
-  commandPath: string;
+  command_path: string;
   description?: string;
   options?: ICommandOptions[];
-  executorPath: string;
-}
-
-interface ICliService {
-  getCommandsFromDatabase: () => Promise<IDatabaseCommand[]>;
-}
-
-interface ICliModuleExports {
-  service?: () => ICliService;
+  executor_path: string;
 }
 
 interface ICommandModule {
@@ -48,51 +43,23 @@ interface ICommandModule {
 }
 
 /**
- * Gets the CLI service from the bootstrap modules.
- * @param bootstrap - The bootstrap instance.
- * @returns The CLI service.
- * @throws {Error} If the CLI module or service is not found.
- */
-const getCliService = (bootstrap: Bootstrap): ICliService => {
-  const cliModule = bootstrap.getModules().get('cli');
-  if (cliModule === null || cliModule === undefined) {
-    throw new Error('CLI module not found in bootstrap');
-  }
-
-  const exports = cliModule.exports as ICliModuleExports | null | undefined;
-  if (exports === null || exports === undefined || exports.service === undefined 
-      || typeof exports.service !== 'function') {
-    throw new Error('CLI service not found in module exports');
-  }
-
-  return exports.service();
-};
-
-/**
  * Builds option flags for a command option.
  * @param option - The option configuration.
  * @returns The formatted flags string.
  */
 const buildOptionFlags = (option: ICommandOptions): string => {
-  if (option.type === 'boolean') {
-    return option.alias ? `-${option.alias}, --${option.name}` : `--${option.name}`;
-  }
-
-  const valueFormat = option.required ? '<value>' : '[value]';
-  if (option.alias) {
-    return `-${option.alias}, --${option.name} ${valueFormat}`;
-  }
-  return `--${option.name} ${valueFormat}`;
+  const short = option.alias !== undefined && option.alias !== '' ? `-${option.alias}, ` : '';
+  const long = `--${option.name}`;
+  const valueType = option.type !== undefined && option.type !== '' ? ` <${option.type}>` : '';
+  return `${short}${long}${valueType}`;
 };
 
 /**
- * Finds the executor function from a module.
- * @param module - The imported module.
+ * Find executor function in module.
+ * @param mod - The command module.
  * @returns The executor function or undefined.
  */
-const findExecutor = (module: unknown): ((context: CLIContext) => Promise<void>) | undefined => {
-  const mod = module as ICommandModule;
-
+const findExecutor = (mod: ICommandModule): ((context: CLIContext) => Promise<void>) | undefined => {
   if (mod.command !== undefined && mod.command.execute !== undefined) {
     return mod.command.execute;
   }
@@ -127,17 +94,21 @@ const createCommandAction = (cmd: IDatabaseCommand):
   try {
     // Dynamic import needed for loading command modules at runtime
     // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
-    const module = await import(cmd.executorPath);
+    const module = await import(cmd.executor_path);
     const executor = findExecutor(module);
 
     if (executor !== undefined) {
       await executor(context);
     } else {
-      console.error(`Command ${cmd.commandPath} has no execute function`);
+      const logger = LoggerService.getInstance();
+      logger.error(LogSource.CLI, `Command ${cmd.command_path} has no execute function`);
       process.exit(1);
     }
   } catch (error) {
-    console.error(`Error executing ${cmd.commandPath}:`, error);
+    const logger = LoggerService.getInstance();
+    logger.error(LogSource.CLI, `Error executing ${cmd.command_path}`, { 
+      error: error instanceof Error ? error : new Error(String(error))
+    });
     process.exit(1);
   }
   };
@@ -147,73 +118,114 @@ const createCommandAction = (cmd: IDatabaseCommand):
  * @param cmd - The database command configuration.
  */
 const registerCommand = (cmd: IDatabaseCommand): void => {
-  const command = program.command(cmd.commandPath);
-  command.description(cmd.description ?? 'No description available');
+  const commandParts = cmd.command_path.split(':');
+  let command = program;
 
-  const options = cmd.options ?? [];
-  for (const option of options) {
-    const flags = buildOptionFlags(option);
-    command.option(flags, option.description ?? '', option.default as string | boolean | string[] | undefined);
+  for (let i = 0; i < commandParts.length; i++) {
+    const part = commandParts[i];
+    const isLastPart = i === commandParts.length - 1;
+    const foundCommand = command.commands.find(
+      (commandItem): boolean => { return commandItem.name() === part; });
+
+    if (foundCommand !== undefined) {
+      command = foundCommand;
+    } else if (isLastPart) {
+      const newCommand = command.command(part!);
+      if (cmd.description !== undefined && cmd.description !== '') {
+        newCommand.description(cmd.description);
+      }
+
+      if (cmd.options !== undefined && Array.isArray(cmd.options)) {
+        for (const opt of cmd.options) {
+          const flags = buildOptionFlags(opt);
+          const description = opt.description ?? '';
+
+          if (opt.required === true) {
+            newCommand.requiredOption(flags, description);
+          } else {
+            newCommand.option(flags, description);
+          }
+        }
+      }
+
+      newCommand.action(createCommandAction(cmd));
+    } else {
+      command = command.command(part!);
+    }
   }
-
-  command.action(createCommandAction(cmd));
 };
 
 /**
- * Bootstrap system and register module commands.
- * @returns The bootstrap instance.
- * @throws {Error} If the CLI module or service is not found.
+ * Bootstrap CLI and register module commands.
+ * @returns The CLI service instance.
+ * @throws {Error} If CLI bootstrap fails.
  */
-const registerModuleCommands = async (): Promise<Bootstrap> => {
-  const bootstrap = await runBootstrap();
-  const cliService = getCliService(bootstrap);
-
+const registerModuleCommands = async (): Promise<CliService> => {
+  const cliService = await bootstrapCli();
+  
   try {
     const commands = await cliService.getCommandsFromDatabase();
-
     if (commands.length === 0) {
-      console.warn(
-        'No CLI commands found in database. Run the main application first to register modules.',
-      );
+      const logger = LoggerService.getInstance();
+      logger.warn(LogSource.CLI, 'No CLI commands found in database. Run the main application first to register modules.');
     }
 
     for (const cmd of commands) {
       registerCommand(cmd);
     }
 
-    return bootstrap;
+    return cliService;
   } catch (error) {
-    console.error('Error loading commands from database:', error);
-    console.error('This may be because the database has not been initialized yet.');
-    return bootstrap;
+    const logger = LoggerService.getInstance();
+    logger.error(LogSource.CLI, 'Failed to register commands', { 
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+    throw error;
   }
 };
 
 /**
- * Main entry point.
- * @returns A promise that resolves when the CLI execution is complete.
+ * Main CLI entry point.
  */
 const main = async (): Promise<void> => {
-  let bootstrap: Bootstrap | null = null;
-
   try {
-    bootstrap = await registerModuleCommands();
-    program.parse(process.argv);
+    await registerModuleCommands();
 
-    if (process.argv.slice(2).length === 0) {
-      program.outputHelp();
-    }
-  } finally {
-    if (bootstrap !== null) {
-      try {
-        await bootstrap.shutdown();
-      } catch {
-        /**
-         * Ignore shutdown errors for CLI.
-         */
-      }
-    }
+    // Add built-in commands
+    program
+      .command('help [command]')
+      .description('Display help for a command')
+      .action((commandName?: string): void => {
+        if (commandName !== undefined) {
+          const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
+          if (cmd !== undefined) {
+            cmd.outputHelp();
+          } else {
+            const logger = LoggerService.getInstance();
+            logger.error(LogSource.CLI, `Unknown command: ${commandName}`);
+          }
+        } else {
+          program.outputHelp();
+        }
+      });
+
+    // Parse command line arguments
+    await program.parseAsync(process.argv);
+  } catch (error) {
+    const logger = LoggerService.getInstance();
+    logger.error(LogSource.CLI, 'CLI initialization failed', { 
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+    process.exit(1);
   }
 };
 
-main().catch(console.error);
+// Only run if this is the main module
+if (import.meta.url.startsWith('file:')) {
+  const modulePath = new URL(import.meta.url).pathname;
+  if (process.argv[1] === modulePath) {
+    void main();
+  }
+}
+
+export { main };

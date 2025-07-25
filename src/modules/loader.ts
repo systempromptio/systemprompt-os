@@ -8,6 +8,7 @@ import { join } from 'path';
 import { ModuleRegistry } from '@/modules/registry.js';
 import { CONFIG } from '@/server/config.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const logger = LoggerService.getInstance();
 import {
@@ -107,7 +108,7 @@ export class ModuleLoader {
    */
   private loadConfig(): ModulesConfig {
     if (!existsSync(this.configPath)) {
-      logger.warn(`Module config not found at ${this.configPath}, using defaults`);
+      logger.warn(LogSource.MODULES, `Module config not found at ${this.configPath}, using defaults`);
       return { modules: {} };
     }
 
@@ -115,7 +116,7 @@ export class ModuleLoader {
       const configData = readFileSync(this.configPath, 'utf-8');
       return JSON.parse(configData);
     } catch (error) {
-      logger.error(`Failed to load module config from ${this.configPath}:`, error);
+      logger.error(LogSource.MODULES, `Failed to load module config from ${this.configPath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       return { modules: {} };
     }
   }
@@ -128,7 +129,7 @@ export class ModuleLoader {
    * @public
    */
   async loadModules(): Promise<void> {
-    logger.info('Starting dynamic module loading...');
+    logger.debug(LogSource.MODULES, 'Starting dynamic module loading...');
     const config = this.loadConfig();
 
     await this.loadCoreModules(config);
@@ -146,7 +147,7 @@ export class ModuleLoader {
      * Core modules are now loaded by bootstrap
      * Skip loading logger, database, and cli here
      */
-    logger.debug('Core modules already loaded by bootstrap');
+    logger.debug(LogSource.MODULES, 'Core modules already loaded by bootstrap');
 
     // Only load the modules module if not already loaded
     if (!this.registry.get('modules')) {
@@ -164,43 +165,43 @@ export class ModuleLoader {
     try {
       const modulesModule = this.registry.get('modules');
       if (!hasModuleService(modulesModule)) {
-        logger.error('Modules module not properly initialized or missing service');
+        logger.error(LogSource.MODULES, 'Modules module not properly initialized or missing service');
         return;
       }
 
       this.scannerService = modulesModule.service.getScannerService();
       if (this.scannerService === null) {
-        logger.error('Scanner service not available');
+        logger.error(LogSource.MODULES, 'Scanner service not available');
         return;
       }
 
-      logger.info('Scanning for available modules...');
+      logger.debug(LogSource.MODULES, 'Scanning for available modules...');
       const scannedModules = await this.scannerService.scan({
         deep: true,
         includeDisabled: false,
       });
 
-      logger.info(`Found ${scannedModules.length} modules`);
+      logger.debug(LogSource.MODULES, `Found ${scannedModules.length} modules`);
 
       const enabledModules = await this.scannerService.getEnabledModules();
 
       for (const moduleInfo of enabledModules) {
         // Skip core modules that are loaded by bootstrap
         if (['logger', 'database', 'cli', 'modules'].includes(moduleInfo.name)) {
-          logger.debug(`Skipping core module ${moduleInfo.name} - already loaded by bootstrap`);
+          logger.debug(LogSource.MODULES, `Skipping core module ${moduleInfo.name} - already loaded by bootstrap`);
           continue;
         }
 
         const moduleConfig = config.modules[moduleInfo.name];
         if (moduleConfig?.enabled === false) {
-          logger.debug(`Module ${moduleInfo.name} disabled in config`);
+          logger.debug(LogSource.MODULES, `Module ${moduleInfo.name} disabled in config`);
           continue;
         }
 
         await this.loadModuleFromInfo(moduleInfo, config);
       }
     } catch (error) {
-      logger.error('Failed to scan and load modules:', error);
+      logger.error(LogSource.MODULES, 'Failed to scan and load modules:', { error: error instanceof Error ? error : new Error(String(error)) });
     }
   }
 
@@ -226,7 +227,7 @@ export class ModuleLoader {
         await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.RUNNING);
       }
     } catch (error) {
-      logger.error(`Failed to load module ${moduleInfo.name}:`, error);
+      logger.error(LogSource.MODULES, `Failed to load module ${moduleInfo.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(
           moduleInfo.name,
@@ -247,7 +248,7 @@ export class ModuleLoader {
    */
   private async loadModule(name: string, importPath: string, config: ModulesConfig): Promise<void> {
     try {
-      logger.debug(`Loading module: ${name} from ${importPath}`);
+      logger.debug(LogSource.MODULES, `Loading module: ${name} from ${importPath}`);
 
       const moduleExports = await import(importPath);
 
@@ -275,9 +276,9 @@ export class ModuleLoader {
         await moduleInstance.start();
       }
 
-      logger.info(`Module ${name} loaded successfully`);
+      logger.debug(LogSource.MODULES, `Module ${name} loaded successfully`);
     } catch (error) {
-      logger.error(`Failed to load module ${name}:`, error);
+      logger.error(LogSource.MODULES, `Failed to load module ${name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       throw error;
     }
   }
@@ -288,7 +289,7 @@ export class ModuleLoader {
    * @public
    */
   async shutdown(): Promise<void> {
-    logger.info('Shutting down modules...');
+    logger.debug(LogSource.MODULES, 'Shutting down modules...');
 
     const modules = this.registry.getAll();
 
@@ -302,11 +303,11 @@ export class ModuleLoader {
           await this.scannerService.updateModuleStatus(module.name, ModuleStatus.STOPPED);
         }
       } catch (error) {
-        logger.error(`Error stopping module ${module.name}:`, error);
+        logger.error(LogSource.MODULES, `Error stopping module ${module.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
 
-    logger.info('All modules shut down');
+    logger.debug(LogSource.MODULES, 'All modules shut down');
   }
 
   /**

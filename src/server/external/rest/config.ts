@@ -8,6 +8,7 @@ import type { Router } from 'express';
 import { getDatabase } from '@/modules/core/database/index.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const logger = LoggerService.getInstance();
 import { renderLayout } from '@/server/external/templates/config/layout.js';
@@ -58,7 +59,10 @@ export class ConfigEndpoint {
         await this.renderStatusPage(res, systemStatus);
       }
     } catch (error) {
-      logger.error('Config page error', { error });
+      logger.error(LogSource.SERVER, 'Config page error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'config'
+});
       res.status(500).json({
         error: 'servererror',
         error_description: 'Failed to load configuration page',

@@ -13,7 +13,8 @@ import type {
   TokenValidationResult,
 } from '@/modules/core/auth/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import {
  MILLISECONDS_PER_SECOND, SIXTY, THREE, TWO, ZERO
 } from '@/const/numbers.js';
@@ -114,7 +115,7 @@ export class TokenService {
         ...input.metadata && { metadata: input.metadata },
       };
 
-      this.getLogger().info('Token created', {
+      this.getLogger().info(LogSource.AUTH, 'Token created', {
         tokenId: id,
         userId: input.userId,
         type: input.type,
@@ -122,10 +123,10 @@ export class TokenService {
 
       return token;
     } catch (error) {
-      this.getLogger().error('Failed to create token', {
- input,
-error
-});
+      this.getLogger().error(LogSource.AUTH, 'Failed to create token', {
+        input,
+        error: error as Error
+      });
       throw new Error('Failed to create token');
     }
   }
@@ -164,10 +165,10 @@ error
 
       return token;
     } catch (error) {
-      this.getLogger().error('Failed to create JWT', {
- userId,
-error
-});
+      this.getLogger().error(LogSource.AUTH, 'Failed to create JWT', {
+        userId,
+        error: error as Error
+      });
       throw new Error('Failed to create JWT');
     }
   }
@@ -261,7 +262,7 @@ error
         token,
       };
     } catch (error) {
-      this.getLogger().error('Failed to validate token', { error });
+      this.getLogger().error(LogSource.AUTH, 'Failed to validate token', { error: error as Error });
       return {
         valid: false,
         reason: 'Validation error'
@@ -309,12 +310,12 @@ error
         [tokenId],
       );
 
-      this.getLogger().info('Token revoked', { tokenId });
+      this.getLogger().info(LogSource.AUTH, 'Token revoked', { tokenId });
     } catch (error) {
-      this.getLogger().error('Failed to revoke token', {
- tokenId,
-error
-});
+      this.getLogger().error(LogSource.AUTH, 'Failed to revoke token', {
+        tokenId,
+        error: error as Error
+      });
       throw new Error('Failed to revoke token');
     }
   }
@@ -336,15 +337,15 @@ error
 
       await this.getDb().execute(sql, params);
 
-      this.getLogger().info('User tokens revoked', {
+      this.getLogger().info(LogSource.AUTH, 'User tokens revoked', {
         userId,
         type
       });
     } catch (error) {
-      this.getLogger().error('Failed to revoke user tokens', {
- userId,
-error
-});
+      this.getLogger().error(LogSource.AUTH, 'Failed to revoke user tokens', {
+        userId,
+        error: error as Error
+      });
       throw new Error('Failed to revoke user tokens');
     }
   }
@@ -377,9 +378,9 @@ error
         ...row.metadata && { metadata: JSON.parse(row.metadata) },
       } });
     } catch (error) {
-      this.getLogger().error('Failed to list user tokens', {
+      this.getLogger().error(LogSource.AUTH, 'Failed to list user tokens', {
         userId,
-        error
+        error: error as Error
       });
       throw new Error('Failed to list user tokens');
     }
@@ -403,12 +404,12 @@ error
           WHERE expires_at < datetime('now')
         `);
 
-        this.getLogger().info('Expired tokens cleaned up', { count });
+        this.getLogger().info(LogSource.AUTH, 'Expired tokens cleaned up', { count });
       }
 
       return count;
     } catch (error) {
-      this.getLogger().error('Failed to cleanup expired tokens', { error });
+      this.getLogger().error(LogSource.AUTH, 'Failed to cleanup expired tokens', { error: error as Error });
       throw error;
     }
   }

@@ -5,11 +5,24 @@
  */
 
 import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
-import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { CliService } from '@/modules/core/cli/services/cli.service.js';
 import type { CLICommand } from '@/modules/core/cli/types/index.js';
-import { CliInitializationError } from '@/modules/core/cli/utils/errors.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/index.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+
+/**
+ * Strongly typed exports interface for CLI module.
+ */
+export interface ICLIModuleExports {
+  readonly service: () => CliService;
+  readonly getAllCommands: () => Promise<Map<string, CLICommand>>;
+  readonly getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) => string;
+  readonly formatCommands: (commands: Map<string, CLICommand>, format: string) => string;
+  readonly generateDocs: (commands: Map<string, CLICommand>, format: string) => string;
+  readonly scanAndRegisterModuleCommands: (modules: Map<string, { path: string }>) => Promise<unknown>;
+}
 
 /**
  * Initialize function for CLI module (required by core module pattern).
@@ -23,28 +36,41 @@ export async function initialize(): Promise<void> {
 /**
  * CLI module for managing command-line interface utilities and help system - self-contained.
  */
-export class CLIModule implements IModule {
+export class CLIModule implements IModule<ICLIModuleExports> {
   name = 'cli';
   version = '1.0.0';
   type = 'service' as const;
   status: ModuleStatus = 'stopped' as ModuleStatus;
   dependencies = ['logger', 'database'];
   private cliService?: CliService;
-  private readonly logger = LoggerService.getInstance();
+  private logger!: ILogger;
+  get exports(): ICLIModuleExports {
+    return {
+      service: () => this.getService(),
+      getAllCommands: async () => await this.getAllCommands(),
+      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) => 
+        this.getCommandHelp(commandName, commands),
+      formatCommands: (commands: Map<string, CLICommand>, format: string) => 
+        this.formatCommands(commands, format),
+      generateDocs: (commands: Map<string, CLICommand>, format: string) => 
+        this.generateDocs(commands, format),
+      scanAndRegisterModuleCommands: async (modules: Map<string, { path: string }>) => {
+        const service = this.getService();
+        await service.scanAndRegisterModuleCommands(modules);
+      },
+    };
+  }
 
   /**
    * Initialize the CLI module.
-   * @throws {CliInitializationError} If initialization fails.
    */
   async initialize(): Promise<void> {
-    try {
-      this.cliService = CliService.getInstance();
-      const database = DatabaseService.getInstance();
-      await this.cliService.initialize(this.logger, database);
-      this.logger.info('CLI module initialized');
-    } catch (error) {
-      throw new CliInitializationError(error as Error);
-    }
+    this.logger = LoggerService.getInstance();
+    const database = DatabaseService.getInstance();
+    this.cliService = CliService.getInstance();
+    await this.cliService.initialize(this.logger, database);
+    this.status = 'starting' as ModuleStatus;
+    this.logger.info(LogSource.CLI, 'CLI module initialized');
   }
 
   /**
@@ -52,7 +78,7 @@ export class CLIModule implements IModule {
    */
   async start(): Promise<void> {
     this.status = 'running' as ModuleStatus;
-    this.logger.info('CLI module started');
+    this.logger.info(LogSource.CLI, 'CLI module started');
   }
 
   /**
@@ -60,7 +86,7 @@ export class CLIModule implements IModule {
    */
   async stop(): Promise<void> {
     this.status = 'stopped' as ModuleStatus;
-    this.logger.info('CLI module stopped');
+    this.logger.info(LogSource.CLI, 'CLI module stopped');
   }
 
   /**
@@ -87,6 +113,18 @@ export class CLIModule implements IModule {
       throw new Error('CLI service not initialized');
     }
     return await this.cliService.getAllCommands();
+  }
+
+  /**
+   * Get the CLI service instance.
+   * @returns The CLI service.
+   * @throws {Error} If CLI service is not initialized.
+   */
+  getService(): CliService {
+    if (this.cliService === undefined || this.cliService === null) {
+      throw new Error('CLI service not initialized');
+    }
+    return this.cliService;
   }
 
   /**

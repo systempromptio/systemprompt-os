@@ -1,21 +1,23 @@
 /**
+ * MCP Server Registry - Manages registration, routing, and lifecycle of MCP servers.
  * @file MCP Server Registry - Manages registration, routing, and lifecycle of MCP servers.
  * @module server/mcp/registry
  */
 
 import type {
- Express, Request, RequestHandler, Response
+ Express, Request as ExpressRequest, Response as ExpressResponse, RequestHandler
 } from 'express';
-import type {
-  ILocalMCPServer,
-  IMCPServerStatus,
-  IRemoteMCPConfig,
-  IRemoteMCPServer,
-  MCPServer,
+import {
+  type ILocalMcpServer,
+  type IMcpServerStatus,
+  type IRemoteMcpConfig,
+  type IRemoteMcpServer,
+  type McpServer,
+  McpServerTypeEnum,
 } from '@/server/mcp/types.js';
-import { MCPServerType } from '@/server/mcp/types.js';
 import { mcpAuthAdapter } from '@/server/mcp/auth-adapter.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+import { DEFAULT_PROXY_TIMEOUT } from '@/server/constants/mcp.constants.js';
 
 /**
  * HTTP Status Codes.
@@ -33,22 +35,18 @@ const NON_FORWARDABLE_HEADERS = new Set([
 ]);
 
 /**
- * Default timeout for proxy requests in milliseconds.
- */
-const DEFAULT_PROXY_TIMEOUT = 30000;
-
-/**
  * Registry for managing MCP servers within the application.
- * @class MCPServerRegistry
- * @description Provides centralized management for both local (in-process) and remote (proxied) MCP servers.
+ * @class McpServerRegistry
+ * @description Provides centralized management for both local (in-process) and
+ * remote (proxied) MCP servers.
  * Handles server registration, route setup, status monitoring, and graceful shutdown.
  * @example
  * ```typescript
- * const registry = new MCPServerRegistry();
+ * const registry = new McpServerRegistry();
  * await registry.registerServer({
  *   id: 'my-server',
  *   name: 'My MCP Server',
- *   type: MCPServerType.LOCAL,
+ *   type: McpServerTypeEnum.LOCAL,
  *   version: '1.0.0',
  *   description: 'My custom MCP server',
  *   createHandler: () => myMCPHandler
@@ -56,15 +54,15 @@ const DEFAULT_PROXY_TIMEOUT = 30000;
  * await registry.setupRoutes(app);
  * ```
  */
-export class MCPServerRegistry {
+export class McpServerRegistry {
   /**
    * Map storing registered servers indexed by their unique IDs.
    */
-  private readonly servers = new Map<string, MCPServer>();
+  private readonly servers = new Map<string, McpServer>();
 
   /**
    * Registers a new MCP server in the registry.
-   * @param {MCPServer} server - Server configuration object to register.
+   * @param {McpServer} server - Server configuration object to register.
    * @returns {Promise<void>} Resolves when registration is complete.
    * @throws {Error} Thrown when a server with the same ID is already registered.
    * @example
@@ -72,20 +70,21 @@ export class MCPServerRegistry {
    * await registry.registerServer({
    *   id: 'custom-tools',
    *   name: 'Custom Tools Server',
-   *   type: MCPServerType.LOCAL,
+   *   type: McpServerTypeEnum.LOCAL,
    *   version: '2.0.0',
    *   description: 'Provides custom tool implementations',
    *   createHandler: () => customToolsHandler
    * });
    * ```
    */
-  public async registerServer(server: MCPServer): Promise<void> {
+  public registerServer(server: McpServer): void {
     if (this.servers.has(server.id)) {
       throw new Error(`Server with ID '${server.id}' is already registered`);
     }
 
     this.servers.set(server.id, server);
-    logger.info(`Registered ${server.type} MCP server: ${server.name} (${server.id})`);
+    logger.debug(LogSource.MCP, 
+      `Registered ${server.type} MCP server: ${server.name} (${server.id})`);
   }
 
   /**
@@ -96,13 +95,14 @@ export class MCPServerRegistry {
    * a global status endpoint at `/mcp/status` for monitoring all servers.
    */
   public async setupRoutes(app: Express): Promise<void> {
-    await Promise.all(
-      Array.from(this.servers.entries()).map(async ([id, server]) => { await this.setupServerRoute(app, id, server); },),
-    );
+    Array.from(this.servers.entries()).forEach(([id, server]) => {
+      this.setupServerRoute(app, id, server);
+    });
 
     app.get('/mcp/status', this.createStatusHandler());
 
-    logger.info(`Configured routes for ${this.servers.size} MCP servers`);
+    logger.debug(LogSource.MCP, 
+      `Configured routes for ${String(this.servers.size)} MCP servers`);
   }
 
   /**
@@ -110,8 +110,8 @@ export class MCPServerRegistry {
    * @returns {RequestHandler} Express request handler for the status endpoint.
    */
   private createStatusHandler(): RequestHandler {
-    return async (_req: Request, res: Response): Promise<void> => {
-      const statuses = await this.getServerStatuses();
+    return (req: ExpressRequest, res: ExpressResponse): void => {
+      const statuses = this.getServerStatuses();
       res.json({
         servers: Object.fromEntries(statuses),
       });
@@ -122,37 +122,47 @@ export class MCPServerRegistry {
    * Configures routing for an individual MCP server.
    * @param {Express} app - Express application instance.
    * @param {string} id - Unique identifier of the server.
-   * @param {MCPServer} server - Server configuration object.
-   * @returns {Promise<void>} Resolves when route setup is complete.
+   * @param {McpServer} server - Server configuration object.
+   * @returns {void} Completes when route setup is done.
    */
-  private async setupServerRoute(app: Express, id: string, server: MCPServer): Promise<void> {
+  private setupServerRoute(app: Express, id: string, server: McpServer): void {
     const endpoint = `/mcp/${id}`;
     const handler = this.createServerHandler(server);
 
     app.all(endpoint, mcpAuthAdapter, handler);
 
-    if (server.type === MCPServerType.LOCAL) {
-      logger.info(`Local server '${server.name}' mounted at ${endpoint} (auth enabled)`);
+    if (server.type === McpServerTypeEnum.LOCAL) {
+      logger.debug(LogSource.MCP, 
+        `Local server '${server.name}' mounted at ${endpoint} (auth enabled)`);
 
       if (id === 'core') {
         app.all('/mcp', mcpAuthAdapter, handler);
-        logger.info(`Core server also mounted at /mcp (auth enabled)`);
+        logger.debug(LogSource.MCP, `Core server also mounted at /mcp (auth enabled)`);
       }
     } else {
       const remoteServer = server;
-      logger.info(
-        `Remote server '${server.name}' proxied at ${endpoint} -> ${remoteServer.config.url} (auth enabled)`,
+      logger.debug(
+        LogSource.MCP,
+        `Remote server '${server.name}' proxied at ${endpoint} -> ` +
+        `${remoteServer.config.url} (auth enabled)`,
+        {
+          data: {
+            serverName: server.name,
+            endpoint,
+            targetUrl: remoteServer.config.url
+          }
+        }
       );
     }
   }
 
   /**
    * Creates appropriate request handler based on server type.
-   * @param {MCPServer} server - Server configuration.
+   * @param {McpServer} server - Server configuration.
    * @returns {RequestHandler} Express request handler.
    */
-  private createServerHandler(server: MCPServer): RequestHandler {
-    if (server.type === MCPServerType.LOCAL) {
+  private createServerHandler(server: McpServer): RequestHandler {
+    if (server.type === McpServerTypeEnum.LOCAL) {
       const localServer = server;
       return localServer.createHandler();
     }
@@ -162,18 +172,18 @@ export class MCPServerRegistry {
 
   /**
    * Creates a proxy handler for forwarding requests to remote MCP servers.
-   * @param {RemoteMCPServer} server - Remote server configuration.
+   * @param {RemoteMcpServer} server - Remote server configuration.
    * @returns {RequestHandler} Express request handler that proxies to the remote server.
    * @description Handles request forwarding, authentication, timeout management,
    * and error handling for remote MCP server communication.
    */
-  private createProxyHandler(server: IRemoteMCPServer): RequestHandler {
-    return async (req: Request, res: Response): Promise<void> => {
+  private createProxyHandler(server: IRemoteMcpServer): RequestHandler {
+    return async (req: ExpressRequest, res: ExpressResponse): Promise<void> => {
       try {
         const response = await this.forwardRequest(req, server);
         await this.forwardResponse(response, res, req);
       } catch (error) {
-        this.handleProxyError(error, server, req, res);
+        this.handleProxyError(error, server, res);
       }
     };
   }
@@ -181,12 +191,12 @@ export class MCPServerRegistry {
   /**
    * Forwards a request to a remote MCP server.
    * @param {Request} req - Incoming Express request.
-   * @param {RemoteMCPServer} server - Remote server configuration.
+   * @param {RemoteMcpServer} server - Remote server configuration.
    * @returns {Promise<Response>} Fetch API response from the remote server.
    */
   private async forwardRequest(
-    req: Request,
-    server: IRemoteMCPServer,
+    req: ExpressRequest,
+    server: IRemoteMcpServer,
   ): Promise<globalThis.Response> {
     const {
  url, auth, headers, timeout
@@ -194,7 +204,9 @@ export class MCPServerRegistry {
     const requestHeaders = this.buildRequestHeaders(headers, auth);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => { controller.abort(); }, timeout || DEFAULT_PROXY_TIMEOUT);
+    const timeoutId = setTimeout((): void => { 
+      controller.abort(); 
+    }, timeout ?? DEFAULT_PROXY_TIMEOUT);
 
     try {
       const response = await fetch(url, {
@@ -220,14 +232,14 @@ export class MCPServerRegistry {
    */
   private buildRequestHeaders(
     customHeaders?: Record<string, string>,
-    auth?: IRemoteMCPConfig['auth'],
+    auth?: IRemoteMcpConfig['auth'],
   ): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      'content-type': 'application/json',
       ...customHeaders,
     };
 
-    if (auth) {
+    if (auth !== null && auth !== undefined) {
       headers['Authorization'] = this.buildAuthorizationHeader(auth);
     }
 
@@ -239,16 +251,18 @@ export class MCPServerRegistry {
    * @param {RemoteMCPConfig['auth']} auth - Authentication configuration.
    * @returns {string} Authorization header value.
    */
-  private buildAuthorizationHeader(auth: IRemoteMCPConfig['auth']): string {
-    if (!auth) {
+  private buildAuthorizationHeader(auth: IRemoteMcpConfig['auth']): string {
+    if (auth === null || auth === undefined) {
       return '';
     }
 
-    if (auth.type === 'bearer' && auth.token) {
+    if (auth.type === 'bearer' && auth.token !== null && auth.token !== undefined && auth.token !== '') {
       return `Bearer ${auth.token}`;
     }
 
-    if (auth.type === 'basic' && auth.username && auth.password) {
+    if (auth.type === 'basic' && 
+        auth.username !== null && auth.username !== undefined && auth.username !== '' &&
+        auth.password !== null && auth.password !== undefined && auth.password !== '') {
       const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString('base64');
       return `Basic ${credentials}`;
     }
@@ -260,13 +274,12 @@ export class MCPServerRegistry {
    * Forwards the remote server response back to the client.
    * @param {globalThis.Response} response - Response from remote server.
    * @param {Response} res - Express response object.
-   * @param {Request} _req - Original request (for error context).
    * @returns {Promise<void>}
    */
   private async forwardResponse(
     response: globalThis.Response,
-    res: Response,
-    _req: Request,
+    res: ExpressResponse,
+    req: ExpressRequest,
   ): Promise<void> {
     response.headers.forEach((value, key) => {
       if (!NON_FORWARDABLE_HEADERS.has(key.toLowerCase())) {
@@ -282,53 +295,57 @@ export class MCPServerRegistry {
   /**
    * Handles proxy errors with appropriate error responses.
    * @param {unknown} error - Error that occurred during proxying.
-   * @param {RemoteMCPServer} server - Server configuration.
+   * @param {RemoteMcpServer} server - Server configuration.
    * @param {Request} req - Original request.
    * @param {Response} res - Express response object.
    */
   private handleProxyError(
     error: unknown,
-    server: IRemoteMCPServer,
-    req: Request,
-    res: Response,
+    server: IRemoteMcpServer,
+    res: ExpressResponse,
   ): void {
-    const errorObj = error as Error;
+    const errorObj = error instanceof Error ? error : new Error(String(error));
 
     if (errorObj.name === 'AbortError') {
-      const timeout = server.config.timeout || DEFAULT_PROXY_TIMEOUT;
+      const timeout = server.config.timeout ?? DEFAULT_PROXY_TIMEOUT;
       res.status(504).json({
         jsonrpc: '2.0',
         error: {
           code: -32000,
-          message: `Request to remote server timed out after ${timeout}ms`,
+          message: `Request to remote server timed out after ${String(timeout)}ms`,
         },
-        id: req.body?.id || null,
+        id: null,
       });
       return;
     }
 
-    logger.error(`Proxy error for ${server.name}:`, errorObj);
+    logger.error(LogSource.MCP, `Proxy error for ${server.name}`, {
+      error: errorObj instanceof Error ? errorObj : String(errorObj),
+      data: {
+        serverName: server.name
+      }
+    });
     res.status(502).json({
       jsonrpc: '2.0',
       error: {
         code: -32000,
         message: `Failed to proxy request to remote server: ${errorObj.message}`,
       },
-      id: req.body?.id || null,
+      id: null,
     });
   }
 
   /**
    * Retrieves status information for all registered servers.
-   * @returns {Promise<Map<string, MCPServerStatus>>} Map of server IDs to their current status.
+   * @returns {Map<string, McpServerStatus>} Map of server IDs to their current status.
    * @description Collects runtime information including session counts for local servers
    * and connection details for remote servers.
    */
-  public async getServerStatuses(): Promise<Map<string, IMCPServerStatus>> {
-    const statuses = new Map<string, IMCPServerStatus>();
+  public getServerStatuses(): Map<string, IMcpServerStatus> {
+    const statuses = new Map<string, IMcpServerStatus>();
 
     for (const [id, server] of this.servers) {
-      statuses.set(id, await this.getServerStatus(server));
+      statuses.set(id, this.getServerStatus(server));
     }
 
     return statuses;
@@ -336,11 +353,11 @@ export class MCPServerRegistry {
 
   /**
    * Gets status for a single server.
-   * @param {MCPServer} server - Server to get status for.
-   * @returns {Promise<MCPServerStatus>} Server status information.
+   * @param {McpServer} server - Server to get status for.
+   * @returns {McpServerStatus} Server status information.
    */
-  private async getServerStatus(server: MCPServer): Promise<IMCPServerStatus> {
-    const status: IMCPServerStatus = {
+  private getServerStatus(server: McpServer): IMcpServerStatus {
+    const status: IMcpServerStatus = {
       id: server.id,
       name: server.name,
       status: 'running',
@@ -350,7 +367,7 @@ export class MCPServerRegistry {
       sessions: 0,
     };
 
-    if (server.type === MCPServerType.LOCAL) {
+    if (server.type === McpServerTypeEnum.LOCAL) {
       const localServer = server;
       if (localServer.getActiveSessionCount) {
         status.sessions = localServer.getActiveSessionCount();
@@ -366,17 +383,17 @@ export class MCPServerRegistry {
   /**
    * Retrieves a server configuration by its ID.
    * @param {string} id - Unique identifier of the server.
-   * @returns {MCPServer | undefined} Server configuration if found, undefined otherwise.
+   * @returns {McpServer | undefined} Server configuration if found, undefined otherwise.
    */
-  public getServer(id: string): MCPServer | undefined {
+  public getServer(id: string): McpServer | undefined {
     return this.servers.get(id);
   }
 
   /**
    * Retrieves all registered servers.
-   * @returns {MCPServer[]} Array containing all registered server configurations.
+   * @returns {McpServer[]} Array containing all registered server configurations.
    */
-  public getAllServers(): MCPServer[] {
+  public getAllServers(): McpServer[] {
     return Array.from(this.servers.values());
   }
 
@@ -395,30 +412,35 @@ export class MCPServerRegistry {
    * that occur during the shutdown process. Remote servers do not require shutdown.
    */
   public async shutdown(): Promise<void> {
-    logger.info('Shutting down MCP server registry...');
+    logger.debug(LogSource.MCP, 'Shutting down MCP server registry...');
 
     const shutdownPromises = Array.from(this.servers.values())
-      .filter((server): server is ILocalMCPServer => { return server.type === MCPServerType.LOCAL })
+      .filter((server): server is ILocalMcpServer => { return server.type === McpServerTypeEnum.LOCAL })
       .filter((server) => { return server.shutdown !== undefined })
       .map(async (server) => { await this.shutdownServer(server); });
 
     await Promise.allSettled(shutdownPromises);
 
     this.servers.clear();
-    logger.info('MCP server registry shutdown complete');
+    logger.debug(LogSource.MCP, 'MCP server registry shutdown complete');
   }
 
   /**
    * Shuts down an individual local server.
-   * @param {LocalMCPServer} server - Server to shut down.
+   * @param {LocalMcpServer} server - Server to shut down.
    * @returns {Promise<void>}
    */
-  private async shutdownServer(server: ILocalMCPServer): Promise<void> {
+  private async shutdownServer(server: ILocalMcpServer): Promise<void> {
     try {
       await server.shutdown!();
-      logger.info(`Shut down local server: ${server.name}`);
+      logger.debug(LogSource.MCP, `Shut down local server: ${server.name}`, { data: { serverName: server.name } });
     } catch (error) {
-      logger.error(`Error shutting down ${server.name}:`, error);
+      logger.error(LogSource.MCP, `Error shutting down ${server.name}`, {
+        error: error instanceof Error ? error : String(error),
+        context: {
+          serverName: server.name
+        }
+      });
     }
   }
 }
@@ -426,27 +448,27 @@ export class MCPServerRegistry {
 /**
  * Singleton instance of the MCP Server Registry.
  */
-let registry: MCPServerRegistry | null = null;
+let registry: McpServerRegistry | null = null;
 
 /**
  * Initializes or retrieves the singleton MCP Server Registry instance.
- * @returns {MCPServerRegistry} The registry instance.
+ * @returns {McpServerRegistry} The registry instance.
  * @description Creates a new registry instance on first call, returns existing instance
  * on subsequent calls (singleton pattern).
  */
-export const initializeMCPServerRegistry = function (): MCPServerRegistry {
-  registry ||= new MCPServerRegistry();
+export const initializeMcpServerRegistry = function (): McpServerRegistry {
+  registry ||= new McpServerRegistry();
   return registry;
 }
 
 /**
  * Retrieves the existing MCP Server Registry instance.
- * @returns {MCPServerRegistry} The registry instance.
+ * @returns {McpServerRegistry} The registry instance.
  * @throws {Error} Thrown when attempting to access registry before initialization.
  * @description Use this function when you need to access the registry after it has been
- * initialized. For initial setup, use initializeMCPServerRegistry instead.
+ * initialized. For initial setup, use initializeMcpServerRegistry instead.
  */
-export const getMCPServerRegistry = function (): MCPServerRegistry {
+export const getMcpServerRegistry = function (): McpServerRegistry {
   if (!registry) {
     throw new Error('MCP Server Registry not initialized');
   }

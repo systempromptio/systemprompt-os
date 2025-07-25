@@ -4,10 +4,11 @@ import {
 import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index.js";
-import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
-import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2';
-import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
-import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
+import { LogSource } from "@/modules/core/logger/types/index.js";
+import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2.js';
+import { GoogleProvider } from '@/modules/core/auth/providers/core/google.js';
+import { GitHubProvider } from '@/modules/core/auth/providers/core/github.js';
 
 /**
  *
@@ -106,10 +107,10 @@ export class ProviderRegistry {
   private async loadProviderConfigs(): Promise<void> {
     const providersPath = join(this.configPath, "providers");
 
-    this.logger?.info(`Looking for providers in: ${providersPath}`);
+    this.logger?.info(LogSource.AUTH, `Looking for providers in: ${providersPath}`);
 
     if (!existsSync(providersPath)) {
-      this.logger?.warn(`Providers directory not found: ${providersPath}`);
+      this.logger?.warn(LogSource.AUTH, `Providers directory not found: ${providersPath}`);
       return;
     }
 
@@ -151,10 +152,10 @@ export class ProviderRegistry {
         if (config?.enabled) {
           this.configs.set(config.id, config);
           const providerType = isCustom ? "custom provider" : "provider";
-          this.logger?.info(`Loaded ${providerType} config: ${config.id}`);
+          this.logger?.info(LogSource.AUTH, `Loaded ${providerType} config: ${config.id}`);
         }
       } catch (error) {
-        this.logger?.error(`Failed to load provider config ${filePath}:`, error);
+        this.logger?.error(LogSource.AUTH, `Failed to load provider config ${filePath}`, { error: error as Error });
       }
     });
 
@@ -172,7 +173,7 @@ export class ProviderRegistry {
     const config = this.substituteEnvVars(rawConfig) as IIProviderConfig;
 
     if (!this.isValidProviderConfig(config)) {
-      this.logger?.warn(`Skipping provider config ${filePath}: missing required fields`);
+      this.logger?.warn(LogSource.AUTH, `Skipping provider config ${filePath}: missing required fields`);
       return null;
     }
 
@@ -237,10 +238,10 @@ export class ProviderRegistry {
           const provider = await this.createProvider(config);
           if (provider) {
             this.providers.set(id, provider);
-            this.logger?.info(`Instantiated provider: ${id}`);
+            this.logger?.info(LogSource.AUTH, `Instantiated provider: ${id}`);
           }
         } catch (error) {
-          this.logger?.error(`Failed to instantiate provider ${id}:`, error);
+          this.logger?.error(LogSource.AUTH, `Failed to instantiate provider ${id}`, { error: error as Error });
         }
       }
     );
@@ -284,7 +285,7 @@ export class ProviderRegistry {
     idpConfig: IDPConfig
   ): Promise<IIdentityProvider | null> {
     if (config.type !== "oauth2" && config.type !== "oidc") {
-      this.logger?.warn(`Unsupported provider type ${config.type} for ${config.id}`);
+      this.logger?.warn(LogSource.AUTH, `Unsupported provider type ${config.type} for ${config.id}`);
       return null;
     }
 
@@ -334,7 +335,7 @@ export class ProviderRegistry {
       const discovered = await this.discoverOIDCConfiguration(discoveryUrl);
       Object.assign(genericConfig, discovered);
     } catch (error) {
-      this.logger?.warn(`Failed to discover OIDC config for ${providerId}:`, error);
+      this.logger?.warn(LogSource.AUTH, `Failed to discover OIDC config for ${providerId}`, { error: error as Error });
     }
   }
 

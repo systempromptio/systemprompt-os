@@ -9,7 +9,7 @@
  * server/mcp/custom/
  * ├── my-local-server/      # Local embedded server
  * │   ├── package.json
- * │   └── build/index.js    # Exports createMCPHandler
+ * │   └── build/index.js    # Exports createMcpHandler
  * └── remote-servers.yaml   # Remote server configurations
  * ```
  */
@@ -17,16 +17,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
-import type { MCPServerRegistry } from '@/server/mcp/registry.js';
+import type { McpServerRegistry } from '@/server/mcp/registry.js';
 import type {
-  ILocalMCPServer,
-  IMCPLoaderOptions,
-  IMCPServerModule,
-  IRemoteMCPConfig,
-  IRemoteMCPServer
+  ILocalMcpServer,
+  IMcpLoaderOptions,
+  IMcpServerModule,
+  IRemoteMcpConfig,
+  IRemoteMcpServer
 } from '@/server/mcp/types.js';
 import {
-  MCPServerType
+  McpServerTypeEnum
 } from '@/server/mcp/types.js';
 
 const ZERO = 0;
@@ -34,7 +34,7 @@ const ZERO = 0;
 /**
  * Default options for the MCP loader.
  */
-const DEFAULTOPTIONS: Partial<IMCPLoaderOptions> = {
+const DEFAULTOPTIONS: Partial<IMcpLoaderOptions> = {
   loadRemoteConfigs: true,
   remoteConfigFile: 'remote-servers.yaml'
 };
@@ -50,7 +50,7 @@ const DEFAULTOPTIONS: Partial<IMCPLoaderOptions> = {
  * ```
  */
 export class CustomMCPLoader {
-  private readonly options: IMCPLoaderOptions;
+  private readonly options: IMcpLoaderOptions;
 
   /**
    * Creates a new CustomMCPLoader instance.
@@ -58,8 +58,8 @@ export class CustomMCPLoader {
    * @param options - Loader options.
    */
   constructor(
-    private readonly registry: MCPServerRegistry,
-    options?: Partial<IMCPLoaderOptions>
+    private readonly registry: McpServerRegistry,
+    options?: Partial<IMcpLoaderOptions>
   ) {
     this.options = {
       customDir: options?.customDir || './server/mcp/custom',
@@ -143,23 +143,23 @@ export class CustomMCPLoader {
       }
 
       const moduleUrl = pathToFileURL(entryPoint).href;
-      const module = await import(moduleUrl) as IMCPServerModule;
+      const module = await import(moduleUrl) as IMcpServerModule;
 
-      if (!module.createMCPHandler || typeof module.createMCPHandler !== 'function') {
-        throw new Error(`Invalid MCP server module: ${serverDir} - missing createMCPHandler export`);
+      if (!module.createMcpHandler || typeof module.createMcpHandler !== 'function') {
+        throw new Error(`Invalid MCP server module: ${serverDir} - missing createMcpHandler export`);
       }
 
-      const serverName = module.CONFIG?.SERVERNAME || serverDir;
-      const serverVersion = module.CONFIG?.SERVERVERSION || '0.0.0';
-      const serverDescription = module.CONFIG?.SERVERDESCRIPTION || `Custom MCP server: ${serverDir}`;
+      const serverName = module.config?.serverName || serverDir;
+      const serverVersion = module.config?.serverVersion || '0.0.0';
+      const serverDescription = module.config?.serverDescription || `Custom MCP server: ${serverDir}`;
 
-      const localServer: ILocalMCPServer = {
+      const localServer: ILocalMcpServer = {
         id: serverDir,
         name: serverName,
         version: serverVersion,
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         description: serverDescription,
-        createHandler: module.createMCPHandler,
+        createHandler: module.createMcpHandler,
         getActiveSessionCount: () => { return ZERO },
         shutdown: async () => {
           console.log(`🛑 Shutting down ${serverName}`);
@@ -226,14 +226,14 @@ export class CustomMCPLoader {
 
     try {
       const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
-      const configs = JSON.parse(configContent) as IRemoteMCPConfig[];
+      const configs = JSON.parse(configContent) as IRemoteMcpConfig[];
 
       for (const config of configs) {
-        const remoteServer: IRemoteMCPServer = {
+        const remoteServer: IRemoteMcpServer = {
           id: config.name.toLowerCase().replace(/\s+/g, '-'),
           name: config.name,
           version: '1.0.0',
-          type: MCPServerType.REMOTE,
+          type: McpServerTypeEnum.REMOTE,
           description: `Remote MCP server: ${config.name}`,
           config
         };

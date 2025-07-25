@@ -6,6 +6,7 @@
 import type {
  NextFunction, Request, Response
 } from 'express';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 // Mock imports for missing modules
 const jwtVerify = async (_token: string, _options: any) => {
@@ -130,7 +131,7 @@ error_description: 'Invalid token type'
       if (options.requiredRoles && options.requiredRoles.length > 0) {
         const hasRequiredRole = options.requiredRoles.some((role) => { return authUser.roles.includes(role) });
         if (!hasRequiredRole) {
-          logger.warn('Access denied - missing required role', {
+          logger.warn(LogSource.AUTH, 'Access denied - missing required role', {
             userId: authUser.id,
             requiredRoles: options.requiredRoles,
             userRoles: authUser.roles,
@@ -157,7 +158,7 @@ error_description: 'Insufficient permissions'
 
       next();
     } catch (error) {
-      logger.error('Auth middleware error', { error });
+      logger.error(LogSource.AUTH, 'Auth middleware error', { error });
 
       if (options.redirectToLogin) {
         // For web requests, redirect to login

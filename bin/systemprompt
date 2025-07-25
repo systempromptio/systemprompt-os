@@ -4,7 +4,25 @@
  * Main CLI entry point for systemprompt-os
  */
 
-import('../build/modules/core/cli/cli/main.js').catch(err => {
-  console.error('Failed to start systemprompt:', err);
-  process.exit(1);
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = join(__dirname, '..');
+const loaderPath = join(projectRoot, 'loader.mjs');
+const cliPath = join(projectRoot, 'build', 'modules', 'core', 'cli', 'cli', 'main.js');
+
+// Start the CLI with the custom loader
+const child = spawn('node', [
+  '--loader', loaderPath,
+  cliPath,
+  ...process.argv.slice(2)
+], {
+  stdio: 'inherit',
+  cwd: projectRoot
+});
+
+child.on('exit', (code) => {
+  process.exit(code || 0);
 });

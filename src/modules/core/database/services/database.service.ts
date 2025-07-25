@@ -9,9 +9,11 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection
-} from '@/modules/core/database/types/database.types';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { ZERO } from '@/modules/core/database/constants/index';
+} from '@/modules/core/database/types/database.types.js';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
+import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
 
 /**
  * Database service singleton for managing database connections.
@@ -166,8 +168,8 @@ export class DatabaseService {
   }
 
   /**
-   * Check if database is initialized with base schema.
-   * @returns {Promise<boolean>} True if database has been initialized with schema.
+   * Check if database is initialized (has any user tables).
+   * @returns {Promise<boolean>} True if database has been initialized with tables.
    */
   public async isInitialized(): Promise<boolean> {
     try {
@@ -175,14 +177,18 @@ export class DatabaseService {
         await this.connect();
       }
 
+      // Check if database has any user tables (not sqlite system tables)
       const result = await this.query<{ count: number }>(
         `SELECT COUNT(*) as count FROM sqlite_master 
-         WHERE type='table' AND name='_schema_versions'`
+         WHERE type='table' AND name NOT LIKE 'sqlite_%'`
       );
 
       return result.length > ZERO && result[ZERO] !== undefined && result[ZERO].count > ZERO;
     } catch (error) {
-      this.logger?.debug('Database not initialized', { error });
+      this.logger?.debug(LogSource.DATABASE, 'Database not initialized', {
+        error: error as Error,
+        persistToDb: false
+      });
       return false;
     }
   }
@@ -192,7 +198,6 @@ export class DatabaseService {
    */
   private async connect(): Promise<void> {
     try {
-      const { SqliteAdapter } = await import('@/modules/core/database/adapters/sqlite.adapter');
       switch (this.config.type) {
         case 'sqlite':
           this.adapter = new SqliteAdapter();
@@ -202,9 +207,9 @@ export class DatabaseService {
       }
 
       this.connection = await this.adapter.connect(this.config);
-      this.logger?.info('Database connection established', { type: this.config.type });
+      this.logger?.info(LogSource.DATABASE, 'Database connection established', { type: this.config.type });
     } catch (error) {
-      this.logger?.error('Failed to connect to database', { error });
+      this.logger?.error(LogSource.DATABASE, 'Failed to connect to database', { error: error as Error });
       throw new Error(
         `Failed to connect to ${this.config.type} database`
       );

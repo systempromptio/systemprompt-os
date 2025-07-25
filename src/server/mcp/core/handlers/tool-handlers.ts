@@ -28,6 +28,7 @@ import type {
 
 import { getModuleLoader } from '@/modules/loader.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 import { ROLE_PERMISSIONS, hasPermission } from '@/server/mcp/core/types/permissions.js';
 import type { IUserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions.js';
@@ -144,19 +145,19 @@ export const handleListTools = async function (
   context?: IMCPToolContext,
 ): Promise<ListToolsResult> {
   try {
-    logger.info('Tool listing requested', {
+    logger.info(LogSource.MCP, 'Tool listing requested', {
       sessionId: context?.sessionId,
       requestId: randomUUID(),
     });
 
     if (!context) {
-      logger.debug('No context provided, returning empty tool list');
+      logger.debug(LogSource.MCP, 'No context provided, returning empty tool list');
       return { tools: [] };
     }
 
     const userContext = await getUserPermissionContext(context);
 
-    logger.info('User permission context retrieved', {
+    logger.info(LogSource.MCP, 'User permission context retrieved', {
       userId: userContext.userId,
       role: userContext.role,
       permissionCount: userContext.permissions.length,
@@ -167,7 +168,7 @@ export const handleListTools = async function (
     const toolsModule = moduleLoader.getModule('tools');
 
     if (!toolsModule?.exports) {
-      logger.error('Tools module not available');
+      logger.error(LogSource.MCP, 'Tools module not available');
       return { tools: [] };
     }
 
@@ -178,7 +179,7 @@ export const handleListTools = async function (
       return hasToolPermission(userContext, metadata);
     });
 
-    logger.info('Tool filtering completed', {
+    logger.info(LogSource.MCP, 'Tool filtering completed', {
       userId: userContext.userId,
       role: userContext.role,
       totalTools: enabledTools.length,
@@ -188,7 +189,7 @@ export const handleListTools = async function (
 
     return { tools: availableTools };
   } catch (error) {
-    logger.error('Tool listing failed', {
+    logger.error(LogSource.MCP, 'Tool listing failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
     });
@@ -218,7 +219,7 @@ export const handleToolCall = async function (
   try {
     const { name: toolName, arguments: toolArgs } = request.params;
 
-    logger.info('Tool call initiated', {
+    logger.info(LogSource.MCP, 'Tool call initiated', {
       toolName,
       sessionId: context.sessionId,
       requestId,
@@ -231,14 +232,14 @@ export const handleToolCall = async function (
 
     if (!toolsModule?.exports) {
       const error = new Error('Tools module not available');
-      logger.error('Tools module not loaded', { requestId });
+      logger.error(LogSource.MCP, 'Tools module not loaded', { requestId });
       throw error;
     }
 
     const tool = await toolsModule.exports.getTool(toolName);
     if (!tool) {
       const error = new Error(`Unknown tool: ${toolName}`);
-      logger.error('Tool not found in registry', {
+      logger.error(LogSource.MCP, 'Tool not found in registry', {
         toolName,
         requestId,
       });
@@ -253,7 +254,7 @@ export const handleToolCall = async function (
         `Permission denied: ${userContext.role} role cannot access ${toolName} tool`,
       );
 
-      logger.warn('Tool access denied', {
+      logger.warn(LogSource.MCP, 'Tool access denied', {
         userId: userContext.userId,
         userEmail: userContext.email,
         role: userContext.role,
@@ -267,7 +268,7 @@ export const handleToolCall = async function (
       throw error;
     }
 
-    logger.info('Tool execution started', {
+    logger.info(LogSource.MCP, 'Tool execution started', {
       userId: userContext.userId,
       userEmail: userContext.email,
       role: userContext.role,
@@ -284,7 +285,7 @@ export const handleToolCall = async function (
 
     const executionTime = Date.now() - startTime;
 
-    logger.info('Tool execution completed', {
+    logger.info(LogSource.MCP, 'Tool execution completed', {
       userId: userContext.userId,
       toolName,
       executionTime,
@@ -306,7 +307,7 @@ export const handleToolCall = async function (
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     const isPermissionError = errorMessage.includes('Permission denied');
 
-    logger.error('Tool execution failed', {
+    logger.error(LogSource.MCP, 'Tool execution failed', {
       toolName: request.params.name,
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,

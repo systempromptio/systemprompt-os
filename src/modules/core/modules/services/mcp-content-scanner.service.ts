@@ -8,6 +8,7 @@
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import * as fs from 'fs/promises';
 import type { Stats } from 'fs';
 import * as path from 'path';
@@ -65,7 +66,7 @@ export class MCPContentScannerService {
    * @returns Promise that resolves when scan is complete.
    */
   async scanModule(moduleName: string, modulePath: string): Promise<void> {
-    this.logger.info(`Scanning module ${moduleName} for MCP content`, { modulePath });
+    this.logger.info(LogSource.MCP, `Scanning module ${moduleName} for MCP content`, { modulePath });
 
     try {
       const promptFiles = await this.findFiles(modulePath, 'prompts/**/*.md');
@@ -74,12 +75,12 @@ export class MCPContentScannerService {
       const resourceFiles = await this.findFiles(modulePath, 'resources/**/*');
       await this.syncResources(moduleName, resourceFiles);
 
-      this.logger.info(`Completed MCP content scan for module ${moduleName}`, {
+      this.logger.info(LogSource.MCP, `Completed MCP content scan for module ${moduleName}`, {
         promptsFound: promptFiles.length,
         resourcesFound: resourceFiles.length,
       });
     } catch (error) {
-      this.logger.error(`Failed to scan MCP content for module ${moduleName}`, { error });
+      this.logger.error(LogSource.MCP, `Failed to scan MCP content for module ${moduleName}`, { error: error instanceof Error ? error : new Error(String(error)) });
       throw error;
     }
   }
@@ -105,7 +106,7 @@ export class MCPContentScannerService {
           stats,
         });
       } catch (error) {
-        this.logger.warn(`Failed to stat file ${filePath}`, { error });
+        this.logger.warn(LogSource.MCP, `Failed to stat file ${filePath}`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
 
@@ -146,7 +147,7 @@ export class MCPContentScannerService {
         const promptData = parsed.data as MCPPromptData;
 
         if (!promptData.name) {
-          this.logger.warn(`Prompt file missing 'name' field: ${file.path}`);
+          this.logger.warn(LogSource.MCP, `Prompt file missing 'name' field: ${file.path}`);
           continue;
         }
 
@@ -178,9 +179,9 @@ export class MCPContentScannerService {
           ],
         );
 
-        this.logger.debug(`Synced prompt: ${promptData.name}`, { module: moduleName });
+        this.logger.debug(LogSource.MCP, `Synced prompt: ${promptData.name}`, { module: moduleName });
       } catch (error) {
-        this.logger.error(`Failed to process prompt file: ${file.path}`, { error });
+        this.logger.error(LogSource.MCP, `Failed to process prompt file: ${file.path}`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
 
@@ -193,7 +194,7 @@ export class MCPContentScannerService {
         `DELETE FROM mcp_prompts WHERE module_name = ? AND name IN (${toDelete.map(() => { return '?' }).join(',')})`,
         [moduleName, ...toDelete],
       );
-      this.logger.info(`Removed ${toDelete.length} obsolete prompts`, { module: moduleName });
+      this.logger.info(LogSource.MCP, `Removed ${toDelete.length} obsolete prompts`, { module: moduleName });
     }
   }
 
@@ -338,13 +339,13 @@ export class MCPContentScannerService {
           ],
         );
 
-        this.logger.debug(`Synced resource: ${resourceData.uri}`, {
+        this.logger.debug(LogSource.MCP, `Synced resource: ${resourceData.uri}`, {
           module: moduleName,
           mimeType,
           size: file.stats.size,
         });
       } catch (error) {
-        this.logger.error(`Failed to process resource file: ${file.path}`, { error });
+        this.logger.error(LogSource.MCP, `Failed to process resource file: ${file.path}`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
 
@@ -357,7 +358,7 @@ export class MCPContentScannerService {
         `DELETE FROM mcp_resources WHERE module_name = ? AND uri IN (${toDelete.map(() => { return '?' }).join(',')})`,
         [moduleName, ...toDelete],
       );
-      this.logger.info(`Removed ${toDelete.length} obsolete resources`, { module: moduleName });
+      this.logger.info(LogSource.MCP, `Removed ${toDelete.length} obsolete resources`, { module: moduleName });
     }
   }
 
@@ -454,6 +455,6 @@ export class MCPContentScannerService {
     await db.execute('DELETE FROM mcp_resources WHERE module_name = ?', [moduleName]);
     await db.execute('DELETE FROM mcp_resource_templates WHERE module_name = ?', [moduleName]);
 
-    this.logger.info(`Removed all MCP content for module ${moduleName}`);
+    this.logger.info(LogSource.MCP, `Removed all MCP content for module ${moduleName}`);
   }
 }

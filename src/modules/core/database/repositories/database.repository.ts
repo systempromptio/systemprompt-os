@@ -4,9 +4,9 @@
  * @module database/repositories/database.repository
  */
 
-import type { IDatabaseConfig, IDatabaseConnection } from '@/modules/core/database/types/database.types';
-import type { IModuleSchema } from '@/modules/core/database/types/schema.types';
-import type { IMigration } from '@/modules/core/database/types/migration.types';
+import type { IDatabaseConfig, IDatabaseConnection } from '@/modules/core/database/types/database.types.js';
+import type { IModuleSchema } from '@/modules/core/database/types/schema.types.js';
+import type { IMigration } from '@/modules/core/database/types/migration.types.js';
 
 /**
  * Database repository interface.

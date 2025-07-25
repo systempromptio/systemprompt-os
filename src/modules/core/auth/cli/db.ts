@@ -13,6 +13,7 @@ const EIGHTY = 80;
 import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import type { AuthModule } from '@/modules/core/auth/index.js';
 
@@ -56,18 +57,18 @@ const askConfirmation = async (question: string): Promise<string> => {
  */
 const displayUserInfo = (user: IUserListRow, index: number, logger: ILogger): void => {
   const userNumber = index + ONE;
-  logger.info(`${String(userNumber)}. ${user.email}`);
-  logger.info(`   ID: ${user.id}`);
+  logger.info(LogSource.AUTH, `${String(userNumber)}. ${user.email}`);
+  logger.info(LogSource.AUTH, `   ID: ${user.id}`);
   if (user.name !== null && user.name !== undefined) {
-    logger.info(`   Name: ${user.name}`);
+    logger.info(LogSource.AUTH, `   Name: ${user.name}`);
   }
-  logger.info(`   Roles: ${user.roles ?? 'none'}`);
-  logger.info(`   Created: ${new Date(user.createdAt).toLocaleString()}`);
+  logger.info(LogSource.AUTH, `   Roles: ${user.roles ?? 'none'}`);
+  logger.info(LogSource.AUTH, `   Created: ${new Date(user.createdAt).toLocaleString()}`);
   if (user.lastLoginAt !== null && user.lastLoginAt !== undefined) {
-    logger.info(`   Last login: ${new Date(user.lastLoginAt).toLocaleString()}`);
+    logger.info(LogSource.AUTH, `   Last login: ${new Date(user.lastLoginAt).toLocaleString()}`);
   }
   const separator = '─'.repeat(EIGHTY);
-  logger.info(separator);
+  logger.info(LogSource.AUTH, separator);
 };
 
 /**
@@ -87,8 +88,8 @@ const deleteAuthTables = async (authModule: AuthModule, logger: ILogger): Promis
   await db.execute('DELETE FROM auth_permissions');
   await db.execute('DELETE FROM auth_roles');
 
-  logger.info('✅ Database reset complete');
-  logger.info('All users, roles, and sessions have been removed');
+  logger.info(LogSource.AUTH, '✅ Database reset complete');
+  logger.info(LogSource.AUTH, 'All users, roles, and sessions have been removed');
 };
 
 /**
@@ -124,7 +125,7 @@ const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Prom
       ); })
   );
 
-  logger.info('✅ Default roles re-created');
+  logger.info(LogSource.AUTH, '✅ Default roles re-created');
 };
 
 /**
@@ -140,7 +141,7 @@ const resetDatabase = async (_context: ICliContext): Promise<void> => {
   );
 
   if (answer.toLowerCase() !== 'yes') {
-    logger.info('Database reset cancelled');
+    logger.info(LogSource.AUTH, 'Database reset cancelled');
     return;
   }
 
@@ -150,7 +151,7 @@ const resetDatabase = async (_context: ICliContext): Promise<void> => {
     await createDefaultRoles(authModule, logger);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('❌ Error resetting database:', errorMessage);
+    logger.error(LogSource.AUTH, '❌ Error resetting database:', { error: errorMessage });
     process.exit(ONE);
   }
 };
@@ -161,16 +162,16 @@ const resetDatabase = async (_context: ICliContext): Promise<void> => {
  * @param logger - Logger instance.
  */
 const displayAllUsers = (users: IUserListRow[], logger: ILogger): void => {
-  logger.info('\n📋 Users in database:\n');
+  logger.info(LogSource.AUTH, '\n📋 Users in database:\n');
   const separator = '─'.repeat(EIGHTY);
-  logger.info(separator);
+  logger.info(LogSource.AUTH, separator);
 
   users.forEach((user: IUserListRow, index: number): void => {
     displayUserInfo(user, index, logger);
   });
 
   const totalMessage = `\nTotal users: ${String(users.length)}`;
-  logger.info(totalMessage);
+  logger.info(LogSource.AUTH, totalMessage);
 };
 
 /**
@@ -201,14 +202,14 @@ const listUsers = async (_context: ICliContext): Promise<void> => {
     `);
 
     if (users.length === ZERO) {
-      logger.info('No users found in the database');
+      logger.info(LogSource.AUTH, 'No users found in the database');
       return;
     }
 
     displayAllUsers(users, logger);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('❌ Error listing users:', errorMessage);
+    logger.error(LogSource.AUTH, '❌ Error listing users:', { error: errorMessage });
     process.exit(ONE);
   }
 };

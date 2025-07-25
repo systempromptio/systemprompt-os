@@ -9,6 +9,7 @@ import cors from 'cors';
 import { CONFIG } from '@/server/config.js';
 import { setupExternalEndpoints } from '@/server/external/index.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { getModuleLoader } from '@/modules/loader.js';
 
 const logger = LoggerService.getInstance();
@@ -76,10 +77,11 @@ export const startServer = async (
   const serverPort = port ?? parseInt(CONFIG.PORT, 10);
 
   const server = app.listen(serverPort, '0.0.0.0', (): void => {
-    logger.info(`🚀 systemprompt-os running on port ${String(serverPort)}`);
-    logger.info(`📡 API endpoint: http://localhost:${String(serverPort)}`);
+    logger.info(LogSource.SERVER, `🚀 systemprompt-os running on port ${String(serverPort)}`);
+    logger.info(LogSource.SERVER, `📡 API endpoint: http://localhost:${String(serverPort)}`);
     logger.info(
-      `🔐 OAuth2 discovery: http://localhost:${String(serverPort)}/.well-known/oauth-protected-resource`,
+      LogSource.SERVER,
+      `🔐 OAuth2 discovery: http://localhost:${String(serverPort)}/.well-known/oauth-protected-resource`
     );
 
     // Log OAuth tunnel status after a brief delay to ensure it's initialized
@@ -90,19 +92,19 @@ export const startServer = async (
       if (authModuleDelayed?.getTunnelStatus) {
         const tunnelStatus = authModuleDelayed.getTunnelStatus();
         if (tunnelStatus.active && tunnelStatus.url) {
-          logger.info('');
-          logger.info('🚇 OAuth Tunnel Active');
-          logger.info(`📍 Public URL: ${tunnelStatus.url}`);
-          logger.info(`🔗 OAuth Redirect Base: ${tunnelStatus.url}/oauth2/callback`);
-          logger.info('');
-          logger.info('Configure your OAuth providers with:');
-          logger.info(`  Google: ${tunnelStatus.url}/oauth2/callback/google`);
-          logger.info(`  GitHub: ${tunnelStatus.url}/oauth2/callback/github`);
+          logger.info(LogSource.AUTH, '');
+          logger.info(LogSource.AUTH, '🚇 OAuth Tunnel Active');
+          logger.info(LogSource.AUTH, `📍 Public URL: ${tunnelStatus.url}`);
+          logger.info(LogSource.AUTH, `🔗 OAuth Redirect Base: ${tunnelStatus.url}/oauth2/callback`);
+          logger.info(LogSource.AUTH, '');
+          logger.info(LogSource.AUTH, 'Configure your OAuth providers with:');
+          logger.info(LogSource.AUTH, `  Google: ${tunnelStatus.url}/oauth2/callback/google`);
+          logger.info(LogSource.AUTH, `  GitHub: ${tunnelStatus.url}/oauth2/callback/github`);
         } else if (process.env['GOOGLE_CLIENT_ID'] ?? process.env['GITHUB_CLIENT_ID']) {
-          logger.info('');
-          logger.info('⚠️  OAuth providers configured but no tunnel active');
-          logger.info('💡 Set ENABLE_OAUTH_TUNNEL=true to auto-create tunnel');
-          logger.info('💡 Or set OAUTH_DOMAIN=https://yourdomain.com for permanent URL');
+          logger.info(LogSource.AUTH, '');
+          logger.info(LogSource.AUTH, '⚠️  OAuth providers configured but no tunnel active');
+          logger.info(LogSource.AUTH, '💡 Set ENABLE_OAUTH_TUNNEL=true to auto-create tunnel');
+          logger.info(LogSource.AUTH, '💡 Or set OAUTH_DOMAIN=https://yourdomain.com for permanent URL');
         }
       }
     }, AUTH_STATUS_DELAY);

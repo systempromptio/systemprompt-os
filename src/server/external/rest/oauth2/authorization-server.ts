@@ -5,7 +5,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { getAuthModule } from '@/modules/core/auth/singleton.js';
 
 /**
  * OAuth 2.0 Authorization Server Metadata Response
@@ -41,46 +41,10 @@ export interface AuthorizationServerMetadata {
 }
 
 export class AuthorizationServerEndpoint {
-  private readonly baseUrl: string;
-
-  constructor(baseUrl: string = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
-  }
   getAuthorizationServerMetadata = (_req: Request, res: Response): Response => {
-    // Use dynamic base URL from tunnel status or fallback
-    const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-
-    const metadata: AuthorizationServerMetadata = {
-      issuer: currentBaseUrl,
-      authorization_endpoint: `${currentBaseUrl}/oauth2/authorize`,
-      token_endpoint: `${currentBaseUrl}/oauth2/token`,
-      jwks_uri: `${currentBaseUrl}/.well-known/jwks.json`,
-      registration_endpoint: `${currentBaseUrl}/oauth2/register`,
-      scopes_supported: ['openid', 'profile', 'email', 'offline_access', 'agent'],
-      response_types_supported: ['code', 'code id_token'],
-      response_modes_supported: ['query', 'fragment'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
-      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
-      service_documentation: `${currentBaseUrl}/docs/api`,
-      code_challenge_methods_supported: ['S256', 'plain'],
-      // OpenID Connect fields
-      userinfo_endpoint: `${currentBaseUrl}/oauth2/userinfo`,
-      subject_types_supported: ['public'],
-      id_token_signing_alg_values_supported: ['RS256', 'HS256'],
-      claims_supported: [
-        'sub',
-        'iss',
-        'aud',
-        'exp',
-        'iat',
-        'name',
-        'preferred_username',
-        'email',
-        'email_verified',
-        'agent_id',
-        'agent_type',
-      ],
-    };
+    const authModule = getAuthModule();
+    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+    const metadata = oauth2ConfigService.getAuthorizationServerMetadata();
 
     return res.json(metadata);
   };

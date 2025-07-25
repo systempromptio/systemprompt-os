@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import type { Router } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const logger = LoggerService.getInstance();
 import { renderAuthPage } from '@/server/external/templates/auth.js';
@@ -48,7 +49,10 @@ export class AuthEndpoint {
 
       res.type('html').send(html);
     } catch (error) {
-      logger.error('Auth page error', { error });
+      logger.error(LogSource.AUTH, 'Auth page error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'page'
+});
       res.status(500).json({
         error: 'servererror',
         error_description: 'Failed to load authentication page',
@@ -69,9 +73,10 @@ export class AuthEndpoint {
 } = req.query;
 
       if (error) {
-        logger.error('OAuth error during auth', {
-          error,
+        logger.error(LogSource.AUTH, 'OAuth error during auth', {
+          error: typeof error === 'string' ? new Error(error) : error instanceof Error ? error : new Error(String(error)),
           error_description,
+          category: 'oauth'
         });
         res.redirect(`/auth?error=${encodeURIComponent(error as string)}`);
         return;
@@ -83,7 +88,10 @@ export class AuthEndpoint {
 
       await this.completeAuthentication(code as string, res);
     } catch (error) {
-      logger.error('Auth callback error', { error });
+      logger.error(LogSource.AUTH, 'Auth callback error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'callback'
+});
       res.redirect('/auth?error=Authentication%20failed');
     }
   }
@@ -99,11 +107,18 @@ export class AuthEndpoint {
       res.clearCookie('auth_token');
       res.clearCookie('refresh_token');
 
-      logger.info('User logged out', { userId: (req as any).user?.id });
+      logger.info(LogSource.AUTH, 'User logged out', {
+        userId: (req as any).user?.id,
+        category: 'logout',
+        action: 'logout'
+      });
 
       res.redirect('/');
     } catch (error) {
-      logger.error('Logout error', { error });
+      logger.error(LogSource.AUTH, 'Logout error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'logout'
+});
       res.redirect('/');
     }
   }
@@ -121,10 +136,10 @@ export class AuthEndpoint {
     const tokenUrl = `${baseUrl}/oauth2/token`;
     const redirectUri = `${baseUrl}/auth/callback`;
 
-    logger.info('Attempting token exchange', {
-      tokenUrl,
-      redirectUri,
-      codeLength: code.length,
+    logger.info(LogSource.AUTH, 'Attempting token exchange', {
+      category: 'token',
+      action: 'exchange',
+      persistToDb: false
     });
 
     const tokenResponse = await fetch(tokenUrl, {
@@ -142,10 +157,11 @@ export class AuthEndpoint {
 
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.text();
-      logger.error('Token exchange failed', {
+      logger.error(LogSource.AUTH, 'Token exchange failed', {
         status: tokenResponse.status,
         statusText: tokenResponse.statusText,
-        body: errorBody,
+        category: 'token',
+        action: 'exchange'
       });
       throw new Error(`Token exchange failed: ${tokenResponse.status} ${errorBody}`);
     }

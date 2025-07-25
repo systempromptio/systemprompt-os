@@ -8,9 +8,10 @@
 import { readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * MCP content scanner interface.
@@ -109,7 +110,7 @@ export class SchemaService {
    */
   public async discoverSchemas(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
-      this.logger?.info('Discovering module schemas', { baseDir });
+      this.logger?.info(LogSource.DATABASE, 'Discovering module schemas', { baseDir });
 
       const schemaFiles = await glob('**/database/schema.sql', {
         cwd: baseDir,
@@ -154,17 +155,17 @@ schema
 
       for (const { moduleNameResult, schema } of results) {
         this.schemas.set(moduleNameResult, schema);
-        this.logger?.debug('Discovered schema', {
+        this.logger?.debug(LogSource.DATABASE, 'Discovered schema', {
           module: moduleNameResult,
           schemaPath: schema.schemaPath
         });
       }
 
-      this.logger?.info('Schema discovery complete', {
+      this.logger?.info(LogSource.DATABASE, 'Schema discovery complete', {
         modulesFound: this.schemas.size,
       });
     } catch (error) {
-      this.logger?.error('Schema discovery failed', { error });
+      this.logger?.error(LogSource.DATABASE, 'Schema discovery failed', { error: error instanceof Error ? error : new Error(String(error)) });
       throw error;
     }
   }
@@ -202,14 +203,14 @@ schema
     const result = await this.importService.importSchemas(schemaFiles);
 
     if (!result.success) {
-      this.logger?.error('Schema import failed', { errors: result.errors });
+      this.logger?.error(LogSource.DATABASE, 'Schema import failed', { errors: result.errors });
       const errorMessages = result.errors
         .map((errorItem): string => { return errorItem.error })
         .join('; ');
       throw new Error(`Schema import failed: ${errorMessages}`);
     }
 
-    this.logger?.info('Schema import complete', {
+    this.logger?.info(LogSource.DATABASE, 'Schema import complete', {
       imported: result.imported.length,
       skipped: result.skipped.length
     });
@@ -230,16 +231,16 @@ schema
         const modulePath = dirname(dirname(schema.schemaPath));
         const moduleName = moduleKey.replace('core/', '');
 
-        this.logger?.debug('Scanning module for MCP content', {
+        this.logger?.debug(LogSource.DATABASE, 'Scanning module for MCP content', {
           module: moduleName,
           modulePath
         });
 
         await this.mcpContentScanner.scanModule(moduleName, modulePath);
       } catch (error) {
-        this.logger?.warn('Failed to scan MCP content for module', {
+        this.logger?.warn(LogSource.DATABASE, 'Failed to scan MCP content for module', {
           module: moduleKey,
-          error
+          error: error instanceof Error ? error : new Error(String(error))
         });
       }
     }
@@ -301,7 +302,7 @@ schema
         installedAt: schema.imported_at
       } });
     } catch (error) {
-      this.logger?.debug('No imported schemas found', { error });
+      this.logger?.debug(LogSource.DATABASE, 'No imported schemas found', { error: error instanceof Error ? error : new Error(String(error)) });
       return [];
     }
   }
@@ -379,17 +380,17 @@ schema
    */
   public async scanModuleMcpContent(moduleName: string, modulePath: string): Promise<void> {
     if (this.mcpContentScanner === undefined) {
-      this.logger?.warn('MCP content scanner not available');
+      this.logger?.warn(LogSource.DATABASE, 'MCP content scanner not available');
       return;
     }
 
     try {
       await this.mcpContentScanner.scanModule(moduleName, modulePath);
-      this.logger?.info('MCP content scan completed', { module: moduleName });
+      this.logger?.info(LogSource.DATABASE, 'MCP content scan completed', { module: moduleName });
     } catch (error) {
-      this.logger?.error('Failed to scan MCP content', {
+      this.logger?.error(LogSource.DATABASE, 'Failed to scan MCP content', {
         module: moduleName,
-        error
+        error: error instanceof Error ? error : new Error(String(error))
       });
       throw error;
     }
@@ -402,17 +403,17 @@ schema
    */
   public async removeModuleMcpContent(moduleName: string): Promise<void> {
     if (this.mcpContentScanner === undefined) {
-      this.logger?.warn('MCP content scanner not available');
+      this.logger?.warn(LogSource.DATABASE, 'MCP content scanner not available');
       return;
     }
 
     try {
       await this.mcpContentScanner.removeModuleContent(moduleName);
-      this.logger?.info('MCP content removed', { module: moduleName });
+      this.logger?.info(LogSource.DATABASE, 'MCP content removed', { module: moduleName });
     } catch (error) {
-      this.logger?.error('Failed to remove MCP content', {
+      this.logger?.error(LogSource.DATABASE, 'Failed to remove MCP content', {
         module: moduleName,
-        error
+        error: error instanceof Error ? error : new Error(String(error))
       });
       throw error;
     }

@@ -15,9 +15,47 @@ export interface ILogLevel {
 export type LogLevelName = keyof ILogLevel;
 
 /**
+ * Log sources for structured logging.
+ */
+export enum LogSource {
+  BOOTSTRAP = 'bootstrap',
+  CLI = 'cli',
+  DATABASE = 'database',
+  LOGGER = 'logger',
+  AUTH = 'auth',
+  MCP = 'mcp',
+  SERVER = 'server',
+  MODULES = 'modules',
+  API = 'api',
+  ACCESS = 'access',
+  SCHEDULER = 'scheduler',
+  SYSTEM = 'system',
+  WEBHOOK = 'webhook',
+  WORKFLOW = 'workflow',
+  DEV = 'dev',
+  EXECUTORS = 'executors',
+  MONITOR = 'monitor',
+  PERMISSIONS = 'permissions',
+  USERS = 'users'
+}
+
+/**
  * Log output types.
  */
-export type LogOutput = 'console' | 'file';
+export enum LogOutput {
+  CONSOLE = 'console',
+  FILE = 'file',
+  DATABASE = 'database'
+}
+
+/**
+ * Logger modes for different contexts.
+ */
+export enum LoggerMode {
+  CONSOLE = 'console',
+  CLI = 'cli',
+  SERVER = 'server'
+}
 
 /**
  * Configuration for log files.
@@ -30,28 +68,73 @@ export interface ILogFiles {
 }
 
 /**
+ * Database configuration for logging.
+ */
+export interface ILogDatabaseConfig {
+    enabled: boolean;
+    tableName?: string;
+}
+
+/**
  * Logger configuration.
  */
 export interface ILoggerConfig {
     stateDir: string;
     logLevel: LogLevelName;
+    mode?: LoggerMode;
     maxSize: string;
     maxFiles: number;
     outputs: LogOutput[];
     files: ILogFiles;
+    database?: ILogDatabaseConfig;
 }
 
 /**
- * Logger service interface.
+ * Log categories for better organization.
+ */
+export enum LogCategory {
+    INITIALIZATION = 'init',
+    AUTHENTICATION = 'auth',
+    DATABASE = 'db',
+    API = 'api',
+    SECURITY = 'security',
+    PERFORMANCE = 'perf',
+    ERROR = 'error',
+    SYSTEM = 'system',
+    USER_ACTION = 'user',
+    MODULE_LOAD = 'module',
+    CONFIGURATION = 'config',
+    HEALTH_CHECK = 'health'
+}
+
+export interface LogArgs {
+    category?: LogCategory | string;
+    persistToDb?: boolean;
+    sessionId?: string | undefined;
+    userId?: string | undefined;
+    requestId?: string | undefined;
+    module?: string | undefined;
+    action?: string | undefined;
+    error?: Error | string | undefined;
+    duration?: number | undefined;
+    status?: string | number | undefined;
+    data?: Record<string, unknown> | undefined;
+    [key: string]: unknown;
+}
+
+/**
+ * Logger service interface with structured logging.
  */
 export interface ILogger {
-    debug(message: string, ...args: unknown[]): void;
-    info(message: string, ...args: unknown[]): void;
-    warn(message: string, ...args: unknown[]): void;
-    error(message: string, ...args: unknown[]): void;
-    addLog(level: string, message: string, ...args: unknown[]): void;
+    debug(source: LogSource, message: string, args?: LogArgs): void;
+    info(source: LogSource, message: string, args?: LogArgs): void;
+    warn(source: LogSource, message: string, args?: LogArgs): void;
+    error(source: LogSource, message: string, args?: LogArgs): void;
+    log(level: LogLevelName, source: LogSource, message: string, args?: LogArgs): void;
+    access(message: string): void;
     clearLogs(logFile?: string): Promise<void>;
     getLogs(logFile?: string): Promise<string[]>;
+    setDatabaseService?(databaseService: any): void;
 }
 
 /**

@@ -387,6 +387,7 @@ import type { UserService } from '@/modules/core/auth/services/user-service.js';
 import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
 import type { MFAService } from '@/modules/core/auth/services/mfa.service.js';
 import type { AuditService } from '@/modules/core/auth/services/audit.service.js';
+import type { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service.js';
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 
 /**
@@ -402,6 +403,7 @@ export interface IAuthModuleExports {
   authCodeService: () => AuthCodeService;
   mfaService: () => MFAService;
   auditService: () => AuditService;
+  oauth2ConfigService: () => OAuth2ConfigService;
   getProvider: (id: string) => IdentityProvider | undefined;
   getAllProviders: () => IdentityProvider[];
   createToken: (_input: ITokenCreateInput) => Promise<IAuthToken>;
@@ -409,7 +411,6 @@ export interface IAuthModuleExports {
   hasProvider: (id: string) => boolean;
   getProviderRegistry: () => any;
   reloadProviders: () => Promise<void>;
-  [key: string]: unknown;
 }
 
 export type * from '@/modules/core/auth/types/provider-interface.js';

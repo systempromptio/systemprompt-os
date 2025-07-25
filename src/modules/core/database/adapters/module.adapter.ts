@@ -5,14 +5,14 @@
  */
 
 import type { Database } from 'better-sqlite3';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type {
   IDatabaseRow,
   IModuleDatabaseAdapter,
   IModulePreparedStatement,
   IMutationResult
-} from '@/modules/core/database/types/module-adapter.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+} from '@/modules/core/database/types/module-adapter.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * Helper to get database instance from service.

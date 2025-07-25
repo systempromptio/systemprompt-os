@@ -1,5 +1,6 @@
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 /**
  *  *  * @file Authorization code persistence service.
  * @module modules/core/auth/services/auth-code-service
@@ -106,7 +107,7 @@ export class AuthCodeService {
       ]
     );
 
-    this.getLogger().info('Authorization code created', {
+    this.getLogger().info(LogSource.AUTH, 'Authorization code created', {
       code: `${code.substring(ZERO, 8)}...`,
       clientId: data.clientId
     });

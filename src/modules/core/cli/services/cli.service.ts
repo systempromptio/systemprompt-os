@@ -17,32 +17,37 @@ import {
   OutputFormattingError,
 } from '@/modules/core/cli/utils/errors.js';
 import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
 
 interface IDatabaseCommand {
   id: number;
-  commandPath: string;
-  commandName: string;
+  command_path: string;
+  command_name: string;
   description: string;
-  module: string;
-  executorPath: string;
+  module_name: string;
+  executor_path: string;
   options: string;
   aliases: string;
   active: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface IParsedDatabaseCommand {
   id: number;
-  commandPath: string;
-  commandName: string;
+  command_path: string;
+  command_name: string;
   description: string;
-  module: string;
-  executorPath: string;
+  module_name: string;
+  executor_path: string;
   options: CLIOption[];
   aliases: string[];
   active: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -95,31 +100,15 @@ export class CliService {
       this.logger = logger;
       this.database = database;
 
-      await this.initializeDatabase();
+      // Database schema is handled by the global database service via schema discovery
 
       this.initialized = true;
-      this.logger.info('CLI service initialized');
+      this.logger?.debug(LogSource.CLI, 'CLI service initialized', {
+        category: 'init',
+        persistToDb: false,
+      });
     } catch (error) {
       throw new CliInitializationError(error as Error);
-    }
-  }
-
-  /**
-   * Initialize CLI database tables.
-   * @throws {Error} If database is not initialized.
-   */
-  private async initializeDatabase(): Promise<void> {
-    if (this.database === null || this.database === undefined) {
-      throw new Error('Database not initialized');
-    }
-
-    const filename = import.meta.url.replace('file://', '');
-    const dirName = join(filename, '..');
-    const schemaPath = join(dirName, '../../database/schema.sql');
-
-    if (existsSync(schemaPath)) {
-      const schema = readFileSync(schemaPath, 'utf-8');
-      await this.database.execute(schema);
     }
   }
 
@@ -135,11 +124,11 @@ export class CliService {
     const commandMap = new Map<string, CLICommand>();
 
     for (const cmd of commands) {
-      commandMap.set(cmd.commandPath, {
-        name: cmd.commandName,
+      commandMap.set(cmd.command_path, {
+        name: cmd.command_name,
         description: cmd.description,
         options: cmd.options,
-        executorPath: cmd.executorPath,
+        executorPath: cmd.executor_path,
       });
     }
 
@@ -244,7 +233,7 @@ export class CliService {
         const metadata: CommandMetadata[] = [];
         commands.forEach((command, name): void => {
           const parts = name.split(':');
-          const module = parts.length > 1 ? parts[0] ?? 'core' : 'core';
+          const module = parts.length > 1 ? (parts[0] ?? 'core') : 'core';
           const commandName = parts.length > 1 ? parts.slice(1).join(':') : name;
 
           metadata.push({
@@ -253,7 +242,7 @@ export class CliService {
             commandName,
             description: command.description ?? 'No description available',
             usage: `systemprompt ${name}`,
-            options: command.options ?? []
+            options: command.options ?? [],
           });
         });
         return JSON.stringify(metadata, null, 2);
@@ -282,28 +271,32 @@ export class CliService {
       let output = '';
 
       if (format === 'table') {
-        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
-          { return a[0].localeCompare(b[0]) });
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number => {
+          return a[0].localeCompare(b[0]);
+        });
 
         sortedModules.forEach(([moduleName, moduleCommands]): void => {
           output += `\n${moduleName}:\n`;
           output += `${'-'.repeat(moduleName.length + 1)}\n`;
 
-          const sortedCommands = moduleCommands.sort((a, b): number =>
-            { return a.name.localeCompare(b.name) });
+          const sortedCommands = moduleCommands.sort((a, b): number => {
+            return a.name.localeCompare(b.name);
+          });
 
           sortedCommands.forEach((cmd): void => {
             output += `  ${cmd.name.padEnd(25)} ${cmd.description}\n`;
           });
         });
       } else {
-        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
-          { return a[0].localeCompare(b[0]) });
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number => {
+          return a[0].localeCompare(b[0]);
+        });
 
         sortedModules.forEach(([moduleName, moduleCommands]): void => {
           output += `\n${moduleName}:\n`;
-          const sortedCommands = moduleCommands.sort((a, b): number =>
-            { return a.name.localeCompare(b.name) });
+          const sortedCommands = moduleCommands.sort((a, b): number => {
+            return a.name.localeCompare(b.name);
+          });
 
           sortedCommands.forEach((cmd): void => {
             output += `  ${moduleName}:${cmd.name} - ${cmd.description}\n`;
@@ -344,14 +337,15 @@ export class CliService {
           const moduleCommands = modules.get(moduleName ?? '');
           if (moduleCommands !== undefined) {
             moduleCommands.push({
- name,
-command
-});
+              name,
+              command,
+            });
           }
         });
 
-        const sortedModules = Array.from(modules.entries()).sort((a, b): number =>
-          { return a[0].localeCompare(b[0]) });
+        const sortedModules = Array.from(modules.entries()).sort((a, b): number => {
+          return a[0].localeCompare(b[0]);
+        });
 
         sortedModules.forEach(([moduleName]): void => {
           doc += `- [${moduleName}](#${moduleName})\n`;
@@ -362,8 +356,9 @@ command
         sortedModules.forEach(([moduleName, moduleCommands]): void => {
           doc += `### ${moduleName}\n\n`;
 
-          const sortedCommands = moduleCommands.sort((a, b): number =>
-            { return a.name.localeCompare(b.name) });
+          const sortedCommands = moduleCommands.sort((a, b): number => {
+            return a.name.localeCompare(b.name);
+          });
 
           sortedCommands.forEach(({ name, command }): void => {
             doc += `#### ${name}\n\n`;
@@ -374,7 +369,8 @@ command
               doc += '**Options:**\n\n';
               command.options.forEach((opt): void => {
                 const aliasText = opt.alias !== undefined ? `, -${opt.alias}` : '';
-                const defaultText = opt.default !== undefined ? ` (default: ${String(opt.default)})` : '';
+                const defaultText =
+                  opt.default !== undefined ? ` (default: ${String(opt.default)})` : '';
                 const requiredText = opt.required === true ? ' **[required]**' : '';
                 doc += `- \`--${opt.name}${aliasText}\`: ${opt.description}${defaultText}${requiredText}\n`;
               });
@@ -409,7 +405,7 @@ command
   public async registerCommand(
     command: CLICommand,
     moduleName: string,
-    executorPath: string
+    executorPath: string,
   ): Promise<void> {
     if (this.database === null || this.database === undefined) {
       throw new Error('Database not initialized');
@@ -419,7 +415,7 @@ command
 
     await this.database.execute(
       `INSERT OR REPLACE INTO cli_commands 
-       (command_path, command_name, description, module, executor_path, options, aliases, active)
+       (command_path, command_name, description, module_name, executor_path, options, aliases, active)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         commandPath,
@@ -429,8 +425,8 @@ command
         executorPath,
         JSON.stringify(command.options ?? []),
         JSON.stringify(command.aliases ?? []),
-        1
-      ]
+        1,
+      ],
     );
   }
 
@@ -444,14 +440,16 @@ command
     }
 
     const result = await this.database.query<IDatabaseCommand>(
-      `SELECT * FROM cli_commands WHERE active = 1 ORDER BY command_path`
+      `SELECT * FROM cli_commands WHERE active = 1 ORDER BY command_path`,
     );
 
-    return result.map((row): IParsedDatabaseCommand => { return {
-      ...row,
-      options: JSON.parse(row.options ?? '[]') as CLIOption[],
-      aliases: JSON.parse(row.aliases ?? '[]') as string[]
-    } });
+    return result.map((row): IParsedDatabaseCommand => {
+      return {
+        ...row,
+        options: JSON.parse(row.options ?? '[]') as CLIOption[],
+        aliases: JSON.parse(row.aliases ?? '[]') as string[],
+      };
+    });
   }
 
   /**
@@ -480,6 +478,121 @@ command
     };
 
     return moduleConfig.cli?.commands ?? [];
+  }
+
+  /**
+   * Clear all existing commands from the database.
+   * @returns Promise that resolves when commands are cleared.
+   */
+  public async clearAllCommands(): Promise<void> {
+    if (this.database === null || this.database === undefined) {
+      throw new Error('Database not initialized');
+    }
+
+    await this.database.execute('DELETE FROM cli_commands');
+  }
+
+  /**
+   * Scan modules and register their CLI commands from module.yaml files.
+   * @param modules - Map of loaded modules with their paths.
+   * @returns Promise that resolves when all commands are registered.
+   */
+  public async scanAndRegisterModuleCommands(
+    modules: Map<string, { path: string }>,
+  ): Promise<void> {
+    // Clear existing commands first to ensure clean state
+    await this.clearAllCommands();
+
+    this.logger?.debug(LogSource.CLI, `Scanning ${modules.size} modules for CLI commands`, {
+      category: 'commands',
+      persistToDb: false,
+    });
+
+    for (const [moduleName, moduleInfo] of modules) {
+      try {
+        const yamlPath = join(moduleInfo.path, 'module.yaml');
+        this.logger?.debug(LogSource.CLI, `Checking for module.yaml at: ${yamlPath}`, {
+          category: 'commands',
+          persistToDb: false,
+        });
+
+        if (!existsSync(yamlPath)) {
+          this.logger?.debug(
+            LogSource.CLI,
+            `Module YAML not found for ${moduleName}: ${yamlPath}`,
+            { category: 'commands',
+persistToDb: false },
+          );
+          continue;
+        }
+
+        const yamlContent = readFileSync(yamlPath, 'utf-8');
+        const moduleConfig = parse(yamlContent) as {
+          cli?: {
+            commands?: Array<{
+              name: string;
+              description: string;
+              executor?: string;
+              options?: CLIOption[];
+            }>;
+          };
+        };
+
+        const commands = moduleConfig.cli?.commands ?? [];
+        this.logger?.debug(
+          LogSource.CLI,
+          `Found ${commands.length} CLI commands in ${moduleName} module`,
+          { category: 'commands',
+persistToDb: false },
+        );
+
+        for (const command of commands) {
+          const commandPath = `${moduleName}:${command.name}`;
+          // If no executor specified, assume it's in cli/{command.name}.js
+          const executor = command.executor ?? `cli/${command.name.replace(':', '/')}.js`;
+
+          // Convert source path to build path for executor
+          const buildPath = moduleInfo.path.replace('/src/modules/core/', '/build/modules/core/');
+          const executorPath = join(buildPath, executor);
+
+          this.logger?.debug(
+            LogSource.CLI,
+            `Registering command: ${commandPath} -> ${executorPath}`,
+            { category: 'commands',
+persistToDb: false },
+          );
+
+          const cliCommand: CLICommand = {
+            name: command.name,
+            description: command.description ?? '',
+            options: command.options ?? [],
+          };
+
+          await this.registerCommand(cliCommand, moduleName, executorPath);
+
+          this.logger?.debug(LogSource.CLI, `Successfully registered command: ${commandPath}`, {
+            category: 'commands',
+            persistToDb: false,
+          });
+        }
+
+        if (commands.length > 0) {
+          this.logger?.debug(
+            LogSource.CLI,
+            `Registered ${commands.length} commands from module: ${moduleName}`,
+            { category: 'commands',
+persistToDb: false },
+          );
+        }
+      } catch (error) {
+        this.logger?.warn(LogSource.CLI, `Failed to parse commands from module ${moduleName}`, {
+          category: 'commands',
+          error: error as Error,
+        });
+      }
+    }
+
+    // Module command scanning complete (silent for CLI)
   }
 
   /**

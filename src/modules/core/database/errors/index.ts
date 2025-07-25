@@ -4,11 +4,11 @@
  * @module database/errors
  */
 
-import { DatabaseError as DatabaseErrorClass } from '@/modules/core/database/errors/base.error';
-export { DatabaseError } from '@/modules/core/database/errors/base.error';
-export { ConnectionError } from '@/modules/core/database/errors/connection.error';
-export { QueryError } from '@/modules/core/database/errors/query.error';
-export { ModuleDatabaseError } from '@/modules/core/database/errors/module-database.error';
+import { DatabaseError as DatabaseErrorClass } from '@/modules/core/database/errors/base.error.js';
+export { DatabaseError } from '@/modules/core/database/errors/base.error.js';
+export { ConnectionError } from '@/modules/core/database/errors/connection.error.js';
+export { QueryError } from '@/modules/core/database/errors/query.error.js';
+export { ModuleDatabaseError } from '@/modules/core/database/errors/module-database.error.js';
 
 /**
  * Type guard to check if error is a DatabaseError.

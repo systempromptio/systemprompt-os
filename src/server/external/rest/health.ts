@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { CONFIG } from '@/server/config.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 const logger = LoggerService.getInstance();
 
@@ -75,7 +76,11 @@ export class HealthEndpoint {
       const content = readFileSync(heartbeatPath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
-      logger.error('Failed to read heartbeat data:', error);
+      logger.error(LogSource.SERVER, 'Failed to read heartbeat data', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'health',
+persistToDb: false
+});
       return null;
     }
   }
@@ -120,7 +125,10 @@ export class HealthEndpoint {
         status = 'degraded';
       }
     } else {
-      logger.debug('No heartbeat data available');
+      logger.debug(LogSource.SERVER, 'No heartbeat data available', {
+ category: 'health',
+persistToDb: false
+});
     }
 
     const health: HealthResponse = {

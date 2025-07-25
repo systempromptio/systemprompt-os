@@ -7,6 +7,7 @@
  */
 
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import type {DevSessionType} from '@/modules/core/dev/types/index.js';
 import {
   DevSessionStatus,
@@ -60,7 +61,7 @@ export class DevService implements IDevService {
 
     // Placeholder initialization
     this.initialized = true;
-    this.logger?.info('DevService initialized');
+    this.logger?.info(LogSource.DEV, 'DevService initialized');
   }
 
   /**
@@ -81,7 +82,7 @@ export class DevService implements IDevService {
       updatedAt: new Date()
     };
 
-    this.logger?.info(`Created dev profile: ${name}`);
+    this.logger?.info(LogSource.DEV, `Created dev profile: ${name}`);
     return profile;
   }
 
@@ -94,7 +95,7 @@ export class DevService implements IDevService {
     await this.ensureInitialized();
 
     // Placeholder implementation
-    this.logger?.debug(`Getting profile: ${name}`);
+    this.logger?.debug(LogSource.DEV, `Getting profile: ${name}`);
     return null;
   }
 
@@ -116,7 +117,7 @@ export class DevService implements IDevService {
       startedAt: new Date()
     };
 
-    this.logger?.info(`Started ${type} session`);
+    this.logger?.info(LogSource.DEV, `Started ${type} session`);
     return session;
   }
 
@@ -130,7 +131,7 @@ export class DevService implements IDevService {
     await this.ensureInitialized();
 
     // Placeholder implementation
-    this.logger?.info(`Ended session ${sessionId} with status: ${status}`);
+    this.logger?.info(LogSource.DEV, `Ended session ${sessionId} with status: ${status}`);
   }
 
   /**

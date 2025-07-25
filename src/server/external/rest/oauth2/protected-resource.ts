@@ -5,7 +5,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+import { getAuthModule } from '@/modules/core/auth/singleton.js';
 
 /**
  * OAuth 2.0 Protected Resource Metadata Response
@@ -23,22 +23,10 @@ export interface ProtectedResourceMetadata {
 }
 
 export class ProtectedResourceEndpoint {
-  private readonly baseUrl: string;
-
-  constructor(baseUrl: string = 'http://localhost:3000') {
-    this.baseUrl = baseUrl;
-  }
   getProtectedResourceMetadata = (_req: Request, res: Response): Response => {
-    // Use dynamic base URL from tunnel status or fallback
-    const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
-
-    const metadata: ProtectedResourceMetadata = {
-      resource: `${currentBaseUrl}/mcp`,
-      authorization_servers: [currentBaseUrl], // Since we're acting as both resource and auth server
-      bearer_methods_supported: ['header'],
-      scopes_supported: ['openid', 'profile', 'email', 'offline_access', 'agent'],
-      resource_documentation: `${currentBaseUrl}/docs/api`,
-    };
+    const authModule = getAuthModule();
+    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+    const metadata = oauth2ConfigService.getProtectedResourceMetadata();
 
     return res.json(metadata);
   };

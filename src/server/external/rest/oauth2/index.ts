@@ -14,7 +14,7 @@
  * import { setupOAuth2Routes } from './oauth2/index.js';
  * import { Router } from 'express';
  * const router = Router();
- * await setupOAuth2Routes(router, 'https://api.example.com');
+ * await setupOAuth2Routes(router);
  * app.use(router);
  * ```
  */
@@ -22,10 +22,10 @@
 import type {
  NextFunction, Request, Response, Router
 } from 'express';
-import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known';
-import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource';
-import { AuthorizationServerEndpoint } from '@/server/external/rest/oauth2/authorization-server';
-import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize';
+import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known.js';
+import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource.js';
+import { AuthorizationServerEndpoint } from '@/server/external/rest/oauth2/authorization-server.js';
+import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize.js';
 
 // Mock implementations for missing modules
 class RegisterEndpoint {
@@ -63,7 +63,6 @@ const authMiddleware = (_req: Request, _res: Response, next: NextFunction) => {
 /**
  * Configures and sets up all OAuth2-related routes on the provided Express router.
  * @param {Router} router - Express router instance to mount the OAuth2 routes on.
- * @param {string} baseUrl - Base URL of the application used for generating absolute URLs in responses.
  * @returns {Promise<void>} Promise that resolves when all routes are configured.
  * @remarks
  * This function sets up the following endpoints:
@@ -80,7 +79,7 @@ const authMiddleware = (_req: Request, _res: Response, next: NextFunction) => {
  * ```typescript
  * const app = express();
  * const router = Router();
- * await setupOAuth2Routes(router, 'https://api.example.com');
+ * await setupOAuth2Routes(router);
  * app.use('/api', router);
  * // Routes are now available at:
  * // - /api/.well-known/openid-configuration
@@ -90,14 +89,14 @@ const authMiddleware = (_req: Request, _res: Response, next: NextFunction) => {
  * @public
  * @async
  */
-export async function setupOAuth2Routes(router: Router, baseUrl: string): Promise<void> {
+export async function setupOAuth2Routes(router: Router): Promise<void> {
   /**
    * Initialize endpoint handlers
    * Each handler class encapsulates the logic for a specific OAuth2 endpoint.
    */
-  const wellKnown = new WellKnownEndpoint(baseUrl);
-  const protectedResource = new ProtectedResourceEndpoint(baseUrl);
-  const authorizationServer = new AuthorizationServerEndpoint(baseUrl);
+  const wellKnown = new WellKnownEndpoint();
+  const protectedResource = new ProtectedResourceEndpoint();
+  const authorizationServer = new AuthorizationServerEndpoint();
   const register = new RegisterEndpoint();
   const authorize = new AuthorizeEndpoint();
   const token = new TokenEndpoint();

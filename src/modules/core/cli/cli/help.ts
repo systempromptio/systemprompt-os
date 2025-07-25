@@ -12,6 +12,7 @@ import type {
   ICliService
 } from '@/modules/core/cli/types/index.js';
 import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
+import { HelpService } from '@/modules/core/cli/services/help.service.js';
 
 /**
  * Gets the CLI service from the module loader.
@@ -36,61 +37,6 @@ const getCliService = (): ICliService => {
   }
 
   return cliService;
-};
-
-/**
- * Shows help for a specific command.
- * @param commandName - The name of the command.
- * @param cliService - The CLI service.
- */
-const showSpecificCommandHelp = async (
-  commandName: string,
-  cliService: ICliService
-): Promise<void> => {
-  const commands = await cliService.getAllCommands();
-  const help = cliService.getCommandHelp(commandName, commands);
-  console.log(help);
-};
-
-/**
- * Shows all commands with full details.
- * @param cliService - The CLI service.
- */
-const showAllCommands = async (cliService: ICliService): Promise<void> => {
-  console.log('\nSystemPrompt OS - All Available Commands');
-  console.log('========================================\n');
-
-  const commands = await cliService.getAllCommands();
-  const commandsArray = Array.from(commands.entries());
-  const sortedCommands = commandsArray.sort((first, second): number => { return first[0].localeCompare(second[0]) });
-
-  sortedCommands.forEach(([name]): void => {
-    console.log(cliService.getCommandHelp(name, commands));
-    console.log('-'.repeat(40));
-  });
-};
-
-/**
- * Shows general help.
- * @param cliModule - The CLI module.
- * @param cliService - The CLI service.
- */
-const showGeneralHelp = async (
-  cliModule: ICliModule,
-  cliService: ICliService
-): Promise<void> => {
-  console.log('\nSystemPrompt OS CLI');
-  console.log('==================\n');
-  console.log('Usage: systemprompt <command> [options]\n');
-  console.log('Commands:');
-
-  const commands = await cliService.getAllCommands();
-  console.log(cliModule.formatCommands(commands, 'text'));
-
-  console.log('\nFor detailed help on a specific command:');
-  console.log('  systemprompt cli:help --command <command-name>');
-  console.log('\nFor all commands with details:');
-  console.log('  systemprompt cli:help --all');
 };
 
 export const command: CLICommand = {
@@ -119,15 +65,14 @@ export const command: CLICommand = {
 
     try {
       const cliService = getCliService();
-      const moduleLoader = getModuleLoader();
-      const cliModule = moduleLoader.getModule('cli') as unknown as ICliModule;
+      const helpService = HelpService.getInstance();
 
       if ((args as any)?.command !== undefined && (args as any)?.command !== null) {
-        await showSpecificCommandHelp((args as any).command as string, cliService);
+        await helpService.showSpecificCommandHelp((args as any).command as string, cliService);
       } else if ((args as any)?.all === true) {
-        await showAllCommands(cliService);
+        await helpService.showAllCommands(cliService);
       } else {
-        await showGeneralHelp(cliModule, cliService);
+        await helpService.showGeneralHelp(cliService);
       }
     } catch (error) {
       throw new CommandExecutionError('cli:help', error as Error);

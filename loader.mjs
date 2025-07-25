@@ -27,6 +27,34 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
   
+  // Handle relative imports that might need .js extension
+  if (specifier.startsWith('./') || specifier.startsWith('../')) {
+    if (!specifier.endsWith('.js') && !specifier.endsWith('.json') && !specifier.endsWith('/')) {
+      // Check if it's likely a JS/TS file import
+      if (!specifier.includes('.')) {
+        return nextResolve(specifier + '.js', context);
+      }
+    }
+  }
+  
   // Default resolution
   return nextResolve(specifier, context);
+}
+
+export async function load(url, context, nextLoad) {
+  return nextLoad(url, context);
+}
+
+export async function getFormat(url, context, nextGetFormat) {
+  // Handle directory imports by trying to load index.js
+  if (url.startsWith('file://') && !url.endsWith('.js') && !url.endsWith('.json') && !url.endsWith('.mjs')) {
+    try {
+      const indexUrl = url + '/index.js';
+      await import.meta.resolve(indexUrl);
+      return { format: 'module' };
+    } catch {
+      // Fall through to default
+    }
+  }
+  return nextGetFormat(url, context);
 }

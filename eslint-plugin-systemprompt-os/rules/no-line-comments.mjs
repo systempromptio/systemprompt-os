@@ -9,6 +9,7 @@ export default {
       category: 'Stylistic Issues',
       recommended: true
     },
+    fixable: 'code',
     messages: {
       noLineComments: 'Line comments (//) are not allowed. Only JSDoc comments (/** */) are allowed.'
     },

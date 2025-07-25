@@ -13,6 +13,7 @@
 
 import { randomUUID } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { MCPRepository } from '@/modules/core/mcp/repositories/mcp-repository.js';
 import {
   type IMCPConfig,
@@ -70,7 +71,7 @@ export class MCPService implements IMCPService {
 
     await this.repository.initialize();
     this.initialized = true;
-    this.logger?.info('MCPService initialized');
+    this.logger?.info(LogSource.MCP, 'MCPService initialized');
   }
 
   /**
@@ -88,10 +89,10 @@ export class MCPService implements IMCPService {
     await this.ensureInitialized();
 
     const id = randomUUID();
-    this.logger?.info(`Creating MCP context: ${name} (${model})`);
+    this.logger?.info(LogSource.MCP, `Creating MCP context: ${name} (${model})`);
 
     const context = await this.repository.createContext(id, name, model, config);
-    this.logger?.info(`Created MCP context: ${id}`);
+    this.logger?.info(LogSource.MCP, `Created MCP context: ${id}`);
 
     return context;
   }
@@ -128,9 +129,9 @@ export class MCPService implements IMCPService {
       throw new Error(`Context not found: ${id}`);
     }
 
-    this.logger?.info(`Deleting MCP context: ${id}`);
+    this.logger?.info(LogSource.MCP, `Deleting MCP context: ${id}`);
     await this.repository.deleteContext(id);
-    this.logger?.info(`Deleted MCP context: ${id}`);
+    this.logger?.info(LogSource.MCP, `Deleted MCP context: ${id}`);
   }
 
   /**
@@ -147,10 +148,10 @@ export class MCPService implements IMCPService {
     }
 
     const id = randomUUID();
-    this.logger?.info(`Creating MCP session for context: ${contextId}`);
+    this.logger?.info(LogSource.MCP, `Creating MCP session for context: ${contextId}`);
 
     const session = await this.repository.createSession(id, contextId);
-    this.logger?.info(`Created MCP session: ${id}`);
+    this.logger?.info(LogSource.MCP, `Created MCP session: ${id}`);
 
     return session;
   }
@@ -178,9 +179,9 @@ export class MCPService implements IMCPService {
       throw new Error(`Session not active: ${sessionId}`);
     }
 
-    this.logger?.info(`Adding message to session: ${sessionId}`);
+    this.logger?.info(LogSource.MCP, `Adding message to session: ${sessionId}`);
     const message = await this.repository.createMessage(sessionId, role, content);
-    this.logger?.info(`Added message: ${String(message.id)}`);
+    this.logger?.info(LogSource.MCP, `Added message: ${String(message.id)}`);
 
     return message;
   }

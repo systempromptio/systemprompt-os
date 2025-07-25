@@ -1,0 +1,70 @@
+/**
+ * @file Refresh command.
+ * @module modules/core/cli/cli/refresh
+ * Refreshes CLI commands by rescanning enabled modules.
+ */
+
+import { getModuleLoader } from '@/modules/loader.js';
+import type {
+  CLICommand,
+  CLIContext,
+  ICliModule,
+  ICliService
+} from '@/modules/core/cli/types/index.js';
+import { CommandExecutionError } from '@/modules/core/cli/utils/errors.js';
+import { RefreshService } from '@/modules/core/cli/services/refresh.service.js';
+
+/**
+ * Gets the CLI service from the module loader.
+ * @returns The CLI service.
+ * @throws {Error} If the CLI module or service is not available.
+ */
+const getCliService = (): ICliService => {
+  const moduleLoader = getModuleLoader();
+  const cliModule = moduleLoader.getModule('cli') as unknown;
+
+  if (cliModule === null || cliModule === undefined
+      || typeof cliModule !== 'object'
+      || !('exports' in cliModule) || (cliModule as ICliModule).exports === null
+      || (cliModule as ICliModule).exports === undefined) {
+    throw new Error('CLI module not loaded');
+  }
+
+  const typedModule = cliModule as ICliModule;
+  const cliService = typedModule.exports.service?.();
+  if (cliService === null || cliService === undefined) {
+    throw new Error('CLI service not available');
+  }
+
+  return cliService;
+};
+
+export const command: CLICommand = {
+  description: 'Refresh CLI commands by rescanning enabled modules',
+  options: [
+    {
+      name: 'verbose',
+      alias: 'v',
+      type: 'boolean',
+      description: 'Show verbose output during refresh',
+      default: false,
+    },
+  ],
+  examples: [
+    'systemprompt cli:refresh',
+    'systemprompt cli:refresh --verbose',
+  ],
+  execute: async (context: CLIContext): Promise<void> => {
+    const { args } = context;
+    const verbose = (args as any)?.verbose === true;
+
+    try {
+      const cliService = getCliService();
+      const refreshService = RefreshService.getInstance();
+
+      await refreshService.performRefresh(cliService, verbose);
+    } catch (error) {
+      throw new CommandExecutionError('cli:refresh', error as Error);
+    }
+  },
+};

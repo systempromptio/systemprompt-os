@@ -14,6 +14,7 @@
 import { randomUUID } from 'crypto';
 import * as os from 'os';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { SystemRepository } from '@/modules/core/system/repositories/system-repository.js';
 import {
   type ConfigTypeEnum,
@@ -78,7 +79,7 @@ export class SystemService implements ISystemService {
     await this.repository.initialize();
     await this.initializeDefaults();
     this.initialized = true;
-    this.logger?.info('SystemService initialized');
+    this.logger?.info(LogSource.SYSTEM, 'SystemService initialized');
   }
 
   /**
@@ -107,7 +108,7 @@ export class SystemService implements ISystemService {
       throw new Error(`Configuration ${key} is read-only`);
     }
 
-    this.logger?.info(`Setting system config: ${key}`);
+    this.logger?.info(LogSource.SYSTEM, `Setting system config: ${key}`);
     await this.repository.upsertConfig(key, value, type);
 
     await this.logEvent(
@@ -131,7 +132,7 @@ export class SystemService implements ISystemService {
       throw new Error(`Configuration ${key} is read-only`);
     }
 
-    this.logger?.info(`Deleting system config: ${key}`);
+    this.logger?.info(LogSource.SYSTEM, `Deleting system config: ${key}`);
     await this.repository.deleteConfig(key);
 
     await this.logEvent(
@@ -151,7 +152,7 @@ export class SystemService implements ISystemService {
   async registerModule(name: string, version: string): Promise<ISystemModule> {
     await this.ensureInitialized();
 
-    this.logger?.info(`Registering module: ${name} v${version}`);
+    this.logger?.info(LogSource.SYSTEM, `Registering module: ${name} v${version}`);
     const module = await this.repository.upsertModule(name, version);
 
     await this.logEvent(
@@ -173,7 +174,7 @@ export class SystemService implements ISystemService {
   async updateModuleStatus(name: string, status: ModuleStatusEnum): Promise<void> {
     await this.ensureInitialized();
 
-    this.logger?.info(`Updating module status: ${name} -> ${status}`);
+    this.logger?.info(LogSource.SYSTEM, `Updating module status: ${name} -> ${status}`);
     await this.repository.updateModuleStatus(name, status);
 
     await this.logEvent(
@@ -303,7 +304,7 @@ export class SystemService implements ISystemService {
     await this.ensureInitialized();
 
     const id = randomUUID();
-    this.logger?.info(`Starting ${type} maintenance: ${reason}`);
+    this.logger?.info(LogSource.SYSTEM, `Starting ${type} maintenance: ${reason}`);
 
     const maintenance = await this.repository.createMaintenance(id, type, reason);
 
@@ -334,7 +335,7 @@ export class SystemService implements ISystemService {
       throw new Error(`Maintenance already ended: ${id}`);
     }
 
-    this.logger?.info(`Ending maintenance: ${id}`);
+    this.logger?.info(LogSource.SYSTEM, `Ending maintenance: ${id}`);
     await this.repository.endMaintenance(id);
 
     await this.logEvent(

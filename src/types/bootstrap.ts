@@ -38,6 +38,7 @@ export interface IBootstrapOptions {
   logger?: ILogger;
   skipMcp?: boolean;
   skipDiscovery?: boolean;
+  cliMode?: boolean;
 }
 
 /**

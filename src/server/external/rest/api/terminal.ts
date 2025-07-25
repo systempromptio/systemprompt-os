@@ -7,6 +7,7 @@ import type { Router } from 'express';
 import type { Request, Response } from 'express';
 import { spawn } from 'child_process';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Execute terminal commands through the API
@@ -130,7 +131,10 @@ FORCE_COLOR: '0'
 summary
 });
     } catch (error) {
-      logger.error('Summary API error', { error });
+      logger.error(LogSource.API, 'Summary API error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'terminal'
+});
       res.json({
         success: false,
         error: 'Failed to retrieve summary',
@@ -179,7 +183,11 @@ database: 'Unknown'
 commands
 });
           } catch (parseError) {
-            logger.error('Failed to parse command list', { error: parseError });
+            logger.error(LogSource.API, 'Failed to parse command list', {
+ error: parseError instanceof Error ? parseError : new Error(String(parseError)),
+category: 'terminal',
+persistToDb: false
+});
             res.json({
               success: false,
               error: 'Failed to parse command list',
@@ -196,7 +204,10 @@ commands
       });
 
       child.on('error', (error) => {
-        logger.error('Failed to get commands', { error: error.message });
+        logger.error(LogSource.API, 'Failed to get commands', {
+ error: error.message,
+category: 'terminal'
+});
         res.json({
           success: false,
           error: 'Failed to retrieve commands',
@@ -216,7 +227,10 @@ commands
         }
       }, 5000);
     } catch (error) {
-      logger.error('Commands API error', { error });
+      logger.error(LogSource.API, 'Commands API error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'terminal'
+});
       res.json({
         success: false,
         error: 'Failed to retrieve commands',
@@ -251,7 +265,11 @@ commands
       const parts = trimmedCommand.split(/\s+/);
       const args = parts.slice(1); // Remove 'systemprompt' from the beginning
 
-      logger.info('Executing terminal command', { command: trimmedCommand });
+      logger.info(LogSource.API, 'Executing terminal command', {
+ category: 'terminal',
+action: 'execute',
+persistToDb: true
+});
 
       // Execute the command
       const child = spawn('/app/bin/systemprompt', args, {
@@ -289,7 +307,11 @@ commands
       });
 
       child.on('error', (error) => {
-        logger.error('Terminal command execution error', { error: error.message });
+        logger.error(LogSource.API, 'Terminal command execution error', {
+ error: error.message,
+category: 'terminal',
+action: 'execute'
+});
         res.json({
           success: false,
           error: `Failed to execute command: ${error.message}`,
@@ -307,7 +329,10 @@ commands
         }
       }, 30000); // 30 second timeout
     } catch (error) {
-      logger.error('Terminal API error', { error });
+      logger.error(LogSource.API, 'Terminal API error', {
+ error: error instanceof Error ? error : new Error(String(error)),
+category: 'terminal'
+});
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Internal server error',

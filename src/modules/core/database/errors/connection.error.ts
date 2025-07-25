@@ -4,8 +4,8 @@
  * @module database/errors/connection.error
  */
 
-import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_503 } from '@/modules/core/database/constants/index';
+import { DatabaseError } from '@/modules/core/database/errors/base.error.js';
+import { HTTP_503 } from '@/modules/core/database/constants/index.js';
 
 /**
  * Error thrown when database connection fails.

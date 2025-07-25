@@ -11,6 +11,8 @@ import { type Server } from 'http';
 import { startServer } from './server/index.js';
 import { tunnelStatus } from './modules/core/auth/tunnel-status.js';
 import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants.js';
+import { LogSource } from './modules/core/logger/types/index.js';
+import type { ILogger } from './modules/core/logger/types/index.js';
 
 /**
  * Bootstrap instance for shutdown handling.
@@ -22,8 +24,22 @@ let bootstrapInstance: Bootstrap | null = null;
  * @param moduleExports - Module exports to check.
  * @returns True if exports contains service property.
  */
-const hasLoggerService = (moduleExports: unknown): moduleExports is { service: Console } => {
+const hasLoggerService = (moduleExports: unknown): moduleExports is { service: ILogger } => {
   return typeof moduleExports === 'object' && moduleExports !== null && 'service' in moduleExports;
+};
+
+/**
+ * Console fallback logger that implements ILogger interface.
+ */
+const consoleFallback: ILogger = {
+  debug: (_source: LogSource, message: string, _args?: unknown): void => { console.debug(message); },
+  info: (_source: LogSource, message: string, _args?: unknown): void => { console.info(message); },
+  warn: (_source: LogSource, message: string, _args?: unknown): void => { console.warn(message); },
+  error: (_source: LogSource, message: string, _args?: unknown): void => { console.error(message); },
+  log: (_level: string, _source: LogSource, message: string, _args?: unknown): void => { console.log(message); },
+  access: (message: string): void => { console.log(message); },
+  clearLogs: async (): Promise<void> => { /* Noop */ },
+  getLogs: async (): Promise<string[]> => { return [] }
 };
 
 /**
@@ -31,7 +47,7 @@ const hasLoggerService = (moduleExports: unknown): moduleExports is { service: C
  * @param modules - Map of loaded modules.
  * @returns Logger service or console fallback.
  */
-const getLoggerService = (modules: Map<string, unknown>): Console => {
+const getLoggerService = (modules: Map<string, unknown>): ILogger => {
   const loggerModule = modules.get('logger');
 
   if (
@@ -43,21 +59,21 @@ const getLoggerService = (modules: Map<string, unknown>): Console => {
     return loggerModule.exports.service;
   }
 
-  return console;
+  return consoleFallback;
 };
 
 /**
  * Initializes tunnel status from environment variables.
  * @param logger - Logger service instance.
  */
-const initializeTunnelStatus = (logger: Console): void => {
+const initializeTunnelStatus = (logger: ILogger): void => {
   const { env } = process;
   const { BASE_URL: baseUrl } = env;
   const BASE_URL_EMPTY = 0;
 
   if (typeof baseUrl === 'string' && baseUrl.length > BASE_URL_EMPTY) {
     tunnelStatus.setBaseUrl(baseUrl);
-    logger.info(`Initialized tunnel status with BASE_URL: ${baseUrl}`);
+    logger.info(LogSource.BOOTSTRAP, `Initialized tunnel status with BASE_URL: ${baseUrl}`);
   }
 };
 
@@ -66,12 +82,12 @@ const initializeTunnelStatus = (logger: Console): void => {
  * @param server - HTTP server instance.
  * @param logger - Logger service instance.
  */
-const handleShutdown = async (server: Server, logger: Console): Promise<void> => {
-  logger.info('📢 Shutdown signal received...');
+const handleShutdown = async (server: Server, logger: ILogger): Promise<void> => {
+  logger.info(LogSource.BOOTSTRAP, '📢 Shutdown signal received...');
 
   await new Promise<void>((resolve): void => {
     server.close((): void => {
-      logger.info('✓ HTTP server closed');
+      logger.info(LogSource.BOOTSTRAP, '✓ HTTP server closed');
       resolve();
     });
   });
@@ -80,7 +96,7 @@ const handleShutdown = async (server: Server, logger: Console): Promise<void> =>
     await bootstrapInstance.shutdown();
   }
 
-  logger.info('👋 SystemPrompt OS shutdown complete');
+  logger.info(LogSource.BOOTSTRAP, '👋 SystemPrompt OS shutdown complete');
   process.exit(EXIT_SUCCESS);
 };
 
@@ -89,13 +105,13 @@ const handleShutdown = async (server: Server, logger: Console): Promise<void> =>
  * @param logger - Logger service instance.
  * @param bootstrap - Bootstrap instance.
  */
-const logStartupSummary = (logger: Console, bootstrap: Bootstrap): void => {
-  logger.info('');
-  logger.info('🎉 SystemPrompt OS Ready!');
-  logger.info('📊 System Status:');
-  logger.info(`  • Core Modules: ${String(bootstrap.getModules().size)} loaded`);
-  logger.info(`  • Bootstrap Phase: ${bootstrap.getCurrentPhase()}`);
-  logger.info('');
+const logStartupSummary = (logger: ILogger, bootstrap: Bootstrap): void => {
+  logger.info(LogSource.BOOTSTRAP, '');
+  logger.info(LogSource.BOOTSTRAP, '🎉 SystemPrompt OS Ready!');
+  logger.info(LogSource.BOOTSTRAP, '📊 System Status:');
+  logger.info(LogSource.BOOTSTRAP, `  • Core Modules: ${String(bootstrap.getModules().size)} loaded`);
+  logger.info(LogSource.BOOTSTRAP, `  • Bootstrap Phase: ${bootstrap.getCurrentPhase()}`);
+  logger.info(LogSource.BOOTSTRAP, '');
 };
 
 /**
@@ -104,10 +120,12 @@ const logStartupSummary = (logger: Console, bootstrap: Bootstrap): void => {
  * @param logger - Logger service instance.
  * @returns Shutdown handler function.
  */
-const createShutdownHandler = (server: Server, logger: Console): (() => void) => {
+const createShutdownHandler = (server: Server, logger: ILogger): (() => void) => {
   return (): void => {
     handleShutdown(server, logger).catch((error: unknown): void => {
-      logger.error('Error during shutdown:', error);
+      logger.error(LogSource.BOOTSTRAP, 'Error during shutdown:', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
       process.exit(EXIT_FAILURE);
     });
   };
@@ -139,7 +157,9 @@ const main = async (): Promise<void> => {
       console.error('💥 Failed to start SystemPrompt OS:', error);
     } else {
       const logger = getLoggerService(bootstrapInstance.getModules());
-      logger.error('💥 Failed to start SystemPrompt OS:', error);
+      logger.error(LogSource.BOOTSTRAP, '💥 Failed to start SystemPrompt OS:', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
     }
     process.exit(EXIT_FAILURE);
   }

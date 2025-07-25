@@ -10,10 +10,10 @@ import type {
   IPreparedStatement,
   IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types';
-import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
-import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter';
-import { ZERO } from '@/modules/core/database/constants/index';
+} from '@/modules/core/database/types/database.types.js';
+import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter.js';
+import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * SQLite database connection implementation.

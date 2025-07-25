@@ -21,53 +21,26 @@ cli:
           alias: a
           type: boolean
           description: Show all available commands
-    - name: list
-      description: List all available commands
+    - name: status
+      description: Show status and summary of enabled CLI commands
       options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          default: text
+        - name: list
+          alias: l
+          type: boolean
+          description: Show detailed list of all commands
         - name: module
           alias: m
           type: string
-          description: Filter commands by module
-        - name: format
-          alias: f
-          type: string
-          description: Output format (text, json, table)
-          default: text
-    - name: docs
-      description: Generate command documentation
+          description: Filter commands by module (when using --list)
+    - name: refresh
+      description: Refresh CLI commands by rescanning enabled modules
       options:
-        - name: output
-          alias: o
-          type: string
-          description: Output file path
-        - name: format
-          alias: f
-          type: string
-          description: Documentation format (markdown, html, json)
-          default: markdown
-    - name: mcp:list
-      description: List available MCP tools
-      options:
-        - name: format
-          alias: f
-          type: string
-          description: Output format (json, table)
-          default: table
-    - name: mcp:call
-      description: Call an MCP tool
-      positionals:
-        - name: tool
-          type: string
-          description: Tool name to call
-          required: true
-      options:
-        - name: args
-          alias: a
-          type: string
-          description: Tool arguments as JSON string
-          default: '{}'
-        - name: format
-          alias: f
-          type: string
-          description: Output format (json, pretty)
-          default: pretty
+        - name: verbose
+          alias: v
+          type: boolean
+          description: Show verbose output during refresh

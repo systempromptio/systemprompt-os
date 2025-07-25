@@ -15,6 +15,7 @@ import {
  createHash, randomBytes, randomUUID
 } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { UsersRepository } from '@/modules/core/users/repositories/users-repository.js';
 import {
   type IAuthResult,
@@ -78,7 +79,7 @@ export class UsersService implements IUsersService {
     await this.repository.initialize();
     await this.createDefaultUsers();
     this.initialized = true;
-    this.logger?.info('UsersService initialized');
+    this.logger?.info(LogSource.USERS, 'UsersService initialized');
   }
 
   /**
@@ -101,7 +102,7 @@ export class UsersService implements IUsersService {
     }
 
     const id = randomUUID();
-    this.logger?.info(`Creating user: ${data.username}`);
+    this.logger?.info(LogSource.USERS, `Creating user: ${data.username}`);
 
     const passwordHash = data.password ? this.hashPassword(data.password) : undefined;
     const user = await this.repository.createUser(id, data.username, data.email, passwordHash);
@@ -117,11 +118,11 @@ export class UsersService implements IUsersService {
           await permissionsService.assignRole(id, role.id);
         }
       } catch (error) {
-        this.logger?.warn(`Failed to assign role ${data.role} to user ${id}: ${String(error)}`);
+        this.logger?.warn(LogSource.USERS, `Failed to assign role ${data.role} to user ${id}: ${String(error)}`);
       }
     }
 
-    this.logger?.info(`Created user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Created user: ${id}`);
     return user;
   }
 
@@ -186,9 +187,9 @@ export class UsersService implements IUsersService {
       }
     }
 
-    this.logger?.info(`Updating user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Updating user: ${id}`);
     const updatedUser = await this.repository.updateUser(id, data);
-    this.logger?.info(`Updated user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Updated user: ${id}`);
 
     return updatedUser;
   }
@@ -206,9 +207,9 @@ export class UsersService implements IUsersService {
       throw new Error(`User not found: ${id}`);
     }
 
-    this.logger?.info(`Deleting user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Deleting user: ${id}`);
     await this.repository.deleteUser(id);
-    this.logger?.info(`Deleted user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Deleted user: ${id}`);
   }
 
   /**
@@ -429,7 +430,7 @@ apiKey
       const lockedUntil = new Date();
       lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCKOUT_DURATION_MINUTES);
       await this.repository.lockUser(user.id, lockedUntil);
-      this.logger?.warn(`User ${user.id} locked due to too many failed login attempts`);
+      this.logger?.warn(LogSource.USERS, `User ${user.id} locked due to too many failed login attempts`);
     } else {
       await this.repository.updateLoginInfo(user.id, false);
     }

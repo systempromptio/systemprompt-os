@@ -8,6 +8,7 @@
 import type { ICoreModuleDefinition } from '@/types/bootstrap.js';
 import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Sequentially processes an array of items using a reducer pattern.
@@ -87,7 +88,7 @@ export const loadEnabledExtensionModules = async (
     if (enabledNames.has(moduleInfo.name)) {
       await loader(moduleInfo);
     } else {
-      logger.debug(`Skipping disabled module: ${moduleInfo.name}`);
+      logger.debug(LogSource.BOOTSTRAP, `Skipping disabled module: ${moduleInfo.name}`);
     }
   });
 };

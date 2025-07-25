@@ -14,6 +14,7 @@ import { jwtSign, jwtVerify } from '@/server/external/auth/jwt.js';
 import { AuthRepository } from '@/modules/core/auth/database/repository.js';
 import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Schema for OAuth2 token request validation.
@@ -108,17 +109,19 @@ export class TokenEndpoint {
    */
   public postToken = async (req: Request, res: Response): Promise<Response | void> => {
     try {
-      logger.info('[TOKEN] Token request received', {
-        body: req.body,
-        headers: {
-          'content-type': req.headers['content-type'],
-          "authorization": req.headers.authorization ? 'present' : 'missing',
-        },
+      logger.info(LogSource.AUTH, 'Token request received', {
+        category: 'oauth2',
+        action: 'token_request',
+        persistToDb: false
       });
 
       const params = TokenRequestSchema.parse(req.body);
 
-      logger.info('[TOKEN] Parsed params', params);
+      logger.info(LogSource.AUTH, 'Token params parsed', {
+        category: 'oauth2',
+        action: 'token_parse',
+        persistToDb: false
+      });
 
       if (params.grant_type === 'authorization_code') {
         await this.handleAuthorizationCodeGrant(params, res);
@@ -126,7 +129,11 @@ export class TokenEndpoint {
         await this.handleRefreshTokenGrant(params, res);
       }
     } catch (error) {
-      logger.error('[TOKEN] Error in postToken', { error });
+      logger.error(LogSource.AUTH, 'Token endpoint error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'oauth2',
+        action: 'token_request'
+      });
 
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
@@ -148,12 +155,16 @@ export class TokenEndpoint {
     params: TokenRequestParams,
     res: Response,
   ): Promise<Response | void> {
-    logger.info('[TOKEN] handleAuthorizationCodeGrant called', params);
+    logger.info(LogSource.AUTH, 'Authorization code grant started', {
+      category: 'oauth2',
+      action: 'auth_code_grant',
+      persistToDb: false
+    });
 
     if (!params.code || !params.redirect_uri) {
-      logger.error('[TOKEN] Missing required parameters', {
-        code: Boolean(params.code),
-        redirect_uri: Boolean(params.redirect_uri),
+      logger.error(LogSource.AUTH, 'Missing required parameters', {
+        category: 'oauth2',
+        action: 'auth_code_grant'
       });
       const error = OAuth2Error.invalidRequest('Missing required parameters');
       return res.status(error.code).json(error.toJSON());
@@ -161,10 +172,17 @@ export class TokenEndpoint {
 
     const authCodeService = getAuthCodeService();
     const codeData = await authCodeService.getAuthorizationCode(params.code);
-    logger.info('[TOKEN] Authorization code lookup result', { found: Boolean(codeData) });
+    logger.info(LogSource.AUTH, 'Authorization code lookup completed', {
+      category: 'oauth2',
+      action: 'code_lookup',
+      persistToDb: false
+    });
 
     if (!codeData) {
-      logger.error('[TOKEN] Invalid authorization code', { code: params.code });
+      logger.error(LogSource.AUTH, 'Invalid authorization code', {
+        category: 'oauth2',
+        action: 'code_lookup'
+      });
       const error = OAuth2Error.invalidGrant('Invalid authorization code');
       return res.status(error.code).json(error.toJSON());
     }
@@ -217,7 +235,11 @@ export class TokenEndpoint {
           }
         }
       } catch (error) {
-        logger.error('Provider token exchange failed', { error });
+        logger.error(LogSource.AUTH, 'Provider token exchange failed', {
+          error: error instanceof Error ? error : new Error(String(error)),
+          category: 'oauth2',
+          action: 'token_exchange'
+        });
       }
     }
 
@@ -327,7 +349,11 @@ export class TokenEndpoint {
         userData.roles = userRoles;
       }
     } catch (error) {
-      logger.error('[TOKEN] Failed to fetch user data', { error });
+      logger.error(LogSource.AUTH, 'Failed to fetch user data', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'oauth2',
+        action: 'user_fetch'
+      });
       // Use provided email if database lookup fails
       if (userEmail) {
         userData = {

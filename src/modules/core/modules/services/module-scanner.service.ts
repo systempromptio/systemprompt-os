@@ -19,6 +19,7 @@ import {
 } from '@/modules/core/modules/types/index.js';
 import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-parser.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Database row type for modules table.
@@ -77,7 +78,7 @@ export class ModuleScannerService implements IModuleScannerService {
    * Ensure database schema exists.
    */
   private async ensureSchema(): Promise<void> {
-    this.logger?.debug('Module database schema would be initialized here');
+    this.logger?.debug(LogSource.MODULES, 'Module database schema would be initialized here');
   }
 
   /**
@@ -91,7 +92,7 @@ export class ModuleScannerService implements IModuleScannerService {
     for (const basePath of paths) {
       const absolutePath = resolve(process.cwd(), basePath);
       if (!existsSync(absolutePath)) {
-        this.logger?.debug(`Skipping non-existent path: ${absolutePath}`);
+        this.logger?.debug(LogSource.MODULES, `Skipping non-existent path: ${absolutePath}`);
         continue;
       }
 
@@ -131,7 +132,7 @@ export class ModuleScannerService implements IModuleScannerService {
           const module = await this.loadModuleInfo(fullPath);
           if (module) {
             modules.push(module);
-            this.logger?.debug(`Discovered module: ${module.name} at ${fullPath}`);
+            this.logger?.debug(LogSource.MODULES, `Discovered module: ${module.name} at ${fullPath}`);
           }
         } else if (options.deep) {
           const subModules = await this.scanDirectory(fullPath, options);
@@ -139,7 +140,7 @@ export class ModuleScannerService implements IModuleScannerService {
         }
       }
     } catch (error) {
-      this.logger?.error(`Error scanning directory ${dirPath}:`, error);
+      this.logger?.error(LogSource.MODULES, `Error scanning directory ${dirPath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
     }
 
     return modules;
@@ -156,14 +157,14 @@ export class ModuleScannerService implements IModuleScannerService {
       const parseResult = parseModuleManifestSafe(moduleYaml);
 
       if (!parseResult.manifest) {
-        this.logger?.warn(`Skipping ${moduleYamlPath}: ${parseResult.errors?.join(', ')}`);
+        this.logger?.warn(LogSource.MODULES, `Skipping ${moduleYamlPath}: ${parseResult.errors?.join(', ')}`);
         return null;
       }
 
       const {manifest} = parseResult;
 
       if (!manifest.name || !manifest.version) {
-        this.logger?.error(`Module at ${modulePath} has invalid manifest: missing name or version`);
+        this.logger?.error(LogSource.MODULES, `Module at ${modulePath} has invalid manifest: missing name or version`);
         return null;
       }
 
@@ -171,18 +172,18 @@ export class ModuleScannerService implements IModuleScannerService {
       const indexJsPath = join(modulePath, 'index.js');
 
       if (!existsSync(indexPath) && !existsSync(indexJsPath)) {
-        this.logger?.warn(`Module ${manifest.name} missing index file at ${modulePath}`);
+        this.logger?.warn(LogSource.MODULES, `Module ${manifest.name} missing index file at ${modulePath}`);
         return null;
       }
 
       let moduleType: ModuleType | null;
       if (modulePath.includes('/modules/core/')) {
         moduleType = ModuleType.CORE;
-        this.logger?.debug(`Module ${manifest.name} is in core directory, setting type to CORE`);
+        this.logger?.debug(LogSource.MODULES, `Module ${manifest.name} is in core directory, setting type to CORE`);
       } else {
         moduleType = this.parseModuleType(manifest.type);
         if (!moduleType) {
-          this.logger?.error(`Invalid module type '${manifest.type}' for module ${manifest.name}`);
+          this.logger?.error(LogSource.MODULES, `Invalid module type '${manifest.type}' for module ${manifest.name}`);
           return null;
         }
       }
@@ -201,7 +202,7 @@ export class ModuleScannerService implements IModuleScannerService {
         },
       };
     } catch (error) {
-      this.logger?.error(`Error loading module info from ${modulePath}:`, error);
+      this.logger?.error(LogSource.MODULES, `Error loading module info from ${modulePath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       return null;
     }
   }
@@ -230,7 +231,7 @@ export class ModuleScannerService implements IModuleScannerService {
     for (const module of modules) {
       try {
         if (!Object.values(ModuleType).includes(module.type)) {
-          this.logger?.error(`Invalid module type for ${module.name}: ${module.type}`);
+          this.logger?.error(LogSource.MODULES, `Invalid module type for ${module.name}: ${module.type}`);
           continue;
         }
 
@@ -265,7 +266,7 @@ export class ModuleScannerService implements IModuleScannerService {
           }),
         ]);
       } catch (error) {
-        this.logger?.error(`Error storing module ${module.name}:`, error);
+        this.logger?.error(LogSource.MODULES, `Error storing module ${module.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
   }

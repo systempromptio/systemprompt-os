@@ -13,6 +13,7 @@
 
 import { randomUUID } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { PermissionsRepository } from '@/modules/core/permissions/repositories/permissions-repository.js';
 import {
   type IPermission,
@@ -68,7 +69,7 @@ export class PermissionsService implements IPermissionsService {
     await this.repository.initialize();
     await this.initializeDefaultRoles();
     this.initialized = true;
-    this.logger?.info('PermissionsService initialized');
+    this.logger?.info(LogSource.PERMISSIONS, 'PermissionsService initialized');
   }
 
   /**
@@ -88,7 +89,7 @@ export class PermissionsService implements IPermissionsService {
     await this.ensureInitialized();
 
     const id = randomUUID();
-    this.logger?.info(`Creating permission: ${name} (${resource}:${action})`);
+    this.logger?.info(LogSource.PERMISSIONS, `Creating permission: ${name} (${resource}:${action})`);
 
     const permission = await this.repository.createPermission(
       id,
@@ -97,7 +98,7 @@ export class PermissionsService implements IPermissionsService {
       action,
       description
     );
-    this.logger?.info(`Created permission: ${id}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Created permission: ${id}`);
 
     return permission;
   }
@@ -131,10 +132,10 @@ export class PermissionsService implements IPermissionsService {
     await this.ensureInitialized();
 
     const id = randomUUID();
-    this.logger?.info(`Creating role: ${name}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Creating role: ${name}`);
 
     const role = await this.repository.createRole(id, name, description, false);
-    this.logger?.info(`Created role: ${id}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Created role: ${id}`);
 
     return role;
   }
@@ -177,7 +178,7 @@ export class PermissionsService implements IPermissionsService {
       throw new Error(`Permission not found: ${permissionId}`);
     }
 
-    this.logger?.info(`Granting permission ${permissionId} to role ${roleId}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Granting permission ${permissionId} to role ${roleId}`);
     await this.repository.grantPermissionToRole(roleId, permissionId);
   }
 
@@ -190,7 +191,7 @@ export class PermissionsService implements IPermissionsService {
   async revokePermission(roleId: string, permissionId: string): Promise<void> {
     await this.ensureInitialized();
 
-    this.logger?.info(`Revoking permission ${permissionId} from role ${roleId}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Revoking permission ${permissionId} from role ${roleId}`);
     await this.repository.revokePermissionFromRole(roleId, permissionId);
   }
 
@@ -209,7 +210,7 @@ export class PermissionsService implements IPermissionsService {
       throw new Error(`Role not found: ${roleId}`);
     }
 
-    this.logger?.info(`Assigning role ${roleId} to user ${userId}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Assigning role ${roleId} to user ${userId}`);
     await this.repository.assignRoleToUser(userId, roleId, expiresAt);
   }
 
@@ -222,7 +223,7 @@ export class PermissionsService implements IPermissionsService {
   async removeRole(userId: string, roleId: string): Promise<void> {
     await this.ensureInitialized();
 
-    this.logger?.info(`Removing role ${roleId} from user ${userId}`);
+    this.logger?.info(LogSource.PERMISSIONS, `Removing role ${roleId} from user ${userId}`);
     await this.repository.removeRoleFromUser(userId, roleId);
   }
 

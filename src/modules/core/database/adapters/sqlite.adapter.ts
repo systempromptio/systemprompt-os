@@ -12,13 +12,13 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
-} from '@/modules/core/database/types/database.types';
-import { ConnectionError } from '@/modules/core/database/errors/connection.error';
+} from '@/modules/core/database/types/database.types.js';
+import { ConnectionError } from '@/modules/core/database/errors/connection.error.js';
 import {
   BUSY_TIMEOUT_MS,
   CACHE_SIZE_PAGES,
-} from '@/modules/core/database/constants/index';
-import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
+} from '@/modules/core/database/constants/index.js';
+import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter.js';
 
 /**
  * SQLite database adapter.

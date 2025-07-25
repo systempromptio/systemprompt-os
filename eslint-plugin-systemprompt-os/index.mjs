@@ -11,7 +11,6 @@ import jsdocCompact from './rules/jsdoc-compact.mjs';
 import noCommentsInFunctions from './rules/no-comments-in-functions.mjs';
 import noBlockComments from './rules/no-block-comments.mjs';
 import noTypeReexports from './rules/no-type-reexports.mjs';
-import noExportsGetter from './rules/no-exports-getter.mjs';
 import noRedundantJsdoc from './rules/no-redundant-jsdoc.mjs';
 import noBlankLinesBetweenProperties from './rules/no-blank-lines-between-properties.mjs';
 import noJsdocInInterfaces from './rules/no-jsdoc-in-interfaces.mjs';
@@ -19,11 +18,14 @@ import enforceModuleBootstrapPattern from './rules/enforce-module-bootstrap-patt
 import enforceModuleYamlBootstrap from './rules/enforce-module-yaml-bootstrap.mjs';
 import enforceCoreModulePattern from './rules/enforce-core-module-pattern.mjs';
 import enforceExtensionModulePattern from './rules/enforce-extension-module-pattern.mjs';
+import enforceModuleExports from './rules/enforce-module-exports.mjs';
 import noOrphanedJsdoc from './rules/no-orphaned-jsdoc.mjs';
+import enforceCoreServiceInitialization from './rules/enforce-core-service-initialization.mjs';
 import { noAwaitInLoopWithHelp, noConsoleWithHelp, preferConstWithHelp, noUnusedVarsWithHelp } from './rules/helpful-error-messages.mjs';
 import { noContinueWithHelp, noRestrictedSyntaxWithHelp, noUnsafeCallWithHelp } from './rules/more-helpful-messages.mjs';
 import { noUnsafeAssignmentWithHelp, noRestrictedSyntaxTypescriptWithHelp } from './rules/typescript-helpful-messages.mjs';
 import warnInlineEslintComments from './rules/warn-inline-eslint-comments.mjs';
+import noJsExtensionsInImports from './rules/no-js-extensions-in-imports.mjs';
 
 const plugin = {
   meta: {
@@ -44,7 +46,6 @@ const plugin = {
     'no-comments-in-functions': noCommentsInFunctions,
     'no-block-comments': noBlockComments,
     'no-type-reexports': noTypeReexports,
-    'no-exports-getter': noExportsGetter,
     'no-redundant-jsdoc': noRedundantJsdoc,
     'no-blank-lines-between-properties': noBlankLinesBetweenProperties,
     'no-jsdoc-in-interfaces': noJsdocInInterfaces,
@@ -52,7 +53,9 @@ const plugin = {
     'enforce-module-yaml-bootstrap': enforceModuleYamlBootstrap,
     'enforce-core-module-pattern': enforceCoreModulePattern,
     'enforce-extension-module-pattern': enforceExtensionModulePattern,
+    'enforce-module-exports': enforceModuleExports,
     'no-orphaned-jsdoc': noOrphanedJsdoc,
+    'enforce-core-service-initialization': enforceCoreServiceInitialization,
     'no-await-in-loop-with-help': noAwaitInLoopWithHelp,
     'no-console-with-help': noConsoleWithHelp,
     'prefer-const-with-help': preferConstWithHelp,
@@ -62,7 +65,8 @@ const plugin = {
     'no-unsafe-call-with-help': noUnsafeCallWithHelp,
     'no-unsafe-assignment-with-help': noUnsafeAssignmentWithHelp,
     'no-restricted-syntax-typescript-with-help': noRestrictedSyntaxTypescriptWithHelp,
-    'warn-inline-eslint-comments': warnInlineEslintComments
+    'warn-inline-eslint-comments': warnInlineEslintComments,
+    'no-js-extensions-in-imports': noJsExtensionsInImports
   }
 };
 

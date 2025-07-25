@@ -6,10 +6,10 @@
 
 import type { Express } from 'express';
 import * as path from 'path';
-import { initializeMCPServerRegistry } from '@/server/mcp/registry.js';
-import { createRemoteMCPServer } from '@/server/mcp/remote/index.js';
+import { initializeMcpServerRegistry } from '@/server/mcp/registry.js';
+import { createRemoteMcpServer } from '@/server/mcp/remote/index.js';
 import { CustomMCPLoader } from '@/server/mcp/loader.js';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
 
 /**
  * Logger instance.
@@ -22,9 +22,9 @@ const logger = LoggerService.getInstance();
  * @returns Promise that resolves when setup is complete.
  */
 export const setupMcpServers = async (app: Express): Promise<void> => {
-  const registry = initializeMCPServerRegistry();
+  const registry = initializeMcpServerRegistry();
 
-  const remoteServerConfig = createRemoteMCPServer();
+  const remoteServerConfig = createRemoteMcpServer();
   await registry.registerServer(remoteServerConfig);
 
   const customLoader = new CustomMCPLoader(registry);
@@ -33,10 +33,10 @@ export const setupMcpServers = async (app: Express): Promise<void> => {
   try {
     await customLoader.loadAllServers(customDir);
   } catch (error) {
-    logger.error('Failed to load custom MCP servers:', error);
+    logger.error(LogSource.MCP, 'Failed to load custom MCP servers', { error: error instanceof Error ? error : String(error) });
   }
 
   await registry.setupRoutes(app);
 
-  logger.info('MCP server setup complete');
+  logger.info(LogSource.MCP, 'MCP server setup complete');
 };

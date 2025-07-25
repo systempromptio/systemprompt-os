@@ -6,6 +6,7 @@
 
 import type { IModule } from '@/modules/core/modules/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 
 /**
  * Check if module has a specific method.
@@ -35,13 +36,15 @@ export const shutdownModule = async (
   }
 
   try {
-    logger.debug(`Stopping module: ${name}`);
+    logger.debug(LogSource.BOOTSTRAP, `Stopping module: ${name}`);
     const stopMethod = moduleInstance.stop;
     if (stopMethod !== undefined) {
       await stopMethod.call(moduleInstance);
     }
   } catch (error) {
-    logger.error(`Error stopping module ${name}:`, error);
+    logger.error(LogSource.BOOTSTRAP, `Error stopping module ${name}:`, {
+      error: error instanceof Error ? error : new Error(String(error))
+    });
   }
 };
 

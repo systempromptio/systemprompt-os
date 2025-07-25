@@ -2,25 +2,316 @@
 
 ## Overview
 
-The Logger module provides a comprehensive, system-wide logging service for SystemPrompt OS. It supports multiple output targets (console and file), configurable log levels, and structured logging with proper error handling.
+The Logger module provides a comprehensive, system-wide logging service and error handling system for SystemPrompt OS. It features two distinct but complementary systems:
+
+1. **Logging System**: Records application events, debugging information, and audit trails
+2. **Error Handling System**: Provides consistent error processing, categorization, and reporting
+
+These systems are intentionally decoupled - you can use logging without error handling and vice versa.
 
 ## Features
 
-- **Multiple Output Targets**: Log to console, file, or both
+### Logging Features
+- **Multiple Output Targets**: Log to console, file, and database
 - **Configurable Log Levels**: debug, info, warn, error
-- **Structured Logging**: Support for context objects and metadata
+- **Structured Logging**: Support for context objects and metadata with LogSource and LogCategory enums
 - **File Management**: Automatic log directory creation and log rotation support
-- **Error Handling**: Graceful degradation with fallback to console
-- **Singleton Pattern**: Ensures single logger instance across the system
-- **TypeScript Support**: Full type safety with no `any` types
+- **Database Persistence**: Important logs (warn/error) stored in database
 - **High Performance**: Efficient handling of high-volume logging
 - **Thread-Safe**: Handles concurrent log operations safely
+
+### Error Handling Features
+- **Centralized Error Processing**: Single-line error handling with `handleError()`
+- **Automatic Categorization**: Intelligent error type detection
+- **Typed Error Classes**: Structured errors for common scenarios
+- **Sensitive Data Sanitization**: Automatic removal of passwords, tokens, etc.
+- **Error Deduplication**: Track and count similar errors
+- **Flexible Configuration**: Customizable behavior per error
 
 ## Installation
 
 The logger module is a core module and is automatically available in SystemPrompt OS.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Logging System](#logging-system)
+  - [Basic Usage](#basic-usage)
+  - [Log Levels and Sources](#log-levels-and-sources)
+  - [Structured Logging](#structured-logging)
+- [Error Handling System](#error-handling-system)
+  - [Quick Start](#quick-start)
+  - [Error Classes](#error-classes)
+  - [Advanced Usage](#advanced-usage)
+- [Configuration](#configuration)
+- [Best Practices](#best-practices)
+- [API Reference](#api-reference)
+
+## Architecture
+
+The Logger module is designed with separation of concerns:
+
+```
+logger/
+├── services/
+│   ├── logger.service.ts          # Core logging functionality
+│   └── error-handling.service.ts  # Error processing (uses logger internally)
+├── types/
+│   ├── index.ts                   # Core logging types and enums
+│   └── error-handling.types.ts    # Error-specific types
+├── errors/                        # Standardized error classes
+│   ├── application-error.ts       # Base error class
+│   ├── validation-error.ts        # 400 errors
+│   ├── authentication-error.ts    # 401 errors
+│   ├── authorization-error.ts     # 403 errors
+│   ├── database-error.ts          # 500 errors
+│   └── ...                        # Other error types
+├── utils/
+│   ├── handle-error.ts           # Simple error handling interface
+│   └── errors.ts                 # Logger-specific errors
+└── cli/                          # CLI commands for log management
+
+```
+
+### Key Design Principles
+
+1. **Decoupled Systems**: Logging and error handling are separate concerns
+2. **Type Safety**: Full TypeScript support with enums instead of strings
+3. **Singleton Pattern**: Single instances for consistent behavior
+4. **Graceful Degradation**: Fallback mechanisms for failures
+
+## Logging System
+
+### Basic Usage
+
+```typescript
+import { LoggerService, LogSource } from '@/modules/core/logger';
+
+// Get logger instance
+const logger = LoggerService.getInstance();
+
+// Simple logging
+logger.info(LogSource.API, 'User logged in successfully');
+logger.warn(LogSource.DATABASE, 'Connection pool running low');
+logger.error(LogSource.AUTH, 'Failed to validate token');
+logger.debug(LogSource.SYSTEM, 'Cache miss for key: user_123');
+```
+
+### Log Levels and Sources
+
+#### Log Levels (LogLevelName)
+- `debug`: Detailed debugging information
+- `info`: General informational messages
+- `warn`: Warning conditions needing attention
+- `error`: Error conditions requiring immediate attention
+
+#### Log Sources (LogSource enum)
+```typescript
+export enum LogSource {
+  BOOTSTRAP = 'bootstrap',
+  CLI = 'cli',
+  DATABASE = 'database',
+  LOGGER = 'logger',
+  AUTH = 'auth',
+  MCP = 'mcp',
+  SERVER = 'server',
+  MODULES = 'modules',
+  API = 'api',
+  ACCESS = 'access',
+  SCHEDULER = 'scheduler',
+  SYSTEM = 'system',
+  WEBHOOK = 'webhook',
+  WORKFLOW = 'workflow',
+  // ... and more
+}
+```
+
+### Structured Logging
+
+Use the `LogArgs` interface for rich, searchable logs:
+
+```typescript
+logger.info(LogSource.API, 'Order processed', {
+  category: LogCategory.USER_ACTION,
+  userId: 'user_123',
+  requestId: 'req_456',
+  action: 'order.create',
+  duration: 245,
+  data: {
+    orderId: 'order_789',
+    amount: 99.99,
+    currency: 'USD'
+  },
+  persistToDb: true  // Force database persistence
+});
+```
+
+#### Log Categories (LogCategory enum)
+```typescript
+export enum LogCategory {
+  INITIALIZATION = 'init',
+  AUTHENTICATION = 'auth',
+  DATABASE = 'db',
+  API = 'api',
+  SECURITY = 'security',
+  PERFORMANCE = 'perf',
+  ERROR = 'error',
+  SYSTEM = 'system',
+  USER_ACTION = 'user',
+  MODULE_LOAD = 'module',
+  CONFIGURATION = 'config',
+  HEALTH_CHECK = 'health'
+}
+```
+
+## Error Handling System
+
+### Quick Start
+
+Transform complex error handling into a single line:
+
+```typescript
+import { handleError } from '@/modules/core/logger';
+
+// Before: Manual error handling
+try {
+  await riskyOperation();
+} catch (error) {
+  logger.error(LogSource.MODULE, 'Operation failed', {
+    error: error instanceof Error ? error.message : String(error),
+    // manual context...
+  });
+  throw error;
+}
+
+// After: Centralized error handling
+try {
+  await riskyOperation();
+} catch (e) {
+  handleError('module.operation', e);
+}
+```
+
+The error handling system automatically:
+- Categorizes the error based on content
+- Determines appropriate severity level
+- Logs with full context and stack trace
+- Sanitizes sensitive information
+- Tracks error occurrences
+- Rethrows if configured (default: true)
+
+### Error Classes
+
+Use typed errors for better error handling and automatic HTTP status codes:
+
+```typescript
+import { 
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  DatabaseError,
+  ExternalServiceError,
+  BusinessLogicError,
+  ConfigurationError
+} from '@/modules/core/logger';
+
+// Validation errors (400)
+throw new ValidationError('Invalid email format', {
+  field: 'email',
+  value: 'not-an-email',
+  constraints: ['Must be a valid email address']
+});
+
+// Authentication errors (401)
+throw new AuthenticationError('Invalid credentials', {
+  method: 'password'
+});
+
+// Authorization errors (403)
+throw new AuthorizationError('Insufficient permissions', {
+  resource: 'orders',
+  action: 'delete',
+  requiredPermissions: ['orders.delete']
+});
+
+// Database errors (500)
+throw new DatabaseError('Query failed', {
+  operation: 'SELECT',
+  table: 'users',
+  cause: originalError
+});
+
+// External service errors (502)
+throw new ExternalServiceError('Payment gateway timeout', {
+  service: 'stripe',
+  endpoint: '/charges',
+  statusCode: 504
+});
+
+// Business logic errors (422)
+throw new BusinessLogicError('Insufficient inventory', {
+  rule: 'inventory-check',
+  entity: 'product'
+});
+
+// Configuration errors (500)
+throw new ConfigurationError('Missing API key', {
+  configKey: 'STRIPE_API_KEY'
+});
+```
+
+### Advanced Usage
+
+#### Customizing Error Handling
+
+```typescript
+handleError('payment.process', error, {
+  severity: 'error',              // Override auto-detected severity
+  category: 'EXTERNAL_SERVICE',   // Override auto-detected category
+  rethrow: false,                 // Don't rethrow (for response handling)
+  logToDatabase: true,            // Force database logging
+  logSource: LogSource.API,       // Specify log source
+  metadata: {                     // Additional context
+    customerId: 'cust_123',
+    amount: 99.99,
+    paymentMethod: 'card'
+  }
+});
+```
+
+#### Async Error Handling
+
+When you need to ensure error processing completes:
+
+```typescript
+try {
+  await riskyAsyncOperation();
+} catch (e) {
+  await handleErrorAsync('module.asyncOp', e);
+  // Error fully processed before continuing
+}
+```
+
+#### Global Error Configuration
+
+```typescript
+import { configureErrorHandling } from '@/modules/core/logger';
+
+configureErrorHandling({
+  logToDatabase: true,
+  logToFile: true,
+  notify: process.env.NODE_ENV === 'production',
+  maxMessageLength: 2000,
+  sanitizePatterns: [
+    /apikey["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
+    /creditcard["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi
+  ]
+});
+```
+
 ## Configuration
+
+### Logger Configuration
 
 ```yaml
 # module.yaml
@@ -30,327 +321,371 @@ version: 1.0.0
 config:
   stateDir: ${STATE_DIR}
   logLevel: ${LOG_LEVEL:-info}
-  maxSize: ${LOG_MAX_SIZE:-10MB}
+  mode: ${LOGGER_MODE:-server}
+  maxSize: ${LOG_MAX_SIZE:-10m}
   maxFiles: ${LOG_MAX_FILES:-5}
   outputs:
     - console
     - file
+    - database
   files:
     system: system.log
     error: error.log
     access: access.log
+  database:
+    enabled: true
+    tableName: system_logs
 ```
 
 ### Configuration Options
 
-- **stateDir**: Base directory for log files (logs will be in `${stateDir}/logs`)
-- **logLevel**: Minimum log level to output (debug, info, warn, error)
-- **maxSize**: Maximum size per log file (for future rotation support)
-- **maxFiles**: Maximum number of rotated files to keep
-- **outputs**: Array of output targets (['console', 'file'])
-- **files**: Log file names for different log types
-
-## Usage
-
-### Module Integration
-
-```typescript
-import { LoggerModule } from '@/modules/core/logger';
-import { ModuleContext } from '@/modules/types';
-
-// Initialize the module
-const loggerModule = new LoggerModule();
-await loggerModule.initialize({
-  config: {
-    stateDir: '/var/app/state',
-    logLevel: 'info',
-    outputs: ['console', 'file'],
-    // ... other config
-  }
-});
-
-// Start the module
-await loggerModule.start();
-
-// Get the logger service
-const logger = loggerModule.getService();
-```
-
-### Basic Logging
-
-```typescript
-// Log at different levels
-logger.debug('Debug information', { userId: '123' });
-logger.info('User logged in', { userId: '123', action: 'login' });
-logger.warn('API rate limit approaching', { remaining: 10 });
-logger.error('Database connection failed', { error: err });
-
-// Custom log level
-logger.addLog('CUSTOM', 'Custom log message');
-
-// Access logs (HTTP requests)
-logger.access('GET /api/users 200 15ms');
-```
-
-### Structured Logging
-
-```typescript
-// Log with context object
-logger.info('Order processed', {
-  orderId: '12345',
-  userId: 'user-123',
-  amount: 99.99,
-  items: ['item1', 'item2'],
-  timestamp: new Date().toISOString()
-});
-
-// Error logging with stack trace
-try {
-  await riskyOperation();
-} catch (error) {
-  logger.error('Operation failed', {
-    error: error instanceof Error ? {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    } : error,
-    context: getCurrentContext()
-  });
-}
-```
-
-### Log Management
-
-```typescript
-// Retrieve logs
-const allLogs = await logger.getLogs();
-const systemLogs = await logger.getLogs('system.log');
-const errorLogs = await logger.getLogs('error.log');
-
-// Clear logs
-await logger.clearLogs(); // Clear all logs
-await logger.clearLogs('system.log'); // Clear specific log file
-```
-
-### Direct Service Usage
-
-```typescript
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-
-// Get singleton instance
-const logger = LoggerService.getInstance();
-
-// Initialize with config
-await logger.initialize({
-  stateDir: '/var/app/state',
-  logLevel: 'debug',
-  // ... other config
-});
-
-// Use the logger
-logger.info('Direct service usage');
-```
-
-## Architecture
-
-### Module Structure
-
-```
-logger/
-├── module.yaml           # Module manifest
-├── index.ts             # Module entry point (implements ModuleInterface)
-├── README.md            # This documentation
-├── services/            # Business logic
-│   └── logger.service.ts # Singleton logger service
-├── types/               # TypeScript definitions
-│   └── index.ts        # All type exports
-├── utils/               # Utility functions
-│   └── errors.ts       # Custom error classes
-├── repositories/        # Data access (empty for logger)
-└── tests/               # Test suites
-    ├── unit/           # Unit tests
-    └── integration/    # Integration tests
-```
-
-### Design Patterns
-
-1. **Singleton Pattern**: LoggerService ensures single instance
-2. **Factory Pattern**: createModule function for module creation
-3. **Error Handling**: Custom error classes with proper inheritance
-4. **Dependency Injection**: Module receives configuration via context
-
-### Error Handling
-
-The module defines custom error classes for different failure scenarios:
-
-- `LoggerError`: Base error class
-- `LoggerInitializationError`: Initialization failures
-- `LoggerFileWriteError`: File write failures
-- `LoggerFileReadError`: File read failures
-- `InvalidLogLevelError`: Invalid log level configuration
-- `LoggerDirectoryError`: Directory creation/access failures
-
-## API Reference
-
-### LoggerModule
-
-```typescript
-class LoggerModule implements ModuleInterface {
-  name: string = 'logger';
-  type: 'core' = 'core';
-  version: string = '1.0.0';
-  
-  initialize(context: ModuleContext): Promise<void>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
-  healthCheck(): Promise<{ healthy: boolean; message?: string }>;
-  getService(): Logger;
-  exports: any;
-}
-```
-
-### Logger Interface
-
-```typescript
-interface Logger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-  addLog(level: string, message: string, ...args: unknown[]): void;
-  clearLogs(logFile?: string): Promise<void>;
-  getLogs(logFile?: string): Promise<string[]>;
-}
-```
-
-### Configuration Types
-
-```typescript
-interface LoggerConfig {
-  stateDir: string;
-  logLevel: LogLevelName;
-  maxSize: string;
-  maxFiles: number;
-  outputs: LogOutput[];
-  files: LogFiles;
-}
-
-type LogLevelName = 'debug' | 'info' | 'warn' | 'error';
-type LogOutput = 'console' | 'file';
-```
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test src/modules/core/logger
-
-# Run unit tests only
-npm test src/modules/core/logger/tests/unit
-
-# Run integration tests only
-npm test src/modules/core/logger/tests/integration
-
-# Run with coverage
-npm test -- --coverage src/modules/core/logger
-```
-
-### Test Coverage
-
-The module maintains >90% test coverage with comprehensive unit and integration tests:
-
-- Unit tests for LoggerService, LoggerModule, and error classes
-- Integration tests for file operations and module lifecycle
-- Performance tests for high-volume logging
-- Concurrent operation tests
-
-## Performance Considerations
-
-1. **Synchronous File Writes**: Uses synchronous writes for reliability
-2. **Efficient Formatting**: Minimal overhead in message formatting
-3. **Level Checking**: Early return for disabled log levels
-4. **Console Fallback**: Graceful degradation on file write failures
+- **stateDir**: Base directory for log files
+- **logLevel**: Minimum log level (debug, info, warn, error)
+- **mode**: Logger mode (console, cli, server)
+- **maxSize**: Maximum size per log file
+- **maxFiles**: Maximum number of rotated files
+- **outputs**: Array of output targets
+- **files**: Log file names by type
+- **database**: Database logging configuration
 
 ## Best Practices
 
-1. **Use Structured Logging**
-   ```typescript
-   // Good
-   logger.info('User action', { userId, action, timestamp });
-   
-   // Less useful
-   logger.info(`User ${userId} performed ${action} at ${timestamp}`);
-   ```
+### 1. Use Appropriate Log Levels
 
-2. **Include Context**
-   ```typescript
-   logger.error('Operation failed', {
-     error,
-     requestId: req.id,
-     userId: req.user?.id,
-     path: req.path
-   });
-   ```
+```typescript
+// Debug: Detailed diagnostic information
+logger.debug(LogSource.CACHE, 'Cache lookup', { key: 'user_123', hit: false });
 
-3. **Choose Appropriate Levels**
-   - `debug`: Detailed debugging information
-   - `info`: General informational messages
-   - `warn`: Warning conditions that might need attention
-   - `error`: Error conditions requiring immediate attention
+// Info: General application flow
+logger.info(LogSource.API, 'User registered', { userId: 'user_123' });
 
-4. **Handle Sensitive Data**
-   ```typescript
-   // Don't log sensitive information
-   logger.info('User login', { 
-     userId: user.id,
-     email: user.email
-     // NOT password or tokens!
-   });
-   ```
+// Warn: Potentially harmful situations
+logger.warn(LogSource.DATABASE, 'Slow query detected', { duration: 5000 });
+
+// Error: Serious problems requiring attention
+logger.error(LogSource.SYSTEM, 'Out of memory', { available: 100 });
+```
+
+### 2. Use Structured Logging
+
+```typescript
+// ❌ Bad: Unstructured string concatenation
+logger.info(LogSource.API, `User ${userId} performed ${action} on ${resource}`);
+
+// ✅ Good: Structured data with enums
+logger.info(LogSource.API, 'User action performed', {
+  userId,
+  action,
+  resource,
+  category: LogCategory.USER_ACTION
+});
+```
+
+### 3. Handle Errors Consistently
+
+```typescript
+// ❌ Bad: Manual error logging
+try {
+  await operation();
+} catch (error) {
+  logger.error(LogSource.MODULE, 'Operation failed', {
+    error: error instanceof Error ? error.message : String(error),
+    // manual context...
+  });
+  throw error;
+}
+
+// ✅ Good: Centralized error handling
+try {
+  await operation();
+} catch (error) {
+  handleError('module.operation', error);
+}
+```
+
+### 4. Use Typed Errors
+
+```typescript
+// ❌ Bad: Generic errors
+throw new Error('Invalid input');
+
+// ✅ Good: Specific error types with metadata
+throw new ValidationError('Email format invalid', {
+  field: 'email',
+  value: input.email,
+  constraints: ['Must be valid email format']
+});
+```
+
+### 5. Include Relevant Context
+
+```typescript
+// Always include relevant context for debugging
+logger.info(LogSource.API, 'Order processed', {
+  orderId: order.id,
+  userId: user.id,
+  requestId: req.id,
+  duration: Date.now() - startTime,
+  category: LogCategory.USER_ACTION
+});
+```
+
+### 6. Separate Logging and Error Handling Concerns
+
+The systems are intentionally decoupled:
+
+```typescript
+// Just logging (no error)
+logger.info(LogSource.API, 'Cache cleared', { 
+  size: 1024,
+  category: LogCategory.SYSTEM 
+});
+
+// Just error handling (includes logging automatically)
+handleError('cache.clear', error);
+
+// Both (when you need custom logging + error handling)
+logger.info(LogSource.API, 'Starting cache clear');
+try {
+  await clearCache();
+  logger.info(LogSource.API, 'Cache cleared successfully');
+} catch (error) {
+  handleError('cache.clear', error);
+}
+```
+
+### 7. Use Enums, Not Strings
+
+```typescript
+// ❌ Bad: String literals
+logger.info('api', 'User action', { category: 'user' });
+
+// ✅ Good: Type-safe enums
+logger.info(LogSource.API, 'User action', { 
+  category: LogCategory.USER_ACTION 
+});
+```
+
+## API Reference
+
+### Logging API
+
+#### ILogger Interface
+
+```typescript
+interface ILogger {
+  debug(source: LogSource, message: string, args?: LogArgs): void;
+  info(source: LogSource, message: string, args?: LogArgs): void;
+  warn(source: LogSource, message: string, args?: LogArgs): void;
+  error(source: LogSource, message: string, args?: LogArgs): void;
+  log(level: LogLevelName, source: LogSource, message: string, args?: LogArgs): void;
+  access(message: string): void;
+  clearLogs(logFile?: string): Promise<void>;
+  getLogs(logFile?: string): Promise<string[]>;
+  setDatabaseService?(databaseService: any): void;
+}
+```
+
+#### LogArgs Interface
+
+```typescript
+interface LogArgs {
+  category?: LogCategory | string;
+  persistToDb?: boolean;
+  sessionId?: string;
+  userId?: string;
+  requestId?: string;
+  module?: string;
+  action?: string;
+  error?: Error | string;
+  duration?: number;
+  status?: string | number;
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+```
+
+### Error Handling API
+
+#### Main Functions
+
+```typescript
+// Synchronous error handling (non-blocking)
+function handleError(
+  source: string,
+  error: unknown,
+  options?: Partial<IErrorHandlingOptions>
+): void;
+
+// Asynchronous error handling (blocking)
+async function handleErrorAsync(
+  source: string,
+  error: unknown,
+  options?: Partial<IErrorHandlingOptions>
+): Promise<void>;
+
+// Configure global error handling
+function configureErrorHandling(
+  config: Partial<IErrorHandlingOptions>
+): void;
+```
+
+#### IErrorHandlingOptions Interface
+
+```typescript
+interface IErrorHandlingOptions {
+  rethrow?: boolean;              // Default: true
+  severity?: ErrorSeverity;       // Override auto-detection
+  category?: ErrorCategory;       // Override auto-detection
+  metadata?: Record<string, unknown>;
+  logToDatabase?: boolean;        // Default: true
+  logToConsole?: boolean;         // Default: true
+  logToFile?: boolean;            // Default: true
+  message?: string;               // Custom error message
+  notify?: boolean;               // Send notifications
+  logSource?: LogSource;          // Override source
+  logCategory?: LogCategory;      // Override category
+}
+```
+
+#### Error Classes
+
+All error classes extend `ApplicationError`:
+
+```typescript
+abstract class ApplicationError extends Error {
+  readonly code?: string;
+  readonly statusCode?: number;
+  readonly category: ErrorCategory;
+  readonly logCategory: LogCategory;
+  readonly timestamp: Date;
+  readonly metadata?: Record<string, unknown>;
+}
+```
+
+## CLI Commands
+
+The logger module provides CLI commands for log management:
+
+```bash
+# View logs
+systemprompt-os logger:show --level error --limit 100
+
+# Clear logs
+systemprompt-os logger:clear --type system
+
+# View logs with specific source
+systemprompt-os logger:show --source auth --level warn
+
+# Export logs
+systemprompt-os logger:show --format json > logs.json
+```
+
+## Migration Guide
+
+To migrate existing code to use centralized error handling:
+
+### Step 1: Replace Manual Error Logging
+
+```typescript
+// Old pattern
+try {
+  await operation();
+} catch (error) {
+  logger.error(LogSource.MODULE, 'Operation failed', {
+    error: error instanceof Error ? error.message : String(error)
+  });
+  throw error;
+}
+
+// New pattern
+import { handleError } from '@/modules/core/logger';
+
+try {
+  await operation();
+} catch (error) {
+  handleError('module.operation', error);
+}
+```
+
+### Step 2: Use Typed Errors
+
+```typescript
+// Old pattern
+throw new Error('User not found');
+
+// New pattern
+import { BusinessLogicError } from '@/modules/core/logger';
+
+throw new BusinessLogicError('User not found', {
+  entity: 'user',
+  rule: 'existence-check'
+});
+```
+
+### Step 3: Leverage Error Metadata
+
+```typescript
+// Old pattern
+if (!isValid) {
+  throw new Error('Invalid input');
+}
+
+// New pattern
+import { ValidationError } from '@/modules/core/logger';
+
+if (!isValid) {
+  throw new ValidationError('Invalid input', {
+    field: 'email',
+    value: input.email,
+    constraints: ['Must be valid email']
+  });
+}
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Logger not initialized error**
-   - Ensure module is initialized before use
-   - Check that configuration is provided
+1. **Type Error: "unknown" is not assignable**
+   - This is expected! Use `handleError()` to process unknown errors
+   - The error handling system safely processes `unknown` types
 
-2. **No log output**
-   - Verify log level allows the message type
-   - Check outputs configuration includes desired target
-   - Ensure log directory has write permissions
+2. **Errors not logging to database**
+   - Check that database service is set: `logger.setDatabaseService(dbService)`
+   - Verify `persistToDb: true` in options
+   - Only warn/error levels persist by default
 
-3. **File write errors**
-   - Check disk space availability
-   - Verify directory permissions
-   - Look for console error fallback messages
+3. **Missing error context**
+   - Pass metadata in options: `handleError('source', error, { metadata: {...} })`
+   - Use structured error classes for automatic context
 
-## Dependencies
+4. **Sensitive data in logs**
+   - Configure sanitization patterns in `configureErrorHandling()`
+   - Error handler automatically sanitizes common patterns
 
-- Node.js built-in modules: `fs`, `path`
-- No external npm dependencies
+## Performance Considerations
 
-## Development
+### Logging Performance
+- Synchronous console/file writes for reliability
+- Database writes are async and batched
+- Early return for disabled log levels
+- Minimal formatting overhead
 
-### Adding New Features
+### Error Handling Performance
+- Async processing doesn't block main thread
+- Error deduplication reduces redundant processing
+- Fingerprinting for efficient error grouping
+- Configurable limits for message/stack length
 
-1. Update types in `types/index.ts`
-2. Implement in `services/logger.service.ts`
-3. Update module interface if needed
-4. Add comprehensive tests
-5. Update this documentation
+## Summary
 
-### Contribution Guidelines
+The Logger module provides a complete solution for application logging and error handling:
 
-1. Maintain >90% test coverage
-2. No `any` types - use `unknown` or proper types
-3. Follow singleton pattern for service
-4. Use custom error classes for failures
-5. Document all public APIs with JSDoc
+- **Logging**: Type-safe, structured logging with multiple outputs
+- **Error Handling**: Centralized, consistent error processing
+- **Decoupled Design**: Use either or both systems as needed
+- **Type Safety**: Full TypeScript support with enums
+- **Production Ready**: Sanitization, deduplication, and monitoring
 
-## License
-
-Part of SystemPrompt OS - see main project license
+For more examples, see [error-handling-example.md](../../../docs/error-handling-example.md).

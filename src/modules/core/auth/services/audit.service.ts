@@ -3,9 +3,10 @@
  * @module modules/core/auth/services/audit.service
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { ONE_HUNDRED } from '@/const/numbers.js';
 
 /**
@@ -63,14 +64,15 @@ export class AuditService {
         ],
       );
 
-      this.logger.debug('Audit event logged', {
+      this.logger.debug(LogSource.AUTH, 'Audit event logged', {
         action: event.action,
-        userId: event.userId
+        userId: event.userId,
+        persistToDb: false
       });
     } catch (error) {
-      this.logger.error('Failed to log audit event', {
+      this.logger.error(LogSource.AUTH, 'Failed to log audit event', {
         event,
-        error
+        error: error instanceof Error ? error : String(error)
       });
     }
   }
@@ -115,9 +117,9 @@ export class AuditService {
         return event;
       });
     } catch (error) {
-      this.logger.error('Failed to get audit events', {
+      this.logger.error(LogSource.AUTH, 'Failed to get audit events', {
         userId,
-        error
+        error: error instanceof Error ? error : String(error)
       });
       return [];
     }

@@ -1,4 +1,5 @@
 /**
+ * Core MCP Server implementation with dynamic handler loading.
  * @file Core MCP Server implementation with dynamic handler loading.
  * @module server/mcp/core/server
  */
@@ -19,8 +20,11 @@ import {
   type ReadResourceRequest,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { Request, Response } from 'express';
-import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource, LoggerService } from '@/modules/core/logger/index.js';
+// HTTP Status constants
+const HTTP_INTERNAL_ERROR = 500;
+const HTTP_NOT_FOUND = 404;
+import type { IServerConfig, ISessionInfo } from '@/server/mcp/remote/types.js';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
 import {
@@ -29,52 +33,26 @@ import {
 } from '@/server/mcp/core/handlers/resource-handlers.js';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
-/**
- * HTTP Status Codes.
- */
-const HTTP_NOT_FOUND = 404;
-const HTTP_INTERNAL_ERROR = 500;
-
 const logger = LoggerService.getInstance();
-
-/**
- * Represents an active MCP session with its associated server and transport.
- */
-interface SessionInfo {
-  server: Server;
-  transport: StreamableHTTPServerTransport;
-  createdAt: Date;
-  lastAccessed: Date;
-}
-
-/**
- * Configuration options for the MCP server.
- */
-interface ServerConfig {
-  name?: string;
-  version?: string;
-  sessionTimeoutMs?: number;
-  cleanupIntervalMs?: number;
-}
 
 /**
  * Default server configuration values.
  */
-const DEFAULT_CONFIG: Required<ServerConfig> = {
+const DEFAULT_CONFIG: Required<IServerConfig> = {
   name: 'systemprompt-os-core',
   version: '0.1.0',
-  sessionTimeoutMs: 60 * 60 * 1000, // 1 hour
-  cleanupIntervalMs: 5 * 60 * 1000, // 5 minutes
+  sessionTimeoutMs: 60 * 60 * 1000,
+  cleanupIntervalMs: 5 * 60 * 1000,
 } as const;
 
 /**
  * Core MCP Server implementation providing tools, resources, and prompts.
  * With session management and dynamic handler loading.
  */
-export class CoreMCPServer {
+export class CoreMcpServer {
   public readonly name: string;
   public readonly version: string;
-  private readonly sessions: Map<string, SessionInfo>;
+  private readonly sessions: Map<string, ISessionInfo>;
   private readonly sessionTimeoutMs: number;
   private cleanupInterval: NodeJS.Timeout | null;
 
@@ -82,21 +60,24 @@ export class CoreMCPServer {
    * Creates a new MCP server instance.
    * @param config - Optional server configuration.
    */
-  constructor(config?: ServerConfig) {
+  constructor(config?: IServerConfig) {
     const mergedConfig = {
       ...DEFAULT_CONFIG,
       ...config,
     };
 
-    this.name = mergedConfig.name;
-    this.version = mergedConfig.version;
-    this.sessionTimeoutMs = mergedConfig.sessionTimeoutMs;
+    const {
+ name, version, sessionTimeoutMs
+} = mergedConfig;
+    this.name = name;
+    this.version = version;
+    this.sessionTimeoutMs = sessionTimeoutMs;
     this.sessions = new Map();
     this.cleanupInterval = null;
 
     this.startSessionCleanup(mergedConfig.cleanupIntervalMs);
 
-    logger.info('MCP server initialized', {
+    logger.info(LogSource.MCP, 'MCP server initialized', {
       name: this.name,
       version: this.version,
       sessionTimeout: this.sessionTimeoutMs,
@@ -143,7 +124,7 @@ export class CoreMCPServer {
     this.setupResourceHandlers(server, context);
     this.setupPromptHandlers(server, context);
 
-    logger.debug('Server instance created', {
+    logger.debug(LogSource.MCP, 'Server instance created', {
       sessionId,
       userId,
     });
@@ -161,8 +142,8 @@ export class CoreMCPServer {
       try {
         return await handleListTools(request, context);
       } catch (error) {
-        logger.error('Failed to list tools', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to list tools', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
         });
         throw error;
@@ -173,10 +154,12 @@ export class CoreMCPServer {
       try {
         return await handleToolCall(request, context);
       } catch (error) {
-        logger.error('Failed to call tool', {
-          tool: request.params.name,
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to call tool', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
+          data: {
+            tool: request.params.name
+          }
         });
         throw error;
       }
@@ -193,8 +176,8 @@ export class CoreMCPServer {
       try {
         return await handleListResources();
       } catch (error) {
-        logger.error('Failed to list resources', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to list resources', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
         });
         throw error;
@@ -205,10 +188,12 @@ export class CoreMCPServer {
       try {
         return await handleResourceCall(request);
       } catch (error) {
-        logger.error('Failed to read resource', {
-          uri: request.params.uri,
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to read resource', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
+          data: {
+            uri: request.params.uri
+          }
         });
         throw error;
       }
@@ -225,8 +210,8 @@ export class CoreMCPServer {
       try {
         return await handleListPrompts();
       } catch (error) {
-        logger.error('Failed to list prompts', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to list prompts', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
         });
         throw error;
@@ -237,10 +222,12 @@ export class CoreMCPServer {
       try {
         return await handleGetPrompt(request);
       } catch (error) {
-        logger.error('Failed to get prompt', {
-          prompt: request.params.name,
-          error: error instanceof Error ? error.message : 'Unknown error',
+        logger.error(LogSource.MCP, 'Failed to get prompt', {
+          error: error instanceof Error ? error : String(error),
           sessionId: context.sessionId,
+          data: {
+            prompt: request.params.name
+          }
         });
         throw error;
       }
@@ -253,7 +240,7 @@ export class CoreMCPServer {
    * @param res - Express response object.
    * @returns Promise that resolves when the request is handled.
    */
-  async handleRequest(req: Request, res: Response): Promise<void> {
+  async handleRequest(req: any, res: any): Promise<void> {
     try {
       const sessionId = this.extractSessionId(req);
 
@@ -263,9 +250,11 @@ export class CoreMCPServer {
         await this.handleNewSession(req, res);
       }
     } catch (error) {
-      logger.error('MCP request error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
+      logger.error(LogSource.MCP, 'MCP request error', {
+        error: error instanceof Error ? error : String(error),
+        data: {
+          stack: error instanceof Error ? error.stack : undefined
+        }
       });
 
       this.sendErrorResponse(res, error);
@@ -277,8 +266,8 @@ export class CoreMCPServer {
    * @param req - Express request object.
    * @returns Session ID if present, undefined otherwise.
    */
-  private extractSessionId(req: Request): string | undefined {
-    return (req.headers['mcp-session-id'] as string) || (req.headers['x-session-id'] as string);
+  private extractSessionId(req: any): string | undefined {
+    return req.headers['mcp-session-id'] || req.headers['x-session-id'];
   }
 
   /**
@@ -289,8 +278,8 @@ export class CoreMCPServer {
    */
   private async handleExistingSession(
     sessionId: string,
-    req: Request,
-    res: Response,
+    req: any,
+    res: any,
   ): Promise<void> {
     const sessionInfo = this.sessions.get(sessionId);
 
@@ -315,7 +304,7 @@ export class CoreMCPServer {
    * @param req - Express request object.
    * @param res - Express response object.
    */
-  private async handleNewSession(req: Request, res: Response): Promise<void> {
+  private async handleNewSession(req: any, res: any): Promise<void> {
     const userId = req.user?.sub;
     const sessionId = this.generateSessionId();
     const server = this.createServer(sessionId, userId);
@@ -327,7 +316,7 @@ export class CoreMCPServer {
 
     await server.connect(transport);
 
-    const sessionInfo: SessionInfo = {
+    const sessionInfo: ISessionInfo = {
       server,
       transport,
       createdAt: new Date(),
@@ -341,7 +330,7 @@ export class CoreMCPServer {
 
     await transport.handleRequest(req, res, req.body);
 
-    logger.info('New session created', {
+    logger.info(LogSource.MCP, 'New session created', {
       sessionId,
       userId,
       totalSessions: this.sessions.size,
@@ -362,7 +351,7 @@ export class CoreMCPServer {
    * @param res - Express response object.
    * @param error - Error that occurred.
    */
-  private sendErrorResponse(res: Response, error: unknown): void {
+  private sendErrorResponse(res: any, error: unknown): void {
     if (!res.headersSent) {
       res.status(HTTP_INTERNAL_ERROR).json({
         jsonrpc: '2.0',
@@ -392,7 +381,7 @@ export class CoreMCPServer {
     }
 
     if (cleanedCount > 0) {
-      logger.info('Session cleanup completed', {
+      logger.info(LogSource.MCP, 'Session cleanup completed', {
         cleanedSessions: cleanedCount,
         remainingSessions: this.sessions.size,
       });
@@ -404,17 +393,17 @@ export class CoreMCPServer {
    * @param sessionId - Session identifier.
    * @param sessionInfo - Session information object.
    */
-  private terminateSession(sessionId: string, sessionInfo: SessionInfo): void {
+  private terminateSession(sessionId: string, sessionInfo: ISessionInfo): void {
     try {
       sessionInfo.server.close();
       sessionInfo.transport.close();
       this.sessions.delete(sessionId);
 
-      logger.debug('Session terminated', { sessionId });
+      logger.debug(LogSource.MCP, 'Session terminated', { sessionId });
     } catch (error) {
-      logger.error('Error terminating session', {
+      logger.error(LogSource.MCP, 'Error terminating session', {
+        error: error instanceof Error ? error : String(error),
         sessionId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -453,7 +442,7 @@ export class CoreMCPServer {
    * Gracefully shuts down the server and all active sessions.
    */
   shutdown(): void {
-    logger.info('Server shutdown initiated', {
+    logger.info(LogSource.MCP, 'Server shutdown initiated', {
       activeSessions: this.sessions.size,
     });
 
@@ -466,7 +455,7 @@ export class CoreMCPServer {
       this.terminateSession(sessionId, sessionInfo);
     }
 
-    logger.info('Server shutdown completed');
+    logger.info(LogSource.MCP, 'Server shutdown completed');
   }
 }
 
@@ -475,6 +464,6 @@ export class CoreMCPServer {
  * @param config - Optional server configuration.
  * @returns Configured MCP server instance.
  */
-export const createMCPServer = function (config?: ServerConfig): CoreMCPServer {
-  return new CoreMCPServer(config);
+export const createMCPServer = function (config?: IServerConfig): CoreMcpServer {
+  return new CoreMcpServer(config);
 };

@@ -11,6 +11,7 @@ import {
 import { join, resolve } from 'path';
 import { parse } from 'yaml';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import type { DatabaseService } from '@/modules/core/database/index.js';
 import type {
  ModuleHealthStatus, ModuleInfo, ModuleStatus, ScannedModule
@@ -67,7 +68,7 @@ export class ModuleManagerService {
    * Initialize the service and create database tables if needed.
    */
   async initialize(): Promise<void> {
-    this.logger.info('Module manager service initialized');
+    this.logger.info(LogSource.MODULES, 'Module manager service initialized');
   }
 
   /**
@@ -78,7 +79,7 @@ export class ModuleManagerService {
     const injectablePath = resolve(process.cwd(), this.config.injectablePath);
 
     if (!existsSync(injectablePath)) {
-      this.logger.warn(`Injectable modules path does not exist: ${injectablePath}`);
+      this.logger.warn(LogSource.MODULES, `Injectable modules path does not exist: ${injectablePath}`);
       return modules;
     }
 
@@ -111,16 +112,16 @@ export class ModuleManagerService {
                 await this.upsertModule(scannedModule);
               }
             } catch (error) {
-              this.logger.error(`Failed to parse module.yaml in ${modulePath}:`, error);
+              this.logger.error(LogSource.MODULES, `Failed to parse module.yaml in ${modulePath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
             }
           }
         }
       }
     } catch (error) {
-      this.logger.error('Failed to scan for modules:', error);
+      this.logger.error(LogSource.MODULES, 'Failed to scan for modules:', { error: error instanceof Error ? error : new Error(String(error)) });
     }
 
-    this.logger.info(`Discovered ${modules.length} injectable modules`);
+    this.logger.info(LogSource.MODULES, `Discovered ${modules.length} injectable modules`);
     return modules;
   }
 
@@ -143,7 +144,7 @@ export class ModuleManagerService {
     };
 
     await this.upsertModule(moduleData);
-    this.logger.info(`Registered core module '${name}' in database`);
+    this.logger.info(LogSource.MODULES, `Registered core module '${name}' in database`);
   }
 
   /**
@@ -231,7 +232,7 @@ export class ModuleManagerService {
       'UPDATE modules SET enabled = 1, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
       [name]
     );
-    this.logger.info(`Module '${name}' enabled`);
+    this.logger.info(LogSource.MODULES, `Module '${name}' enabled`);
   }
 
   /**
@@ -244,7 +245,7 @@ export class ModuleManagerService {
       'UPDATE modules SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
       [name]
     );
-    this.logger.info(`Module '${name}' disabled`);
+    this.logger.info(LogSource.MODULES, `Module '${name}' disabled`);
   }
 
   /**

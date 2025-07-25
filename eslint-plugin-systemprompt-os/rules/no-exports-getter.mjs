@@ -18,9 +18,19 @@ export default {
     schema: []
   },
   create(context) {
+    const filename = context.filename || context.getFilename();
+    
+    // Allow exports getter in module index.ts files (they implement IModule)
+    const isModuleFile = /\/src\/modules\/(core|extension)\/([^/]+)\/index\.ts$/.test(filename);
+    
     return {
       // Check for get exports()
       'MethodDefinition[kind="get"][key.name="exports"]'(node) {
+        // Skip if this is a module file implementing IModule
+        if (isModuleFile) {
+          return;
+        }
+        
         context.report({
           node,
           messageId: 'noExportsGetter'
@@ -29,6 +39,11 @@ export default {
       
       // Check for exports property with getter
       'Property[key.name="exports"][kind="get"]'(node) {
+        // Skip if this is a module file implementing IModule
+        if (isModuleFile) {
+          return;
+        }
+        
         context.report({
           node,
           messageId: 'noExportsGetter'
@@ -49,6 +64,11 @@ export default {
       
       // Check for regular property named 'exports' (the workaround pattern)
       'PropertyDefinition[key.name="exports"]'(node) {
+        // Skip if this is a module file implementing IModule
+        if (isModuleFile) {
+          return;
+        }
+        
         context.report({
           node,
           messageId: 'noExportsProperty'
@@ -57,6 +77,11 @@ export default {
       
       // Check for assigning to this.exports in constructor or methods
       'AssignmentExpression[left.object.type="ThisExpression"][left.property.name="exports"]'(node) {
+        // Skip if this is a module file implementing IModule
+        if (isModuleFile) {
+          return;
+        }
+        
         context.report({
           node,
           messageId: 'noExportsProperty'

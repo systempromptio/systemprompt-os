@@ -7,9 +7,10 @@
 
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
+import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types.js';
+import { ZERO } from '@/modules/core/database/constants/index.js';
 
 /**
  * SQL parser service interface.
@@ -145,7 +146,7 @@ export class SchemaImportService {
       }
 
       if (existingChecksum !== undefined && existingChecksum !== schema.checksum) {
-        this.logger?.warn('Schema file changed after import', {
+        this.logger?.warn(LogSource.DATABASE, 'Schema file changed after import', {
           module: schema.module,
           file: schema.filepath,
           oldChecksum: existingChecksum,
@@ -184,7 +185,7 @@ export class SchemaImportService {
       throw new Error('Parser or database service not initialized');
     }
 
-    this.logger?.info('Importing schema', {
+    this.logger?.info(LogSource.DATABASE, 'Importing schema', {
       module: schema.module,
       file: schema.filepath
     });
@@ -209,7 +210,7 @@ export class SchemaImportService {
     ].filter((stmt): boolean => { return stmt.isValid && stmt.statement.trim() !== '' });
 
     if (validStatements.length === ZERO) {
-      this.logger?.warn('No valid statements found in schema file', {
+      this.logger?.warn(LogSource.DATABASE, 'No valid statements found in schema file', {
         module: schema.module,
         file: schema.filepath
       });
@@ -217,16 +218,15 @@ export class SchemaImportService {
     }
 
     await this.database.transaction(async (conn): Promise<void> => {
-      for (const stmt of validStatements) {
-        try {
-          await conn.execute(stmt.statement);
-        } catch (error) {
-          throw new Error(
-            `Failed at line ${stmt.lineNumber}: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
+      try {
+        // Execute the entire SQL file at once - better-sqlite3's exec() handles multiple statements correctly
+        await conn.execute(schema.content);
+      } catch (error) {
+        throw new Error(
+          `[${schema.filepath}] Failed to execute schema: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
       }
 
       await conn.execute(
@@ -236,7 +236,7 @@ export class SchemaImportService {
       );
     });
 
-    this.logger?.info('Schema imported successfully', {
+    this.logger?.info(LogSource.DATABASE, 'Schema imported successfully', {
       module: schema.module,
       file: schema.filepath,
       statements: validStatements.length

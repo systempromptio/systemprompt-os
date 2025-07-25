@@ -35,8 +35,9 @@ import {
 import { handleListRoots } from '@/server/mcp/core/handlers/roots-handlers.js';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import {
-  type IMCPHandler,
+  type IMcpHandler,
   type ISessionInfo,
   MCP_CONSTANTS,
 } from '@/server/types/mcp.types.js';
@@ -49,10 +50,10 @@ const logger = LoggerService.getInstance();
 /**
  * MCP Handler with per-session server instances.
  */
-export class McpHandler implements IMCPHandler {
+export class McpHandler implements IMcpHandler {
   private readonly sessions = new Map<string, ISessionInfo>();
   private readonly cleanupInterval: NodeJS.Timeout;
-  private readonly sessionTimeoutMs = MCP_CONSTANTS.SESSION_TIMEOUT_MS;
+  private readonly sessionTimeoutMs = MCP_CONSTANTS.sessionTimeoutMs;
 
   /**
    * Constructor.
@@ -60,7 +61,7 @@ export class McpHandler implements IMCPHandler {
   constructor() {
     this.cleanupInterval = setInterval((): void => {
       this.cleanupOldSessions();
-    }, MCP_CONSTANTS.SESSION_CHECK_INTERVAL_MS);
+    }, MCP_CONSTANTS.sessionCheckIntervalMs);
   }
 
   /**
@@ -72,11 +73,11 @@ export class McpHandler implements IMCPHandler {
     await Promise.resolve();
     const mcpMiddleware = [
       rateLimitMiddleware(
-        MCP_CONSTANTS.RATE_LIMIT_WINDOW_MS,
-        MCP_CONSTANTS.RATE_LIMIT_MAX_REQUESTS,
+        MCP_CONSTANTS.rateLimitWindowMs,
+        MCP_CONSTANTS.rateLimitMaxRequests,
       ),
       validateProtocolVersion,
-      requestSizeLimit(MCP_CONSTANTS.MAX_REQUEST_SIZE_MB * MCP_CONSTANTS.BYTES_PER_MB),
+      requestSizeLimit(MCP_CONSTANTS.maxRequestSizeMb * MCP_CONSTANTS.bytesPerMb),
     ];
 
     app.all('/mcp', ...mcpMiddleware, async (req, res): Promise<void> => {
@@ -125,13 +126,13 @@ export class McpHandler implements IMCPHandler {
     const sessionInfo = this.sessions.get(sessionId);
     if (sessionInfo !== undefined) {
       sessionInfo.server.close().catch((): void => {
-        logger.debug('Error closing server during cleanup');
+        logger.debug(LogSource.MCP, 'Error closing server during cleanup');
       });
       sessionInfo.transport.close().catch((): void => {
-        logger.debug('Error closing transport during cleanup');
+        logger.debug(LogSource.MCP, 'Error closing transport during cleanup');
       });
       this.sessions.delete(sessionId);
-      logger.debug(`Cleaned up session: ${sessionId}`);
+      logger.debug(LogSource.MCP, `Cleaned up session: ${sessionId}`, { sessionId });
     }
   }
 
@@ -151,15 +152,15 @@ export class McpHandler implements IMCPHandler {
 
     for (const sessionInfo of this.sessions.values()) {
       sessionInfo.server.close().catch((): void => {
-        logger.debug('Error closing server during shutdown');
+        logger.debug(LogSource.MCP, 'Error closing server during shutdown');
       });
       sessionInfo.transport.close().catch((): void => {
-        logger.debug('Error closing transport during shutdown');
+        logger.debug(LogSource.MCP, 'Error closing transport during shutdown');
       });
     }
     this.sessions.clear();
 
-    logger.info('MCP Handler shut down');
+    logger.info(LogSource.MCP, 'MCP Handler shut down');
   }
 
   /**
@@ -188,7 +189,7 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ListToolsRequestSchema,
       async (request) => {
-        logger.debug(`📋 [${sessionId}] Listing tools`);
+        logger.debug(LogSource.MCP, `📋 [${sessionId}] Listing tools`, { sessionId });
         return await handleListTools(request);
       },
     );
@@ -196,14 +197,27 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       CallToolRequestSchema,
       async (request) => {
-        logger.debug(`🔧 [${sessionId}] Calling tool: ${request.params.name}`);
+        logger.debug(LogSource.MCP, `🔧 [${sessionId}] Calling tool: ${request.params.name}`, {
+ sessionId,
+toolName: request.params.name
+});
         logger.info(
+          LogSource.MCP,
           'MCP tool request params:',
-          JSON.stringify(request.params, null, MCP_CONSTANTS.JSON_STRINGIFY_SPACE),
+          {
+ sessionId,
+params: request.params,
+persistToDb: false
+}
         );
         logger.info(
+          LogSource.MCP,
           'MCP tool request full:',
-          JSON.stringify(request, null, MCP_CONSTANTS.JSON_STRINGIFY_SPACE),
+          {
+ sessionId,
+request,
+persistToDb: false
+}
         );
         return await handleToolCall(request, { sessionId });
       },
@@ -220,7 +234,7 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ListPromptsRequestSchema,
       async () => {
-        logger.debug(`[${sessionId}] Listing prompts`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Listing prompts`, { sessionId });
         return await handleListPrompts();
       },
     );
@@ -228,7 +242,10 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       GetPromptRequestSchema,
       async (request) => {
-        logger.debug(`[${sessionId}] Getting prompt: ${request.params.name}`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Getting prompt: ${request.params.name}`, {
+ sessionId,
+promptName: request.params.name
+});
         return await handleGetPrompt(request);
       },
     );
@@ -244,7 +261,7 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ListResourcesRequestSchema,
       async () => {
-        logger.debug(`[${sessionId}] Listing resources`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Listing resources`, { sessionId });
         return await handleListResources();
       },
     );
@@ -252,7 +269,10 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ReadResourceRequestSchema,
       async (request) => {
-        logger.debug(`[${sessionId}] Reading resource: ${request.params.uri}`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Reading resource: ${request.params.uri}`, {
+ sessionId,
+resourceUri: request.params.uri
+});
         return await handleResourceCall(request);
       },
     );
@@ -260,7 +280,7 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ListRootsRequestSchema,
       async (request) => {
-        logger.debug(`[${sessionId}] Listing roots`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Listing roots`, { sessionId });
         return await handleListRoots(request);
       },
     );
@@ -268,10 +288,15 @@ export class McpHandler implements IMCPHandler {
     server.setRequestHandler(
       ListResourceTemplatesRequestSchema,
       async (request) => {
-        logger.debug(`[${sessionId}] Listing resource templates`);
+        logger.debug(LogSource.MCP, `[${sessionId}] Listing resource templates`, { sessionId });
         logger.info(
+          LogSource.MCP,
           'Resource templates request:',
-          JSON.stringify(request, null, MCP_CONSTANTS.JSON_STRINGIFY_SPACE),
+          {
+ sessionId,
+request,
+persistToDb: false
+}
         );
         return await handleListResourceTemplates(request);
       },
@@ -289,9 +314,9 @@ export class McpHandler implements IMCPHandler {
     const startTime = Date.now();
 
     try {
-      logger.debug(`MCP ${req.method} request`, {
+      logger.debug(LogSource.MCP, `MCP ${req.method} request`, {
         headers: req.headers,
-        sessionId: req.headers['mcp-session-id'] ?? req.headers['x-session-id'],
+        sessionId: (req.headers['mcp-session-id'] ?? req.headers['x-session-id']) as string | undefined,
         acceptHeader: req.headers.accept,
       });
 
@@ -307,20 +332,25 @@ export class McpHandler implements IMCPHandler {
       await sessionInfo.transport.handleRequest(req, res);
 
       logger.debug(
+        LogSource.MCP,
         `MCP request completed in ${String(Date.now() - startTime)}ms for session ${sessionId}`,
+        {
+ sessionId,
+duration: Date.now() - startTime
+}
       );
     } catch (error) {
-      logger.error('MCP request failed', {
+      logger.error(LogSource.MCP, 'MCP request failed', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         duration: Date.now() - startTime,
       });
 
       if (!res.headersSent) {
-        res.status(MCP_CONSTANTS.INTERNAL_SERVER_ERROR_STATUS).json({
+        res.status(MCP_CONSTANTS.internalServerErrorStatus).json({
           jsonrpc: '2.0',
           error: {
-            code: MCP_CONSTANTS.JSONRPC_INTERNAL_ERROR_CODE,
+            code: MCP_CONSTANTS.jsonrpcInternalErrorCode,
             message: 'Internal error',
           },
           id: null,
@@ -347,7 +377,10 @@ export class McpHandler implements IMCPHandler {
       = (typeof mcpSessionHeader === 'string' ? mcpSessionHeader : undefined)
       ?? (typeof xSessionHeader === 'string' ? xSessionHeader : undefined);
 
-    logger.info(`[SESSION] Request method: ${req.method}, Session ID: ${sessionId ?? 'none'}`);
+    logger.info(LogSource.MCP, `[SESSION] Request method: ${req.method}, Session ID: ${sessionId ?? 'none'}`, {
+ sessionId,
+method: req.method
+});
 
     if (sessionId === undefined) {
       return await this.createNewSession();
@@ -359,7 +392,10 @@ export class McpHandler implements IMCPHandler {
       return null;
     }
 
-    logger.info(`[SESSION] Found session ${sessionId}, handling ${req.method} request`);
+    logger.info(LogSource.MCP, `[SESSION] Found session ${sessionId}, handling ${req.method} request`, {
+ sessionId,
+method: req.method
+});
     return {
       sessionId,
       sessionInfo,
@@ -373,12 +409,12 @@ export class McpHandler implements IMCPHandler {
    */
   private async createNewSession(): Promise<{ sessionId: string; sessionInfo: ISessionInfo }> {
     const sessionId = `session_${String(Date.now())}_${Math.random()
-      .toString(MCP_CONSTANTS.RADIX_BASE_36)
+      .toString(MCP_CONSTANTS.radixBase36)
       .substring(
-        MCP_CONSTANTS.SESSION_ID_SUBSTRING_START,
-        MCP_CONSTANTS.SESSION_ID_SUBSTRING_END,
+        MCP_CONSTANTS.sessionIdSubstringStart,
+        MCP_CONSTANTS.sessionIdSubstringEnd,
       )}`;
-    logger.info(`[SESSION] Creating new session: ${sessionId}`);
+    logger.info(LogSource.MCP, `[SESSION] Creating new session: ${sessionId}`, { sessionId });
 
     const server = this.createServer(sessionId);
     const transport = new StreamableHTTPServerTransport({
@@ -386,7 +422,7 @@ export class McpHandler implements IMCPHandler {
         return sessionId;
       },
       onsessioninitialized: (sid: string): void => {
-        logger.info(`🔗 New session initialized: ${sid}`);
+        logger.info(LogSource.MCP, `🔗 New session initialized: ${sid}`, { sessionId: sid });
       },
       enableJsonResponse: false,
     });
@@ -401,7 +437,7 @@ export class McpHandler implements IMCPHandler {
     };
     this.sessions.set(sessionId, sessionInfo);
 
-    logger.debug(`📝 Created new session with dedicated server: ${sessionId}`);
+    logger.debug(LogSource.MCP, `📝 Created new session with dedicated server: ${sessionId}`, { sessionId });
     return {
       sessionId,
       sessionInfo,
@@ -415,12 +451,12 @@ export class McpHandler implements IMCPHandler {
    * @private
    */
   private handleSessionNotFound(sessionId: string, res: express.Response): void {
-    logger.error(`[SESSION] Session not found: ${sessionId}`);
-    logger.info(`[SESSION] Active sessions: ${Array.from(this.sessions.keys()).join(', ')}`);
-    res.status(MCP_CONSTANTS.NOT_FOUND_STATUS).json({
+    logger.error(LogSource.MCP, `[SESSION] Session not found: ${sessionId}`, { sessionId });
+    logger.info(LogSource.MCP, `[SESSION] Active sessions: ${Array.from(this.sessions.keys()).join(', ')}`, { activeSessions: Array.from(this.sessions.keys()) });
+    res.status(MCP_CONSTANTS.notFoundStatus).json({
       jsonrpc: '2.0',
       error: {
-        code: MCP_CONSTANTS.JSONRPC_SESSION_NOT_FOUND_CODE,
+        code: MCP_CONSTANTS.jsonrpcSessionNotFoundCode,
         message: 'Session not found',
       },
       id: null,
@@ -439,18 +475,18 @@ export class McpHandler implements IMCPHandler {
       const age = now - sessionInfo.lastAccessed.getTime();
       if (age > this.sessionTimeoutMs) {
         sessionInfo.server.close().catch((): void => {
-          logger.debug('Error closing server during cleanup');
+          logger.debug(LogSource.MCP, 'Error closing server during cleanup');
         });
         sessionInfo.transport.close().catch((): void => {
-          logger.debug('Error closing transport during cleanup');
+          logger.debug(LogSource.MCP, 'Error closing transport during cleanup');
         });
         this.sessions.delete(sessionId);
-        cleaned += MCP_CONSTANTS.INCREMENT;
+        cleaned += MCP_CONSTANTS.increment;
       }
     }
 
-    if (cleaned > MCP_CONSTANTS.ZERO) {
-      logger.info(`Cleaned up ${String(cleaned)} old sessions`);
+    if (cleaned > MCP_CONSTANTS.zero) {
+      logger.info(LogSource.MCP, `Cleaned up ${String(cleaned)} old sessions`, { cleanedCount: cleaned });
     }
   }
 }

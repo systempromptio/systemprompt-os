@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { LogSource } from '@/modules/core/logger/types/index.js';
 import { ZERO } from '@/const/numbers.js';
 
 /**
@@ -112,7 +113,7 @@ export class UserService {
      * Check if admins exist BEFORE starting the transaction.
      */
     const hasAdmins = await this.hasAdminUsers();
-    this.logger.info('Creating/updating user', {
+    this.logger.info(LogSource.AUTH, 'Creating/updating user', {
       email,
       hasAdmins,
     });
@@ -138,7 +139,7 @@ export class UserService {
            WHERE id = ?`,
           [name ?? null, avatar ?? null, userId],
         );
-        this.logger.info('Updated existing user', {
+        this.logger.info(LogSource.AUTH, 'Updated existing user', {
           userId,
           email,
         });
@@ -179,7 +180,7 @@ export class UserService {
           roleId,
         ]);
 
-        this.logger.info('Created new user with role', {
+        this.logger.info(LogSource.AUTH, 'Created new user with role', {
           userId,
           email,
           role: hasAdmins ? 'user' : 'admin',
