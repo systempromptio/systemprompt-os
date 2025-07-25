@@ -102,4 +102,159 @@ export class DatabaseCLIHandlerService {
       };
     }
   }
+
+  /**
+   * Handle view command.
+   * @param params - View parameters.
+   * @returns View result.
+   */
+  public async handleView(params: {
+    tableName: string;
+    format?: 'table' | 'json' | 'csv';
+    limit?: number;
+    offset?: number;
+    columns?: string;
+    where?: string;
+    orderBy?: string;
+    schemaOnly?: boolean;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      table: string;
+      totalRows: number;
+      displayedRows: number;
+      offset: number;
+      limit: number;
+      hasMore: boolean;
+      columns: Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        primaryKey: boolean;
+        defaultValue: string | null;
+      }>;
+      data: unknown[];
+    };
+    schema?: {
+      table: string;
+      columns: Array<{
+        name: string;
+        type: string;
+        nullable: boolean;
+        primaryKey: boolean;
+        defaultValue: string | null;
+      }>;
+    };
+  }> {
+    try {
+      const dbService = DatabaseService.getInstance();
+
+      if (!await dbService.isConnected()) {
+        return {
+          success: false,
+          message: 'Database is not connected'
+        };
+      }
+
+      const tableExists = await dbService.query<{ count: number }>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name=?",
+        [params.tableName]
+      );
+
+      if (tableExists[0]?.count === 0) {
+        return {
+          success: false,
+          message: `Table '${params.tableName}' does not exist`
+        };
+      }
+
+      const schema = await dbService.query<{
+        cid: number;
+        name: string;
+        type: string;
+        notnull: number;
+        dflt_value: string | null;
+        pk: number;
+      }>(`PRAGMA table_info(\`${params.tableName}\`)`);
+
+      const columnInfo = schema.map(col => ({
+        name: col.name,
+        type: col.type,
+        nullable: col.notnull === 0,
+        primaryKey: col.pk > 0,
+        defaultValue: col.dflt_value,
+      }));
+
+      if (params.schemaOnly === true) {
+        return {
+          success: true,
+          schema: {
+            table: params.tableName,
+            columns: columnInfo
+          }
+        };
+      }
+
+      let selectColumns = '*';
+      if (params.columns !== undefined) {
+        const requestedColumns = params.columns.split(',').map(c => c.trim());
+        const validColumns = columnInfo.map(c => c.name);
+        const invalidColumns = requestedColumns.filter(c => !validColumns.includes(c));
+
+        if (invalidColumns.length > 0) {
+          return {
+            success: false,
+            message: `Invalid columns: ${invalidColumns.join(', ')}`
+          };
+        }
+
+        selectColumns = requestedColumns.map(c => `\`${c}\``).join(', ');
+      }
+
+      let query = `SELECT ${selectColumns} FROM \`${params.tableName}\``;
+      const queryParams: unknown[] = [];
+
+      if (params.where !== undefined) {
+        query += ` WHERE ${params.where}`;
+      }
+
+      if (params.orderBy !== undefined) {
+        query += ` ORDER BY ${params.orderBy}`;
+      }
+
+      const limit = params.limit ?? 50;
+      const offset = params.offset ?? 0;
+      query += ` LIMIT ? OFFSET ?`;
+      queryParams.push(limit, offset);
+
+      const rows = await dbService.query(query, queryParams);
+
+      let countQuery = `SELECT COUNT(*) as count FROM \`${params.tableName}\``;
+      if (params.where !== undefined) {
+        countQuery += ` WHERE ${params.where}`;
+      }
+      const totalResult = await dbService.query<{ count: number }>(countQuery);
+      const totalRows = totalResult[0]?.count ?? 0;
+
+      return {
+        success: true,
+        data: {
+          table: params.tableName,
+          totalRows,
+          displayedRows: rows.length,
+          offset,
+          limit,
+          hasMore: offset + rows.length < totalRows,
+          columns: columnInfo,
+          data: rows,
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error viewing table: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
 }

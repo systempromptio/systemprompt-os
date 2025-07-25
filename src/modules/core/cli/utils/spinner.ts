@@ -57,125 +57,8 @@ export const SPINNER_PRESETS = {
  * Enhanced spinner class with SystemPrompt theming.
  */
 export class SystemPromptSpinner {
-  private spinner: any;
-  private startTime: number = 0;
-
-  constructor(config: SpinnerConfig = {}) {
-    const defaultConfig = SPINNER_PRESETS.loading;
-    
-    this.spinner = ora({
-      text: config.text || defaultConfig.text,
-      color: config.color || defaultConfig.color,
-      spinner: config.spinner || defaultConfig.spinner,
-      interval: config.interval || 100
-    });
-  }
-
-  /**
-   * Start the spinner with optional custom text.
-   * @param text - Optional text to display.
-   * @returns This spinner instance for chaining.
-   */
-  start(text?: string): SystemPromptSpinner {
-    if (text) {
-      this.spinner.text = text;
-    }
-    this.startTime = Date.now();
-    this.spinner.start();
-    return this;
-  }
-
-  /**
-   * Stop the spinner and optionally display a success message.
-   * @param successText - Optional success message.
-   * @returns This spinner instance for chaining.
-   */
-  succeed(successText?: string): SystemPromptSpinner {
-    const elapsed = this.getElapsedTime();
-    const text = successText ? `${successText} ${elapsed}` : undefined;
-    this.spinner.succeed(text);
-    return this;
-  }
-
-  /**
-   * Stop the spinner and display an error message.
-   * @param errorText - Optional error message.
-   * @returns This spinner instance for chaining.
-   */
-  fail(errorText?: string): SystemPromptSpinner {
-    const elapsed = this.getElapsedTime();
-    const text = errorText ? `${errorText} ${elapsed}` : undefined;
-    this.spinner.fail(text);
-    return this;
-  }
-
-  /**
-   * Stop the spinner and display a warning message.
-   * @param warningText - Optional warning message.
-   * @returns This spinner instance for chaining.
-   */
-  warn(warningText?: string): SystemPromptSpinner {
-    const elapsed = this.getElapsedTime();
-    const text = warningText ? `${warningText} ${elapsed}` : undefined;
-    this.spinner.warn(text);
-    return this;
-  }
-
-  /**
-   * Stop the spinner and display an info message.
-   * @param infoText - Optional info message.
-   * @returns This spinner instance for chaining.
-   */
-  info(infoText?: string): SystemPromptSpinner {
-    const elapsed = this.getElapsedTime();
-    const text = infoText ? `${infoText} ${elapsed}` : undefined;
-    this.spinner.info(text);
-    return this;
-  }
-
-  /**
-   * Stop the spinner without any final message.
-   * @returns This spinner instance for chaining.
-   */
-  stop(): SystemPromptSpinner {
-    this.spinner.stop();
-    return this;
-  }
-
-  /**
-   * Update the spinner text while running.
-   * @param text - New text to display.
-   * @returns This spinner instance for chaining.
-   */
-  updateText(text: string): SystemPromptSpinner {
-    this.spinner.text = text;
-    return this;
-  }
-
-  /**
-   * Update the spinner color while running.
-   * @param color - New color to use.
-   * @returns This spinner instance for chaining.
-   */
-  updateColor(color: SpinnerConfig['color']): SystemPromptSpinner {
-    this.spinner.color = color;
-    return this;
-  }
-
-  /**
-   * Get elapsed time since spinner started.
-   * @returns Formatted elapsed time string.
-   */
-  private getElapsedTime(): string {
-    if (this.startTime === 0) return '';
-    const elapsed = Date.now() - this.startTime;
-    return chalk.dim(`(${elapsed}ms)`);
-  }
-
-  /**
-   * Check if the spinner is currently spinning.
-   * @returns True if spinning, false otherwise.
-   */
+  private readonly spinner: any;
+  private readonly startTime: number = 0;
   get isSpinning(): boolean {
     return this.spinner.isSpinning;
   }
@@ -183,10 +66,12 @@ export class SystemPromptSpinner {
 
 /**
  * Quick spinner factory functions.
+ * @param preset
+ * @param text
  */
 export const createSpinner = (preset: keyof typeof SPINNER_PRESETS = 'loading', text?: string): SystemPromptSpinner => {
   const config = { ...SPINNER_PRESETS[preset] };
-  if (text) config.text = text;
+  if (text) { config.text = text; }
   return new SystemPromptSpinner(config);
 };
 
@@ -221,8 +106,8 @@ export const withSpinner = async <T>(
  * Create a multi-step progress spinner.
  */
 export class ProgressSpinner {
-  private spinner: SystemPromptSpinner;
-  private steps: string[];
+  private readonly spinner: SystemPromptSpinner;
+  private readonly steps: string[];
   private currentStep: number = 0;
 
   constructor(steps: string[], config: SpinnerConfig = {}) {
@@ -234,7 +119,7 @@ export class ProgressSpinner {
    * Start the progress spinner.
    * @returns This progress spinner instance.
    */
-  start(): ProgressSpinner {
+  start(): this {
     if (this.steps.length > 0) {
       this.spinner.start(`[1/${this.steps.length}] ${this.steps[0]}`);
     }
@@ -246,7 +131,7 @@ export class ProgressSpinner {
    * @param successText - Optional success text for current step.
    * @returns This progress spinner instance.
    */
-  nextStep(successText?: string): ProgressSpinner {
+  nextStep(successText?: string): this {
     this.currentStep++;
     
     if (this.currentStep < this.steps.length) {
@@ -271,7 +156,7 @@ export class ProgressSpinner {
    * @param successText - Final success message.
    * @returns This progress spinner instance.
    */
-  complete(successText?: string): ProgressSpinner {
+  complete(successText?: string): this {
     this.spinner.succeed(successText || 'All steps completed');
     return this;
   }
@@ -281,7 +166,7 @@ export class ProgressSpinner {
    * @param errorText - Error message.
    * @returns This progress spinner instance.
    */
-  fail(errorText?: string): ProgressSpinner {
+  fail(errorText?: string): this {
     this.spinner.fail(errorText || 'Operation failed');
     return this;
   }

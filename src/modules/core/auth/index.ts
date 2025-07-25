@@ -1,14 +1,12 @@
 import {
- existsSync, mkdirSync, readFileSync
+  existsSync, mkdirSync, readFileSync
 } from 'fs';
 import {
- dirname, join, resolve
+  dirname, join, resolve
 } from 'path';
 import { fileURLToPath } from 'url';
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatus } from '@/modules/core/modules/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
@@ -19,8 +17,11 @@ import { UserService } from '@/modules/core/auth/services/user-service';
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
 import { MFAService } from '@/modules/core/auth/services/mfa.service';
 import { AuditService } from '@/modules/core/auth/services/audit.service';
-import { OAuth2ConfigService } from '@/modules/core/auth/services/oauth2-config.service';
+import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import { ConfigurationError } from '@/modules/core/auth/utils/errors';
+import {
+  FIVE, TEN
+} from '@/const/numbers';
 import type {
   AuthConfig,
   AuthModuleExports,
@@ -32,19 +33,14 @@ import type {
   TokenValidationResult
 } from '@/modules/core/auth/types/index';
 
-const _filename = fileURLToPath(import.meta.url);
-import {
- FIVE, TEN
-} from '@/const/numbers';
-
-const _dirname = dirname(_filename);
+const filename = fileURLToPath(import.meta.url);
+const currentDirname = dirname(filename);
 
 /**
- *
- * AuthModule class.
- *
+ * AuthModule provides authentication, authorization, and JWT token management.
+ * Handles user authentication through multiple identity providers, token lifecycle management,
+ * and secure session handling with support for OAuth2, MFA, and audit logging.
  */
-
 export class AuthModule implements IModule {
   public readonly name = 'auth';
   public readonly version = '2.0.0';
@@ -61,27 +57,31 @@ export class AuthModule implements IModule {
   private authCodeService!: AuthCodeService;
   private mfaService!: MFAService;
   private auditService!: AuditService;
-  private oauth2ConfigService!: OAuth2ConfigService;
+  private oauth2ConfigService!: OAuth2ConfigurationService;
   private logger!: ILogger;
   private database!: DatabaseService;
   private initialized = false;
   private started = false;
+  /**
+   * Get the module's exported services and methods.
+   * @returns The exported authentication services and utilities
+   */
   get exports(): AuthModuleExports {
     return {
-      service: () => { return this.authService },
-      tokenService: () => { return this.tokenService },
-      userService: () => { return this.userService },
-      authCodeService: () => { return this.authCodeService },
-      mfaService: () => { return this.mfaService },
-      auditService: () => { return this.auditService },
-      getProvider: (id: string) => { return this.getProvider(id) },
-      getAllProviders: () => { return this.getAllProviders() },
+      service: (): AuthService => { return this.authService },
+      tokenService: (): TokenService => { return this.tokenService },
+      userService: (): UserService => { return this.userService },
+      authCodeService: (): AuthCodeService => { return this.authCodeService },
+      mfaService: (): MFAService => { return this.mfaService },
+      auditService: (): AuditService => { return this.auditService },
+      getProvider: (id: string): IdentityProvider | undefined => { return this.getProvider(id) },
+      getAllProviders: (): IdentityProvider[] => { return this.getAllProviders() },
       createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
       validateToken: async (token: string) => { return await this.validateToken(token) },
-      hasProvider: (id: string) => { return this.hasProvider(id) },
-      getProviderRegistry: () => { return this.getProviderRegistry() },
-      reloadProviders: async () => { await this.reloadProviders(); },
-      oauth2ConfigService: () => { return this.oauth2ConfigService },
+      hasProvider: (id: string): boolean => { return this.hasProvider(id) },
+      getProviderRegistry: (): ProviderRegistry | null => { return this.getProviderRegistry() },
+      reloadProviders: async (): Promise<void> => { await this.reloadProviders(); },
+      oauth2ConfigService: (): OAuth2ConfigurationService => { return this.oauth2ConfigService },
     };
   }
 
@@ -133,11 +133,11 @@ export class AuthModule implements IModule {
       this.authCodeService = (AuthCodeService as any).getInstance();
       this.mfaService = (MFAService as any).getInstance();
       this.auditService = (AuditService as any).getInstance();
-      this.oauth2ConfigService = OAuth2ConfigService.getInstance();
+      this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
 
       this.authService = (AuthService as any).getInstance();
 
-      const providersPath = join(_dirname, 'providers');
+      const providersPath = join(currentDirname, 'providers');
       this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
       await this.providerRegistry.initialize();
 
@@ -171,7 +171,7 @@ export class AuthModule implements IModule {
     }
 
     try {
-      const schemaPath = join(_dirname, 'database', 'schema.sql');
+      const schemaPath = join(currentDirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
         const statements = schema.split(';').filter((s) => { return s.trim() !== '' });
@@ -251,20 +251,36 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Get logger instance.
+   * Get logger instance.
+   * @returns The logger instance
    */
   getLogger(): ILogger {
     return this.logger;
   }
 
+  /**
+   * Authenticate a user with the provided credentials.
+   * @param input - The login input containing credentials
+   * @returns Promise resolving to login result with tokens and user info
+   */
   async login(input: LoginInput): Promise<LoginResult> {
     return await this.authService.login(input);
   }
 
+  /**
+   * Log out a user by terminating their session.
+   * @param sessionId - The session ID to terminate
+   * @returns Promise that resolves when logout is complete
+   */
   async logout(sessionId: string): Promise<void> {
     await this.authService.logout(sessionId);
   }
 
+  /**
+   * Refresh an access token using a valid refresh token.
+   * @param refreshToken - The refresh token to use
+   * @returns Promise resolving to new access and refresh tokens
+   */
   async refreshAccessToken(refreshToken: string): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -272,54 +288,114 @@ export class AuthModule implements IModule {
     return await this.authService.refreshAccessToken(refreshToken);
   }
 
+  /**
+   * Create a new authentication token.
+   * @param input - The token creation input parameters
+   * @returns Promise resolving to the created token
+   */
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
     return await this.tokenService.createToken(input);
   }
 
+  /**
+   * Validate an authentication token.
+   * @param token - The token to validate
+   * @returns Promise resolving to validation result
+   */
   async validateToken(token: string): Promise<TokenValidationResult> {
     return await this.tokenService.validateToken(token);
   }
 
+  /**
+   * Revoke a specific token by its ID.
+   * @param tokenId - The ID of the token to revoke
+   * @returns Promise that resolves when token is revoked
+   */
   async revokeToken(tokenId: string): Promise<void> {
     await this.tokenService.revokeToken(tokenId);
   }
 
+  /**
+   * Revoke all tokens for a specific user, optionally filtered by type.
+   * @param userId - The user ID whose tokens to revoke
+   * @param type - Optional token type filter
+   * @returns Promise that resolves when tokens are revoked
+   */
   async revokeUserTokens(userId: string, type?: string): Promise<void> {
     await this.tokenService.revokeUserTokens(userId, type);
   }
 
+  /**
+   * List all active tokens for a specific user.
+   * @param userId - The user ID to list tokens for
+   * @returns Promise resolving to array of user's tokens
+   */
   async listUserTokens(userId: string): Promise<AuthToken[]> {
     return await this.tokenService.listUserTokens(userId);
   }
 
+  /**
+   * Clean up expired tokens from the system.
+   * @returns Promise resolving to number of tokens cleaned up
+   */
   async cleanupExpiredTokens(): Promise<number> {
     return await this.tokenService.cleanupExpiredTokens();
   }
 
+  /**
+   * Get an identity provider by its ID.
+   * @param providerId - The provider ID to look up
+   * @returns The identity provider or undefined if not found
+   */
   getProvider(providerId: string): IdentityProvider | undefined {
     return this.providerRegistry?.getProvider(providerId);
   }
 
+  /**
+   * Get all registered identity providers.
+   * @returns Array of all identity providers
+   */
   getAllProviders(): IdentityProvider[] {
     return this.providerRegistry?.getAllProviders() ?? [];
   }
 
+  /**
+   * Check if a provider with the given ID exists.
+   * @param providerId - The provider ID to check
+   * @returns True if provider exists, false otherwise
+   */
   hasProvider(providerId: string): boolean {
     return this.providerRegistry?.hasProvider(providerId) ?? false;
   }
 
+  /**
+   * Get the provider registry instance.
+   * @returns The provider registry or null if not initialized
+   */
   getProviderRegistry(): ProviderRegistry | null {
     return this.providerRegistry;
   }
 
+  /**
+   * Reload all identity providers from the filesystem.
+   * @returns Promise that resolves when providers are reloaded
+   */
   async reloadProviders(): Promise<void> {
     await this.providerRegistry?.initialize();
   }
 
+  /**
+   * Get the tunnel service instance for development environments.
+   * @returns The tunnel service or null if not available
+   */
   getTunnelService(): TunnelService | null {
     return this.tunnelService;
   }
 
+  /**
+   * Get the current tunnel status.
+   * @returns The tunnel status object
+   */
   getTunnelStatus(): unknown {
     if (this.tunnelService === null) {
       return {
@@ -330,6 +406,10 @@ export class AuthModule implements IModule {
     return this.tunnelService.getStatus();
   }
 
+  /**
+   * Get the public URL from the tunnel service.
+   * @returns The public URL or null if tunnel is not active
+   */
   getPublicUrl(): string | null {
     if (this.tunnelService === null) {
       return null;
@@ -338,7 +418,8 @@ export class AuthModule implements IModule {
   }
 
   /**
-   *  * Build configuration with defaults.
+   * Build configuration with defaults.
+   * @returns The complete authentication configuration
    */
   private buildConfig(): AuthConfig {
     return {
@@ -346,8 +427,8 @@ export class AuthModule implements IModule {
         algorithm: 'RS256',
         issuer: 'systemprompt-os',
         audience: 'systemprompt-os',
-        accessTokenTTL: 900,
-        refreshTokenTTL: 2592000,
+        accessTokenTtl: 900,
+        refreshTokenTtl: 2592000,
         keyStorePath: process.env.JWT_KEY_PATH ?? './state/auth/keys',
         privateKey: '',
         publicKey: ''
@@ -367,10 +448,18 @@ export class AuthModule implements IModule {
   }
 }
 
+/**
+ * Create a new AuthModule instance.
+ * @returns A new AuthModule instance
+ */
 export const createModule = (): AuthModule => {
   return new AuthModule();
 };
 
+/**
+ * Create and initialize a new AuthModule instance.
+ * @returns Promise resolving to an initialized AuthModule instance
+ */
 export const initialize = async (): Promise<AuthModule> => {
   const authModule = new AuthModule();
   await authModule.initialize();

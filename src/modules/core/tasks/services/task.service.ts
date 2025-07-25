@@ -4,6 +4,8 @@
  * @module modules/core/tasks/services
  */
 
+import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
   ITask,
   ITaskFilter,
@@ -12,26 +14,47 @@ import type {
   ITaskStatistics
 } from '@/modules/core/tasks/types/index';
 import {
- TaskExecutionStatus, TaskPriority, TaskStatus
+  TaskExecutionStatus,
+  TaskPriority,
+  TaskStatus
 } from '@/modules/core/tasks/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 
+/**
+ * Task service implementation providing task management capabilities.
+ * Handles task creation, execution, status updates, and statistics.
+ */
 export class TaskService implements ITaskService {
   private static instance: TaskService | null = null;
-  private logger!: ILogger;
-  private database!: DatabaseService;
+  
   private readonly handlers: Map<string, ITaskHandler> = new Map();
+  
+  private logger!: ILogger;
+  
+  private database!: DatabaseService;
+  
   private initialized = false;
 
+  /**
+   * Private constructor for singleton pattern.
+   */
   private constructor() {}
 
+  /**
+   * Gets the singleton instance of TaskService.
+   * @returns The TaskService instance.
+   */
   public static getInstance(): TaskService {
-    TaskService.instance ||= new TaskService();
+    TaskService.instance ??= new TaskService();
     return TaskService.instance;
   }
 
+  /**
+   * Initializes the TaskService with required dependencies.
+   * @param logger - Logger instance for service logging.
+   * @param database - Database service for data persistence.
+   * @throws {Error} If already initialized.
+   */
   public async initialize(logger: ILogger, database: DatabaseService): Promise<void> {
     if (this.initialized) {
       throw new Error('TaskService already initialized');
@@ -44,6 +67,12 @@ export class TaskService implements ITaskService {
     this.logger.info(LogSource.MODULES, 'TaskService initialized');
   }
 
+  /**
+   * Adds a new task to the queue.
+   * @param task - Partial task object with required fields.
+   * @returns Promise resolving to the created task.
+   * @throws {Error} If service not initialized or task creation fails.
+   */
   public async addTask(task: Partial<ITask>): Promise<ITask> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -105,6 +134,12 @@ export class TaskService implements ITaskService {
     return newTask;
   }
 
+  /**
+   * Receives the next available task from the queue.
+   * @param types - Optional array of task types to filter by.
+   * @returns Promise resolving to the next task or null if none available.
+   * @throws {Error} If service not initialized.
+   */
   public async receiveTask(types?: string[]): Promise<ITask | null> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -159,6 +194,12 @@ export class TaskService implements ITaskService {
     return task;
   }
 
+  /**
+   * Updates the status of a specific task.
+   * @param taskId - ID of the task to update.
+   * @param status - New status for the task.
+   * @throws {Error} If service not initialized.
+   */
   public async updateTaskStatus(taskId: number, status: TaskStatus): Promise<void> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -185,6 +226,12 @@ export class TaskService implements ITaskService {
     this.logger.info(LogSource.MODULES, `Task ${taskId} status updated to ${status}`);
   }
 
+  /**
+   * Retrieves a task by its ID.
+   * @param taskId - ID of the task to retrieve.
+   * @returns Promise resolving to the task or null if not found.
+   * @throws {Error} If service not initialized.
+   */
   public async getTaskById(taskId: number): Promise<ITask | null> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -214,6 +261,12 @@ export class TaskService implements ITaskService {
     };
   }
 
+  /**
+   * Lists tasks based on optional filter criteria.
+   * @param filter - Optional filter criteria for tasks.
+   * @returns Promise resolving to array of filtered tasks.
+   * @throws {Error} If service not initialized.
+   */
   public async listTasks(filter?: ITaskFilter): Promise<ITask[]> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -272,10 +325,19 @@ export class TaskService implements ITaskService {
     } });
   }
 
+  /**
+   * Cancels a task by updating its status to cancelled.
+   * @param taskId - ID of the task to cancel.
+   */
   public async cancelTask(taskId: number): Promise<void> {
     await this.updateTaskStatus(taskId, TaskStatus.CANCELLED);
   }
 
+  /**
+   * Registers a task handler for a specific task type.
+   * @param handler - Task handler to register.
+   * @throws {Error} If service not initialized or handler already registered.
+   */
   public async registerHandler(handler: ITaskHandler): Promise<void> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -296,6 +358,11 @@ export class TaskService implements ITaskService {
     this.logger.info(LogSource.MODULES, `Task handler registered: ${handler.type}`);
   }
 
+  /**
+   * Unregisters a task handler for a specific task type.
+   * @param type - Task type to unregister handler for.
+   * @throws {Error} If service not initialized.
+   */
   public async unregisterHandler(type: string): Promise<void> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -308,6 +375,11 @@ export class TaskService implements ITaskService {
     this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
   }
 
+  /**
+   * Retrieves task statistics including counts by status and type.
+   * @returns Promise resolving to task statistics.
+   * @throws {Error} If service not initialized.
+   */
   public async getStatistics(): Promise<ITaskStatistics> {
     if (!this.initialized) {
       throw new Error('TaskService not initialized');
@@ -355,6 +427,10 @@ export class TaskService implements ITaskService {
     };
   }
 
+  /**
+   * Gets a copy of all registered task handlers.
+   * @returns Map of task type to handler.
+   */
   public getHandlers(): Map<string, ITaskHandler> {
     return new Map(this.handlers);
   }

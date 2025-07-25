@@ -1,72 +1,48 @@
 /**
+ * OAuth2 Dynamic Client Registration endpoint (RFC 7591).
  * @file OAuth2 Dynamic Client Registration endpoint (RFC 7591).
  * @module server/external/rest/oauth2/register
  * @see {@link https://datatracker.ietf.org/doc/rfc7591/}
  */
 
-import type { Request, Response } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Client registration request as per RFC 7591.
- */
+import type {
+  IClientRegistrationRequest,
+  IClientRegistrationResponse,
+} from '@/server/external/rest/oauth2/types/index';
 
 const logger = LoggerService.getInstance();
-
-export interface ClientRegistrationRequest {
-  client_name?: string;
-  client_uri?: string;
-  logo_uri?: string;
-  redirect_uris?: string[];
-  token_endpoint_auth_method?: string;
-  grant_types?: string[];
-  response_types?: string[];
-  scope?: string;
-  contacts?: string[];
-  tos_uri?: string;
-  policy_uri?: string;
-  jwks_uri?: string;
-  software_id?: string;
-  software_version?: string;
-}
-
-/**
- * Client registration response.
- */
-export interface ClientRegistrationResponse extends ClientRegistrationRequest {
-  client_id: string;
-  client_secret?: string;
-  client_id_issued_at?: number;
-  client_secret_expires_at?: number;
-  registration_access_token?: string;
-  registration_client_uri?: string;
-}
 
 /**
  * In-memory client store (replace with database in production).
  */
-const registeredClients = new Map<string, ClientRegistrationResponse>();
+const registeredClients = new Map<string, IClientRegistrationResponse>();
 
+/**
+ * OAuth2 client registration endpoint handler.
+ */
 export class RegisterEndpoint {
   /**
    * POST /oauth2/register
    * Dynamic client registration endpoint.
-   * @param req
-   * @param res
+   * @param req - Express request object.
+   * @param res - Express response object.
+   * @returns Promise resolving to Express response.
    */
-  register = async (req: Request, res: Response): Promise<Response> => {
+  register = async (req: ExpressRequest, res: ExpressResponse): Promise<ExpressResponse> => {
     try {
       logger.info(LogSource.AUTH, 'Client registration request received', {
         category: 'oauth2',
         action: 'client_register',
-        persistToDb: false
+        persistToDb: false,
       });
 
-      const registrationRequest = req.body as ClientRegistrationRequest;
+      const registrationRequest = req.body as IClientRegistrationRequest;
 
-      if (!registrationRequest.redirect_uris || registrationRequest.redirect_uris.length === 0) {
+      if (!registrationRequest.redirect_uris?.length) {
         return res.status(400).json({
           error: 'invalid_redirect_uri',
           error_description: 'At least one redirect_uri is required',
@@ -77,18 +53,18 @@ export class RegisterEndpoint {
       const clientSecret = uuidv4();
       const issuedAt = Math.floor(Date.now() / 1000);
 
-      const registrationResponse: ClientRegistrationResponse = {
+      const registrationResponse: IClientRegistrationResponse = {
         client_id: clientId,
         client_secret: clientSecret,
         client_id_issued_at: issuedAt,
         client_secret_expires_at: 0,
-        client_name: registrationRequest.client_name || 'MCP Client',
+        client_name: registrationRequest.client_name ?? 'MCP Client',
         redirect_uris: registrationRequest.redirect_uris,
         token_endpoint_auth_method:
-          registrationRequest.token_endpoint_auth_method || 'client_secret_basic',
-        grant_types: registrationRequest.grant_types || ['authorization_code', 'refresh_token'],
-        response_types: registrationRequest.response_types || ['code'],
-        scope: registrationRequest.scope || 'openid profile email',
+          registrationRequest.token_endpoint_auth_method ?? 'client_secret_basic',
+        grant_types: registrationRequest.grant_types ?? ['authorization_code', 'refresh_token'],
+        response_types: registrationRequest.response_types ?? ['code'],
+        scope: registrationRequest.scope ?? 'openid profile email',
         ...registrationRequest.client_uri && { client_uri: registrationRequest.client_uri },
         ...registrationRequest.logo_uri && { logo_uri: registrationRequest.logo_uri },
         ...registrationRequest.contacts && { contacts: registrationRequest.contacts },
@@ -106,7 +82,7 @@ export class RegisterEndpoint {
       logger.info(LogSource.AUTH, 'Client registered successfully', {
         category: 'oauth2',
         action: 'client_register',
-        persistToDb: true
+        persistToDb: true,
       });
 
       return res.status(201).json(registrationResponse);
@@ -114,10 +90,10 @@ export class RegisterEndpoint {
       logger.error(LogSource.AUTH, 'Client registration failed', {
         error: error instanceof Error ? error : new Error(String(error)),
         category: 'oauth2',
-        action: 'client_register'
+        action: 'client_register',
       });
       return res.status(500).json({
-        error: 'servererror',
+        error: 'server_error',
         error_description: 'An error occurred during client registration',
       });
     }
@@ -125,16 +101,18 @@ export class RegisterEndpoint {
 
   /**
    * Get a registered client by ID (for internal use).
-   * @param clientId
+   * @param clientId - The client ID to look up.
+   * @returns The client registration response if found, otherwise undefined.
    */
-  static getClient(clientId: string): ClientRegistrationResponse | undefined {
+  static getClient(clientId: string): IClientRegistrationResponse | undefined {
     return registeredClients.get(clientId);
   }
 
   /**
    * Validate client credentials (for internal use).
-   * @param clientId
-   * @param clientSecret
+   * @param clientId - The client ID to validate.
+   * @param clientSecret - The client secret to validate (optional for public clients).
+   * @returns True if client credentials are valid, false otherwise.
    */
   static validateClient(clientId: string, clientSecret?: string): boolean {
     const client = registeredClients.get(clientId);
@@ -151,26 +129,27 @@ export class RegisterEndpoint {
 
   /**
    * Register a client programmatically (for internal use).
-   * @param registration
+   * @param registration - The client registration data.
+   * @returns The client registration response.
    */
   static registerClient(
-    registration: ClientRegistrationRequest & { client_id?: string },
-  ): ClientRegistrationResponse {
-    const clientId = registration.client_id || `mcp-${uuidv4()}`;
+    registration: IClientRegistrationRequest & { client_id?: string },
+  ): IClientRegistrationResponse {
+    const clientId = registration.client_id ?? `mcp-${uuidv4()}`;
     const clientSecret = registration.token_endpoint_auth_method === 'none' ? undefined : uuidv4();
     const issuedAt = Math.floor(Date.now() / 1000);
 
-    const response: ClientRegistrationResponse = {
+    const response: IClientRegistrationResponse = {
       client_id: clientId,
       ...clientSecret && { client_secret: clientSecret },
       client_id_issued_at: issuedAt,
       client_secret_expires_at: 0,
-      client_name: registration.client_name || 'OAuth Client',
-      redirect_uris: registration.redirect_uris || [],
-      token_endpoint_auth_method: registration.token_endpoint_auth_method || 'client_secret_basic',
-      grant_types: registration.grant_types || ['authorization_code'],
-      response_types: registration.response_types || ['code'],
-      scope: registration.scope || 'openid profile email',
+      client_name: registration.client_name ?? 'OAuth Client',
+      redirect_uris: registration.redirect_uris ?? [],
+      token_endpoint_auth_method: registration.token_endpoint_auth_method ?? 'client_secret_basic',
+      grant_types: registration.grant_types ?? ['authorization_code'],
+      response_types: registration.response_types ?? ['code'],
+      scope: registration.scope ?? 'openid profile email',
     };
 
     registeredClients.set(clientId, response);

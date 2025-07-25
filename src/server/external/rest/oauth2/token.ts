@@ -4,7 +4,7 @@
  * @module server/external/rest/oauth2/token
  */
 
-import type { Request, Response } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { CONFIG } from '@/server/config';
@@ -15,14 +15,22 @@ import { AuthRepository } from '@/modules/core/auth/database/repository';
 import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+import type {
+  IJWTTokenPayload,
+  IProviderTokens,
+  IRefreshTokenData,
+  ITokenRequestParams,
+  ITokenResponse,
+  IUserData,
+  IUserSessionData,
+} from '@/server/external/rest/oauth2/types/index';
 
 /**
  * Schema for OAuth2 token request validation.
  */
-
 const logger = LoggerService.getInstance();
 
-const TokenRequestSchema = z.object({
+const tokenRequestSchema = z.object({
   grant_type: z.enum(['authorization_code', 'refresh_token']),
   code: z.string().optional(),
   redirect_uri: z.string().url()
@@ -34,67 +42,33 @@ const TokenRequestSchema = z.object({
 });
 
 /**
- * Type definition for validated token request parameters.
- */
-type TokenRequestParams = z.infer<typeof TokenRequestSchema>;
-
-/**
- * Structure for storing refresh token data.
- */
-interface RefreshTokenData {
-  clientId: string;
-  userId: string;
-  scope: string;
-  provider?: string;
-  expiresAt: Date;
-}
-
-/**
- * Structure for storing user session data.
- */
-interface UserSessionData {
-  userId: string;
-  provider?: string;
-  email?: string;
-  name?: string;
-  picture?: string;
-  providerTokens?: any;
-}
-
-/**
- * Structure for OAuth2 token response.
- */
-interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  refresh_token: string;
-  scope: string;
-  id_token?: string;
-}
-
-/**
  * In-memory storage for refresh tokens
  * TODO: Replace with Redis or database in production.
  */
-const refreshTokens = new Map<string, RefreshTokenData>();
+const refreshTokens = new Map<string, IRefreshTokenData>();
 
 /**
  * In-memory storage for user sessions with provider information
  * TODO: Replace with Redis or database in production.
  */
-const userSessions = new Map<string, UserSessionData>();
+const userSessions = new Map<string, IUserSessionData>();
 
-// Get auth code service instance
+/**
+ * Get auth code service instance.
+ */
 let authCodeService: AuthCodeService;
 
-function getAuthCodeService(): AuthCodeService {
+/**
+ * Gets the authentication code service instance.
+ * @returns The auth code service instance.
+ */
+const getAuthCodeService = (): AuthCodeService => {
   if (!authCodeService) {
     const authModule = getAuthModule();
     authCodeService = authModule.exports.authCodeService();
   }
   return authCodeService;
-}
+};
 
 /**
  * OAuth2 Token Endpoint implementation
@@ -104,10 +78,14 @@ export class TokenEndpoint {
   /**
    * Main entry point for token requests
    * Validates request and delegates to appropriate grant handler.
-   * @param req
-   * @param res
+   * @param req - Express request object.
+   * @param res - Express response object.
+   * @returns Promise resolving to response or void.
    */
-  public postToken = async (req: Request, res: Response): Promise<Response | void> => {
+  public postToken = async (
+    req: ExpressRequest,
+    res: ExpressResponse
+  ): Promise<ExpressResponse | void> => {
     try {
       logger.info(LogSource.AUTH, 'Token request received', {
         category: 'oauth2',
@@ -115,7 +93,7 @@ export class TokenEndpoint {
         persistToDb: false
       });
 
-      const params = TokenRequestSchema.parse(req.body);
+      const params = tokenRequestSchema.parse(req.body);
 
       logger.info(LogSource.AUTH, 'Token params parsed', {
         category: 'oauth2',
@@ -127,6 +105,9 @@ export class TokenEndpoint {
         await this.handleAuthorizationCodeGrant(params, res);
       } else if (params.grant_type === 'refresh_token') {
         await this.handleRefreshTokenGrant(params, res);
+      } else {
+        const oauthError = OAuth2Error.unsupportedGrantType('Unsupported grant type');
+        res.status(oauthError.code).json(oauthError.toJSON());
       }
     } catch (error) {
       logger.error(LogSource.AUTH, 'Token endpoint error', {
@@ -137,31 +118,31 @@ export class TokenEndpoint {
 
       if (error instanceof z.ZodError) {
         const oauthError = OAuth2Error.invalidRequest(error.message);
-        res.status(oauthError.code).json(oauthError.toJSON());
-      } else {
-        const oauthError = OAuth2Error.serverError('Internal server error');
-        res.status(oauthError.code).json(oauthError.toJSON());
+        return res.status(oauthError.code).json(oauthError.toJSON());
       }
+        const oauthError = OAuth2Error.serverError('Internal server error');
+        return res.status(oauthError.code).json(oauthError.toJSON());
     }
   };
 
   /**
    * Handles authorization code grant type
    * Exchanges authorization code for access and refresh tokens.
-   * @param params
-   * @param res
+   * @param params - Token request parameters.
+   * @param res - Express response object.
+   * @returns Promise resolving to response or void.
    */
   private async handleAuthorizationCodeGrant(
-    params: TokenRequestParams,
-    res: Response,
-  ): Promise<Response | void> {
+    params: ITokenRequestParams,
+    res: ExpressResponse,
+  ): Promise<ExpressResponse | void> {
     logger.info(LogSource.AUTH, 'Authorization code grant started', {
       category: 'oauth2',
       action: 'auth_code_grant',
       persistToDb: false
     });
 
-    if (!params.code || !params.redirect_uri) {
+    if (typeof params.code !== 'string' || typeof params.redirect_uri !== 'string') {
       logger.error(LogSource.AUTH, 'Missing required parameters', {
         category: 'oauth2',
         action: 'auth_code_grant'
@@ -209,8 +190,9 @@ export class TokenEndpoint {
         return res.status(error.code).json(error.toJSON());
       }
 
-      const verifierHash = createHash('sha256').update(params.code_verifier)
-.digest('base64url');
+      const verifierHash = createHash('sha256')
+        .update(params.code_verifier)
+        .digest('base64url');
 
       if (verifierHash !== codeData.codeChallenge) {
         const error = OAuth2Error.invalidGrant('Invalid code verifier');
@@ -221,17 +203,18 @@ export class TokenEndpoint {
     await authCodeService.deleteAuthorizationCode(params.code);
 
     if (
-      codeData.provider
-      && codeData.providerTokens
+      typeof codeData.provider === 'string'
+      && codeData.providerTokens !== null
       && typeof codeData.providerTokens === 'object'
     ) {
       try {
         const provider = getAuthModule().exports.getProvider(codeData.provider);
-        if (provider && 'code' in codeData.providerTokens) {
-          const code = String(codeData.providerTokens.code);
-          if (code) {
+        const tokenData = codeData.providerTokens as IProviderTokens;
+        if (provider && typeof tokenData.code === 'string') {
+          const {code} = tokenData;
+          if (code.length > 0) {
             const providerTokens = await provider.exchangeCodeForTokens(code);
-            codeData.providerTokens = providerTokens as unknown as Record<string, unknown>;
+            codeData.providerTokens = providerTokens as Record<string, unknown>;
           }
         }
       } catch (error) {
@@ -245,14 +228,22 @@ export class TokenEndpoint {
 
     const sessionId = randomBytes(16).toString('hex');
 
-    userSessions.set(sessionId, {
-      userId: codeData.userId || 'anonymous',
-      ...codeData.provider && { provider: codeData.provider },
-      ...codeData.providerTokens && { providerTokens: codeData.providerTokens },
-    });
+    const sessionData: IUserSessionData = {
+      userId: codeData.userId ?? 'anonymous',
+    };
+
+    if (typeof codeData.provider === 'string') {
+      sessionData.provider = codeData.provider;
+    }
+
+    if (codeData.providerTokens !== null && typeof codeData.providerTokens === 'object') {
+      sessionData.providerTokens = codeData.providerTokens;
+    }
+
+    userSessions.set(sessionId, sessionData);
 
     const tokens = await this.generateTokens(
-      codeData.userId || 'anonymous',
+      codeData.userId ?? 'anonymous',
       codeData.clientId,
       codeData.scope,
       codeData.provider,
@@ -260,26 +251,27 @@ export class TokenEndpoint {
       codeData.userEmail,
     );
 
-    res.json(tokens);
+    return res.json(tokens);
   }
 
   /**
    * Handles refresh token grant type
    * Exchanges refresh token for new access token.
-   * @param params
-   * @param res
+   * @param params - Token request parameters.
+   * @param res - Express response object.
+   * @returns Promise resolving to response or void.
    */
   private async handleRefreshTokenGrant(
-    params: TokenRequestParams,
-    res: Response,
-  ): Promise<Response | void> {
-    if (!params.refresh_token) {
+    params: ITokenRequestParams,
+    res: ExpressResponse,
+  ): Promise<ExpressResponse | void> {
+    if (typeof params.refresh_token !== 'string') {
       const error = OAuth2Error.invalidRequest('Missing refresh token');
       return res.status(error.code).json(error.toJSON());
     }
 
     const tokenData = refreshTokens.get(params.refresh_token);
-    if (!tokenData) {
+    if (typeof tokenData === 'undefined') {
       const error = OAuth2Error.invalidGrant('Invalid refresh token');
       return res.status(error.code).json(error.toJSON());
     }
@@ -290,7 +282,8 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
 
-    if (params.client_id && tokenData.clientId !== params.client_id) {
+    if (typeof params.client_id === 'string'
+        && tokenData.clientId !== params.client_id) {
       const error = OAuth2Error.invalidGrant('Invalid client');
       return res.status(error.code).json(error.toJSON());
     }
@@ -304,18 +297,19 @@ export class TokenEndpoint {
       tokenData.provider,
     );
 
-    res.json(tokens);
+    return res.json(tokens);
   }
 
   /**
    * Generates access and refresh tokens
    * Creates JWT-like tokens with appropriate claims and expiration.
-   * @param userId
-   * @param clientId
-   * @param scope
-   * @param provider
-   * @param sessionId
-   * @param userEmail
+   * @param userId - User identifier.
+   * @param clientId - Client identifier.
+   * @param scope - Token scope.
+   * @param provider - Optional provider name.
+   * @param sessionId - Optional session identifier.
+   * @param userEmail - Optional user email.
+   * @returns Promise resolving to token response.
    */
   private async generateTokens(
     userId: string,
@@ -324,10 +318,10 @@ export class TokenEndpoint {
     provider?: string,
     sessionId?: string,
     userEmail?: string,
-  ): Promise<TokenResponse> {
+  ): Promise<ITokenResponse> {
     const now = Math.floor(Date.now() / 1000);
 
-    let userData: any = null;
+    let userData: IUserData | null = null;
     let userRoles: string[] = [];
     try {
       const authRepo = AuthRepository.getInstance();
@@ -341,9 +335,7 @@ export class TokenEndpoint {
           roles: []
         };
         const roles = await authRepo.getIUserIRoles(userId);
-        userRoles = roles.map((r: any) => {
-          return r.name;
-        });
+        userRoles = roles.map((r: { name: string }) => { return r.name });
         userData.roles = userRoles;
       }
     } catch (error) {
@@ -352,15 +344,16 @@ export class TokenEndpoint {
         category: 'oauth2',
         action: 'user_fetch'
       });
-      if (userEmail) {
+      if (typeof userEmail === 'string') {
         userData = {
           id: userId,
           email: userEmail,
+          roles: [],
         };
       }
     }
 
-    const accessTokenPayload = {
+    const accessTokenPayload: IJWTTokenPayload = {
       sub: userId,
       clientid: clientId,
       scope,
@@ -385,15 +378,20 @@ export class TokenEndpoint {
 
     const refreshToken = randomBytes(32).toString('base64url');
 
-    refreshTokens.set(refreshToken, {
+    const refreshTokenData: IRefreshTokenData = {
       clientId,
       userId,
       scope,
-      ...provider && { provider },
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    });
+    };
 
-    const response: TokenResponse = {
+    if (typeof provider === 'string') {
+      refreshTokenData.provider = provider;
+    }
+
+    refreshTokens.set(refreshToken, refreshTokenData);
+
+    const response: ITokenResponse = {
       access_token: accessToken,
       token_type: 'Bearer',
       expires_in: 3600,
@@ -402,7 +400,7 @@ export class TokenEndpoint {
     };
 
     if (scope.includes('openid')) {
-      const idTokenPayload = {
+      const idTokenPayload: IJWTTokenPayload = {
         sub: userId,
         aud: clientId,
         iss: CONFIG.JWTISSUER,
@@ -410,12 +408,14 @@ export class TokenEndpoint {
         exp: now + 3600,
         auth_time: now,
         nonce: randomBytes(16).toString('hex'),
-        ...userData && {
-          email: userData.email,
-          name: userData.name,
-          picture: userData.avatar,
-        },
+        jti: randomBytes(16).toString('hex'),
       };
+
+      if (userData !== null) {
+        idTokenPayload.email = userData.email;
+        idTokenPayload.name = userData.name;
+        idTokenPayload.picture = userData.avatar;
+      }
 
       response.id_token = await jwtSign(idTokenPayload, {
         issuer: CONFIG.JWTISSUER,
@@ -430,29 +430,34 @@ export class TokenEndpoint {
   /**
    * Retrieves user session data by session ID
    * Used by userinfo endpoint to get user details.
-   * @param sessionId
+   * @param sessionId - Session identifier.
+   * @returns User session data or undefined if not found.
    */
-  public static getUserSession(sessionId: string): UserSessionData | undefined {
+  public static getUserSession(sessionId: string): IUserSessionData | undefined {
     return userSessions.get(sessionId);
   }
 
   /**
    * Validates an access token and extracts claims
    * Returns decoded token payload if valid.
-   * @param token
+   * @param token - JWT access token.
+   * @returns Promise resolving to token payload or null if invalid.
    */
-  public static async validateAccessToken(token: string): Promise<any> {
+  public static async validateAccessToken(token: string): Promise<IJWTTokenPayload | null> {
     try {
       const { payload } = await jwtVerify(token, {
         issuer: CONFIG.JWTISSUER,
         audience: CONFIG.JWTAUDIENCE,
       });
 
-      if (!payload || typeof payload !== 'object' || !('tokentype' in payload) || payload.tokentype !== 'access') {
+      if (payload === null
+          || typeof payload !== 'object'
+          || !('tokentype' in payload)
+          || payload.tokentype !== 'access') {
         return null;
       }
 
-      return payload;
+      return payload as IJWTTokenPayload;
     } catch {
       return null;
     }

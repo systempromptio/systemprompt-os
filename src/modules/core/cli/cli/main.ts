@@ -8,14 +8,12 @@
 import { Command } from 'commander';
 import type { CLIContext } from '@/modules/core/cli/types/index';
 import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service';
-import type { CliService } from '@/modules/core/cli/services/cli.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 
 // Global bootstrap instance for cleanup
 let globalBootstrap: any = null;
-
 
 // Ensure clean exit on process termination
 process.on('SIGINT', async () => {
@@ -259,12 +257,20 @@ const main = async (): Promise<void> => {
           const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
           if (cmd !== undefined) {
             cmd.outputHelp();
+            // Ensure output is flushed before exit
+            process.stdout.write('', () => {
+              process.exit(0);
+            });
           } else {
             console.log(formatter.formatError(`Unknown command: ${commandName}`));
             console.log(`\nUse ${formatter.highlight('systemprompt help')} to see all available commands.`);
           }
         } else {
           program.outputHelp();
+          // Ensure output is flushed before exit
+          process.stdout.write('', () => {
+            process.exit(0);
+          });
         }
       });
 
@@ -296,10 +302,8 @@ const main = async (): Promise<void> => {
     // Force exit to ensure the process terminates
     process.exit(0);
   } catch (error) {
-    const logger = LoggerService.getInstance();
-    logger.error(LogSource.CLI, 'CLI initialization failed', { 
-      error: error instanceof Error ? error : new Error(String(error))
-    });
+    // Don't use logger here as it may not be initialized if bootstrap failed
+    console.error('CLI initialization failed:', error);
     
     // Cleanup on error
     if (bootstrap) {

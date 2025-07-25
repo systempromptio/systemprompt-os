@@ -403,6 +403,32 @@ export interface MCPResourceTemplate {
 }
 
 /**
+ * Database row type for modules table.
+ */
+export interface IDatabaseModuleRow {
+  id: number;
+  name: string;
+  version: string;
+  type: string;
+  path: string;
+  enabled: number;
+  autoStart: number;
+  dependencies: string;
+  config: string;
+  status: string;
+  lasterror: string | null;
+  discoveredAt?: string;
+  lastStartedAt?: string;
+  lastStoppedAt?: string;
+  healthStatus: string;
+  healthMessage: string | null;
+  lastHealthCheck?: string;
+  metadata: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * MCP content scanner service interface.
  */
 export interface IMCPContentScanner {

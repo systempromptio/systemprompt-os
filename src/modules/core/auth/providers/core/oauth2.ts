@@ -1,115 +1,156 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable camelcase */
+
+/* eslint-disable systemprompt-os/enforce-type-exports */
+
 import type {
   IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
 } from '@/modules/core/auth/types/provider-interface';
 
 /**
- *
- * GenericOAuth2Config interface.
- *
+ * Configuration interface for Generic OAuth2 providers.
+ * Extends the base IDPConfig with OAuth2-specific settings.
  */
-
 export interface IGenericOAuth2Config extends IDPConfig {
-  id: string;
-  name: string;
-  authorization_endpoint: string;
-  token_endpoint: string;
-  userinfo_endpoint?: string;
-  issuer?: string;
-  jwks_uri?: string;
-  scopes_supported?: string[];
-  response_types_supported?: string[];
-  grant_types_supported?: string[];
-  token_endpoint_auth_methods?: string[];
-  userinfo_mapping?: {
-    id?: string;
-    email?: string;
-    email_verified?: string;
-    name?: string;
-    picture?: string;
+    id: string;
+    name: string;
+    authorizationEndpoint: string;
+    tokenEndpoint: string;
+    userinfoEndpoint?: string;
+    issuer?: string;
+    jwksUri?: string;
+    scopesSupported?: string[];
+    responseTypesSupported?: string[];
+    grantTypesSupported?: string[];
+    tokenEndpointAuthMethods?: string[];
+    userinfoMapping?: {
+        id?: string;
+        email?: string;
+        emailVerified?: string;
+        name?: string;
+        picture?: string;
   };
 }
 
-// Type alias for compatibility
+/**
+ * Type alias for Generic OAuth2 configuration.
+ */
 export type GenericOAuth2Config = IGenericOAuth2Config;
 
 /**
- *
- * GenericOAuth2Provider class.
- *
+ * Interface for OIDC Discovery Configuration (preserves OAuth2 spec naming).
  */
+interface OIDCDiscoveryConfig {
+    issuer: string;
+    authorization_endpoint: string;
+    token_endpoint: string;
+    userinfo_endpoint: string;
+    jwks_uri: string;
+    scopes_supported: string[];
+    response_types_supported: string[];
+    grant_types_supported: string[];
+    token_endpoint_auth_methods_supported: string[];
+}
 
+/**
+ * Generic OAuth2 Provider implementation.
+ * Supports both OAuth2 and OIDC (OpenID Connect) flows.
+ */
 export class GenericOAuth2Provider implements IIdentityProvider {
-  id: string;
-  name: string;
-  type: 'oauth2' | 'oidc';
+  public readonly id: string;
+  public readonly name: string;
+  public readonly type: 'oauth2' | 'oidc';
   private readonly config: GenericOAuth2Config;
 
+  /**
+   * Creates a new GenericOAuth2Provider instance.
+   * @param config - The OAuth2 configuration.
+   */
   constructor(config: GenericOAuth2Config) {
-    this.id = config.id;
-    this.name = config.name;
-    this.type = config.issuer ? 'oidc' : 'oauth2';
+    const {
+ id, name, issuer, scope, userinfoMapping
+} = config;
+    this.id = id;
+    this.name = name;
+    this.type = issuer === null || issuer === undefined ? 'oauth2' : 'oidc';
     this.config = {
       ...config,
-      scope: config.scope || 'openid email profile',
-      userinfo_mapping: config.userinfo_mapping || {},
+      scope: scope ?? 'openid email profile',
+      userinfoMapping: userinfoMapping ?? {},
     };
   }
 
-  getAuthorizationUrl(state: string, nonce?: string): string {
+  /**
+   * Generates the OAuth2 authorization URL.
+   * @param state - The state parameter for CSRF protection.
+   * @param nonce - Optional nonce parameter for OIDC.
+   * @returns The complete authorization URL.
+   */
+  public getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       response_type: 'code',
-      scope: this.config.scope!,
+      scope: this.config.scope ?? 'openid email profile',
       state,
     });
 
-    if (nonce && this.type === 'oidc') {
+    if (nonce !== null && nonce !== undefined && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorization_params' in this.config && this.config.authorization_params) {
-      Object.entries(this.config.authorization_params).forEach(([key, value]) : void => {
+    if ('authorizationParams' in this.config && this.config.authorizationParams !== null && this.config.authorizationParams !== undefined) {
+      Object.entries(this.config.authorizationParams).forEach(([key, value]): void => {
         params.append(key, value as string);
       });
     }
 
-    return `${this.config.authorization_endpoint}?${params}`;
+    return `${this.config.authorizationEndpoint}?${params.toString()}`;
   }
 
-  async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
+  /**
+   * Exchanges authorization code for access tokens.
+   * @param authCode - The authorization code from the OAuth2 callback.
+   * @returns Promise resolving to the token response.
+   */
+  public async exchangeCodeForTokens(authCode: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
-      code,
+      code: authCode,
       redirect_uri: this.config.redirectUri,
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret || '',
+      client_secret: this.config.clientSecret ?? '',
     });
 
-    const response = await fetch(this.config.token_endpoint, {
+    const response = await fetch(this.config.tokenEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        "Accept": 'application/json',
+        'Accept': 'application/json',
       },
       body: params,
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to exchange code: ${error}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const data = await response.json();
-    return data as IDPTokens;
+    const tokenData = await response.json() as IDPTokens;
+    return tokenData;
   }
 
-  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
-    if (!this.config.userinfo_endpoint) {
+  /**
+   * Retrieves user information from the userinfo endpoint.
+   * @param accessToken - The access token for authentication.
+   * @returns Promise resolving to the user information.
+   */
+  public async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+    if (this.config.userinfoEndpoint === null || this.config.userinfoEndpoint === undefined) {
       throw new Error('UserInfo endpoint not configured');
     }
 
-    const response = await fetch(this.config.userinfo_endpoint, {
+    const response = await fetch(this.config.userinfoEndpoint, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json',
@@ -120,32 +161,57 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to get user info: ${response.statusText}`);
     }
 
-    const data = await response.json() as any;
-    const mapping = this.config.userinfo_mapping!;
+    const userData = await response.json() as Record<string, unknown>;
+    const mapping = this.config.userinfoMapping ?? {};
+
+    const getUserId = (userInfo: Record<string, unknown>): string => {
+      return String(this.getNestedValue(userInfo, mapping.id ?? 'sub') ?? userInfo.sub ?? userInfo.id ?? '');
+    };
+
+    const getUserEmail = (userInfo: Record<string, unknown>): string => {
+      return String(this.getNestedValue(userInfo, mapping.email ?? 'email') ?? '');
+    };
+
+    const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
+      return Boolean(this.getNestedValue(userInfo, mapping.emailVerified ?? 'email_verified'));
+    };
+
+    const getUserName = (userInfo: Record<string, unknown>): string => {
+      return String(this.getNestedValue(userInfo, mapping.name ?? 'name') ?? '');
+    };
+
+    const getUserPicture = (userInfo: Record<string, unknown>): string => {
+      return String(this.getNestedValue(userInfo, mapping.picture ?? 'picture') ?? '');
+    };
 
     return {
-      id: String(this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id),
-      email: String(this.getNestedValue(data, mapping.email || 'email')),
-      email_verified: Boolean(this.getNestedValue(data, mapping.email_verified || 'email_verified')),
-      name: String(this.getNestedValue(data, mapping.name || 'name')),
-      picture: String(this.getNestedValue(data, mapping.picture || 'picture')),
-      raw: data as Record<string, unknown>,
+      id: getUserId(userData),
+      email: getUserEmail(userData),
+      email_verified: getEmailVerified(userData),
+      name: getUserName(userData),
+      picture: getUserPicture(userData),
+      raw: userData,
     };
   }
 
-  async refreshTokens(refreshToken: string): Promise<IDPTokens> {
+  /**
+   * Refreshes access tokens using a refresh token.
+   * @param refreshToken - The refresh token.
+   * @returns Promise resolving to new tokens.
+   */
+  public async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret || '',
+      client_secret: this.config.clientSecret ?? '',
     });
 
-    const response = await fetch(this.config.token_endpoint, {
+    const response = await fetch(this.config.tokenEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        "Accept": 'application/json',
+        'Accept': 'application/json',
       },
       body: params,
     });
@@ -154,34 +220,47 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data as IDPTokens;
+    const tokenData = await response.json() as IDPTokens;
+    return tokenData;
   }
 
-  private getNestedValue(obj: unknown, path: string): unknown {
-    return path.split('.').reduce((curr: any, prop: string) => { return curr?.[prop] }, obj);
+  /**
+   * Retrieves a nested value from an object using a dot-separated path.
+   * @param object - The object to search in.
+   * @param path - The dot-separated path to the value.
+   * @returns The nested value or undefined if not found.
+   */
+  private getNestedValue(object: unknown, path: string): unknown {
+    return path.split('.').reduce((current: unknown, property: string): unknown => {
+      return (current as Record<string, unknown>)?.[property];
+    }, object);
   }
 }
 
-export async function discoverOIDCConfiguration(issuer: string): Promise<Partial<GenericOAuth2Config>> {
-  const discoveryUrl = `${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`;
+/**
+ * Discovers OIDC configuration from the issuer's well-known endpoint.
+ * @param issuer - The OIDC issuer URL.
+ * @returns Promise resolving to partial OAuth2 configuration.
+ */
+export const discoverOidcConfiguration = async (issuer: string): Promise<Partial<GenericOAuth2Config>> => {
+  const discoveryUrl = `${issuer.replace(/\/$/u, '')}/.well-known/openid-configuration`;
 
   const response = await fetch(discoveryUrl);
   if (!response.ok) {
     throw new Error(`Failed to discover OIDC configuration: ${response.statusText}`);
   }
 
-  const config = await response.json() as any;
+  const configData = await response.json() as OIDCDiscoveryConfig;
 
   return {
-    issuer: config.issuer,
-    authorization_endpoint: config.authorization_endpoint,
-    token_endpoint: config.token_endpoint,
-    userinfo_endpoint: config.userinfo_endpoint,
-    jwks_uri: config.jwks_uri,
-    scopes_supported: config.scopes_supported,
-    response_types_supported: config.response_types_supported,
-    grant_types_supported: config.grant_types_supported,
-    token_endpoint_auth_methods: config.token_endpoint_auth_methods_supported,
+    issuer: configData.issuer,
+    authorizationEndpoint: configData.authorization_endpoint,
+    tokenEndpoint: configData.token_endpoint,
+    userinfoEndpoint: configData.userinfo_endpoint,
+    jwksUri: configData.jwks_uri,
+    scopesSupported: configData.scopes_supported,
+    responseTypesSupported: configData.response_types_supported,
+    grantTypesSupported: configData.grant_types_supported,
+    tokenEndpointAuthMethods: configData.token_endpoint_auth_methods_supported,
   };
-}
+};

@@ -7,13 +7,15 @@ import { z } from 'zod';
 import type { MCPToolContext } from '@/server/mcp/core/types/request-context';
 import type { ListToolsRequest, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 
-// Mock the logger
-vi.mock('@/utils/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn()
+// Mock the LoggerService
+vi.mock('@/modules/core/logger/index', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => ({
+      info: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    }))
   }
 }));
 

@@ -5,7 +5,9 @@
  */
 
 import type { CLICommand } from '@/modules/core/cli/types/index';
-import { writeFileSync, existsSync, readFileSync } from 'fs';
+import {
+ existsSync, readFileSync, writeFileSync
+} from 'fs';
 import { join } from 'path';
 
 interface ErrorReport {
@@ -47,7 +49,7 @@ export const add: CLICommand = {
 
   execute: async (options: any): Promise<void> => {
     const { type, payload } = options.args || options;
-    
+
     if (type === 'lint' || type === 'typecheck') {
       try {
         const data = JSON.parse(payload || '{}');
@@ -61,14 +63,14 @@ export const add: CLICommand = {
 
         const reportsFile = join(process.cwd(), 'error-reports.json');
         let reports: ErrorReport[] = [];
-        
+
         if (existsSync(reportsFile)) {
           reports = JSON.parse(readFileSync(reportsFile, 'utf8'));
         }
-        
+
         reports.push(report);
         writeFileSync(reportsFile, JSON.stringify(reports, null, 2));
-        
+
         process.stdout.write(`Added ${type} report: ${report.errors} errors found in ${report.path}\n`);
       } catch (error) {
         process.stderr.write(`Error processing report: ${error}\n`);

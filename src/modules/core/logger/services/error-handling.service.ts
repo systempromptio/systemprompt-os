@@ -1,16 +1,15 @@
 import { randomUUID } from 'crypto';
 import { hostname } from 'os';
-import type {
-  ErrorCategory,
-  ErrorSeverity,
-  IErrorContext,
-  IErrorHandlingConfig,
-  IErrorHandlingOptions,
-  IProcessedError,
+import {
+  ErrorCategoryMapping,
+  type ErrorCategory,
+  type ErrorSeverity,
+  type IErrorContext,
+  type IErrorHandlingConfig,
+  type IErrorHandlingOptions,
+  type IProcessedError,
 } from '@/modules/core/logger/types/error-handling.types';
-import { ErrorCategoryMapping } from '@/modules/core/logger/types/error-handling.types';
-import type { LogArgs } from '@/modules/core/logger/types';
-import { LogCategory, LogSource } from '@/modules/core/logger/types';
+import { LogCategory, LogSource, type LogArgs } from '@/modules/core/logger/types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
@@ -18,10 +17,13 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
  */
 export class ErrorHandlingService {
   private static instance: ErrorHandlingService;
+  private readonly errorFingerprints: Map<string, number> = new Map();
   private readonly logger: LoggerService;
   private config: IErrorHandlingConfig;
-  private readonly errorFingerprints: Map<string, number> = new Map();
 
+  /**
+   * Private constructor for singleton pattern.
+   */
   private constructor() {
     this.logger = LoggerService.getInstance();
     this.config = this.getDefaultConfig();
@@ -29,6 +31,7 @@ export class ErrorHandlingService {
 
   /**
    * Get the singleton instance.
+   * @returns The singleton instance of ErrorHandlingService
    */
   public static getInstance(): ErrorHandlingService {
     ErrorHandlingService.instance ||= new ErrorHandlingService();
@@ -37,7 +40,7 @@ export class ErrorHandlingService {
 
   /**
    * Configure the error handling service.
-   * @param config
+   * @param config - The configuration options to merge with existing config
    */
   public configure(config: Partial<IErrorHandlingConfig>): void {
     this.config = {
@@ -48,9 +51,10 @@ export class ErrorHandlingService {
 
   /**
    * Main error processing method.
-   * @param source
-   * @param error
-   * @param options
+   * @param source - The source identifier where the error originated
+   * @param error - The error to be processed
+   * @param options - Optional processing options
+   * @returns Promise resolving to the processed error
    */
   public async processError(
     source: string,
@@ -65,7 +69,7 @@ export class ErrorHandlingService {
 
     const processedError = this.structureError(error, context, mergedOptions);
 
-    if (mergedOptions.logToDatabase || mergedOptions.logToFile) {
+    if ((mergedOptions.logToDatabase ?? false) || (mergedOptions.logToFile ?? false)) {
       this.sanitizeError(processedError);
     }
 
@@ -73,7 +77,7 @@ export class ErrorHandlingService {
 
     await this.logError(processedError, mergedOptions);
 
-    if (mergedOptions.rethrow) {
+    if (mergedOptions.rethrow ?? false) {
       throw this.createRethrowError(processedError);
     }
 
@@ -82,7 +86,8 @@ export class ErrorHandlingService {
 
   /**
    * Categorize error based on type and content.
-   * @param error
+   * @param error - The error to categorize
+   * @returns The determined error category
    */
   public categorizeError(error: unknown): ErrorCategory {
     if (error instanceof Error) {
@@ -146,9 +151,9 @@ export class ErrorHandlingService {
 
   /**
    * Determine error severity.
-   * @param error
-   * @param _error
-   * @param category
+   * @param error - The error to analyze
+   * @param category - The error category
+   * @returns The determined error severity
    */
   public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
     if (category === 'SYSTEM' || category === 'DATABASE') {
@@ -168,29 +173,31 @@ export class ErrorHandlingService {
 
   /**
    * Build error context.
-   * @param source
-   * @param options
+   * @param source - The source identifier
+   * @param options - The error handling options
+   * @returns The built error context
    */
   private buildErrorContext(source: string, options: IErrorHandlingOptions): IErrorContext {
     return {
       source,
       timestamp: new Date(),
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NODE_ENV ?? 'development',
       hostname: hostname(),
       pid: process.pid,
       requestId: options.metadata?.requestId as string,
       userId: options.metadata?.userId as string,
       sessionId: options.metadata?.sessionId as string,
-      correlationId: (options.metadata?.correlationId as string) || randomUUID(),
+      correlationId: (options.metadata?.correlationId as string) ?? randomUUID(),
       metadata: options.metadata,
     };
   }
 
   /**
    * Structure unknown error into IProcessedError.
-   * @param error
-   * @param context
-   * @param options
+   * @param error - The error to structure
+   * @param context - The error context
+   * @param options - The error handling options
+   * @returns The structured processed error
    */
   private structureError(
     error: unknown,
@@ -222,11 +229,11 @@ export class ErrorHandlingService {
       type = 'UnknownError';
     }
 
-    if (this.config.maxMessageLength && message.length > this.config.maxMessageLength) {
+    if ((this.config.maxMessageLength ?? 0) > 0 && message.length > this.config.maxMessageLength) {
       message = `${message.substring(0, this.config.maxMessageLength)}...`;
     }
 
-    if (this.config.maxStackLength && stack && stack.length > this.config.maxStackLength) {
+    if ((this.config.maxStackLength ?? 0) > 0 && stack !== undefined && stack.length > this.config.maxStackLength) {
       stack = `${stack.substring(0, this.config.maxStackLength)}...`;
     }
 
@@ -245,13 +252,13 @@ export class ErrorHandlingService {
       originalError: error,
       sanitized: false,
       fingerprint,
-      occurrences: this.errorFingerprints.get(fingerprint) || 0,
+      occurrences: this.errorFingerprints.get(fingerprint) ?? 0,
     };
   }
 
   /**
    * Sanitize sensitive information from error.
-   * @param error
+   * @param error - The processed error to sanitize
    */
   private sanitizeError(error: IProcessedError): void {
     const patterns = this.config.sanitizePatterns || [
@@ -272,9 +279,10 @@ export class ErrorHandlingService {
 
   /**
    * Generate error fingerprint for deduplication.
-   * @param message
-   * @param type
-   * @param source
+   * @param message - The error message
+   * @param type - The error type
+   * @param source - The error source
+   * @returns The generated fingerprint
    */
   private generateFingerprint(message: string, type: string, source: string): string {
     const normalized = message
@@ -288,23 +296,23 @@ export class ErrorHandlingService {
 
   /**
    * Track error occurrences.
-   * @param error
+   * @param error - The processed error to track
    */
   private trackErrorOccurrence(error: IProcessedError): void {
-    const count = this.errorFingerprints.get(error.fingerprint) || 0;
+    const count = this.errorFingerprints.get(error.fingerprint) ?? 0;
     this.errorFingerprints.set(error.fingerprint, count + 1);
     error.occurrences = count + 1;
   }
 
   /**
    * Log the processed error.
-   * @param error
-   * @param options
+   * @param error - The processed error to log
+   * @param options - The error handling options
    */
   private async logError(error: IProcessedError, options: IErrorHandlingOptions): Promise<void> {
-    const logSource = options.logSource || LogSource.SYSTEM;
+    const logSource = options.logSource ?? LogSource.SYSTEM;
     const logArgs: LogArgs = {
-      category: options.logCategory || error.logCategory,
+      category: options.logCategory ?? error.logCategory,
       persistToDb: options.logToDatabase ?? true,
       error: error.originalError as Error,
       requestId: error.context.requestId,
@@ -340,12 +348,13 @@ export class ErrorHandlingService {
 
   /**
    * Create error for rethrowing.
-   * @param processedError
+   * @param processedError - The processed error to create a throwable error from
+   * @returns The created error for rethrowing
    */
   private createRethrowError(processedError: IProcessedError): Error {
     const error = new Error(processedError.message);
     error.name = processedError.type;
-    if (processedError.stack) {
+    if (processedError.stack !== undefined && processedError.stack.length > 0) {
       error.stack = processedError.stack;
     }
     (error as any).errorId = processedError.id;
@@ -355,6 +364,7 @@ export class ErrorHandlingService {
 
   /**
    * Get default configuration.
+   * @returns The default error handling configuration
    */
   private getDefaultConfig(): IErrorHandlingConfig {
     return {

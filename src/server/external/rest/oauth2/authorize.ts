@@ -1,97 +1,170 @@
 /**
  * @file OAuth2 Authorization endpoint.
+ * @description Handles OAuth2 authorization flow including provider callbacks and consent.
  * @module server/external/rest/oauth2/authorize
  */
 
-import type { Request, Response } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { z } from 'zod';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+import type {
+  IAuthCodeParams,
+  IAuthCodeService,
+  IAuthRepository,
+  IAuthenticatedUser,
+  IDatabaseUser,
+  IIdentityProvider,
+  IOAuth2Error,
+  IOAuthUserData,
+  IProviderRegistry,
+  IStateData
+} from '@/server/external/rest/oauth2/types/authorize.types';
 
-// Mock imports for missing modules - these need to be implemented
-const OAuth2Error = {
-  invalidRequest: (message: string) => { return {
- code: 400,
-toJSON: () => { return {
- error: 'invalid_request',
-message
-} }
-} },
-  serverError: (message: string) => { return {
- code: 500,
-toJSON: () => { return {
- error: 'server_error',
-message
-} }
-} }
+/**
+ * Mock OAuth2 error implementation - needs to be replaced with actual implementation.
+ */
+const oauth2Error = {
+  invalidRequest: (message: string): IOAuth2Error => {
+    return {
+      code: 400,
+      toJSON: (): { error: string; message: string } => {
+        return {
+          error: 'invalid_request',
+          message
+        };
+      }
+    };
+  },
+  serverError: (message: string): IOAuth2Error => {
+    return {
+      code: 500,
+      toJSON: (): { error: string; message: string } => {
+        return {
+          error: 'server_error',
+          message
+        };
+      }
+    };
+  }
 };
 
-const getAuthModule = () => { return {
-  exports: {
-    getProviderRegistry: () => { return {
-      getProvider: (name: string) => { return mockProviders[name] },
-      getAllProviders: () => { return Object.values(mockProviders) }
-    } },
-    authCodeService: () => { return mockAuthCodeService }
-  }
-} };
-
-// Mock provider interface
-interface IdentityProvider {
-  name: string;
-  getAuthorizationUrl: (state: string) => string;
-  exchangeCodeForTokens: (code: string) => Promise<{ access_token: string }>;
-  getUserInfo: (token: string) => Promise<{ id: string; email?: string; name?: string; picture?: string; raw?: any }>;
-}
-
-const mockProviders: Record<string, IdentityProvider> = {
+/**
+ * Mock provider registry - needs to be replaced with actual implementation.
+ */
+const mockProviders: Record<string, IIdentityProvider> = {
   google: {
     name: 'google',
-    getAuthorizationUrl: (state: string) => { return `https://accounts.google.com/oauth/authorize?state=${state}` },
-    exchangeCodeForTokens: async (_code: string) => { return { access_token: 'mock_token' } },
-    getUserInfo: async (_token: string) => { return {
- id: 'mock_id',
-email: 'mock@email.com'
-} }
+    getAuthorizationUrl: (state: string): string => {
+      return `https://accounts.google.com/oauth/authorize?state=${state}`;
+    },
+    exchangeCodeForTokens: async (_code: string): Promise<{ accessToken: string }> => {
+      return { accessToken: 'mock_token' };
+    },
+    getUserInfo: async (_token: string) => {
+      return {
+        id: 'mock_id',
+        email: 'mock@email.com'
+      };
+    }
   }
 };
 
-const AuthRepository = {
-  getInstance: () => { return {
-    upsertUserFromOAuth: async (_provider: string, _providerId: string, userData: any) => { return {
-      id: 'mock_user_id',
-      email: userData.email,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    } }
-  } }
+/**
+ * Mock auth code service - needs to be replaced with actual implementation.
+ */
+const mockAuthCodeService: IAuthCodeService = {
+  createAuthorizationCode: async (_data: IAuthCodeParams): Promise<string> => {
+    return 'mock_auth_code';
+  },
+  cleanupExpiredCodes: async (): Promise<void> => {
+  }
 };
 
-const mockAuthCodeService = {
-  createAuthorizationCode: async (_data: any) => { return 'mock_auth_code' },
-  cleanupExpiredCodes: async () => {}
+/**
+ * Mock auth module getter - needs to be replaced with actual implementation.
+ */
+const getAuthModule = (): {
+  exports: {
+    getProviderRegistry: () => IProviderRegistry;
+    authCodeService: () => IAuthCodeService;
+  };
+} => {
+  return {
+    exports: {
+      getProviderRegistry: (): IProviderRegistry => {
+        return {
+          getProvider: (name: string): IIdentityProvider | undefined => {
+            return mockProviders[name];
+          },
+          getAllProviders: (): IIdentityProvider[] => {
+            return Object.values(mockProviders);
+          }
+        };
+      },
+      authCodeService: (): IAuthCodeService => {
+        return mockAuthCodeService;
+      }
+    }
+  };
+};
+
+/**
+ * Mock auth repository - needs to be replaced with actual implementation.
+ */
+const authRepository = {
+  getInstance: (): IAuthRepository => {
+    return {
+      upsertUserFromOAuth: async (
+        _provider: string,
+        _providerId: string,
+        userData: IOAuthUserData
+      ): Promise<IDatabaseUser> => {
+        return {
+          id: 'mock_user_id',
+          email: userData.email,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
+    };
+  }
 };
 
 const logger = LoggerService.getInstance();
 
-// Schema for authorization request
-const AuthorizeRequestSchema = z.object({
-  response_type: z.enum(['code', 'code id_token']),
-  client_id: z.string(),
-  redirect_uri: z.string().url(),
+/**
+ * Schema for authorization request validation.
+ */
+const authorizeRequestSchema = z.object({
+  responseType: z.enum(['code', 'code id_token']),
+  clientId: z.string(),
+  redirectUri: z.string().url(),
   scope: z.string(),
   state: z.string().optional(),
   nonce: z.string().optional(),
-  code_challenge: z.string().optional(),
-  code_challenge_method: z.enum(['S256', 'plain']).optional(),
-  provider: z.string().optional(), // IDP to use (google, github, etc)
-  provider_code: z.string().optional(), // Code from IDP
+  codeChallenge: z.string().optional(),
+  codeChallengeMethod: z.enum(['S256', 'plain']).optional(),
+  /**
+   * Identity provider to use (google, github, etc.).
+   */
+  provider: z.string().optional(),
+  /**
+   * Authorization code from identity provider.
+   */
+  providerCode: z.string().optional()
 });
 
-// Get auth code service instance
-let authCodeService: any;
+/**
+ * Cached auth code service instance.
+ */
+let authCodeService: IAuthCodeService | null = null;
 
-function getAuthCodeService(): any {
+/**
+ * Get auth code service instance with lazy loading.
+ * @returns The auth code service instance.
+ */
+function getAuthCodeService(): IAuthCodeService {
   if (!authCodeService) {
     const authModule = getAuthModule();
     authCodeService = authModule.exports.authCodeService();
@@ -99,16 +172,23 @@ function getAuthCodeService(): any {
   return authCodeService;
 }
 
+/**
+ * OAuth2 Authorization endpoint handler.
+ */
 export class AuthorizeEndpoint {
   /**
    * GET /oauth2/authorize
    * Display authorization consent screen.
-   * @param req
-   * @param res
+   * @param req - Express request object.
+   * @param res - Express response object.
+   * @returns Promise resolving to response or void.
    */
-  getAuthorize = async (req: Request, res: Response): Promise<Response | void> => {
+  public getAuthorize = async (
+    req: ExpressRequest,
+    res: ExpressResponse
+  ): Promise<ExpressResponse | void> => {
     try {
-      const params = AuthorizeRequestSchema.parse(req.query);
+      const params = authorizeRequestSchema.parse(req.query);
 
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
@@ -124,25 +204,26 @@ export class AuthorizeEndpoint {
           persistToDb: false
         });
 
-        const provider = providerRegistry.getProvider(params.provider.toLowerCase());
+        const provider = providerRegistry.getProvider(
+          params.provider.toLowerCase()
+        );
         if (!provider) {
           throw new Error(`Unknown provider: ${params.provider}`);
         }
 
-        const stateData = {
-          clientId: params.client_id,
-          redirectUri: params.redirect_uri,
+        const stateData: IStateData = {
+          clientId: params.clientId,
+          redirectUri: params.redirectUri,
           scope: params.scope,
           originalState: params.state,
-          codeChallenge: params.code_challenge,
-          codeChallengeMethod: params.code_challenge_method,
+          codeChallenge: params.codeChallenge,
+          codeChallengeMethod: params.codeChallengeMethod
         };
 
-        const providerState = Buffer.from(JSON.stringify(stateData)).toString('base64url');
+        const providerState = Buffer.from(
+          JSON.stringify(stateData)
+        ).toString('base64url');
 
-        if (!provider) {
-          throw new Error('provider is required');
-        }
         const providerAuthUrl = provider.getAuthorizationUrl(providerState);
 
         res.redirect(providerAuthUrl);
@@ -191,15 +272,17 @@ export class AuthorizeEndpoint {
           <div class="container">
             <h1>Sign in to continue</h1>
             <div class="client">
-              <strong>Application:</strong> ${params.client_id}<br>
-              <small style="color: #666;">This application is requesting access to your account</small>
+              <strong>Application:</strong> ${params.clientId}<br>
+              <small style="color: #666;">
+                This application is requesting access to your account
+              </small>
             </div>
             <div class="scopes">
               <strong>Requested permissions:</strong>
               <ul>
                 ${params.scope
                   .split(' ')
-                  .map((scope) => {
+                  .map((scope: string): string => {
                     return `<li class="scope-item">${scope}</li>`;
                   })
                   .join('')}
@@ -208,24 +291,54 @@ export class AuthorizeEndpoint {
             <div class="provider-list">
               <h3 style="text-align: center; margin-bottom: 20px;">Choose how to sign in:</h3>
               ${availableProviders
-                .map((provider: IdentityProvider) => {
+                .map((provider: IIdentityProvider): string => {
+                  const providerParams = new URLSearchParams();
+                  if (params.responseType) {
+                    providerParams.set('responseType', params.responseType);
+                  }
+                  if (params.clientId) {
+                    providerParams.set('clientId', params.clientId);
+                  }
+                  if (params.redirectUri) {
+                    providerParams.set('redirectUri', params.redirectUri);
+                  }
+                  if (params.scope) {
+                    providerParams.set('scope', params.scope);
+                  }
+                  if (params.state) {
+                    providerParams.set('state', params.state);
+                  }
+                  if (params.nonce) {
+                    providerParams.set('nonce', params.nonce);
+                  }
+                  if (params.codeChallenge) {
+                    providerParams.set('codeChallenge', params.codeChallenge);
+                  }
+                  if (params.codeChallengeMethod) {
+                    providerParams.set(
+                      'codeChallengeMethod',
+                      params.codeChallengeMethod
+                    );
+                  }
+                  providerParams.set('provider', provider.name);
+
+                  const providerName = provider.name.charAt(0).toUpperCase()
+                    + provider.name.slice(1);
+                  const icon = provider.name === 'google' ? '🔵' : '⚫';
+
                   return `
-                <a href="/oauth2/authorize?${new URLSearchParams({
-                  ...Object.fromEntries(
-                    Object.entries(params).filter(([_, v]) => {
-                      return v !== undefined;
-                    }),
-                  ),
-                  provider: provider.name,
-                }).toString()}" class="provider-button provider-${provider.name}">
-                  ${provider.name === 'google' ? '🔵' : '⚫'} Sign in with ${provider.name.charAt(0).toUpperCase() + provider.name.slice(1)}
+                <a href="/oauth2/authorize?${providerParams.toString()}" 
+                   class="provider-button provider-${provider.name}">
+                  ${icon} Sign in with ${providerName}
                 </a>
               `;
                 })
                 .join('')}
             </div>
             <div class="cancel">
-              <a href="${params.redirect_uri}?error=access_denied&state=${params.state || ''}">Cancel</a>
+              <a href="${params.redirectUri}?error=access_denied&state=${
+                params.state ?? ''
+              }">Cancel</a>
             </div>
           </div>
         </body>
@@ -233,75 +346,106 @@ export class AuthorizeEndpoint {
       `;
 
       res.type('html').send(html);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorInstance = error instanceof Error
+        ? error : new Error(String(error));
+
       logger.error(LogSource.AUTH, 'OAuth2 authorize GET error', {
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: errorInstance,
         category: 'oauth2',
         action: 'authorize'
       });
+
       if (error instanceof z.ZodError) {
-        const oauthError = OAuth2Error.invalidRequest(error.message);
+        const oauthError = oauth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
       } else {
-        const oauthError = OAuth2Error.serverError(error instanceof Error ? error.message : 'Internal server error');
+        const oauthError = oauth2Error.serverError(
+          errorInstance.message
+        );
         res.status(oauthError.code).json(oauthError.toJSON());
       }
     }
   };
-  postAuthorize = async (req: Request, res: Response): Promise<Response | void> => {
+  public postAuthorize = async (
+    req: ExpressRequest,
+    res: ExpressResponse
+  ): Promise<ExpressResponse | void> => {
     try {
       const {
- action, redirect_uri, state
-} = req.body;
+        action,
+        redirectUri,
+        state
+      } = req.body as {
+        action?: string;
+        redirectUri?: string;
+        state?: string;
+      };
 
       if (action === 'deny') {
         const params = new URLSearchParams({
           error: 'access_denied',
-          error_description: 'User denied the authorization request',
+          errorDescription: 'User denied the authorization request'
         });
         if (state) {
           params.append('state', state);
         }
 
-        res.redirect(`${redirect_uri}?${params}`);
+        if (!redirectUri) {
+          throw new Error('Redirect URI is required');
+        }
+        res.redirect(`${redirectUri}?${params.toString()}`);
         return;
       }
 
-      const params = AuthorizeRequestSchema.parse(req.body);
+      const params = authorizeRequestSchema.parse(req.body);
 
-      const { user } = req;
+      const { user } = req as ExpressRequest & { user?: IAuthenticatedUser };
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      const authCodeService = getAuthCodeService();
-      const code = await authCodeService.createAuthorizationCode({
-        clientId: params.client_id,
-        redirectUri: params.redirect_uri,
+      const authCodeServiceInstance = getAuthCodeService();
+      const authCodeParams: IAuthCodeParams = {
+        clientId: params.clientId,
+        redirectUri: params.redirectUri,
         scope: params.scope,
-        userId: user.sub || user.id,
-        userEmail: user.email,
-        ...params.provider && { provider: params.provider },
-        ...params.provider_code && { providerTokens: { code: params.provider_code } },
-        ...params.code_challenge && { codeChallenge: params.code_challenge },
-        ...params.code_challenge_method && { codeChallengeMethod: params.code_challenge_method },
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      });
+        userId: user.sub ?? user.id ?? '',
+        userEmail: user.email ?? '',
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      };
 
-      await authCodeService.cleanupExpiredCodes();
+      if (params.provider) {
+        authCodeParams.provider = params.provider;
+      }
+      if (params.providerCode) {
+        authCodeParams.providerTokens = { code: params.providerCode };
+      }
+      if (params.codeChallenge) {
+        authCodeParams.codeChallenge = params.codeChallenge;
+      }
+      if (params.codeChallengeMethod) {
+        authCodeParams.codeChallengeMethod = params.codeChallengeMethod;
+      }
+
+      const code = await authCodeServiceInstance.createAuthorizationCode(
+        authCodeParams
+      );
+
+      await authCodeServiceInstance.cleanupExpiredCodes();
 
       const responseParams = new URLSearchParams({ code });
       if (params.state) {
         responseParams.append('state', params.state);
       }
 
-      res.redirect(`${params.redirect_uri}?${responseParams}`);
-    } catch (error) {
+      res.redirect(`${params.redirectUri}?${responseParams.toString()}`);
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
-        const oauthError = OAuth2Error.invalidRequest(error.message);
+        const oauthError = oauth2Error.invalidRequest(error.message);
         res.status(oauthError.code).json(oauthError.toJSON());
       } else {
-        const oauthError = OAuth2Error.serverError('Internal server error');
+        const oauthError = oauth2Error.serverError('Internal server error');
         res.status(oauthError.code).json(oauthError.toJSON());
       }
     }
@@ -345,12 +489,16 @@ export class AuthorizeEndpoint {
         throw new Error('Missing code or state parameter');
       }
 
-      let stateData: any;
+      let stateData: IStateData;
       try {
-        stateData = JSON.parse(Buffer.from(state as string, 'base64url').toString());
-      } catch (error) {
+        const decodedState = Buffer.from(state, 'base64url').toString();
+        stateData = JSON.parse(decodedState) as IStateData;
+      } catch (parseError: unknown) {
+        const errorInstance = parseError instanceof Error
+          ? parseError : new Error(String(parseError));
+
         logger.error(LogSource.AUTH, 'Failed to decode state parameter', {
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: errorInstance,
           category: 'oauth2',
           action: 'callback'
         });
@@ -370,9 +518,11 @@ export class AuthorizeEndpoint {
         throw new Error(`Unknown provider: ${provider}`);
       }
 
-      const providerTokens = await providerInstance.exchangeCodeForTokens(code as string);
+      const providerTokens = await providerInstance.exchangeCodeForTokens(code);
 
-      const userInfo = await providerInstance.getUserInfo(providerTokens.access_token);
+      const userInfo = await providerInstance.getUserInfo(
+        providerTokens.accessToken
+      );
 
       logger.info(LogSource.AUTH, 'User authenticated via provider', {
         category: 'oauth2',
@@ -380,17 +530,31 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      const authRepo = AuthRepository.getInstance();
-      const avatarUrl
-        = userInfo.picture
-        || (userInfo.raw && typeof userInfo.raw === 'object' && 'avatar_url' in userInfo.raw
-          ? String(userInfo.raw.avatar_url)
+      const authRepo = authRepository.getInstance();
+      const avatarUrl = userInfo.picture
+        ?? (userInfo.raw
+         && typeof userInfo.raw === 'object'
+         && 'avatarUrl' in userInfo.raw
+         && typeof userInfo.raw.avatarUrl === 'string'
+          ? userInfo.raw.avatarUrl
           : undefined);
-      const user = await authRepo.upsertUserFromOAuth(providerName, userInfo.id, {
-        email: userInfo.email || '',
-        ...userInfo.name && { name: userInfo.name },
-        ...avatarUrl && { avatar: avatarUrl },
-      });
+
+      const userData: IOAuthUserData = {
+        email: userInfo.email ?? ''
+      };
+
+      if (userInfo.name) {
+        userData.name = userInfo.name;
+      }
+      if (avatarUrl) {
+        userData.avatar = avatarUrl;
+      }
+
+      const user = await authRepo.upsertUserFromOAuth(
+        providerName,
+        userInfo.id,
+        userData
+      );
 
       logger.info(LogSource.AUTH, 'User upserted in database', {
         category: 'oauth2',
@@ -398,21 +562,30 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      const authCodeService = getAuthCodeService();
-      const authCode = await authCodeService.createAuthorizationCode({
+      const authCodeServiceInstance = getAuthCodeService();
+      const authCodeParams: IAuthCodeParams = {
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,
         scope: stateData.scope,
         userId: user.id,
         userEmail: user.email,
         provider: providerName,
-        providerTokens: providerTokens as unknown as Record<string, unknown>,
-        codeChallenge: stateData.codeChallenge,
-        codeChallengeMethod: stateData.codeChallengeMethod,
+        providerTokens: providerTokens as Record<string, unknown>,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-      });
+      };
 
-      await authCodeService.cleanupExpiredCodes();
+      if (stateData.codeChallenge) {
+        authCodeParams.codeChallenge = stateData.codeChallenge;
+      }
+      if (stateData.codeChallengeMethod) {
+        authCodeParams.codeChallengeMethod = stateData.codeChallengeMethod;
+      }
+
+      const authCode = await authCodeServiceInstance.createAuthorizationCode(
+        authCodeParams
+      );
+
+      await authCodeServiceInstance.cleanupExpiredCodes();
 
       const responseParams = new URLSearchParams({ code: authCode });
       if (stateData.originalState) {
@@ -425,19 +598,23 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      res.redirect(`${stateData.redirectUri}?${responseParams}`);
-    } catch (error) {
+      res.redirect(`${stateData.redirectUri}?${responseParams.toString()}`);
+    } catch (error: unknown) {
+      const errorInstance = error instanceof Error
+        ? error : new Error(String(error));
+
       logger.error(LogSource.AUTH, 'Provider callback error', {
-        error: error instanceof Error ? error : new Error(String(error)),
+        error: errorInstance,
         category: 'oauth2',
         action: 'callback'
       });
+
       res.status(500).send(`
         <html>
         <body>
           <h1>Authentication Error</h1>
           <p>An error occurred during authentication. Please try again.</p>
-          <p>${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <p>${errorInstance.message}</p>
         </body>
         </html>
       `);

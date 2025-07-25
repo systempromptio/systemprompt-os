@@ -3,22 +3,23 @@
  * @module cli/services/cli-formatter
  */
 
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import chalk from 'chalk';
 import { 
+  createFooter, 
   createHeader, 
-  formatCommand, 
-  formatOption, 
   createSection, 
-  createFooter,
+  formatCommand, 
+  formatOption,
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
+import type { 
+  SystemPromptSpinner} from '@/modules/core/cli/utils/spinner';
 import { 
-  SystemPromptSpinner, 
-  createSpinner, 
-  withSpinner, 
-  createProgressSpinner,
-  SPINNER_PRESETS 
+  SPINNER_PRESETS, 
+  createProgressSpinner, 
+  createSpinner,
+  withSpinner 
 } from '@/modules/core/cli/utils/spinner';
 
 /**
@@ -49,9 +50,7 @@ export class CliFormatterService {
    * @returns CliFormatterService instance.
    */
   public static getInstance(): CliFormatterService {
-    if (!CliFormatterService.instance) {
-      CliFormatterService.instance = new CliFormatterService();
-    }
+    CliFormatterService.instance ||= new CliFormatterService();
     return CliFormatterService.instance;
   }
 
@@ -75,49 +74,49 @@ export class CliFormatterService {
     // Default icon mapping
     const icons: Record<string, string> = {
       // Main commands
-      'auth': '🔐',
-      'database': '🗄️',
-      'logger': '📋',
-      'modules': '📦',
-      'cli': '⚡',
-      'help': '❓',
-      'tasks': '📋',
-      'system': '⚙️',
-      'config': '🔧',
+      auth: '🔐',
+      database: '🗄️',
+      logger: '📋',
+      modules: '📦',
+      cli: '⚡',
+      help: '❓',
+      tasks: '📋',
+      system: '⚙️',
+      config: '🔧',
       // Database subcommands
-      'clear': '🧹',
-      'data': '📊',
-      'migrate': '🔄',
-      'query': '🔍',
-      'rebuild': '🏗️',
-      'rollback': '⏪',
-      'schema': '📋',
-      'status': '📈',
-      'summary': '📄',
-      'view': '👀',
+      clear: '🧹',
+      data: '📊',
+      migrate: '🔄',
+      query: '🔍',
+      rebuild: '🏗️',
+      rollback: '⏪',
+      schema: '📋',
+      status: '📈',
+      summary: '📄',
+      view: '👀',
       // Auth subcommands
-      'login': '🚪',
-      'logout': '🚶',
-      'token': '🎫',
-      'providers': '🔌',
-      'mfa': '🔒',
-      'audit': '📊',
+      login: '🚪',
+      logout: '🚶',
+      token: '🎫',
+      providers: '🔌',
+      mfa: '🔒',
+      audit: '📊',
       // Logger subcommands
-      'show': '📖',
-      'logs': '📜',
+      show: '📖',
+      logs: '📜',
       // Module subcommands
-      'list': '📋',
-      'install': '📦',
-      'remove': '🗑️',
-      'enable': '✅',
-      'disable': '❌',
-      'info': 'ℹ️',
+      list: '📋',
+      install: '📦',
+      remove: '🗑️',
+      enable: '✅',
+      disable: '❌',
+      info: 'ℹ️',
       // Task subcommands
-      'add': '➕',
-      'cancel': '❌',
-      'pause': '⏸️',
-      'resume': '▶️',
-      'history': '📚'
+      add: '➕',
+      cancel: '❌',
+      pause: '⏸️',
+      resume: '▶️',
+      history: '📚'
     };
 
     return icons[commandName] || '🔧';
@@ -159,14 +158,14 @@ export class CliFormatterService {
         })
         .join('\n');
       
-      commandsSection += createSection(categoryTitle) + '\n' + formattedCommands + '\n';
+      commandsSection += `${createSection(categoryTitle)}\n${formattedCommands}\n`;
     }
 
     const options = cmd.options
       .map(opt => this.formatOptionWithPadding(opt.flags, opt.description || '', paddingLength))
       .join('\n');
 
-    const optionsSection = options ? createSection('⚙️  Options') + '\n' + options : '';
+    const optionsSection = options ? `${createSection('⚙️  Options')}\n${options}` : '';
 
     const footer = createFooter([
       `Run "${commandName} <command> --help" for detailed help on any command`,
@@ -327,8 +326,9 @@ export class CliFormatterService {
     successText?: string,
     errorText?: string
   ): Promise<T> {
-    const config = { ...SPINNER_PRESETS[preset], text };
-    return withSpinner(fn, config, successText, errorText);
+    const config = { ...SPINNER_PRESETS[preset],
+text };
+    return await withSpinner(fn, config, successText, errorText);
   }
 
   /**

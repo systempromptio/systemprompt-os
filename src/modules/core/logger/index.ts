@@ -4,7 +4,7 @@
  * @module modules/core/logger
  */
 
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
 import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
 import type {
@@ -25,7 +25,7 @@ import {
 export interface ILoggerModuleExports {
   readonly service: () => ILogger;
   readonly logger: () => ILogger;
-  readonly getInstance: () => LoggerService;
+  readonly getInstance: () => LoggerServiceClass;
 }
 
 /**
@@ -52,14 +52,14 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
   public readonly description = 'System-wide logging service with file and console output';
   public readonly dependencies = [];
   public status: ModuleStatus = 'stopped' as ModuleStatus;
-  private readonly loggerService: LoggerService;
+  private readonly loggerService: LoggerServiceClass;
   private initialized = false;
   private started = false;
   get exports(): ILoggerModuleExports {
     return {
       service: () => { return this.getService() },
       logger: () => { return this.getService() },
-      getInstance: () => { return LoggerService.getInstance() },
+      getInstance: () => { return LoggerServiceClass.getInstance() },
     };
   }
 
@@ -67,7 +67,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    * Constructor.
    */
   constructor() {
-    this.loggerService = LoggerService.getInstance();
+    this.loggerService = LoggerServiceClass.getInstance();
   }
 
   /**
@@ -219,12 +219,11 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
         return output === LogOutput.CONSOLE || output === LogOutput.FILE || output === LogOutput.DATABASE;
       });
     }
-    
-    // In CLI mode, suppress console output to keep CLI clean
+
     if (this.getLoggerMode() === LoggerMode.CLI) {
       return [LogOutput.DATABASE];
     }
-    
+
     return [LogOutput.CONSOLE, LogOutput.DATABASE];
   }
 
@@ -306,13 +305,13 @@ export const initialize = async (): Promise<LoggerModule> => {
  * @returns {ILogger} Logger service instance.
  */
 export const getLoggerService = (): ILogger => {
-  return LoggerService.getInstance();
+  return LoggerServiceClass.getInstance();
 };
 
 /**
  * Re-export LoggerService and types.
  */
-export { LoggerService, LogSource };
+export { LoggerServiceClass as LoggerService, LogSource };
 
 /**
  * Export error handling utilities.

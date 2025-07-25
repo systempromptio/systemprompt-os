@@ -25,8 +25,14 @@ export const createHeader = (title: string, subtitle?: string, isMainCommand = t
     ].filter(Boolean).join('\n');
 
     return boxen(headerContent, {
-      padding: { top: 0, bottom: 0, left: 2, right: 2 },
-      margin: { top: 1, bottom: 0, left: 0, right: 0 },
+      padding: { top: 0,
+bottom: 0,
+left: 2,
+right: 2 },
+      margin: { top: 1,
+bottom: 0,
+left: 0,
+right: 0 },
       borderStyle: 'round',
       borderColor: 'yellow'
     });
@@ -51,7 +57,8 @@ export const createHeader = (title: string, subtitle?: string, isMainCommand = t
     margin: 1,
     borderStyle: 'round',
     borderColor: 'yellow',
-    backgroundColor: 'black'
+    backgroundColor: 'black',
+    width: 91 // Set consistent width for main header
   });
 };
 
@@ -83,10 +90,11 @@ export const formatOption = (flags: string, description: string): string => {
 /**
  * Create a section divider.
  * @param title - Section title.
+ * @param width - Optional width for the divider (default: 93 to match header box width).
  * @returns Formatted section divider.
  */
-export const createSection = (title: string): string => {
-  const line = '─'.repeat(50);
+export const createSection = (title: string, width: number = 93): string => {
+  const line = '─'.repeat(width);
   const sectionTitle = chalk.magenta.bold(title);
   return `\n${chalk.gray(line)}\n${sectionTitle}\n${chalk.gray(line)}`;
 };
@@ -100,11 +108,18 @@ export const createFooter = (items: string[]): string => {
   const footerContent = items.map(item => chalk.dim(`• ${item}`)).join('\n');
   
   return boxen(footerContent, {
-    padding: { top: 0, bottom: 0, left: 2, right: 2 },
-    margin: { top: 1, bottom: 0, left: 0, right: 0 },
+    padding: { top: 0,
+bottom: 0,
+left: 2,
+right: 2 },
+    margin: { top: 1,
+bottom: 0,
+left: 0,
+right: 0 },
     borderStyle: 'single',
     borderColor: 'gray',
-    dimBorder: true
+    dimBorder: true,
+    width: 93 // Set consistent width to match header
   });
 };
 

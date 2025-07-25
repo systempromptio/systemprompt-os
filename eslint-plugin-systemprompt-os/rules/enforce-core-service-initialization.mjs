@@ -71,7 +71,26 @@ export default {
       // Check for service imports
       ImportDeclaration(node) {
         for (const [serviceName, config] of Object.entries(CORE_SERVICES)) {
-          if (node.source.value === config.importPath) {
+          // Check both with and without .js extension to handle import path variations
+          const importPath = node.source.value;
+          const configPathWithoutJs = config.importPath.replace(/\.js$/, '');
+          
+          if (importPath === config.importPath || importPath === configPathWithoutJs) {
+            const hasServiceSpecifier = node.specifiers.some(
+              specifier => specifier.imported && specifier.imported.name === config.serviceClass
+            );
+            if (hasServiceSpecifier) {
+              serviceImports.add(config.serviceClass);
+            }
+          }
+        }
+        
+        // Also check for imports from the direct service path
+        for (const [serviceName, config] of Object.entries(CORE_SERVICES)) {
+          const directServicePath = config.importPath;
+          const directServicePathWithoutJs = directServicePath.replace(/\.js$/, '');
+          
+          if (node.source.value === directServicePath || node.source.value === directServicePathWithoutJs) {
             const hasServiceSpecifier = node.specifiers.some(
               specifier => specifier.imported && specifier.imported.name === config.serviceClass
             );
@@ -189,12 +208,24 @@ export default {
                 const imports = sourceCode.ast.body.filter(node => node.type === 'ImportDeclaration');
                 const lastImport = imports[imports.length - 1];
                 
-                if (lastImport) {
+                // Check if import already exists to prevent duplicates
+                const importExists = imports.some(importNode => {
+                  const importPath = importNode.source.value;
+                  const configPathWithoutJs = config.importPath.replace(/\.js$/, '');
+                  
+                  return (importPath === config.importPath || importPath === configPathWithoutJs) &&
+                    importNode.specifiers.some(spec => 
+                      spec.imported && spec.imported.name === config.serviceClass
+                    );
+                });
+                
+                if (lastImport && !importExists) {
                   return fixer.insertTextAfter(
                     lastImport,
                     `\nimport { ${config.serviceClass} } from '${config.importPath}';`
                   );
                 }
+                return null;
               }
             });
           }

@@ -99,10 +99,10 @@ export default [
       "systemprompt-os/no-blank-lines-between-properties": "error",
       "systemprompt-os/no-jsdoc-in-interfaces": "error",
       "systemprompt-os/enforce-module-bootstrap-pattern": ["error", {
-        "fundamentalModules": ["logger", "database", "cli"]
+        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
       }],
       "systemprompt-os/enforce-module-yaml-bootstrap": ["error", {
-        "fundamentalModules": ["logger", "database", "cli"]
+        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
       }],
       "systemprompt-os/enforce-core-module-pattern": "error",
       "systemprompt-os/enforce-extension-module-pattern": "error",
@@ -682,7 +682,40 @@ export default [
         properties: "always",
         ignoreDestructuring: false,
         ignoreImports: false,
-        ignoreGlobals: false
+        ignoreGlobals: false,
+        allow: [
+          "^[a-z]+(_[a-z]+)*_endpoint$",
+          "^[a-z]+(_[a-z]+)*_uri$",
+          "^[a-z]+(_[a-z]+)*_supported$",
+          "^[a-z]+(_[a-z]+)*_servers$",
+          "^[a-z]+(_[a-z]+)*_methods$",
+          "^[a-z]+(_[a-z]+)*_alg_values$",
+          "^[a-z]+(_[a-z]+)*_enc_values$",
+          "^resource_[a-z_]+$",
+          "^authorization_[a-z_]+$",
+          "^token_[a-z_]+$",
+          "^id_token_[a-z_]+$",
+          "^code_[a-z_]+$",
+          "^bearer_[a-z_]+$",
+          "^client_[a-z_]+$",
+          "^grant_[a-z_]+$",
+          "^response_[a-z_]+$",
+          "^access_token$",
+          "^refresh_token$",
+          "^id_token$",
+          "^token_type$",
+          "^expires_in$",
+          "^redirect_uri$",
+          "^client_id$",
+          "^client_secret$",
+          "^response_type$",
+          "^scope$",
+          "^state$",
+          "^code$",
+          "^error$",
+          "^error_description$",
+          "^error_uri$"
+        ]
       }],
       "consistent-this": ["error", "that"],
       "default-case": ["error", { commentPattern: "" }],

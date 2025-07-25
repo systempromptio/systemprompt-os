@@ -415,6 +415,7 @@ export interface IAuthModuleExports {
 
 export type * from '@/modules/core/auth/types/provider-interface';
 export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface';
+export type * from '@/modules/core/auth/types/oauth2.types';
 
 // Type aliases for compatibility
 export type AuthUser = IAuthUser;
@@ -439,3 +440,30 @@ export type AuthModuleExports = IAuthModuleExports;
 export type TokenCreateInput = ITokenCreateInput;
 export type MFASetupResult = IMFASetupResult;
 export type MFAVerifyInput = IMFAVerifyInput;
+
+/**
+ * Database row interface for auth_tokens table.
+ */
+export interface ITokenRow {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  type: string;
+  scope: string;
+  expiresAt: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  isRevoked: boolean;
+  metadata?: string;
+}
+
+/**
+ * JWT creation parameters interface.
+ */
+export interface IJwtParams {
+  userId: string;
+  email: string;
+  name: string;
+  roles: string[];
+  scope?: string[];
+}
