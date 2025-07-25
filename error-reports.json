@@ -117,5 +117,75 @@
     "errors": 117,
     "type": "lint",
     "timestamp": "2025-07-25T12:49:13.776Z"
+  },
+  {
+    "id": "1753448086963",
+    "path": "src/modules/core/tasks/services/task.service.ts",
+    "errors": 199,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:46.963Z"
+  },
+  {
+    "id": "1753448087676",
+    "path": "src/server/external/rest/oauth2/authorize.ts",
+    "errors": 189,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:47.676Z"
+  },
+  {
+    "id": "1753448088367",
+    "path": "src/modules/core/auth/services/token.service.ts",
+    "errors": 148,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:48.367Z"
+  },
+  {
+    "id": "1753448089078",
+    "path": "src/server/external/auth/providers/generic-oauth2.ts",
+    "errors": 141,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:49.078Z"
+  },
+  {
+    "id": "1753448089776",
+    "path": "src/modules/core/auth/providers/core/oauth2.ts",
+    "errors": 139,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:49.776Z"
+  },
+  {
+    "id": "1753448090477",
+    "path": "src/server/external/rest/oauth2/register.ts",
+    "errors": 134,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:50.477Z"
+  },
+  {
+    "id": "1753448091179",
+    "path": "src/modules/core/logger/services/error-handling.service.ts",
+    "errors": 122,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:51.180Z"
+  },
+  {
+    "id": "1753448091880",
+    "path": "src/modules/core/auth/services/oauth2-config.service.ts",
+    "errors": 121,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:51.880Z"
+  },
+  {
+    "id": "1753448092576",
+    "path": "src/server/external/rest/oauth2/token.ts",
+    "errors": 120,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:52.576Z"
+  },
+  {
+    "id": "1753448093288",
+    "path": "src/modules/core/auth/index.ts",
+    "errors": 117,
+    "type": "lint",
+    "timestamp": "2025-07-25T12:54:53.288Z"
   }
 ]

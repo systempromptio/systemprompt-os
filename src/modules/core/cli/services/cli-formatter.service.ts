@@ -13,6 +13,13 @@ import {
   createFooter,
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
+import { 
+  SystemPromptSpinner, 
+  createSpinner, 
+  withSpinner, 
+  createProgressSpinner,
+  SPINNER_PRESETS 
+} from '@/modules/core/cli/utils/spinner';
 
 /**
  * CLI command metadata interface.
@@ -137,7 +144,8 @@ export class CliFormatterService {
     // Calculate the maximum command name length for consistent alignment
     const allCommands = cmd.commands.filter(subCmd => !subCmd.hidden);
     const maxCommandLength = Math.max(...allCommands.map(subCmd => subCmd.name().length));
-    const paddingLength = Math.max(maxCommandLength + 2, 15); // At least 15, or longest + 2
+    const maxOptionLength = Math.max(...cmd.options.map(opt => opt.flags.length));
+    const paddingLength = Math.max(maxCommandLength + 2, maxOptionLength + 2, 15); // At least 15, or longest + 2
     
     let commandsSection = '';
     for (const [category, commands] of commandGroups) {
@@ -155,7 +163,7 @@ export class CliFormatterService {
     }
 
     const options = cmd.options
-      .map(opt => formatOption(opt.flags, opt.description || ''))
+      .map(opt => this.formatOptionWithPadding(opt.flags, opt.description || '', paddingLength))
       .join('\n');
 
     const optionsSection = options ? createSection('⚙️  Options') + '\n' + options : '';
@@ -186,6 +194,19 @@ export class CliFormatterService {
     const commandName = chalk.hex('#FF8C00').bold(name.padEnd(paddingLength));
     const commandDesc = chalk.gray(description);
     return `  ${icon} ${commandName} ${commandDesc}`;
+  }
+
+  /**
+   * Format an option with consistent padding.
+   * @param flags - Option flags.
+   * @param description - Option description.
+   * @param paddingLength - Padding length for alignment.
+   * @returns Formatted option string.
+   */
+  private formatOptionWithPadding(flags: string, description: string, paddingLength: number): string {
+    const optionFlags = chalk.yellow(flags.padEnd(paddingLength));
+    const optionDesc = chalk.gray(description);
+    return `  ${optionFlags} ${optionDesc}`;
   }
 
   /**
@@ -278,5 +299,46 @@ export class CliFormatterService {
    */
   public highlight(text: string): string {
     return highlight(text);
+  }
+
+  /**
+   * Create a spinner with SystemPrompt branding.
+   * @param preset - Spinner preset name.
+   * @param text - Optional custom text.
+   * @returns New SystemPromptSpinner instance.
+   */
+  public createSpinner(preset: keyof typeof SPINNER_PRESETS = 'loading', text?: string): SystemPromptSpinner {
+    return createSpinner(preset, text);
+  }
+
+  /**
+   * Execute a function with a spinner.
+   * @param fn - The async function to execute.
+   * @param text - Spinner text.
+   * @param preset - Spinner preset.
+   * @param successText - Success message.
+   * @param errorText - Error message.
+   * @returns Promise with the function result.
+   */
+  public async withSpinner<T>(
+    fn: () => Promise<T>,
+    text: string = 'Loading...',
+    preset: keyof typeof SPINNER_PRESETS = 'loading',
+    successText?: string,
+    errorText?: string
+  ): Promise<T> {
+    const config = { ...SPINNER_PRESETS[preset], text };
+    return withSpinner(fn, config, successText, errorText);
+  }
+
+  /**
+   * Create a progress spinner for multi-step operations.
+   * @param steps - Array of step descriptions.
+   * @param preset - Spinner preset.
+   * @returns New ProgressSpinner instance.
+   */
+  public createProgressSpinner(steps: string[], preset: keyof typeof SPINNER_PRESETS = 'loading') {
+    const config = SPINNER_PRESETS[preset];
+    return createProgressSpinner(steps, config);
   }
 }
