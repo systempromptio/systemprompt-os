@@ -9,6 +9,7 @@ export default {
       category: 'Best Practices',
       recommended: true
     },
+    fixable: 'code',
     messages: {
       noCommentsInFunction: 'Comments are not allowed inside function bodies. Place them in JSDoc above the function instead or delete them.'
     },
@@ -60,7 +61,52 @@ export default {
             context.report({
               node: comment,
               messageId: 'noCommentsInFunction',
-              loc: comment.loc
+              loc: comment.loc,
+              fix(fixer) {
+                // Get the entire line containing the comment
+                const lines = sourceCode.lines;
+                const commentStartLine = comment.loc.start.line - 1;
+                const commentEndLine = comment.loc.end.line - 1;
+                
+                // Check if the comment is on its own line
+                const startLineText = lines[commentStartLine];
+                const beforeComment = startLineText.substring(0, comment.loc.start.column);
+                const afterComment = startLineText.substring(comment.loc.end.column);
+                
+                if (beforeComment.trim() === '' && afterComment.trim() === '') {
+                  // Comment is on its own line(s), remove the entire line(s)
+                  const startOfLine = sourceCode.getIndexFromLoc({ line: comment.loc.start.line, column: 0 });
+                  const endOfLine = sourceCode.getIndexFromLoc({ line: comment.loc.end.line + 1, column: 0 });
+                  return fixer.removeRange([startOfLine, endOfLine]);
+                } else {
+                  // Comment is inline, just remove the comment and surrounding spaces
+                  const start = comment.range[0];
+                  const end = comment.range[1];
+                  
+                  // Also remove trailing spaces after the comment
+                  let removeEnd = end;
+                  while (removeEnd < sourceCode.text.length && /\s/.test(sourceCode.text[removeEnd])) {
+                    if (sourceCode.text[removeEnd] === '\n') break;
+                    removeEnd++;
+                  }
+                  
+                  // Also remove leading spaces before the comment (but not newlines)
+                  let removeStart = start;
+                  if (comment.type === 'Line') {
+                    removeStart -= 2; // Include the //
+                  } else if (comment.type === 'Block') {
+                    removeStart -= 2; // Include the /*
+                    removeEnd += 2; // Include the */
+                  }
+                  
+                  // Remove leading spaces
+                  while (removeStart > 0 && sourceCode.text[removeStart - 1] === ' ') {
+                    removeStart--;
+                  }
+                  
+                  return fixer.removeRange([removeStart, removeEnd]);
+                }
+              }
             });
           }
         }
