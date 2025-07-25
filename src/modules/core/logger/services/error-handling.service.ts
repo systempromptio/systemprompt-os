@@ -175,13 +175,13 @@ export class ErrorHandlingService {
     return {
       source,
       timestamp: new Date(),
-      environment: process.env['NODE_ENV'] || 'development',
+      environment: process.env.NODE_ENV || 'development',
       hostname: hostname(),
       pid: process.pid,
-      requestId: options.metadata?.['requestId'] as string,
-      userId: options.metadata?.['userId'] as string,
-      sessionId: options.metadata?.['sessionId'] as string,
-      correlationId: (options.metadata?.['correlationId'] as string) || randomUUID(),
+      requestId: options.metadata?.requestId as string,
+      userId: options.metadata?.userId as string,
+      sessionId: options.metadata?.sessionId as string,
+      correlationId: (options.metadata?.correlationId as string) || randomUUID(),
       metadata: options.metadata,
     };
   }

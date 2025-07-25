@@ -36,6 +36,16 @@ const _filename = fileURLToPath(import.meta.url);
 import {
  FIVE, TEN
 } from '@/const/numbers';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 const _dirname = dirname(_filename);
 
@@ -89,6 +99,7 @@ export class AuthModule implements IModule {
    *  * Initialize the auth module.
    */
   async initialize(): Promise<void> {
+    this.database = DatabaseService.getInstance();
     this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new ConfigurationError('Auth module already initialized');
@@ -140,10 +151,10 @@ export class AuthModule implements IModule {
       this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
       await this.providerRegistry.initialize();
 
-      if (process.env['NODE_ENV'] !== 'production') {
+      if (process.env.NODE_ENV !== 'production') {
         const tunnelConfig = {
-          port: parseInt(process.env['PORT'] ?? '3000', TEN),
-          ...process.env['TUNNEL_DOMAIN'] && { permanentDomain: process.env['TUNNEL_DOMAIN'] },
+          port: parseInt(process.env.PORT ?? '3000', TEN),
+          ...process.env.TUNNEL_DOMAIN && { permanentDomain: process.env.TUNNEL_DOMAIN },
         };
         this.tunnelService = new TunnelService(tunnelConfig, this.logger);
       }
@@ -190,16 +201,20 @@ export class AuthModule implements IModule {
         this.logger.info(LogSource.AUTH, 'Auth database schema updated');
       }
 
-      setInterval(
-        () => {
-          this.tokenService
-            .cleanupExpiredTokens()
-            .catch((err) => { this.logger.error(LogSource.AUTH, 'Token cleanup failed', {
-              error: err instanceof Error ? err : new Error(String(err))
-            }); });
-        },
-        24 * 60 * 60 * 1000
-      )
+      if (process.env.LOG_MODE !== 'cli') {
+        const intervalId = setInterval(
+          () => {
+            this.tokenService
+              .cleanupExpiredTokens()
+              .catch((err) => { this.logger.error(LogSource.AUTH, 'Token cleanup failed', {
+                error: err instanceof Error ? err : new Error(String(err))
+              }); });
+          },
+          24 * 60 * 60 * 1000
+        );
+
+        (this as any)._cleanupInterval = intervalId;
+      }
 
       this.status = ModuleStatus.RUNNING;
       this.started = true;
@@ -214,6 +229,11 @@ export class AuthModule implements IModule {
    *  * Stop the auth module.
    */
   async stop(): Promise<void> {
+    if ((this as any)._cleanupInterval) {
+      clearInterval((this as any)._cleanupInterval);
+      delete (this as any)._cleanupInterval;
+    }
+
     if (this.tunnelService !== null) {
       await this.tunnelService.stop();
     }
@@ -338,7 +358,7 @@ export class AuthModule implements IModule {
         audience: 'systemprompt-os',
         accessTokenTTL: 900,
         refreshTokenTTL: 2592000,
-        keyStorePath: process.env['JWT_KEY_PATH'] ?? './state/auth/keys',
+        keyStorePath: process.env.JWT_KEY_PATH ?? './state/auth/keys',
         privateKey: '',
         publicKey: ''
       },

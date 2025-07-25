@@ -10,12 +10,12 @@ export const command = {
   description: 'View table contents and data',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const tableName = args?.['table'] as string;
-    const format = (args?.['format'] ?? 'table') as 'table' | 'json' | 'csv';
-    const limit = typeof args?.['limit'] === 'number' ? args['limit'] : parseInt(String(args?.['limit'] ?? '50'), 10) || 50;
-    const offset = typeof args?.['offset'] === 'number' ? args['offset'] : parseInt(String(args?.['offset'] ?? '0'), 10) || 0;
-    const columns = args?.['columns'] as string | undefined;
-    const where = args?.['where'] as string | undefined;
+    const tableName = args?.table as string;
+    const format = (args?.format ?? 'table') as 'table' | 'json' | 'csv';
+    const limit = typeof args?.limit === 'number' ? args.limit : parseInt(String(args?.limit ?? '50'), 10) || 50;
+    const offset = typeof args?.offset === 'number' ? args.offset : parseInt(String(args?.offset ?? '0'), 10) || 0;
+    const columns = args?.columns as string | undefined;
+    const where = args?.where as string | undefined;
     const orderBy = args?.['order-by'] as string | undefined;
     const schemaOnly = args?.['schema-only'] === true;
 

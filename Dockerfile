@@ -26,7 +26,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for building)
+# Install dependencies (keep all for tsx to work)
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
 
 # Rebuild native modules for the container architecture
@@ -34,29 +34,6 @@ RUN npm rebuild better-sqlite3
 
 # Copy application files
 COPY . .
-
-# Build the application (bypass TypeScript errors)
-RUN npx tsc -p tsconfig.build.json || true && npx tsc-alias -p tsconfig.build.json || true
-
-# Copy YAML files and other static assets to build directory
-RUN cp -r src/modules/core/auth/providers/*.yaml build/modules/core/auth/providers/ 2>/dev/null || true && \
-    find src -name "*.sql" -exec sh -c 'mkdir -p build/$(dirname {} | sed "s/^src\///") && cp {} build/$(dirname {} | sed "s/^src\///")/$(basename {})' \; && \
-    find src -name "*.json" -not -path "*/node_modules/*" -exec sh -c 'mkdir -p build/$(dirname {} | sed "s/^src\///") && cp {} build/$(dirname {} | sed "s/^src\///")/$(basename {})' \; 2>/dev/null || true
-
-# Fix missing modules - ensure errors.js exists with correct exports
-RUN mkdir -p build/modules/core/logger/utils && \
-    echo 'export { LoggerError } from "./logger-error-base.js";' > build/modules/core/logger/utils/errors.js && \
-    echo 'export { LoggerInitializationError } from "./logger-initialization-error.js";' >> build/modules/core/logger/utils/errors.js && \
-    echo 'export { LoggerFileWriteError } from "./logger-file-write-error.js";' >> build/modules/core/logger/utils/errors.js && \
-    echo 'export { LoggerFileReadError } from "./logger-file-read-error.js";' >> build/modules/core/logger/utils/errors.js && \
-    echo 'export { InvalidLogLevelError } from "./invalid-log-level-error.js";' >> build/modules/core/logger/utils/errors.js && \
-    echo 'export { LoggerDirectoryError } from "./logger-directory-error.js";' >> build/modules/core/logger/utils/errors.js
-
-# Clean up dev dependencies to reduce image size
-RUN npm prune --production
-
-# Ensure loader.mjs is in the right place
-RUN chmod +x /app/loader.mjs
 
 # Make the CLI globally available
 RUN chmod +x /app/bin/systemprompt && \
@@ -79,5 +56,5 @@ EXPOSE 3000
 # Use tini for proper signal handling
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 
-# Default command
-CMD ["node", "--loader", "./loader.mjs", "build/index.js"]
+# Default command - use tsx to run directly
+CMD ["npx", "tsx", "src/index.ts"]

@@ -10,8 +10,8 @@ export const command = {
   description: 'Clear all data from database tables (preserves schema)',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const force = args?.['force'] === true;
-    const confirm = args?.['confirm'] === true;
+    const force = args?.force === true;
+    const confirm = args?.confirm === true;
 
     try {
       const dbService = DatabaseService.getInstance();

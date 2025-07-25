@@ -195,6 +195,8 @@ export class CustomMCPLoader {
     }
 
     const commonEntryPoints = [
+      'src/index.ts',
+      'index.ts',
       'build/index.js',
       'dist/index.js',
       'lib/index.js',

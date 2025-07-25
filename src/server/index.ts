@@ -86,7 +86,7 @@ export const startServer = async (
           logger.info(LogSource.AUTH, 'Configure your OAuth providers with:');
           logger.info(LogSource.AUTH, `  Google: ${tunnelStatus.url}/oauth2/callback/google`);
           logger.info(LogSource.AUTH, `  GitHub: ${tunnelStatus.url}/oauth2/callback/github`);
-        } else if (process.env['GOOGLE_CLIENT_ID'] ?? process.env['GITHUB_CLIENT_ID']) {
+        } else if (process.env.GOOGLE_CLIENT_ID ?? process.env.GITHUB_CLIENT_ID) {
           logger.info(LogSource.AUTH, '');
           logger.info(LogSource.AUTH, '⚠️  OAuth providers configured but no tunnel active');
           logger.info(LogSource.AUTH, '💡 Set ENABLE_OAUTH_TUNNEL=true to auto-create tunnel');

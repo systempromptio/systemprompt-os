@@ -24,9 +24,9 @@ export const isModuleExports = (obj: unknown): obj is IModuleExports => {
 
   return (
     'scanForModules' in candidate
-    && typeof candidate['scanForModules'] === 'function'
+    && typeof candidate.scanForModules === 'function'
     && 'getEnabledModules' in candidate
-    && typeof candidate['getEnabledModules'] === 'function'
+    && typeof candidate.getEnabledModules === 'function'
   );
 };
 

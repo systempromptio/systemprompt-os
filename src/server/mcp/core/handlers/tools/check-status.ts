@@ -233,7 +233,7 @@ const getServiceStatus = async function () {
   const services: any = {
     mcp: {
       status: 'active',
-      version: process.env['npm_package_version'] || 'unknown',
+      version: process.env.npm_package_version || 'unknown',
       activeSessions: 0
     },
     oauth: {
@@ -243,17 +243,17 @@ const getServiceStatus = async function () {
     },
   };
 
-  if (process.env['GOOGLE_CLIENT_ID']) {
+  if (process.env.GOOGLE_CLIENT_ID) {
     services.oauth.providers.push('google');
   }
-  if (process.env['GITHUB_CLIENT_ID']) {
+  if (process.env.GITHUB_CLIENT_ID) {
     services.oauth.providers.push('github');
   }
-  if (process.env['MICROSOFT_CLIENT_ID']) {
+  if (process.env.MICROSOFT_CLIENT_ID) {
     services.oauth.providers.push('microsoft');
   }
 
-  if (process.env['ENABLE_OAUTH_TUNNEL'] === 'true' || process.env['OAUTH_DOMAIN']) {
+  if (process.env.ENABLE_OAUTH_TUNNEL === 'true' || process.env.OAUTH_DOMAIN) {
     services.oauth.tunnelActive = true;
   }
 

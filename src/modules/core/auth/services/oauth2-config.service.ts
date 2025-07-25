@@ -62,7 +62,7 @@ export class OAuth2ConfigService {
   private readonly baseUrl: string;
 
   private constructor() {
-    this.baseUrl = process.env['BASE_URL'] || 'http://localhost:3000';
+    this.baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   }
 
   static getInstance(): OAuth2ConfigService {

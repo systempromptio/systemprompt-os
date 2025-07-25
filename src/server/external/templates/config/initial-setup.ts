@@ -83,7 +83,7 @@ function renderProviderButton(provider: IdentityProvider): string {
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
 
-  const baseUrl = process.env['BASE_URL'] || 'http://localhost:3000';
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   const authUrl = `${baseUrl}/oauth2/authorize?${new URLSearchParams({
     response_type: 'code',
     client_id: 'systemprompt-os',

@@ -24,9 +24,9 @@ export const findModuleClass = (
   moduleExports: Record<string, unknown>,
   path: string,
 ): ModuleConstructor => {
-  if (moduleExports['default'] !== undefined
-    && typeof moduleExports['default'] === 'function') {
-    return moduleExports['default'] as ModuleConstructor;
+  if (moduleExports.default !== undefined
+    && typeof moduleExports.default === 'function') {
+    return moduleExports.default as ModuleConstructor;
   }
 
   const moduleKey = Object.keys(moduleExports).find(
@@ -55,13 +55,13 @@ export const createModuleInstance = (
   type: string,
 ): IModule => {
   if (type === 'self-contained') {
-    if (typeof moduleExports['createModule'] === 'function') {
-      const createFn = moduleExports['createModule'] as () => IModule;
+    if (typeof moduleExports.createModule === 'function') {
+      const createFn = moduleExports.createModule as () => IModule;
       return createFn();
     }
-    if (moduleExports['default'] !== undefined
-      && typeof moduleExports['default'] === 'function') {
-      const ModuleConstructorFn = moduleExports['default'] as ModuleConstructor;
+    if (moduleExports.default !== undefined
+      && typeof moduleExports.default === 'function') {
+      const ModuleConstructorFn = moduleExports.default as ModuleConstructor;
       return new ModuleConstructorFn();
     }
     throw new Error(`Self-contained module ${name} must export createModule function`);

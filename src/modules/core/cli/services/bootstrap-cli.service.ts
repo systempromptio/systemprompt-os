@@ -8,17 +8,25 @@ import { Bootstrap } from '@/bootstrap';
 import { CliService } from '@/modules/core/cli/services/cli.service';
 
 /**
- * Bootstrap services needed for CLI using the main bootstrap process.
- * @returns CLI service instance.
+ * Result of CLI bootstrap process.
  */
-export const bootstrapCli = async (): Promise<CliService> => {
+export interface BootstrapCliResult {
+  cliService: CliService;
+  bootstrap: Bootstrap;
+}
+
+/**
+ * Bootstrap services needed for CLI using the main bootstrap process.
+ * @returns CLI service instance and bootstrap instance.
+ */
+export const bootstrapCli = async (): Promise<BootstrapCliResult> => {
   // Set environment variable for CLI mode logger detection
-  process.env['LOG_MODE'] = 'cli';
+  process.env.LOG_MODE = 'cli';
   
   // Use the main bootstrap with server components disabled and CLI mode
   const bootstrap = new Bootstrap({
     skipMcp: true, // Skip MCP server setup for CLI
-    environment: process.env['NODE_ENV'] ?? 'development',
+    environment: process.env.NODE_ENV ?? 'development',
     cliMode: true, // Enable CLI mode for reduced logging
   });
 
@@ -46,5 +54,6 @@ export const bootstrapCli = async (): Promise<CliService> => {
     throw new Error('Failed to get CLI service instance');
   }
 
-  return cliService;
+  return { cliService,
+bootstrap };
 };

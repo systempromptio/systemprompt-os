@@ -33,7 +33,7 @@ export function setupRoutes(router: Router): void {
   const splashEndpoint = new SplashEndpoint();
 
   router.get('/', (req, res, next) => {
-    if (req.query['code']) {
+    if (req.query.code) {
       next(); return;
     }
     splashEndpoint.handleSplashPage(req, res);

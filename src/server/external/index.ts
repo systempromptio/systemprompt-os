@@ -28,7 +28,7 @@ export async function setupExternalEndpoints(app: Express): Promise<void> {
   const { configureRoutes } = await import('./routes.js');
   configureRoutes(app);
 
-  if (process.env['NODE_ENV'] !== 'production') {
+  if (process.env.NODE_ENV !== 'production') {
     logger.debug(LogSource.SERVER, 'External endpoints configured', {
       category: 'routes',
       persistToDb: false,

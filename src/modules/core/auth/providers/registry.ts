@@ -205,8 +205,8 @@ export class ProviderRegistry {
   private substituteEnvVars(obj: unknown): unknown {
     if (typeof obj === "string") {
       return obj.replace(/\$\{([^}]+)\}/g, (match, varName) => {
-        if (varName === "OAUTH_REDIRECT_URI" && process.env['BASE_URL']) {
-          return `${process.env['BASE_URL']}/oauth2/callback`;
+        if (varName === "OAUTH_REDIRECT_URI" && process.env.BASE_URL) {
+          return `${process.env.BASE_URL}/oauth2/callback`;
         }
         return process.env[varName] || match;
       });

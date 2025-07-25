@@ -4,7 +4,9 @@
  * @module modules/core/logger/services
  */
 
-import { appendFileSync, existsSync, mkdirSync } from 'fs';
+import {
+ appendFileSync, existsSync, mkdirSync
+} from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type {
@@ -14,7 +16,9 @@ import type {
   LogArgs,
   LogLevelName,
 } from '@/modules/core/logger/types/index';
-import { LogOutput, LogSource, LoggerMode } from '@/modules/core/logger/types/index';
+import {
+ LogOutput, LogSource, LoggerMode
+} from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import {
   InvalidLogLevelError,
@@ -360,9 +364,9 @@ export class LoggerService implements ILogger {
    */
   private shouldLogToDatabase(level: LogLevelName): boolean {
     if (
-      !this.config.outputs.includes(LogOutput.DATABASE) ||
-      !this.config.database?.enabled ||
-      !this.databaseService
+      !this.config.outputs.includes(LogOutput.DATABASE)
+      || !this.config.database?.enabled
+      || !this.databaseService
     ) {
       return false;
     }

@@ -6,11 +6,23 @@
  * @module modules/core/modules
  */
 
-import { type IModule, type ModuleInfo, ModuleStatus } from '@/modules/core/modules/types/index';
+import {
+ type IModule, type ModuleInfo, ModuleStatus
+} from '@/modules/core/modules/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 /**
  * Strongly typed exports interface for Modules module.
@@ -39,7 +51,7 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
   status = ModuleStatus.STOPPED;
   dependencies = ['logger', 'database'];
   private service?: ModuleManagerService;
-  private logger!: LoggerService;
+  private logger!: ILogger;
   private database!: DatabaseService;
   get exports(): IModulesModuleExports {
     return {
@@ -99,8 +111,8 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
     this.database = DatabaseService.getInstance();
 
     const config = {
-      modulesPath: './build/modules',
-      injectablePath: './build/modules/extension',
+      modulesPath: './src/modules',
+      injectablePath: './src/modules/extension',
       extensionsPath: './extensions',
     };
 

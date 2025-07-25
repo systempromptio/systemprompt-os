@@ -12,8 +12,8 @@ export const command = {
   description: 'Rebuild database - drop all tables and recreate from schema files',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const force = args?.['force'] === true;
-    const confirm = args?.['confirm'] === true;
+    const force = args?.force === true;
+    const confirm = args?.confirm === true;
 
     try {
       const dbService = DatabaseService.getInstance();

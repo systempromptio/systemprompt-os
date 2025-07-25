@@ -40,13 +40,13 @@ import * as os from 'os';
 const getServerRoots = function (): Root[] {
   const roots: Root[] = [];
 
-  const hostFileRoot = process.env['HOSTFILE_ROOT'] || '/var/www/html/systemprompt-coding-agent';
+  const hostFileRoot = process.env.HOSTFILE_ROOT || '/var/www/html/systemprompt-coding-agent';
   roots.push({
     uri: `file://${hostFileRoot}`,
     name: 'Main Project Root (Working Directory)',
   });
 
-  const projectsPath = process.env['PROJECTSPATH'];
+  const projectsPath = process.env.PROJECTSPATH;
   if (projectsPath && !projectsPath.startsWith('./')) {
     roots.push({
       uri: `file://${projectsPath}`,
@@ -60,7 +60,7 @@ const getServerRoots = function (): Root[] {
     });
   }
 
-  const homeDir = process.env['HOME'] || os.homedir();
+  const homeDir = process.env.HOME || os.homedir();
   roots.push({
     uri: `file://${homeDir}`,
     name: 'User Home Directory',

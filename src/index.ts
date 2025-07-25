@@ -24,7 +24,7 @@ let bootstrapInstance: Bootstrap | null = null;
  * @param moduleExports - Module exports to check.
  * @returns True if exports contains service property.
  */
-const hasLoggerService = (moduleExports: unknown): moduleExports is { service: ILogger } => {
+const hasLoggerService = (moduleExports: unknown): moduleExports is { service: ILogger | (() => ILogger) } => {
   return typeof moduleExports === 'object' && moduleExports !== null && 'service' in moduleExports;
 };
 
@@ -56,7 +56,8 @@ const getLoggerService = (modules: Map<string, unknown>): ILogger => {
     && 'exports' in loggerModule
     && hasLoggerService(loggerModule.exports)
   ) {
-    return loggerModule.exports.service;
+    const {service} = loggerModule.exports;
+    return typeof service === 'function' ? service() : service;
   }
 
   return consoleFallback;

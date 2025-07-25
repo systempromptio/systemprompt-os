@@ -13,7 +13,7 @@ import type { ICoreModuleDefinition } from '@/types/bootstrap';
 export const CORE_MODULES: ICoreModuleDefinition[] = [
   {
     name: 'logger',
-    path: './build/modules/core/logger/index.js',
+    path: './src/modules/core/logger/index.ts',
     dependencies: [],
     critical: true,
     description: 'System-wide logging service - must be first for debugging',
@@ -21,7 +21,7 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
   },
   {
     name: 'database',
-    path: './build/modules/core/database/index.js',
+    path: './src/modules/core/database/index.ts',
     dependencies: ['logger'],
     critical: true,
     description: 'Persistent storage layer for all modules',
@@ -29,7 +29,7 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
   },
   {
     name: 'auth',
-    path: './build/modules/core/auth/index.js',
+    path: './src/modules/core/auth/index.ts',
     dependencies: ['logger', 'database'],
     critical: true,
     description: 'Authentication, authorization, and JWT management',
@@ -37,7 +37,7 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
   },
   {
     name: 'cli',
-    path: './build/modules/core/cli/index.js',
+    path: './src/modules/core/cli/index.ts',
     dependencies: ['logger', 'database'],
     critical: true,
     description: 'Command-line interface for system control',
@@ -45,7 +45,7 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
   },
   {
     name: 'modules',
-    path: './build/modules/core/modules/index.js',
+    path: './src/modules/core/modules/index.ts',
     dependencies: ['logger', 'database'],
     critical: true,
     description: 'Module registry and discovery service',
@@ -55,7 +55,7 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
    * Temporarily disabled - being worked on separately
    * {
    *   name: 'executors',
-   *   path: './build/modules/core/executors/index.js',
+   *   path: './src/modules/core/executors/index.ts',
    *   dependencies: ['logger', 'database'],
    *   critical: false,
    *   description: 'Task executor management system',

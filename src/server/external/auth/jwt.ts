@@ -100,7 +100,7 @@ class KeyManager {
 
   private constructor() {
     this.keyPath
-      = process.env['JWT_KEY_PATH'] || resolve(process.env['STATE_PATH'] || './state', 'auth/keys');
+      = process.env.JWT_KEY_PATH || resolve(process.env.STATE_PATH || './state', 'auth/keys');
   }
 
   /**
@@ -133,7 +133,7 @@ class KeyManager {
     }
 
     if (algorithms.length === 0) {
-      if (process.env['NODE_ENV'] === 'production') {
+      if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT RSA keys not found in production. Keys should be generated during container startup.',
         );
@@ -423,6 +423,6 @@ export async function getJWTInfo(): Promise<{
   return {
     mode,
     algorithms: config.availableAlgorithms,
-    ...process.env['JWT_KEY_PATH'] !== undefined && { keyPath: process.env['JWT_KEY_PATH'] },
+    ...process.env.JWT_KEY_PATH !== undefined && { keyPath: process.env.JWT_KEY_PATH },
   };
 }

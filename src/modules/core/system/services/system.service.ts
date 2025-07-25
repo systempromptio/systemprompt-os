@@ -205,13 +205,13 @@ export class SystemService implements ISystemService {
     );
 
     return {
-      version: process.env['SYSTEMPROMPT_VERSION'] ?? '1.0.0',
+      version: process.env.SYSTEMPROMPT_VERSION ?? '1.0.0',
       uptime,
       hostname: os.hostname(),
       platform: os.platform(),
       architecture: os.arch(),
       nodeVersion: process.version,
-      environment: process.env['NODE_ENV'] ?? 'development',
+      environment: process.env.NODE_ENV ?? 'development',
       modules: moduleCounts
     };
   }

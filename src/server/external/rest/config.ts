@@ -104,8 +104,8 @@ category: 'config'
    */
   private getSystemStatus(): { cloudflareUrl: string; tunnelStatus: string } {
     return {
-      cloudflareUrl: process.env['BASE_URL'] || 'Not configured',
-      tunnelStatus: process.env['CLOUDFLARE_TUNNEL_TOKEN'] ? 'Active' : 'Inactive',
+      cloudflareUrl: process.env.BASE_URL || 'Not configured',
+      tunnelStatus: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'Active' : 'Inactive',
     };
   }
 
@@ -148,9 +148,9 @@ category: 'config'
     const configData: AdminConfigData = {
       ...systemStatus,
       version: '0.1.0',
-      environment: process.env['NODE_ENV'] || 'development',
-      googleConfigured: Boolean(process.env['GOOGLE_CLIENT_ID']),
-      githubConfigured: Boolean(process.env['GITHUB_CLIENT_ID']),
+      environment: process.env.NODE_ENV || 'development',
+      googleConfigured: Boolean(process.env.GOOGLE_CLIENT_ID),
+      githubConfigured: Boolean(process.env.GITHUB_CLIENT_ID),
     };
 
     const content = renderAdminConfig(configData);

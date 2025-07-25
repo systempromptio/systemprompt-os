@@ -44,52 +44,52 @@ function validateManifest(raw: unknown): ModuleManifest {
 
   const manifestData = raw as Record<string, unknown>;
 
-  if (!manifestData['name'] || typeof manifestData['name'] !== 'string') {
+  if (!manifestData.name || typeof manifestData.name !== 'string') {
     errors.push('name: required field missing or not a string');
   }
 
-  if (!manifestData['version'] || typeof manifestData['version'] !== 'string') {
+  if (!manifestData.version || typeof manifestData.version !== 'string') {
     errors.push('version: required field missing or not a string');
   }
 
-  if (!manifestData['type'] || typeof manifestData['type'] !== 'string') {
+  if (!manifestData.type || typeof manifestData.type !== 'string') {
     errors.push('type: required field missing or not a string');
-  } else if (!isModuleType(manifestData['type'])) {
+  } else if (!isModuleType(manifestData.type)) {
     errors.push(
-      `type: invalid value '${manifestData['type']}', must be one of: ${Object.values(ModuleType).join(', ')}`,
+      `type: invalid value '${manifestData.type}', must be one of: ${Object.values(ModuleType).join(', ')}`,
     );
   }
 
-  if (manifestData['description'] !== undefined && typeof manifestData['description'] !== 'string') {
+  if (manifestData.description !== undefined && typeof manifestData.description !== 'string') {
     errors.push('description: must be a string');
   }
 
-  if (manifestData['author'] !== undefined && typeof manifestData['author'] !== 'string') {
+  if (manifestData.author !== undefined && typeof manifestData.author !== 'string') {
     errors.push('author: must be a string');
   }
 
-  if (manifestData['dependencies'] !== undefined) {
-    if (!Array.isArray(manifestData['dependencies'])) {
+  if (manifestData.dependencies !== undefined) {
+    if (!Array.isArray(manifestData.dependencies)) {
       errors.push('dependencies: must be an array');
-    } else if (!manifestData['dependencies'].every((dep) => { return typeof dep === 'string' })) {
+    } else if (!manifestData.dependencies.every((dep) => { return typeof dep === 'string' })) {
       errors.push('dependencies: all items must be strings');
     }
   }
 
   if (
-    manifestData['config'] !== undefined
-    && (typeof manifestData['config'] !== 'object'
-        || manifestData['config'] === null
-        || Array.isArray(manifestData['config']))
+    manifestData.config !== undefined
+    && (typeof manifestData.config !== 'object'
+        || manifestData.config === null
+        || Array.isArray(manifestData.config))
   ) {
     errors.push('config: must be an object');
   }
 
   if (
-    manifestData['cli'] !== undefined
-    && (typeof manifestData['cli'] !== 'object'
-        || manifestData['cli'] === null
-        || Array.isArray(manifestData['cli']))
+    manifestData.cli !== undefined
+    && (typeof manifestData.cli !== 'object'
+        || manifestData.cli === null
+        || Array.isArray(manifestData.cli))
   ) {
     errors.push('cli: must be an object');
   }
@@ -102,25 +102,25 @@ function validateManifest(raw: unknown): ModuleManifest {
   }
 
   const result: ModuleManifest = {
-    name: String(manifestData['name']),
-    version: String(manifestData['version']),
-    type: String(manifestData['type']),
+    name: String(manifestData.name),
+    version: String(manifestData.version),
+    type: String(manifestData.type),
   };
 
-  if (manifestData['description'] !== undefined) {
-    result.description = String(manifestData['description']);
+  if (manifestData.description !== undefined) {
+    result.description = String(manifestData.description);
   }
-  if (manifestData['author'] !== undefined) {
-    result.author = String(manifestData['author']);
+  if (manifestData.author !== undefined) {
+    result.author = String(manifestData.author);
   }
-  if (manifestData['dependencies'] !== undefined) {
-    result.dependencies = manifestData['dependencies'] as string[];
+  if (manifestData.dependencies !== undefined) {
+    result.dependencies = manifestData.dependencies as string[];
   }
-  if (manifestData['config'] !== undefined) {
-    result.config = manifestData['config'] as Record<string, unknown>;
+  if (manifestData.config !== undefined) {
+    result.config = manifestData.config as Record<string, unknown>;
   }
-  if (manifestData['cli'] !== undefined) {
-    result.cli = manifestData['cli'] as { commands?: CLICommand[] };
+  if (manifestData.cli !== undefined) {
+    result.cli = manifestData.cli as { commands?: CLICommand[] };
   }
 
   return result;

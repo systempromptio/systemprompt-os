@@ -228,7 +228,7 @@ export class TokenEndpoint {
       try {
         const provider = getAuthModule().exports.getProvider(codeData.provider);
         if (provider && 'code' in codeData.providerTokens) {
-          const code = String(codeData.providerTokens['code']);
+          const code = String(codeData.providerTokens.code);
           if (code) {
             const providerTokens = await provider.exchangeCodeForTokens(code);
             codeData.providerTokens = providerTokens as unknown as Record<string, unknown>;
@@ -448,7 +448,7 @@ export class TokenEndpoint {
         audience: CONFIG.JWTAUDIENCE,
       });
 
-      if (!payload || typeof payload !== 'object' || !('tokentype' in payload) || payload['tokentype'] !== 'access') {
+      if (!payload || typeof payload !== 'object' || !('tokentype' in payload) || payload.tokentype !== 'access') {
         return null;
       }
 

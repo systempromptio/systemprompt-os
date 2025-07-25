@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Main CLI entry point for systemprompt-os
+ * Main CLI entry point for systemprompt-os using tsx
  */
 
 import { spawn } from 'child_process';
@@ -10,12 +10,11 @@ import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
-const loaderPath = join(projectRoot, 'loader.mjs');
-const cliPath = join(projectRoot, 'build', 'modules', 'core', 'cli', 'cli', 'main.js');
+const cliPath = join(projectRoot, 'src', 'modules', 'core', 'cli', 'cli', 'main.ts');
 
-// Start the CLI with the custom loader
-const child = spawn('node', [
-  '--loader', loaderPath,
+// Start the CLI using tsx directly
+const child = spawn('npx', [
+  'tsx',
   cliPath,
   ...process.argv.slice(2)
 ], {

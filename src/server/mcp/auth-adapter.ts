@@ -25,7 +25,7 @@ const HTTP_UNAUTHORIZED = 401;
  * @param next - Express next function.
  */
 export const mcpAuthAdapter = function (req: ExpressRequest, res: ExpressResponse, next: NextFunction): void {
-  if (process.env['MCP_AUTH_DISABLED'] === 'true') {
+  if (process.env.MCP_AUTH_DISABLED === 'true') {
     next();
     return;
   }

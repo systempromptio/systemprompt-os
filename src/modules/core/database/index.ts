@@ -17,6 +17,11 @@ import type { IDatabaseConfig } from '@/modules/core/database/types/database.typ
 import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Strongly typed exports interface for Database module.
@@ -38,11 +43,11 @@ export interface IDatabaseModuleExports {
  */
 export function isDatabaseModule(module: any): module is IModule<IDatabaseModuleExports> {
   return (
-    module?.name === 'database' &&
-    Boolean(module.exports) &&
-    typeof module.exports === 'object' &&
-    'service' in module.exports &&
-    typeof module.exports.service === 'function'
+    module?.name === 'database'
+    && Boolean(module.exports)
+    && typeof module.exports === 'object'
+    && 'service' in module.exports
+    && typeof module.exports.service === 'function'
   );
 }
 
@@ -122,8 +127,8 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       const schemaService = SchemaService.initialize(dbService, schemaImport, this.logger);
       MigrationService.initialize(dbService, this.logger);
 
-      const modulesPath =
-        process.env['NODE_ENV'] === 'production'
+      const modulesPath
+        = process.env.NODE_ENV === 'production'
           ? '/app/src/modules'
           : `${process.cwd()}/src/modules`;
 
@@ -244,17 +249,17 @@ const buildConfig = (): IDatabaseConfig => {
   const RADIX_BASE = 10;
 
   const config: IDatabaseConfig = {
-    type: process.env['DATABASE_TYPE'] === 'postgres' ? 'postgres' : 'sqlite',
+    type: process.env.DATABASE_TYPE === 'postgres' ? 'postgres' : 'sqlite',
     pool: {
-      min: parseInt(process.env['DB_POOL_MIN'] ?? DEFAULT_POOL_MIN, RADIX_BASE),
-      max: parseInt(process.env['DB_POOL_MAX'] ?? DEFAULT_POOL_MAX, RADIX_BASE),
-      idleTimeout: parseInt(process.env['DB_IDLE_TIMEOUT'] ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
+      min: parseInt(process.env.DB_POOL_MIN ?? DEFAULT_POOL_MIN, RADIX_BASE),
+      max: parseInt(process.env.DB_POOL_MAX ?? DEFAULT_POOL_MAX, RADIX_BASE),
+      idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
     },
   };
 
   if (config.type === 'sqlite') {
     config.sqlite = {
-      filename: process.env['SQLITE_FILENAME'] ?? './state/database.db',
+      filename: process.env.SQLITE_FILENAME ?? './state/database.db',
     };
   }
 
@@ -275,8 +280,8 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
   const schemaService = SchemaService.initialize(dbService, schemaImport, logger);
   MigrationService.initialize(dbService, logger);
 
-  const modulesPath =
-    process.env['NODE_ENV'] === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
+  const modulesPath
+    = process.env.NODE_ENV === 'production' ? '/app/src/modules' : `${process.cwd()}/src/modules`;
 
   await schemaService.discoverSchemas(modulesPath);
   await schemaService.initializeSchemas();

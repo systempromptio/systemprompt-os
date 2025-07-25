@@ -80,8 +80,8 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
       const authHeader = req.headers.authorization;
       if (authHeader?.startsWith('Bearer ')) {
         token = authHeader.substring(7);
-      } else if (req.cookies?.['auth_token']) {
-        token = req.cookies['auth_token'];
+      } else if (req.cookies?.auth_token) {
+        token = req.cookies.auth_token;
       }
 
       if (!token) {

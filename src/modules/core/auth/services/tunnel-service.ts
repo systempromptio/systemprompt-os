@@ -144,8 +144,8 @@ export class TunnelService extends EventEmitter {
    * @returns True if tunnel should be started.
    */
   private shouldEnableTunnel(): boolean {
-    const enableTunnel = process.env['ENABLE_OAUTH_TUNNEL'] === "true";
-    const isDevelopment = process.env['NODE_ENV'] !== "production";
+    const enableTunnel = process.env.ENABLE_OAUTH_TUNNEL === "true";
+    const isDevelopment = process.env.NODE_ENV !== "production";
 
     return enableTunnel
       || isDevelopment
@@ -159,9 +159,9 @@ export class TunnelService extends EventEmitter {
    */
   private hasOAuthProviders(): boolean {
     return Boolean(
-      process.env['GOOGLE_CLIENT_ID'] !== undefined
-      || process.env['GITHUB_CLIENT_ID'] !== undefined
-      || process.env['OAUTH_TUNNEL_REQUIRED'] === "true"
+      process.env.GOOGLE_CLIENT_ID !== undefined
+      || process.env.GITHUB_CLIENT_ID !== undefined
+      || process.env.OAUTH_TUNNEL_REQUIRED === "true"
     );
   }
 
@@ -314,7 +314,7 @@ export class TunnelService extends EventEmitter {
         reject(error);
       });
 
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         if (!urlFound) {
           this.stop();
           const error = "Timeout waiting for tunnel URL";
@@ -325,7 +325,13 @@ export class TunnelService extends EventEmitter {
           };
           reject(new Error(error));
         }
-      }, 30000)
+      }, 30000);
+
+      const originalResolve = resolve;
+      resolve = (value: string) => {
+        clearTimeout(timeoutId);
+        originalResolve(value);
+      }
     });
   }
 
@@ -347,8 +353,8 @@ export class TunnelService extends EventEmitter {
    * @param url - The public tunnel URL.
    */
   async updateOAuthProviders(url: string): Promise<void> {
-    process.env['BASE_URL'] = url;
-    process.env['OAUTH_REDIRECT_URI'] = `${url}/oauth2/callback`;
+    process.env.BASE_URL = url;
+    process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
 
     tunnelStatus.setBaseUrl(url);
 

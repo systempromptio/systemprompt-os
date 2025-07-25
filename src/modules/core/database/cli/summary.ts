@@ -17,7 +17,7 @@ export const command = {
   description: 'Show formatted summary of database tables and statistics',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const format = (args?.['format'] ?? 'table') as 'text' | 'json' | 'table';
+    const format = (args?.format ?? 'table') as 'text' | 'json' | 'table';
     const includeSystem = args?.['include-system'] === true;
     const sortBy = (args?.['sort-by'] ?? 'name') as 'name' | 'rows' | 'columns';
 

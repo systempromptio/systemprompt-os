@@ -246,7 +246,7 @@ LogSource.MCP,
     };
 
     if (auth !== null && auth !== undefined) {
-      headers['Authorization'] = this.buildAuthorizationHeader(auth);
+      headers.Authorization = this.buildAuthorizationHeader(auth);
     }
 
     return headers;

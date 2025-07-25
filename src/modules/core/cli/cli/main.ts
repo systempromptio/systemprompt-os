@@ -12,6 +12,24 @@ import type { CliService } from '@/modules/core/cli/services/cli.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
+// Global bootstrap instance for cleanup
+let globalBootstrap: any = null;
+
+// Ensure clean exit on process termination
+process.on('SIGINT', async () => {
+  if (globalBootstrap) {
+    await globalBootstrap.shutdown();
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  if (globalBootstrap) {
+    await globalBootstrap.shutdown();
+  }
+  process.exit(0);
+});
+
 const program = new Command();
 
 program
@@ -102,14 +120,16 @@ const createCommandAction = (cmd: IDatabaseCommand):
     } else {
       const logger = LoggerService.getInstance();
       logger.error(LogSource.CLI, `Command ${cmd.command_path} has no execute function`);
-      process.exit(1);
+      // Don't call process.exit() here, let the main function handle it
+      throw new Error(`Command ${cmd.command_path} has no execute function`);
     }
   } catch (error) {
     const logger = LoggerService.getInstance();
     logger.error(LogSource.CLI, `Error executing ${cmd.command_path}`, { 
       error: error instanceof Error ? error : new Error(String(error))
     });
-    process.exit(1);
+    // Re-throw to let main handle the exit
+    throw error;
   }
   };
 
@@ -157,11 +177,11 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
 
 /**
  * Bootstrap CLI and register module commands.
- * @returns The CLI service instance.
+ * @returns The CLI service instance and bootstrap instance.
  * @throws {Error} If CLI bootstrap fails.
  */
-const registerModuleCommands = async (): Promise<CliService> => {
-  const cliService = await bootstrapCli();
+const registerModuleCommands = async (): Promise<any> => {
+  const { cliService, bootstrap } = await bootstrapCli();
   
   try {
     const commands = await cliService.getCommandsFromDatabase();
@@ -174,7 +194,8 @@ const registerModuleCommands = async (): Promise<CliService> => {
       registerCommand(cmd);
     }
 
-    return cliService;
+    return { cliService,
+bootstrap };
   } catch (error) {
     const logger = LoggerService.getInstance();
     logger.error(LogSource.CLI, 'Failed to register commands', { 
@@ -188,8 +209,16 @@ const registerModuleCommands = async (): Promise<CliService> => {
  * Main CLI entry point.
  */
 const main = async (): Promise<void> => {
+  let bootstrap: any = null;
+  
   try {
-    await registerModuleCommands();
+    const result = await registerModuleCommands();
+    
+    // Store bootstrap instance for cleanup
+    if (result && typeof result === 'object' && 'bootstrap' in result) {
+      bootstrap = result.bootstrap;
+      globalBootstrap = bootstrap;
+    }
 
     // Add built-in commands
     program
@@ -209,13 +238,46 @@ const main = async (): Promise<void> => {
         }
       });
 
+    // Configure error handling for unknown commands
+    program.exitOverride();
+    program.configureOutput({
+      writeErr: (str) => {
+        const logger = LoggerService.getInstance();
+        logger.error(LogSource.CLI, str.trim());
+      }
+    });
+
     // Parse command line arguments
-    await program.parseAsync(process.argv);
+    try {
+      await program.parseAsync(process.argv);
+    } catch (err: any) {
+      // Commander throws an error with exitCode property for unknown commands
+      if (err.exitCode !== undefined) {
+        process.exitCode = err.exitCode;
+      }
+      throw err;
+    }
+    
+    // Clean exit after successful command execution
+    if (bootstrap) {
+      await bootstrap.shutdown();
+    }
+    
+    // Force exit to ensure the process terminates
+    process.exit(0);
   } catch (error) {
     const logger = LoggerService.getInstance();
     logger.error(LogSource.CLI, 'CLI initialization failed', { 
       error: error instanceof Error ? error : new Error(String(error))
     });
+    
+    // Cleanup on error
+    if (bootstrap) {
+      try {
+        await bootstrap.shutdown();
+      } catch {}
+    }
+    
     process.exit(1);
   }
 };

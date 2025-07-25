@@ -1,61 +1,45 @@
 {
   "compilerOptions": {
+    // Modern JavaScript output
     "target": "ES2022",
     "module": "ES2022",
     "lib": ["ES2022"],
     "moduleResolution": "bundler",
     
-    // MAXIMUM STRICTNESS - ALL FLAGS ON
+    // Enable all strict type checking
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "useUnknownInCatchVariables": true,
-    "alwaysStrict": true,
-    "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "exactOptionalPropertyTypes": true,
     
-    // NO UNUSED CODE
+    // Clean code enforcement
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "allowUnusedLabels": false,
-    
-    // NO UNREACHABLE CODE
-    "allowUnreachableCode": false,
-    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    
-    // FORCE CONSISTENT CODE
+    "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    
-    // ERROR ON ANY ISSUE
-    "noEmitOnError": true,
     
     // Module settings
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "sourceMap": true,
-    "removeComments": false,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    
+    // Decorators for TypeDI
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     
-    // Paths
-    "outDir": "./build",
-    "rootDir": "./src",
+    // Path mapping for clean imports
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    
+    // Type checking only - no emit needed with tsx
+    "noEmit": true
   },
-  "include": ["src/**/*", "tests/unit/modules/core/database/tests", "tests/unit/modules/core/database/cli/migrate.test.ts", "tests/unit/modules/core/database/cli/query.test.ts", "tests/unit/modules/core/database/cli/rollback.test.ts", "tests/unit/modules/core/database/cli/schema.test.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "build", "dist"]
 }

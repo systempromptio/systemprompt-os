@@ -97,9 +97,9 @@ export class Bootstrap {
  configPath, statePath, environment
 } = bootstrapOptions;
     this.config = {
-      configPath: configPath ?? process.env['CONFIG_PATH'] ?? './config',
-      statePath: statePath ?? process.env['STATE_PATH'] ?? './state',
-      environment: environment ?? process.env['NODE_ENV'] ?? 'development',
+      configPath: configPath ?? process.env.CONFIG_PATH ?? './config',
+      statePath: statePath ?? process.env.STATE_PATH ?? './state',
+      environment: environment ?? process.env.NODE_ENV ?? 'development',
       modules: {},
     };
   }

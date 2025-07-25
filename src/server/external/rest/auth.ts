@@ -26,7 +26,7 @@ export class AuthEndpoint {
    */
   public async handleAuthPage(req: Request, res: Response): Promise<void> {
     try {
-      const error = req.query['error'] as string | undefined;
+      const error = req.query.error as string | undefined;
 
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
@@ -127,7 +127,7 @@ category: 'logout'
    */
   private async completeAuthentication(code: string, res: Response): Promise<void> {
     const baseUrl = tunnelStatus.getBaseUrlOrDefault(
-      process.env['BASE_URL'] || 'http://localhost:3000',
+      process.env.BASE_URL || 'http://localhost:3000',
     );
     const tokenUrl = `${baseUrl}/oauth2/token`;
     const redirectUri = `${baseUrl}/auth/callback`;
@@ -170,7 +170,7 @@ category: 'logout'
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env['NODE_ENV'] === 'production',
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       maxAge: (tokens.expires_in || 3600) * 1000,
     };

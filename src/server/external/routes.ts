@@ -146,7 +146,7 @@ const processLayer = (
     });
   } else if (layer.name === 'router' && layer.handle.stack !== undefined) {
     const regexMatch = layer.regexp.source.match(/\\\/(?<route>[^\\]+)/u);
-    const routePrefix = regexMatch === null || regexMatch.groups === undefined ? '' : regexMatch.groups['route'] ?? '';
+    const routePrefix = regexMatch === null || regexMatch.groups === undefined ? '' : regexMatch.groups.route ?? '';
     extractFn(layer.handle.stack, {
       routes: context.routes,
       prefix: context.prefix + routePrefix,

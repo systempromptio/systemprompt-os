@@ -551,9 +551,9 @@ persistToDb: false },
           // If no executor specified, assume it's in cli/{command.name}.js
           const executor = command.executor ?? `cli/${command.name.replace(':', '/')}.js`;
 
-          // Convert source path to build path for executor
-          const buildPath = moduleInfo.path.replace('/src/modules/core/', '/build/modules/core/');
-          const executorPath = join(buildPath, executor);
+          // Use source path directly with tsx
+          const sourcePath = moduleInfo.path;
+          const executorPath = join(sourcePath, executor.replace('.js', '.ts'));
 
           this.logger?.debug(
             LogSource.CLI,

@@ -113,9 +113,9 @@ export const execute = async (context: ICLIContext): Promise<void> => {
   try {
     const { args } = context;
     const options: ClearLogsOptions = {
-      level: args?.['level'] as string,
+      level: args?.level as string,
       olderThan: args?.['older-than'] as string,
-      confirm: args?.['confirm'] as boolean,
+      confirm: args?.confirm as boolean,
       dryRun: args?.['dry-run'] as boolean
     };
 

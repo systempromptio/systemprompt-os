@@ -10,8 +10,8 @@ export const command = {
   description: 'Show database connection health and status',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const format = (args?.['format'] ?? 'text') as 'text' | 'json';
-    const detailed = args?.['detailed'] === true;
+    const format = (args?.format ?? 'text') as 'text' | 'json';
+    const detailed = args?.detailed === true;
 
     try {
       const dbService = DatabaseService.getInstance();

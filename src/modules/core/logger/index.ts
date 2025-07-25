@@ -192,7 +192,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    */
   private getStateDir(): string {
     const DEFAULT_STATE_DIR = './state';
-    return process.env['LOG_STATE_DIR'] ?? DEFAULT_STATE_DIR;
+    return process.env.LOG_STATE_DIR ?? DEFAULT_STATE_DIR;
   }
 
   /**
@@ -201,7 +201,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    */
   private getLogLevel(): LogLevelName {
     const DEFAULT_LOG_LEVEL: LogLevelName = 'info';
-    const level = process.env['LOG_LEVEL'] ?? '';
+    const level = process.env.LOG_LEVEL ?? '';
     if (level !== '' && this.isValidLogLevel(level)) {
       return level;
     }
@@ -213,12 +213,18 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    * @returns {LogOutput[]} Outputs.
    */
   private getOutputs(): LogOutput[] {
-    const outputs = process.env['LOG_OUTPUTS'] ?? '';
+    const outputs = process.env.LOG_OUTPUTS ?? '';
     if (outputs !== '') {
       return outputs.split(',').filter((output): output is LogOutput => {
         return output === LogOutput.CONSOLE || output === LogOutput.FILE || output === LogOutput.DATABASE;
       });
     }
+    
+    // In CLI mode, suppress console output to keep CLI clean
+    if (this.getLoggerMode() === LoggerMode.CLI) {
+      return [LogOutput.DATABASE];
+    }
+    
     return [LogOutput.CONSOLE, LogOutput.DATABASE];
   }
 
@@ -228,9 +234,9 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    */
   private getFiles(): ILogFiles {
     return {
-      system: process.env['LOG_FILE_SYSTEM'] ?? 'system.log',
-      error: process.env['LOG_FILE_ERROR'] ?? 'error.log',
-      access: process.env['LOG_FILE_ACCESS'] ?? 'access.log',
+      system: process.env.LOG_FILE_SYSTEM ?? 'system.log',
+      error: process.env.LOG_FILE_ERROR ?? 'error.log',
+      access: process.env.LOG_FILE_ACCESS ?? 'access.log',
     };
   }
 
@@ -246,11 +252,11 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
       stateDir: this.getStateDir(),
       logLevel: this.getLogLevel(),
       mode: this.getLoggerMode(),
-      maxSize: process.env['LOG_MAX_SIZE'] ?? DEFAULT_MAX_SIZE,
+      maxSize: process.env.LOG_MAX_SIZE ?? DEFAULT_MAX_SIZE,
       maxFiles:
-        process.env['LOG_MAX_FILES'] === undefined
+        process.env.LOG_MAX_FILES === undefined
           ? DEFAULT_MAX_FILES
-          : parseInt(process.env['LOG_MAX_FILES'], 10),
+          : parseInt(process.env.LOG_MAX_FILES, 10),
       outputs: this.getOutputs(),
       files: this.getFiles(),
       database: {
@@ -265,7 +271,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
    * @returns {LoggerMode} Logger mode.
    */
   private getLoggerMode(): LoggerMode {
-    if (process.env['LOG_MODE'] === 'cli') {
+    if (process.env.LOG_MODE === 'cli') {
       return LoggerMode.CLI;
     }
 

@@ -143,7 +143,7 @@ export const isToolAvailable = function (tool: "CLAUDECODE"): boolean {
   switch (tool) {
     case "CLAUDECODE":
 
-      return process.env['CLAUDEAVAILABLE'] === "true";
+      return process.env.CLAUDEAVAILABLE === "true";
     default:
       return false;
   }

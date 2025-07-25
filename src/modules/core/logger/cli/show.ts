@@ -124,12 +124,12 @@ export const execute = async (context: ICLIContext): Promise<void> => {
   try {
     const { args } = context;
     const options: ShowLogsOptions = {
-      limit: args?.['limit'] as number,
-      level: args?.['level'] as string,
-      module: args?.['module'] as string,
-      since: args?.['since'] as string,
-      pager: args?.['pager'] as boolean,
-      format: args?.['format'] as string || 'text'
+      limit: args?.limit as number,
+      level: args?.level as string,
+      module: args?.module as string,
+      since: args?.since as string,
+      pager: args?.pager as boolean,
+      format: args?.format as string || 'text'
     };
 
     const dbService = DatabaseService.getInstance();

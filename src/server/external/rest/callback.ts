@@ -36,7 +36,7 @@ export function setupRoutes(router: Router): void {
   const callbackEndpoint = new CallbackEndpoint();
 
   router.get('/', (req, res, next) => {
-    if (req.query['code']) {
+    if (req.query.code) {
       callbackEndpoint.handleCallback(req, res);
     } else {
       next();

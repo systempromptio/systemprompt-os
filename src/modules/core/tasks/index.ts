@@ -11,9 +11,18 @@ import {
 } from '@/modules/core/tasks/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService as DatabaseServiceImpl } from '@/modules/core/database/services/database.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 
 /**
  * Module interface to avoid circular dependency.
@@ -85,7 +94,7 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
    * @returns {Promise<void>} Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    this.database = DatabaseServiceImpl.getInstance();
+    this.database = DatabaseService.getInstance();
     this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new Error('Tasks module already initialized');
