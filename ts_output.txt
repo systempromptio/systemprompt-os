@@ -1,0 +1,214 @@
+
+> @systemprompt/os@0.1.0 typecheck
+> tsc --noEmit
+
+src/bootstrap.ts(25,15): error TS6133: 'IDatabaseModuleExports' is declared but its value is never read.
+src/bootstrap.ts(26,15): error TS6133: 'ILoggerModuleExports' is declared but its value is never read.
+src/bootstrap.ts(42,37): error TS18047: 'moduleInstance.exports' is possibly 'null'.
+src/bootstrap.ts(56,48): error TS18047: 'moduleInstance.exports' is possibly 'null'.
+src/modules/core/api/repositories/api-repository.ts(106,24): error TS6133: 'keyId' is declared but its value is never read.
+src/modules/core/api/repositories/api-repository.ts(106,39): error TS6133: 'timeframe' is declared but its value is never read.
+src/modules/core/api/services/rate-limit-service.ts(67,8): error TS18046: 'error' is of type 'unknown'.
+src/modules/core/auth/index.ts(246,3): error TS2416: Property 'healthCheck' in type 'AuthModule' is not assignable to the same property in base type 'IModule<unknown>'.
+  Type '() => { healthy: boolean; message?: string; }' is not assignable to type '() => Promise<{ healthy: boolean; message?: string; }>'.
+    Type '{ healthy: boolean; message?: string; }' is missing the following properties from type 'Promise<{ healthy: boolean; message?: string; }>': then, catch, finally, [Symbol.toStringTag]
+src/modules/core/auth/index.ts(438,9): error TS2561: Object literal may only specify known properties, but 'accessTokenTtl' does not exist in type 'IJwtConfig'. Did you mean to write 'accessTokenTTL'?
+src/modules/core/auth/providers/core/github.ts(2,3): error TS2724: '"@/modules/core/auth/types/provider-interface"' has no exported member named 'IDPTokens'. Did you mean 'IdpTokens'?
+src/modules/core/auth/providers/core/github.ts(3,3): error TS2724: '"@/modules/core/auth/types/provider-interface"' has no exported member named 'IDPUserInfo'. Did you mean 'IdpUserInfo'?
+src/modules/core/auth/providers/core/github.ts(121,5): error TS2322: Type 'unknown' is not assignable to type 'IGitHubUserData'.
+src/modules/core/auth/providers/core/github.ts(152,11): error TS2322: Type 'unknown' is not assignable to type 'IGitHubEmailData[]'.
+src/modules/core/auth/providers/core/google.ts(117,5): error TS2375: Type '{ id: string; email: string | undefined; emailVerified: boolean | undefined; name: string | undefined; picture: string | undefined; locale: string | undefined; raw: Record<string, unknown>; }' is not assignable to type 'IIdpUserInfo' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'email' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/core/auth/providers/core/oauth2.ts(143,48): error TS2552: Cannot find name 'IDPTokens'. Did you mean 'IdpTokens'?
+src/modules/core/auth/providers/core/oauth2.ts(194,7): error TS2561: Object literal may only specify known properties, but 'email_verified' does not exist in type 'IIdpUserInfo'. Did you mean to write 'emailVerified'?
+src/modules/core/auth/providers/core/oauth2.ts(227,48): error TS2552: Cannot find name 'IDPTokens'. Did you mean 'IdpTokens'?
+src/modules/core/auth/providers/registry.ts(8,15): error TS2724: '"@/modules/core/auth/types/provider-interface"' has no exported member named 'IDPConfig'. Did you mean 'IdpConfig'?
+src/modules/core/auth/providers/registry.ts(320,38): error TS2352: Conversion of type 'Record<string, unknown>' to type 'IGenericOAuth2Config' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown>' is missing the following properties from type 'IGenericOAuth2Config': id, name, authorizationEndpoint, tokenEndpoint, and 3 more.
+src/modules/core/auth/providers/types/github.types.ts(1,15): error TS2724: '"@/modules/core/auth/types/provider-interface"' has no exported member named 'IDPConfig'. Did you mean 'IdpConfig'?
+src/modules/core/auth/services/token.service.ts(6,3): error TS2724: '"@/modules/core/auth/types/index"' has no exported member named 'JWTPayload'. Did you mean 'JwtPayload'?
+src/modules/core/auth/services/token.service.ts(258,17): error TS2352: Conversion of type 'DatabaseService' to type 'IDatabaseRepository' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'connect' is private in type 'DatabaseService' but not in type 'IDatabaseRepository'.
+src/modules/core/auth/services/token.service.ts(401,11): error TS2375: Type '{ id: string; userId: string; token: string; type: TokenType; scope: string[]; expiresAt: Date; createdAt: Date; lastUsedAt: Date | undefined; isRevoked: false; metadata: Record<...> | undefined; }' is not assignable to type 'IAuthToken' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'lastUsedAt' are incompatible.
+    Type 'Date | undefined' is not assignable to type 'Date'.
+      Type 'undefined' is not assignable to type 'Date'.
+src/modules/core/auth/services/tunnel-service.ts(331,7): error TS2322: Type '(value: string) => void' is not assignable to type '(value: string | PromiseLike<string>) => void'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'string | PromiseLike<string>' is not assignable to type 'string'.
+      Type 'PromiseLike<string>' is not assignable to type 'string'.
+src/modules/core/auth/types/auth-service.interface.ts(5,3): error TS2724: '"@/modules/core/auth/types/index"' has no exported member named 'MFASetupResult'. Did you mean 'MfaSetupResult'?
+src/modules/core/auth/types/index.ts(341,38): error TS2307: Cannot find module '@/modules/core/auth/services/auth-code-service' or its corresponding type declarations.
+src/modules/core/auth/types/index.ts(344,15): error TS2724: '"@/modules/core/auth/services/oauth2-config.service"' has no exported member named 'OAuth2ConfigService'. Did you mean 'oauth2ConfigService'?
+src/modules/core/auth/utils/generate-key.ts(7,15): error TS2305: Module '"@/modules/core/auth/types"' has no exported member 'IGenerateKeyOptions'.
+src/modules/core/cli/cli/main.ts(142,50): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(146,38): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(165,12): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(165,39): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(167,91): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(167,112): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(170,28): error TS2551: Property 'command_path' does not exist on type 'IDatabaseCommand'. Did you mean 'commandPath'?
+src/modules/core/cli/cli/main.ts(244,23): error TS2345: Argument of type 'IParsedDatabaseCommand' is not assignable to parameter of type 'IDatabaseCommand'.
+  Type 'IParsedDatabaseCommand' is missing the following properties from type 'IDatabaseCommand': commandPath, executorPath
+src/modules/core/cli/index.ts(81,3): error TS2416: Property 'start' in type 'CLIModule' is not assignable to the same property in base type 'IModule<ICLIModuleExports>'.
+  Type '() => void' is not assignable to type '() => Promise<void>'.
+    Type 'void' is not assignable to type 'Promise<void>'.
+src/modules/core/cli/index.ts(89,3): error TS2416: Property 'stop' in type 'CLIModule' is not assignable to the same property in base type 'IModule<ICLIModuleExports>'.
+  Type '() => void' is not assignable to type '() => Promise<void>'.
+    Type 'void' is not assignable to type 'Promise<void>'.
+src/modules/core/cli/index.ts(98,3): error TS2416: Property 'healthCheck' in type 'CLIModule' is not assignable to the same property in base type 'IModule<ICLIModuleExports>'.
+  Type '() => { healthy: boolean; message?: string; }' is not assignable to type '() => Promise<{ healthy: boolean; message?: string; }>'.
+    Type '{ healthy: boolean; message?: string; }' is missing the following properties from type 'Promise<{ healthy: boolean; message?: string; }>': then, catch, finally, [Symbol.toStringTag]
+src/modules/core/cli/services/cli-formatter.service.ts(12,3): error TS6133: 'formatCommand' is declared but its value is never read.
+src/modules/core/cli/services/cli-formatter.service.ts(13,3): error TS6133: 'formatOption' is declared but its value is never read.
+src/modules/core/cli/services/cli-formatter.service.ts(141,56): error TS2345: Argument of type 'readonly Command[]' is not assignable to parameter of type 'Command[]'.
+  The type 'readonly Command[]' is 'readonly' and cannot be assigned to the mutable type 'Command[]'.
+src/modules/core/cli/services/cli-formatter.service.ts(144,63): error TS2339: Property 'hidden' does not exist on type 'Command'.
+src/modules/core/cli/services/cli-formatter.service.ts(153,35): error TS2339: Property 'hidden' does not exist on type 'Command'.
+src/modules/core/cli/services/cli-formatter.service.ts(230,17): error TS6133: 'category' is declared but its value is never read.
+src/modules/core/cli/services/database-view.service.ts(73,29): error TS6133: 'logger' is declared but its value is never read.
+src/modules/core/cli/utils/cli-formatter.ts(9,20): error TS7016: Could not find a declaration file for module 'figlet'. '/var/www/html/systemprompt-os/node_modules/figlet/lib/node-figlet.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/figlet` if it exists or add a new declaration (.d.ts) file containing `declare module 'figlet';`
+src/modules/core/cli/utils/spinner.ts(6,1): error TS6133: 'ora' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(7,1): error TS6133: 'randomBytes' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(8,1): error TS6133: 'chalk' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(61,20): error TS6133: 'startTime' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(75,34): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/utils/spinner.ts(92,43): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/utils/spinner.ts(95,13): error TS2339: Property 'start' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(97,13): error TS2339: Property 'succeed' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(100,13): error TS2339: Property 'fail' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(115,44): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/utils/spinner.ts(124,20): error TS2339: Property 'start' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(139,22): error TS2339: Property 'updateText' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(142,24): error TS2339: Property 'updateText' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(145,22): error TS2339: Property 'updateText' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(148,20): error TS2339: Property 'succeed' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(160,18): error TS2339: Property 'succeed' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/cli/utils/spinner.ts(170,18): error TS2339: Property 'fail' does not exist on type 'SystemPromptSpinner'.
+src/modules/core/database/cli/view.ts(309,57): error TS2379: Argument of type '{ tableName: string; format: ViewFormat; limit: number; offset: number; columns: string | undefined; where: string | undefined; orderBy: string | undefined; schemaOnly: boolean | undefined; }' is not assignable to parameter of type 'IViewParams' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'columns' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/core/database/index.ts(171,20): error TS2339: Property 'databaseService' does not exist on type 'DatabaseModule'.
+src/modules/core/database/services/database.service.ts(218,81): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/dev/index.ts(73,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/dev/index.ts(83,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/modules/core/logger/services/error-handling.service.ts(219,33): error TS6133: 'error' is declared but its value is never read.
+src/modules/core/logger/services/error-handling.service.ts(293,69): error TS2532: Object is possibly 'undefined'.
+src/modules/core/logger/services/error-handling.service.ts(297,88): error TS2532: Object is possibly 'undefined'.
+src/modules/core/logger/services/logger.service.ts(136,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(146,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(156,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(166,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(177,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(191,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(202,9): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(236,9): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(316,12): error TS2554: Expected 5 arguments, but got 1.
+src/modules/core/logger/services/logger.service.ts(348,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(358,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(368,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(378,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(389,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(421,3): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(432,9): error TS2393: Duplicate function implementation.
+src/modules/core/logger/services/logger.service.ts(466,9): error TS2393: Duplicate function implementation.
+src/modules/core/mcp/index.ts(73,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/mcp/index.ts(83,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/modules/core/modules/index.ts(44,20): error TS2304: Cannot find name 'ILogger'.
+src/modules/core/permissions/index.ts(73,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/permissions/index.ts(83,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/modules/core/system/index.ts(73,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/system/index.ts(83,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/modules/core/users/index.ts(73,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/users/index.ts(83,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/modules/core/users/services/users.service.ts(474,17): error TS6133: 'createDefaultUsers' is declared but its value is never read.
+src/modules/core/webhooks/index.ts(101,5): error TS2322: Type '"running"' is not assignable to type 'ModuleStatus'.
+src/modules/core/webhooks/index.ts(111,7): error TS2322: Type '"stopped"' is not assignable to type 'ModuleStatus'.
+src/server/external/auth/providers/generic-oauth2.ts(50,2): error TS2339: Property 'clientId' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(50,12): error TS2339: Property 'redirectUri' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(61,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/external/auth/providers/generic-oauth2.ts(65,22): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(o: ArrayLike<unknown> | { [s: string]: unknown; }): [string, unknown][]', gave the following error.
+    Argument of type '{} | undefined' is not assignable to parameter of type 'ArrayLike<unknown> | { [s: string]: unknown; }'.
+      Type 'undefined' is not assignable to type 'ArrayLike<unknown> | { [s: string]: unknown; }'.
+  Overload 2 of 2, '(o: {}): [string, any][]', gave the following error.
+    Argument of type '{} | undefined' is not assignable to parameter of type '{}'.
+      Type 'undefined' is not assignable to type '{}'.
+src/server/external/auth/providers/generic-oauth2.ts(89,2): error TS2339: Property 'clientId' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(89,12): error TS2339: Property 'clientSecret' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(89,26): error TS2339: Property 'redirectUri' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(128,34): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | URL | Request'.
+  Type 'undefined' is not assignable to type 'string | URL | Request'.
+src/server/external/auth/providers/generic-oauth2.ts(143,7): error TS2322: Type '{}' is not assignable to type 'string'.
+src/server/external/auth/providers/generic-oauth2.ts(146,7): error TS2322: Type 'unknown' is not assignable to type 'string'.
+src/server/external/auth/providers/generic-oauth2.ts(148,7): error TS2322: Type 'unknown' is not assignable to type 'string'.
+src/server/external/auth/providers/generic-oauth2.ts(161,2): error TS2339: Property 'clientId' does not exist on type 'GenericOAuth2Config'.
+src/server/external/auth/providers/generic-oauth2.ts(161,12): error TS2339: Property 'clientSecret' does not exist on type 'GenericOAuth2Config'.
+src/server/external/rest/auth.ts(38,42): error TS2339: Property 'getAllProviders' does not exist on type '{}'.
+src/server/external/rest/config.ts(125,40): error TS2339: Property 'getAllProviders' does not exist on type '{}'.
+src/server/external/rest/oauth2/authorize.ts(214,15): error TS2375: Type '{ clientId: string; redirectUri: string; scope: string; originalState: string | undefined; codeChallenge: string | undefined; codeChallengeMethod: "S256" | "plain" | undefined; }' is not assignable to type 'IStateData' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'originalState' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/authorize.ts(455,32): error TS2339: Property 'params' does not exist on type 'Request'.
+src/server/external/rest/oauth2/authorize.ts(462,9): error TS2339: Property 'query' does not exist on type 'Request'.
+src/server/external/rest/oauth2/authorize.ts(477,20): error TS2349: This expression is not callable.
+  Type 'Number' has no call signatures.
+src/server/external/rest/oauth2/authorize.ts(601,11): error TS2576: Property 'redirect' does not exist on type 'Response'. Did you mean to access the static member 'Response.redirect' instead?
+src/server/external/rest/oauth2/authorize.ts(612,11): error TS2349: This expression is not callable.
+  Type 'Number' has no call signatures.
+src/server/external/rest/oauth2/index.ts(126,38): error TS2345: Argument of type 'Request<{ provider: string; }, any, any, ParsedQs, Record<string, any>>' is not assignable to parameter of type 'Request'.
+  Type 'Request<{ provider: string; }, any, any, ParsedQs, Record<string, any>>' is missing the following properties from type 'Request': cache, credentials, destination, integrity, and 14 more.
+src/server/external/rest/oauth2/token.ts(15,38): error TS2307: Cannot find module '@/modules/core/auth/services/auth-code-service' or its corresponding type declarations.
+src/server/external/rest/oauth2/token.ts(105,49): error TS2379: Argument of type '{ grant_type: "authorization_code" | "refresh_token"; code?: string | undefined; refresh_token?: string | undefined; client_id?: string | undefined; redirect_uri?: string | undefined; client_secret?: string | undefined; code_verifier?: string | undefined; }' is not assignable to parameter of type 'ITokenRequestParams' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'code' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/token.ts(107,44): error TS2379: Argument of type '{ grant_type: "authorization_code" | "refresh_token"; code?: string | undefined; refresh_token?: string | undefined; client_id?: string | undefined; redirect_uri?: string | undefined; client_secret?: string | undefined; code_verifier?: string | undefined; }' is not assignable to parameter of type 'ITokenRequestParams' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'code' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/token.ts(217,39): error TS2352: Conversion of type 'IAuthTokenResponse' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'IAuthTokenResponse'.
+src/server/external/rest/oauth2/token.ts(330,9): error TS2375: Type '{ id: string; email: string; name: string | undefined; avatar: string | undefined; roles: never[]; }' is not assignable to type 'IUserData' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'name' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/token.ts(339,9): error TS18047: 'userData' is possibly 'null'.
+src/server/external/rest/oauth2/token.ts(356,11): error TS2375: Type '{ sub: string; clientid: string; scope: string; provider: string | undefined; sessionid: string | undefined; tokentype: "access"; iss: string; aud: string; iat: number; exp: number; jti: string; user: IUserData | null; roles: string[]; email: string | undefined; }' is not assignable to type 'IJWTTokenPayload' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'provider' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/token.ts(416,9): error TS2412: Type 'string | undefined' is not assignable to type 'string' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/token.ts(417,9): error TS2412: Type 'string | undefined' is not assignable to type 'string' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/mcp/core/handlers/tool-handlers.ts(81,54): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/mcp/core/handlers/tool-handlers.ts(94,3): error TS2375: Type '{ permissions: string[]; userId: string; email: string; role: "basic" | "admin"; customPermissions?: string[] | undefined; }' is not assignable to type 'IUserPermissionContext' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'customPermissions' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'.
+src/server/mcp/core/handlers/tool-handlers.ts(200,14): error TS2322: Type 'unknown[]' is not assignable to type '{ [x: string]: unknown; name: string; inputSchema: { [x: string]: unknown; type: "object"; properties?: { [x: string]: unknown; } | undefined; required?: string[] | undefined; }; _meta?: { [x: string]: unknown; } | undefined; title?: string | undefined; description?: string | undefined; outputSchema?: { ...; } | und...'.
+  Type 'unknown' is not assignable to type '{ [x: string]: unknown; name: string; inputSchema: { [x: string]: unknown; type: "object"; properties?: { [x: string]: unknown; } | undefined; required?: string[] | undefined; }; _meta?: { [x: string]: unknown; } | undefined; title?: string | undefined; description?: string | undefined; outputSchema?: { ...; } | und...'.
+src/server/mcp/core/handlers/tool-handlers.ts(302,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/server/mcp/registry.ts(117,13): error TS6133: 'req' is declared but its value is never read.
+src/server/mcp/registry.ts(289,5): error TS6133: 'req' is declared but its value is never read.
+src/utils/json-schema-to-zod.ts(32,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: readonly [string, ...string[]], params?: RawCreateParams): ZodEnum<[string, ...string[]]>', gave the following error.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+  Overload 2 of 2, '(values: [string, ...string[]], params?: RawCreateParams): ZodEnum<[string, ...string[]]>', gave the following error.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/utils/json-schema-to-zod.ts(44,22): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Primitive'.
+src/utils/json-schema-to-zod.ts(47,3): error TS2322: Type 'ZodUnion<readonly [ZodTypeAny, ZodTypeAny, ...ZodTypeAny[]]>' is not assignable to type 'ZodUnion<[ZodLiteral<unknown>, ...ZodLiteral<unknown>[]]>'.
+  The type 'readonly [ZodTypeAny, ZodTypeAny, ...ZodTypeAny[]]' is 'readonly' and cannot be assigned to the mutable type '[ZodLiteral<unknown>, ...ZodLiteral<unknown>[]]'.
+src/utils/json-schema-to-zod.ts(47,19): error TS2322: Type 'ZodLiteral<unknown> | undefined' is not assignable to type 'ZodTypeAny'.
+  Type 'undefined' is not assignable to type 'ZodType<any, any, any>'.

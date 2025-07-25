@@ -155,4 +155,12 @@ export class RegisterEndpoint {
     registeredClients.set(clientId, response);
     return response;
   }
+
+  /**
+   * Clear all registered clients (for testing purposes only).
+   * @internal
+   */
+  static clearAllClients(): void {
+    registeredClients.clear();
+  }
 }

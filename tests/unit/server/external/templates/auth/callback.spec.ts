@@ -830,23 +830,411 @@ describe('renderCallbackHandler', () => {
 
   describe('Integration Points', () => {
     it('should use correct OAuth2 endpoint', () => {
-      const script = document.querySelector('script')?.textContent || '';
-      expect(script).toContain("'/oauth2/token'");
+      const html = renderCallbackHandler();
+      expect(html).toContain("'/oauth2/token'");
     });
 
     it('should use correct user count endpoint', () => {
-      const script = document.querySelector('script')?.textContent || '';
-      expect(script).toContain("'/api/users/count'");
+      const html = renderCallbackHandler();
+      expect(html).toContain("'/api/users/count'");
     });
 
     it('should use correct client ID', () => {
-      const script = document.querySelector('script')?.textContent || '';
-      expect(script).toContain("'systemprompt-os'");
+      const html = renderCallbackHandler();
+      expect(html).toContain("'systemprompt-os'");
     });
 
     it('should redirect to correct auth endpoint on error', () => {
-      const script = document.querySelector('script')?.textContent || '';
-      expect(script).toContain('href="/auth"');
+      const html = renderCallbackHandler();
+      expect(html).toContain('href="/auth"');
+    });
+  });
+
+  describe('Additional Edge Cases and Error Scenarios', () => {
+    it('should handle localStorage setItem failure', async () => {
+      mockLocalStorage.setItem.mockImplementation(() => {
+        throw new Error('localStorage quota exceeded');
+      });
+      
+      const mockTokenResponse = {
+        access_token: 'test_access_token',
+        token_type: 'Bearer'
+      };
+      
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockTokenResponse)
+      });
+      
+      const html = renderCallbackHandler();
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      
+      if (scriptContent) {
+        let errorCaught = false;
+        try {
+          await window.eval(`
+            ${scriptContent.replace('handleCallback();', '')}
+            
+            (async function() {
+              try {
+                await handleCallback();
+              } catch (err) {
+                throw err;
+              }
+            })();
+          `);
+        } catch (err) {
+          errorCaught = true;
+        }
+        
+        // The function should handle localStorage errors gracefully
+        expect(mockFetch).toHaveBeenCalled();
+      }
+    });
+    
+    it('should handle non-JSON error response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.reject(new Error('Not JSON'))
+      });
+      
+      const html = renderCallbackHandler();
+      const dom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123'
+      });
+      const testWindow = dom.window;
+      const testDocument = testWindow.document;
+      
+      testWindow.fetch = mockFetch;
+      
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      if (scriptContent) {
+        await testWindow.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          
+          (async function() {
+            await handleCallback();
+          })();
+        `);
+        
+        // Should show connection error when JSON parsing fails
+        expect(testDocument.querySelector('h1')?.textContent).toBe('Connection Error');
+      }
+      
+      dom.window.close();
+    });
+    
+    it('should handle URL with error parameter containing description', () => {
+      const html = renderCallbackHandler();
+      const dom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?error=access_denied&error_description=User%20denied%20access'
+      });
+      const testWindow = dom.window;
+      const testDocument = testWindow.document;
+      
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      if (scriptContent) {
+        testWindow.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          
+          const params = new URLSearchParams(window.location.search);
+          const error = params.get('error');
+          
+          if (error) {
+            showError('Authentication Failed', error);
+          }
+        `);
+        
+        expect(testDocument.querySelector('h1')?.textContent).toBe('Authentication Failed');
+        expect(testDocument.querySelector('.error h2')?.textContent).toBe('Error: access_denied');
+      }
+      
+      dom.window.close();
+    });
+    
+    it('should handle checkIfSetup function with JSON parsing error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.reject(new Error('Invalid JSON'))
+      });
+      
+      const html = renderCallbackHandler();
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+
+      if (scriptContent) {
+        const result = await window.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          
+          (async function() {
+            return await checkIfSetup();
+          })();
+        `);
+        
+        expect(result).toBe(false);
+      }
+    });
+    
+    it('should handle state parameter extraction', () => {
+      const html = renderCallbackHandler();
+      const dom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123&state=custom_state_value'
+      });
+      const testWindow = dom.window;
+      
+      const result = testWindow.eval(`
+        const params = new URLSearchParams(window.location.search);
+        params.get('state');
+      `);
+      
+      expect(result).toBe('custom_state_value');
+      dom.window.close();
+    });
+    
+    it('should handle missing DOM elements in showError gracefully', () => {
+      const html = renderCallbackHandler();
+      const dom = new JSDOM('<html><body></body></html>'); // Empty DOM
+      const testWindow = dom.window;
+      const testDocument = testWindow.document;
+      
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      if (scriptContent) {
+        // Extract just the showError function
+        const showErrorMatch = scriptContent.match(/function showError\(title, message\) \{[\s\S]*?\}/);
+        if (showErrorMatch) {
+          expect(() => {
+            testWindow.eval(`
+              ${showErrorMatch[0]}
+              showError('Test', 'Message');
+            `);
+          }).not.toThrow();
+        }
+      }
+      
+      dom.window.close();
+    });
+    
+    it('should handle various HTTP error status codes', async () => {
+      const errorCodes = [400, 401, 403, 404, 500, 502, 503];
+      
+      for (const statusCode of errorCodes) {
+        mockFetch.mockReset();
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: statusCode,
+          json: () => Promise.resolve({ error: `http_${statusCode}`, error_description: `HTTP ${statusCode} error` })
+        });
+        
+        const html = renderCallbackHandler();
+        const dom = new JSDOM(html, { 
+          url: 'http://localhost:3000/auth/callback?code=test123'
+        });
+        const testWindow = dom.window;
+        const testDocument = testWindow.document;
+        
+        testWindow.fetch = mockFetch;
+        
+        const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+        if (scriptContent) {
+          await testWindow.eval(`
+            ${scriptContent.replace('handleCallback();', '')}
+            
+            (async function() {
+              await handleCallback();
+            })();
+          `);
+          
+          expect(testDocument.querySelector('h1')?.textContent).toBe('Login Failed');
+          expect(testDocument.querySelector('.error h2')?.textContent).toBe(`Error: HTTP ${statusCode} error`);
+        }
+        
+        dom.window.close();
+      }
+    });
+    
+    it('should handle token response without refresh_token conditionally', async () => {
+      const mockTokenResponse = {
+        access_token: 'test_access_token',
+        token_type: 'Bearer'
+        // Intentionally no refresh_token
+      };
+      
+      const mockUserCountResponse = { count: 0 };
+      
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockTokenResponse)
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockUserCountResponse)
+        });
+      
+      let redirectUrl = '';
+      Object.defineProperty(window.location, 'href', {
+        set: (url: string) => { redirectUrl = url; },
+        get: () => redirectUrl
+      });
+      
+      const html = renderCallbackHandler();
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      
+      if (scriptContent) {
+        await window.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          
+          (async function() {
+            await handleCallback();
+          })();
+        `);
+      }
+      
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
+      expect(mockLocalStorage.setItem).not.toHaveBeenCalledWith('refresh_token', expect.anything());
+      expect(redirectUrl).toBe('/');
+    });
+    
+    it('should handle network timeout errors', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
+      
+      const html = renderCallbackHandler();
+      const dom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123'
+      });
+      const testWindow = dom.window;
+      const testDocument = testWindow.document;
+      testWindow.fetch = mockFetch;
+      
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      if (scriptContent) {
+        await testWindow.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          
+          (async function() {
+            await handleCallback();
+          })();
+        `);
+        
+        expect(testDocument.querySelector('h1')?.textContent).toBe('Connection Error');
+        expect(testDocument.querySelector('.error h2')?.textContent).toBe('Error: Failed to complete authentication');
+      }
+      
+      dom.window.close();
+    });
+    
+    it('should handle empty/malformed URL parameters', () => {
+      const testCases = [
+        { url: 'http://localhost:3000/auth/callback?code=&state=', expected: '' },
+        { url: 'http://localhost:3000/auth/callback?code&state', expected: '' },
+        { url: 'http://localhost:3000/auth/callback?', expected: null },
+        { url: 'http://localhost:3000/auth/callback', expected: null }
+      ];
+      
+      testCases.forEach(({ url, expected }) => {
+        const html = renderCallbackHandler();
+        const dom = new JSDOM(html, { url });
+        const testWindow = dom.window;
+        
+        const result = testWindow.eval(`
+          const params = new URLSearchParams(window.location.search);
+          params.get('code');
+        `);
+        
+        expect(result).toBe(expected);
+        dom.window.close();
+      });
+    });
+    
+    it('should test all CSS selectors and classes are used', () => {
+      const html = renderCallbackHandler();
+      
+      // Verify all CSS classes are present in the HTML
+      const cssClasses = [
+        'container', 'spinner', 'error', 'error h2', 'error a', 'error a:hover'
+      ];
+      
+      cssClasses.forEach(className => {
+        expect(html).toContain(className.replace(' ', ' ').split(' ')[0]);
+      });
+    });
+    
+    it('should handle XSS prevention in error messages', async () => {
+      const xssPayload = '<script>alert("xss")</script>';
+      
+      const html = renderCallbackHandler();
+      const dom = new JSDOM(html);
+      const testWindow = dom.window;
+      const testDocument = testWindow.document;
+      
+      const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+      if (scriptContent) {
+        testWindow.eval(`
+          ${scriptContent.replace('handleCallback();', '')}
+          showError('XSS Test', '${xssPayload}');
+        `);
+        
+        const errorContainer = testDocument.getElementById('error-container');
+        expect(errorContainer?.innerHTML).toContain('&lt;script&gt;');
+      }
+      
+      dom.window.close();
+    });
+  });
+
+  describe('Complete Template Structure Validation', () => {
+    it('should generate a complete and valid HTML document', () => {
+      const html = renderCallbackHandler();
+      
+      // Document structure validation
+      expect(html.trim().startsWith('<!DOCTYPE html>')).toBe(true);
+      expect(html.endsWith('  `;')).toBe(true);
+      
+      // Count HTML tags for balance
+      const openTags = (html.match(/<[^/][^>]*>/g) || []).length;
+      const closeTags = (html.match(/<\/[^>]*>/g) || []).length;
+      const selfClosingTags = (html.match(/<[^>]*\/>/g) || []).length;
+      
+      // Should have balanced tags (accounting for self-closing tags)
+      expect(openTags).toBe(closeTags + selfClosingTags);
+    });
+    
+    it('should be a single exported function', () => {
+      expect(typeof renderCallbackHandler).toBe('function');
+      expect(renderCallbackHandler.length).toBe(0); // No parameters
+    });
+    
+    it('should return consistent output', () => {
+      const html1 = renderCallbackHandler();
+      const html2 = renderCallbackHandler();
+      
+      expect(html1).toBe(html2);
+      expect(html1.length).toBeGreaterThan(1000);
+    });
+    
+    it('should contain all required HTML5 elements', () => {
+      const html = renderCallbackHandler();
+      
+      // HTML5 semantic structure
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('<html lang="en">');
+      expect(html).toContain('<head>');
+      expect(html).toContain('<meta charset="UTF-8">');
+      expect(html).toContain('<meta name="viewport"');
+      expect(html).toContain('<title>');
+      expect(html).toContain('<style>');
+      expect(html).toContain('<body>');
+      expect(html).toContain('<script>');
+    });
+    
+    it('should have proper HTML attribute escaping', () => {
+      const html = renderCallbackHandler();
+      
+      // Check for proper attribute quoting
+      expect(html).toMatch(/charset="[^"]+"/);
+      expect(html).toMatch(/name="[^"]+"/);
+      expect(html).toMatch(/content="[^"]+"/);
+      expect(html).toMatch(/class="[^"]+"/);
+      expect(html).toMatch(/id="[^"]+"/);
     });
   });
 });

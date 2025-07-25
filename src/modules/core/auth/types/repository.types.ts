@@ -3,14 +3,8 @@
  * Contains optional client metadata for tracking session context.
  */
 export interface SessionMetadata {
-  /**
-   * IP address of the client creating the session.
-   */
-  ipAddress?: string;
-  /**
-   * User agent string of the client creating the session.
-   */
-  userAgent?: string;
+    ipAddress?: string;
+    userAgent?: string;
 }
 
 /**
@@ -18,16 +12,7 @@ export interface SessionMetadata {
  * Contains user profile data retrieved from OAuth providers.
  */
 export interface OAuthProfile {
-  /**
-   * User's email address from OAuth provider.
-   */
-  email: string;
-  /**
-   * User's display name from OAuth provider.
-   */
-  name?: string;
-  /**
-   * User's avatar URL from OAuth provider.
-   */
-  avatar?: string;
+    email: string;
+    name?: string;
+    avatar?: string;
 }

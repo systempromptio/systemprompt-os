@@ -1,3 +1,6 @@
+/**
+ * @file Authentication error classes.
+ */
 /* eslint-disable max-classes-per-file */
 /**
  * Base authentication error class for all auth-related errors.
@@ -11,7 +14,7 @@ export class AuthError extends Error {
    * @param statusCode - The HTTP status code (defaults to 500).
    * @param cause - The underlying error that caused this error (optional).
    */
-  /* eslint-disable-next-line max-params */
+  // eslint-disable-next-line max-params
   constructor(
     override message: string,
     public readonly code: string,
@@ -86,7 +89,7 @@ export class NotFoundError extends AuthError {
    * @param cause - The underlying error that caused this error (optional).
    */
   constructor(resource: string, identifier?: string, cause?: Error) {
-    const message = identifier !== undefined && identifier !== null && identifier !== ''
+    const message = identifier && identifier.length > 0
       ? `${resource} with identifier '${identifier}' not found`
       : `${resource} not found`;
     super(message, 'NOT_FOUND', 404, cause);
@@ -214,9 +217,9 @@ export class MultiFactorAuthRequiredError extends MultiFactorAuthError {
  * Error thrown when an invalid Multi-Factor Authentication code is provided.
  * Used for TOTP codes, SMS codes, or other MFA verification methods.
  */
-export class InvalidMultiFactorAuthCodeError extends MultiFactorAuthError {
+export class InvalidMfaCodeError extends MultiFactorAuthError {
   /**
-   * Creates a new InvalidMultiFactorAuthCodeError instance.
+   * Creates a new InvalidMfaCodeError instance.
    * @param message - The error message (defaults to 'Invalid MFA code').
    * @param cause - The underlying error that caused this error (optional).
    */
@@ -237,6 +240,7 @@ export class ProviderError extends AuthError {
    * @param code - The error code (defaults to 'PROVIDER_ERROR').
    * @param cause - The underlying error that caused this error (optional).
    */
+  // eslint-disable-next-line max-params
   constructor(
     public readonly provider: string,
     message: string,

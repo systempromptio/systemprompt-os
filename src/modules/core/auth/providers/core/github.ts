@@ -5,8 +5,8 @@ import type {
 } from '@/modules/core/auth/types/provider-interface';
 import type {
   IGitHubConfig,
-  IGitHubUserData,
   IGitHubEmailData,
+  IGitHubUserData,
 } from '@/modules/core/auth/providers/types/github.types';
 
 /**
@@ -26,8 +26,7 @@ export class GitHubProvider implements IIdentityProvider {
 
   /**
    * Creates a new GitHubProvider instance.
-   *
-   * @param config - The GitHub OAuth2 configuration
+   * @param config - The GitHub OAuth2 configuration.
    */
   constructor(config: IGitHubConfig) {
     this.config = {
@@ -38,15 +37,14 @@ export class GitHubProvider implements IIdentityProvider {
 
   /**
    * Generates the GitHub OAuth2 authorization URL.
-   *
-   * @param state - The state parameter for CSRF protection
-   * @returns The authorization URL
+   * @param state - The state parameter for CSRF protection.
+   * @returns The authorization URL.
    */
   getAuthorizationUrl(state: string): string {
     const scope = this.config.scope ?? 'read:user user:email';
     const params = new URLSearchParams({
-      'client_id': this.config.clientId,
-      'redirect_uri': this.config.redirectUri,
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
       scope,
       state,
     });
@@ -56,9 +54,8 @@ export class GitHubProvider implements IIdentityProvider {
 
   /**
    * Exchanges authorization code for access tokens.
-   *
-   * @param code - The authorization code from GitHub
-   * @returns Promise resolving to IDPTokens
+   * @param code - The authorization code from GitHub.
+   * @returns Promise resolving to IDPTokens.
    */
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const clientSecret = this.config.clientSecret ?? '';
@@ -67,16 +64,16 @@ export class GitHubProvider implements IIdentityProvider {
     }
 
     const params = new URLSearchParams({
-      'client_id': this.config.clientId,
-      'client_secret': clientSecret,
+      client_id: this.config.clientId,
+      client_secret: clientSecret,
       code,
-      'redirect_uri': this.config.redirectUri,
+      redirect_uri: this.config.redirectUri,
     });
 
     const response = await fetch(this.tokenEndpoint, {
       method: 'POST',
       headers: {
-        accept: 'application/json',
+        'accept': 'application/json',
         'content-type': 'application/x-www-form-urlencoded',
       },
       body: params,
@@ -87,18 +84,29 @@ export class GitHubProvider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenResponse = await response.json() as IDPTokens;
+    const tokenResponse: IDPTokens = await response.json();
 
     return tokenResponse;
   }
 
   /**
    * Retrieves user information from GitHub API.
-   *
-   * @param accessToken - The access token for API authentication
-   * @returns Promise resolving to IDPUserInfo
+   * @param accessToken - The access token for API authentication.
+   * @returns Promise resolving to IDPUserInfo.
    */
   async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+    const userData = await this.fetchUserData(accessToken);
+    const emailInfo = await this.resolveUserEmail(accessToken, userData.email);
+
+    return this.buildUserInfo(userData, emailInfo);
+  }
+
+  /**
+   * Fetches user data from GitHub API.
+   * @param accessToken - The access token for API authentication.
+   * @returns Promise resolving to GitHub user data.
+   */
+  private async fetchUserData(accessToken: string): Promise<IGitHubUserData> {
     const userResponse = await fetch(this.userEndpoint, {
       headers: {
         authorization: `Bearer ${accessToken}`,
@@ -110,44 +118,72 @@ export class GitHubProvider implements IIdentityProvider {
       throw new Error(`Failed to get user info: ${userResponse.statusText}`);
     }
 
-    const userData = await userResponse.json() as IGitHubUserData;
+    return await userResponse.json();
+  }
 
-    let userEmail = userData.email ?? undefined;
-    let emailVerified = true;
-
-    // If no public email, try to get primary email from emails endpoint
-    if (userEmail === undefined || userEmail === null || userEmail.length === 0) {
-      const emailResponse = await fetch(this.emailEndpoint, {
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: 'application/json',
-        },
-      });
-
-      if (emailResponse.ok) {
-        const emails = await emailResponse.json() as IGitHubEmailData[];
-        const primaryEmail = emails.find((emailData: IGitHubEmailData): boolean => {
-          return emailData.primary === true;
-        });
-        if (primaryEmail !== undefined) {
-          const { email, verified } = primaryEmail;
-          userEmail = email;
-          emailVerified = verified;
-        }
-      }
+  /**
+   * Resolves user email information from GitHub API.
+   * @param accessToken - The access token for API authentication.
+   * @param publicEmail - The user's public email from profile.
+   * @returns Promise resolving to email information.
+   */
+  private async resolveUserEmail(
+    accessToken: string,
+    publicEmail: string | undefined
+  ): Promise<{ email?: string; verified: boolean }> {
+    if (publicEmail) {
+      return {
+ email: publicEmail,
+verified: true
+};
     }
 
+    const emailResponse = await fetch(this.emailEndpoint, {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        accept: 'application/json',
+      },
+    });
+
+    if (!emailResponse.ok) {
+      return { verified: true };
+    }
+
+    const emails: IGitHubEmailData[] = await emailResponse.json();
+    const primaryEmail = emails.find((emailData: IGitHubEmailData): boolean => { return emailData.primary });
+
+    if (!primaryEmail) {
+      return { verified: true };
+    }
+
+    return {
+      email: primaryEmail.email,
+      verified: primaryEmail.verified,
+    };
+  }
+
+  /**
+   * Builds the final user info object.
+   * @param userData - The GitHub user data.
+   * @param emailInfo - The resolved email information.
+   * @param emailInfo.email
+   * @param emailInfo.verified
+   * @returns The formatted user info object.
+   */
+  private buildUserInfo(
+    userData: IGitHubUserData,
+    emailInfo: { email?: string; verified: boolean }
+  ): IDPUserInfo {
     const userInfo: IDPUserInfo = {
       id: userData.id.toString(),
-      emailVerified,
+      emailVerified: emailInfo.verified,
       name: userData.name ?? userData.login,
       picture: userData.avatar_url,
-      raw: userData as Record<string, unknown>,
+      raw: userData,
     };
 
-    // Only include email if it exists and is not empty
-    if (userEmail !== undefined && userEmail !== null && userEmail.length > 0) {
-      userInfo.email = userEmail;
+    if (emailInfo.email) {
+      userInfo.email = emailInfo.email;
     }
 
     return userInfo;

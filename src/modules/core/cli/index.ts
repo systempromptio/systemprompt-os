@@ -48,15 +48,15 @@ export class CLIModule implements IModule<ICLIModuleExports> {
   private logger!: ILogger;
   get exports(): ICLIModuleExports {
     return {
-      service: () => this.getService(),
-      getAllCommands: async () => await this.getAllCommands(),
-      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>) =>
+      service: (): CliService => this.getService(),
+      getAllCommands: async (): Promise<Map<string, CLICommand>> => await this.getAllCommands(),
+      getCommandHelp: (commandName: string, commands: Map<string, CLICommand>): string =>
         this.getCommandHelp(commandName, commands),
-      formatCommands: (commands: Map<string, CLICommand>, format: string) =>
+      formatCommands: (commands: Map<string, CLICommand>, format: string): string =>
         this.formatCommands(commands, format),
-      generateDocs: (commands: Map<string, CLICommand>, format: string) =>
+      generateDocs: (commands: Map<string, CLICommand>, format: string): string =>
         this.generateDocs(commands, format),
-      scanAndRegisterModuleCommands: async (modules: Map<string, { path: string }>) => {
+      scanAndRegisterModuleCommands: async (modules: Map<string, { path: string }>): Promise<void> => {
         const service = this.getService();
         await service.scanAndRegisterModuleCommands(modules);
       },
@@ -70,7 +70,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
     this.logger = LoggerService.getInstance();
     const database = DatabaseService.getInstance();
     this.cliService = CliService.getInstance();
-    await this.cliService.initialize(this.logger, database);
+    this.cliService.initialize(this.logger, database);
     this.status = 'starting' as ModuleStatus;
     this.logger.info(LogSource.CLI, 'CLI module initialized');
   }
@@ -78,7 +78,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
   /**
    * Start the CLI module.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.status = 'running' as ModuleStatus;
     this.logger.info(LogSource.CLI, 'CLI module started');
   }
@@ -86,7 +86,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
   /**
    * Stop the CLI module.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     this.status = 'stopped' as ModuleStatus;
     this.logger.info(LogSource.CLI, 'CLI module stopped');
   }
@@ -95,7 +95,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * Check the health of the CLI module.
    * @returns Health check result.
    */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+  healthCheck(): { healthy: boolean; message?: string } {
     const isHealthy =
       this.status === ('running' as ModuleStatus) && this.cliService?.isInitialized();
     return {

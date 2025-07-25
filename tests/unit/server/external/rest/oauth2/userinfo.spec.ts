@@ -472,5 +472,132 @@ describe('UserInfoEndpoint', () => {
       expect(response.agent_id).toBe('agent-user123');
       expect(response.agent_type).toBe('autonomous');
     });
+
+    it('handles database errors gracefully', async () => {
+      const dbError = new Error('Database connection failed');
+      mockAuthRepo.getIUserById.mockRejectedValue(dbError);
+
+      await expect(endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response))
+        .rejects.toThrow('Database connection failed');
+    });
+
+    it('handles user with empty email string', async () => {
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: '', // Empty email string
+        name: 'Test User',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as IUser);
+      
+      mockReq.user!.scope = 'openid email';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      // Empty email is falsy, so it won't be included in response
+      expect(response).not.toHaveProperty('email');
+      expect(response.sub).toBe('user123');
+    });
+
+    it('handles user with null name field', async () => {
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: 'user123@example.com',
+        name: null, // Explicitly null
+        avatarUrl: 'https://example.com/avatar.jpg',
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as any);
+      
+      mockReq.user!.scope = 'openid profile';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response.sub).toBe('user123');
+      expect(response.preferred_username).toBe('user123');
+      // Null name is falsy, so it won't be included in response
+      expect(response).not.toHaveProperty('name');
+    });
+
+    it('handles user with null avatarUrl field', async () => {
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: 'user123@example.com',
+        name: 'Test User',
+        avatarUrl: null, // Explicitly null
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as any);
+      
+      mockReq.user!.scope = 'openid profile';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response.sub).toBe('user123');
+      expect(response.name).toBe('Test User');
+      expect(response.preferred_username).toBe('user123');
+      // Null avatarUrl is falsy, so it won't be included in response
+      expect(response).not.toHaveProperty('picture');
+    });
+
+    it('verifies email_verified undefined check branch', async () => {
+      // Create a userInfo object where email_verified could theoretically be undefined
+      // Although in the current implementation it's always true, we test the conditional
+      mockReq.user!.scope = 'openid email';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response.email_verified).toBe(true);
+      expect(typeof response.email_verified).toBe('boolean');
+    });
+
+    it('handles scope with mixed case', async () => {
+      mockReq.user!.scope = 'openid PROFILE Email';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      // Mixed case scopes won't match due to case sensitivity
+      expect(response.sub).toBe('user123');
+      expect(response).not.toHaveProperty('name');
+      expect(response).not.toHaveProperty('email');
+    });
+
+    it('handles scope string with trailing/leading spaces', async () => {
+      mockReq.user!.scope = '  openid profile email  ';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      // Trailing/leading spaces will create empty string elements, but won't affect matching
+      expect(response.sub).toBe('user123');
+      expect(response.name).toBe('Test User');
+      expect(response.email).toBe('user123@example.com');
+    });
+
+    it('tests constructor creates new instances', () => {
+      const endpoint1 = new UserInfoEndpoint();
+      const endpoint2 = new UserInfoEndpoint();
+      
+      expect(endpoint1).toBeInstanceOf(UserInfoEndpoint);
+      expect(endpoint2).toBeInstanceOf(UserInfoEndpoint);
+      expect(endpoint1).not.toBe(endpoint2);
+      expect(typeof endpoint1.getUserInfo).toBe('function');
+      expect(typeof endpoint2.getUserInfo).toBe('function');
+    });
   });
 });

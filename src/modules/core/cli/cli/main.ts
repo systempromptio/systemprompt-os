@@ -12,10 +12,14 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 
-/** Global bootstrap instance for cleanup */
+/**
+ * Global bootstrap instance for cleanup.
+ */
 let globalBootstrap: { shutdown: () => Promise<void> } | null = null;
 
-/** Ensure clean exit on process termination */
+/**
+ * Ensure clean exit on process termination.
+ */
 process.on('SIGINT', async (): Promise<void> => {
   if (globalBootstrap) {
     await globalBootstrap.shutdown();
@@ -44,7 +48,9 @@ program
         const formatter = CliFormatterService.getInstance();
         return formatter.formatHelp(cmd, true);
       } catch (error) {
-        /** Fallback to default help if formatting fails */
+        /**
+         * Fallback to default help if formatting fails.
+         */
         console.error('CLI formatting error:', error);
         return cmd.helpInformation();
       }
@@ -61,10 +67,10 @@ interface ICommandOptions {
 }
 
 interface IDatabaseCommand {
-  commandPath: string;
+  command_path: string;
   description?: string;
   options?: ICommandOptions[];
-  executorPath: string;
+  executor_path: string;
 }
 
 interface ICommandModule {
@@ -122,25 +128,31 @@ const createCommandAction = (cmd: IDatabaseCommand):
   };
 
   try {
-    /** Dynamic import needed for loading command modules at runtime */
+    /**
+     * Dynamic import needed for loading command modules at runtime.
+     */
     // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
-    const module = await import(cmd.executorPath);
+    const module = await import(cmd.executor_path);
     const executor = findExecutor(module);
 
     if (executor !== undefined) {
       await executor(context);
     } else {
       const logger = LoggerService.getInstance();
-      logger.error(LogSource.CLI, `Command ${cmd.commandPath} has no execute function`);
-      /** Don't call process.exit() here, let the main function handle it */
-      throw new Error(`Command ${cmd.commandPath} has no execute function`);
+      logger.error(LogSource.CLI, `Command ${cmd.command_path} has no execute function`);
+      /**
+       * Don't call process.exit() here, let the main function handle it.
+       */
+      throw new Error(`Command ${cmd.command_path} has no execute function`);
     }
   } catch (error) {
     const logger = LoggerService.getInstance();
-    logger.error(LogSource.CLI, `Error executing ${cmd.commandPath}`, { 
+    logger.error(LogSource.CLI, `Error executing ${cmd.command_path}`, { 
       error: error instanceof Error ? error : new Error(String(error))
     });
-    /** Re-throw to let main handle the exit */
+    /**
+     * Re-throw to let main handle the exit.
+     */
     throw error;
   }
   };
@@ -150,11 +162,12 @@ const createCommandAction = (cmd: IDatabaseCommand):
  * @param cmd - The database command configuration.
  */
 const registerCommand = (cmd: IDatabaseCommand): void => {
-  if (!cmd.commandPath || typeof cmd.commandPath !== 'string') {
-    console.warn(`Skipping command with invalid commandPath:`, cmd);
+  if (!cmd.command_path || typeof cmd.command_path !== 'string') {
+    const logger = LoggerService.getInstance();
+    logger.debug(LogSource.CLI, `Skipping command with invalid command_path: ${typeof cmd.command_path} "${cmd.command_path}"`);
     return;
   }
-  const commandParts = cmd.commandPath.split(':');
+  const commandParts = cmd.command_path.split(':');
   let command = program;
   const formatter = CliFormatterService.getInstance();
 
@@ -197,7 +210,9 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
       const partValue = part ?? '';
       command = command.command(partValue);
       
-      /** Apply consistent formatting to parent commands too */
+      /**
+       * Apply consistent formatting to parent commands too.
+       */
       command.configureHelp({
         formatHelp: (parentCmd): string => {
           return formatter.formatHelp(parentCmd, false);
@@ -219,14 +234,18 @@ const registerModuleCommands = async (): Promise<{ cliService: any; bootstrap: a
     const commands = await cliService.getCommandsFromDatabase();
     if (commands.length === 0) {
       const logger = LoggerService.getInstance();
-      logger.warn(LogSource.CLI, 'No CLI commands found in database. Run the main application first to register modules.');
+      logger.warn(
+        LogSource.CLI, 
+        'No CLI commands found in database. Run the main application first to register modules.'
+      );
     }
 
     for (const cmd of commands) {
       registerCommand(cmd);
     }
 
-    return { cliService, bootstrap };
+    return { cliService,
+bootstrap };
   } catch (error) {
     const logger = LoggerService.getInstance();
     logger.error(LogSource.CLI, 'Failed to register commands', { 
@@ -245,13 +264,17 @@ const main = async (): Promise<void> => {
   try {
     const result = await registerModuleCommands();
     
-    // Store bootstrap instance for cleanup
+    /**
+     * Store bootstrap instance for cleanup.
+     */
     if (result && typeof result === 'object' && 'bootstrap' in result) {
       bootstrap = result.bootstrap;
       globalBootstrap = bootstrap;
     }
 
-    // Add built-in commands
+    /**
+     * Add built-in commands.
+     */
     program
       .command('help [command]')
       .description('Display help for a command')
@@ -261,8 +284,10 @@ const main = async (): Promise<void> => {
           const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
           if (cmd !== undefined) {
             cmd.outputHelp();
-            // Ensure output is flushed before exit
-            process.stdout.write('', () => {
+            /**
+             * Ensure output is flushed before exit.
+             */
+            process.stdout.write('', (): void => {
               process.exit(0);
             });
           } else {
@@ -271,74 +296,104 @@ const main = async (): Promise<void> => {
           }
         } else {
           program.outputHelp();
-          // Ensure output is flushed before exit
-          process.stdout.write('', () => {
+          /**
+           * Ensure output is flushed before exit.
+           */
+          process.stdout.write('', (): void => {
             process.exit(0);
           });
         }
       });
 
-    // Configure error handling for unknown commands
+    /**
+     * Configure error handling for unknown commands.
+     */
     program.exitOverride();
     program.configureOutput({
-      writeErr: (str) => {
+      writeErr: (str): void => {
         const logger = LoggerService.getInstance();
         logger.error(LogSource.CLI, str.trim());
       }
     });
 
-    // Parse command line arguments
+    /**
+     * Parse command line arguments.
+     */
     try {
       await program.parseAsync(process.argv);
-    } catch (err: any) {
-      // Commander throws an error with exitCode property for built-in commands like --version, --help
-      if (err.exitCode !== undefined) {
-        process.exitCode = err.exitCode;
+    } catch (error: unknown) {
+      /**
+       * Commander throws an error with exitCode property for built-in commands like --version, --help.
+       */
+      if (error && typeof error === 'object' && 'exitCode' in error && typeof (error as any).exitCode === 'number') {
+        const errorWithCode = error as { exitCode: number };
+        process.exitCode = errorWithCode.exitCode;
         
-        // If exitCode is 0, it's a successful operation (like --version or --help)
-        if (err.exitCode === 0) {
-          // Clean shutdown and exit successfully
+        /**
+         * If exitCode is 0, it's a successful operation (like --version or --help).
+         */
+        if (errorWithCode.exitCode === 0) {
+          /**
+           * Clean shutdown and exit successfully.
+           */
           if (bootstrap) {
             await bootstrap.shutdown();
           }
-          setTimeout(() => {
+          setTimeout((): void => {
             process.exit(0);
           }, 100);
           return;
         }
       }
-      throw err;
+      throw error;
     }
     
-    // Clean exit after successful command execution
+    /**
+     * Clean exit after successful command execution.
+     */
     if (bootstrap) {
       await bootstrap.shutdown();
     }
     
-    // Force exit to ensure the process terminates
-    setTimeout(() => {
+    /**
+     * Force exit to ensure the process terminates.
+     */
+    setTimeout((): void => {
       process.exit(0);
     }, 100);
   } catch (error) {
-    // Don't use logger here as it may not be initialized if bootstrap failed
+    /**
+     * Don't use logger here as it may not be initialized if bootstrap failed.
+     */
     console.error('CLI initialization failed:', error);
     
-    // Cleanup on error
+    /**
+     * Cleanup on error.
+     */
     if (bootstrap) {
       try {
         await bootstrap.shutdown();
-      } catch {}
+      } catch (cleanupError) {
+        /**
+         * Ignore cleanup errors during error handling.
+         */
+      }
     }
     
     process.exit(1);
   }
 };
 
-// Only run if this is the main module
+/**
+ * Only run if this is the main module.
+ */
 if (import.meta.url.startsWith('file:')) {
   const modulePath = new URL(import.meta.url).pathname;
   if (process.argv[1] === modulePath) {
-    void main();
+    main().catch((error) => {
+      console.error('Unhandled error in main:', error);
+      process.exit(1);
+    });
   }
 }
 

@@ -14,7 +14,6 @@ import { TunnelService } from '@/modules/core/auth/services/tunnel-service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
 import { UserService } from '@/modules/core/auth/services/user-service';
-import { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
 import { MFAService } from '@/modules/core/auth/services/mfa.service';
 import { AuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
@@ -33,6 +32,7 @@ import type {
   TokenCreateInput,
   TokenValidationResult
 } from '@/modules/core/auth/types/index';
+import { AuthCodeService } from './services/auth-code.service';
 
 const filename = fileURLToPath(import.meta.url);
 const currentDirname = dirname(filename);
@@ -104,8 +104,8 @@ export class AuthModule implements IModule {
 
       this.config = this.buildConfig();
 
-      const keyStorePath = this.config.jwt.keyStorePath !== '' 
-        ? this.config.jwt.keyStorePath 
+      const keyStorePath = this.config.jwt.keyStorePath !== ''
+        ? this.config.jwt.keyStorePath
         : './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
@@ -119,7 +119,6 @@ export class AuthModule implements IModule {
 
       if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
         this.logger.info(LogSource.AUTH, 'JWT keys not found, generating new keys...');
-
 
         await generateJwtKeyPair({
           type: 'jwt',
@@ -147,8 +146,8 @@ export class AuthModule implements IModule {
       if (process.env.NODE_ENV !== 'production') {
         const tunnelConfig = {
           port: parseInt(process.env.PORT ?? '3000', TEN),
-          ...(process.env.TUNNEL_DOMAIN !== undefined && process.env.TUNNEL_DOMAIN !== '' && 
-            { permanentDomain: process.env.TUNNEL_DOMAIN }),
+          ...process.env.TUNNEL_DOMAIN !== undefined && process.env.TUNNEL_DOMAIN !== ''
+            && { permanentDomain: process.env.TUNNEL_DOMAIN },
         };
         this.tunnelService = new TunnelService(tunnelConfig, this.logger);
       }
@@ -242,18 +241,19 @@ export class AuthModule implements IModule {
 
   /**
    * Health check.
+   * @returns Promise resolving to health status object.
    */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+  healthCheck(): { healthy: boolean; message?: string } {
     try {
       const providers = this.providerRegistry?.getAllProviders() ?? [];
       return {
         healthy: true,
-        message: `Auth module healthy. ${providers.length} provider(s) loaded.`,
+        message: `Auth module healthy. ${String(providers.length)} provider(s) loaded.`,
       };
     } catch (error) {
       return {
         healthy: false,
-        message: `Auth module unhealthy: ${error}`,
+        message: `Auth module unhealthy: ${String(error)}`,
       };
     }
   }

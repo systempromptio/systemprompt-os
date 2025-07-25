@@ -106,6 +106,7 @@ export class DatabaseService {
   /**
    * Execute a callback within a database transaction.
    * @param callback - Function to execute within the transaction.
+   * @param handler
    * @returns {Promise<T>} The result of the callback function.
    * @throws {Error} If transaction fails or nested transactions attempted.
    * @example
@@ -118,7 +119,7 @@ export class DatabaseService {
    * ```
    */
   public async transaction<T>(
-    callback: (conn: IDatabaseConnection) => Promise<T>
+    handler: (conn: IDatabaseConnection) => Promise<T>
   ): Promise<T> {
     const connection = await this.getConnection();
     return await connection.transaction(async (tx): Promise<T> => {
@@ -130,10 +131,9 @@ export class DatabaseService {
           throw new Error('Nested transactions not supported');
         },
         close: async (): Promise<void> => {
-
         }
       };
-      return await callback(txConn);
+      return await handler(txConn);
     });
   }
 

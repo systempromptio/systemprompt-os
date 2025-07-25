@@ -95,12 +95,12 @@ export class AuthCodeRepository {
       clientId: row.clientid,
       redirectUri: row.redirecturi,
       scope: row.scope,
-      ...(row.userId !== null && { userId: row.userId }),
-      ...(row.useremail !== null && { userEmail: row.useremail }),
-      ...(row.provider !== null && { provider: row.provider }),
-      ...(row.providertokens !== null && { providerTokens: JSON.parse(row.providertokens) }),
-      ...(row.codechallenge !== null && { codeChallenge: row.codechallenge }),
-      ...(row.codeChallengeMethod !== null && { codeChallengeMethod: row.codeChallengeMethod }),
+      ...row.userId !== null && { userId: row.userId },
+      ...row.useremail !== null && { userEmail: row.useremail },
+      ...row.provider !== null && { provider: row.provider },
+      ...row.providertokens !== null && { providerTokens: JSON.parse(row.providertokens) },
+      ...row.codechallenge !== null && { codeChallenge: row.codechallenge },
+      ...row.codeChallengeMethod !== null && { codeChallengeMethod: row.codeChallengeMethod },
       expiresAt: new Date(row.expiresat),
     };
   }

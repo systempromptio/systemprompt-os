@@ -8,7 +8,6 @@
 
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton';
-import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * OAuth 2.0 Authorization Server Endpoint handler.
@@ -18,19 +17,18 @@ export class AuthorizationServerEndpoint {
   /**
    * Handles requests for OAuth 2.0 authorization server metadata.
    * Returns the server metadata as specified in RFC 8414.
-   * @param req - Express request object (unused).
+   * @param _req - Express request object (unused).
    * @param res - Express response object.
    * @returns Express response with JSON metadata.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-unsafe-member-access
   getAuthorizationServerMetadata = (
-    req: ExpressRequest,
+    _req: ExpressRequest,
     res: ExpressResponse
   ): ExpressResponse => {
     const authModule = getAuthModule();
     const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const metadata = oauth2ConfigService.getAuthorizationServerMetadata() as IOAuth2ServerMetadataInternal;
-
+    const metadata = oauth2ConfigService.getAuthorizationServerMetadata()
     return res.json(metadata);
   };
 }

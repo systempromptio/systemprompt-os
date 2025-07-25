@@ -77,6 +77,11 @@ const main = async function (): Promise<void> {
   }
 }
 
+// Export functions for testing
+export {
+ writePidFile, removePidFile, log, main
+};
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(async (error) => {
     await log(`Unhandled error: ${error}`);

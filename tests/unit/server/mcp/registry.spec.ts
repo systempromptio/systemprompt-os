@@ -4,17 +4,19 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Request, Response } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { 
-  MCPServerRegistry, 
-  initializeMCPServerRegistry, 
-  getMCPServerRegistry 
+  McpServerRegistry, 
+  initializeMcpServerRegistry, 
+  getMcpServerRegistry 
 } from '../../../../src/server/mcp/registry.js';
 import { 
-  MCPServerType, 
-  LocalMCPServer, 
-  RemoteMCPServer 
+  McpServerTypeEnum, 
+  type ILocalMcpServer, 
+  type IRemoteMcpServer,
+  type McpServer
 } from '../../../../src/server/mcp/types.js';
+import { DEFAULT_PROXY_TIMEOUT } from '../../../../src/server/constants/mcp.constants.js';
 
 // Mock dependencies
 vi.mock('../../../../src/server/mcp/auth-adapter', () => ({
@@ -69,25 +71,34 @@ if (!global.Headers) {
   (global as any).Headers = Map;
 }
 
-describe('MCPServerRegistry', () => {
-  let registry: MCPServerRegistry;
+describe('McpServerRegistry', () => {
+  let registry: McpServerRegistry;
   let mockApp: any;
+  let mockLogger: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    // Reset singleton
-    (global as any).registry = null;
-    registry = new MCPServerRegistry();
+    mockFetch.mockClear();
+    
+    registry = new McpServerRegistry();
     
     // Mock Express app
     mockApp = {
       all: vi.fn(),
       get: vi.fn()
     };
+    
+    // Get mock logger instance
+    const { LoggerService } = vi.mocked(await import('../../../../src/modules/core/logger/index'));
+    mockLogger = LoggerService.getInstance();
+    
+    // Setup mock timers for timeout tests
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('registerServer', () => {

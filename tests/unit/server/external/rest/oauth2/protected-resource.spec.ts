@@ -363,5 +363,182 @@ describe('ProtectedResourceEndpoint', () => {
       // Verify that oauth2ConfigService is called without any arguments
       expect(mockAuthModule.exports.oauth2ConfigService).toHaveBeenCalledWith();
     });
+
+    it('should handle metadata with empty arrays for optional array fields', () => {
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: ['https://auth.example.com'],
+        bearer_methods_supported: [],
+        resource_signing_alg_values_supported: [],
+        resource_encryption_alg_values_supported: [],
+        resource_encryption_enc_values_supported: [],
+        scopes_supported: []
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      
+      const sentMetadata = vi.mocked(mockRes.json).mock.calls[0][0];
+      
+      // Verify empty arrays are preserved
+      expect(sentMetadata.bearer_methods_supported).toEqual([]);
+      expect(sentMetadata.resource_signing_alg_values_supported).toEqual([]);
+      expect(sentMetadata.resource_encryption_alg_values_supported).toEqual([]);
+      expect(sentMetadata.resource_encryption_enc_values_supported).toEqual([]);
+      expect(sentMetadata.scopes_supported).toEqual([]);
+    });
+
+    it('should handle large authorization servers arrays', () => {
+      const largeAuthServersArray = Array.from(
+        { length: 100 }, 
+        (_, i) => `https://auth-server-${i}.example.com`
+      );
+
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: largeAuthServersArray
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      
+      const sentMetadata = vi.mocked(mockRes.json).mock.calls[0][0];
+      expect(sentMetadata.authorization_servers).toHaveLength(100);
+      expect(sentMetadata.authorization_servers[0]).toBe('https://auth-server-0.example.com');
+      expect(sentMetadata.authorization_servers[99]).toBe('https://auth-server-99.example.com');
+    });
+
+    it('should handle resource URLs with special characters and internationalized domains', () => {
+      const specialUrlCases = [
+        'https://ñandú.example.com/api/protected',
+        'https://example.com/api/资源',
+        'https://пример.рф/protected',
+        'https://example.com/api/protected?query=ação&param=niño',
+        'https://example.com/api/protected#fraß',
+        'https://127.0.0.1:8080/api/мcp'
+      ];
+
+      specialUrlCases.forEach((resourceUrl, index) => {
+        vi.clearAllMocks();
+        
+        const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+          resource: resourceUrl,
+          authorization_servers: [`https://auth-${index}.example.com`]
+        };
+
+        mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+        protectedResourceEndpoint.getProtectedResourceMetadata(
+          mockReq as Request, 
+          mockRes as Response
+        );
+
+        expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+        
+        const sentMetadata = vi.mocked(mockRes.json).mock.calls[0][0];
+        expect(sentMetadata.resource).toBe(resourceUrl);
+      });
+    });
+
+    it('should maintain proper method context when called as instance method', () => {
+      const endpoint = new ProtectedResourceEndpoint();
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: ['https://auth.example.com']
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      // Test that the arrow function maintains proper context
+      const methodRef = endpoint.getProtectedResourceMetadata;
+      const result = methodRef(mockReq as Request, mockRes as Response);
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      expect(result).toBe(mockRes);
+    });
+
+    it('should handle null vs undefined values consistently', () => {
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: ['https://auth.example.com'],
+        bearer_methods_supported: null as any,
+        resource_documentation: null as any,
+        resource_signing_alg_values_supported: null as any,
+        resource_encryption_alg_values_supported: null as any,
+        resource_encryption_enc_values_supported: null as any,
+        scopes_supported: null as any
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      
+      const sentMetadata = vi.mocked(mockRes.json).mock.calls[0][0];
+      
+      // Verify null values are preserved as-is
+      expect(sentMetadata.bearer_methods_supported).toBeNull();
+      expect(sentMetadata.resource_documentation).toBeNull();
+      expect(sentMetadata.resource_signing_alg_values_supported).toBeNull();
+      expect(sentMetadata.resource_encryption_alg_values_supported).toBeNull();
+      expect(sentMetadata.resource_encryption_enc_values_supported).toBeNull();
+      expect(sentMetadata.scopes_supported).toBeNull();
+    });
+
+    it('should handle comprehensive RFC 9728 compliant metadata with mixed data types', () => {
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://mcp-server.example.com/protected-resources',
+        authorization_servers: [
+          'https://primary-auth.example.com',
+          'https://fallback-auth.example.com:8443',
+          'https://backup.auth.example.org/oauth2'
+        ],
+        bearer_methods_supported: ['header', 'query', 'body'],
+        resource_documentation: 'https://docs.example.com/mcp-api/v2.1',
+        resource_signing_alg_values_supported: ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'],
+        resource_encryption_alg_values_supported: ['RSA-OAEP', 'RSA-OAEP-256', 'A128KW', 'A192KW', 'A256KW'],
+        resource_encryption_enc_values_supported: ['A128GCM', 'A192GCM', 'A256GCM', 'A128CBC-HS256', 'A192CBC-HS384', 'A256CBC-HS512'],
+        scopes_supported: ['openid', 'profile', 'email', 'offline_access', 'agent', 'mcp:read', 'mcp:write', 'mcp:admin']
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      
+      const sentMetadata = vi.mocked(mockRes.json).mock.calls[0][0];
+      
+      // Comprehensive verification of all field types and values
+      expect(sentMetadata.resource).toBe('https://mcp-server.example.com/protected-resources');
+      expect(sentMetadata.authorization_servers).toHaveLength(3);
+      expect(sentMetadata.bearer_methods_supported).toHaveLength(3);
+      expect(sentMetadata.resource_documentation).toContain('docs.example.com');
+      expect(sentMetadata.resource_signing_alg_values_supported).toContain('RS256');
+      expect(sentMetadata.resource_signing_alg_values_supported).toContain('ES512');
+      expect(sentMetadata.resource_encryption_alg_values_supported).toContain('RSA-OAEP');
+      expect(sentMetadata.resource_encryption_enc_values_supported).toContain('A256GCM');
+      expect(sentMetadata.scopes_supported).toContain('mcp:admin');
+      expect(sentMetadata.scopes_supported).toHaveLength(8);
+    });
   });
 });

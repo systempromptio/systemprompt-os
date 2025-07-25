@@ -13,7 +13,7 @@ import type {
  * AuthCodeService class for managing authorization codes.
  */
 export class AuthCodeService {
-  private static instance: AuthCodeService;
+  private static instance: AuthCodeService | undefined;
   private readonly repository: AuthCodeRepository;
 
   /**
@@ -28,7 +28,7 @@ export class AuthCodeService {
    * @returns AuthCodeService instance.
    */
   public static getInstance(): AuthCodeService {
-    AuthCodeService.instance ||= new AuthCodeService();
+    AuthCodeService.instance ??= new AuthCodeService();
     return AuthCodeService.instance;
   }
 
@@ -60,7 +60,7 @@ export class AuthCodeService {
    * @returns Promise that resolves when the code is deleted.
    */
   public async deleteAuthorizationCode(authCode: string): Promise<void> {
-    return await this.repository.deleteAuthorizationCode(authCode);
+    await this.repository.deleteAuthorizationCode(authCode);
   }
 
   /**
@@ -68,6 +68,6 @@ export class AuthCodeService {
    * @returns Promise that resolves when cleanup is complete.
    */
   public async cleanupExpiredCodes(): Promise<void> {
-    return await this.repository.cleanupExpiredCodes();
+    await this.repository.cleanupExpiredCodes();
   }
 }

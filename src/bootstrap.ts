@@ -18,12 +18,12 @@ import {
   type IBootstrapOptions,
   type ICoreModuleDefinition,
 } from './types/bootstrap';
-import { LogSource, type ILogger } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { IModulesModuleExports } from '@/modules/core/modules/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
-import { isDatabaseModule, type IDatabaseModuleExports } from '@/modules/core/database/index';
-import { isLoggerModule, type ILoggerModuleExports } from '@/modules/core/logger/index';
+import { type IDatabaseModuleExports, isDatabaseModule } from '@/modules/core/database/index';
+import { type ILoggerModuleExports, isLoggerModule } from '@/modules/core/logger/index';
 import type { IModuleExports } from './types/bootstrap-module';
 
 import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
@@ -33,7 +33,9 @@ import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
  * @param {CoreModuleType} moduleInstance - Module to check.
  * @returns {boolean} True if module is a modules module.
  */
-const isModulesModule = (moduleInstance: CoreModuleType): moduleInstance is IModule<IModulesModuleExports> => {
+const isModulesModule = (
+  moduleInstance: CoreModuleType,
+): moduleInstance is IModule<IModulesModuleExports> => {
   return moduleInstance.name === 'modules'
          && Boolean(moduleInstance.exports)
          && typeof moduleInstance.exports === 'object'
@@ -45,7 +47,9 @@ const isModulesModule = (moduleInstance: CoreModuleType): moduleInstance is IMod
  * @param {CoreModuleType} moduleInstance - Module to check.
  * @returns {boolean} True if module is a CLI module.
  */
-const isCLIModule = (moduleInstance: CoreModuleType): moduleInstance is IModule<ICLIModuleExports> => {
+const isCLIModule = (
+  moduleInstance: CoreModuleType,
+): moduleInstance is IModule<ICLIModuleExports> => {
   return moduleInstance.name === 'cli'
          && Boolean(moduleInstance.exports)
          && typeof moduleInstance.exports === 'object'
@@ -128,7 +132,11 @@ export class Bootstrap {
 
       const { READY } = BootstrapPhaseEnum;
       this.currentPhase = READY;
-      this.logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${String(this.modules.size)} modules`, { category: 'startup' });
+      this.logger.info(
+        LogSource.BOOTSTRAP,
+        `Bootstrap completed - ${String(this.modules.size)} modules`,
+        { category: 'startup' },
+      );
 
       return this.modules;
     } catch (error) {
@@ -197,7 +205,11 @@ export class Bootstrap {
     this.logger.info(LogSource.BOOTSTRAP, 'Shutting down system', { category: 'shutdown' });
 
     if (this.hasCompletedPhase(BootstrapPhaseEnum.MODULE_DISCOVERY)) {
-      this.logger.info(LogSource.BOOTSTRAP, 'Shutting down autodiscovered modules', { category: 'shutdown' });
+      this.logger.info(
+        LogSource.BOOTSTRAP,
+        'Shutting down autodiscovered modules',
+        { category: 'shutdown' },
+      );
     }
 
     await shutdownAllModules(this.modules, this.logger);
@@ -230,10 +242,14 @@ persistToDb: false
 
     await this.registerCoreModulesInDatabase();
 
-    this.logger.debug(LogSource.BOOTSTRAP, `Core modules loaded: ${Array.from(this.modules.keys()).join(', ')}`, {
+    this.logger.debug(
+      LogSource.BOOTSTRAP,
+      `Core modules loaded: ${Array.from(this.modules.keys()).join(', ')}`,
+      {
  category: 'modules',
 persistToDb: false
-});
+}
+);
   }
 
   /**
@@ -316,10 +332,14 @@ error: error as Error
 persistToDb: false
 });
     const discoveredModules = await moduleExports.scanForModules();
-    this.logger.debug(LogSource.BOOTSTRAP, `Discovered ${String(discoveredModules.length)} injectable modules`, {
+    this.logger.debug(
+      LogSource.BOOTSTRAP,
+      `Discovered ${String(discoveredModules.length)} injectable modules`,
+      {
  category: 'discovery',
 persistToDb: false
-});
+}
+);
 
     if (discoveredModules.length === ZERO) {
       this.logger.warn(LogSource.BOOTSTRAP, 'No modules discovered', { category: 'discovery' });
@@ -467,10 +487,14 @@ persistToDb: false
         const moduleName = coreModule.name;
         const modulePath = `${baseModulePath}${moduleName}`;
         moduleMap.set(moduleName, { path: modulePath });
-        this.logger.debug(LogSource.BOOTSTRAP, `Added module to scan: ${moduleName} -> ${modulePath}`, {
+        this.logger.debug(
+      LogSource.BOOTSTRAP,
+      `Added module to scan: ${moduleName} -> ${modulePath}`,
+      {
  category: 'cli',
 persistToDb: false
-});
+}
+);
       }
 
       await scanAndRegister(moduleMap);

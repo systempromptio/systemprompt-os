@@ -1,4 +1,5 @@
 /**
+ * MCP Tool request handlers with role-based permissions.
  * @file MCP Tool request handlers with role-based permissions.
  * @module handlers/tool-handlers
  * This module provides request handlers for MCP tool operations with a role-based
@@ -68,14 +69,16 @@ const TOOL_METADATA_SCHEMA = z
  * 3. Role assignments
  * 4. Custom permissions.
  */
-const getUserPermissionContext = function getPermissionContext(context: IMCPToolContext): IUserPermissionContext {
-  if (context.sessionId == null || context.sessionId === '') {
+const getUserPermissionContext = function getUserPermissionContext(
+  context: IMCPToolContext,
+): IUserPermissionContext {
+  if (context.sessionId === null || context.sessionId === '') {
     throw new Error('Session ID is required');
   }
 
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = Boolean(
-    context.userId != null && adminUserIds.includes(context.userId),
+    context.userId !== null && adminUserIds.includes(context.userId),
   );
   const role: UserRole = isAdmin ? 'admin' : 'basic';
 
@@ -88,7 +91,7 @@ const getUserPermissionContext = function getPermissionContext(context: IMCPTool
     permissions: ROLE_PERMISSIONS[role],
   };
 
-  return USER_PERMISSION_CONTEXT_SCHEMA.parse(mockData) as IUserPermissionContext;
+  return USER_PERMISSION_CONTEXT_SCHEMA.parse(mockData);
 }
 
 /**

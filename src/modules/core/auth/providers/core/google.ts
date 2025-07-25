@@ -1,5 +1,5 @@
 import type {
-  IdpTokens, IIdpUserInfo, IIdentityProvider, IGoogleConfig, IGoogleUserInfo
+  IGoogleConfig, IGoogleUserInfo, IIdentityProvider, IIdpUserInfo, IdpTokens
 } from '@/modules/core/auth/types/provider-interface';
 
 /**
@@ -22,9 +22,8 @@ export class GoogleProvider implements IIdentityProvider {
 
   /**
    *
-   * Creates a new GoogleProvider instance.
-   *
-   * @param config - The Google OAuth2 configuration
+   *Creates a new GoogleProvider instance.
+   * @param config - The Google OAuth2 configuration.
    */
   constructor(config: IGoogleConfig) {
     this.config = {
@@ -35,11 +34,10 @@ export class GoogleProvider implements IIdentityProvider {
 
   /**
    *
-   * Generates the Google OAuth2 authorization URL.
-   *
-   * @param state - The state parameter for CSRF protection
-   * @param nonce - Optional nonce for OpenID Connect
-   * @returns The authorization URL
+   *Generates the Google OAuth2 authorization URL.
+   * @param state - The state parameter for CSRF protection.
+   * @param nonce - Optional nonce for OpenID Connect.
+   * @returns The authorization URL.
    */
   getAuthorizationUrl(state: string, nonce?: string): string {
     const scope = this.config.scope ?? "openid email profile";
@@ -62,13 +60,12 @@ export class GoogleProvider implements IIdentityProvider {
 
   /**
    *
-   * Exchanges an authorization code for access and refresh tokens.
-   *
-   * @param code - The authorization code from Google
-   * @returns Promise resolving to token response
+   *Exchanges an authorization code for access and refresh tokens.
+   * @param code - The authorization code from Google.
+   * @returns Promise resolving to token response.
    */
   async exchangeCodeForTokens(code: string): Promise<IdpTokens> {
-    const clientSecret = this.config.clientSecret;
+    const {clientSecret} = this.config;
     if (!clientSecret || clientSecret.length === 0) {
       throw new Error("Client secret is required for token exchange");
     }
@@ -94,18 +91,17 @@ export class GoogleProvider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenResponse: IDPTokens = await response.json() as IDPTokens;
+    const tokenResponse: IdpTokens = await response.json() as IdpTokens;
     return tokenResponse;
   }
 
   /**
    *
-   * Retrieves user information from Google using an access token.
-   *
-   * @param accessToken - The access token from Google
-   * @returns Promise resolving to user information
+   *Retrieves user information from Google using an access token.
+   * @param accessToken - The access token from Google.
+   * @returns Promise resolving to user information.
    */
-  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
     const response = await fetch(this.userInfoEndpoint, {
       headers: {
         authorization: `Bearer ${accessToken}`,
@@ -131,13 +127,12 @@ export class GoogleProvider implements IIdentityProvider {
 
   /**
    *
-   * Refreshes access tokens using a refresh token.
-   *
-   * @param refreshToken - The refresh token from Google
-   * @returns Promise resolving to new token response
+   *Refreshes access tokens using a refresh token.
+   * @param refreshToken - The refresh token from Google.
+   * @returns Promise resolving to new token response.
    */
-  async refreshTokens(refreshToken: string): Promise<IDPTokens> {
-    const clientSecret = this.config.clientSecret;
+  async refreshTokens(refreshToken: string): Promise<IdpTokens> {
+    const {clientSecret} = this.config;
     if (!clientSecret || clientSecret.length === 0) {
       throw new Error("Client secret is required for token refresh");
     }
@@ -161,16 +156,15 @@ export class GoogleProvider implements IIdentityProvider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    const tokenResponse: IDPTokens = await response.json() as IDPTokens;
+    const tokenResponse: IdpTokens = await response.json() as IdpTokens;
     return tokenResponse;
   }
 
   /**
    *
-   * Revokes an access or refresh token.
-   *
-   * @param token - The token to revoke (access or refresh token)
-   * @returns Promise that resolves when token is revoked
+   *Revokes an access or refresh token.
+   * @param token - The token to revoke (access or refresh token).
+   * @returns Promise that resolves when token is revoked.
    */
   async revokeTokens(token: string): Promise<void> {
     const params = new URLSearchParams({ token });

@@ -1,17 +1,17 @@
 /**
+ * Service for scanning filesystem directories to discover available modules
+ * and register them in the database for the module management system.
  * @file Module Scanner Service - Dynamically discovers and registers modules.
  * @module modules/core/modules/services/module-scanner
- * @description Service for scanning filesystem directories to discover available modules
- * and register them in the database for the module management system.
  */
 
 import {
   existsSync, readFileSync, readdirSync, statSync
 } from 'fs';
 import { join, resolve } from 'path';
-/*
+/**
  * Note: Using database service directly as repository doesn't have required database methods
- * This should be refactored to use a proper repository pattern in the future
+ * This should be refactored to use a proper repository pattern in the future.
  */
 import type {
   IDatabaseModuleRow,
@@ -25,7 +25,8 @@ import type {
   ScannedModule
 } from '@/modules/core/modules/types/index';
 import { parseModuleManifestSafe } from '@/modules/core/modules/utils/manifest-parser';
-import type { ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Service for scanning and discovering available modules.

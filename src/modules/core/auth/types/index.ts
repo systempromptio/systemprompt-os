@@ -1,4 +1,15 @@
 /**
+ * Token type enumeration.
+ * Defines the different types of tokens that can be issued.
+ */
+export type TokenType =
+  | 'access'
+  | 'refresh'
+  | 'api'
+  | 'personal'
+  | 'service';
+
+/**
  * Authentication user entity interface.
  * Represents a user in the authentication system with all core properties.
  */
@@ -35,17 +46,6 @@ export interface IAuthToken {
 }
 
 /**
- * Token type enumeration.
- * Defines the different types of tokens that can be issued.
- */
-export type TokenType =
-  | 'access'
-  | 'refresh'
-  | 'api'
-  | 'personal'
-  | 'service';
-
-/**
  * Token creation input interface.
  * Input parameters required for creating a new authentication token.
  */
@@ -53,8 +53,7 @@ export interface ITokenCreateInput {
   userId: string;
   type: TokenType;
   scope: string[];
-  /** Token expiration time in seconds */
-  expiresIn?: number;
+    expiresIn?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -178,16 +177,14 @@ export interface ITokenValidationResult {
  * Standard JWT claims with application-specific extensions.
  */
 export interface IJwtPayload {
-  /** Subject - User identifier */
-  sub: string;
+    sub: string;
   email: string;
   name: string;
   roles: string[];
   scope: string[];
   iat: number;
   exp: number;
-  /** JWT ID - Token identifier */
-  jti?: string;
+    jti?: string;
 }
 
 /**
@@ -374,70 +371,114 @@ export type * from '@/modules/core/auth/types/oauth2.types';
 export type * from '@/modules/core/auth/types/auth-code.types';
 export type * from '@/modules/core/auth/types/repository.types';
 
-/** Type alias for AuthUser interface for compatibility */
+/**
+ * Type alias for AuthUser interface for compatibility.
+ */
 export type AuthUser = IAuthUser;
 
-/** Type alias for AuthToken interface for compatibility */
+/**
+ * Type alias for AuthToken interface for compatibility.
+ */
 export type AuthToken = IAuthToken;
 
-/** Type alias for AuthSession interface for compatibility */
+/**
+ * Type alias for AuthSession interface for compatibility.
+ */
 export type AuthSession = IAuthSession;
 
-/** Type alias for AuthAuditEntry interface for compatibility */
+/**
+ * Type alias for AuthAuditEntry interface for compatibility.
+ */
 export type AuthAuditEntry = IAuthAuditEntry;
 
-/** Type alias for LoginInput interface for compatibility */
+/**
+ * Type alias for LoginInput interface for compatibility.
+ */
 export type LoginInput = ILoginInput;
 
-/** Type alias for LoginResult interface for compatibility */
+/**
+ * Type alias for LoginResult interface for compatibility.
+ */
 export type LoginResult = ILoginResult;
 
-/** Type alias for TokenValidationResult interface for compatibility */
+/**
+ * Type alias for TokenValidationResult interface for compatibility.
+ */
 export type TokenValidationResult = ITokenValidationResult;
 
-/** Type alias for JwtPayload interface for compatibility */
+/**
+ * Type alias for JwtPayload interface for compatibility.
+ */
 export type JwtPayload = IJwtPayload;
 
-/** Type alias for JwtConfig interface for compatibility */
+/**
+ * Type alias for JwtConfig interface for compatibility.
+ */
 export type JwtConfig = IJwtConfig;
 
-/** Type alias for AuthConfig interface for compatibility */
+/**
+ * Type alias for AuthConfig interface for compatibility.
+ */
 export type AuthConfig = IAuthConfig;
 
-/** Type alias for ProviderUser interface for compatibility */
+/**
+ * Type alias for ProviderUser interface for compatibility.
+ */
 export type ProviderUser = IProviderUser;
 
-/** Type alias for UserRow interface for compatibility */
+/**
+ * Type alias for UserRow interface for compatibility.
+ */
 export type UserRow = IUserRow;
 
-/** Type alias for RoleRow interface for compatibility */
+/**
+ * Type alias for RoleRow interface for compatibility.
+ */
 export type RoleRow = IRoleRow;
 
-/** Type alias for PermissionRow interface for compatibility */
+/**
+ * Type alias for PermissionRow interface for compatibility.
+ */
 export type PermissionRow = IPermissionRow;
 
-/** Type alias for UserRoleRow interface for compatibility */
+/**
+ * Type alias for UserRoleRow interface for compatibility.
+ */
 export type UserRoleRow = IUserRoleRow;
 
-/** Type alias for SessionRow interface for compatibility */
+/**
+ * Type alias for SessionRow interface for compatibility.
+ */
 export type SessionRow = ISessionRow;
 
-/** Type alias for AuditRow interface for compatibility */
+/**
+ * Type alias for AuditRow interface for compatibility.
+ */
 export type AuditRow = IAuditRow;
 
-/** Type alias for UserListRow interface for compatibility */
+/**
+ * Type alias for UserListRow interface for compatibility.
+ */
 export type UserListRow = IUserListRow;
 
-/** Type alias for AuthModuleExports interface for compatibility */
+/**
+ * Type alias for AuthModuleExports interface for compatibility.
+ */
 export type AuthModuleExports = IAuthModuleExports;
 
-/** Type alias for TokenCreateInput interface for compatibility */
+/**
+ * Type alias for TokenCreateInput interface for compatibility.
+ */
 export type TokenCreateInput = ITokenCreateInput;
 
-/** Type alias for MfaSetupResult interface for compatibility */
+/**
+ * Type alias for MfaSetupResult interface for compatibility.
+ */
 export type MfaSetupResult = IMfaSetupResult;
 
-/** Type alias for MfaVerifyInput interface for compatibility */
+/**
+ * Type alias for MfaVerifyInput interface for compatibility.
+ */
 export type MfaVerifyInput = IMfaVerifyInput;
 
 /**
@@ -535,4 +576,28 @@ export interface ISession {
   lastAccessedAt: string;
   ipAddress?: string;
   userAgent?: string;
+}
+
+/**
+ * AuditEvent interface for service layer operations.
+ * Represents an audit event to be logged.
+ */
+export interface IAuditEvent {
+  userId?: string;
+  action: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+/**
+ * Database row interface for auth_audit_log table queries.
+ * Represents the structure of audit data as stored in the database.
+ */
+export interface IAuditEventRow {
+  userId: string;
+  action: string;
+  details: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
 }

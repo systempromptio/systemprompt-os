@@ -15,12 +15,10 @@ import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
 import type {
  OIDCDiscoveryResponse,
  ProviderConfig,
-} from './types';
-
+} from '@/modules/core/auth/providers/types';
 
 /**
  * ProviderRegistry manages OAuth2/OIDC identity provider configurations.
- * 
  * This class handles loading provider configurations from YAML files,
  * instantiating provider implementations, and managing the provider registry.
  * It supports both built-in providers (Google, GitHub) and generic OAuth2/OIDC providers.
@@ -146,12 +144,12 @@ export class ProviderRegistry {
     }
 
     if (
-      config.credentials.clientId !== null &&
-      config.credentials.clientId !== undefined &&
-      config.credentials.clientId !== '' &&
-      config.credentials.clientSecret !== null &&
-      config.credentials.clientSecret !== undefined &&
-      config.credentials.clientSecret !== ''
+      config.credentials.clientId !== null
+      && config.credentials.clientId !== undefined
+      && config.credentials.clientId !== ''
+      && config.credentials.clientSecret !== null
+      && config.credentials.clientSecret !== undefined
+      && config.credentials.clientSecret !== ''
     ) {
       config.enabled = true;
     }
@@ -164,11 +162,17 @@ export class ProviderRegistry {
    * @param config - Configuration to validate.
    * @returns True if configuration has all required fields.
    */
-  private isValidProviderConfig(config: Partial<IIProviderConfig>): config is IIProviderConfig {
+  private isValidProviderConfig(config: Partial<ProviderConfig>): config is ProviderConfig {
     return Boolean(
-      config.id
-      && config.credentials?.clientId
-      && config.credentials?.clientSecret
+      config.id !== null
+      && config.id !== undefined
+      && config.id !== ''
+      && config.credentials?.clientId !== null
+      && config.credentials?.clientId !== undefined
+      && config.credentials?.clientId !== ''
+      && config.credentials?.clientSecret !== null
+      && config.credentials?.clientSecret !== undefined
+      && config.credentials?.clientSecret !== ''
     );
   }
 
@@ -188,7 +192,9 @@ export class ProviderRegistry {
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => { return this.substituteEnvVars(item) });
+      return obj.map((item) => {
+        return this.substituteEnvVars(item);
+      });
     }
 
     if (obj && typeof obj === "object") {
@@ -203,7 +209,7 @@ export class ProviderRegistry {
   }
 
   /**
-   *  * Instantiates provider implementations from configurations.
+   * Instantiates provider implementations from configurations.
    * Creates provider instances for all loaded configurations.
    */
   private async instantiateProviders(): Promise<void> {
@@ -216,7 +222,11 @@ export class ProviderRegistry {
             this.logger?.info(LogSource.AUTH, `Instantiated provider: ${id}`);
           }
         } catch (error) {
-          this.logger?.error(LogSource.AUTH, `Failed to instantiate provider ${id}`, { error: error as Error });
+          this.logger?.error(
+            LogSource.AUTH,
+            `Failed to instantiate provider ${id}`,
+            { error: error as Error }
+          );
         }
       }
     );
@@ -229,12 +239,14 @@ export class ProviderRegistry {
    * @param config - Provider configuration.
    * @returns Provider instance or null if unsupported.
    */
-  private async createProvider(config: IProviderConfig): Promise<IIdentityProvider | null> {
+  private async createProvider(config: ProviderConfig): Promise<IIdentityProvider | null> {
     const idpConfig: IDPConfig = {
       clientId: config.credentials.clientId,
       clientSecret: config.credentials.clientSecret,
       redirectUri: config.credentials.redirectUri,
-      ...config.scopes && { scope: config.scopes.join(" ") },
+      ...config.scopes !== null
+        && config.scopes !== undefined
+        && config.scopes.length > 0 && { scope: config.scopes.join(" ") },
     };
 
     switch (config.id) {
@@ -256,11 +268,14 @@ export class ProviderRegistry {
    * @returns Generic provider instance or null if unsupported.
    */
   private async createGenericProvider(
-    config: IProviderConfig,
+    config: ProviderConfig,
     idpConfig: IDPConfig
   ): Promise<IIdentityProvider | null> {
     if (config.type !== "oauth2" && config.type !== "oidc") {
-      this.logger?.warn(LogSource.AUTH, `Unsupported provider type ${config.type} for ${config.id}`);
+      this.logger?.warn(
+        LogSource.AUTH,
+        `Unsupported provider type ${config.type} for ${config.id}`
+      );
       return null;
     }
 
@@ -268,19 +283,41 @@ export class ProviderRegistry {
       ...idpConfig,
       id: config.id,
       name: config.name,
-      authorization_endpoint: config.endpoints.authorization,
-      token_endpoint: config.endpoints.token,
-      ...config.endpoints.userinfo && { userinfo_endpoint: config.endpoints.userinfo },
-      ...this.extractIssuer(config) !== undefined && { issuer: this.extractIssuer(config) },
-      ...config.endpoints.jwks && { jwks_uri: config.endpoints.jwks },
-      ...config.userinfo_mapping && { userinfo_mapping: config.userinfo_mapping },
+      authorizationEndpoint: config.endpoints.authorization,
+      tokenEndpoint: config.endpoints.token,
+      ...config.endpoints.userinfo !== null
+        && config.endpoints.userinfo !== undefined
+        && config.endpoints.userinfo !== '' && {
+          userinfoEndpoint: config.endpoints.userinfo
+        },
+      ...this.extractIssuer(config) !== undefined && {
+        issuer: this.extractIssuer(config)
+      },
+      ...config.endpoints.jwks !== null
+        && config.endpoints.jwks !== undefined
+        && config.endpoints.jwks !== '' && {
+          jwksUri: config.endpoints.jwks
+        },
+      ...config.userinfoMapping !== null
+        && config.userinfoMapping !== undefined && {
+          userinfoMapping: config.userinfoMapping
+        },
     };
 
-    if (config.type === "oidc" && config.endpoints.discovery) {
-      await this.enrichWithDiscovery(genericConfig, config.endpoints.discovery, config.id);
+    if (
+      config.type === "oidc"
+      && config.endpoints.discovery !== null
+      && config.endpoints.discovery !== undefined
+      && config.endpoints.discovery !== ''
+    ) {
+      await this.enrichWithDiscovery(
+        genericConfig,
+        config.endpoints.discovery,
+        config.id
+      );
     }
 
-    return new GenericOAuth2Provider(genericConfig as unknown as IGenericOAuth2Config);
+    return new GenericOAuth2Provider(genericConfig as IGenericOAuth2Config);
   }
 
   /**
@@ -288,11 +325,19 @@ export class ProviderRegistry {
    * @param config - Provider configuration.
    * @returns Issuer URL or undefined.
    */
-  private extractIssuer(config: IProviderConfig): string | undefined {
-    if (config.type !== "oidc" || !config.endpoints.discovery) {
+  private extractIssuer(config: ProviderConfig): string | undefined {
+    if (
+      config.type !== "oidc"
+      || config.endpoints.discovery === null
+      || config.endpoints.discovery === undefined
+      || config.endpoints.discovery === ''
+    ) {
       return undefined;
     }
-    return config.endpoints.discovery.replace("/.well-known/openid-configuration", "");
+    return config.endpoints.discovery.replace(
+      "/.well-known/openid-configuration",
+      ""
+    );
   }
 
   /**
@@ -307,10 +352,14 @@ export class ProviderRegistry {
     providerId: string
   ): Promise<void> {
     try {
-      const discovered = await this.discoverOIDCConfiguration(discoveryUrl);
+      const discovered = await this.discoverOidcConfiguration(discoveryUrl);
       Object.assign(genericConfig, discovered);
     } catch (error) {
-      this.logger?.warn(LogSource.AUTH, `Failed to discover OIDC config for ${providerId}`, { error: error as Error });
+      this.logger?.warn(
+        LogSource.AUTH,
+        `Failed to discover OIDC config for ${providerId}`,
+        { error: error as Error }
+      );
     }
   }
 
@@ -320,20 +369,22 @@ export class ProviderRegistry {
    * @returns Discovered configuration mapped to internal format.
    * @throws Error if discovery fails.
    */
-  private async discoverOIDCConfiguration(discoveryUrl: string): Promise<Record<string, string>> {
+  private async discoverOidcConfiguration(
+    discoveryUrl: string
+  ): Promise<Record<string, string>> {
     const response = await fetch(discoveryUrl);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch OIDC discovery: ${response.statusText}`);
     }
 
-    const config = (await response.json()) as IOIDCDiscoveryResponse;
+    const config = (await response.json()) as OIDCDiscoveryResponse;
 
     return {
-      authorization_endpoint: config.authorization_endpoint,
-      token_endpoint: config.token_endpoint,
-      userinfo_endpoint: config.userinfo_endpoint || "",
-      jwks_uri: config.jwks_uri || "",
+      authorizationEndpoint: config.authorizationEndpoint,
+      tokenEndpoint: config.tokenEndpoint,
+      userinfoEndpoint: config.userinfoEndpoint ?? "",
+      jwksUri: config.jwksUri ?? "",
       issuer: config.issuer,
     };
   }
@@ -360,7 +411,7 @@ export class ProviderRegistry {
    * @param id - Provider identifier.
    * @returns Provider configuration or undefined if not found.
    */
-  getProviderConfig(id: string): IProviderConfig | undefined {
+  getProviderConfig(id: string): ProviderConfig | undefined {
     return this.configs.get(id);
   }
 
@@ -385,9 +436,7 @@ export class ProviderRegistry {
    * Reloads provider configurations.
    * Clears all providers and configurations, then reloads from disk.
    * Useful for dynamic configuration updates.
-   * {.
-   * @returns Promise that resolves when reload is complete
-   * }.
+   * @returns Promise that resolves when reload is complete.
    */
   async reload(): Promise<void> {
     this.providers.clear();

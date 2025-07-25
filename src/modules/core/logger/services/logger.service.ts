@@ -10,14 +10,14 @@ import {
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import {
-  LogOutput,
-  LogSource,
-  LoggerMode,
   type ILogLevel,
   type ILogger,
   type ILoggerConfig,
   type LogArgs,
   type LogLevelName,
+  LogOutput,
+  LogSource,
+  LoggerMode,
 } from '@/modules/core/logger/types/index';
 // Database service interface to avoid direct service dependency
 interface ILogDatabaseService {
@@ -118,12 +118,208 @@ export class LoggerService implements ILogger {
   setDatabaseService(databaseService: ILogDatabaseService): void {
     this.databaseService = databaseService;
     if (
-      this.config?.database?.enabled === true &&
-      this.config.outputs.includes(LogOutput.DATABASE)
+      this.config?.database?.enabled === true
+      && this.config.outputs.includes(LogOutput.DATABASE)
     ) {
       this.initializeLogsTable().catch((error: unknown): void => {
         this.writeToStderr(`Failed to initialize logs table: ${String(error)}\n`);
       });
+    }
+  }
+
+  /**
+   * Log debug message.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  debug(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('debug', source, message, args);
+  }
+
+  /**
+   * Log info message.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  info(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('info', source, message, args);
+  }
+
+  /**
+   * Log warning message.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  warn(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('warn', source, message, args);
+  }
+
+  /**
+   * Log error message.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  error(source: LogSource, message: string, args: LogArgs = {}): void {
+    this.log('error', source, message, args);
+  }
+
+  /**
+   * Log with custom level.
+   * @param {LogLevelName} level - Log level.
+   * @param {LogSource} source - Source module or component.
+   * @param {string} message - Log message.
+   * @param {LogArgs} args - Optional args.
+   */
+  log(level: LogLevelName, source: LogSource, message: string, args: LogArgs = {}): void {
+    this.checkInitialized();
+    this.processLogEntry({
+ level,
+source,
+message,
+args
+});
+  }
+
+  /**
+   * Special method for access logs (HTTP requests).
+   * @param {string} message - Log message.
+   */
+  access(message: string): void {
+    this.checkInitialized();
+    const formatted = this.formatMessage('ACCESS', LogSource.ACCESS, message, {});
+    this.writeToFile(this.config.files.access, formatted);
+  }
+
+  /**
+   * Clear logs from a specific file or all log files.
+   * @param {string} [logFile] - Specific log file to clear.
+   * @throws {LoggerFileWriteError} If clear operation fails.
+   */
+  async clearLogs(logFile?: string): Promise<void> {
+    this.checkInitialized();
+
+    try {
+      if (logFile !== undefined && logFile !== '') {
+        const filepath = join(this.logsDir, logFile);
+        if (existsSync(filepath)) {
+          await writeFile(filepath, '');
+        }
+      } else {
+        const files = Object.values(this.config.files);
+        await Promise.all(
+          files.map(async (file): Promise<void> => {
+            const filepath = join(this.logsDir, String(file));
+            if (existsSync(filepath)) {
+              await writeFile(filepath, '');
+            }
+          }),
+        );
+      }
+    } catch (error) {
+      throw new LoggerFileWriteError(
+        logFile ?? 'all log files',
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  /**
+   * Get logs from a specific file or all logs.
+   * @param {string} [logFile] - Specific log file to read.
+   * @returns {Promise<string[]>} Array of log lines.
+   * @throws {LoggerFileReadError} If read operation fails.
+   */
+  async getLogs(logFile?: string): Promise<string[]> {
+    this.checkInitialized();
+
+    try {
+      const logs: string[] = [];
+
+      if (logFile !== undefined && logFile !== '') {
+        const filepath = join(this.logsDir, logFile);
+        if (existsSync(filepath)) {
+          const content = await readFile(filepath, 'utf-8');
+          logs.push(
+            ...content.split('\n').filter((line): boolean => {
+              return line.trim() !== '';
+            }),
+          );
+        }
+      } else {
+        const files = Object.values(this.config.files);
+        await Promise.all(
+          files.map(async (file): Promise<void> => {
+            const filepath = join(this.logsDir, String(file));
+            if (existsSync(filepath)) {
+              const content = await readFile(filepath, 'utf-8');
+              logs.push(
+                ...content.split('\n').filter((line): boolean => {
+                  return line.trim() !== '';
+                }),
+              );
+            }
+          }),
+        );
+      }
+
+      return logs;
+    } catch (error) {
+      throw new LoggerFileReadError(
+        logFile ?? 'log files',
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  /**
+   * Process a log entry and route to appropriate outputs.
+   * @param {object} params - Log entry parameters.
+   * @param {LogLevelName} params.level - Log level.
+   * @param {LogSource} params.source - Source module or component.
+   * @param {string} params.message - Log message.
+   * @param {LogArgs} params.args - Additional args.
+   */
+  private processLogEntry(params: {
+    level: LogLevelName;
+    source: LogSource;
+    message: string;
+    args: LogArgs;
+  }): void {
+    const {
+ level, source, message, args
+} = params;
+    const shouldLogToConsole = this.shouldLogToConsole(level);
+    const shouldLogToFile = this.shouldLogToFile(level);
+    const shouldLogToDatabase = args.persistToDb !== false && this.shouldLogToDatabase(level);
+
+    if (!shouldLogToConsole && !shouldLogToFile && !shouldLogToDatabase) {
+      return;
+    }
+
+    const timestamp = this.formatTimestamp();
+    const formatted = this.formatMessage(level.toUpperCase(), source, message, args);
+
+    if (shouldLogToConsole) {
+      this.writeToConsole(level, source, message, args);
+    }
+    if (shouldLogToFile) {
+      this.writeToFile(this.config.files.system, formatted);
+      if (level === 'error') {
+        this.writeToFile(this.config.files.error, formatted);
+      }
+    }
+    if (shouldLogToDatabase) {
+      this.writeToDatabase({
+ level,
+source,
+message,
+args,
+timestamp
+});
     }
   }
 

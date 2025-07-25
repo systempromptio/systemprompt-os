@@ -54,35 +54,59 @@ export interface IOAuth2ProtectedResourceMetadata {
  * This is used to maintain RFC compliance while satisfying TypeScript requirements.
  * @internal
  */
-// eslint-disable @typescript-eslint/naming-convention
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IOAuth2ServerMetadataInternal {
+
   issuer: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   authorization_endpoint: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   jwks_uri: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_endpoint?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   scopes_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   response_types_supported: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   response_modes_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   grant_types_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint_auth_methods_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint_auth_signing_alg_values_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   service_documentation?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ui_locales_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   op_policy_uri?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   op_tos_uri?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   revocation_endpoint?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   revocation_endpoint_auth_methods_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   introspection_endpoint?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   introspection_endpoint_auth_methods_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   code_challenge_methods_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   userinfo_endpoint?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   acr_values_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   subject_types_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   id_token_signing_alg_values_supported?: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   claims_supported?: string[];
 }
-// eslint-enable @typescript-eslint/naming-convention
 
 /**
  * Internal representation of OAuth2 protected resource metadata with snake_case properties.

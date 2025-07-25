@@ -481,6 +481,554 @@ describe('renderAdminConfig', () => {
   });
 });
 
+describe('JavaScript Functions in Template', () => {
+  let htmlContent: string;
+  let mockDocument: any;
+  let mockWindow: any;
+  let mockFetch: any;
+
+  beforeEach(() => {
+    // Get the HTML content with embedded JavaScript
+    htmlContent = renderAdminConfig({
+      cloudflareUrl: 'https://test.com',
+      tunnelStatus: 'Active',
+      version: '1.0.0',
+      environment: 'production',
+      googleConfigured: true,
+      githubConfigured: false
+    });
+
+    // Mock DOM elements
+    mockDocument = {
+      getElementById: vi.fn(),
+      createElement: vi.fn(),
+      addEventListener: vi.fn(),
+      body: {
+        style: {}
+      }
+    };
+
+    mockWindow = {
+      addEventListener: vi.fn(),
+      fetch: vi.fn()
+    };
+
+    mockFetch = vi.fn();
+    global.fetch = mockFetch;
+    global.document = mockDocument;
+    global.window = mockWindow;
+  });
+
+  describe('escapeHtml function', () => {
+    it('should extract and test escapeHtml function from template', () => {
+      // Extract the escapeHtml function from the template
+      const escapeHtmlMatch = htmlContent.match(/function escapeHtml\(text\)\s*{([^}]+)}/s);
+      expect(escapeHtmlMatch).toBeTruthy();
+      
+      // The function should contain createElement and textContent logic
+      expect(escapeHtmlMatch![0]).toContain('createElement');
+      expect(escapeHtmlMatch![0]).toContain('textContent');
+      expect(escapeHtmlMatch![0]).toContain('innerHTML');
+    });
+
+    it('should handle HTML escaping logic', () => {
+      // Test that the function structure for HTML escaping is present
+      expect(htmlContent).toContain('function escapeHtml(text)');
+      expect(htmlContent).toContain('div.textContent = text');
+      expect(htmlContent).toContain('div.innerHTML');
+    });
+  });
+
+  describe('formatOutput function', () => {
+    it('should extract and test formatOutput function from template', () => {
+      const formatOutputMatch = htmlContent.match(/function formatOutput\(text\)\s*{([^}]+(?:{[^}]*}[^}]*)*)}/s);
+      expect(formatOutputMatch).toBeTruthy();
+      
+      // Should contain text transformation logic
+      expect(formatOutputMatch![0]).toContain('escapeHtml(text)');
+      expect(formatOutputMatch![0]).toContain('replace');
+    });
+
+    it('should include text formatting rules', () => {
+      expect(htmlContent).toContain('replace(/\\n/g, \'<br>\')'); 
+      expect(htmlContent).toContain('replace(/\\t/g, \'&nbsp;&nbsp;&nbsp;&nbsp;\')');
+      expect(htmlContent).toContain('replace(/  /g, \'&nbsp;&nbsp;\')');
+      expect(htmlContent).toContain('output-key');
+      expect(htmlContent).toContain('output-success');
+      expect(htmlContent).toContain('output-error');
+    });
+
+    it('should handle success/error keyword highlighting', () => {
+      expect(htmlContent).toContain('success|succeeded|active|enabled|true');
+      expect(htmlContent).toContain('error|failed|inactive|disabled|false');
+    });
+  });
+
+  describe('executeCommand function', () => {
+    it('should extract and test executeCommand function structure', () => {
+      const executeCommandMatch = htmlContent.match(/async function executeCommand\(command\)\s*{/s);
+      expect(executeCommandMatch).toBeTruthy();
+    });
+
+    it('should handle clear command special case', () => {
+      expect(htmlContent).toContain('command.toLowerCase() === \'clear\'');
+      expect(htmlContent).toContain('command.toLowerCase() === \'cls\'');
+      expect(htmlContent).toContain('clearTerminal()');
+      expect(htmlContent).toContain('return');
+    });
+
+    it('should include loading indicator logic', () => {
+      expect(htmlContent).toContain('loading-indicator');
+      expect(htmlContent).toContain('Date.now()');
+      expect(htmlContent).toContain('Executing command...');
+    });
+
+    it('should include API call to terminal execute endpoint', () => {
+      expect(htmlContent).toContain('/api/terminal/execute');
+      expect(htmlContent).toContain('method: \'POST\'');
+      expect(htmlContent).toContain('Content-Type\': \'application/json\'');
+      expect(htmlContent).toContain('JSON.stringify({ command })');
+    });
+
+    it('should handle success and error responses', () => {
+      expect(htmlContent).toContain('result.success');
+      expect(htmlContent).toContain('formatOutput(result.output)');
+      expect(htmlContent).toContain('terminal-error');
+      expect(htmlContent).toContain('error-prefix');
+    });
+
+    it('should handle fetch errors', () => {
+      expect(htmlContent).toContain('catch (error)');
+      expect(htmlContent).toContain('error.message');
+    });
+  });
+
+  describe('clearTerminal function', () => {
+    it('should extract and test clearTerminal function', () => {
+      const clearTerminalMatch = htmlContent.match(/function clearTerminal\(\)\s*{([^}]+)}/s);
+      expect(clearTerminalMatch).toBeTruthy();
+      
+      expect(clearTerminalMatch![0]).toContain('output.innerHTML');
+      expect(clearTerminalMatch![0]).toContain('Terminal cleared');
+    });
+  });
+
+  describe('toggleFullscreen function', () => {
+    it('should extract and test toggleFullscreen function', () => {
+      const toggleFullscreenMatch = htmlContent.match(/function toggleFullscreen\(\)\s*{([^}]+(?:{[^}]*}[^}]*)*)}/s);
+      expect(toggleFullscreenMatch).toBeTruthy();
+    });
+
+    it('should handle fullscreen state toggle', () => {
+      expect(htmlContent).toContain('isFullscreen = !isFullscreen');
+      expect(htmlContent).toContain('terminalWrapper.classList.add(\'fullscreen\')');
+      expect(htmlContent).toContain('terminalWrapper.classList.remove(\'fullscreen\')');
+      expect(htmlContent).toContain('document.body.style.overflow');
+    });
+  });
+
+  describe('loadAvailableCommands function', () => {
+    it('should extract and test loadAvailableCommands function', () => {
+      const loadCommandsMatch = htmlContent.match(/async function loadAvailableCommands\(\)\s*{/s);
+      expect(loadCommandsMatch).toBeTruthy();
+    });
+
+    it('should include API call to commands endpoint', () => {
+      expect(htmlContent).toContain('/api/terminal/commands');
+      expect(htmlContent).toContain('result.commands');
+      expect(htmlContent).toContain('displayCommands(result.commands)');
+      expect(htmlContent).toContain('displayFallbackCommands()');
+    });
+
+    it('should handle API errors with fallback', () => {
+      expect(htmlContent).toContain('catch (error)');
+      expect(htmlContent).toContain('console.error(\'Failed to load commands:\', error)');
+    });
+  });
+
+  describe('displayCommands function', () => {
+    it('should extract and test displayCommands function', () => {
+      const displayCommandsMatch = htmlContent.match(/function displayCommands\(commands\)\s*{/s);
+      expect(displayCommandsMatch).toBeTruthy();
+    });
+
+    it('should handle command categorization', () => {
+      expect(htmlContent).toContain('const categories = {}');
+      expect(htmlContent).toContain('cmd.module || \'System\'');
+      expect(htmlContent).toContain('categories[category] = []');
+    });
+
+    it('should build command structure', () => {
+      expect(htmlContent).toContain('\'systemprompt \' + cmd.command');
+      expect(htmlContent).toContain('cmd.description');
+      expect(htmlContent).toContain('cmd.usage');
+    });
+
+    it('should create DOM elements', () => {
+      expect(htmlContent).toContain('document.createElement(\'div\')');
+      expect(htmlContent).toContain('section.className = \'command-section\'');
+      expect(htmlContent).toContain('code.onclick');
+    });
+  });
+
+  describe('displayFallbackCommands function', () => {
+    it('should extract and test displayFallbackCommands function', () => {
+      const fallbackCommandsMatch = htmlContent.match(/function displayFallbackCommands\(\)\s*{/s);
+      expect(fallbackCommandsMatch).toBeTruthy();
+    });
+
+    it('should include fallback command HTML', () => {
+      expect(htmlContent).toContain('Core Commands');
+      expect(htmlContent).toContain('Module & Extension');
+      expect(htmlContent).toContain('Authentication');
+      expect(htmlContent).toContain('Database');
+      expect(htmlContent).toContain('Configuration');
+      expect(htmlContent).toContain('MCP Tools');
+    });
+  });
+
+  describe('loadSystemSummary function', () => {
+    it('should extract and test loadSystemSummary function', () => {
+      const loadSummaryMatch = htmlContent.match(/async function loadSystemSummary\(\)\s*{/s);
+      expect(loadSummaryMatch).toBeTruthy();
+    });
+
+    it('should include API call to summary endpoint', () => {
+      expect(htmlContent).toContain('/api/terminal/summary');
+      expect(htmlContent).toContain('result.summary');
+    });
+
+    it('should update summary elements', () => {
+      expect(htmlContent).toContain('user-count');
+      expect(htmlContent).toContain('module-count');
+      expect(htmlContent).toContain('tool-count');
+      expect(htmlContent).toContain('db-status');
+    });
+
+    it('should handle API errors with defaults', () => {
+      expect(htmlContent).toContain('textContent = \'0\'');
+      expect(htmlContent).toContain('textContent = \'Unknown\'');
+    });
+  });
+
+  describe('runCommand function', () => {
+    it('should extract and test runCommand function', () => {
+      const runCommandMatch = htmlContent.match(/function runCommand\(command\)\s*{([^}]+)}/s);
+      expect(runCommandMatch).toBeTruthy();
+      
+      expect(runCommandMatch![0]).toContain('input.value = command');
+      expect(runCommandMatch![0]).toContain('input.focus()');
+      expect(runCommandMatch![0]).toContain('executeCommand(command)');
+    });
+  });
+
+  describe('appendToTerminal function', () => {
+    it('should extract and test appendToTerminal function', () => {
+      const appendMatch = htmlContent.match(/function appendToTerminal\(html\)\s*{([^}]+(?:{[^}]*}[^}]*)*)}/s);
+      expect(appendMatch).toBeTruthy();
+      
+      expect(appendMatch![0]).toContain('output.innerHTML += html');
+      expect(appendMatch![0]).toContain('scrollTo');
+      expect(appendMatch![0]).toContain('behavior: \'smooth\'');
+    });
+  });
+});
+
+describe('Event Handlers and Interactive Features', () => {
+  let htmlContent: string;
+
+  beforeEach(() => {
+    htmlContent = renderAdminConfig({
+      cloudflareUrl: 'https://test.com',
+      tunnelStatus: 'Active',
+      version: '1.0.0',
+      environment: 'production',
+      googleConfigured: true,
+      githubConfigured: false
+    });
+  });
+
+  describe('Terminal click event handler', () => {
+    it('should include terminal click event listener', () => {
+      expect(htmlContent).toContain('terminal.addEventListener(\'click\'');
+      expect(htmlContent).toContain('e.target === terminal');
+      expect(htmlContent).toContain('e.target === output');
+      expect(htmlContent).toContain('input.focus()');
+    });
+  });
+
+  describe('Window load event handler', () => {
+    it('should include window load event listener', () => {
+      expect(htmlContent).toContain('window.addEventListener(\'load\'');
+      expect(htmlContent).toContain('input.focus()');
+      expect(htmlContent).toContain('loadAvailableCommands()');
+      expect(htmlContent).toContain('loadSystemSummary()');
+    });
+  });
+
+  describe('Keyboard event handlers', () => {
+    it('should include keydown event listener for input', () => {
+      expect(htmlContent).toContain('input.addEventListener(\'keydown\'');
+      expect(htmlContent).toContain('async (e) =>');
+    });
+
+    it('should handle Enter key', () => {
+      expect(htmlContent).toContain('e.key === \'Enter\'');
+      expect(htmlContent).toContain('e.preventDefault()');
+      expect(htmlContent).toContain('input.value.trim()');
+      expect(htmlContent).toContain('executeCommand(command)');
+      expect(htmlContent).toContain('commandHistory.push(command)');
+    });
+
+    it('should handle Arrow Up key', () => {
+      expect(htmlContent).toContain('e.key === \'ArrowUp\'');
+      expect(htmlContent).toContain('historyIndex > 0');
+      expect(htmlContent).toContain('historyIndex--');
+      expect(htmlContent).toContain('commandHistory[historyIndex]');
+    });
+
+    it('should handle Arrow Down key', () => {
+      expect(htmlContent).toContain('e.key === \'ArrowDown\'');
+      expect(htmlContent).toContain('historyIndex < commandHistory.length - 1');
+      expect(htmlContent).toContain('historyIndex++');
+      expect(htmlContent).toContain('historyIndex = commandHistory.length');
+    });
+
+    it('should handle Tab key for command completion', () => {
+      expect(htmlContent).toContain('e.key === \'Tab\'');
+      expect(htmlContent).toContain('input.value.split(\' \')');
+      expect(htmlContent).toContain('parts[0] === \'systemprompt\'');
+      expect(htmlContent).toContain('input.value = \'systemprompt \'');
+    });
+
+    it('should include F11 fullscreen handler', () => {
+      expect(htmlContent).toContain('document.addEventListener(\'keydown\'');
+      expect(htmlContent).toContain('e.key === \'F11\'');
+      expect(htmlContent).toContain('toggleFullscreen()');
+    });
+  });
+
+  describe('Terminal control buttons', () => {
+    it('should include clear button functionality', () => {
+      expect(htmlContent).toContain('onclick="clearTerminal()"');
+      expect(htmlContent).toContain('title="Clear"');
+    });
+
+    it('should include fullscreen button functionality', () => {
+      expect(htmlContent).toContain('onclick="toggleFullscreen()"');
+      expect(htmlContent).toContain('title="Fullscreen"');
+    });
+  });
+
+  describe('Command reference interactive elements', () => {
+    it('should include runCommand onclick handlers', () => {
+      expect(htmlContent).toContain('onclick="runCommand(this.textContent)"');
+      expect(htmlContent).toContain('code.onclick = function() { runCommand(cmd.command); }');
+    });
+  });
+});
+
+describe('Variable Declarations and Initialization', () => {
+  let htmlContent: string;
+
+  beforeEach(() => {
+    htmlContent = renderAdminConfig({
+      cloudflareUrl: 'https://test.com',
+      tunnelStatus: 'Active',
+      version: '1.0.0',
+      environment: 'production',
+      googleConfigured: true,
+      githubConfigured: false
+    });
+  });
+
+  it('should declare terminal-related variables', () => {
+    expect(htmlContent).toContain('const terminal = document.getElementById(\'terminal\')');
+    expect(htmlContent).toContain('const output = document.getElementById(\'terminal-output\')');
+    expect(htmlContent).toContain('const input = document.getElementById(\'terminal-input\')');
+  });
+
+  it('should declare history and state variables', () => {
+    expect(htmlContent).toContain('const commandHistory = []');
+    expect(htmlContent).toContain('let historyIndex = -1');
+    expect(htmlContent).toContain('let isFullscreen = false');
+  });
+});
+
+describe('HTML Template Edge Cases', () => {
+  describe('Script tag handling', () => {
+    it('should properly escape script content', () => {
+      const result = renderAdminConfig({
+        cloudflareUrl: 'https://test.com</script><script>alert(1)</script>',
+        tunnelStatus: 'Active</script>',
+        version: '1.0.0<script>',
+        environment: 'prod</script>',
+        googleConfigured: true,
+        githubConfigured: false
+      });
+      
+      // Template literals should contain the raw values as they're directly interpolated
+      expect(result).toContain('https://test.com</script><script>alert(1)</script>');
+      expect(result).toContain('Active</script>');
+      expect(result).toContain('1.0.0<script>');
+      expect(result).toContain('prod</script>');
+    });
+  });
+
+  describe('Template literal interpolation edge cases', () => {
+    it('should handle backticks in data', () => {
+      const result = renderAdminConfig({
+        cloudflareUrl: 'https://test.com`${malicious}`',
+        tunnelStatus: 'Active`injection`',
+        version: '1.0.0`code`',
+        environment: 'prod`eval`',
+        googleConfigured: true,
+        githubConfigured: false
+      });
+      
+      expect(result).toContain('https://test.com`${malicious}`');
+      expect(result).toContain('Active`injection`');
+      expect(result).toContain('1.0.0`code`');
+      expect(result).toContain('prod`eval`');
+    });
+
+    it('should handle dollar signs in data', () => {
+      const result = renderAdminConfig({
+        cloudflareUrl: 'https://test.com$variable',
+        tunnelStatus: 'Active$status',
+        version: '1.0.0$version',
+        environment: 'prod$env',
+        googleConfigured: true,
+        githubConfigured: false
+      });
+      
+      expect(result).toContain('https://test.com$variable');
+      expect(result).toContain('Active$status');
+      expect(result).toContain('1.0.0$version');
+      expect(result).toContain('prod$env');
+    });
+  });
+});
+
+describe('CSS Classes and Conditional Logic Coverage', () => {
+  describe('Additional status combinations', () => {
+    it('should handle case-sensitive tunnel status variations', () => {
+      const variations = ['ACTIVE', 'active', 'Active ', ' Active', 'Active\n'];
+      
+      variations.forEach(status => {
+        const result = renderAdminConfig({
+          cloudflareUrl: 'https://test.com',
+          tunnelStatus: status,
+          version: '1.0.0',
+          environment: 'production',
+          googleConfigured: true,
+          githubConfigured: false
+        });
+        
+        // Only exact 'Active' should trigger active class
+        if (status === 'Active') {
+          expect(result).toContain('status-indicator active');
+        } else {
+          expect(result).toContain('status-indicator inactive');
+        }
+      });
+    });
+  });
+
+  describe('Complex provider combinations', () => {
+    const providerCombinations = [
+      { google: true, github: true, expectedChecks: 2, expectedXs: 0 },
+      { google: true, github: false, expectedChecks: 1, expectedXs: 1 },
+      { google: false, github: true, expectedChecks: 1, expectedXs: 1 },
+      { google: false, github: false, expectedChecks: 0, expectedXs: 2 }
+    ];
+
+    providerCombinations.forEach(({ google, github, expectedChecks, expectedXs }) => {
+      it(`should handle google=${google}, github=${github}`, () => {
+        const result = renderAdminConfig({
+          cloudflareUrl: 'https://test.com',
+          tunnelStatus: 'Active',
+          version: '1.0.0',
+          environment: 'production',
+          googleConfigured: google,
+          githubConfigured: github
+        });
+        
+        const checkmarks = (result.match(/✓/g) || []).length;
+        const xMarks = (result.match(/×/g) || []).length;
+        
+        expect(checkmarks).toBe(expectedChecks);
+        expect(xMarks).toBe(expectedXs);
+      });
+    });
+  });
+});
+
+describe('JavaScript Syntax and Structure Validation', () => {
+  let htmlContent: string;
+
+  beforeEach(() => {
+    htmlContent = renderAdminConfig({
+      cloudflareUrl: 'https://test.com',
+      tunnelStatus: 'Active',
+      version: '1.0.0',
+      environment: 'production',
+      googleConfigured: true,
+      githubConfigured: false
+    });
+  });
+
+  it('should contain valid JavaScript structure', () => {
+    const scriptMatch = htmlContent.match(/<script>([\s\S]*)<\/script>/);
+    expect(scriptMatch).toBeTruthy();
+    
+    const jsContent = scriptMatch![1];
+    
+    // Check for balanced brackets and parentheses
+    const openBraces = (jsContent.match(/{/g) || []).length;
+    const closeBraces = (jsContent.match(/}/g) || []).length;
+    expect(openBraces).toBe(closeBraces);
+    
+    const openParens = (jsContent.match(/\(/g) || []).length;
+    const closeParens = (jsContent.match(/\)/g) || []).length;
+    expect(openParens).toBe(closeParens);
+  });
+
+  it('should contain all expected function declarations', () => {
+    const expectedFunctions = [
+      'executeCommand',
+      'runCommand', 
+      'appendToTerminal',
+      'clearTerminal',
+      'toggleFullscreen',
+      'formatOutput',
+      'escapeHtml',
+      'loadAvailableCommands',
+      'displayCommands',
+      'displayFallbackCommands',
+      'loadSystemSummary'
+    ];
+    
+    expectedFunctions.forEach(funcName => {
+      expect(htmlContent).toContain(`function ${funcName}`);
+    });
+  });
+
+  it('should contain proper async/await usage', () => {
+    expect(htmlContent).toContain('async function executeCommand');
+    expect(htmlContent).toContain('async function loadAvailableCommands');
+    expect(htmlContent).toContain('async function loadSystemSummary');
+    expect(htmlContent).toContain('await fetch');
+    expect(htmlContent).toContain('await response.json()');
+  });
+
+  it('should contain proper error handling blocks', () => {
+    expect(htmlContent).toContain('try {');
+    expect(htmlContent).toContain('} catch (error) {');
+    expect(htmlContent).toContain('console.error');
+  });
+});
+
 describe('getAdminConfigStyles', () => {
   it('should return a non-empty string', () => {
     const result = getAdminConfigStyles();

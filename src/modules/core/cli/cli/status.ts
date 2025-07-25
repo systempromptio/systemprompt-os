@@ -72,9 +72,9 @@ export const command: CLICommand = {
   ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
-    const format = ((args as any)?.format ?? 'text') as 'text' | 'json';
-    const showList = (args as any)?.list === true;
-    const filterModule = (args as any)?.module as string | undefined;
+    const format = (args.format ?? 'text') as 'text' | 'json';
+    const showList = args.list === true;
+    const filterModule = args.module as string | undefined;
 
     try {
       const cliService = getCliService();

@@ -1,4 +1,4 @@
 export type {
   OIDCDiscoveryResponse,
   ProviderConfig,
-} from "./provider-config.types";
+} from '@/modules/core/auth/providers/types/provider-config.types';

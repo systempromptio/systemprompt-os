@@ -23,9 +23,7 @@ export class AuthService {
    * @returns {AuthService} The singleton instance.
    */
   public static getInstance(): AuthService {
-    if (!AuthService.instance) {
-      AuthService.instance = new AuthService();
-    }
+    AuthService.instance ||= new AuthService();
     return AuthService.instance;
   }
 

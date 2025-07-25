@@ -6,14 +6,14 @@
  */
 
 import type {
-  IdpConfig, IdpTokens, IIdpUserInfo, IIdentityProvider
+  IIdentityProvider, IIdpUserInfo, IdpConfig, IdpTokens
 } from '@/modules/core/auth/types/provider-interface';
 
 /**
  * Configuration interface for Generic OAuth2 providers.
  * Extends the base IDPConfig with OAuth2-specific settings.
  */
-export interface IGenericOAuth2Config extends IDPConfig {
+export interface IGenericOAuth2Config extends IdpConfig {
     id: string;
     name: string;
     authorizationEndpoint: string;
@@ -117,7 +117,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @param authCode - The authorization code from the OAuth2 callback.
    * @returns Promise resolving to the token response.
    */
-  public async exchangeCodeForTokens(authCode: string): Promise<IDPTokens> {
+  public async exchangeCodeForTokens(authCode: string): Promise<IdpTokens> {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code: authCode,
@@ -149,7 +149,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @param accessToken - The access token for authentication.
    * @returns Promise resolving to the user information.
    */
-  public async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  public async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
     if (!this.config.userinfoEndpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
@@ -203,7 +203,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @param refreshToken - The refresh token.
    * @returns Promise resolving to new tokens.
    */
-  public async refreshTokens(refreshToken: string): Promise<IDPTokens> {
+  public async refreshTokens(refreshToken: string): Promise<IdpTokens> {
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,

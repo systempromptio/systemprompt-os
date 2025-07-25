@@ -53,7 +53,7 @@ const createLiteralUnion = (
  * @returns Zod enum or union schema.
  */
 const handleEnumType = (schema: ValidJsonSchema): z.ZodType => {
-  const enumProperty = schema.enum as unknown;
+  const enumProperty = schema.enum;
   if (!Array.isArray(enumProperty)) {
     return z.any();
   }
@@ -74,7 +74,7 @@ export const jsonSchemaToZod = (schema: JsonSchema): z.ZodType => {
     return z.any();
   }
 
-  const enumProperty = schema.enum as unknown;
+  const enumProperty = schema.enum;
   if (Array.isArray(enumProperty)) {
     return handleEnumType(schema);
   }
