@@ -67,9 +67,12 @@ export const command: CLICommand = {
       const cliService = getCliService();
       const helpService = HelpService.getInstance();
 
-      if ((args as any)?.command !== undefined && (args as any)?.command !== null) {
-        await helpService.showSpecificCommandHelp((args as any).command as string, cliService);
-      } else if ((args as any)?.all === true) {
+      const command = args.command;
+      const showAll = args.all;
+
+      if (command !== undefined && command !== null && typeof command === 'string') {
+        await helpService.showSpecificCommandHelp(command, cliService);
+      } else if (showAll === true) {
         await helpService.showAllCommands(cliService);
       } else {
         await helpService.showGeneralHelp(cliService);

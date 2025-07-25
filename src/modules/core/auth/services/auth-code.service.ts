@@ -1,0 +1,73 @@
+/**
+ * Authorization code persistence service.
+ * @module modules/core/auth/services/auth-code-service
+ */
+
+import { randomBytes } from 'crypto';
+import { AuthCodeRepository } from '@/modules/core/auth/repositories/auth-code.repository';
+import type {
+  IAuthorizationCodeData,
+} from '@/modules/core/auth/types/auth-code.types';
+
+/**
+ * AuthCodeService class for managing authorization codes.
+ */
+export class AuthCodeService {
+  private static instance: AuthCodeService;
+  private readonly repository: AuthCodeRepository;
+
+  /**
+   * Creates a new AuthCodeService instance.
+   */
+  private constructor() {
+    this.repository = AuthCodeRepository.getInstance();
+  }
+
+  /**
+   * Gets the singleton instance of AuthCodeService.
+   * @returns AuthCodeService instance.
+   */
+  public static getInstance(): AuthCodeService {
+    AuthCodeService.instance ||= new AuthCodeService();
+    return AuthCodeService.instance;
+  }
+
+  /**
+   * Generates and stores a new authorization code.
+   * @param authorizationData - The authorization code data to store.
+   * @returns Promise that resolves to the generated authorization code.
+   */
+  public async createAuthorizationCode(authorizationData: IAuthorizationCodeData): Promise<string> {
+    const authCode = randomBytes(32).toString('base64url');
+
+    await this.repository.storeAuthorizationCode(authCode, authorizationData);
+
+    return authCode;
+  }
+
+  /**
+   * Retrieves and validates an authorization code.
+   * @param authCode - The authorization code to retrieve.
+   * @returns Promise that resolves to authorization code data or null if not found/expired.
+   */
+  public async getAuthorizationCode(authCode: string): Promise<IAuthorizationCodeData | null> {
+    return await this.repository.getAuthorizationCode(authCode);
+  }
+
+  /**
+   * Deletes an authorization code after use.
+   * @param authCode - The authorization code to delete.
+   * @returns Promise that resolves when the code is deleted.
+   */
+  public async deleteAuthorizationCode(authCode: string): Promise<void> {
+    return await this.repository.deleteAuthorizationCode(authCode);
+  }
+
+  /**
+   * Cleans up expired authorization codes.
+   * @returns Promise that resolves when cleanup is complete.
+   */
+  public async cleanupExpiredCodes(): Promise<void> {
+    return await this.repository.cleanupExpiredCodes();
+  }
+}

@@ -12,7 +12,7 @@ import {
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 /**
  * Module interface to avoid circular dependency.
  */

@@ -1,38 +1,14 @@
 /**
+ * Generic OAuth2/OIDC Provider.
+ * Provides a generic OAuth2/OIDC implementation for authentication providers.
  * @file Generic OAuth2/OIDC Provider.
- * @description Provides a generic OAuth2/OIDC implementation for authentication providers.
  * @module server/external/auth/providers/generic-oauth2
  */
 
 import type {
- IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
+ IDPTokens, IDPUserInfo, IdentityProvider
 } from '@/server/external/auth/providers/interface';
-
-/**
- * Configuration interface for Generic OAuth2 provider.
- * @interface IGenericOAuth2Config
- * @augments IDPConfig
- */
-export interface IGenericOAuth2Config extends IDPConfig {
-  id: string;
-  name: string;
-  authorizationEndpoint: string;
-  tokenEndpoint: string;
-  userinfoEndpoint?: string;
-  issuer?: string;
-  jwksUri?: string;
-  scopesSupported?: string[];
-  responseTypesSupported?: string[];
-  grantTypesSupported?: string[];
-  tokenEndpointAuthMethods?: string[];
-  userinfoMapping?: {
-    id?: string;
-    email?: string;
-    emailVerified?: string;
-    name?: string;
-    picture?: string;
-  };
-}
+import type { GenericOAuth2Config } from '@/server/external/auth/providers/types/generic-oauth2';
 
 /**
  * Generic OAuth2/OIDC Provider implementation.
@@ -43,19 +19,19 @@ export class GenericOAuth2Provider implements IdentityProvider {
   public readonly id: string;
   public readonly name: string;
   public readonly type: 'oauth2' | 'oidc';
-  private readonly config: IGenericOAuth2Config;
+  private readonly config: GenericOAuth2Config;
 
   /**
    * Constructs a new GenericOAuth2Provider instance.
    * @param config - The OAuth2 configuration.
    */
-  constructor(config: IGenericOAuth2Config) {
+  constructor(config: GenericOAuth2Config) {
     const {
  id, name, issuer, scope, userinfoMapping
 } = config;
     this.id = id;
     this.name = name;
-    this.type = issuer != null && issuer !== '' ? 'oidc' : 'oauth2';
+    this.type = issuer !== null && issuer !== '' ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
       scope: scope ?? 'openid email profile',
@@ -81,11 +57,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
       state,
     });
 
-    if (nonce != null && nonce !== '' && this.type === 'oidc') {
+    if (nonce !== null && nonce !== '' && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorizationParams' in this.config && this.config.authorizationParams != null) {
+    if ('authorizationParams' in this.config && this.config.authorizationParams !== null) {
       Object.entries(this.config.authorizationParams).forEach(([key, value]) => {
         params.append(key, value as string);
       });
@@ -100,7 +76,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @returns Promise resolving to tokens.
    */
   public async exchangeCodeForToken(code: string): Promise<IDPTokens> {
-    return this.exchangeCodeForTokens(code);
+    return await this.exchangeCodeForTokens(code);
   }
 
   /**
@@ -124,7 +100,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
+        "Accept": 'application/json',
       },
       body: params,
     });
@@ -145,7 +121,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    */
   public async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
     const { userinfoEndpoint } = this.config;
-    if (userinfoEndpoint == null || userinfoEndpoint === '') {
+    if (userinfoEndpoint === null || userinfoEndpoint === '') {
       throw new Error('UserInfo endpoint not configured');
     }
 
@@ -161,7 +137,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
     }
 
     const data = await response.json() as Record<string, unknown>;
-    const mapping = this.config.userinfoMapping as NonNullable<IGenericOAuth2Config['userinfoMapping']>;
+    const mapping = this.config.userinfoMapping as NonNullable<GenericOAuth2Config['userinfoMapping']>;
 
     return {
       id: this.getNestedValue(data, mapping.id ?? 'sub')
@@ -195,7 +171,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
+        "Accept": 'application/json',
       },
       body: params,
     });
@@ -208,25 +184,18 @@ export class GenericOAuth2Provider implements IdentityProvider {
     return data;
   }
 
-}
-
-
-  const response = await fetch(discoveryUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to discover OIDC configuration: ${response.statusText}`);
+  /**
+   * Gets a nested value from an object using dot notation.
+   * @param obj - The object to search in.
+   * @param path - The dot-separated path to the value.
+   * @returns The value at the path, or undefined if not found.
+   */
+  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    return path.split('.').reduce<unknown>((current, key) => {
+      if (current != null && typeof current === 'object' && key in current) {
+        return (current as Record<string, unknown>)[key];
+      }
+      return undefined;
+    }, obj);
   }
-
-  const config = await response.json() as Record<string, unknown>;
-
-  return {
-    issuer: config.issuer as string,
-    authorizationEndpoint: config.authorization_endpoint as string,
-    tokenEndpoint: config.token_endpoint as string,
-    userinfoEndpoint: config.userinfo_endpoint as string,
-    jwksUri: config.jwks_uri as string,
-    scopesSupported: config.scopes_supported as string[],
-    responseTypesSupported: config.response_types_supported as string[],
-    grantTypesSupported: config.grant_types_supported as string[],
-    tokenEndpointAuthMethods: config.token_endpoint_auth_methods_supported as string[],
-  };
 }

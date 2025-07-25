@@ -122,8 +122,8 @@ const displayDataCsv = (rows: unknown[], logger: LoggerService): void => {
       const rowRecord = row as Record<string, unknown>;
       const { [columnName]: value } = rowRecord;
       if (
-        typeof value === 'string' &&
-        (value.includes(',') || value.includes('"'))
+        typeof value === 'string'
+        && (value.includes(',') || value.includes('"'))
       ) {
         return `"${value.replace(/"/gu, '""')}"`;
       }
@@ -136,7 +136,13 @@ const displayDataCsv = (rows: unknown[], logger: LoggerService): void => {
 /**
  * Display data in table format.
  * @param params - Table display parameters.
+ * @param params.tableName
  * @param logger - Logger instance.
+ * @param params.rows
+ * @param params.totalRows
+ * @param params.offset
+ * @param params.limit
+ * @param params.hasMore
  */
 const displayDataTable = (
   params: {
@@ -149,7 +155,9 @@ const displayDataTable = (
   },
   logger: LoggerService,
 ): void => {
-  const { tableName, rows, totalRows, offset, limit, hasMore } = params;
+  const {
+ tableName, rows, totalRows, offset, limit, hasMore
+} = params;
 
   logger.info(LogSource.CLI, `Table: ${tableName}`);
   const offsetText = offset > 0 ? ` (offset: ${String(offset)})` : '';
@@ -193,8 +201,8 @@ const displayDataTable = (
       .map((name, index): string => {
         const rowRecord = row as Record<string, unknown>;
         const { [name]: value } = rowRecord;
-        const stringValue =
-          value !== null && value !== undefined ? String(value) : '';
+        const stringValue
+          = value !== null && value !== undefined ? String(value) : '';
         return stringValue.padEnd(columnWidths[index] ?? 0);
       })
       .join(' | ');
@@ -282,7 +290,7 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
     schemaOnly,
   } = args as IViewArgs;
 
-  const viewFormat = (format ?? 'table') as ViewFormat;
+  const viewFormat = format ?? 'table';
   const limit = parseNumericParam(limitParam, 50);
   const offset = parseNumericParam(offsetParam, 0);
 
@@ -311,8 +319,8 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
 
     processViewResult(result, viewFormat, logger);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
     logger.error(LogSource.CLI, 'Error viewing table', {
       error: errorMessage,
     });

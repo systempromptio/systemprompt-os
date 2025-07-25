@@ -13,54 +13,43 @@ import {
 } from './utils/console-logger';
 import {
   BootstrapPhaseEnum,
+  type CoreModuleType,
   type GlobalConfiguration,
   type IBootstrapOptions,
   type ICoreModuleDefinition,
 } from './types/bootstrap';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource, type ILogger } from '@/modules/core/logger/types/index';
 import type { IModulesModuleExports } from '@/modules/core/modules/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
-import type { IDatabaseModuleExports } from '@/modules/core/database/index';
-import type { ILoggerModuleExports } from '@/modules/core/logger/index';
-import { isLoggerModule } from '@/modules/core/logger/index';
-import { isDatabaseModule } from '@/modules/core/database/index';
+import { isDatabaseModule, type IDatabaseModuleExports } from '@/modules/core/database/index';
+import { isLoggerModule, type ILoggerModuleExports } from '@/modules/core/logger/index';
 import type { IModuleExports } from './types/bootstrap-module';
 
-/**
- * Type definition for core module types.
- */
-type CoreModuleType =
-  | IModule<IModulesModuleExports>
-  | IModule<ICLIModuleExports>
-  | IModule<IDatabaseModuleExports>
-  | IModule<ILoggerModuleExports>
-  | IModule;
 import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
 
 /**
  * Type guard function to check if module is a modules module.
- * @param {CoreModuleType} module - Module to check.
+ * @param {CoreModuleType} moduleInstance - Module to check.
  * @returns {boolean} True if module is a modules module.
  */
-const isModulesModule = (module: CoreModuleType): module is IModule<IModulesModuleExports> => {
-  return module.name === 'modules'
-         && Boolean(module.exports)
-         && typeof module.exports === 'object'
-         && 'registerCoreModule' in module.exports;
+const isModulesModule = (moduleInstance: CoreModuleType): moduleInstance is IModule<IModulesModuleExports> => {
+  return moduleInstance.name === 'modules'
+         && Boolean(moduleInstance.exports)
+         && typeof moduleInstance.exports === 'object'
+         && 'registerCoreModule' in moduleInstance.exports;
 };
 
 /**
  * Type guard function to check if module is a CLI module.
- * @param {CoreModuleType} module - Module to check.
+ * @param {CoreModuleType} moduleInstance - Module to check.
  * @returns {boolean} True if module is a CLI module.
  */
-const isCLIModule = (module: CoreModuleType): module is IModule<ICLIModuleExports> => {
-  return module.name === 'cli'
-         && Boolean(module.exports)
-         && typeof module.exports === 'object'
-         && 'scanAndRegisterModuleCommands' in module.exports;
+const isCLIModule = (moduleInstance: CoreModuleType): moduleInstance is IModule<ICLIModuleExports> => {
+  return moduleInstance.name === 'cli'
+         && Boolean(moduleInstance.exports)
+         && typeof moduleInstance.exports === 'object'
+         && 'scanAndRegisterModuleCommands' in moduleInstance.exports;
 };
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import {

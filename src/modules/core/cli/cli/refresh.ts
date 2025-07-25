@@ -56,7 +56,7 @@ export const command: CLICommand = {
   ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
-    const verbose = (args as any)?.verbose === true;
+    const verbose = Boolean(args.verbose);
 
     try {
       const cliService = getCliService();

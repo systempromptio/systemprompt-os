@@ -26,8 +26,6 @@
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    
-    // Decorators for TypeDI
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     

@@ -5,6 +5,11 @@
  */
 
 import type { ILogger } from '@/modules/core/logger/types/index';
+import type { IModulesModuleExports } from '@/modules/core/modules/index';
+import type { ICLIModuleExports } from '@/modules/core/cli/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import type { IDatabaseModuleExports } from '@/modules/core/database/index';
+import type { ILoggerModuleExports } from '@/modules/core/logger/index';
 
 /**
  * Bootstrap phase enumeration.
@@ -50,3 +55,13 @@ export interface GlobalConfiguration {
   environment: string;
   modules: Record<string, unknown>;
 }
+
+/**
+ * Type definition for core module types.
+ */
+export type CoreModuleType =
+  | IModule<IModulesModuleExports>
+  | IModule<ICLIModuleExports>
+  | IModule<IDatabaseModuleExports>
+  | IModule<ILoggerModuleExports>
+  | IModule;

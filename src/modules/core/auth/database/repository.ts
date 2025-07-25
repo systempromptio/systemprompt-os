@@ -3,7 +3,7 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import { getAuthModule } from '@/modules/core/auth/singleton';
 import type {
  IPermission, IRole, IUser
-} from '@/modules/core/auth/database/models/index';
+} from '@/modules/core/auth/types';
 import {
  ZERO
 } from '@/const/numbers';

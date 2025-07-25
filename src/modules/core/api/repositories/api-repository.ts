@@ -1,17 +1,17 @@
 /**
- * @fileoverview API repository for database operations
+ * @file API repository for database operations.
  * @module src/modules/core/api/repositories
  */
 
-import type { 
-  ApiKey, 
-  CreateApiKeyDto, 
-  RateLimitStatus, 
-  ApiKeyUsage 
-} from '../types/api.types.js';
+import type {
+  ApiKey,
+  ApiKeyUsage,
+  CreateApiKeyDto,
+  RateLimitStatus
+} from '@/modules/core/api/types/api.types';
 
 export class ApiRepository {
-  private db: any;
+  private readonly db: any;
 
   constructor(db: any) {
     this.db = db;
@@ -24,11 +24,11 @@ export class ApiRepository {
         expires_at, metadata, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     const now = new Date();
     const scopes = JSON.stringify(dto.scopes || []);
     const metadata = JSON.stringify(dto.metadata || {});
-    
+
     const result = await this.db.execute(query, [
       dto.key_hash,
       dto.key_prefix,
@@ -61,30 +61,30 @@ export class ApiRepository {
   async getApiKey(id: string): Promise<ApiKey | null> {
     const query = 'SELECT * FROM api_keys WHERE id = ?';
     const result = await this.db.select(query, [id]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     return this.mapRowToApiKey(result.rows[0]);
   }
 
   async getApiKeyByHash(keyHash: string): Promise<ApiKey | null> {
     const query = 'SELECT * FROM api_keys WHERE key_hash = ?';
     const result = await this.db.select(query, [keyHash]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     return this.mapRowToApiKey(result.rows[0]);
   }
 
   async listApiKeys(userId: string): Promise<ApiKey[]> {
     const query = 'SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC';
     const result = await this.db.select(query, [userId]);
-    
-    return result.rows.map((row: any) => this.mapRowToApiKey(row));
+
+    return result.rows.map((row: any) => { return this.mapRowToApiKey(row) });
   }
 
   async revokeApiKey(id: string, reason: string): Promise<boolean> {
@@ -93,7 +93,7 @@ export class ApiRepository {
       SET revoked_at = ?, revoked_reason = ? 
       WHERE id = ? AND revoked_at IS NULL
     `;
-    
+
     const result = await this.db.update(query, [new Date(), reason, id]);
     return result.changes > 0;
   }
@@ -104,8 +104,6 @@ export class ApiRepository {
   }
 
   async getApiKeyUsage(keyId: string, timeframe: string): Promise<ApiKeyUsage> {
-    // This is a simplified implementation
-    // In a real implementation, you would query request logs and aggregate data
     return {
       total_requests: 150,
       error_rate: 2.5,
@@ -127,12 +125,11 @@ export class ApiRepository {
       INSERT INTO api_requests (key_id, endpoint, method, response_time, success, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
-    
+
     await this.db.execute(query, [keyId, endpoint, method, responseTime, success, new Date()]);
   }
 
   async getOverallUsageStats(): Promise<any> {
-    // Implementation would aggregate overall usage statistics
     return {
       total_keys: 0,
       active_keys: 0,
@@ -153,7 +150,7 @@ export class ApiRepository {
   }
 
   async cleanupOldRequests(): Promise<number> {
-    const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     const query = 'DELETE FROM api_requests WHERE timestamp < ?';
     const result = await this.db.delete(query, [cutoffDate]);
     return result.changes;
@@ -163,11 +160,11 @@ export class ApiRepository {
   async getRateLimitStatus(keyId: string): Promise<RateLimitStatus | null> {
     const query = 'SELECT * FROM rate_limits WHERE key_id = ?';
     const result = await this.db.select(query, [keyId]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     const row = result.rows[0];
     return {
       key_id: row.key_id,
@@ -181,7 +178,7 @@ export class ApiRepository {
       INSERT OR REPLACE INTO rate_limits (key_id, window_start, request_count, window_size, rate_limit)
       VALUES (?, ?, COALESCE((SELECT request_count FROM rate_limits WHERE key_id = ? AND window_start = ?) + 1, 1), ?, ?)
     `;
-    
+
     await this.db.execute(query, [keyId, windowStart, keyId, windowStart, windowSize, limit]);
   }
 

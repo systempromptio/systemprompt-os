@@ -237,8 +237,8 @@ export class ModuleScannerService implements IModuleScannerService {
     for (const module of modules) {
       try {
         const validTypes = ['core', 'service', 'daemon', 'plugin', 'extension'] as const;
-        if (!validTypes.includes(moduleInfo.type as typeof validTypes[number])) {
-          this.logger?.error(LogSource.MODULES, `Invalid module type for ${moduleInfo.name}: ${moduleInfo.type}`);
+        if (!validTypes.includes(module.type as typeof validTypes[number])) {
+          this.logger?.error(LogSource.MODULES, `Invalid module type for ${module.name}: ${module.type}`);
           continue;
         }
 
@@ -251,17 +251,17 @@ export class ModuleScannerService implements IModuleScannerService {
             dependencies, config, status, health_status, metadata
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-          moduleInfo.name,
-          moduleInfo.version,
-          moduleInfo.type,
-          moduleInfo.path,
+          module.name,
+          module.version,
+          module.type,
+          module.path,
           1,
           0,
-          JSON.stringify(moduleInfo.dependencies ?? []),
-          JSON.stringify(moduleInfo.config ?? {}),
+          JSON.stringify(module.dependencies ?? []),
+          JSON.stringify(module.config ?? {}),
           'installed' as ModuleStatus,
           'unknown' as ModuleHealthStatus,
-          JSON.stringify(moduleInfo.metadata ?? {}),
+          JSON.stringify(module.metadata ?? {}),
         ]);
 
         if (!this.database) {
@@ -271,15 +271,15 @@ export class ModuleScannerService implements IModuleScannerService {
           INSERT INTO module_events (module_id, event_type, event_data)
           VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
         `, [
-          moduleInfo.name,
+          module.name,
           'discovered' as ModuleEventType,
           JSON.stringify({
-            version: moduleInfo.version,
-            path: moduleInfo.path
+            version: module.version,
+            path: module.path
           }),
         ]);
       } catch (error) {
-        this.logger?.error(LogSource.MODULES, `Error storing module ${moduleInfo.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+        this.logger?.error(LogSource.MODULES, `Error storing module ${module.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
   }
@@ -434,9 +434,15 @@ export class ModuleScannerService implements IModuleScannerService {
    * @param enabled - Whether to enable or disable.
    */
   public async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
-    await this.repository.execute('UPDATE modules SET enabled = ? WHERE name = ?', [enabled ? 1 : 0, name]);
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    await this.database.execute('UPDATE modules SET enabled = ? WHERE name = ?', [enabled ? 1 : 0, name]);
 
-    await this.repository.execute(`
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    await this.database.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
     `, [name, 'config_changed' as ModuleEventType, JSON.stringify({ enabled })]);
@@ -450,13 +456,19 @@ export class ModuleScannerService implements IModuleScannerService {
    */
   public async updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void> {
     const healthStatus = healthy ? 'healthy' as ModuleHealthStatus : 'unhealthy' as ModuleHealthStatus;
-    await this.repository.execute(`
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    await this.database.execute(`
       UPDATE modules 
       SET health_status = ?, health_message = ?, last_health_check = CURRENT_TIMESTAMP
       WHERE name = ?
     `, [healthStatus, message ?? null, name]);
 
-    await this.repository.execute(`
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+    await this.database.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
     `, [name, 'health_check' as ModuleEventType, JSON.stringify({

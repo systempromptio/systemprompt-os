@@ -1,10 +1,12 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable camelcase */
-
-/* eslint-disable systemprompt-os/enforce-type-exports */
+/**
+ * @file OAuth2 provider implementation for generic OAuth2/OIDC flows.
+ * @eslint-disable @typescript-eslint/naming-convention - OAuth2 spec uses snake_case
+ * @eslint-disable camelcase - OAuth2 spec requires snake_case for parameters
+ * @eslint-disable systemprompt-os/enforce-type-exports - Legacy compatibility
+ */
 
 import type {
-  IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
+  IdpConfig, IdpTokens, IIdpUserInfo, IIdentityProvider
 } from '@/modules/core/auth/types/provider-interface';
 
 /**
@@ -72,7 +74,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
 } = config;
     this.id = id;
     this.name = name;
-    this.type = issuer === null || issuer === undefined ? 'oauth2' : 'oidc';
+    this.type = issuer ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
       scope: scope ?? 'openid email profile',
@@ -95,14 +97,16 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       state,
     });
 
-    if (nonce !== null && nonce !== undefined && this.type === 'oidc') {
+    if (nonce && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorizationParams' in this.config && this.config.authorizationParams !== null && this.config.authorizationParams !== undefined) {
-      Object.entries(this.config.authorizationParams).forEach(([key, value]): void => {
-        params.append(key, value as string);
-      });
+    if ('authorizationParams' in this.config && this.config.authorizationParams) {
+      Object.entries(this.config.authorizationParams).forEach(
+        ([key, value]): void => {
+          params.append(key, String(value));
+        }
+      );
     }
 
     return `${this.config.authorizationEndpoint}?${params.toString()}`;
@@ -146,7 +150,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @returns Promise resolving to the user information.
    */
   public async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
-    if (this.config.userinfoEndpoint === null || this.config.userinfoEndpoint === undefined) {
+    if (!this.config.userinfoEndpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
 

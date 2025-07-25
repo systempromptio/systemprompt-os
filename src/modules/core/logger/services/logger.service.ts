@@ -9,17 +9,20 @@ import {
 } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import type {
-  ILogLevel,
-  ILogger,
-  ILoggerConfig,
-  LogArgs,
-  LogLevelName,
-} from '@/modules/core/logger/types/index';
 import {
- LogOutput, LogSource, LoggerMode
+  LogOutput,
+  LogSource,
+  LoggerMode,
+  type ILogLevel,
+  type ILogger,
+  type ILoggerConfig,
+  type LogArgs,
+  type LogLevelName,
 } from '@/modules/core/logger/types/index';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
+// Database service interface to avoid direct service dependency
+interface ILogDatabaseService {
+  execute(sql: string, params?: unknown[]): Promise<void>;
+}
 import {
   InvalidLogLevelError,
   LoggerDirectoryError,
@@ -48,7 +51,7 @@ export class LoggerService implements ILogger {
   private initialized = false;
   private config!: ILoggerConfig;
   private logsDir!: string;
-  private databaseService?: DatabaseService;
+  private databaseService?: ILogDatabaseService;
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -83,7 +86,7 @@ export class LoggerService implements ILogger {
    */
   initialize(config: ILoggerConfig): void {
     if (this.initialized) {
-      throw new LoggerInitializationError('Logger already initialized');
+      return;
     }
 
     try {
@@ -110,13 +113,16 @@ export class LoggerService implements ILogger {
 
   /**
    * Set the database service for database logging.
-   * @param {DatabaseService} databaseService - Database service instance.
+   * @param {ILogDatabaseService} databaseService - Database service instance.
    */
-  setDatabaseService(databaseService: DatabaseService): void {
+  setDatabaseService(databaseService: ILogDatabaseService): void {
     this.databaseService = databaseService;
-    if (this.config?.database?.enabled && this.config.outputs.includes(LogOutput.DATABASE)) {
-      this.initializeLogsTable().catch((error) => {
-        console.error('Failed to initialize logs table:', error);
+    if (
+      this.config?.database?.enabled === true &&
+      this.config.outputs.includes(LogOutput.DATABASE)
+    ) {
+      this.initializeLogsTable().catch((error: unknown): void => {
+        this.writeToStderr(`Failed to initialize logs table: ${String(error)}\n`);
       });
     }
   }
@@ -126,7 +132,7 @@ export class LoggerService implements ILogger {
    * @throws {Error} If database is not available.
    */
   private async initializeLogsTable(): Promise<void> {
-    if (!this.databaseService) {
+    if (this.databaseService === null || this.databaseService === undefined) {
       throw new Error('Database service not available');
     }
 

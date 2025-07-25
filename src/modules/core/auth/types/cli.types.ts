@@ -9,8 +9,8 @@ export interface ICliContext {
     format?: string;
     user?: string;
     role?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
-    options: Record<string, any>;
+    options: Record<string, unknown>;
     cwd: string;
 }

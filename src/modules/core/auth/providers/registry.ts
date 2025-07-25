@@ -6,74 +6,28 @@ import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index";
 import { LogSource } from "@/modules/core/logger/types/index";
 import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
-import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2';
+import {
+ GenericOAuth2Provider,
+ type IGenericOAuth2Config
+} from '@/modules/core/auth/providers/core/oauth2';
 import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
 import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
+import type {
+ OIDCDiscoveryResponse,
+ ProviderConfig,
+} from './types';
+
 
 /**
- *
- * IProviderConfig interface.
- *
+ * ProviderRegistry manages OAuth2/OIDC identity provider configurations.
+ * 
+ * This class handles loading provider configurations from YAML files,
+ * instantiating provider implementations, and managing the provider registry.
+ * It supports both built-in providers (Google, GitHub) and generic OAuth2/OIDC providers.
  */
-
-export interface IProviderConfig {
-  id: string;
-  name: string;
-  type: "oauth2" | "oidc" | "saml";
-  enabled: boolean;
-  endpoints: {
-    authorization: string;
-    token: string;
-    userinfo?: string;
-    revocation?: string;
-    discovery?: string;
-    jwks?: string;
-    emails?: string;
-  };
-  scopes?: string[];
-  parameters?: Record<string, unknown>;
-  token_endpoint_auth_method?: string;
-  userinfo_mapping?: Record<string, string>;
-  features?: Record<string, unknown>;
-  credentials: {
-    clientId: string;
-    clientSecret: string;
-    redirectUri: string;
-    private_key_path?: string;
-    kid?: string;
-  };
-}
-
-// Type alias for compatibility
-export type IIProviderConfig = IProviderConfig;
-
-/**
- *
- * IOIDCDiscoveryResponse interface.
- *
- */
-
-export interface IOIDCDiscoveryResponse {
-  issuer: string;
-  authorization_endpoint: string;
-  token_endpoint: string;
-  userinfo_endpoint?: string;
-  jwks_uri?: string;
-  scopes_supported?: string[];
-  response_types_supported?: string[];
-  grant_types_supported?: string[];
-  token_endpoint_auth_methods_supported?: string[];
-}
-
-/**
- *
- * ProviderRegistry class.
- *
- */
-
 export class ProviderRegistry {
   private readonly providers = new Map<string, IIdentityProvider>();
-  private readonly configs = new Map<string, IProviderConfig>();
+  private readonly configs = new Map<string, ProviderConfig>();
   private readonly logger?: ILogger;
   private readonly configPath: string;
 
@@ -115,15 +69,21 @@ export class ProviderRegistry {
     }
 
     const yamlFiles = readdirSync(providersPath).filter(
-      (file) => { return [".yaml", ".yml"].includes(extname(file)) && file !== "template.yaml" },
+      (file) => {
+        return [".yaml", ".yml"].includes(extname(file)) && file !== "template.yaml";
+      },
     );
 
-    await this.loadProviderFiles(yamlFiles.map(file => { return join(providersPath, file) }));
+    await this.loadProviderFiles(
+      yamlFiles.map(file => {
+        return join(providersPath, file);
+      })
+    );
     await this.loadCustomProviders(providersPath);
   }
 
   /**
-   *  * Loads custom provider configurations.
+   * Loads custom provider configurations.
    * @param basePath - Base providers directory path.
    */
   private async loadCustomProviders(basePath: string): Promise<void> {
@@ -134,14 +94,18 @@ export class ProviderRegistry {
     }
 
     const customFiles = readdirSync(customPath)
-      .filter((file) => { return [".yaml", ".yml"].includes(extname(file)) })
-      .map(file => { return join(customPath, file) });
+      .filter((file) => {
+        return [".yaml", ".yml"].includes(extname(file));
+      })
+      .map(file => {
+        return join(customPath, file);
+      });
 
     await this.loadProviderFiles(customFiles, true);
   }
 
   /**
-   *  * Loads provider configuration files.
+   * Loads provider configuration files.
    * @param filePaths - Array of file paths to load.
    * @param isCustom - Whether these are custom provider files.
    */
@@ -149,13 +113,17 @@ export class ProviderRegistry {
     const loadPromises = filePaths.map(async (filePath) => {
       try {
         const config = await this.loadProviderConfig(filePath);
-        if (config?.enabled) {
+        if (config !== null && config !== undefined && config.enabled) {
           this.configs.set(config.id, config);
           const providerType = isCustom ? "custom provider" : "provider";
           this.logger?.info(LogSource.AUTH, `Loaded ${providerType} config: ${config.id}`);
         }
       } catch (error) {
-        this.logger?.error(LogSource.AUTH, `Failed to load provider config ${filePath}`, { error: error as Error });
+        this.logger?.error(
+          LogSource.AUTH,
+          `Failed to load provider config ${filePath}`,
+          { error: error as Error }
+        );
       }
     });
 
@@ -163,21 +131,28 @@ export class ProviderRegistry {
   }
 
   /**
-   *  * Loads a single provider configuration file.
+   * Loads a single provider configuration file.
    * @param filePath - Path to the YAML configuration file.
    * @returns Parsed and validated provider configuration or null if invalid.
    */
-  private async loadProviderConfig(filePath: string): Promise<IIProviderConfig | null> {
+  private async loadProviderConfig(filePath: string): Promise<ProviderConfig | null> {
     const content = readFileSync(filePath, "utf8");
     const rawConfig = parseYaml(content) as unknown;
-    const config = this.substituteEnvVars(rawConfig) as IIProviderConfig;
+    const config = this.substituteEnvVars(rawConfig) as ProviderConfig;
 
     if (!this.isValidProviderConfig(config)) {
       this.logger?.warn(LogSource.AUTH, `Skipping provider config ${filePath}: missing required fields`);
       return null;
     }
 
-    if (config.credentials.clientId && config.credentials.clientSecret) {
+    if (
+      config.credentials.clientId !== null &&
+      config.credentials.clientId !== undefined &&
+      config.credentials.clientId !== '' &&
+      config.credentials.clientSecret !== null &&
+      config.credentials.clientSecret !== undefined &&
+      config.credentials.clientSecret !== ''
+    ) {
       config.enabled = true;
     }
 

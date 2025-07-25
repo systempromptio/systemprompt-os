@@ -77,7 +77,8 @@ export class UsersService implements IUsersService {
     }
 
     await this.repository.initialize();
-    await this.createDefaultUsers();
+    // Skip createDefaultUsers during initialization to avoid circular dependencies
+    // Default users can be created later via CLI or after all modules are ready
     this.initialized = true;
     this.logger?.info(LogSource.USERS, 'UsersService initialized');
   }
@@ -475,11 +476,12 @@ apiKey
   private async createDefaultUsers(): Promise<void> {
     const adminUser = await this.repository.findByUsername('admin');
     if (adminUser === null) {
+      // Create admin user without role assignment during initialization to avoid circular dependency
       await this.createUser({
         username: 'admin',
         email: 'admin@systemprompt.os',
-        password: 'admin123',
-        role: 'admin'
+        password: 'admin123'
+        // role assignment will be handled after all modules are initialized
       });
     }
   }

@@ -11,7 +11,7 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
- * Sequentially processes an array of items using a reducer pattern.
+ * Sequentially processes an array of items using a simple for-loop.
  * This ensures each operation completes before the next begins.
  * @param {T[]} items - Array of items to process.
  * @param {Function} processor - Async function to process each item.
@@ -22,10 +22,9 @@ export const processSequentially = async <T>(
   items: T[],
   processor: (item: T) => Promise<void>,
 ): Promise<void> => {
-  await items.reduce(async (previousPromise, item) => {
-    await previousPromise;
+  for (const item of items) {
     await processor(item);
-  }, Promise.resolve());
+  }
 };
 
 /**

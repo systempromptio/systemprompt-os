@@ -1,91 +1,127 @@
 /**
+ * JSON Schema to Zod converter utility.
+ * Provides functions to convert JSON Schema objects to equivalent Zod schemas.
  * @file JSON Schema to Zod converter utility.
  * @module src/utils/json-schema-to-zod
  */
 
 import { z } from 'zod';
+import type { JsonSchema } from '@/utils/types';
 
-export type JsonSchema = {
-  type?: string;
-  properties?: Record<string, JsonSchema>;
-  items?: JsonSchema;
-  required?: string[];
-  enum?: unknown[];
-  default?: unknown;
-} | null | undefined | string;
+type ValidJsonSchema = NonNullable<JsonSchema> & { [key: string]: unknown };
+
+/**
+ * Type guard to check if schema is a valid object.
+ * @param schema - The schema to check.
+ * @returns True if schema is a valid object.
+ */
+const isValidSchema = (schema: JsonSchema): schema is ValidJsonSchema => {
+  return schema !== null && schema !== undefined && typeof schema === 'object';
+};
+
+/**
+ * Creates a string enum from enum values.
+ * @param enumValues - Array of enum values.
+ * @returns Zod enum schema.
+ */
+const createStringEnum = (enumValues: unknown[]): z.ZodEnum<[string, ...string[]]> => {
+  const stringValues = enumValues.filter((value): value is string => {
+    return typeof value === 'string';
+  });
+  const [first, ...rest] = stringValues;
+  return z.enum([first, ...rest]);
+};
+
+/**
+ * Creates a union of literals from enum values.
+ * @param enumValues - Array of enum values.
+ * @returns Zod union schema.
+ */
+const createLiteralUnion = (
+  enumValues: unknown[]
+): z.ZodUnion<[z.ZodLiteral<unknown>, ...z.ZodLiteral<unknown>[]]> => {
+  const literals = enumValues.map((value: unknown): z.ZodLiteral<unknown> => {
+    return z.literal(value);
+  });
+  const [first, ...rest] = literals;
+  return z.union([first, ...rest]);
+};
+
+/**
+ * Handles enum type schemas.
+ * @param schema - The schema to process.
+ * @returns Zod enum or union schema.
+ */
+const handleEnumType = (schema: ValidJsonSchema): z.ZodType => {
+  const enumProperty = schema.enum as unknown;
+  if (!Array.isArray(enumProperty)) {
+    return z.any();
+  }
+
+  if (schema.type === 'string') {
+    return createStringEnum(enumProperty);
+  }
+  return createLiteralUnion(enumProperty);
+};
 
 /**
  * Converts a JSON Schema object to a Zod schema.
  * @param schema - The JSON Schema object to convert.
  * @returns A Zod schema equivalent to the JSON Schema.
  */
-export function jsonSchemaToZod(schema: JsonSchema): z.ZodType {
-  if (!schema || typeof schema !== 'object') {
+export const jsonSchemaToZod = (schema: JsonSchema): z.ZodType => {
+  if (!isValidSchema(schema)) {
     return z.any();
   }
 
-  if (schema.enum && Array.isArray(schema.enum)) {
-    if (schema.type === 'string') {
-      return z.enum(schema.enum as [string, ...string[]]);
+  const enumProperty = schema.enum as unknown;
+  if (Array.isArray(enumProperty)) {
+    return handleEnumType(schema);
+  }
+
+  if (schema.type === 'string') {
+    return z.string();
+  }
+
+  if (schema.type === 'number') {
+    return z.number();
+  }
+
+  if (schema.type === 'boolean') {
+    return z.boolean();
+  }
+
+  if (schema.type === 'array') {
+    const itemsProperty = schema.items as JsonSchema;
+    if (itemsProperty !== null && itemsProperty !== undefined) {
+      return z.array(jsonSchemaToZod(itemsProperty));
     }
-    return z.union(schema.enum.map(value => { return z.literal(value) }) as [z.ZodLiteral<any>, ...z.ZodLiteral<any>[]]);
+    return z.array(z.any());
   }
 
-  switch (schema.type) {
-    case 'string':
-      return z.string();
+  if (schema.type === 'object' || schema.properties !== undefined) {
+    const propertiesObj = (schema.properties as Record<string, JsonSchema>) ?? {};
+    const requiredArray = (schema.required as string[]) ?? [];
+    const zodShape: Record<string, z.ZodType> = {};
 
-    case 'number':
-      return z.number();
+    Object.entries(propertiesObj).forEach(([key, propSchema]: [string, JsonSchema]): void => {
+      let zodProp = jsonSchemaToZod(propSchema);
 
-    case 'boolean':
-      return z.boolean();
-
-    case 'array':
-      if (schema.items) {
-        return z.array(jsonSchemaToZod(schema.items));
+      if (!requiredArray.includes(key)) {
+        zodProp = zodProp.optional();
       }
-      return z.array(z.any());
 
-    case 'object':
-      return handleObjectSchema(schema);
+      zodShape[key] = zodProp;
+    });
 
-    default:
-      if (schema.properties) {
-        return handleObjectSchema(schema);
-      }
-      return z.any();
-  }
-}
+    const objectSchema = z.object(zodShape);
 
-/**
- * Handles object schema conversion.
- * @param schema - The object schema to convert.
- * @returns A Zod object schema.
- */
-function handleObjectSchema(schema: JsonSchema): z.ZodObject<any> {
-  if (!schema || typeof schema !== 'object') {
-    return z.object({});
-  }
-
-  const { properties = {}, required = [] } = schema;
-  const zodShape: Record<string, z.ZodType> = {};
-
-  for (const [key, propSchema] of Object.entries(properties)) {
-    let zodProp = jsonSchemaToZod(propSchema);
-
-    if (!required.includes(key)) {
-      zodProp = zodProp.optional();
+    if (Object.keys(propertiesObj).length === 0) {
+      return objectSchema.passthrough();
     }
 
-    zodShape[key] = zodProp;
+    return objectSchema;
   }
 
-  const objectSchema = z.object(zodShape);
-
-  if (Object.keys(properties).length === 0) {
-    return objectSchema.passthrough();
-  }
-
-  return objectSchema;
-}
+  return z.any();
+};

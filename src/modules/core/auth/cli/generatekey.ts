@@ -5,7 +5,7 @@
 
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { generateJWTKeyPair } from '@/modules/core/auth/utils/generate-key';
+import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
 import { ONE } from '@/const/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
@@ -48,7 +48,7 @@ export const command = {
 
       console.log(`Generating ${args.algorithm ?? 'default'} keys in ${args.format ?? 'default'} format...`);
 
-      await generateJWTKeyPair({
+      await generateJwtKeyPair({
         type: args.type,
         algorithm: (args.algorithm as "RS256" | "RS512" | "ES256" | "ES512") || "RS256",
         outputDir,

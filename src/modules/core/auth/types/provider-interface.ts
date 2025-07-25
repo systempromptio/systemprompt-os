@@ -1,25 +1,21 @@
 /**
- *
- * IOAuth2TokenResponse interface.
- *
+ * OAuth2 token response interface for handling authentication tokens.
+ * Includes access token, token type, expiration time, refresh token, scope, and ID token.
  */
-
-export interface IIOAuth2TokenResponse {
+export interface IAuthTokenResponse {
   accessToken: string;
   tokenType: string;
-  expires_in?: number;
-  refresh_token?: string;
+  expiresIn?: number;
+  refreshToken?: string;
   scope?: string;
-  id_token?: string; // For OpenID Connect
+  idToken?: string;
 }
 
 /**
- *
- * IOAuth2ClientCredentials interface.
- *
+ * OAuth2 client credentials interface for authentication configuration.
+ * Contains client ID, secret, redirect URI, and optional scope.
  */
-
-export interface IIOAuth2ClientCredentials {
+export interface IAuthClientCredentials {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
@@ -27,57 +23,109 @@ export interface IIOAuth2ClientCredentials {
 }
 
 /**
- *
- * IDPUserInfo interface.
- *
+ * Identity Provider user information interface.
+ * Contains user ID, email, email verification status, name, picture, locale, and raw data.
+ * Email verification follows OpenID Connect standard claims.
  */
-
-export interface IIDPUserInfo {
+export interface IIdpUserInfo {
   id: string;
   email?: string;
-  email_verified?: boolean; // Standard OpenID Connect claim
+  emailVerified?: boolean;
   name?: string;
   picture?: string;
   locale?: string;
-    raw?: Record<string, unknown>;
+  raw?: Record<string, unknown>;
 }
 
 /**
- *
- * IDPTokens type.
- *
+ * Identity Provider tokens type alias.
  */
-
-export type IDPTokens = OAuth2TokenResponse;
-/**
- * IDPConfig type.
- */
-export type IDPConfig = OAuth2ClientCredentials;
+export type IdpTokens = IAuthTokenResponse;
 
 /**
- *
- * IdentityProvider interface.
- *
+ * Identity Provider configuration type alias.
  */
+export type IdpConfig = IAuthClientCredentials;
 
+/**
+ * Identity Provider interface for authentication providers.
+ * Defines standard methods for OAuth2, OIDC, and SAML authentication flows.
+ * Includes authorization URL, token exchange, user info, token refresh, and revocation.
+ */
 export interface IIdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc' | 'saml';
 
-    getAuthorizationUrl(state: string, nonce?: string): string;
+  getAuthorizationUrl(state: string, nonce?: string): string;
 
-    exchangeCodeForTokens(_code: string): Promise<IDPTokens>;
+  exchangeCodeForTokens(_code: string): Promise<IdpTokens>;
 
-    getUserInfo(_accessToken: string): Promise<IDPUserInfo>;
+  getUserInfo(_accessToken: string): Promise<IIdpUserInfo>;
 
-    refreshTokens?(_refreshToken: string): Promise<IDPTokens>;
+  refreshTokens?(_refreshToken: string): Promise<IdpTokens>;
 
-    revokeTokens?(_token: string): Promise<void>;
+  revokeTokens?(_token: string): Promise<void>;
 }
 
-// Type aliases for compatibility
+/**
+ * Google OAuth2 provider configuration interface.
+ * Extends base IDP configuration with Google-specific discovery URL.
+ */
+export interface IGoogleConfig extends IdpConfig {
+  discoveryurl?: string;
+}
+
+/**
+ * Google user information response interface.
+ * Contains Google-specific user data including subject ID and additional properties.
+ */
+export interface IGoogleUserInfo {
+  sub: string;
+  email?: string;
+  emailVerified?: boolean;
+  name?: string;
+  picture?: string;
+  locale?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Type aliases for backward compatibility.
+ */
 export type IdentityProvider = IIdentityProvider;
-export type OAuth2TokenResponse = IIOAuth2TokenResponse;
-export type OAuth2ClientCredentials = IIOAuth2ClientCredentials;
-export type IDPUserInfo = IIDPUserInfo;
+
+/**
+ * OAuth2 token response type alias for backward compatibility.
+ */
+export type AuthTokenResponse = IAuthTokenResponse;
+
+/**
+ * OAuth2 client credentials type alias for backward compatibility.
+ */
+export type AuthClientCredentials = IAuthClientCredentials;
+
+/**
+ * IDP user info type alias for backward compatibility.
+ */
+export type IdpUserInfo = IIdpUserInfo;
+
+/**
+ * IDP tokens type alias for backward compatibility.
+ */
+export type IdpTokensCompat = IdpTokens;
+
+/**
+ * IDP config type alias for backward compatibility.
+ */
+export type IdpConfigCompat = IdpConfig;
+
+/**
+ * Google config type alias for backward compatibility.
+ */
+export type GoogleConfig = IGoogleConfig;
+
+/**
+ * Google user info type alias for backward compatibility.
+ */
+export type GoogleUserInfo = IGoogleUserInfo;

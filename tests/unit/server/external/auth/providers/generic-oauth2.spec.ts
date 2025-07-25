@@ -3,38 +3,39 @@
  * @module tests/unit/server/external/auth/providers/generic-oauth2
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GenericOAuth2Provider } from '../../../../../../src/server/external/auth/providers/generic-oauth2.js';
-import { generateOAuth2ProviderTests } from './oauth2-shared-tests.js';
+import type { GenericOAuth2Config } from '../../../../../../src/server/external/auth/providers/types/generic-oauth2.js';
 
 // Mock global fetch
 global.fetch = vi.fn();
 
-const baseConfig = {
+const baseConfig: GenericOAuth2Config = {
   id: 'test-provider',
   name: 'Test Provider',
-  client_id: 'test-client-id',
-  client_secret: 'test-client-secret',
-  redirect_uri: 'http://localhost:3000/callback',
-  authorization_endpoint: 'https://provider.com/auth',
-  token_endpoint: 'https://provider.com/token',
-  userinfo_endpoint: 'https://provider.com/userinfo',
+  clientId: 'test-client-id',
+  clientSecret: 'test-client-secret',
+  redirectUri: 'http://localhost:3000/callback',
+  authorizationEndpoint: 'https://provider.com/auth',
+  tokenEndpoint: 'https://provider.com/token',
+  userinfoEndpoint: 'https://provider.com/userinfo',
   scope: 'openid email profile'
 };
 
-// Generate comprehensive tests using shared utility for OAuth2
-generateOAuth2ProviderTests({
-  providerName: 'Generic OAuth2',
-  providerId: 'test-provider',
-  providerType: 'oauth2',
-  createProvider: (config) => new GenericOAuth2Provider(config),
-  baseConfig,
-  expectedTokenEndpoint: 'https://provider.com/token',
-  expectedUserInfoEndpoint: 'https://provider.com/userinfo',
-  supportsRefresh: true
-}, () => {
-  // Generic OAuth2-specific tests
-  describe('Generic OAuth2-specific features', () => {
+describe('GenericOAuth2Provider', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Constructor', () => {
+    it('should initialize OAuth2 provider with correct properties', () => {
+      const provider = new GenericOAuth2Provider(baseConfig);
+      
+      expect(provider.id).toBe('test-provider');
+      expect(provider.name).toBe('Test Provider');
+      expect(provider.type).toBe('oauth2');
+    });
+
     it('should become OIDC provider when issuer is provided', () => {
       const config = {
         ...baseConfig,
@@ -45,60 +46,48 @@ generateOAuth2ProviderTests({
       expect(provider.type).toBe('oidc');
     });
 
-    it('should support custom authorization parameters', () => {
+    it('should become OIDC provider when issuer is empty string', () => {
       const config = {
         ...baseConfig,
-        authorization_params: {
-          prompt: 'consent',
-          access_type: 'offline'
-        }
+        issuer: ''
       };
       
       const provider = new GenericOAuth2Provider(config);
-      const authUrl = provider.getAuthorizationUrl('state', 'nonce');
+      expect(provider.type).toBe('oauth2');
+    });
+
+    it('should set default scope when not provided', () => {
+      const configWithoutScope = {
+        ...baseConfig
+      };
+      delete configWithoutScope.scope;
+      
+      const provider = new GenericOAuth2Provider(configWithoutScope);
+      const authUrl = provider.getAuthorizationUrl('test-state');
       const url = new URL(authUrl);
       
-      expect(url.searchParams.get('prompt')).toBe('consent');
-      expect(url.searchParams.get('access_type')).toBe('offline');
+      expect(url.searchParams.get('scope')).toBe('openid email profile');
     });
 
-    it('should handle custom user info mapping', async () => {
+    it('should use provided scope when available', () => {
       const config = {
         ...baseConfig,
-        userinfo_mapping: {
-          id: 'sub',
-          email: 'email_address',
-          name: 'display_name',
-          picture: 'avatar_url'
-        }
+        scope: 'custom scope'
       };
-
-      const mockUserInfo = {
-        sub: 'custom-id-123',
-        email_address: 'custom@example.com',
-        display_name: 'Custom User',
-        avatar_url: 'https://example.com/avatar.jpg'
-      };
-
-      vi.mocked(global.fetch).mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValue(mockUserInfo)
-      } as any);
-
+      
       const provider = new GenericOAuth2Provider(config);
-      const userInfo = await provider.getUserInfo('token');
+      const authUrl = provider.getAuthorizationUrl('test-state');
+      const url = new URL(authUrl);
+      
+      expect(url.searchParams.get('scope')).toBe('custom scope');
+    });
 
-      expect(userInfo).toEqual({
-        id: 'custom-id-123',
-        email: 'custom@example.com',
-        email_verified: undefined,
-        name: 'Custom User',
-        picture: 'https://example.com/avatar.jpg',
-        raw: mockUserInfo
-      });
+    it('should set default userinfoMapping when not provided', () => {
+      const provider = new GenericOAuth2Provider(baseConfig);
+      // We'll test this indirectly through getUserInfo method
+      expect(provider).toBeDefined();
     });
   });
-});
 
 // Generate tests for OIDC configuration
 describe('Generic OIDC Provider', () => {

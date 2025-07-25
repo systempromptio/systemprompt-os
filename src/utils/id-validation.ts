@@ -1,15 +1,11 @@
-/**
- * Regular expression pattern for validating UUID format.
- * Matches UUID v1, v4, v5 formats in both uppercase and lowercase.
- */
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { PREFIXED_TASK_REGEX, UUID_REGEX } from '@/constants/validation.constants';
 
 /**
  * Validates if the input is a valid UUID format.
  * @param input - The input to validate (can be any type).
  * @returns True if the input is a valid UUID string, false otherwise.
  */
-export function isValidUUID(input: any): boolean {
+export const isValidUuid = (input: unknown): boolean => {
   if (typeof input !== 'string') {
     return false;
   }
@@ -19,7 +15,7 @@ export function isValidUUID(input: any): boolean {
   }
 
   return UUID_REGEX.test(input);
-}
+};
 
 /**
  * Validates a task ID format.
@@ -28,7 +24,7 @@ export function isValidUUID(input: any): boolean {
  * @returns The validated task ID if valid.
  * @throws {Error} If the task ID is invalid.
  */
-export function validateTaskId(taskId: any): string {
+export const validateTaskId = (taskId: unknown): string => {
   if (taskId === null || taskId === undefined || typeof taskId !== 'string') {
     throw new Error('Invalid task ID');
   }
@@ -39,19 +35,62 @@ export function validateTaskId(taskId: any): string {
 
   const trimmedId = taskId.trim();
 
-  if (isValidUUID(trimmedId)) {
+  if (isValidUuid(trimmedId)) {
     return trimmedId;
   }
 
   if (trimmedId.startsWith('task_')) {
-    const uuidPart = trimmedId.substring(5)
-    if (isValidUUID(uuidPart)) {
+    const uuidPart = trimmedId.substring(5);
+    if (isValidUuid(uuidPart)) {
       return trimmedId;
     }
   }
 
   throw new Error('Invalid task ID');
-}
+};
+
+/**
+ * Helper function to validate input type and trim whitespace.
+ * @param taskId - The task ID to validate.
+ * @returns The trimmed task ID.
+ * @throws {Error} If the task ID is invalid.
+ */
+const validateAndTrimInput = (taskId: unknown): string => {
+  if (taskId === null || taskId === undefined || typeof taskId !== 'string') {
+    throw new Error('Invalid task ID');
+  }
+
+  const trimmed = taskId.trim();
+  if (trimmed.length === 0) {
+    throw new Error('Invalid task ID');
+  }
+
+  return trimmed;
+};
+
+/**
+ * Helper function to remove task prefix and validate.
+ * @param sanitized - The sanitized task ID.
+ * @returns The processed task ID.
+ * @throws {Error} If the task ID is invalid.
+ */
+const removeTaskPrefix = (sanitized: string): string => {
+  let processed = sanitized;
+
+  if (processed.startsWith('task_')) {
+    processed = processed.substring(5);
+
+    if (processed.startsWith('task_')) {
+      throw new Error('Invalid task ID');
+    }
+  }
+
+  if (processed.includes('_') && PREFIXED_TASK_REGEX.test(processed)) {
+    throw new Error('Invalid task ID');
+  }
+
+  return processed;
+};
 
 /**
  * Sanitizes a task ID by trimming whitespace, removing task_ prefix,
@@ -60,36 +99,14 @@ export function validateTaskId(taskId: any): string {
  * @returns The sanitized UUID string.
  * @throws {Error} If the task ID is invalid after sanitization.
  */
-export function sanitizeTaskId(taskId: any): string {
-  if (taskId === null || taskId === undefined || typeof taskId !== 'string') {
-    throw new Error('Invalid task ID');
-  }
+export const sanitizeTaskId = (taskId: unknown): string => {
+  const trimmed = validateAndTrimInput(taskId);
+  const withoutPrefix = removeTaskPrefix(trimmed);
+  const sanitized = withoutPrefix.toLowerCase();
 
-  let sanitized = taskId.trim();
-
-  if (sanitized.length === 0) {
-    throw new Error('Invalid task ID');
-  }
-
-  if (sanitized.startsWith('task_')) {
-    sanitized = sanitized.substring(5);
-
-    if (sanitized.startsWith('task_')) {
-      throw new Error('Invalid task ID');
-    }
-  }
-
-  if (sanitized.includes('_') && (/^[a-zA-Z]+_/).test(sanitized)) {
-    if (!sanitized.startsWith('task_')) {
-      throw new Error('Invalid task ID');
-    }
-  }
-
-  sanitized = sanitized.toLowerCase();
-
-  if (!isValidUUID(sanitized)) {
+  if (!isValidUuid(sanitized)) {
     throw new Error('Invalid task ID');
   }
 
   return sanitized;
-}
+};

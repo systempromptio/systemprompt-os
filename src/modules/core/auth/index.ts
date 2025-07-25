@@ -19,6 +19,7 @@ import { MFAService } from '@/modules/core/auth/services/mfa.service';
 import { AuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import { ConfigurationError } from '@/modules/core/auth/utils/errors';
+import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
 import {
   FIVE, TEN
 } from '@/const/numbers';
@@ -62,11 +63,7 @@ export class AuthModule implements IModule {
   private database!: DatabaseService;
   private initialized = false;
   private started = false;
-
-  /**
-   * Get the module's exported services and methods.
-   * @returns The exported authentication services and utilities.
-   */
+  private cleanupInterval: NodeJS.Timeout | null = null;
   get exports(): AuthModuleExports {
     return {
       service: (): AuthService => { return this.authService },
@@ -77,8 +74,12 @@ export class AuthModule implements IModule {
       auditService: (): AuditService => { return this.auditService },
       getProvider: (id: string): IdentityProvider | undefined => { return this.getProvider(id) },
       getAllProviders: (): IdentityProvider[] => { return this.getAllProviders() },
-      createToken: async (input: TokenCreateInput): Promise<AuthToken> => { return await this.createToken(input) },
-      validateToken: async (token: string): Promise<TokenValidationResult> => { return await this.validateToken(token) },
+      createToken: async (input: TokenCreateInput): Promise<AuthToken> => {
+        return await this.createToken(input);
+      },
+      validateToken: async (token: string): Promise<TokenValidationResult> => {
+        return await this.validateToken(token);
+      },
       hasProvider: (id: string): boolean => { return this.hasProvider(id) },
       getProviderRegistry: (): ProviderRegistry | null => { return this.getProviderRegistry() },
       reloadProviders: async (): Promise<void> => { await this.reloadProviders(); },
@@ -103,7 +104,9 @@ export class AuthModule implements IModule {
 
       this.config = this.buildConfig();
 
-      const keyStorePath = this.config.jwt.keyStorePath || './state/auth/keys';
+      const keyStorePath = this.config.jwt.keyStorePath !== '' 
+        ? this.config.jwt.keyStorePath 
+        : './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
       if (!existsSync(absolutePath)) {
@@ -117,9 +120,8 @@ export class AuthModule implements IModule {
       if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
         this.logger.info(LogSource.AUTH, 'JWT keys not found, generating new keys...');
 
-        const { generateJWTKeyPair } = await import('@/modules/core/auth/utils/generate-key.js');
 
-        await generateJWTKeyPair({
+        await generateJwtKeyPair({
           type: 'jwt',
           algorithm: 'RS256',
           outputDir: absolutePath,
@@ -145,7 +147,8 @@ export class AuthModule implements IModule {
       if (process.env.NODE_ENV !== 'production') {
         const tunnelConfig = {
           port: parseInt(process.env.PORT ?? '3000', TEN),
-          ...process.env.TUNNEL_DOMAIN && { permanentDomain: process.env.TUNNEL_DOMAIN },
+          ...(process.env.TUNNEL_DOMAIN !== undefined && process.env.TUNNEL_DOMAIN !== '' && 
+            { permanentDomain: process.env.TUNNEL_DOMAIN }),
         };
         this.tunnelService = new TunnelService(tunnelConfig, this.logger);
       }
@@ -154,7 +157,9 @@ export class AuthModule implements IModule {
       this.logger.info(LogSource.AUTH, 'Auth module initialized', { version: this.version });
     } catch (error) {
       throw new ConfigurationError(
-        `Failed to initialize auth module: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to initialize auth module: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
@@ -175,7 +180,9 @@ export class AuthModule implements IModule {
       const schemaPath = join(currentDirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter((s) => { return s.trim() !== '' });
+        const statements = schema.split(';').filter((statement) => {
+          return statement.trim() !== '';
+        });
 
         for (const statement of statements) {
           if (statement.trim() !== '') {
@@ -204,7 +211,7 @@ export class AuthModule implements IModule {
           24 * 60 * 60 * 1000
         );
 
-        (this as any)._cleanupInterval = intervalId;
+        this.cleanupInterval = intervalId;
       }
 
       this.status = ModuleStatus.RUNNING;
@@ -220,9 +227,9 @@ export class AuthModule implements IModule {
    * Stop the auth module.
    */
   async stop(): Promise<void> {
-    if ((this as any)._cleanupInterval) {
-      clearInterval((this as any)._cleanupInterval);
-      delete (this as any)._cleanupInterval;
+    if (this.cleanupInterval !== null) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
 
     if (this.tunnelService !== null) {
@@ -265,7 +272,7 @@ export class AuthModule implements IModule {
    * @returns Promise resolving to login result with tokens and user info.
    */
   async login(input: LoginInput): Promise<LoginResult> {
-    return await this.authService.login(input);
+    return this.authService.login(input);
   }
 
   /**

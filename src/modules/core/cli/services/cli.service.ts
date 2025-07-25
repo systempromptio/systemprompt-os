@@ -22,31 +22,53 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
 
+/**
+ * Database command interface matching exact database schema.
+ * @interface IDatabaseCommand
+ */
+ 
 interface IDatabaseCommand {
   id: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   command_path: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   command_name: string;
   description: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   module_name: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   executor_path: string;
   options: string;
   aliases: string;
   active: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_at: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   updated_at: string;
 }
 
+/**
+ * Parsed database command interface with JSON-parsed fields.
+ * @interface IParsedDatabaseCommand
+ */
+ 
 interface IParsedDatabaseCommand {
   id: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   command_path: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   command_name: string;
   description: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   module_name: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   executor_path: string;
   options: CLIOption[];
   aliases: string[];
   active: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_at: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   updated_at: string;
 }
 
@@ -91,7 +113,7 @@ export class CliService {
    * @param database - Database service instance.
    * @throws {CliInitializationError} If initialization fails.
    */
-  public async initialize(logger: CLILogger, database: DatabaseService): Promise<void> {
+  public initialize(logger: CLILogger, database: DatabaseService): void {
     if (this.initialized) {
       return;
     }
@@ -100,7 +122,9 @@ export class CliService {
       this.logger = logger;
       this.database = database;
 
-      // Database schema is handled by the global database service via schema discovery
+      /**
+       * Database schema is handled by the global database service via schema discovery.
+       */
 
       this.initialized = true;
       this.logger?.debug(LogSource.CLI, 'CLI service initialized', {
@@ -500,99 +524,192 @@ export class CliService {
   public async scanAndRegisterModuleCommands(
     modules: Map<string, { path: string }>,
   ): Promise<void> {
-    // Clear existing commands first to ensure clean state
+    /**
+     * Clear existing commands first to ensure clean state.
+     */
     await this.clearAllCommands();
 
-    this.logger?.debug(LogSource.CLI, `Scanning ${modules.size} modules for CLI commands`, {
+    this.logger?.debug(LogSource.CLI, `Scanning ${String(modules.size)} modules for CLI commands`, {
       category: 'commands',
       persistToDb: false,
     });
 
-    for (const [moduleName, moduleInfo] of modules) {
-      try {
-        const yamlPath = join(moduleInfo.path, 'module.yaml');
-        this.logger?.debug(LogSource.CLI, `Checking for module.yaml at: ${yamlPath}`, {
-          category: 'commands',
-          persistToDb: false,
-        });
+    const moduleEntries = Array.from(modules.entries());
+    const validModules = moduleEntries.filter(([moduleName, moduleInfo]) => {
+      return this.validateModuleYaml(moduleName, moduleInfo.path);
+    });
 
-        if (!existsSync(yamlPath)) {
-          this.logger?.debug(
-            LogSource.CLI,
-            `Module YAML not found for ${moduleName}: ${yamlPath}`,
-            { category: 'commands',
+    await Promise.all(
+      validModules.map(async ([moduleName, moduleInfo]) => {
+        await this.processModuleCommands(moduleName, moduleInfo.path);
+      }),
+    );
+
+    /**
+     * Module command scanning complete (silent for CLI).
+     */
+  }
+
+  /**
+   * Validate if a module has a valid module.yaml file.
+   * @param moduleName - Name of the module.
+   * @param modulePath - Path to the module.
+   * @returns Whether the module has a valid YAML file.
+   */
+  private validateModuleYaml(moduleName: string, modulePath: string): boolean {
+    const yamlPath = join(modulePath, 'module.yaml');
+    this.logger?.debug(LogSource.CLI, `Checking for module.yaml at: ${yamlPath}`, {
+      category: 'commands',
+      persistToDb: false,
+    });
+
+    if (!existsSync(yamlPath)) {
+      this.logger?.debug(
+        LogSource.CLI,
+        `Module YAML not found for ${moduleName}: ${yamlPath}`,
+        { category: 'commands',
 persistToDb: false },
-          );
-          continue;
-        }
+      );
+      return false;
+    }
+    return true;
+  }
 
-        const yamlContent = readFileSync(yamlPath, 'utf-8');
-        const moduleConfig = parse(yamlContent) as {
-          cli?: {
-            commands?: Array<{
-              name: string;
-              description: string;
-              executor?: string;
-              options?: CLIOption[];
-            }>;
-          };
-        };
+  /**
+   * Process commands for a single module.
+   * @param moduleName - Name of the module.
+   * @param modulePath - Path to the module.
+   */
+  private async processModuleCommands(moduleName: string, modulePath: string): Promise<void> {
+    try {
+      const commands = this.parseModuleCommands(moduleName, modulePath);
+      await this.registerModuleCommands(moduleName, modulePath, commands);
+    } catch (error) {
+      this.logger?.warn(LogSource.CLI, `Failed to parse commands from module ${moduleName}`, {
+        category: 'commands',
+        error: error as Error,
+      });
+    }
+  }
 
-        const commands = moduleConfig.cli?.commands ?? [];
-        this.logger?.debug(
-          LogSource.CLI,
-          `Found ${commands.length} CLI commands in ${moduleName} module`,
-          { category: 'commands',
+  /**
+   * Parse commands from a module's YAML file.
+   * @param moduleName - Name of the module.
+   * @param modulePath - Path to the module.
+   * @returns Array of parsed commands.
+   */
+  private parseModuleCommands(
+    moduleName: string,
+    modulePath: string,
+  ): Array<{
+    name: string;
+    description: string;
+    executor?: string;
+    options?: CLIOption[];
+  }> {
+    const yamlPath = join(modulePath, 'module.yaml');
+    const yamlContent = readFileSync(yamlPath, 'utf-8');
+    const moduleConfig = parse(yamlContent) as {
+      cli?: {
+        commands?: Array<{
+          name: string;
+          description: string;
+          executor?: string;
+          options?: CLIOption[];
+        }>;
+      };
+    };
+
+    const commands = moduleConfig.cli?.commands ?? [];
+    this.logger?.debug(
+      LogSource.CLI,
+      `Found ${String(commands.length)} CLI commands in ${moduleName} module`,
+      { category: 'commands',
 persistToDb: false },
-        );
+    );
 
-        for (const command of commands) {
-          const commandPath = `${moduleName}:${command.name}`;
-          // If no executor specified, assume it's in cli/{command.name}.js
-          const executor = command.executor ?? `cli/${command.name.replace(':', '/')}.js`;
+    return commands;
+  }
 
-          // Use source path directly with tsx
-          const sourcePath = moduleInfo.path;
-          const executorPath = join(sourcePath, executor.replace('.js', '.ts'));
-
-          this.logger?.debug(
-            LogSource.CLI,
-            `Registering command: ${commandPath} -> ${executorPath}`,
-            { category: 'commands',
-persistToDb: false },
-          );
-
-          const cliCommand: CLICommand = {
-            name: command.name,
-            description: command.description ?? '',
-            options: command.options ?? [],
-          };
-
-          await this.registerCommand(cliCommand, moduleName, executorPath);
-
-          this.logger?.debug(LogSource.CLI, `Successfully registered command: ${commandPath}`, {
-            category: 'commands',
-            persistToDb: false,
-          });
-        }
-
-        if (commands.length > 0) {
-          this.logger?.debug(
-            LogSource.CLI,
-            `Registered ${commands.length} commands from module: ${moduleName}`,
-            { category: 'commands',
-persistToDb: false },
-          );
-        }
-      } catch (error) {
-        this.logger?.warn(LogSource.CLI, `Failed to parse commands from module ${moduleName}`, {
-          category: 'commands',
-          error: error as Error,
-        });
-      }
+  /**
+   * Register commands for a module.
+   * @param moduleName - Name of the module.
+   * @param modulePath - Path to the module.
+   * @param commands - Array of commands to register.
+   */
+  private async registerModuleCommands(
+    moduleName: string,
+    modulePath: string,
+    commands: Array<{
+      name: string;
+      description: string;
+      executor?: string;
+      options?: CLIOption[];
+    }>,
+  ): Promise<void> {
+    for (const command of commands) {
+      await this.registerSingleCommand(moduleName, modulePath, command);
     }
 
-    // Module command scanning complete (silent for CLI)
+    if (commands.length > 0) {
+      this.logger?.debug(
+        LogSource.CLI,
+        `Registered ${String(commands.length)} commands from module: ${moduleName}`,
+        { category: 'commands',
+persistToDb: false },
+      );
+    }
+  }
+
+  /**
+   * Register a single command.
+   * @param moduleName - Name of the module.
+   * @param modulePath - Path to the module.
+   * @param command - Command configuration to register.
+   * @param command.name
+   * @param command.description
+   * @param command.executor
+   * @param command.options
+   */
+  private async registerSingleCommand(
+    moduleName: string,
+    modulePath: string,
+    command: {
+      name: string;
+      description: string;
+      executor?: string;
+      options?: CLIOption[];
+    },
+  ): Promise<void> {
+    const commandPath = `${moduleName}:${command.name}`;
+    /**
+     * If no executor specified, assume it's in cli/{command.name}.js.
+     */
+    const executor = command.executor ?? `cli/${command.name.replace(':', '/')}.js`;
+    /**
+     * Use source path directly with tsx.
+     */
+    const executorPath = join(modulePath, executor.replace('.js', '.ts'));
+
+    this.logger?.debug(
+      LogSource.CLI,
+      `Registering command: ${commandPath} -> ${executorPath}`,
+      { category: 'commands',
+persistToDb: false },
+    );
+
+    const cliCommand: CLICommand = {
+      name: command.name,
+      description: command.description ?? '',
+      options: command.options ?? [],
+    };
+
+    await this.registerCommand(cliCommand, moduleName, executorPath);
+
+    this.logger?.debug(LogSource.CLI, `Successfully registered command: ${commandPath}`, {
+      category: 'commands',
+      persistToDb: false,
+    });
   }
 
   /**

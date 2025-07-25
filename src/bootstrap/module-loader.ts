@@ -4,10 +4,8 @@
  * @module bootstrap/module-loader
  */
 
-import { Container } from 'typedi';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
 import type {
-  GlobalConfiguration,
   ICoreModuleDefinition,
 } from '@/types/bootstrap';
 import type { ModuleConstructor } from '@/types/bootstrap-module';
@@ -88,35 +86,6 @@ export const isValidModule = (instance: unknown): instance is IModule => {
 };
 
 /**
- * Load an extension module.
- * @param {ModuleInfo} moduleInfo - Module information.
- * @param {GlobalConfiguration} _config - Global configuration.
- * @returns {Promise<IModule>} Module instance.
- */
-export const loadExtensionModule = async (
-  moduleInfo: ModuleInfo,
-  _config: GlobalConfiguration,
-): Promise<IModule> => {
-  const moduleExports = await import(moduleInfo.path) as Record<string, unknown>;
-  const moduleClass = findModuleClass(moduleExports, moduleInfo.path);
-
-  const moduleInstance = Container.get(moduleClass);
-  if (!isValidModule(moduleInstance)) {
-    throw new Error(`Invalid module instance for ${moduleInfo.name}`);
-  }
-
-  if (moduleInstance.initialize !== undefined) {
-    await moduleInstance.initialize();
-  }
-
-  if (moduleInfo.autoStart && moduleInstance.start !== undefined) {
-    await moduleInstance.start();
-  }
-
-  return moduleInstance;
-};
-
-/**
  * Load a core module.
  * @param {ICoreModuleDefinition} definition - Module definition.
  * @param {Map<string, IModule>} modules - Loaded modules map.
@@ -136,6 +105,33 @@ export const loadCoreModule = async (
     }
   }
 
+  const resolvedPath = new URL(path, `file://${process.cwd()}/`).href;
+  const moduleExports = await import(resolvedPath) as Record<string, unknown>;
+  const moduleInstance = createModuleInstance(moduleExports, name, type);
+
+  if (!isValidModule(moduleInstance)) {
+    throw new Error(`Invalid module instance for ${name}`);
+  }
+
+  return moduleInstance;
+};
+
+/**
+ * Load an extension module.
+ * @param moduleInfo - Module information.
+ * @param moduleInfo.name
+ * @param _config - Global configuration.
+ * @param moduleInfo.path
+ * @param moduleInfo.type
+ * @returns Module instance.
+ */
+export const loadExtensionModule = async (
+  moduleInfo: { name: string; path: string; type: string },
+  _config: unknown,
+): Promise<IModule> => {
+  const {
+ name, path, type
+} = moduleInfo;
   const resolvedPath = new URL(path, `file://${process.cwd()}/`).href;
   const moduleExports = await import(resolvedPath) as Record<string, unknown>;
   const moduleInstance = createModuleInstance(moduleExports, name, type);

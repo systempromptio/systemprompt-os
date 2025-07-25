@@ -1,18 +1,18 @@
 /**
- * @fileoverview Rate limiting service for API keys
+ * @file Rate limiting service for API keys.
  * @module src/modules/core/api/services
  */
 
-import type { ApiRepository } from '../repositories/api-repository.js';
-import type { 
-  RateLimitResult, 
-  RateLimitStatusResponse 
-} from '../types/api.types.js';
+import type { ApiRepository } from '@/modules/core/api/repositories/api-repository';
+import type {
+  RateLimitResult,
+  RateLimitStatusResponse
+} from '@/modules/core/api/types/api.types';
 
 export class RateLimitService {
-  private repository: ApiRepository;
-  private config: any;
-  private logger: any;
+  private readonly repository: ApiRepository;
+  private readonly config: any;
+  private readonly logger: any;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(repository: ApiRepository, config: any, logger: any) {
@@ -23,15 +23,13 @@ export class RateLimitService {
 
   async checkRateLimit(keyId: string, limit: number): Promise<RateLimitResult> {
     try {
-      const windowSize = this.config.rateLimit?.windowSize || 3600000; // 1 hour default
+      const windowSize = this.config.rateLimit?.windowSize || 3600000
       const currentTime = new Date();
       const windowStart = new Date(Math.floor(currentTime.getTime() / windowSize) * windowSize);
 
-      // Get current rate limit status
       const status = await this.repository.getRateLimitStatus(keyId);
 
       if (!status) {
-        // No existing window, create new one
         await this.repository.updateRateLimitCounter(keyId, windowStart, windowSize, limit);
         return {
           allowed: true,
@@ -40,10 +38,8 @@ export class RateLimitService {
         };
       }
 
-      // Check if we're in the same window
       if (status.window_start.getTime() === windowStart.getTime()) {
         if (status.request_count >= limit) {
-          // Rate limit exceeded
           const resetTime = new Date(windowStart.getTime() + windowSize);
           return {
             allowed: false,
@@ -51,27 +47,25 @@ export class RateLimitService {
             remaining: 0,
             retry_after: resetTime
           };
-        } else {
-          // Still within limit, increment counter
+        }
           await this.repository.updateRateLimitCounter(keyId, windowStart, windowSize, limit);
           return {
             allowed: true,
             limit,
             remaining: limit - status.request_count - 1
           };
-        }
-      } else {
-        // New window, reset counter
+      }
         await this.repository.updateRateLimitCounter(keyId, windowStart, windowSize, limit);
         return {
           allowed: true,
           limit,
           remaining: limit - 1
         };
-      }
     } catch (error) {
-      this.logger.error('Rate limit check failed', { keyId, error: error.message });
-      // Fail open - allow the request if there's an error
+      this.logger.error('Rate limit check failed', {
+ keyId,
+error: error.message
+});
       return {
         allowed: true,
         limit,
@@ -89,7 +83,6 @@ export class RateLimitService {
     const status = await this.repository.getRateLimitStatus(keyId);
 
     if (!status || status.window_start.getTime() !== windowStart.getTime()) {
-      // No current window or old window
       return {
         key: keyId,
         limit,
@@ -115,12 +108,15 @@ export class RateLimitService {
 
   async updateRateLimit(keyId: string, newLimit: number): Promise<void> {
     await this.repository.updateRateLimit(keyId, newLimit);
-    this.logger.info('Rate limit updated', { keyId, newLimit });
+    this.logger.info('Rate limit updated', {
+ keyId,
+newLimit
+});
   }
 
   async startCleanup(): Promise<void> {
-    const interval = this.config.rateLimit?.cleanupInterval || 300000; // 5 minutes default
-    
+    const interval = this.config.rateLimit?.cleanupInterval || 300000
+
     this.cleanupInterval = setInterval(() => {
       this.cleanup().catch(error => {
         this.logger.error('Rate limit cleanup error', { error: error.message });
@@ -140,10 +136,10 @@ export class RateLimitService {
 
   private async cleanup(): Promise<void> {
     const windowSize = this.config.rateLimit?.windowSize || 3600000;
-    const cutoffTime = new Date(Date.now() - windowSize * 2); // Keep 2 windows of history
-    
+    const cutoffTime = new Date(Date.now() - windowSize * 2)
+
     const deleted = await this.repository.cleanupOldRateLimits(cutoffTime);
-    
+
     if (deleted > 0) {
       this.logger.debug('Cleaned up old rate limits', { deleted });
     }

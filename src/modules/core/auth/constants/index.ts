@@ -1,9 +1,6 @@
 /**
- * Constants for auth module.
- * @module modules/core/auth/constants
+ * Numeric constants.
  */
-
-// Numeric constants
 export const ZERO = 0;
 export const ONE = 1;
 export const TWO = 2;
@@ -33,9 +30,11 @@ export const THREE_HUNDRED_SIXTY_FIVE = 365;
 export const FIVE_HUNDRED = 500;
 export const ONE_THOUSAND = 1000;
 export const NINE_HUNDRED = 900;
-export const TWO_THOUSAND_FIVE_HUNDRED_NINETY_TWO_THOUSAND = 2592000;
+export const THIRTY_DAYS_IN_SECONDS = 2592000;
 
-// Time constants
+/**
+ * Time constants.
+ */
 export const SECONDS_PER_MINUTE = 60;
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_PER_DAY = 24;
@@ -43,7 +42,9 @@ export const MILLISECONDS_PER_SECOND = 1000;
 export const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 export const SECONDS_PER_DAY = SECONDS_PER_HOUR * HOURS_PER_DAY;
 
-// HTTP status codes
+/**
+ * HTTP status codes.
+ */
 export const HTTP_OK = 200;
 export const HTTP_CREATED = 201;
 export const HTTP_NO_CONTENT = 204;
@@ -53,7 +54,9 @@ export const HTTP_FORBIDDEN = 403;
 export const HTTP_NOT_FOUND = 404;
 export const HTTP_INTERNAL_SERVER_ERROR = 500;
 
-// Default values
+/**
+ * Default values.
+ */
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_TTL = 3600;
 export const DEFAULT_MAX_ATTEMPTS = 5;

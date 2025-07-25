@@ -10,8 +10,7 @@ import type {
   IDatabaseConfig,
   IDatabaseConnection
 } from '@/modules/core/database/types/database.types';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { ZERO } from '@/modules/core/database/constants/index';
 import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
 
@@ -20,7 +19,7 @@ import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
  */
 export class DatabaseService {
   private static instance: DatabaseService;
-  private readonly config: IDatabaseConfig;
+  private config: IDatabaseConfig | null = null;
   private adapter: IDatabaseAdapter | null = null;
   private connection: IDatabaseConnection | null = null;
   private logger?: ILogger;
@@ -28,10 +27,8 @@ export class DatabaseService {
 
   /**
    * Creates a new database service instance.
-   * @param config - Database configuration.
    */
-  private constructor(config: IDatabaseConfig) {
-    this.config = config;
+  private constructor() {
   }
 
   /**
@@ -41,7 +38,8 @@ export class DatabaseService {
    * @returns The initialized database service instance.
    */
   public static initialize(config: IDatabaseConfig, logger?: ILogger): DatabaseService {
-    DatabaseService.instance ||= new DatabaseService(config);
+    DatabaseService.instance ||= new DatabaseService();
+    DatabaseService.instance.config = config;
     if (logger !== undefined) {
       DatabaseService.instance.logger = logger;
     }
@@ -55,7 +53,7 @@ export class DatabaseService {
    * @throws {Error} If service not initialized.
    */
   public static getInstance(): DatabaseService {
-    if (!DatabaseService.instance || !DatabaseService.instance.initialized) {
+    if (DatabaseService.instance === undefined || !DatabaseService.instance.initialized) {
       throw new Error(
         'DatabaseService not initialized. Call initialize() first.'
       );
@@ -69,7 +67,7 @@ export class DatabaseService {
    * @throws {Error} If connection cannot be established.
    */
   public async getConnection(): Promise<IDatabaseConnection> {
-    if (this.connection === null || this.adapter === null || !await this.adapter.isConnected()) {
+    if (this.connection === null || this.adapter === null || !this.adapter.isConnected()) {
       await this.connect();
     }
 
@@ -156,6 +154,9 @@ export class DatabaseService {
    * @returns {'sqlite' | 'postgres'} The configured database type.
    */
   public getDatabaseType(): 'sqlite' | 'postgres' {
+    if (this.config === null) {
+      throw new Error('DatabaseService not initialized. Call initialize() first.');
+    }
     return this.config.type;
   }
 
@@ -196,6 +197,10 @@ export class DatabaseService {
    * Connect to the database based on configuration.
    */
   private async connect(): Promise<void> {
+    if (this.config === null) {
+      throw new Error('DatabaseService not initialized. Call initialize() first.');
+    }
+
     try {
       switch (this.config.type) {
         case 'sqlite':
@@ -203,12 +208,14 @@ export class DatabaseService {
           break;
         case 'postgres':
           throw new Error('PostgreSQL adapter not yet implemented');
+        default:
+          throw new Error(`Unsupported database type: ${this.config.type}`);
       }
 
       this.connection = await this.adapter.connect(this.config);
       this.logger?.info(LogSource.DATABASE, 'Database connection established', { type: this.config.type });
     } catch (error) {
-      this.logger?.error(LogSource.DATABASE, 'Failed to connect to database', { error: error as Error });
+      this.logger?.error(LogSource.DATABASE, 'Failed to connect to database', { error });
       throw new Error(
         `Failed to connect to ${this.config.type} database`
       );

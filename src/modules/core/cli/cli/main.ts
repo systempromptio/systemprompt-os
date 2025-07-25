@@ -12,18 +12,18 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 
-// Global bootstrap instance for cleanup
-let globalBootstrap: any = null;
+/** Global bootstrap instance for cleanup */
+let globalBootstrap: { shutdown: () => Promise<void> } | null = null;
 
-// Ensure clean exit on process termination
-process.on('SIGINT', async () => {
+/** Ensure clean exit on process termination */
+process.on('SIGINT', async (): Promise<void> => {
   if (globalBootstrap) {
     await globalBootstrap.shutdown();
   }
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', async (): Promise<void> => {
   if (globalBootstrap) {
     await globalBootstrap.shutdown();
   }
@@ -39,12 +39,12 @@ program
   )
   .version('0.1.0')
   .configureHelp({
-    formatHelp: (cmd) => {
+    formatHelp: (cmd): string => {
       try {
         const formatter = CliFormatterService.getInstance();
         return formatter.formatHelp(cmd, true);
       } catch (error) {
-        // Fallback to default help if formatting fails
+        /** Fallback to default help if formatting fails */
         console.error('CLI formatting error:', error);
         return cmd.helpInformation();
       }
@@ -61,10 +61,10 @@ interface ICommandOptions {
 }
 
 interface IDatabaseCommand {
-  command_path: string;
+  commandPath: string;
   description?: string;
   options?: ICommandOptions[];
-  executor_path: string;
+  executorPath: string;
 }
 
 interface ICommandModule {
@@ -122,25 +122,25 @@ const createCommandAction = (cmd: IDatabaseCommand):
   };
 
   try {
-    // Dynamic import needed for loading command modules at runtime
+    /** Dynamic import needed for loading command modules at runtime */
     // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
-    const module = await import(cmd.executor_path);
+    const module = await import(cmd.executorPath);
     const executor = findExecutor(module);
 
     if (executor !== undefined) {
       await executor(context);
     } else {
       const logger = LoggerService.getInstance();
-      logger.error(LogSource.CLI, `Command ${cmd.command_path} has no execute function`);
-      // Don't call process.exit() here, let the main function handle it
-      throw new Error(`Command ${cmd.command_path} has no execute function`);
+      logger.error(LogSource.CLI, `Command ${cmd.commandPath} has no execute function`);
+      /** Don't call process.exit() here, let the main function handle it */
+      throw new Error(`Command ${cmd.commandPath} has no execute function`);
     }
   } catch (error) {
     const logger = LoggerService.getInstance();
-    logger.error(LogSource.CLI, `Error executing ${cmd.command_path}`, { 
+    logger.error(LogSource.CLI, `Error executing ${cmd.commandPath}`, { 
       error: error instanceof Error ? error : new Error(String(error))
     });
-    // Re-throw to let main handle the exit
+    /** Re-throw to let main handle the exit */
     throw error;
   }
   };
@@ -150,11 +150,15 @@ const createCommandAction = (cmd: IDatabaseCommand):
  * @param cmd - The database command configuration.
  */
 const registerCommand = (cmd: IDatabaseCommand): void => {
-  const commandParts = cmd.command_path.split(':');
+  if (!cmd.commandPath || typeof cmd.commandPath !== 'string') {
+    console.warn(`Skipping command with invalid commandPath:`, cmd);
+    return;
+  }
+  const commandParts = cmd.commandPath.split(':');
   let command = program;
   const formatter = CliFormatterService.getInstance();
 
-  for (let i = 0; i < commandParts.length; i++) {
+  for (let i = 0; i < commandParts.length; i += 1) {
     const part = commandParts[i];
     const isLastPart = i === commandParts.length - 1;
     const foundCommand = command.commands.find(
@@ -183,18 +187,19 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
 
       // Apply consistent formatting to subcommands
       newCommand.configureHelp({
-        formatHelp: (subCmd) => {
+        formatHelp: (subCmd): string => {
           return formatter.formatHelp(subCmd, false);
         }
       });
 
       newCommand.action(createCommandAction(cmd));
     } else {
-      command = command.command(part!);
+      const partValue = part ?? '';
+      command = command.command(partValue);
       
-      // Apply consistent formatting to parent commands too
+      /** Apply consistent formatting to parent commands too */
       command.configureHelp({
-        formatHelp: (parentCmd) => {
+        formatHelp: (parentCmd): string => {
           return formatter.formatHelp(parentCmd, false);
         }
       });
@@ -207,7 +212,7 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
  * @returns The CLI service instance and bootstrap instance.
  * @throws {Error} If CLI bootstrap fails.
  */
-const registerModuleCommands = async (): Promise<any> => {
+const registerModuleCommands = async (): Promise<{ cliService: any; bootstrap: any }> => {
   const { cliService, bootstrap } = await bootstrapCli();
   
   try {
@@ -221,8 +226,7 @@ const registerModuleCommands = async (): Promise<any> => {
       registerCommand(cmd);
     }
 
-    return { cliService,
-bootstrap };
+    return { cliService, bootstrap };
   } catch (error) {
     const logger = LoggerService.getInstance();
     logger.error(LogSource.CLI, 'Failed to register commands', { 
@@ -236,7 +240,7 @@ bootstrap };
  * Main CLI entry point.
  */
 const main = async (): Promise<void> => {
-  let bootstrap: any = null;
+  let bootstrap: { shutdown: () => Promise<void> } | null = null;
   
   try {
     const result = await registerModuleCommands();

@@ -3,6 +3,7 @@
  * All properties use snake_case as per OAuth2 specification requirements.
  * This cannot be changed to camelCase as it would violate RFC standards.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IOAuth2ServerMetadata {
     issuer: string;
     authorizationEndpoint: string;
@@ -36,6 +37,7 @@ export interface IOAuth2ServerMetadata {
  * All properties use snake_case as per OAuth2 specification requirements.
  * This cannot be changed to camelCase as it would violate RFC standards.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IOAuth2ProtectedResourceMetadata {
     resource: string;
     authorizationServers: string[];
@@ -50,7 +52,9 @@ export interface IOAuth2ProtectedResourceMetadata {
 /**
  * Internal representation of OAuth2 server metadata with snake_case properties.
  * This is used to maintain RFC compliance while satisfying TypeScript requirements.
+ * @internal
  */
+// eslint-disable @typescript-eslint/naming-convention
 export interface IOAuth2ServerMetadataInternal {
   issuer: string;
   authorization_endpoint: string;
@@ -78,11 +82,14 @@ export interface IOAuth2ServerMetadataInternal {
   id_token_signing_alg_values_supported?: string[];
   claims_supported?: string[];
 }
+// eslint-enable @typescript-eslint/naming-convention
 
 /**
  * Internal representation of OAuth2 protected resource metadata with snake_case properties.
  * This is used to maintain RFC compliance while satisfying TypeScript requirements.
+ * @internal
  */
+// eslint-disable @typescript-eslint/naming-convention
 export interface IOAuth2ProtectedResourceMetadataInternal {
   resource: string;
   authorization_servers: string[];
@@ -93,3 +100,4 @@ export interface IOAuth2ProtectedResourceMetadataInternal {
   resource_encryption_enc_values_supported?: string[];
   scopes_supported?: string[];
 }
+// eslint-enable @typescript-eslint/naming-convention
