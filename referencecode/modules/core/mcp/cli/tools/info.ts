@@ -14,12 +14,12 @@ export function createToolsInfoCommand(module: MCPModule): Command {
     .action(async (name, options) => {
       try {
         const tool = await module.getToolInfo(name);
-        
+
         if (!tool) {
           console.error(`Tool '${name}' not found`);
           process.exit(1);
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(tool, null, 2));
         } else if (options.format === 'yaml') {
@@ -30,19 +30,19 @@ export function createToolsInfoCommand(module: MCPModule): Command {
           console.log(`Name: ${tool.name}`);
           console.log(`Description: ${tool.description || '-'}`);
           console.log(`Enabled: ${tool.enabled ? 'Yes' : 'No'}`);
-          
+
           if (tool.inputSchema) {
             console.log('\nInput Schema:');
             console.log(JSON.stringify(tool.inputSchema, null, 2));
           }
-          
+
           if (tool.metadata) {
             console.log('\nMetadata:');
             for (const [key, value] of Object.entries(tool.metadata)) {
               console.log(`  ${key}: ${value}`);
             }
           }
-          
+
           if (tool.stats) {
             console.log('\nStatistics:');
             console.log(`  Total Executions: ${tool.stats.total || 0}`);

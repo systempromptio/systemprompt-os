@@ -13,12 +13,12 @@ export function createPermissionsSubcommand(module: PermissionsModule): Command 
   const cmd = new Command('permissions')
     .aliases(['perms', 'perm'])
     .description('Permission management commands');
-  
+
   // Add subcommands
   cmd.addCommand(createPermissionsListCommand(module));
   cmd.addCommand(createPermissionsCheckCommand(module));
   cmd.addCommand(createPermissionsGrantCommand(module));
   cmd.addCommand(createPermissionsRevokeCommand(module));
-  
+
   return cmd;
 }

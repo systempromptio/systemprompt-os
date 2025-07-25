@@ -10,7 +10,7 @@ export const colors = {
   dim: '\x1b[2m',
   italic: '\x1b[3m',
   underline: '\x1b[4m',
-  
+
   // Foreground colors
   black: '\x1b[30m',
   red: '\x1b[31m',
@@ -21,7 +21,7 @@ export const colors = {
   cyan: '\x1b[36m',
   white: '\x1b[37m',
   gray: '\x1b[90m',
-  
+
   // Background colors
   bgBlack: '\x1b[40m',
   bgRed: '\x1b[41m',
@@ -40,7 +40,7 @@ export const style = {
   dim: (text: string) => `${colors.dim}${text}${colors.reset}`,
   italic: (text: string) => `${colors.italic}${text}${colors.reset}`,
   underline: (text: string) => `${colors.underline}${text}${colors.reset}`,
-  
+
   // Colors
   red: (text: string) => `${colors.red}${text}${colors.reset}`,
   green: (text: string) => `${colors.green}${text}${colors.reset}`,
@@ -50,14 +50,14 @@ export const style = {
   cyan: (text: string) => `${colors.cyan}${text}${colors.reset}`,
   gray: (text: string) => `${colors.gray}${text}${colors.reset}`,
   white: (text: string) => `${colors.white}${text}${colors.reset}`,
-  
+
   // Semantic styles
   success: (text: string) => `${colors.green}${text}${colors.reset}`,
   error: (text: string) => `${colors.red}${text}${colors.reset}`,
   warning: (text: string) => `${colors.yellow}${text}${colors.reset}`,
   info: (text: string) => `${colors.cyan}${text}${colors.reset}`,
   muted: (text: string) => `${colors.gray}${text}${colors.reset}`,
-  
+
   // Combined styles
   header: (text: string) => `${colors.bright}${colors.blue}${text}${colors.reset}`,
   label: (text: string) => `${colors.bright}${text}${colors.reset}`,
@@ -110,7 +110,7 @@ export const boxChars = {
   teeLeft: '┤',
   teeDown: '┬',
   teeUp: '┴',
-  
+
   // Double line
   dTopLeft: '╔',
   dTopRight: '╗',
@@ -118,7 +118,7 @@ export const boxChars = {
   dBottomRight: '╝',
   dHorizontal: '═',
   dVertical: '║',
-  
+
   // Rounded
   rTopLeft: '╭',
   rTopRight: '╮',
@@ -133,21 +133,21 @@ export const format = {
   doubleDivider: (length: number = 60) => style.dim('═'.repeat(length)),
   dashedDivider: (length: number = 60) => style.dim('┈'.repeat(length)),
   heavyDivider: (length: number = 60) => style.dim('━'.repeat(length)),
-  
+
   // Gradient divider
   gradientDivider: (length: number = 60) => {
     const chars = ['━', '─', '┈', '·', ' ', '·', '┈', '─', '━'];
     const segment = Math.floor(length / chars.length);
     return style.dim(chars.map(c => c.repeat(segment)).join(''));
   },
-  
+
   // Headers with styling
   title: (text: string, icon?: string) => {
     const iconStr = icon ? `${icon}  ` : '';
     const line = '━'.repeat(text.length + iconStr.length + 4);
     return `\n${style.dim(line)}\n${style.header(`${iconStr}${text}`)}\n${style.dim(line)}`;
   },
-  
+
   // Fancy title with box
   boxTitle: (text: string, icon?: string) => {
     const iconStr = icon ? `${icon}  ` : '';
@@ -158,73 +158,73 @@ export const format = {
     const bottom = `${boxChars.rBottomLeft}${boxChars.horizontal.repeat(width)}${boxChars.rBottomRight}`;
     return `\n${style.dim(top)}\n${middle}\n${style.dim(bottom)}`;
   },
-  
+
   section: (text: string, icon?: string) => {
     const iconStr = icon ? `${icon} ` : '';
     return `\n${style.bold(`${iconStr}${text}`)}\n${style.dim('─'.repeat(text.length + iconStr.length))}`;
   },
-  
+
   // Lists
-  bulletItem: (text: string, indent: number = 0) => 
+  bulletItem: (text: string, indent: number = 0) =>
     `${' '.repeat(indent)}${style.muted(icons.bullet)} ${text}`,
-  
-  checkItem: (text: string, checked: boolean, indent: number = 0) => 
+
+  checkItem: (text: string, checked: boolean, indent: number = 0) =>
     `${' '.repeat(indent)}${checked ? style.success(icons.check) : style.muted(icons.square)} ${text}`,
-  
+
   // Status indicators
   statusIcon: (status: 'success' | 'error' | 'warning' | 'info') => {
     switch (status) {
-      case 'success': return style.success(icons.success);
-      case 'error': return style.error(icons.error);
-      case 'warning': return style.warning(icons.warning);
-      case 'info': return style.info(icons.info);
+    case 'success': return style.success(icons.success);
+    case 'error': return style.error(icons.error);
+    case 'warning': return style.warning(icons.warning);
+    case 'info': return style.info(icons.info);
     }
   },
-  
+
   // Key-value pairs
   keyValue: (key: string, value: string | number, keyWidth: number = 0) => {
     const paddedKey = keyWidth > 0 ? key.padEnd(keyWidth) : key;
     return `${style.label(`${paddedKey  }:`)} ${value}`;
   },
-  
+
   // Tables
   table: (headers: string[], rows: string[][], columnWidths?: number[]) => {
-    const widths = columnWidths || headers.map((h, i) => 
-      Math.max(h.length, ...rows.map(r => String(r[i] || '').length))
+    const widths = columnWidths || headers.map((h, i) =>
+      Math.max(h.length, ...rows.map(r => String(r[i] || '').length)),
     );
-    
+
     const lines: string[] = [];
-    
+
     // Header
     const headerRow = headers.map((h, i) => h.padEnd(widths[i] ?? 0)).join(' │ ');
     lines.push(style.bold(headerRow));
     lines.push(widths.map(w => '─'.repeat(w)).join('─┼─'));
-    
+
     // Rows
     for (const row of rows) {
       const rowStr = row.map((cell, i) => String(cell || '').padEnd(widths[i] ?? 0)).join(' │ ');
       lines.push(rowStr);
     }
-    
+
     return lines.join('\n');
   },
-  
+
   // Progress
   progressBar: (current: number, total: number, width: number = 30) => {
     const percentage = Math.min(100, Math.round((current / total) * 100));
     const filled = Math.round((percentage / 100) * width);
     const empty = width - filled;
-    
+
     const bar = `${style.green('█'.repeat(filled))}${style.gray('░'.repeat(empty))}`;
     return `${bar} ${percentage}%`;
   },
-  
+
   // Fancy progress bar with gradient
   gradientProgressBar: (current: number, total: number, width: number = 30) => {
     const percentage = Math.min(100, Math.round((current / total) * 100));
     const filled = Math.round((percentage / 100) * width);
     const empty = width - filled;
-    
+
     const filledChars = '█'.repeat(filled).split('');
     const gradientFilled = filledChars.map((char, i) => {
       const ratio = i / filled;
@@ -232,11 +232,11 @@ export const format = {
       if (ratio < 0.66) {return style.yellow(char);}
       return style.green(char);
     }).join('');
-    
+
     const bar = `${gradientFilled}${style.gray('░'.repeat(empty))}`;
     return `${bar} ${style.bold(`${percentage}%`)}`;
   },
-  
+
   // Status badge
   badge: (text: string, type: 'success' | 'error' | 'warning' | 'info' | 'default' = 'default') => {
     const styles = {
@@ -248,7 +248,7 @@ export const format = {
     };
     return styles[type](text);
   },
-  
+
   // Result box
   resultBox: (status: 'success' | 'error' | 'warning', message: string) => {
     const icons = {
@@ -261,40 +261,40 @@ export const format = {
       error: style.error,
       warning: style.warning,
     };
-    
+
     const icon = icons[status];
     const color = colors[status];
     const width = Math.max(message.length + 6, 40);
-    
+
     const top = `${boxChars.rTopLeft}${boxChars.horizontal.repeat(width)}${boxChars.rTopRight}`;
     const middle = `${boxChars.vertical}  ${color(`${icon} ${message}`)}${' '.repeat(width - message.length - 4)}${boxChars.vertical}`;
     const bottom = `${boxChars.rBottomLeft}${boxChars.horizontal.repeat(width)}${boxChars.rBottomRight}`;
-    
+
     return `${style.dim(top)}\n${middle}\n${style.dim(bottom)}`;
   },
-  
+
   // Boxes
   box: (content: string, padding: number = 1) => {
     const lines = content.split('\n');
     const maxLength = Math.max(...lines.map(l => l.length));
     const width = maxLength + (padding * 2);
-    
+
     const result: string[] = [];
     result.push(`┌${'─'.repeat(width)}┐`);
-    
+
     for (const line of lines) {
       const paddedLine = line.padEnd(maxLength);
       result.push(`│${' '.repeat(padding)}${paddedLine}${' '.repeat(padding)}│`);
     }
-    
+
     result.push(`└${'─'.repeat(width)}┘`);
     return style.dim(result.join('\n'));
   },
-  
+
   // Indentation
-  indent: (text: string, spaces: number = 2) => 
+  indent: (text: string, spaces: number = 2) =>
     text.split('\n').map(line => ' '.repeat(spaces) + line).join('\n'),
-  
+
   // Truncation
   truncate: (text: string, maxLength: number, suffix: string = '...') => {
     if (text.length <= maxLength) {return text;}
@@ -313,25 +313,25 @@ export const spinners = {
 
 // Semantic output helpers
 export const output = {
-  success: (message: string) => 
+  success: (message: string) =>
     console.log(`${style.success(icons.success)} ${message}`),
-  
-  error: (message: string) => 
+
+  error: (message: string) =>
     console.error(`${style.error(icons.error)} ${message}`),
-  
-  warning: (message: string) => 
+
+  warning: (message: string) =>
     console.warn(`${style.warning(icons.warning)} ${message}`),
-  
-  info: (message: string) => 
+
+  info: (message: string) =>
     console.log(`${style.info(icons.info)} ${message}`),
-  
-  debug: (message: string) => 
+
+  debug: (message: string) =>
     console.log(`${style.gray('[DEBUG]')} ${style.gray(message)}`),
-  
-  step: (step: number, total: number, message: string) => 
+
+  step: (step: number, total: number, message: string) =>
     console.log(`${style.muted(`[${step}/${total}]`)} ${message}`),
-  
-  highlight: (label: string, value: string) => 
+
+  highlight: (label: string, value: string) =>
     console.log(`${style.label(`${label  }:`)} ${style.cyan(value)}`),
 } as const;
 

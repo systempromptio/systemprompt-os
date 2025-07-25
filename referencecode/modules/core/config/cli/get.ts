@@ -12,9 +12,9 @@ async function execute(options: { key?: string }): Promise<void> {
   // Create a temporary config module instance
   const configModule = new ConfigModule();
   await configModule.initialize();
-  
+
   const value = configModule.get(options.key);
-  
+
   if (value === undefined) {
     if (options.key) {
       console.error(`Configuration key '${options.key}' not found.`);
@@ -24,7 +24,7 @@ async function execute(options: { key?: string }): Promise<void> {
     }
     return;
   }
-  
+
   console.log(JSON.stringify(value, null, 2));
 }
 
@@ -32,5 +32,5 @@ async function execute(options: { key?: string }): Promise<void> {
  * Command export for CLI discovery
  */
 export const command = {
-  execute
+  execute,
 };

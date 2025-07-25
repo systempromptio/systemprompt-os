@@ -5,7 +5,7 @@
  */
 
 import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_500 } from '@/modules/core/database/constants/index.js';
+import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when module database operations fail.
@@ -28,8 +28,13 @@ export class ModuleDatabaseError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'MODULE_DATABASE_ERROR', HTTP_500, cause);
-    this.name = 'ModuleDatabaseError';
+    Object.defineProperty(this, 'name', {
+ value: 'ModuleDatabaseError',
+configurable: true
+});
     this.moduleName = moduleName;
-    this.operation = operation;
+    if (operation !== undefined) {
+      this.operation = operation;
+    }
   }
 }

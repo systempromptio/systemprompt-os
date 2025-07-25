@@ -42,11 +42,10 @@ export interface AuthorizationServerMetadata {
 
 export class AuthorizationServerEndpoint {
   private readonly baseUrl: string;
-  
-  constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env['BASE_URL'] || 'http://localhost:3000';
+
+  constructor(baseUrl: string = 'http://localhost:3000') {
+    this.baseUrl = baseUrl;
   }
-  
   getAuthorizationServerMetadata = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);

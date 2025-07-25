@@ -19,10 +19,10 @@ export function createRolesAssignCommand(module: PermissionsModule): Command {
           console.error(`Error: Role '${roleName}' not found`);
           process.exit(1);
         }
-        
+
         await module.assignRole(userId, role.id, options.assignedBy);
-        
-        console.log(`\n✓ Role assigned successfully!`);
+
+        console.log('\n✓ Role assigned successfully!');
         console.log(`  User: ${userId}`);
         console.log(`  Role: ${role.name}`);
         if (role.description) {
@@ -34,6 +34,6 @@ export function createRolesAssignCommand(module: PermissionsModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

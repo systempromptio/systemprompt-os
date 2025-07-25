@@ -124,7 +124,7 @@ export interface PermissionAuditEntry {
   timestamp: Date;
 }
 
-export type AuditAction = 
+export type AuditAction =
   | 'grant'
   | 'revoke'
   | 'create_role'

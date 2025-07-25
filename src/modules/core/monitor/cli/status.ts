@@ -11,7 +11,6 @@ import { Command } from 'commander';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service.js';
 
 const ERROR_EXIT_CODE = 1;
-const PERCENTAGE_FACTOR = 100;
 const BYTES_TO_MB = 1024 * 1024;
 
 /**
@@ -38,7 +37,7 @@ export const createStatusCommand = (): Command => {
         console.log('');
         console.log('CPU:');
         console.log(`  Usage: ${stats.cpu.usage.toFixed(2)}%`);
-        console.log(`  Load Average: ${stats.cpu.loadAverage.map(l => l.toFixed(2)).join(', ')}`);
+        console.log(`  Load Average: ${stats.cpu.loadAverage.map(l => { return l.toFixed(2) }).join(', ')}`);
         console.log('');
         console.log('Memory:');
         console.log(`  Total: ${(stats.memory.total / BYTES_TO_MB).toFixed(2)} MB`);

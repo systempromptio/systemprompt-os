@@ -19,11 +19,11 @@ import * as path from 'path';
 import { pathToFileURL } from 'url';
 import type { MCPServerRegistry } from '@/server/mcp/registry.js';
 import type {
-  LocalMCPServer,
-  MCPLoaderOptions,
-  MCPServerModule,
-  RemoteMCPConfig,
-  RemoteMCPServer
+  ILocalMCPServer,
+  IMCPLoaderOptions,
+  IMCPServerModule,
+  IRemoteMCPConfig,
+  IRemoteMCPServer
 } from '@/server/mcp/types.js';
 import {
   MCPServerType
@@ -34,7 +34,7 @@ const ZERO = 0;
 /**
  * Default options for the MCP loader.
  */
-const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
+const DEFAULTOPTIONS: Partial<IMCPLoaderOptions> = {
   loadRemoteConfigs: true,
   remoteConfigFile: 'remote-servers.yaml'
 };
@@ -50,7 +50,7 @@ const DEFAULTOPTIONS: Partial<MCPLoaderOptions> = {
  * ```
  */
 export class CustomMCPLoader {
-  private readonly options: MCPLoaderOptions;
+  private readonly options: IMCPLoaderOptions;
 
   /**
    * Creates a new CustomMCPLoader instance.
@@ -59,7 +59,7 @@ export class CustomMCPLoader {
    */
   constructor(
     private readonly registry: MCPServerRegistry,
-    options?: Partial<MCPLoaderOptions>
+    options?: Partial<IMCPLoaderOptions>
   ) {
     this.options = {
       customDir: options?.customDir || './server/mcp/custom',
@@ -143,7 +143,7 @@ export class CustomMCPLoader {
       }
 
       const moduleUrl = pathToFileURL(entryPoint).href;
-      const module = await import(moduleUrl) as MCPServerModule;
+      const module = await import(moduleUrl) as IMCPServerModule;
 
       if (!module.createMCPHandler || typeof module.createMCPHandler !== 'function') {
         throw new Error(`Invalid MCP server module: ${serverDir} - missing createMCPHandler export`);
@@ -153,7 +153,7 @@ export class CustomMCPLoader {
       const serverVersion = module.CONFIG?.SERVERVERSION || '0.0.0';
       const serverDescription = module.CONFIG?.SERVERDESCRIPTION || `Custom MCP server: ${serverDir}`;
 
-      const localServer: LocalMCPServer = {
+      const localServer: ILocalMCPServer = {
         id: serverDir,
         name: serverName,
         version: serverVersion,
@@ -226,10 +226,10 @@ export class CustomMCPLoader {
 
     try {
       const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
-      const configs = JSON.parse(configContent) as RemoteMCPConfig[];
+      const configs = JSON.parse(configContent) as IRemoteMCPConfig[];
 
       for (const config of configs) {
-        const remoteServer: RemoteMCPServer = {
+        const remoteServer: IRemoteMCPServer = {
           id: config.name.toLowerCase().replace(/\s+/g, '-'),
           name: config.name,
           version: '1.0.0',

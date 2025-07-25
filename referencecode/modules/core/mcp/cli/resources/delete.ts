@@ -19,36 +19,36 @@ export function createResourcesDeleteCommand(module: MCPModule): Command {
           console.error(`Resource '${uri}' not found`);
           process.exit(1);
         }
-        
+
         // Confirm deletion unless --force is used
         if (!options.force) {
           const readline = await import('readline');
           const rl = readline.createInterface({
             input: process.stdin,
-            output: process.stdout
+            output: process.stdout,
           });
-          
+
           const answer = await new Promise<string>((resolve) => {
             rl.question(`Are you sure you want to delete resource '${uri}'? (y/N) `, resolve);
           });
-          
+
           rl.close();
-          
+
           if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
             console.log('Deletion cancelled');
             return;
           }
         }
-        
+
         // Delete the resource
         const deleted = await module.deleteResource(uri);
         if (!deleted) {
           console.error(`Failed to delete resource '${uri}'`);
           process.exit(1);
         }
-        
+
         console.log(`Resource '${uri}' deleted successfully`);
-        
+
       } catch (error: any) {
         console.error('Error:', error.message);
         process.exit(1);

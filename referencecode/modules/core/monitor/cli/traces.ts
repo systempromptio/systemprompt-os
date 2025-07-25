@@ -14,26 +14,26 @@ export const command = {
       name: 'trace-id',
       alias: 't',
       type: 'string',
-      description: 'View specific trace by ID'
+      description: 'View specific trace by ID',
     },
     {
       name: 'limit',
       alias: 'n',
       type: 'number',
       description: 'Number of traces to show',
-      default: 20
+      default: 20,
     },
     {
       name: 'errors',
       alias: 'e',
       type: 'boolean',
-      description: 'Show only error traces'
+      description: 'Show only error traces',
     },
     {
       name: 'service',
       alias: 's',
       type: 'string',
-      description: 'Filter by service name'
+      description: 'Filter by service name',
     },
     {
       name: 'format',
@@ -41,14 +41,14 @@ export const command = {
       type: 'string',
       description: 'Output format',
       default: 'table',
-      choices: ['json', 'yaml', 'table']
-    }
+      choices: ['json', 'yaml', 'table'],
+    },
   ],
   async execute(context: any) {
     try {
       const moduleLoader = getModuleLoader();
       await moduleLoader.loadModules();
-      
+
       const monitorModule = moduleLoader.getModule('monitor');
       if (!monitorModule?.exports?.MonitorService) {
         throw new Error('Monitor module not available');
@@ -59,7 +59,7 @@ export const command = {
       if (context.options['trace-id']) {
         // Get specific trace
         const spans = await service.getTrace(context.options['trace-id']);
-        
+
         if (context.options.format === 'json') {
           console.log(JSON.stringify(spans, null, 2));
         } else if (context.options.format === 'yaml') {
@@ -78,7 +78,7 @@ export const command = {
         } else {
           // Table format - show trace tree
           console.log(`Trace ID: ${context.options['trace-id']}\n`);
-          
+
           if (spans.length === 0) {
             console.log('No spans found for this trace');
             return;
@@ -86,25 +86,25 @@ export const command = {
 
           // Build span tree
           const rootSpans = spans.filter((s: any) => !s.parent_span_id);
-          
+
           function printSpan(span: any, indent: number = 0) {
             const prefix = '  '.repeat(indent) + (indent > 0 ? '└─ ' : '');
             const duration = span.duration ? `${span.duration}ms` : 'pending';
             const status = span.status === 'error' ? '✗' : '✓';
-            
+
             console.log(`${prefix}${status} ${span.operation_name} (${span.service_name}) - ${duration}`);
-            
+
             // Print child spans
             spans.filter((s: any) => s.parent_span_id === span.span_id)
               .forEach((child: any) => printSpan(child, indent + 1));
           }
-          
+
           rootSpans.forEach((span: any) => printSpan(span));
         }
       } else {
         // List recent traces
         let traces = await service.getTraces(context.options.limit);
-        
+
         // Apply filters
         if (context.options.errors) {
           traces = traces.filter((t: any) => t.status === 'error');
@@ -135,7 +135,7 @@ export const command = {
           console.log('Recent Traces:\n');
           console.log('Trace ID                              | Operation               | Service      | Duration | Status | Start Time');
           console.log('--------------------------------------|-------------------------|--------------|----------|--------|-------------------------');
-          
+
           traces.forEach((trace: any) => {
             const traceId = trace.trace_id.substring(0, 36);
             const operation = trace.operation_name.substring(0, 23).padEnd(23);
@@ -143,7 +143,7 @@ export const command = {
             const duration = trace.duration ? `${trace.duration}ms`.padEnd(8) : 'pending '.padEnd(8);
             const status = trace.status.padEnd(6);
             const startTime = new Date(trace.start_time).toLocaleString();
-            
+
             console.log(`${traceId} | ${operation} | ${service} | ${duration} | ${status} | ${startTime}`);
           });
 
@@ -154,5 +154,5 @@ export const command = {
       console.error('Error:', error.message);
       process.exit(1);
     }
-  }
+  },
 };

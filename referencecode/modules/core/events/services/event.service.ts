@@ -566,20 +566,20 @@ export class EventService {
     const now = new Date();
 
     switch (schedule.schedule_type) {
-      case 'once':
-        // Disable after running once
-        return new Date('9999-12-31');
+    case 'once':
+      // Disable after running once
+      return new Date('9999-12-31');
 
-      case 'interval':
-        return new Date(now.getTime() + (schedule.interval_ms || 0));
+    case 'interval':
+      return new Date(now.getTime() + (schedule.interval_ms || 0));
 
-      case 'cron':
-        // TODO: Implement cron parser
-        // For now, just add 1 hour
-        return new Date(now.getTime() + 3600000);
+    case 'cron':
+      // TODO: Implement cron parser
+      // For now, just add 1 hour
+      return new Date(now.getTime() + 3600000);
 
-      default:
-        return now;
+    default:
+      return now;
     }
   }
 
@@ -596,15 +596,15 @@ export class EventService {
    */
   private mapListenerToExecutor(handlerType: string): string {
     switch (handlerType) {
-      case 'webhook':
-        return 'webhook';
-      case 'workflow':
-        return 'workflow';
-      case 'command':
-        return 'command';
-      case 'function':
-      default:
-        return 'function';
+    case 'webhook':
+      return 'webhook';
+    case 'workflow':
+      return 'workflow';
+    case 'command':
+      return 'command';
+    case 'function':
+    default:
+      return 'function';
     }
   }
 }

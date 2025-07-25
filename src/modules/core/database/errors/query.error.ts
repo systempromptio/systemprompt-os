@@ -5,7 +5,7 @@
  */
 
 import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_500 } from '@/modules/core/database/constants/index.js';
+import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when a query fails to execute.
@@ -28,8 +28,15 @@ export class QueryError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'QUERY_ERROR', HTTP_500, cause);
-    this.name = 'QueryError';
-    this.query = query;
-    this.params = params;
+    Object.defineProperty(this, 'name', {
+ value: 'QueryError',
+configurable: true
+});
+    if (query !== undefined) {
+      this.query = query;
+    }
+    if (params !== undefined) {
+      this.params = params;
+    }
   }
 }

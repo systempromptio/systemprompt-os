@@ -1,5 +1,3 @@
-const TWO = TWO;
-
 /**
  *
  * IOAuth2TokenResponse interface.
@@ -77,3 +75,9 @@ export interface IIdentityProvider {
 
     revokeTokens?(_token: string): Promise<void>;
 }
+
+// Type aliases for compatibility
+export type IdentityProvider = IIdentityProvider;
+export type OAuth2TokenResponse = IIOAuth2TokenResponse;
+export type OAuth2ClientCredentials = IIOAuth2ClientCredentials;
+export type IDPUserInfo = IIDPUserInfo;

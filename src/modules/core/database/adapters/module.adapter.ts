@@ -5,14 +5,14 @@
  */
 
 import type { Database } from 'better-sqlite3';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type {
   IDatabaseRow,
   IModuleDatabaseAdapter,
   IModulePreparedStatement,
   IMutationResult
-} from '@/modules/core/database/types/module-adapter.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+} from '@/modules/core/database/types/module-adapter.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * Helper to get database instance from service.
@@ -53,11 +53,11 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
     return {
       all: (...params: unknown[]): T[] => {
         const result = stmt.all(...params);
-        return Array.isArray(result) ? result : [];
+        return Array.isArray(result) ? (result as T[]) : [];
       },
       get: (...params: unknown[]): T | undefined => {
         const result = stmt.get(...params);
-        return result === undefined ? undefined : result;
+        return result === undefined ? undefined : (result as T);
       },
       run: (...params: unknown[]): IMutationResult => {
         const result = stmt.run(...params);
@@ -96,7 +96,7 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
     const stmt = this.db.prepare(sql);
     const queryParams = params ?? [];
     const result = stmt.all(...queryParams);
-    return await Promise.resolve(Array.isArray(result) ? result : []);
+    return await Promise.resolve(Array.isArray(result) ? (result as T[]) : []);
   }
 
   /**
@@ -119,10 +119,11 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
 /**
  * Creates a module database adapter from the database service.
  * @param moduleName - The name of the module requesting the adapter.
+ * @param _moduleName
  * @returns A module database adapter instance.
  * @throws Error if the database is not SQLite or adapter is not available.
  */
-export const createModuleAdapter = async (moduleName: string): Promise<IModuleDatabaseAdapter> => {
+export const createModuleAdapter = async (_moduleName: string): Promise<IModuleDatabaseAdapter> => {
   const dbService = DatabaseService.getInstance();
 
   await dbService.getConnection();

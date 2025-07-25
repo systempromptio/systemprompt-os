@@ -3,13 +3,13 @@
  * @module modules/core/monitor/repositories
  */
 
-import type { 
-  MetricData, 
-  Alert, 
-  AlertConfig, 
+import type {
+  MetricData,
+  Alert,
+  AlertConfig,
   Trace,
   MetricQuery,
-  MetricDataPoint
+  MetricDataPoint,
 } from '../types/monitor.types.js';
 
 export class MonitorRepository {
@@ -18,7 +18,7 @@ export class MonitorRepository {
   // Metrics operations
   async recordMetric(metric: MetricData): Promise<void> {
     const labelsJson = JSON.stringify(metric.labels || {});
-    
+
     await this.db.execute(`
       INSERT INTO metrics (id, name, type, value, labels, timestamp, unit, description)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -30,7 +30,7 @@ export class MonitorRepository {
       labelsJson,
       metric.timestamp.toISOString(),
       metric.unit || null,
-      metric.description || null
+      metric.description || null,
     ]);
   }
 
@@ -62,10 +62,10 @@ export class MonitorRepository {
     sql += ' ORDER BY timestamp ASC';
 
     const result = await this.db.select(sql, params);
-    
+
     return result.rows.map((row: any) => ({
       timestamp: new Date(row.timestamp),
-      value: row.value
+      value: row.value,
     }));
   }
 
@@ -73,7 +73,7 @@ export class MonitorRepository {
     const result = await this.db.select(`
       SELECT DISTINCT name FROM metrics ORDER BY name
     `);
-    
+
     return result.rows.map((row: any) => row.name);
   }
 
@@ -105,7 +105,7 @@ export class MonitorRepository {
       alert.message,
       alert.created_at.toISOString(),
       alert.updated_at.toISOString(),
-      metadataJson
+      metadataJson,
     ]);
   }
 
@@ -123,7 +123,7 @@ export class MonitorRepository {
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at),
       acknowledged_at: row.acknowledged_at ? new Date(row.acknowledged_at) : undefined,
-      resolved_at: row.resolved_at ? new Date(row.resolved_at) : undefined
+      resolved_at: row.resolved_at ? new Date(row.resolved_at) : undefined,
     }));
   }
 
@@ -139,7 +139,7 @@ export class MonitorRepository {
       new Date().toISOString(),
       userId,
       new Date().toISOString(),
-      alertId
+      alertId,
     ]);
   }
 
@@ -153,7 +153,7 @@ export class MonitorRepository {
     `, [
       new Date().toISOString(),
       new Date().toISOString(),
-      alertId
+      alertId,
     ]);
   }
 
@@ -176,7 +176,7 @@ export class MonitorRepository {
       channelsJson,
       config.enabled ? 1 : 0,
       config.created_at.toISOString(),
-      config.updated_at.toISOString()
+      config.updated_at.toISOString(),
     ]);
   }
 
@@ -191,7 +191,7 @@ export class MonitorRepository {
       channels: JSON.parse(row.channels),
       enabled: row.enabled === 1,
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     }));
   }
 
@@ -266,7 +266,7 @@ export class MonitorRepository {
       trace.status,
       attributesJson,
       eventsJson,
-      linksJson
+      linksJson,
     ]);
   }
 
@@ -283,7 +283,7 @@ export class MonitorRepository {
       events: JSON.parse(row.events),
       links: JSON.parse(row.links),
       start_time: new Date(row.start_time),
-      end_time: row.end_time ? new Date(row.end_time) : undefined
+      end_time: row.end_time ? new Date(row.end_time) : undefined,
     }));
   }
 
@@ -300,7 +300,7 @@ export class MonitorRepository {
       events: JSON.parse(row.events),
       links: JSON.parse(row.links),
       start_time: new Date(row.start_time),
-      end_time: row.end_time ? new Date(row.end_time) : undefined
+      end_time: row.end_time ? new Date(row.end_time) : undefined,
     }));
   }
 

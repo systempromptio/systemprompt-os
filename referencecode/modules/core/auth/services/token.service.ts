@@ -351,18 +351,18 @@ export class TokenService {
    */
   private getDefaultTTL(type: string): number {
     switch (type) {
-      case 'access':
-        return this.config.jwt.accessTokenTTL;
-      case 'refresh':
-        return this.config.jwt.refreshTokenTTL;
-      case 'api':
-        return 365 * 24 * 60 * 60; // 1 year
-      case 'personal':
-        return 90 * 24 * 60 * 60; // 90 days
-      case 'service':
-        return 0; // No expiry
-      default:
-        return 24 * 60 * 60; // 24 hours
+    case 'access':
+      return this.config.jwt.accessTokenTTL;
+    case 'refresh':
+      return this.config.jwt.refreshTokenTTL;
+    case 'api':
+      return 365 * 24 * 60 * 60; // 1 year
+    case 'personal':
+      return 90 * 24 * 60 * 60; // 90 days
+    case 'service':
+      return 0; // No expiry
+    default:
+      return 24 * 60 * 60; // 24 hours
     }
   }
 }

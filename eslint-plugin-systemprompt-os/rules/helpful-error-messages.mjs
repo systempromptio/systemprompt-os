@@ -52,8 +52,7 @@ export const noConsoleWithHelp = {
     },
     messages: {
       noConsole: 'Unexpected console statement. ' +
-        'Fix: Use the logger service instead: `logger.{{method}}()`. ' +
-        'For legitimate console use (e.g., CLI output), disable with: `/* eslint-disable no-console */` at file top.'
+        'Fix: Use the logger service instead: `logger.{{method}}()`. '
     },
     schema: []
   },

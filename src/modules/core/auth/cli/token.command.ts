@@ -11,13 +11,8 @@
 import { Command } from 'commander';
 import type { AuthModule } from '@/modules/core/auth/index.js';
 import {
- ONE, TEN, THREE, TWO, ZERO
-} from '@/modules/core/auth/constants';
-
-const TEN = TEN;
-
-const TWO = TWO;
-const THREE = THREE;
+ ONE, TEN, TWO, ZERO
+} from '@/const/numbers.js';
 
 /**
  *  *
@@ -39,14 +34,14 @@ export function createTokenCommand(module: AuthModule): Command {
     .option('-s, --scope <scopes...>', 'Token scopes', ['read'])
     .option('-e, --expires <seconds>', 'Token expiration in seconds')
     .option('-m, --metadata <json>', 'Token metadata as JSON')
-    .action(async (options) : void => {
+    .action(async (options): Promise<void> => {
       try {
         let metadata;
         if (options.metadata) {
           try {
             metadata = JSON.parse(options.metadata);
           } catch {
-            logger.error('Error: Invalid JSON for metadata');
+            console.error('Error: Invalid JSON for metadata');
             process.exit(ONE);
           }
         }
@@ -59,14 +54,14 @@ export function createTokenCommand(module: AuthModule): Command {
           ...metadata && { metadata }
         });
 
-        logger.log('\n✓ Token created successfully!');
-        logger.log(`Token: ${token.token}`);
-        logger.log(`Type: ${token.type}`);
-        logger.log(`Scopes: ${token.scope.join(', ')}`);
-        logger.log(`Expires: ${token.expiresAt.toISOString()}`);
-        logger.log('\nStore this token securely - it cannot be retrieved again.');
+        console.log('\n✓ Token created successfully!');
+        console.log(`Token: ${token.token}`);
+        console.log(`Type: ${token.type}`);
+        console.log(`Scopes: ${token.scope.join(', ')}`);
+        console.log(`Expires: ${token.expiresAt.toISOString()}`);
+        console.log('\nStore this token securely - it cannot be retrieved again.');
       } catch (error) {
-        logger.error('Error creating token:', error.message);
+        console.error('Error creating token:', (error as Error).message);
         process.exit(ONE);
       }
     });
@@ -74,21 +69,21 @@ export function createTokenCommand(module: AuthModule): Command {
   cmd.command('list <userId>')
     .description('List user tokens')
     .option('--json', 'Output as JSON')
-    .action(async (userId, options) : void => {
+    .action(async (userId, options) : Promise<void> => {
       try {
         const tokens = await module.listUserTokens(userId);
 
         if (options.json) {
-          logger.log(JSON.stringify(tokens, null, TWO));
+          console.log(JSON.stringify(tokens, null, TWO));
         } else {
           if (tokens.length === ZERO) {
-            logger.log('No tokens found');
+            console.log('No tokens found');
             return;
           }
 
-          logger.log('\nTokens:');
-          logger.log('ID                                Type        Scopes              Expires                   Last Used');
-          logger.log('--------------------------------  ----------  ------------------  ------------------------  ------------------------');
+          console.log('\nTokens:');
+          console.log('ID                                Type        Scopes              Expires                   Last Used');
+          console.log('--------------------------------  ----------  ------------------  ------------------------  ------------------------');
 
           tokens.forEach((token) => {
             const id = token.id.substring(ZERO, 32);
@@ -98,25 +93,25 @@ export function createTokenCommand(module: AuthModule): Command {
             const expires = token.expiresAt ? token.expiresAt.toISOString() : 'Never'.padEnd(24);
             const lastUsed = token.lastUsedAt ? token.lastUsedAt.toISOString() : 'Never'.padEnd(24);
 
-            logger.log(`${id}  ${type}  ${scopes}  ${expires}  ${lastUsed}`);
+            console.log(`${id}  ${type}  ${scopes}  ${expires}  ${lastUsed}`);
           });
 
-          logger.log(`\nTotal: ${tokens.length} token(s)`);
+          console.log(`\nTotal: ${tokens.length} token(s)`);
         }
       } catch (error) {
-        logger.error('Error listing tokens:', error.message);
+        console.error('Error listing tokens:', (error as Error).message);
         process.exit(ONE);
       }
     });
 
   cmd.command('revoke <tokenId>')
     .description('Revoke a token')
-    .action(async (tokenId) : void => {
+    .action(async (tokenId) : Promise<void> => {
       try {
         await module.revokeToken(tokenId);
-        logger.log('✓ Token revoked successfully');
+        console.log('✓ Token revoked successfully');
       } catch (error) {
-        logger.error('Error revoking token:', error.message);
+        console.error('Error revoking token:', (error as Error).message);
         process.exit(ONE);
       }
     });
@@ -124,24 +119,24 @@ export function createTokenCommand(module: AuthModule): Command {
   cmd.command('revoke-all <userId>')
     .description('Revoke all tokens for a user')
     .option('-t, --type <type>', 'Only revoke tokens of specific type')
-    .action(async (userId, options) : void => {
+    .action(async (userId, options) : Promise<void> => {
       try {
         await module.revokeUserTokens(userId, options.type);
-        logger.log(`✓ All ${options.type || ''} tokens revoked for user ${userId}`);
+        console.log(`✓ All ${options.type || ''} tokens revoked for user ${userId}`);
       } catch (error) {
-        logger.error('Error revoking tokens:', error.message);
+        console.error('Error revoking tokens:', (error as Error).message);
         process.exit(ONE);
       }
     });
 
   cmd.command('cleanup')
     .description('Clean up expired tokens')
-    .action(async () : void => {
+    .action(async () : Promise<void> => {
       try {
         const count = await module.cleanupExpiredTokens();
-        logger.log(`✓ Cleaned up ${count} expired token(s)`);
+        console.log(`✓ Cleaned up ${count} expired token(s)`);
       } catch (error) {
-        logger.error('Error cleaning up tokens:', error.message);
+        console.error('Error cleaning up tokens:', (error as Error).message);
         process.exit(ONE);
       }
     });

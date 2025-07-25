@@ -19,11 +19,11 @@ export function createPermissionsCheckCommand(module: PermissionsModule): Comman
           userId: user,
           resource,
           action,
-          scope: options.scope as PermissionScope
+          scope: options.scope as PermissionScope,
         });
-        
+
         if (result.allowed) {
-          console.log(`✓ Permission GRANTED`);
+          console.log('✓ Permission GRANTED');
           console.log(`  User: ${user}`);
           console.log(`  Resource: ${resource}`);
           console.log(`  Action: ${action}`);
@@ -32,7 +32,7 @@ export function createPermissionsCheckCommand(module: PermissionsModule): Comman
           }
           console.log(`  Matched by: ${result.matchedBy}`);
         } else {
-          console.log(`✗ Permission DENIED`);
+          console.log('✗ Permission DENIED');
           console.log(`  User: ${user}`);
           console.log(`  Resource: ${resource}`);
           console.log(`  Action: ${action}`);
@@ -49,6 +49,6 @@ export function createPermissionsCheckCommand(module: PermissionsModule): Comman
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

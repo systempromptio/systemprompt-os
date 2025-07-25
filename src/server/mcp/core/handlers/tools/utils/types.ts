@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import type { Task } from '@/server/mcp/core/types/task.js';
+import type { ITask } from '@/server/mcp/core/types/task.js';
 
 /**
  * Schema for create task arguments.
@@ -210,7 +210,7 @@ export class StatusCheckError extends Error {
  * Task report structure.
  */
 export interface ITaskReport {
-  readonly task: Task;
+  readonly task: ITask;
   readonly duration: string;
   readonly logCount: number;
   readonly summary: string;

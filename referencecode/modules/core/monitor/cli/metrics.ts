@@ -14,25 +14,25 @@ export const command = {
       name: 'metric',
       alias: 'm',
       type: 'string',
-      description: 'Metric name to query'
+      description: 'Metric name to query',
     },
     {
       name: 'list',
       alias: 'l',
       type: 'boolean',
-      description: 'List available metric names'
+      description: 'List available metric names',
     },
     {
       name: 'start',
       alias: 's',
       type: 'string',
-      description: 'Start time (ISO 8601 or relative like -1h)'
+      description: 'Start time (ISO 8601 or relative like -1h)',
     },
     {
       name: 'end',
       alias: 'e',
       type: 'string',
-      description: 'End time (ISO 8601 or relative like now)'
+      description: 'End time (ISO 8601 or relative like now)',
     },
     {
       name: 'format',
@@ -40,14 +40,14 @@ export const command = {
       type: 'string',
       description: 'Output format',
       default: 'table',
-      choices: ['json', 'yaml', 'table', 'csv']
-    }
+      choices: ['json', 'yaml', 'table', 'csv'],
+    },
   ],
   async execute(context: any) {
     try {
       const moduleLoader = getModuleLoader();
       await moduleLoader.loadModules();
-      
+
       const monitorModule = moduleLoader.getModule('monitor');
       if (!monitorModule?.exports?.MonitorService) {
         throw new Error('Monitor module not available');
@@ -58,7 +58,7 @@ export const command = {
       if (context.options.list) {
         // List available metrics
         const metricNames = await service.getMetricNames();
-        
+
         if (context.options.format === 'json') {
           console.log(JSON.stringify(metricNames, null, 2));
         } else if (context.options.format === 'yaml') {
@@ -76,7 +76,7 @@ export const command = {
       } else if (context.options.metric) {
         // Query specific metric
         const query: any = {
-          metric: context.options.metric
+          metric: context.options.metric,
         };
 
         // Parse time ranges
@@ -107,11 +107,11 @@ export const command = {
           // Table format
           console.log(`Metric: ${result.metric}`);
           console.log(`Data Points: ${result.data.length}\n`);
-          
+
           if (result.data.length > 0) {
             console.log('Timestamp                 | Value');
             console.log('--------------------------|----------------');
-            
+
             // Show last 20 points in table
             const points = result.data.slice(-20);
             points.forEach((point: any) => {
@@ -133,7 +133,7 @@ export const command = {
       console.error('Error:', error.message);
       process.exit(1);
     }
-  }
+  },
 };
 
 function parseTime(timeStr: string): Date {
@@ -144,24 +144,24 @@ function parseTime(timeStr: string): Date {
       const value = parseInt(match[1]) || 0;
       const unit = match[2];
       const now = new Date();
-      
+
       switch (unit) {
-        case 's':
-          return new Date(now.getTime() - value * 1000);
-        case 'm':
-          return new Date(now.getTime() - value * 60 * 1000);
-        case 'h':
-          return new Date(now.getTime() - value * 60 * 60 * 1000);
-        case 'd':
-          return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+      case 's':
+        return new Date(now.getTime() - value * 1000);
+      case 'm':
+        return new Date(now.getTime() - value * 60 * 1000);
+      case 'h':
+        return new Date(now.getTime() - value * 60 * 60 * 1000);
+      case 'd':
+        return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
       }
     }
   }
-  
+
   if (timeStr === 'now') {
     return new Date();
   }
-  
+
   // Parse as ISO 8601
   return new Date(timeStr);
 }

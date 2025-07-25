@@ -3,9 +3,9 @@
  */
 
 // Import and re-export enums from core.ts
-import { 
-  EventPriority, 
-  EventStatus, 
+import {
+  EventPriority,
+  EventStatus,
   EventTriggerType,
   ConditionOperator,
   RetryStrategy,
@@ -13,12 +13,12 @@ import {
   ExecutorType,
   HandlerType,
   WorkflowStepType,
-  ErrorHandlingStrategy
+  ErrorHandlingStrategy,
 } from './core.js';
 
-export { 
-  EventPriority, 
-  EventStatus, 
+export {
+  EventPriority,
+  EventStatus,
   EventTriggerType,
   ConditionOperator,
   RetryStrategy,
@@ -26,7 +26,7 @@ export {
   ExecutorType,
   HandlerType,
   WorkflowStepType,
-  ErrorHandlingStrategy
+  ErrorHandlingStrategy,
 };
 
 /**
@@ -154,17 +154,17 @@ export interface EventListener {
  */
 export interface IEventExecutor {
   type: string;
-  
+
   /**
    * Execute an event
    */
   execute(event: Event, execution: EventExecution): Promise<ExecutionResult>;
-  
+
   /**
    * Validate executor configuration
    */
   validateConfig(config: Record<string, unknown>): Promise<boolean>;
-  
+
   /**
    * Get executor capabilities
    */

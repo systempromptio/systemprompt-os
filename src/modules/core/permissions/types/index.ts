@@ -1,8 +1,4 @@
 /**
- * Permissions type definitions.
- */
-
-/**
  * Permission action enumeration.
  */
 export const enum PermissionActionEnum {

@@ -3,10 +3,10 @@
  * @module modules/core/auth/services/audit.service
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { ONE_HUNDRED } from '@/modules/core/auth/constants';
+import { ONE_HUNDRED } from '@/const/numbers.js';
 
 /**
  * AuditEvent interface.
@@ -104,13 +104,16 @@ export class AuditService {
 
       const rows = await this.db.query<IAuditRow>(query, params);
 
-      return rows.map((row): IAuditEvent => { return {
-        userId: row.userId,
-        action: row.action,
-        details: row.details ? JSON.parse(row.details) : undefined,
-        ipAddress: row.ip_address ?? undefined,
-        userAgent: row.user_agent ?? undefined,
-      } });
+      return rows.map((row): IAuditEvent => {
+        const event: IAuditEvent = {
+          action: row.action,
+        };
+        if (row.userId) { event.userId = row.userId; }
+        if (row.details) { event.details = JSON.parse(row.details); }
+        if (row.ip_address) { event.ipAddress = row.ip_address; }
+        if (row.user_agent) { event.userAgent = row.user_agent; }
+        return event;
+      });
     } catch (error) {
       this.logger.error('Failed to get audit events', {
         userId,

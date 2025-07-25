@@ -1,8 +1,4 @@
 /**
- * Monitor type definitions.
- */
-
-/**
  * Metric type enumeration.
  */
 export const enum MetricTypeEnum {

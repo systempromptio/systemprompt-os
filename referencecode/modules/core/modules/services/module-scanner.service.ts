@@ -12,13 +12,13 @@ import type {
   ScannedModule,
   ModuleScanOptions,
   ModuleInfo,
-  ModuleScannerService as IModuleScannerService
+  ModuleScannerService as IModuleScannerService,
 } from '../types/index.js';
-import { 
-  ModuleType, 
-  ModuleStatus, 
-  ModuleEventType, 
-  ModuleHealthStatus
+import {
+  ModuleType,
+  ModuleStatus,
+  ModuleEventType,
+  ModuleHealthStatus,
 } from '../types/index.js';
 import type { ModuleManagerService } from './module-manager.service.js';
 import { parseModuleManifestSafe } from '../utils/manifest-parser.js';
@@ -33,7 +33,7 @@ export class ModuleScannerService implements IModuleScannerService {
   private readonly defaultPaths = [
     'src/modules/core',
     'src/modules/custom',
-    'extensions/modules'
+    'extensions/modules',
   ];
 
   constructor(logger?: Logger) {
@@ -142,7 +142,7 @@ export class ModuleScannerService implements IModuleScannerService {
         this.logger?.warn(`Skipping ${moduleYamlPath}: ${parseResult.errors?.join(', ')}`);
         return null;
       }
-      
+
       const manifest = parseResult.manifest;
 
       // Use module manager service validation if available
@@ -157,7 +157,7 @@ export class ModuleScannerService implements IModuleScannerService {
       // Check if index file exists
       const indexPath = join(modulePath, 'index.ts');
       const indexJsPath = join(modulePath, 'index.js');
-      
+
       if (!existsSync(indexPath) && !existsSync(indexJsPath)) {
         this.logger?.warn(`Module ${manifest.name} missing index file at ${modulePath}`);
         return null;
@@ -180,8 +180,8 @@ export class ModuleScannerService implements IModuleScannerService {
         metadata: {
           description: manifest.description,
           author: manifest.author,
-          cli: manifest.cli
-        }
+          cli: manifest.cli,
+        },
       };
     } catch (error) {
       this.logger?.error(`Error loading module info from ${modulePath}:`, error);
@@ -198,9 +198,9 @@ export class ModuleScannerService implements IModuleScannerService {
       'service': ModuleType.SERVICE,
       'daemon': ModuleType.DAEMON,
       'plugin': ModuleType.PLUGIN,
-      'extension': ModuleType.EXTENSION
+      'extension': ModuleType.EXTENSION,
     };
-    
+
     return typeMap[type.toLowerCase()] || null;
   }
 
@@ -239,13 +239,13 @@ export class ModuleScannerService implements IModuleScannerService {
           JSON.stringify(module.config || {}),
           ModuleStatus.INSTALLED,
           ModuleHealthStatus.UNKNOWN,
-          JSON.stringify(module.metadata || {})
+          JSON.stringify(module.metadata || {}),
         );
 
         eventStmt.run(
           module.name,
           ModuleEventType.DISCOVERED,
-          JSON.stringify({ version: module.version, path: module.path })
+          JSON.stringify({ version: module.version, path: module.path }),
         );
       } catch (error) {
         this.logger?.error(`Error storing module ${module.name}:`, error);
@@ -301,7 +301,7 @@ export class ModuleScannerService implements IModuleScannerService {
       ...(row.last_health_check && { lastHealthCheck: new Date(row.last_health_check) }),
       metadata: row.metadata ? JSON.parse(row.metadata) : {},
       createdAt: new Date(row.created_at || Date.now()),
-      updatedAt: new Date(row.updated_at || Date.now())
+      updatedAt: new Date(row.updated_at || Date.now()),
     };
   }
 
@@ -314,7 +314,7 @@ export class ModuleScannerService implements IModuleScannerService {
       SET status = ?, lasterror = ?, updated_at = CURRENT_TIMESTAMP
       WHERE name = ?
     `);
-    
+
     stmt.run(status, error || null, name);
 
     // Record event based on status
@@ -324,7 +324,7 @@ export class ModuleScannerService implements IModuleScannerService {
         INSERT INTO module_events (module_id, event_type, event_data)
         VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
       `);
-      
+
       eventStmt.run(name, eventType, JSON.stringify({ status, error }));
     }
   }
@@ -334,15 +334,15 @@ export class ModuleScannerService implements IModuleScannerService {
    */
   private mapStatusToEventType(status: ModuleStatus): ModuleEventType | null {
     switch (status) {
-      case ModuleStatus.LOADING:
-      case ModuleStatus.RUNNING:
-        return ModuleEventType.STARTED;
-      case ModuleStatus.STOPPED:
-        return ModuleEventType.STOPPED;
-      case ModuleStatus.ERROR:
-        return ModuleEventType.ERROR;
-      default:
-        return null;
+    case ModuleStatus.LOADING:
+    case ModuleStatus.RUNNING:
+      return ModuleEventType.STARTED;
+    case ModuleStatus.STOPPED:
+      return ModuleEventType.STOPPED;
+    case ModuleStatus.ERROR:
+      return ModuleEventType.ERROR;
+    default:
+      return null;
     }
   }
 
@@ -352,13 +352,13 @@ export class ModuleScannerService implements IModuleScannerService {
   async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
     const stmt = this.db.prepare('UPDATE modules SET enabled = ? WHERE name = ?');
     stmt.run(enabled ? 1 : 0, name);
-    
+
     // Record config change event
     const eventStmt = this.db.prepare(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
     `);
-    
+
     eventStmt.run(name, ModuleEventType.CONFIG_CHANGED, JSON.stringify({ enabled }));
   }
 
@@ -372,15 +372,15 @@ export class ModuleScannerService implements IModuleScannerService {
       SET health_status = ?, health_message = ?, last_health_check = CURRENT_TIMESTAMP
       WHERE name = ?
     `);
-    
+
     stmt.run(healthStatus, message || null, name);
-    
+
     // Record health check event
     const eventStmt = this.db.prepare(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
     `);
-    
+
     eventStmt.run(name, ModuleEventType.HEALTH_CHECK, JSON.stringify({ healthy, message }));
   }
 }

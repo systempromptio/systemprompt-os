@@ -41,16 +41,16 @@ interface AuthCodeRow {
 export class AuthCodeService {
   private static instance: AuthCodeService;
   private logger?: Logger;
-  
+
   private constructor(private readonly db: DatabaseService) {}
-  
+
   static getInstance(): AuthCodeService {
     if (!this.instance) {
       this.instance = new AuthCodeService(DatabaseService.getInstance());
     }
     return this.instance;
   }
-  
+
   setLogger(logger: Logger): void {
     this.logger = logger;
   }
@@ -60,7 +60,7 @@ export class AuthCodeService {
    */
   async createAuthorizationCode(data: AuthorizationCodeData): Promise<string> {
     const code = randomBytes(32).toString('base64url');
-    
+
     await this.db.execute(
       `INSERT INTO auth_authorization_codes 
        (code, client_id, redirect_uri, scope, user_id, user_email, 
@@ -77,15 +77,15 @@ export class AuthCodeService {
         data.providerTokens ? JSON.stringify(data.providerTokens) : null,
         data.codeChallenge || null,
         data.codeChallengeMethod || null,
-        data.expiresAt.toISOString()
-      ]
+        data.expiresAt.toISOString(),
+      ],
     );
-    
-    this.logger?.info('Authorization code created', { 
-      code: `${code.substring(0, 8)  }...`, 
-      clientId: data.clientId 
+
+    this.logger?.info('Authorization code created', {
+      code: `${code.substring(0, 8)  }...`,
+      clientId: data.clientId,
     });
-    
+
     return code;
   }
 
@@ -96,14 +96,14 @@ export class AuthCodeService {
     const rows = await this.db.query<AuthCodeRow>(
       `SELECT * FROM auth_authorization_codes 
        WHERE code = ? AND datetime(expires_at) > datetime('now')`,
-      [code]
+      [code],
     );
-    
+
     const row = rows[0];
     if (!row) {
       return null;
     }
-    
+
     return {
       clientId: row.client_id,
       redirectUri: row.redirect_uri,
@@ -114,7 +114,7 @@ export class AuthCodeService {
       ...(row.provider_tokens && { providerTokens: JSON.parse(row.provider_tokens) }),
       ...(row.code_challenge && { codeChallenge: row.code_challenge }),
       ...(row.code_challenge_method && { codeChallengeMethod: row.code_challenge_method }),
-      expiresAt: new Date(row.expires_at)
+      expiresAt: new Date(row.expires_at),
     };
   }
 
@@ -124,7 +124,7 @@ export class AuthCodeService {
   async deleteAuthorizationCode(code: string): Promise<void> {
     await this.db.execute(
       'DELETE FROM auth_authorization_codes WHERE code = ?',
-      [code]
+      [code],
     );
   }
 
@@ -134,7 +134,7 @@ export class AuthCodeService {
   async cleanupExpiredCodes(): Promise<void> {
     await this.db.execute(
       `DELETE FROM auth_authorization_codes 
-       WHERE datetime(expires_at) < datetime('now')`
+       WHERE datetime(expires_at) < datetime('now')`,
     );
   }
 }

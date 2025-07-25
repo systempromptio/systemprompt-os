@@ -18,9 +18,9 @@ export function createRolesMembersCommand(module: PermissionsModule): Command {
           console.error(`Error: Role '${roleName}' not found`);
           process.exit(1);
         }
-        
+
         const members = await module.getRoleMembers(role.id);
-        
+
         if (options.json) {
           console.log(JSON.stringify(members, null, 2));
         } else {
@@ -28,22 +28,22 @@ export function createRolesMembersCommand(module: PermissionsModule): Command {
           if (role.description) {
             console.log(`Description: ${role.description}`);
           }
-          
+
           if (members.length === 0) {
             console.log('\nNo members in this role');
           } else {
             console.log('\nMembers:');
             console.log('User ID                           Assigned At              Assigned By');
             console.log('--------------------------------  -----------------------  --------------------------------');
-            
+
             members.forEach(member => {
               const userId = member.userId.padEnd(32).substring(0, 32);
               const assignedAt = new Date(member.assignedAt).toISOString().substring(0, 23);
               const assignedBy = (member.assignedBy || '-').padEnd(32).substring(0, 32);
-              
+
               console.log(`${userId}  ${assignedAt}  ${assignedBy}`);
             });
-            
+
             console.log(`\nTotal: ${members.length} member(s)`);
           }
           console.log();
@@ -53,6 +53,6 @@ export function createRolesMembersCommand(module: PermissionsModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

@@ -14,12 +14,12 @@ export function createResourcesGetCommand(module: MCPModule): Command {
     .action(async (uri, options) => {
       try {
         const resource = await module.readResource(uri);
-        
+
         if (!resource) {
           console.error(`Resource '${uri}' not found`);
           process.exit(1);
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(resource, null, 2));
         } else if (options.format === 'yaml') {
@@ -31,14 +31,14 @@ export function createResourcesGetCommand(module: MCPModule): Command {
           console.log(`Name: ${resource.name || uri}`);
           console.log(`Description: ${resource.description || '-'}`);
           console.log(`MIME Type: ${resource.mimeType || 'text/plain'}`);
-          
+
           if (resource.metadata) {
             console.log('\nMetadata:');
             for (const [key, value] of Object.entries(resource.metadata)) {
               console.log(`  ${key}: ${value}`);
             }
           }
-          
+
           console.log('\nContent:');
           if (typeof resource.content === 'string') {
             console.log(resource.content);

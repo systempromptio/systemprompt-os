@@ -1,16 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '@/modules/core/database/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
-import type { UserService } from '@/modules/core/auth/services/user-service.js';
 import type {
- Permission, Role, User
+ IPermission, IRole, IUser
 } from '@/modules/core/auth/database/models/index.js';
-import type {
-  PermissionRow, RoleRow, UserRow
-} from '@/modules/core/auth/types/index.js';
 import {
- EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
-} from '@/modules/core/auth/constants';
+ ZERO
+} from '@/const/numbers.js';
 
 /**
  *
@@ -18,7 +14,7 @@ import {
  *
  */
 
-export interface IISessionMetadata {
+export interface ISessionMetadata {
   ipAddress?: string;
   userAgent?: string;
 }
@@ -29,7 +25,7 @@ export interface IISessionMetadata {
  *
  */
 
-export interface IIOAuthProfile {
+export interface IOAuthProfile {
   email: string;
   name?: string;
   avatar?: string;
@@ -43,7 +39,7 @@ export interface IIOAuthProfile {
 
 export class AuthRepository {
   private static instance: AuthRepository;
-  private readonly userService: UserService;
+  private readonly userService: any;
 
   /**
    *  * Creates a new AuthRepository instance.
@@ -65,20 +61,20 @@ export class AuthRepository {
 
   /**
    *  * Creates or updates a user from OAuth authentication.
-   * Delegates to UserService which properly handles first-user detection.
+   * Delegates to any which properly handles first-user detection.
    * Outside of the transaction to avoid race conditions.
    * @param provider - OAuth provider identifier (e.g., 'google', 'github').
-   * @param providerId - User's unique ID from the OAuth provider.
-   * @param profile - User profile data from OAuth provider.
+   * @param providerId - IUser's unique ID from the OAuth provider.
+   * @param profile - IUser profile data from OAuth provider.
    * @returns Complete user object with roles and permissions.
    * @throws {Error} If user creation or retrieval fails.
    */
-  async upsertUserFromOAuth(
+  async upsertIUserFromOAuth(
     provider: string,
     providerId: string,
     profile: IOAuthProfile,
-  ): Promise<User> {
-    const user = await this.userService.createOrUpdateUserFromOAuth({
+  ): Promise<IUser> {
+    const user = await this.userService.createOrUpdateIUserFromOAuth({
       provider,
       providerId,
       email: profile.email,
@@ -86,14 +82,14 @@ export class AuthRepository {
       ...profile.avatar !== undefined && { avatar: profile.avatar },
     });
 
-    const roles = await this.getUserRoles(user.id);
-    const permissions = await this.getUserPermissions(user.id);
+    const roles = await this.getIUserIRoles(user.id);
+    const permissions = await this.getIUserIPermissions(user.id);
 
     return {
       id: user.id,
       email: user.email,
       ...user.name && { name: user.name },
-      ...user.avatar_url && { avatarUrl: user.avatar_url },
+      ...user.avatarUrl && { avatarUrl: user.avatarUrl },
       isActive: true,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -106,26 +102,26 @@ export class AuthRepository {
   /**
    * Retrieves a user by their unique identifier.
    * Fetches the user record along with their associated roles and permissions.
-   * @param userId - User's unique identifier.
-   * @returns User object with roles and permissions, or null if not found.
+   * @param userId - IUser's unique identifier.
+   * @returns IUser object with roles and permissions, or null if not found.
    */
-  async getUserById(userId: string): Promise<User | null> {
+  async getIUserById(userId: string): Promise<IUser | null> {
     const userRow = await this.db
-      .query<UserRow>('SELECT * FROM auth_users WHERE id = ?', [userId])
-      .then((rows: UserRow[]) => { return rows[ZERO] });
+      .query<any>('SELECT * FROM auth_users WHERE id = ?', [userId])
+      .then((rows: any[]) => { return rows[ZERO] });
 
     if (!userRow) {
       return null;
     }
 
-    const roles = await this.getUserRoles(userId);
-    const permissions = await this.getUserPermissions(userId);
+    const roles = await this.getIUserIRoles(userId);
+    const permissions = await this.getIUserIPermissions(userId);
 
     return {
       id: userRow.id,
       email: userRow.email,
       ...userRow.name && { name: userRow.name },
-      ...userRow.avatar_url && { avatarUrl: userRow.avatar_url },
+      ...userRow.avatarUrl && { avatarUrl: userRow.avatarUrl },
       isActive: Boolean(userRow.isActive),
       createdAt: userRow.createdAt,
       updatedAt: userRow.updatedAt,
@@ -137,35 +133,35 @@ export class AuthRepository {
 
   /**
    * Retrieves a user by their email address.
-   * @param email - User's email address.
-   * @returns User object with roles and permissions, or null if not found.
+   * @param email - IUser's email address.
+   * @returns IUser object with roles and permissions, or null if not found.
    */
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getIUserByEmail(email: string): Promise<IUser | null> {
     const userRow = await this.db
-      .query<Pick<UserRow, 'id'>>('SELECT id FROM auth_users WHERE email = ?', [email])
-      .then((rows: Pick<UserRow, 'id'>[]) => { return rows[ZERO] });
+      .query<Pick<any, 'id'>>('SELECT id FROM auth_users WHERE email = ?', [email])
+      .then((rows: Pick<any, 'id'>[]) => { return rows[ZERO] });
 
     if (!userRow) {
       return null;
     }
 
-    return await this.getUserById(userRow.id);
+    return await this.getIUserById(userRow.id);
   }
 
   /**
    * Retrieves all roles assigned to a user.
-   * @param userId - User's unique identifier.
+   * @param userId - IUser's unique identifier.
    * @returns Array of role objects assigned to the user.
    */
-  async getUserRoles(userId: string): Promise<Role[]> {
-    const rows = await this.db.query<RoleRow>(
+  async getIUserIRoles(userId: string): Promise<IRole[]> {
+    const rows = await this.db.query<any>(
       `SELECT r.* FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.roleId
        WHERE ur.userId = ?`,
       [userId],
     );
 
-    return rows.map((row: RoleRow) => { return {
+    return rows.map((row: any) => { return {
       id: row.id,
       name: row.name,
       ...row.description && { description: row.description },
@@ -175,13 +171,13 @@ export class AuthRepository {
 
   /**
    * Retrieves all permissions granted to a user through their roles.
-   * Permissions are deduplicated using DISTINCT to handle cases where
+   * IPermissions are deduplicated using DISTINCT to handle cases where
    * multiple roles grant the same permission.
-   * @param userId - User's unique identifier.
+   * @param userId - IUser's unique identifier.
    * @returns Array of unique permission objects granted to the user.
    */
-  async getUserPermissions(userId: string): Promise<Permission[]> {
-    const rows = await this.db.query<PermissionRow>(
+  async getIUserIPermissions(userId: string): Promise<IPermission[]> {
+    const rows = await this.db.query<any>(
       `SELECT DISTINCT p.* FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
        JOIN auth_user_roles ur ON rp.roleId = ur.roleId
@@ -189,7 +185,7 @@ export class AuthRepository {
       [userId],
     );
 
-    return rows.map((row: PermissionRow) => { return {
+    return rows.map((row: any) => { return {
       id: row.id,
       name: row.name,
       resource: row.resource,
@@ -201,12 +197,12 @@ export class AuthRepository {
   /**
    * Checks if a user has a specific permission.
    * Verifies permission through the user's assigned roles.
-   * @param userId - User's unique identifier.
+   * @param userId - IUser's unique identifier.
    * @param resource - Resource the permission applies to.
    * @param action - Action the permission allows.
    * @returns True if user has the permission, false otherwise.
    */
-  async hasPermission(userId: string, resource: string, action: string): Promise<boolean> {
+  async hasIPermission(userId: string, resource: string, action: string): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
@@ -220,11 +216,11 @@ export class AuthRepository {
 
   /**
    * Checks if a user has a specific role.
-   * @param userId - User's unique identifier.
+   * @param userId - IUser's unique identifier.
    * @param roleName - Name of the role to check.
    * @returns True if user has the role, false otherwise.
    */
-  async hasRole(userId: string, roleName: string): Promise<boolean> {
+  async hasIRole(userId: string, roleName: string): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_user_roles ur
        JOIN auth_roles r ON ur.roleId = r.id
@@ -238,7 +234,7 @@ export class AuthRepository {
   /**
    * Creates a new authentication session.
    * Sessions store hashed tokens to validate subsequent requests.
-   * @param userId - User's unique identifier.
+   * @param userId - IUser's unique identifier.
    * @param tokenHash - Hashed authentication token.
    * @param expiresAt - Session expiration timestamp.
    * @param metadata - Optional client metadata for the session.

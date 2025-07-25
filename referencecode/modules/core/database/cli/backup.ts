@@ -81,7 +81,7 @@ async function createBackup(
   logger: Logger,
 ): Promise<void> {
   // Use SQLite's backup API if available, otherwise export SQL
-  const dbPath = await db.query<{ file: string }>(`PRAGMA database_list`);
+  const dbPath = await db.query<{ file: string }>('PRAGMA database_list');
 
   if (dbPath[0]?.file) {
     // Direct file copy for SQLite

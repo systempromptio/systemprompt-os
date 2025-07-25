@@ -3,13 +3,13 @@
  */
 
 import { BaseRepository } from './base.repository.js';
-import type { 
-  Permission, 
-  UserPermission, 
-  RolePermission, 
+import type {
+  Permission,
+  UserPermission,
+  RolePermission,
   PermissionGrantInput,
   PermissionFilter,
-  PermissionScope
+  PermissionScope,
 } from '../types/index.js';
 import type { Logger } from '../../../types.js';
 
@@ -17,37 +17,37 @@ export class PermissionRepository extends BaseRepository {
   constructor(logger: Logger) {
     super(logger);
   }
-  
+
   /**
    * Find or create permission
    */
   async findOrCreatePermission(
-    resource: string, 
-    action: string, 
-    scope?: PermissionScope
+    resource: string,
+    action: string,
+    scope?: PermissionScope,
   ): Promise<Permission> {
     // Try to find existing
     let permission = await this.get<any>(`
       SELECT * FROM permissions 
       WHERE resource = ? AND action = ? AND (scope = ? OR (scope IS NULL AND ? IS NULL))
     `, [resource, action, scope, scope]);
-    
+
     if (!permission) {
       // Create new permission
       await this.run(`
         INSERT INTO permissions (resource, action, scope, created_at)
         VALUES (?, ?, ?, ?)
       `, [resource, action, scope, new Date().toISOString()]);
-      
+
       permission = await this.get<any>(`
         SELECT * FROM permissions 
         WHERE resource = ? AND action = ? AND (scope = ? OR (scope IS NULL AND ? IS NULL))
       `, [resource, action, scope, scope]);
     }
-    
+
     return this.mapRowToPermission(permission);
   }
-  
+
   /**
    * Grant permission
    */
@@ -55,14 +55,14 @@ export class PermissionRepository extends BaseRepository {
     const permission = await this.findOrCreatePermission(
       input.resource,
       input.action,
-      input.scope
+      input.scope,
     );
-    
+
     if (input.targetType === 'role') {
       const rolePermData: Parameters<typeof this.grantRolePermission>[0] = {
         roleId: input.targetId,
         permissionId: permission.id,
-        grantedAt: new Date()
+        grantedAt: new Date(),
       };
       if (input.conditions) {
         rolePermData.conditions = input.conditions;
@@ -75,7 +75,7 @@ export class PermissionRepository extends BaseRepository {
       const userPermData: Parameters<typeof this.grantUserPermission>[0] = {
         userId: input.targetId,
         permissionId: permission.id,
-        grantedAt: new Date()
+        grantedAt: new Date(),
       };
       if (input.conditions) {
         userPermData.conditions = input.conditions;
@@ -89,7 +89,7 @@ export class PermissionRepository extends BaseRepository {
       await this.grantUserPermission(userPermData);
     }
   }
-  
+
   /**
    * Revoke permission
    */
@@ -98,40 +98,40 @@ export class PermissionRepository extends BaseRepository {
     targetType: 'user' | 'role',
     resource: string,
     action: string,
-    scope?: PermissionScope
+    scope?: PermissionScope,
   ): Promise<boolean> {
     const permission = await this.get<any>(`
       SELECT id FROM permissions 
       WHERE resource = ? AND action = ? AND (scope = ? OR (scope IS NULL AND ? IS NULL))
     `, [resource, action, scope, scope]);
-    
+
     if (!permission) {
       return false;
     }
-    
+
     if (targetType === 'role') {
       await this.run(
         'DELETE FROM role_permissions WHERE role_id = ? AND permission_id = ?',
-        [targetId, permission.id]
+        [targetId, permission.id],
       );
     } else {
       await this.run(
         'DELETE FROM user_permissions WHERE user_id = ? AND permission_id = ?',
-        [targetId, permission.id]
+        [targetId, permission.id],
       );
     }
-    
-    this.logger.info('Permission revoked', { 
-      targetId, 
-      targetType, 
-      resource, 
-      action, 
-      scope 
+
+    this.logger.info('Permission revoked', {
+      targetId,
+      targetType,
+      resource,
+      action,
+      scope,
     });
-    
+
     return true;
   }
-  
+
   /**
    * Get user permissions (including from roles)
    */
@@ -155,10 +155,10 @@ export class PermissionRepository extends BaseRepository {
       
       ORDER BY resource, action
     `, [userId, userId]);
-    
+
     return rows.map(this.mapRowToPermission);
   }
-  
+
   /**
    * Get role permissions
    */
@@ -170,10 +170,10 @@ export class PermissionRepository extends BaseRepository {
       WHERE rp.role_id = ?
       ORDER BY p.resource, p.action
     `, [roleId]);
-    
+
     return rows.map(this.mapRowToPermission);
   }
-  
+
   /**
    * Check if user has permission
    */
@@ -181,7 +181,7 @@ export class PermissionRepository extends BaseRepository {
     userId: string,
     resource: string,
     action: string,
-    scope?: PermissionScope
+    scope?: PermissionScope,
   ): Promise<boolean> {
     const result = await this.get<{ count: number }>(`
       SELECT COUNT(*) as count FROM (
@@ -209,12 +209,12 @@ export class PermissionRepository extends BaseRepository {
       )
     `, [
       userId, resource, action, scope, scope,
-      userId, resource, action, scope, scope
+      userId, resource, action, scope, scope,
     ]);
-    
+
     return (result?.count || 0) > 0;
   }
-  
+
   /**
    * List all permissions with filter
    */
@@ -225,7 +225,7 @@ export class PermissionRepository extends BaseRepository {
     `;
     const params: any[] = [];
     const conditions: string[] = [];
-    
+
     if (filter?.userId) {
       sql += `
         LEFT JOIN user_permissions up ON p.id = up.permission_id
@@ -235,7 +235,7 @@ export class PermissionRepository extends BaseRepository {
       conditions.push('(up.user_id = ? OR ur.user_id = ?)');
       params.push(filter.userId, filter.userId);
     }
-    
+
     if (filter?.roleId) {
       if (!filter.userId) {
         sql += ' LEFT JOIN role_permissions rp ON p.id = rp.permission_id';
@@ -243,32 +243,32 @@ export class PermissionRepository extends BaseRepository {
       conditions.push('rp.role_id = ?');
       params.push(filter.roleId);
     }
-    
+
     if (filter?.resource) {
       conditions.push('p.resource = ?');
       params.push(filter.resource);
     }
-    
+
     if (filter?.action) {
       conditions.push('p.action = ?');
       params.push(filter.action);
     }
-    
+
     if (filter?.scope) {
       conditions.push('p.scope = ?');
       params.push(filter.scope);
     }
-    
+
     if (conditions.length > 0) {
       sql += ` WHERE ${  conditions.join(' AND ')}`;
     }
-    
+
     sql += ' ORDER BY p.resource, p.action';
-    
+
     const rows = await this.query<any>(sql, params);
     return rows.map(this.mapRowToPermission);
   }
-  
+
   /**
    * Grant role permission
    */
@@ -282,10 +282,10 @@ export class PermissionRepository extends BaseRepository {
       permission.permissionId,
       permission.conditions ? JSON.stringify(permission.conditions) : null,
       permission.grantedAt.toISOString(),
-      permission.grantedBy
+      permission.grantedBy,
     ]);
   }
-  
+
   /**
    * Grant user permission
    */
@@ -300,10 +300,10 @@ export class PermissionRepository extends BaseRepository {
       permission.conditions ? JSON.stringify(permission.conditions) : null,
       permission.grantedAt.toISOString(),
       permission.grantedBy,
-      permission.expiresAt?.toISOString()
+      permission.expiresAt?.toISOString(),
     ]);
   }
-  
+
   /**
    * Map database row to Permission object
    */
@@ -313,7 +313,7 @@ export class PermissionRepository extends BaseRepository {
       resource: row.resource,
       action: row.action,
       description: row.description,
-      createdAt: new Date(row.created_at)
+      createdAt: new Date(row.created_at),
     };
     if (row.scope) {
       permission.scope = row.scope as PermissionScope;

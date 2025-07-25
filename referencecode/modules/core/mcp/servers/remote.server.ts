@@ -10,19 +10,19 @@ import type { MCPService } from '../services/mcp.service.js';
 export async function createRemoteServer(
   _mcpService: MCPService,
   config: MCPConfig,
-  logger: Logger
+  logger: Logger,
 ): Promise<any> {
   logger.info('Creating remote MCP server', {
     host: config.servers.remote.host,
-    port: config.servers.remote.port
+    port: config.servers.remote.port,
   });
-  
+
   // Remote server implementation would handle HTTP/WebSocket communication
   // This is a placeholder for the actual implementation
-  
+
   return {
     async stop() {
       logger.info('Stopping remote MCP server');
-    }
+    },
   };
 }

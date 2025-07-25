@@ -36,7 +36,7 @@ export const command = {
             console.log(`  ${provider.id}:`);
             console.log(`    Name: ${provider.name}`);
             console.log(`    Type: ${provider.type}`);
-            console.log(`    Status: Enabled`);
+            console.log('    Status: Enabled');
             console.log();
           }
         } catch (error) {

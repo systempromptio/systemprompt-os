@@ -37,8 +37,8 @@ export const command: CLICommand = {
   ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
-    const format = (args.format ?? 'text') as string;
-    const filterModule = args.module as string | undefined;
+    const format = ((args as any)?.format ?? 'text') as string;
+    const filterModule = (args as any)?.module as string | undefined;
 
     try {
       const moduleLoader = getModuleLoader();

@@ -10,7 +10,6 @@
 import {
   type IPermission,
   type IRole,
-  type IRolePermission,
   type IUserRole
 } from '@/modules/core/permissions/types/index.js';
 
@@ -19,10 +18,10 @@ import {
  */
 export class PermissionsRepository {
   private static instance: PermissionsRepository;
-  private permissions: Map<string, IPermission> = new Map();
-  private roles: Map<string, IRole> = new Map();
-  private rolePermissions: Map<string, Set<string>> = new Map();
-  private userRoles: Map<string, IUserRole[]> = new Map();
+  private readonly permissions: Map<string, IPermission> = new Map();
+  private readonly roles: Map<string, IRole> = new Map();
+  private readonly rolePermissions: Map<string, Set<string>> = new Map();
+  private readonly userRoles: Map<string, IUserRole[]> = new Map();
 
   /**
    * Private constructor for singleton.
@@ -34,9 +33,7 @@ export class PermissionsRepository {
    * @returns The repository instance.
    */
   static getInstance(): PermissionsRepository {
-    if (!PermissionsRepository.instance) {
-      PermissionsRepository.instance = new PermissionsRepository();
-    }
+    PermissionsRepository.instance ||= new PermissionsRepository();
     return PermissionsRepository.instance;
   }
 
@@ -69,7 +66,7 @@ export class PermissionsRepository {
       name,
       resource,
       action,
-      description,
+      description: description || '',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -112,7 +109,7 @@ export class PermissionsRepository {
     const role: IRole = {
       id,
       name,
-      description,
+      description: description || '',
       isSystem,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -216,20 +213,20 @@ export class PermissionsRepository {
       this.userRoles.set(userId, userRoles);
     }
 
-    const existingIndex = userRoles.findIndex(ur => ur.roleId === roleId);
+    const existingIndex = userRoles.findIndex(ur => { return ur.roleId === roleId });
     if (existingIndex >= 0) {
       userRoles[existingIndex] = {
         userId,
         roleId,
         assignedAt: new Date(),
-        expiresAt
+        expiresAt: expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       };
     } else {
       userRoles.push({
         userId,
         roleId,
         assignedAt: new Date(),
-        expiresAt
+        expiresAt: expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
       });
     }
   }
@@ -243,7 +240,7 @@ export class PermissionsRepository {
   async removeRoleFromUser(userId: string, roleId: string): Promise<void> {
     const userRoles = this.userRoles.get(userId);
     if (userRoles) {
-      const index = userRoles.findIndex(ur => ur.roleId === roleId);
+      const index = userRoles.findIndex(ur => { return ur.roleId === roleId });
       if (index >= 0) {
         userRoles.splice(index, 1);
       }

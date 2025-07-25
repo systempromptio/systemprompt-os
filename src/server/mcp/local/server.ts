@@ -26,7 +26,7 @@ import {
 } from '@/server/mcp/core/handlers/resource-handlers.js';
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers.js';
-import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
 /**
  * Local MCP Server implementation.
@@ -109,7 +109,7 @@ export class LocalMCPServer {
     );
   }
 
-  private createLocalContext(): MCPToolContext {
+  private createLocalContext(): IMCPToolContext {
     return {
       sessionId: 'local-stdio',
       userId: 'local-admin'

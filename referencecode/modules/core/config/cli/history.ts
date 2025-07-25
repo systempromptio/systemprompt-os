@@ -99,18 +99,18 @@ function parseSinceDate(since: string): Date {
     const value = parseInt(amount!, 10) || 0;
 
     switch (unit) {
-      case 'd': // days
-        now.setDate(now.getDate() - value);
-        break;
-      case 'h': // hours
-        now.setHours(now.getHours() - value);
-        break;
-      case 'm': // minutes
-        now.setMinutes(now.getMinutes() - value);
-        break;
-      case 's': // seconds
-        now.setSeconds(now.getSeconds() - value);
-        break;
+    case 'd': // days
+      now.setDate(now.getDate() - value);
+      break;
+    case 'h': // hours
+      now.setHours(now.getHours() - value);
+      break;
+    case 'm': // minutes
+      now.setMinutes(now.getMinutes() - value);
+      break;
+    case 's': // seconds
+      now.setSeconds(now.getSeconds() - value);
+      break;
     }
 
     return now;

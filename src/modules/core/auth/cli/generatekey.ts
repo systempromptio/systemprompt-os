@@ -1,23 +1,13 @@
-/* eslint-disable no-console */
-/* eslint-disable func-style */
-/* eslint-disable max-lines-per-function */
-/* eslint-disable max-statements */
-/* eslint-disable no-underscore-dangle */
 /**
- *  *  * @file Generate cryptographic keys command for auth module.
+ * @file Generate cryptographic keys command for auth module.
  * @module modules/core/auth/cli/generatekey
  */
 
-import { generateJWTKeyPair } from '@/modules/core/auth/utils/generate-key.js';
-
-/**
- *  *  * CLIContext interface.
- */
-export
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { ONE } from '@/modules/core/auth/constants';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import { generateJWTKeyPair } from '@/modules/core/auth/utils/generate-key.js';
+import { ONE } from '@/const/numbers.js';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
 
 export const command = {
   description: 'Generate cryptographic keys for JWT signing',
@@ -38,7 +28,7 @@ export const command = {
       description: 'Overwrite existing keys',
     },
   },
-  execute: async (_context: ICliContext): Promise<void> => => {
+  execute: async (context: ICliContext): Promise<void> => {
     const { args } = context;
 
     try {
@@ -56,13 +46,13 @@ export const command = {
         }
       }
 
-      console.log(`Generating ${args.algorithm} keys in ${args.format} format...`);
+      console.log(`Generating ${args.algorithm ?? 'default'} keys in ${args.format ?? 'default'} format...`);
 
       await generateJWTKeyPair({
         type: args.type,
-        algorithm: args.algorithm,
+        algorithm: (args.algorithm as "RS256" | "RS512" | "ES256" | "ES512") || "RS256",
         outputDir,
-        format: args.format,
+        format: (args.format as "pem" | "jwk") || "pem",
       });
 
       console.log(`✓ Keys generated successfully in: ${outputDir}`);

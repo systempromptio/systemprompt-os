@@ -140,7 +140,7 @@ export class MCPServerRegistry {
 
       if (id === 'core') {
         app.all('/mcp', mcpAuthAdapter, handler);
-        logger.info(`Core server also mounted at /mcp (auth enabled)`);
+        logger.info('Core server also mounted at /mcp (auth enabled)');
       }
     } else {
       const remoteServer = server;

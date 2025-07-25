@@ -20,7 +20,7 @@ export function createPromptsCreateCommand(module: MCPModule): Command {
     .action(async (options) => {
       try {
         let promptData: any = {};
-        
+
         // Read from file if specified
         if (options.file) {
           const content = await fs.readFile(options.file, 'utf-8');
@@ -31,7 +31,7 @@ export function createPromptsCreateCommand(module: MCPModule): Command {
             promptData = JSON.parse(content);
           }
         }
-        
+
         // Override with command line options
         if (options.name) {promptData.name = options.name;}
         if (options.description) {promptData.description = options.description;}
@@ -41,18 +41,18 @@ export function createPromptsCreateCommand(module: MCPModule): Command {
         if (options.messages) {
           promptData.messages = JSON.parse(options.messages);
         }
-        
+
         // Validate required fields
         if (!promptData.name) {
           console.error('Error: Prompt name is required');
           process.exit(1);
         }
-        
+
         if (!promptData.messages || !Array.isArray(promptData.messages) || promptData.messages.length === 0) {
           console.error('Error: At least one message is required');
           process.exit(1);
         }
-        
+
         // Validate messages
         for (const msg of promptData.messages) {
           if (!msg.role || !msg.content) {
@@ -64,7 +64,7 @@ export function createPromptsCreateCommand(module: MCPModule): Command {
             process.exit(1);
           }
         }
-        
+
         // Validate arguments if provided
         if (promptData.arguments) {
           if (!Array.isArray(promptData.arguments)) {
@@ -78,17 +78,17 @@ export function createPromptsCreateCommand(module: MCPModule): Command {
             }
           }
         }
-        
+
         if (options.dryRun) {
           console.log('Validation passed. Prompt data:');
           console.log(JSON.stringify(promptData, null, 2));
           return;
         }
-        
+
         // Create the prompt
         const created = await module.createPrompt(promptData);
         console.log(`Prompt '${created.name}' created successfully`);
-        
+
       } catch (error: any) {
         console.error('Error:', error.message);
         process.exit(1);

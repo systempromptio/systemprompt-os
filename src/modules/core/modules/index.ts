@@ -6,7 +6,9 @@
  * @module modules/core/modules
  */
 
-import { type IModule, ModuleStatus } from '@/modules/core/modules/types/index.js';
+import {
+ type IModule, type ModuleInfo, ModuleStatus
+} from '@/modules/core/modules/types/index.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service.js';
@@ -46,7 +48,7 @@ export class ModulesModule implements IModule {
   /**
    * Start the modules module.
    */
-  start(): void {
+  async start(): Promise<void> {
     this.status = ModuleStatus.RUNNING;
     this.logger?.info('Modules module started');
   }
@@ -54,7 +56,7 @@ export class ModulesModule implements IModule {
   /**
    * Stop the modules module.
    */
-  stop(): void {
+  async stop(): Promise<void> {
     this.status = ModuleStatus.STOPPED;
     this.logger?.info('Modules module stopped');
   }
@@ -63,7 +65,7 @@ export class ModulesModule implements IModule {
    * Health check.
    * @returns Health status and optional message.
    */
-  healthCheck(): { healthy: boolean; message?: string } {
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     const healthy = this.status === ModuleStatus.RUNNING && this.service !== undefined;
     return {
       healthy,
@@ -130,7 +132,7 @@ export const scanForModules = async (): Promise<void> => {
  * Get all enabled modules.
  * @returns Promise that resolves to array of enabled modules.
  */
-export const getEnabledModules = async (): Promise<IModule[]> => {
+export const getEnabledModules = async (): Promise<ModuleInfo[]> => {
   const moduleService = service();
   return await moduleService.getEnabledModules();
 };
@@ -140,7 +142,7 @@ export const getEnabledModules = async (): Promise<IModule[]> => {
  * @param name - Name of the module to retrieve.
  * @returns Promise that resolves to the module or undefined.
  */
-export const getModule = async (name: string): Promise<IModule | undefined> => {
+export const getModule = async (name: string): Promise<ModuleInfo | undefined> => {
   const moduleService = service();
   return await moduleService.getModule(name);
 };

@@ -9,7 +9,7 @@
 
 import { Command } from 'commander';
 import { SystemService } from '@/modules/core/system/services/system.service.js';
-import { ConfigTypeEnum } from '@/modules/core/system/types/index.js';
+import type { ConfigTypeEnum } from '@/modules/core/system/types/index.js';
 
 const ERROR_EXIT_CODE = 1;
 

@@ -7,16 +7,10 @@ import type { ChildProcess } from "child_process";
 import { spawn, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
+import {
+ ONE, ZERO
+} from '@/const/numbers.js';
 
-const ZERO = ZERO;
-const ONE = ONE;
-const TWO = TWO;
-const THREE = THREE;
-
-/**
- *  *  * Tunnel configuration options.
- */
 /**
  *  *  * TunnelConfig interface.
  */
@@ -33,9 +27,6 @@ export interface ITunnelConfig {
 }
 
 /**
- *  *  * Tunnel status information.
- */
-/**
  *  *  * TunnelStatus interface.
  */
 export interface ITunnelStatus {
@@ -48,9 +39,6 @@ export interface ITunnelStatus {
 /**
  *  *  * Logger interface.
  */
-/**
- *  *  * Logger interface.
- */
 export interface ILogger {
   info(message: string, ...args: unknown[]): void;
   warn(message: string, ...args: unknown[]): void;
@@ -58,32 +46,10 @@ export interface ILogger {
 }
 
 /**
- *  *  * Service for managing Cloudflare tunnels for OAuth development.
- * Automatically creates public URLs for OAuth callbacks when localhost.
- * is not suitable (e.g., Google OAuth restrictions).
- */
-/**
  *  *  * TunnelService class.
  */
 export class TunnelService extends EventEmitter {
-  private static instance: TunnelService;
-
-  /**
-   * Get singleton instance
-   */
-  public static getInstance(): TunnelService {
-    TunnelService.instance ??= new TunnelService();
-    return TunnelService.instance;
-  }
-
-  /**
-   * Private constructor
-   */
-  private constructor() {
-    super();
-    // Initialize
-  }
-
+  private static _instance: TunnelService;
   private readonly config: ITunnelConfig;
   private readonly logger: ILogger | undefined;
   private tunnelProcess?: ChildProcess;
@@ -93,18 +59,27 @@ export class TunnelService extends EventEmitter {
     type: "none"
   };
 
-  /**
- *  *    * Creates a new TunnelService instance.
-   * @param config - Tunnel configuration.
-   * @param logger - Optional logger instance.
-   */
+  public static getInstance(config?: ITunnelConfig, logger?: ILogger): TunnelService {
+    if (!TunnelService._instance && config) {
+      TunnelService._instance = new TunnelService(config, logger);
+    }
+    return TunnelService._instance;
+  }
+
+  constructor(config: ITunnelConfig, logger?: ILogger) {
+    super();
+    this.config = config;
+    this.logger = logger;
+  }
 
   /**
- *  *    * Starts the tunnel service.
+   *  *    * Starts the tunnel service.
    * @returns Promise resolving to the public URL.
    */
   async start(): Promise<string> {
-    /** Priority ONE: Use permanent domain if configured */
+    /**
+     * Priority ONE: Use permanent domain if configured.
+     */
     if (this.config.permanentDomain !== undefined) {
       this.status = {
         active: true,
@@ -118,8 +93,10 @@ export class TunnelService extends EventEmitter {
       return this.tunnelUrl;
     }
 
-    /** Priority TWO: Check if we should create temporary tunnel */
-    if (this.shouldEnableTunnel() === false) {
+    /**
+     * Priority TWO: Check if we should create temporary tunnel.
+     */
+    if (!this.shouldEnableTunnel()) {
       const localUrl = `http://localhost:${this.config.port}`;
       this.status = {
         active: false,
@@ -131,13 +108,15 @@ export class TunnelService extends EventEmitter {
       return localUrl;
     }
 
-    /** Priority THREE: Create temporary cloudflared tunnel */
+    /**
+     * Priority THREE: Create temporary cloudflared tunnel.
+     */
     this.logger?.info("No permanent domain configured, creating temporary tunnel...");
     return await this.startCloudflaredTunnel();
   }
 
   /**
- *  *    * Stops the tunnel service.
+   *  *    * Stops the tunnel service.
    */
   async stop(): Promise<void> {
     if (this.tunnelProcess !== undefined) {
@@ -154,15 +133,15 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
- *  *    * Gets the current tunnel status.
+   *  *    * Gets the current tunnel status.
    * @returns Current tunnel status.
    */
-  getStatus(): TunnelStatus {
+  getStatus(): ITunnelStatus {
     return { ...this.status };
   }
 
   /**
- *  *    * Gets the public URL for OAuth callbacks.
+   *  *    * Gets the public URL for OAuth callbacks.
    * @returns Public URL or localhost URL.
    */
   getPublicUrl(): string {
@@ -170,23 +149,27 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
- *  *    * Checks if tunnel should be enabled.
+   *  *    * Checks if tunnel should be enabled.
    * @returns True if tunnel should be started.
    */
   private shouldEnableTunnel(): boolean {
-    /** Check environment variables */
+    /**
+     * Check environment variables.
+     */
     const enableTunnel = process.env['ENABLE_OAUTH_TUNNEL'] === "true";
     const isDevelopment = process.env['NODE_ENV'] !== "production";
 
-    /** Enable if explicitly requested or in development with OAuth providers configured */
-    return enableTunnel === true
-      || (isDevelopment === true
+    /**
+     * Enable if explicitly requested or in development with OAuth providers configured.
+     */
+    return enableTunnel
+      || isDevelopment
       && this.config.enableInDevelopment !== false
-      && this.hasOAuthProviders() === true);
+      && this.hasOAuthProviders();
 }
 
   /**
- *  *    * Checks if OAuth providers are configured.
+   *  *    * Checks if OAuth providers are configured.
    * @returns True if any OAuth provider has credentials.
    */
   private hasOAuthProviders(): boolean {
@@ -198,15 +181,17 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
- *  *    * Starts a cloudflared tunnel.
+   *  *    * Starts a cloudflared tunnel.
    * @returns Promise resolving to the tunnel URL.
    */
   private async startCloudflaredTunnel(): Promise<string> {
     return await new Promise((resolve, reject) => {
       this.logger?.info("Starting cloudflared tunnel...");
 
-      /** Check if cloudflared is installed */
-      if (this.isCloudflaredInstalled() === false) {
+      /**
+       * Check if cloudflared is installed.
+       */
+      if (!this.isCloudflaredInstalled()) {
         const error = "cloudflared not found. Please install it or use permanent domain.";
         this.logger?.error(error);
         this.status = {
@@ -218,14 +203,20 @@ export class TunnelService extends EventEmitter {
         return;
       }
 
-      /** Start cloudflared with appropriate command */
+      /**
+       * Start cloudflared with appropriate command.
+       */
       let args: string[];
 
       if (this.config.tunnelToken !== undefined) {
-        /** Use named tunnel with token */
+        /**
+         * Use named tunnel with token.
+         */
         args = ["tunnel", "--no-autoupdate", "run", "--token", this.config.tunnelToken];
       } else {
-        /** Use quick tunnel for temporary URLs */
+        /**
+         * Use quick tunnel for temporary URLs.
+         */
         args = ["tunnel", "--url", `http://localhost:${this.config.port}`];
       }
 
@@ -236,9 +227,8 @@ export class TunnelService extends EventEmitter {
       const namedTunnelRegex = /INF\s+Registered tunnel connection|Connection [a-f0-9-]+ registered/i;
       const namedTunnelUrlRegex = /https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.cloudflare[a-z]*\.com|https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 
-      /** Helper method to handle tunnel ready state */
       /**
- *  *        * handleTunnelReady function
+       *  *        * HandleTunnelReady function.
        */
       const handleTunnelReady = () => {
         this.status = {
@@ -267,10 +257,11 @@ export class TunnelService extends EventEmitter {
       };
 
       /**
-       * checkForUrl function
+       * CheckForUrl function.
+       * @param output
        */
       const checkForUrl = (output: string) => {
-        if (urlFound === false) {
+        if (!urlFound) {
           if (this.config.tunnelToken === undefined) {
             const match = output.match(tunnelUrlRegex);
             if (match !== null) {
@@ -287,7 +278,7 @@ export class TunnelService extends EventEmitter {
                * For token-based tunnels, we don't get the URL in output
                * The URL is pre-configured in Cloudflare dashboard.
                */
-              if (urlFound === false) {
+              if (!urlFound) {
                 urlFound = true;
                 this.logger?.warn("Token-based tunnel connected but URL not available in output");
                 this.logger?.warn("Please check your Cloudflare dashboard for the tunnel URL");
@@ -305,7 +296,7 @@ export class TunnelService extends EventEmitter {
               }
             }
             const urlMatch = output.match(namedTunnelUrlRegex);
-            if (urlMatch !== null && urlFound === false) {
+            if (urlMatch !== null && !urlFound) {
               urlFound = true;
               this.tunnelUrl = urlMatch[ZERO];
               handleTunnelReady();
@@ -346,7 +337,7 @@ export class TunnelService extends EventEmitter {
         };
         this.emit("stopped");
 
-        if (urlFound === false) {
+        if (!urlFound) {
           reject(new Error(`Cloudflared exited without providing URL (code ${code})`));
         }
       });
@@ -362,7 +353,7 @@ export class TunnelService extends EventEmitter {
       });
 
       setTimeout(() => {
-        if (urlFound === false) {
+        if (!urlFound) {
           this.stop();
           const error = "Timeout waiting for tunnel URL";
           this.status = {
@@ -377,7 +368,7 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
- *  *    * Checks if cloudflared is installed.
+   *  *    * Checks if cloudflared is installed.
    * @returns True if cloudflared is available.
    */
   private isCloudflaredInstalled(): boolean {
@@ -390,7 +381,7 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
- *  *    * Updates OAuth provider configurations with tunnel URL.
+   *  *    * Updates OAuth provider configurations with tunnel URL.
    * @param url - The public tunnel URL.
    */
   async updateOAuthProviders(url: string): Promise<void> {

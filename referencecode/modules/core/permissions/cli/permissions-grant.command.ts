@@ -28,7 +28,7 @@ export function createPermissionsGrantCommand(module: PermissionsModule): Comman
             process.exit(1);
           }
         }
-        
+
         let expiresAt: Date | undefined;
         if (options.expires) {
           expiresAt = new Date(options.expires);
@@ -37,27 +37,27 @@ export function createPermissionsGrantCommand(module: PermissionsModule): Comman
             process.exit(1);
           }
         }
-        
+
         const grantData: Parameters<typeof module.grantPermission>[0] = {
           targetId: target,
           targetType: options.role ? 'role' : 'user',
           resource,
           action,
           scope: options.scope as PermissionScope,
-          grantedBy: options.grantedBy
+          grantedBy: options.grantedBy,
         };
-        
+
         if (conditions) {
           grantData.conditions = conditions;
         }
-        
+
         if (expiresAt) {
           grantData.expiresAt = expiresAt;
         }
-        
+
         await module.grantPermission(grantData);
-        
-        console.log(`\n✓ Permission granted successfully!`);
+
+        console.log('\n✓ Permission granted successfully!');
         console.log(`  Target: ${target} (${options.role ? 'role' : 'user'})`);
         console.log(`  Resource: ${resource}`);
         console.log(`  Action: ${action}`);
@@ -73,6 +73,6 @@ export function createPermissionsGrantCommand(module: PermissionsModule): Comman
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

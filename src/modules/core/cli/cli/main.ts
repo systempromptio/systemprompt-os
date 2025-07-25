@@ -153,7 +153,7 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
   const options = cmd.options ?? [];
   for (const option of options) {
     const flags = buildOptionFlags(option);
-    command.option(flags, option.description, option.default);
+    command.option(flags, option.description ?? '', option.default as string | boolean | string[] | undefined);
   }
 
   command.action(createCommandAction(cmd));

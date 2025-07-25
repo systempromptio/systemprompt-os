@@ -10,8 +10,8 @@
  * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/server | MCP Server Specification}
  */
 
-import type { Implementation, ServerCapabilities } from "@modelcontextprotocol/sdk/types.js";
-import { CONFIG } from "../config.js";
+import type { Implementation, ServerCapabilities } from '@modelcontextprotocol/sdk/types.js';
+import { CONFIG } from '../config.js';
 
 /**
  * Server implementation metadata

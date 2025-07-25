@@ -4,16 +4,16 @@
  * @module database/adapters/sqlite-connection
  */
 
-import type Database from 'better-sqlite3';
+import type * as Database from 'better-sqlite3';
 import type {
   IDatabaseConnection,
   IPreparedStatement,
   IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types.js';
+} from '@/modules/core/database/types/database.types';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
 import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQLite database connection implementation.

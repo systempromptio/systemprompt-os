@@ -218,7 +218,7 @@ export class ModuleManagerService {
       return undefined;
     }
 
-    return this.rowToModuleInfo(rows[0]);
+    return this.rowToModuleInfo(rows[0]!);
   }
 
   /**
@@ -257,7 +257,7 @@ export class ModuleManagerService {
       id: row.id,
       name: row.name,
       version: row.version,
-      type: row.type,
+      type: row.type as ModuleType,
       path: row.path,
       enabled: Boolean(row.enabled),
       autoStart: true,

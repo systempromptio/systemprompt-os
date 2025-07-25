@@ -18,7 +18,7 @@ export function createRolesUpdateCommand(module: PermissionsModule): Command {
           console.error('Error: No updates provided. Use --description or --rename');
           process.exit(1);
         }
-        
+
         const updates: any = {};
         if (options.description !== undefined) {
           updates.description = options.description;
@@ -26,10 +26,10 @@ export function createRolesUpdateCommand(module: PermissionsModule): Command {
         if (options.rename) {
           updates.name = options.rename;
         }
-        
+
         const role = await module.updateRole(name, updates, options.updatedBy);
-        
-        console.log(`\n✓ Role updated successfully!`);
+
+        console.log('\n✓ Role updated successfully!');
         console.log(`  ID: ${role.id}`);
         console.log(`  Name: ${role.name}`);
         if (role.description) {
@@ -41,6 +41,6 @@ export function createRolesUpdateCommand(module: PermissionsModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

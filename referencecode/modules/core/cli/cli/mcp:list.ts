@@ -57,7 +57,7 @@ export const command: CLICommand = {
           console.log(`  ${tool.description}`);
 
           if (tool.inputSchema.properties && Object.keys(tool.inputSchema.properties).length > 0) {
-            console.log(`  Parameters:`);
+            console.log('  Parameters:');
             for (const [param, schema] of Object.entries(tool.inputSchema.properties)) {
               const required = tool.inputSchema.required?.includes(param) ? ' (required)' : '';
               console.log(`    - ${param}: ${schema.type}${required}`);
@@ -66,7 +66,7 @@ export const command: CLICommand = {
               }
             }
           } else {
-            console.log(`  No parameters required`);
+            console.log('  No parameters required');
           }
           console.log();
         }

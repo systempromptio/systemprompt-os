@@ -9,9 +9,9 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection
-} from '@/modules/core/database/types/database.types.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+} from '@/modules/core/database/types/database.types';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * Database service singleton for managing database connections.
@@ -192,10 +192,10 @@ export class DatabaseService {
    */
   private async connect(): Promise<void> {
     try {
-      const { SQLiteAdapter } = await import('@/modules/core/database/adapters/sqlite.adapter.js');
+      const { SqliteAdapter } = await import('@/modules/core/database/adapters/sqlite.adapter');
       switch (this.config.type) {
         case 'sqlite':
-          this.adapter = new SQLiteAdapter();
+          this.adapter = new SqliteAdapter();
           break;
         case 'postgres':
           throw new Error('PostgreSQL adapter not yet implemented');

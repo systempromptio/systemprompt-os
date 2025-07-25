@@ -42,17 +42,17 @@ export const command = {
           const now = Date.now();
 
           switch (unit) {
-            case 'h':
-              sinceDate = new Date(now - value * 60 * 60 * 1000);
-              break;
-            case 'd':
-              sinceDate = new Date(now - value * 24 * 60 * 60 * 1000);
-              break;
-            case 'm':
-              sinceDate = new Date(now - value * 60 * 1000);
-              break;
-            default:
-              sinceDate = new Date(since);
+          case 'h':
+            sinceDate = new Date(now - value * 60 * 60 * 1000);
+            break;
+          case 'd':
+            sinceDate = new Date(now - value * 24 * 60 * 60 * 1000);
+            break;
+          case 'm':
+            sinceDate = new Date(now - value * 60 * 1000);
+            break;
+          default:
+            sinceDate = new Date(since);
           }
         } else {
           sinceDate = new Date(since);

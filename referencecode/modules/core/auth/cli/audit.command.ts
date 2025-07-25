@@ -26,7 +26,7 @@ export function createAuditCommand(module: AuthModule): Command {
         startDate.setDate(startDate.getDate() - parseInt(options.days, 10));
 
         const filters: any = {
-          limit: parseInt(options.limit, 10)
+          limit: parseInt(options.limit, 10),
         };
 
         if (options.user) {filters.userId = options.user;}
@@ -79,7 +79,7 @@ export function createAuditCommand(module: AuthModule): Command {
 
         console.log(`\nFailed login attempts for ${email}:`);
         console.log(`In the last ${options.hours} hours: ${count}`);
-        
+
         if (count >= 5) {
           console.log('\n⚠️  Warning: High number of failed attempts detected');
         }

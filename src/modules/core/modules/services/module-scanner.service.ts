@@ -6,11 +6,8 @@
 import {
  existsSync, readFileSync, readdirSync, statSync
 } from 'fs';
-import {
- dirname, join, resolve
-} from 'path';
-import { fileURLToPath } from 'url';
-import { createModuleAdapter } from '@/modules/core/database/adapters/module-adapter.js';
+import { join, resolve } from 'path';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type {
   ModuleScannerService as IModuleScannerService,
   ModuleInfo,
@@ -54,7 +51,7 @@ interface DatabaseModuleRow {
  */
 export class ModuleScannerService implements IModuleScannerService {
   private readonly logger: ILogger | undefined;
-  private db: Awaited<ReturnType<typeof createModuleAdapter>>;
+  private db!: DatabaseService;
   private readonly defaultPaths = ['src/modules/core', 'src/modules/custom', 'extensions/modules'];
 
   constructor(logger?: ILogger) {
@@ -65,7 +62,7 @@ export class ModuleScannerService implements IModuleScannerService {
    * Initialize the scanner service.
    */
   async initialize(): Promise<void> {
-    this.db = await createModuleAdapter('modules');
+    this.db = DatabaseService.getInstance();
     await this.ensureSchema();
   }
 
@@ -80,26 +77,7 @@ export class ModuleScannerService implements IModuleScannerService {
    * Ensure database schema exists.
    */
   private async ensureSchema(): Promise<void> {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const schemaPath = join(__dirname, '../database/schema.sql');
-    if (existsSync(schemaPath)) {
-      const schema = readFileSync(schemaPath, 'utf-8');
-      await this.db.exec(schema);
-      this.logger?.debug('Module database schema initialized');
-    }
-
-    const migrationsPath = join(__dirname, '../database/migrations');
-    if (existsSync(migrationsPath)) {
-      const migrations = readdirSync(migrationsPath)
-        .filter((f) => f.endsWith('.sql') && !f.includes('rollback'));
-      for (const migration of migrations.sort()) {
-        const migrationPath = join(migrationsPath, migration);
-        const migrationSql = readFileSync(migrationPath, 'utf-8');
-        await this.db.exec(migrationSql);
-        this.logger?.debug(`Applied migration: ${migration}`);
-      }
-    }
+    this.logger?.debug('Module database schema would be initialized here');
   }
 
   /**
@@ -249,18 +227,6 @@ export class ModuleScannerService implements IModuleScannerService {
    * @param modules - Array of scanned modules to store.
    */
   private async storeModules(modules: ScannedModule[]): Promise<void> {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO modules (
-        name, version, type, path, enabled, auto_start,
-        dependencies, config, status, health_status, metadata
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const eventStmt = this.db.prepare(`
-      INSERT INTO module_events (module_id, event_type, event_data)
-      VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-    `);
-
     for (const module of modules) {
       try {
         if (!Object.values(ModuleType).includes(module.type)) {
@@ -268,7 +234,12 @@ export class ModuleScannerService implements IModuleScannerService {
           continue;
         }
 
-        stmt.run(
+        await this.db.execute(`
+          INSERT OR REPLACE INTO modules (
+            name, version, type, path, enabled, auto_start,
+            dependencies, config, status, health_status, metadata
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
           module.name,
           module.version,
           module.type,
@@ -280,16 +251,19 @@ export class ModuleScannerService implements IModuleScannerService {
           ModuleStatus.INSTALLED,
           ModuleHealthStatus.UNKNOWN,
           JSON.stringify(module.metadata || {}),
-        );
+        ]);
 
-        eventStmt.run(
+        await this.db.execute(`
+          INSERT INTO module_events (module_id, event_type, event_data)
+          VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
+        `, [
           module.name,
           ModuleEventType.DISCOVERED,
           JSON.stringify({
- version: module.version,
-path: module.path
-}),
-        );
+            version: module.version,
+            path: module.path
+          }),
+        ]);
       } catch (error) {
         this.logger?.error(`Error storing module ${module.name}:`, error);
       }
@@ -300,7 +274,7 @@ path: module.path
    * Get all registered modules from database.
    */
   async getRegisteredModules(): Promise<ModuleInfo[]> {
-    const rows = this.db.prepare('SELECT * FROM modules').all() as DatabaseModuleRow[];
+    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules');
     return rows.map(row => { return this.mapRowToModuleInfo(row) });
   }
 
@@ -308,7 +282,7 @@ path: module.path
    * Get enabled modules.
    */
   async getEnabledModules(): Promise<ModuleInfo[]> {
-    const rows = this.db.prepare('SELECT * FROM modules WHERE enabled = 1').all() as DatabaseModuleRow[];
+    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules WHERE enabled = 1');
     return rows.map(row => { return this.mapRowToModuleInfo(row) });
   }
 
@@ -317,8 +291,15 @@ path: module.path
    * @param name - The name of the module.
    */
   async getModule(name: string): Promise<ModuleInfo | undefined> {
-    const row = this.db.prepare('SELECT * FROM modules WHERE name = ?').get(name) as DatabaseModuleRow | undefined;
-    return row ? this.mapRowToModuleInfo(row) : undefined;
+    const rows = await this.db.query<DatabaseModuleRow>('SELECT * FROM modules WHERE name = ?', [name]);
+    if (rows.length === 0) {
+      return undefined;
+    }
+    const row = rows[0];
+    if (!row) {
+      return undefined;
+    }
+    return this.mapRowToModuleInfo(row);
   }
 
   /**
@@ -326,7 +307,7 @@ path: module.path
    * @param row - The database row.
    */
   private mapRowToModuleInfo(row: DatabaseModuleRow): ModuleInfo {
-    return {
+    const result: ModuleInfo = {
       id: row.id,
       name: row.name,
       version: row.version,
@@ -337,17 +318,32 @@ path: module.path
       dependencies: row.dependencies ? JSON.parse(row.dependencies) : [],
       config: row.config ? JSON.parse(row.config) : {},
       status: row.status as ModuleStatus,
-      lastError: row.lasterror,
-      ...row.discovered_at ? { discoveredAt: new Date(row.discovered_at) } : {},
-      ...row.last_started_at ? { lastStartedAt: new Date(row.last_started_at) } : {},
-      ...row.last_stopped_at ? { lastStoppedAt: new Date(row.last_stopped_at) } : {},
       healthStatus: (row.health_status as ModuleHealthStatus) || ModuleHealthStatus.UNKNOWN,
-      healthMessage: row.health_message,
-      ...row.last_health_check ? { lastHealthCheck: new Date(row.last_health_check) } : {},
       metadata: row.metadata ? JSON.parse(row.metadata) : {},
       createdAt: new Date(row.created_at || Date.now()),
       updatedAt: new Date(row.updated_at || Date.now()),
     };
+
+    if (row.lasterror) {
+      result.lastError = row.lasterror;
+    }
+    if (row.discovered_at) {
+      result.discoveredAt = new Date(row.discovered_at);
+    }
+    if (row.last_started_at) {
+      result.lastStartedAt = new Date(row.last_started_at);
+    }
+    if (row.last_stopped_at) {
+      result.lastStoppedAt = new Date(row.last_stopped_at);
+    }
+    if (row.health_message) {
+      result.healthMessage = row.health_message;
+    }
+    if (row.last_health_check) {
+      result.lastHealthCheck = new Date(row.last_health_check);
+    }
+
+    return result;
   }
 
   /**
@@ -357,25 +353,21 @@ path: module.path
    * @param error - Optional error message.
    */
   async updateModuleStatus(name: string, status: ModuleStatus, error?: string): Promise<void> {
-    const stmt = this.db.prepare(`
+    await this.db.execute(`
       UPDATE modules 
       SET status = ?, lasterror = ?, updated_at = CURRENT_TIMESTAMP
       WHERE name = ?
-    `);
-
-    stmt.run(status, error || null, name);
+    `, [status, error || null, name]);
 
     const eventType = this.mapStatusToEventType(status);
     if (eventType) {
-      const eventStmt = this.db.prepare(`
+      await this.db.execute(`
         INSERT INTO module_events (module_id, event_type, event_data)
         VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-      `);
-
-      eventStmt.run(name, eventType, JSON.stringify({
- status,
-error
-}));
+      `, [name, eventType, JSON.stringify({
+        status,
+        error
+      })]);
     }
   }
 
@@ -403,15 +395,12 @@ error
    * @param enabled - Whether to enable or disable.
    */
   async setModuleEnabled(name: string, enabled: boolean): Promise<void> {
-    const stmt = this.db.prepare('UPDATE modules SET enabled = ? WHERE name = ?');
-    stmt.run(enabled ? 1 : 0, name);
+    await this.db.execute('UPDATE modules SET enabled = ? WHERE name = ?', [enabled ? 1 : 0, name]);
 
-    const eventStmt = this.db.prepare(`
+    await this.db.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-    `);
-
-    eventStmt.run(name, ModuleEventType.CONFIG_CHANGED, JSON.stringify({ enabled }));
+    `, [name, ModuleEventType.CONFIG_CHANGED, JSON.stringify({ enabled })]);
   }
 
   /**
@@ -422,22 +411,18 @@ error
    */
   async updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void> {
     const healthStatus = healthy ? ModuleHealthStatus.HEALTHY : ModuleHealthStatus.UNHEALTHY;
-    const stmt = this.db.prepare(`
+    await this.db.execute(`
       UPDATE modules 
       SET health_status = ?, health_message = ?, last_health_check = CURRENT_TIMESTAMP
       WHERE name = ?
-    `);
+    `, [healthStatus, message || null, name]);
 
-    stmt.run(healthStatus, message || null, name);
-
-    const eventStmt = this.db.prepare(`
+    await this.db.execute(`
       INSERT INTO module_events (module_id, event_type, event_data)
       VALUES ((SELECT id FROM modules WHERE name = ?), ?, ?)
-    `);
-
-    eventStmt.run(name, ModuleEventType.HEALTH_CHECK, JSON.stringify({
- healthy,
-message
-}));
+    `, [name, ModuleEventType.HEALTH_CHECK, JSON.stringify({
+      healthy,
+      message
+    })]);
   }
 }

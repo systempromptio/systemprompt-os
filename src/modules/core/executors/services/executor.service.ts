@@ -55,7 +55,7 @@ export class ExecutorService implements IExecutorService {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    if (this.initialized === true) {
+    if (this.initialized) {
       return;
     }
 
@@ -81,7 +81,7 @@ export class ExecutorService implements IExecutorService {
     const id = randomUUID();
     this.logger?.info(`Creating executor: ${name} (${type})`);
 
-    const executor = await this.repository.create(id, name, type, config);
+    const executor = await this.repository.create(id, name, type, config || {});
     this.logger?.info(`Created executor: ${id}`);
 
     return executor;
@@ -175,7 +175,7 @@ export class ExecutorService implements IExecutorService {
    * @returns Promise that resolves when initialized.
    */
   private async ensureInitialized(): Promise<void> {
-    if (this.initialized === false) {
+    if (!this.initialized) {
       await this.initialize();
     }
   }

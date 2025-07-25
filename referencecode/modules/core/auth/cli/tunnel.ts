@@ -63,7 +63,7 @@ export async function startTunnel(): Promise<void> {
     const status = authModule.getTunnelStatus();
 
     if (status.active) {
-      console.log(`✅ Tunnel started successfully!`);
+      console.log('✅ Tunnel started successfully!');
       console.log(`Public URL: ${status.url}`);
 
       console.log('\n📋 Next steps:');

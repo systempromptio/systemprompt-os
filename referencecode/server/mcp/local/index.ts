@@ -5,7 +5,6 @@
 
 import { LocalMCPServer } from './server.js';
 
-
 /**
  * Legacy class name for compatibility
  * @deprecated Use LocalMCPServer instead
@@ -13,7 +12,6 @@ import { LocalMCPServer } from './server.js';
 export class LocalCLIMCPServer extends LocalMCPServer {
   // Inherit all functionality from LocalMCPServer
 }
-
 
 /**
  * Start the local STDIO server
@@ -26,20 +24,20 @@ export async function startStdioServer(): Promise<void> {
   console.warn = (...args) => process.stderr.write(`${args.join(' ')  }\n`);
   console.info = (...args) => process.stderr.write(`${args.join(' ')  }\n`);
   console.debug = (...args) => process.stderr.write(`${args.join(' ')  }\n`);
-  
+
   const server = new LocalMCPServer();
-  
+
   // Handle shutdown signals
   process.on('SIGINT', async () => {
     await server.stop();
     process.exit(0);
   });
-  
+
   process.on('SIGTERM', async () => {
     await server.stop();
     process.exit(0);
   });
-  
+
   await server.start();
 }
 

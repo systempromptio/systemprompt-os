@@ -16,24 +16,24 @@ export function createPromptsListCommand(module: MCPModule): Command {
     .action(async (options) => {
       try {
         const prompts = await module.listPrompts();
-        
+
         // Filter by category if specified
         let filteredPrompts = prompts;
         if (options.category) {
-          filteredPrompts = filteredPrompts.filter(prompt => 
-            prompt.metadata?.category === options.category
+          filteredPrompts = filteredPrompts.filter(prompt =>
+            prompt.metadata?.category === options.category,
           );
         }
-        
+
         // Search if specified
         if (options.search) {
           const searchLower = options.search.toLowerCase();
-          filteredPrompts = filteredPrompts.filter(prompt => 
+          filteredPrompts = filteredPrompts.filter(prompt =>
             prompt.name.toLowerCase().includes(searchLower) ||
-            (prompt.description?.toLowerCase().includes(searchLower))
+            (prompt.description?.toLowerCase().includes(searchLower)),
           );
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(filteredPrompts, null, 2));
         } else if (options.format === 'yaml') {
@@ -45,12 +45,12 @@ export function createPromptsListCommand(module: MCPModule): Command {
             console.log('No prompts found');
             return;
           }
-          
+
           const table = new Table({
             head: ['Name', 'Description', 'Arguments', 'Category', 'Source'],
-            colWidths: [25, 40, 25, 15, 10]
+            colWidths: [25, 40, 25, 15, 10],
           });
-          
+
           for (const prompt of filteredPrompts) {
             const args = prompt.arguments?.map((a: any) => a.name).join(', ') || '-';
             table.push([
@@ -58,10 +58,10 @@ export function createPromptsListCommand(module: MCPModule): Command {
               prompt.description || '-',
               args,
               prompt.metadata?.category || 'default',
-              prompt.metadata?.source || 'registry'
+              prompt.metadata?.source || 'registry',
             ]);
           }
-          
+
           console.log(table.toString());
           console.log(`\nTotal: ${filteredPrompts.length} prompt(s)`);
         }

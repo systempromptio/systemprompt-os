@@ -87,7 +87,7 @@ export function createDataMigrateCommand(service: DatabaseService, logger?: Logg
         }
 
         const duration = Date.now() - startTime;
-        console.log(`\n✅ Data migration completed successfully`);
+        console.log('\n✅ Data migration completed successfully');
         console.log(`   Migrations: ${completed}/${migrations.length}`);
         console.log(`   Duration: ${duration}ms`);
       } catch (error: any) {

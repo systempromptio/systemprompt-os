@@ -1,6 +1,6 @@
 /**
  * Dependency injection tokens specific to the events module
- * 
+ *
  * NOTE: Core tokens (Logger, Database, etc.) should be imported
  * directly from @/modules/core/types to avoid duplication
  */

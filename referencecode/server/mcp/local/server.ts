@@ -5,7 +5,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import type { 
+import type {
   ServerCapabilities} from '@modelcontextprotocol/sdk/types.js';
 import {
   ListResourcesRequestSchema,
@@ -19,7 +19,7 @@ import {
   type ListPromptsRequest,
   type GetPromptRequest,
   type ListToolsRequest,
-  type CallToolRequest
+  type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { handleListResources, handleResourceCall } from '../core/handlers/resource-handlers.js';
 import { handleGetPrompt, handleListPrompts } from '../core/handlers/prompt-handlers.js';
@@ -38,17 +38,17 @@ export class LocalMCPServer {
     const capabilities: ServerCapabilities = {
       resources: {},
       prompts: {},
-      tools: {}
+      tools: {},
     };
 
     this.server = new Server(
       {
         name: 'systemprompt-os-local',
-        version: '0.1.0'
+        version: '0.1.0',
       },
       {
-        capabilities
-      }
+        capabilities,
+      },
     );
 
     this.setupHandlers();
@@ -67,24 +67,24 @@ export class LocalMCPServer {
   private setupResourceHandlers(): void {
     this.server.setRequestHandler(
       ListResourcesRequestSchema,
-      async (_request: ListResourcesRequest) => await handleListResources()
+      async (_request: ListResourcesRequest) => await handleListResources(),
     );
 
     this.server.setRequestHandler(
       ReadResourceRequestSchema,
-      async (request: ReadResourceRequest) => await handleResourceCall(request)
+      async (request: ReadResourceRequest) => await handleResourceCall(request),
     );
   }
 
   private setupPromptHandlers(): void {
     this.server.setRequestHandler(
       ListPromptsRequestSchema,
-      async (_request: ListPromptsRequest) => await handleListPrompts()
+      async (_request: ListPromptsRequest) => await handleListPrompts(),
     );
 
     this.server.setRequestHandler(
       GetPromptRequestSchema,
-      async (request: GetPromptRequest) => await handleGetPrompt(request)
+      async (request: GetPromptRequest) => await handleGetPrompt(request),
     );
   }
 
@@ -95,7 +95,7 @@ export class LocalMCPServer {
         const context = this.createLocalContext();
         // Local server context - tools will be filtered for 'local' scope
         return await handleListTools(request, context);
-      }
+      },
     );
 
     this.server.setRequestHandler(
@@ -103,14 +103,14 @@ export class LocalMCPServer {
       async (request: CallToolRequest) => {
         const context = this.createLocalContext();
         return await handleToolCall(request, context);
-      }
+      },
     );
   }
 
   private createLocalContext(): MCPToolContext {
     return {
       sessionId: 'local-stdio',
-      userId: 'local-admin'
+      userId: 'local-admin',
     };
   }
 
@@ -124,7 +124,7 @@ export class LocalMCPServer {
 
     const transport = new StdioServerTransport();
     this.isRunning = true;
-    
+
     try {
       await this.server.connect(transport);
     } finally {

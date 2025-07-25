@@ -8,9 +8,9 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * Service for managing database migrations across modules.
@@ -186,10 +186,10 @@ export class MigrationService {
    * @returns Set of applied migration keys.
    */
   private async getAppliedMigrations(): Promise<Set<string>> {
-    const rows = await this.databaseService.query<{
+    const rows = await this.databaseService.query('SELECT module, version FROM _migrations') as Array<{
       module: string;
       version: string;
-    }>('SELECT module, version FROM _migrations');
+    }>;
 
     return new Set(rows.map((row): string => { return this.getMigrationKey(row) }));
   }
@@ -279,7 +279,6 @@ export class MigrationService {
       .filter((migration): boolean => { return !applied.has(this.getMigrationKey(migration)) })
       .map((migration): IMigration => { return {
         ...migration,
-        name: migration.filename,
       } });
   }
 
@@ -289,13 +288,13 @@ export class MigrationService {
    */
   public async getExecutedMigrations(): Promise<IExecutedMigration[]> {
     try {
-      const rows = await this.databaseService.query<{
+      const rows = await this.databaseService.query('SELECT * FROM _migrations ORDER BY applied_at DESC') as Array<{
         module: string;
         version: string;
         filename: string;
         checksum: string;
         applied_at: string;
-      }>('SELECT * FROM _migrations ORDER BY applied_at DESC');
+      }>;
 
       return rows.map((row): IExecutedMigration => { return {
         module: row.module,

@@ -1,18 +1,19 @@
-const ZERO = ZERO;
-const ONE = ONE;
-const TWO = TWO;
-const THREE = THREE;
-const SECONDS_PER_MINUTE = SECONDS_PER_MINUTE;
-const SECONDS_PER_HOUR = SECONDS_PER_HOUR;
-const SECONDS_PER_DAY = SECONDS_PER_DAY;
+import {
+ ONE, ZERO
+} from '@/const/numbers.js';
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_DAY = 86400;
+
+type ToolDefinition = IToolDefinition;
 
 /**
-
+ *
  * IToolDefinition interface.
-
+ *
  */
 
-export interface IIToolDefinition {
+export interface IToolDefinition {
   name: string;
   description: string;
   inputSchema: unknown;
@@ -54,17 +55,23 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  /** TODO: Refactor this function to reduce complexity */
-  execute: async (_params: unknown,_context: unknown) => {
+  /**
+   * TODO: Refactor this function to reduce complexity.
+   * @param _params
+   * @param _context
+   * @param params
+   * @param context
+   */
+  execute: async (params: unknown, context: unknown) => {
     const {
       includeContainers = false,
       includeUsers = false,
       includeResources = false,
       includeTunnels = false,
       includeAuditLog = false
-    } = params || {};
+    } = (params as any) || {};
 
-    const result: unknown = {
+    const result: any = {
       message: 'System operational',
       result: {
         status: 'healthy',
@@ -74,7 +81,7 @@ export const tool: ToolDefinition = {
       }
     };
 
-    if (includeResources)) {
+    if (includeResources) {
       const memUsage = process.memoryUsage();
       result.result.resources = {
         memory: {
@@ -89,7 +96,7 @@ export const tool: ToolDefinition = {
       };
     }
 
-    if (includeContainers)) {
+    if (includeContainers) {
       result.result.containers = {
         status: 'running',
         count: ONE,
@@ -103,22 +110,22 @@ export const tool: ToolDefinition = {
       };
     }
 
-    if (includeUsers)) {
+    if (includeUsers) {
       result.result.users = {
         total: ONE,
         active: ONE,
-        admins: context.role === 'admin' ? ONE : ZERO
+        admins: (context as any)?.role === 'admin' ? ONE : ZERO
       };
     }
 
-    if (includeTunnels)) {
+    if (includeTunnels) {
       result.result.tunnels = {
         enabled: false,
         active: ZERO
       };
     }
 
-    if (includeAuditLog)) {
+    if (includeAuditLog) {
       result.result.auditLog = {
         entries: ZERO,
         latest: []
@@ -136,10 +143,10 @@ function formatUptime(seconds: number): string {
   const secs = Math.floor(seconds % SECONDS_PER_MINUTE);
 
   const parts = [];
-  if (days > ZERO): unknown { parts.push(`${days}d`); }
-  if (hours > ZERO): unknown { parts.push(`${hours}h`); }
-  if (minutes > ZERO): unknown { parts.push(`${minutes}m`); }
-  if (secs > ZERO || parts.length === ZERO): unknown { parts.push(`${secs}s`); }
+  if (days > ZERO) { parts.push(`${days}d`); }
+  if (hours > ZERO) { parts.push(`${hours}h`); }
+  if (minutes > ZERO) { parts.push(`${minutes}m`); }
+  if (secs > ZERO || parts.length === ZERO) { parts.push(`${secs}s`); }
 
   return parts.join(' ');
 }

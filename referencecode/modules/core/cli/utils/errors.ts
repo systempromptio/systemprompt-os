@@ -31,11 +31,11 @@ export class CommandExecutionError extends CLIError {
   constructor(
     public readonly commandName: string,
     public readonly originalError: Error,
-    message?: string
+    message?: string,
   ) {
     super(
       message || `Failed to execute command "${commandName}": ${originalError.message}`,
-      'COMMAND_EXECUTION_FAILED'
+      'COMMAND_EXECUTION_FAILED',
     );
     this.name = 'CommandExecutionError';
   }
@@ -47,11 +47,11 @@ export class CommandExecutionError extends CLIError {
 export class InvalidArgumentsError extends CLIError {
   constructor(
     public readonly commandName: string,
-    public readonly details: string
+    public readonly details: string,
   ) {
     super(
       `Invalid arguments for command "${commandName}": ${details}`,
-      'INVALID_ARGUMENTS'
+      'INVALID_ARGUMENTS',
     );
     this.name = 'InvalidArgumentsError';
   }
@@ -63,11 +63,11 @@ export class InvalidArgumentsError extends CLIError {
 export class MissingRequiredOptionError extends CLIError {
   constructor(
     public readonly commandName: string,
-    public readonly optionName: string
+    public readonly optionName: string,
   ) {
     super(
       `Missing required option "${optionName}" for command "${commandName}"`,
-      'MISSING_REQUIRED_OPTION'
+      'MISSING_REQUIRED_OPTION',
     );
     this.name = 'MissingRequiredOptionError';
   }
@@ -79,11 +79,11 @@ export class MissingRequiredOptionError extends CLIError {
 export class CommandDiscoveryError extends CLIError {
   constructor(
     public readonly path: string,
-    public readonly originalError: Error
+    public readonly originalError: Error,
   ) {
     super(
       `Failed to discover commands at "${path}": ${originalError.message}`,
-      'COMMAND_DISCOVERY_FAILED'
+      'COMMAND_DISCOVERY_FAILED',
     );
     this.name = 'CommandDiscoveryError';
   }
@@ -96,7 +96,7 @@ export class CLIInitializationError extends CLIError {
   constructor(public readonly originalError: Error) {
     super(
       `Failed to initialize CLI module: ${originalError.message}`,
-      'CLI_INITIALIZATION_FAILED'
+      'CLI_INITIALIZATION_FAILED',
     );
     this.name = 'CLIInitializationError';
   }
@@ -108,11 +108,11 @@ export class CLIInitializationError extends CLIError {
 export class OutputFormattingError extends CLIError {
   constructor(
     public readonly format: string,
-    public readonly originalError: Error
+    public readonly originalError: Error,
   ) {
     super(
       `Failed to format output as "${format}": ${originalError.message}`,
-      'OUTPUT_FORMATTING_FAILED'
+      'OUTPUT_FORMATTING_FAILED',
     );
     this.name = 'OutputFormattingError';
   }
@@ -124,11 +124,11 @@ export class OutputFormattingError extends CLIError {
 export class DocumentationGenerationError extends CLIError {
   constructor(
     public readonly format: string,
-    public readonly originalError: Error
+    public readonly originalError: Error,
   ) {
     super(
       `Failed to generate documentation in "${format}" format: ${originalError.message}`,
-      'DOCUMENTATION_GENERATION_FAILED'
+      'DOCUMENTATION_GENERATION_FAILED',
     );
     this.name = 'DocumentationGenerationError';
   }

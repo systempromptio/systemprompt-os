@@ -10,7 +10,7 @@ import type { ProviderConfig, ProviderRegistry } from '../types/provider.js';
  * Registry of all available AI providers
  */
 export const providers: Record<string, ProviderConfig> = {
-  'google-liveapi': googleLiveAPIProvider
+  'google-liveapi': googleLiveAPIProvider,
   // Future providers can be added here:
   // 'openai': openAIProvider,
   // 'anthropic': anthropicProvider,
@@ -23,7 +23,7 @@ export const providers: Record<string, ProviderConfig> = {
 export const providerRegistry: ProviderRegistry = {
   availableProviders: Object.keys(providers),
   enabledProviders: Object.keys(providers).filter(name => providers[name]?.enabled),
-  defaultProvider: 'google-liveapi'
+  defaultProvider: 'google-liveapi',
 };
 
 /**

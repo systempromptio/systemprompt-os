@@ -17,31 +17,31 @@ export function createPromptsSearchCommand(module: MCPModule): Command {
     .action(async (query: string, options) => {
       try {
         const prompts = await module.listPrompts();
-        
+
         // Search prompts
         const searchLower = query.toLowerCase();
-        let filteredPrompts = prompts.filter(prompt => 
+        let filteredPrompts = prompts.filter(prompt =>
           prompt.name.toLowerCase().includes(searchLower) ||
           (prompt.description?.toLowerCase().includes(searchLower)) ||
-          (prompt.arguments?.some((arg: any) => 
+          (prompt.arguments?.some((arg: any) =>
             arg.name.toLowerCase().includes(searchLower) ||
-            (arg.description?.toLowerCase().includes(searchLower))
-          ))
+            (arg.description?.toLowerCase().includes(searchLower)),
+          )),
         );
-        
+
         // Filter by category if specified
         if (options.category) {
-          filteredPrompts = filteredPrompts.filter(prompt => 
-            prompt.metadata?.category === options.category
+          filteredPrompts = filteredPrompts.filter(prompt =>
+            prompt.metadata?.category === options.category,
           );
         }
-        
+
         // Apply limit
         const limit = parseInt(options.limit, 10);
         if (!isNaN(limit) && limit > 0) {
           filteredPrompts = filteredPrompts.slice(0, limit);
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(filteredPrompts, null, 2));
         } else if (options.format === 'yaml') {
@@ -53,32 +53,32 @@ export function createPromptsSearchCommand(module: MCPModule): Command {
             console.log(`No prompts found matching: "${query}"`);
             return;
           }
-          
+
           const table = new Table({
             head: ['Name', 'Description', 'Match Type', 'Category'],
-            colWidths: [25, 45, 15, 15]
+            colWidths: [25, 45, 15, 15],
           });
-          
+
           for (const prompt of filteredPrompts) {
             // Determine match type
             let matchType = 'description';
             if (prompt.name.toLowerCase().includes(searchLower)) {
               matchType = 'name';
-            } else if (prompt.arguments?.some((arg: any) => 
+            } else if (prompt.arguments?.some((arg: any) =>
               arg.name.toLowerCase().includes(searchLower) ||
-              (arg.description?.toLowerCase().includes(searchLower))
+              (arg.description?.toLowerCase().includes(searchLower)),
             )) {
               matchType = 'argument';
             }
-            
+
             table.push([
               prompt.name,
               prompt.description || '-',
               matchType,
-              prompt.metadata?.category || 'default'
+              prompt.metadata?.category || 'default',
             ]);
           }
-          
+
           console.log(table.toString());
           console.log(`\nFound ${filteredPrompts.length} prompt(s) matching: "${query}"`);
         }

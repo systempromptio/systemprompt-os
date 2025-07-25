@@ -8,10 +8,10 @@
  */
 
 import {
-  type MetricTypeEnum,
+  type IAlertHistory,
   type IMetric,
   type IMonitorAlert,
-  type IAlertHistory
+  type MetricTypeEnum
 } from '@/modules/core/monitor/types/index.js';
 
 /**
@@ -19,9 +19,9 @@ import {
  */
 export class MonitorRepository {
   private static instance: MonitorRepository;
-  private metrics: IMetric[] = [];
-  private alerts: Map<string, IMonitorAlert> = new Map();
-  private alertHistory: IAlertHistory[] = [];
+  private readonly metrics: IMetric[] = [];
+  private readonly alerts: Map<string, IMonitorAlert> = new Map();
+  private readonly alertHistory: IAlertHistory[] = [];
   private metricIdCounter = 1;
   private historyIdCounter = 1;
 
@@ -35,9 +35,7 @@ export class MonitorRepository {
    * @returns The repository instance.
    */
   static getInstance(): MonitorRepository {
-    if (!MonitorRepository.instance) {
-      MonitorRepository.instance = new MonitorRepository();
-    }
+    MonitorRepository.instance ||= new MonitorRepository();
     return MonitorRepository.instance;
   }
 
@@ -68,7 +66,7 @@ export class MonitorRepository {
       metricType: type,
       metricName: name,
       metricValue: value,
-      unit,
+      unit: unit || '',
       recordedAt: new Date()
     };
 
@@ -84,12 +82,12 @@ export class MonitorRepository {
    */
   async findMetrics(type?: MetricTypeEnum, limit?: number): Promise<IMetric[]> {
     let results = this.metrics;
-    
+
     if (type) {
-      results = results.filter(m => m.metricType === type);
+      results = results.filter(m => { return m.metricType === type });
     }
 
-    results = results.sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
+    results = results.sort((a, b) => { return b.recordedAt.getTime() - a.recordedAt.getTime() });
 
     if (limit) {
       results = results.slice(0, limit);
@@ -104,7 +102,7 @@ export class MonitorRepository {
    * @returns Promise that resolves to latest metric or empty array.
    */
   async findLatestMetric(type: MetricTypeEnum): Promise<IMetric[]> {
-    return this.findMetrics(type, 1);
+    return await this.findMetrics(type, 1);
   }
 
   /**
@@ -141,7 +139,7 @@ export class MonitorRepository {
    * @returns Promise that resolves to array of enabled alerts.
    */
   async findEnabledAlerts(): Promise<IMonitorAlert[]> {
-    return Array.from(this.alerts.values()).filter(a => a.enabled);
+    return Array.from(this.alerts.values()).filter(a => { return a.enabled });
   }
 
   /**

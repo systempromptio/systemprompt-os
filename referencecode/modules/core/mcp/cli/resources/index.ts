@@ -15,7 +15,7 @@ import { createResourcesDeleteCommand } from './delete.js';
 export function createResourcesCommand(module: MCPModule): Command {
   const cmd = new Command('resources')
     .description('Manage MCP resources');
-  
+
   // Add subcommands
   cmd.addCommand(createResourcesListCommand(module));
   cmd.addCommand(createResourcesSearchCommand(module));
@@ -23,6 +23,6 @@ export function createResourcesCommand(module: MCPModule): Command {
   cmd.addCommand(createResourcesCreateCommand(module));
   cmd.addCommand(createResourcesUpdateCommand(module));
   cmd.addCommand(createResourcesDeleteCommand(module));
-  
+
   return cmd;
 }

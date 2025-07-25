@@ -104,7 +104,7 @@ async function showModel(options: { provider: string; model: string }): Promise<
   console.log(`Provider: ${provider.displayName}`);
   console.log(`Model Key: ${options.model}`);
   if (config.defaultModel === options.model) {
-    console.log(`Status: DEFAULT MODEL`);
+    console.log('Status: DEFAULT MODEL');
   }
   console.log();
 
@@ -218,7 +218,7 @@ async function testModel(options: {
     const generateConfig: any = {
       safetySettings: modelConfig.safetySettings,
     };
-    
+
     if (modelConfig.systemInstruction) {
       generateConfig.systemInstruction = modelConfig.systemInstruction;
     }
@@ -234,7 +234,7 @@ async function testModel(options: {
     if (modelConfig.generationConfig?.maxOutputTokens !== undefined) {
       generateConfig.maxOutputTokens = modelConfig.generationConfig.maxOutputTokens;
     }
-    
+
     const result = await client.models.generateContent({
       model: modelConfig.model,
       contents: [
@@ -285,16 +285,16 @@ async function testModel(options: {
  */
 async function execute(subcommand: string, options: any): Promise<void> {
   switch (subcommand) {
-    case 'list':
-      return listModels(options);
-    case 'show':
-      return showModel(options);
-    case 'test':
-      return testModel(options);
-    default:
-      console.error(`Unknown model subcommand: ${subcommand}`);
-      console.error('Available subcommands: list, show, test');
-      process.exit(1);
+  case 'list':
+    return listModels(options);
+  case 'show':
+    return showModel(options);
+  case 'test':
+    return testModel(options);
+  default:
+    console.error(`Unknown model subcommand: ${subcommand}`);
+    console.error('Available subcommands: list, show, test');
+    process.exit(1);
   }
 }
 
@@ -302,5 +302,5 @@ async function execute(subcommand: string, options: any): Promise<void> {
  * Command export for CLI discovery
  */
 export const command = {
-  execute
+  execute,
 };

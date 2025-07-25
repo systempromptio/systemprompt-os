@@ -3,13 +3,13 @@
  * @module modules/core/webhooks/repositories
  */
 
-import type { 
-  WebhookConfig, 
-  WebhookDelivery, 
+import type {
+  WebhookConfig,
+  WebhookDelivery,
   WebhookFilter,
   CreateWebhookDto,
   UpdateWebhookDto,
-  WebhookStats
+  WebhookStats,
 } from '../types/webhook.types.js';
 
 export class WebhookRepository {
@@ -33,13 +33,13 @@ export class WebhookRepository {
         strategy: 'exponential',
         initial_delay: 1000,
         max_delay: 60000,
-        multiplier: 2
+        multiplier: 2,
       },
       timeout: data.timeout || 30000,
       status: 'active',
       metadata: data.metadata || {},
       created_at: now,
-      updated_at: now
+      updated_at: now,
     };
 
     await this.database.insert('webhooks', {
@@ -55,7 +55,7 @@ export class WebhookRepository {
       status: webhook.status,
       metadata: JSON.stringify(webhook.metadata),
       created_at: now.toISOString(),
-      updated_at: now.toISOString()
+      updated_at: now.toISOString(),
     });
 
     return webhook;
@@ -64,7 +64,7 @@ export class WebhookRepository {
   async getWebhook(id: string): Promise<WebhookConfig | null> {
     const result = await this.database.select(
       'SELECT * FROM webhooks WHERE id = ?',
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) {
@@ -101,7 +101,7 @@ export class WebhookRepository {
     }
 
     const updates: any = {
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     if (data.name !== undefined) {updates.name = data.name;}
@@ -143,20 +143,20 @@ export class WebhookRepository {
       duration: delivery.duration,
       error: delivery.error,
       delivered_at: delivery.delivered_at.toISOString(),
-      success: delivery.success ? 1 : 0
+      success: delivery.success ? 1 : 0,
     });
   }
 
   async getWebhookDeliveries(
     webhookId: string,
-    limit: number = 100
+    limit: number = 100,
   ): Promise<WebhookDelivery[]> {
     const result = await this.database.select(
       `SELECT * FROM webhook_deliveries 
        WHERE webhook_id = ? 
        ORDER BY delivered_at DESC 
        LIMIT ?`,
-      [webhookId, limit]
+      [webhookId, limit],
     );
 
     return result.rows.map((row: any) => this.mapToDelivery(row));
@@ -174,7 +174,7 @@ export class WebhookRepository {
         MAX(CASE WHEN success = 0 THEN delivered_at ELSE NULL END) as last_failure
        FROM webhook_deliveries
        WHERE webhook_id = ?`,
-      [webhookId]
+      [webhookId],
     );
 
     const stats = result.rows[0] || {};
@@ -188,7 +188,7 @@ export class WebhookRepository {
       ...(stats.last_delivery && { last_delivery: new Date(stats.last_delivery) }),
       ...(stats.last_success && { last_success: new Date(stats.last_success) }),
       ...(stats.last_failure && { last_failure: new Date(stats.last_failure) }),
-      failure_rate: stats.total > 0 ? (stats.failed / stats.total) : 0
+      failure_rate: stats.total > 0 ? (stats.failed / stats.total) : 0,
     };
   }
 
@@ -198,7 +198,7 @@ export class WebhookRepository {
        WHERE status = 'active' 
        AND events LIKE ?
        ORDER BY created_at`,
-      [`%"${event}"%`]
+      [`%"${event}"%`],
     );
 
     return result.rows.map((row: any) => this.mapToWebhook(row));
@@ -210,7 +210,7 @@ export class WebhookRepository {
 
     const result = await this.database.delete(
       'webhook_deliveries',
-      { delivered_at: { $lt: cutoffDate.toISOString() } }
+      { delivered_at: { $lt: cutoffDate.toISOString() } },
     );
 
     return result.changes;
@@ -230,7 +230,7 @@ export class WebhookRepository {
       status: row.status,
       metadata: JSON.parse(row.metadata),
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
   }
 
@@ -250,7 +250,7 @@ export class WebhookRepository {
       duration: row.duration,
       error: row.error,
       delivered_at: new Date(row.delivered_at),
-      success: row.success === 1
+      success: row.success === 1,
     };
   }
 }

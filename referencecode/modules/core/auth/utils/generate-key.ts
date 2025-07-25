@@ -16,19 +16,19 @@ export interface GenerateKeyOptions {
 
 export async function generateJWTKeyPair(options: GenerateKeyOptions): Promise<void> {
   const { algorithm, outputDir, format } = options;
-  
+
   // Map algorithm to key type
   const keyType = algorithm.startsWith('RS') ? 'rsa' : 'ec';
-  
+
   // Generate key pair with proper typing
   let publicKey: string;
   let privateKey: string;
-  
+
   if (keyType === 'rsa') {
     const keyPair = generateKeyPairSync('rsa', {
       modulusLength: algorithm === 'RS256' ? 2048 : 4096,
       publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
     publicKey = keyPair.publicKey;
     privateKey = keyPair.privateKey;
@@ -36,12 +36,12 @@ export async function generateJWTKeyPair(options: GenerateKeyOptions): Promise<v
     const keyPair = generateKeyPairSync('ec', {
       namedCurve: algorithm === 'ES256' ? 'prime256v1' : 'secp521r1',
       publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
     publicKey = keyPair.publicKey;
     privateKey = keyPair.privateKey;
   }
-  
+
   if (format === 'pem') {
     // Write PEM files
     writeFileSync(join(outputDir, 'private.key'), privateKey);
@@ -56,9 +56,9 @@ export async function generateJWTKeyPair(options: GenerateKeyOptions): Promise<v
         kid: `${algorithm}-${Date.now()}`,
         // Note: In production, you'd need proper JWK conversion
         // This is simplified for the example
-      }]
+      }],
     };
-    
+
     writeFileSync(join(outputDir, 'jwks.json'), JSON.stringify(jwks, null, 2));
   }
 }

@@ -25,14 +25,13 @@ import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers.js';
 import {
   handleListResources,
-  handleResourceCall
+  handleResourceCall,
 } from '@/server/mcp/core/handlers/resource-handlers.js';
-import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 
 /**
  * HTTP Status Codes.
  */
-const HTTP_OK = 200;
 const HTTP_NOT_FOUND = 404;
 const HTTP_INTERNAL_ERROR = 500;
 
@@ -42,20 +41,20 @@ const logger = LoggerService.getInstance();
  * Represents an active MCP session with its associated server and transport.
  */
 interface SessionInfo {
-    server: Server;
-    transport: StreamableHTTPServerTransport;
-    createdAt: Date;
-    lastAccessed: Date;
+  server: Server;
+  transport: StreamableHTTPServerTransport;
+  createdAt: Date;
+  lastAccessed: Date;
 }
 
 /**
  * Configuration options for the MCP server.
  */
 interface ServerConfig {
-    name?: string;
-    version?: string;
-    sessionTimeoutMs?: number;
-    cleanupIntervalMs?: number;
+  name?: string;
+  version?: string;
+  sessionTimeoutMs?: number;
+  cleanupIntervalMs?: number;
 }
 
 /**
@@ -85,9 +84,9 @@ export class CoreMCPServer {
    */
   constructor(config?: ServerConfig) {
     const mergedConfig = {
- ...DEFAULT_CONFIG,
-...config
-};
+      ...DEFAULT_CONFIG,
+      ...config,
+    };
 
     this.name = mergedConfig.name;
     this.version = mergedConfig.version;
@@ -135,7 +134,7 @@ export class CoreMCPServer {
       },
     );
 
-    const context: MCPToolContext = {
+    const context: IMCPToolContext = {
       sessionId,
       ...userId !== undefined && { userId },
     };
@@ -145,9 +144,9 @@ export class CoreMCPServer {
     this.setupPromptHandlers(server, context);
 
     logger.debug('Server instance created', {
- sessionId,
-userId
-});
+      sessionId,
+      userId,
+    });
 
     return server;
   }
@@ -157,7 +156,7 @@ userId
    * @param server - MCP server instance.
    * @param context - Request context containing session information.
    */
-  private setupToolHandlers(server: Server, context: MCPToolContext): void {
+  private setupToolHandlers(server: Server, context: IMCPToolContext): void {
     server.setRequestHandler(ListToolsRequestSchema, async (request: ListToolsRequest) => {
       try {
         return await handleListTools(request, context);
@@ -189,7 +188,7 @@ userId
    * @param server - MCP server instance.
    * @param context - Request context containing session information.
    */
-  private setupResourceHandlers(server: Server, context: MCPToolContext): void {
+  private setupResourceHandlers(server: Server, context: IMCPToolContext): void {
     server.setRequestHandler(ListResourcesRequestSchema, async (_request: ListResourcesRequest) => {
       try {
         return await handleListResources();
@@ -221,7 +220,7 @@ userId
    * @param server - MCP server instance.
    * @param context - Request context containing session information.
    */
-  private setupPromptHandlers(server: Server, context: MCPToolContext): void {
+  private setupPromptHandlers(server: Server, context: IMCPToolContext): void {
     server.setRequestHandler(ListPromptsRequestSchema, async (_request: ListPromptsRequest) => {
       try {
         return await handleListPrompts();
@@ -321,7 +320,9 @@ userId
     const sessionId = this.generateSessionId();
     const server = this.createServer(sessionId, userId);
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => { return sessionId },
+      sessionIdGenerator: () => {
+        return sessionId;
+      },
     });
 
     await server.connect(transport);
@@ -438,12 +439,14 @@ userId
   }> {
     const now = Date.now();
 
-    return Array.from(this.sessions.entries()).map(([sessionId, info]) => { return {
-      sessionId,
-      createdAt: info.createdAt,
-      lastAccessed: info.lastAccessed,
-      age: now - info.createdAt.getTime(),
-    } });
+    return Array.from(this.sessions.entries()).map(([sessionId, info]) => {
+      return {
+        sessionId,
+        createdAt: info.createdAt,
+        lastAccessed: info.lastAccessed,
+        age: now - info.createdAt.getTime(),
+      };
+    });
   }
 
   /**
@@ -474,4 +477,4 @@ userId
  */
 export const createMCPServer = function (config?: ServerConfig): CoreMCPServer {
   return new CoreMCPServer(config);
-}
+};

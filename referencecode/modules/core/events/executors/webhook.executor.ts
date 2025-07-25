@@ -35,7 +35,7 @@ export class WebhookExecutor extends BaseEventExecutor {
           data?: Record<string, unknown>,
           metadata?: Record<string, unknown>,
         ) => Promise<void>;
-      }>('WebhookService');
+          }>('WebhookService');
 
       if (!webhookService) {
         throw new Error('WebhookService not available');

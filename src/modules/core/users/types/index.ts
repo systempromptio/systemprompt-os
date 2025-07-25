@@ -1,8 +1,4 @@
 /**
- * Users type definitions.
- */
-
-/**
  * User status enumeration.
  */
 export const enum UserStatusEnum {

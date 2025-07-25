@@ -3,14 +3,14 @@
  * @module modules/core/auth/providers/registry
  */
 
-import { readFileSync, readdirSync, existsSync } from "fs";
-import { join, extname } from "path";
-import { parse as parseYaml } from "yaml";
-import type { Logger } from "@/modules/types.js";
-import type { IdentityProvider, IDPConfig } from "../types/provider-interface.js";
-import { GenericOAuth2Provider } from "./core/oauth2.js";
-import { GoogleProvider } from "./core/google.js";
-import { GitHubProvider } from "./core/github.js";
+import { readFileSync, readdirSync, existsSync } from 'fs';
+import { join, extname } from 'path';
+import { parse as parseYaml } from 'yaml';
+import type { Logger } from '@/modules/types.js';
+import type { IdentityProvider, IDPConfig } from '../types/provider-interface.js';
+import { GenericOAuth2Provider } from './core/oauth2.js';
+import { GoogleProvider } from './core/google.js';
+import { GitHubProvider } from './core/github.js';
 
 /**
  * OAuth2/OIDC provider configuration schema
@@ -18,7 +18,7 @@ import { GitHubProvider } from "./core/github.js";
 export interface ProviderConfig {
   id: string;
   name: string;
-  type: "oauth2" | "oidc" | "saml";
+  type: 'oauth2' | 'oidc' | 'saml';
   enabled: boolean;
   endpoints: {
     authorization: string;
@@ -58,10 +58,9 @@ interface OIDCDiscoveryResponse {
   token_endpoint_auth_methods_supported?: string[];
 }
 
-
 /**
  * Registry for OAuth2/OIDC identity providers
- * 
+ *
  * Manages loading, configuration, and instantiation of identity providers
  * from YAML configuration files with environment variable substitution.
  */
@@ -73,7 +72,7 @@ export class ProviderRegistry {
 
   /**
    * Creates a new ProviderRegistry instance
-   * 
+   *
    * @param configPath - Base path for provider configuration files
    * @param logger - Optional logger instance for debugging
    */
@@ -86,7 +85,7 @@ export class ProviderRegistry {
 
   /**
    * Initializes the registry by loading and instantiating all providers
-   * 
+   *
    * @returns Promise that resolves when initialization is complete
    * @throws Error if critical initialization failure occurs
    */
@@ -97,12 +96,12 @@ export class ProviderRegistry {
 
   /**
    * Loads provider configurations from YAML files
-   * 
+   *
    * Scans the providers directory for YAML files and loads configurations
    * for enabled providers. Also checks for custom providers in a subdirectory.
    */
   private async loadProviderConfigs(): Promise<void> {
-    const providersPath = join(this.configPath, "providers");
+    const providersPath = join(this.configPath, 'providers');
 
     this.logger?.info(`Looking for providers in: ${providersPath}`);
 
@@ -112,7 +111,7 @@ export class ProviderRegistry {
     }
 
     const yamlFiles = readdirSync(providersPath).filter(
-      (file) => [".yaml", ".yml"].includes(extname(file)) && file !== "template.yaml",
+      (file) => ['.yaml', '.yml'].includes(extname(file)) && file !== 'template.yaml',
     );
 
     await this.loadProviderFiles(yamlFiles.map(file => join(providersPath, file)));
@@ -121,18 +120,18 @@ export class ProviderRegistry {
 
   /**
    * Loads custom provider configurations
-   * 
+   *
    * @param basePath - Base providers directory path
    */
   private async loadCustomProviders(basePath: string): Promise<void> {
-    const customPath = join(basePath, "custom");
-    
+    const customPath = join(basePath, 'custom');
+
     if (!existsSync(customPath)) {
       return;
     }
 
     const customFiles = readdirSync(customPath)
-      .filter((file) => [".yaml", ".yml"].includes(extname(file)))
+      .filter((file) => ['.yaml', '.yml'].includes(extname(file)))
       .map(file => join(customPath, file));
 
     await this.loadProviderFiles(customFiles, true);
@@ -140,7 +139,7 @@ export class ProviderRegistry {
 
   /**
    * Loads provider configuration files
-   * 
+   *
    * @param filePaths - Array of file paths to load
    * @param isCustom - Whether these are custom provider files
    */
@@ -150,7 +149,7 @@ export class ProviderRegistry {
         const config = await this.loadProviderConfig(filePath);
         if (config?.enabled) {
           this.configs.set(config.id, config);
-          const providerType = isCustom ? "custom provider" : "provider";
+          const providerType = isCustom ? 'custom provider' : 'provider';
           this.logger?.info(`Loaded ${providerType} config: ${config.id}`);
         }
       } catch (error) {
@@ -163,12 +162,12 @@ export class ProviderRegistry {
 
   /**
    * Loads a single provider configuration file
-   * 
+   *
    * @param filePath - Path to the YAML configuration file
    * @returns Parsed and validated provider configuration or null if invalid
    */
   private async loadProviderConfig(filePath: string): Promise<ProviderConfig | null> {
-    const content = readFileSync(filePath, "utf8");
+    const content = readFileSync(filePath, 'utf8');
     const rawConfig = parseYaml(content) as unknown;
     const config = this.substituteEnvVars(rawConfig) as ProviderConfig;
 
@@ -186,7 +185,7 @@ export class ProviderRegistry {
 
   /**
    * Validates provider configuration
-   * 
+   *
    * @param config - Configuration to validate
    * @returns True if configuration has all required fields
    */
@@ -194,21 +193,21 @@ export class ProviderRegistry {
     return Boolean(
       config.id &&
       config.credentials?.client_id &&
-      config.credentials?.client_secret
+      config.credentials?.client_secret,
     );
   }
 
   /**
    * Recursively substitutes environment variables in configuration
-   * 
+   *
    * @param obj - Object to process
    * @returns Object with environment variables substituted
    */
   private substituteEnvVars(obj: unknown): unknown {
-    if (typeof obj === "string") {
+    if (typeof obj === 'string') {
       return obj.replace(/\$\{([^}]+)\}/g, (match, varName) => {
         // Special handling for OAuth redirect URI to ensure it uses the tunnel URL
-        if (varName === "OAUTH_REDIRECT_URI" && process.env['BASE_URL']) {
+        if (varName === 'OAUTH_REDIRECT_URI' && process.env['BASE_URL']) {
           return `${process.env['BASE_URL']}/oauth2/callback`;
         }
         return process.env[varName] || match;
@@ -219,7 +218,7 @@ export class ProviderRegistry {
       return obj.map((item) => this.substituteEnvVars(item));
     }
 
-    if (obj && typeof obj === "object") {
+    if (obj && typeof obj === 'object') {
       const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         result[key] = this.substituteEnvVars(value);
@@ -232,7 +231,7 @@ export class ProviderRegistry {
 
   /**
    * Instantiates provider implementations from configurations
-   * 
+   *
    * Creates provider instances for all loaded configurations.
    */
   private async instantiateProviders(): Promise<void> {
@@ -247,7 +246,7 @@ export class ProviderRegistry {
         } catch (error) {
           this.logger?.error(`Failed to instantiate provider ${id}:`, error);
         }
-      }
+      },
     );
 
     await Promise.all(instantiationPromises);
@@ -255,7 +254,7 @@ export class ProviderRegistry {
 
   /**
    * Creates a provider instance from configuration
-   * 
+   *
    * @param config - Provider configuration
    * @returns Provider instance or null if unsupported
    */
@@ -264,33 +263,33 @@ export class ProviderRegistry {
       client_id: config.credentials.client_id,
       client_secret: config.credentials.client_secret,
       redirect_uri: config.credentials.redirect_uri,
-      ...(config.scopes && { scope: config.scopes.join(" ") }),
+      ...(config.scopes && { scope: config.scopes.join(' ') }),
     };
 
     switch (config.id) {
-      case "google":
-        return new GoogleProvider(idpConfig);
+    case 'google':
+      return new GoogleProvider(idpConfig);
 
-      case "github":
-        return new GitHubProvider(idpConfig);
+    case 'github':
+      return new GitHubProvider(idpConfig);
 
-      default:
-        return this.createGenericProvider(config, idpConfig);
+    default:
+      return this.createGenericProvider(config, idpConfig);
     }
   }
 
   /**
    * Creates a generic OAuth2/OIDC provider
-   * 
+   *
    * @param config - Provider configuration
    * @param idpConfig - Identity provider base configuration
    * @returns Generic provider instance or null if unsupported
    */
   private async createGenericProvider(
     config: ProviderConfig,
-    idpConfig: IDPConfig
+    idpConfig: IDPConfig,
   ): Promise<IdentityProvider | null> {
-    if (config.type !== "oauth2" && config.type !== "oidc") {
+    if (config.type !== 'oauth2' && config.type !== 'oidc') {
       this.logger?.warn(`Unsupported provider type ${config.type} for ${config.id}`);
       return null;
     }
@@ -307,7 +306,7 @@ export class ProviderRegistry {
       ...(config.userinfo_mapping && { userinfo_mapping: config.userinfo_mapping }),
     };
 
-    if (config.type === "oidc" && config.endpoints.discovery) {
+    if (config.type === 'oidc' && config.endpoints.discovery) {
       await this.enrichWithDiscovery(genericConfig, config.endpoints.discovery, config.id);
     }
 
@@ -316,20 +315,20 @@ export class ProviderRegistry {
 
   /**
    * Extracts issuer URL from OIDC configuration
-   * 
+   *
    * @param config - Provider configuration
    * @returns Issuer URL or undefined
    */
   private extractIssuer(config: ProviderConfig): string | undefined {
-    if (config.type !== "oidc" || !config.endpoints.discovery) {
+    if (config.type !== 'oidc' || !config.endpoints.discovery) {
       return undefined;
     }
-    return config.endpoints.discovery.replace("/.well-known/openid-configuration", "");
+    return config.endpoints.discovery.replace('/.well-known/openid-configuration', '');
   }
 
   /**
    * Enriches provider configuration with OIDC discovery
-   * 
+   *
    * @param genericConfig - Configuration to enrich
    * @param discoveryUrl - OIDC discovery endpoint URL
    * @param providerId - Provider identifier for logging
@@ -337,7 +336,7 @@ export class ProviderRegistry {
   private async enrichWithDiscovery(
     genericConfig: Record<string, unknown>,
     discoveryUrl: string,
-    providerId: string
+    providerId: string,
   ): Promise<void> {
     try {
       const discovered = await this.discoverOIDCConfiguration(discoveryUrl);
@@ -349,32 +348,32 @@ export class ProviderRegistry {
 
   /**
    * Discovers OIDC configuration from well-known endpoint
-   * 
+   *
    * @param discoveryUrl - OIDC discovery endpoint URL
    * @returns Discovered configuration mapped to internal format
    * @throws Error if discovery fails
    */
   private async discoverOIDCConfiguration(discoveryUrl: string): Promise<Record<string, string>> {
     const response = await fetch(discoveryUrl);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch OIDC discovery: ${response.statusText}`);
     }
 
     const config = (await response.json()) as OIDCDiscoveryResponse;
-    
+
     return {
       authorizationendpoint: config.authorization_endpoint,
       tokenendpoint: config.token_endpoint,
-      userinfoendpoint: config.userinfo_endpoint || "",
-      jwksuri: config.jwks_uri || "",
+      userinfoendpoint: config.userinfo_endpoint || '',
+      jwksuri: config.jwks_uri || '',
       issuer: config.issuer,
     };
   }
 
   /**
    * Gets a provider by ID
-   * 
+   *
    * @param id - Provider identifier
    * @returns Provider instance or undefined if not found
    */
@@ -384,7 +383,7 @@ export class ProviderRegistry {
 
   /**
    * Gets all enabled providers
-   * 
+   *
    * @returns Array of all provider instances
    */
   getAllProviders(): IdentityProvider[] {
@@ -393,7 +392,7 @@ export class ProviderRegistry {
 
   /**
    * Gets provider configuration
-   * 
+   *
    * @param id - Provider identifier
    * @returns Provider configuration or undefined if not found
    */
@@ -403,7 +402,7 @@ export class ProviderRegistry {
 
   /**
    * Checks if a provider is available
-   * 
+   *
    * @param id - Provider identifier
    * @returns True if provider exists and is enabled
    */
@@ -413,7 +412,7 @@ export class ProviderRegistry {
 
   /**
    * Lists available provider IDs
-   * 
+   *
    * @returns Array of provider identifiers
    */
   listProviderIds(): string[] {
@@ -422,10 +421,10 @@ export class ProviderRegistry {
 
   /**
    * Reloads provider configurations
-   * 
+   *
    * Clears all providers and configurations, then reloads from disk.
    * Useful for dynamic configuration updates.
-   * 
+   *
         {
    * @returns Promise that resolves when reload is complete
         }

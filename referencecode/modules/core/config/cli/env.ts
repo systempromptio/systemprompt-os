@@ -25,41 +25,41 @@ async function execute(options: {
 
     // For now, we'll use process.env directly since ConfigModule doesn't have env-specific methods
     switch (action) {
-      case 'list':
-        await listEnvVars(envFile);
-        break;
+    case 'list':
+      await listEnvVars(envFile);
+      break;
 
-      case 'get':
-        if (!options.key) {
-          console.error('Error: Key is required for get action');
-          process.exit(1);
-        }
-        await getEnvVar(options.key, envFile);
-        break;
-
-      case 'set':
-        if (!options.key || options.value === undefined) {
-          console.error('Error: Key and value are required for set action');
-          process.exit(1);
-        }
-        await setEnvVar(options.key, options.value, envFile);
-        break;
-
-      case 'unset':
-        if (!options.key) {
-          console.error('Error: Key is required for unset action');
-          process.exit(1);
-        }
-        await unsetEnvVar(options.key, envFile);
-        break;
-
-      case 'export':
-        await exportEnvFile(envFile);
-        break;
-
-      default:
-        console.error(`Error: Unknown action: ${action}`);
+    case 'get':
+      if (!options.key) {
+        console.error('Error: Key is required for get action');
         process.exit(1);
+      }
+      await getEnvVar(options.key, envFile);
+      break;
+
+    case 'set':
+      if (!options.key || options.value === undefined) {
+        console.error('Error: Key and value are required for set action');
+        process.exit(1);
+      }
+      await setEnvVar(options.key, options.value, envFile);
+      break;
+
+    case 'unset':
+      if (!options.key) {
+        console.error('Error: Key is required for unset action');
+        process.exit(1);
+      }
+      await unsetEnvVar(options.key, envFile);
+      break;
+
+    case 'export':
+      await exportEnvFile(envFile);
+      break;
+
+    default:
+      console.error(`Error: Unknown action: ${action}`);
+      process.exit(1);
     }
   } catch (error) {
     console.error(

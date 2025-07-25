@@ -8,11 +8,11 @@
  */
 
 import {
-  UserStatusEnum,
   type IUser,
-  type IUserSession,
   type IUserApiKey,
-  type IUserUpdateData
+  type IUserSession,
+  type IUserUpdateData,
+  UserStatusEnum
 } from '@/modules/core/users/types/index.js';
 
 /**
@@ -20,9 +20,9 @@ import {
  */
 export class UsersRepository {
   private static instance: UsersRepository;
-  private users: Map<string, IUser> = new Map();
-  private sessions: Map<string, IUserSession> = new Map();
-  private apiKeys: Map<string, IUserApiKey> = new Map();
+  private readonly users: Map<string, IUser> = new Map();
+  private readonly sessions: Map<string, IUserSession> = new Map();
+  private readonly apiKeys: Map<string, IUserApiKey> = new Map();
 
   /**
    * Private constructor for singleton.
@@ -34,9 +34,7 @@ export class UsersRepository {
    * @returns The repository instance.
    */
   static getInstance(): UsersRepository {
-    if (!UsersRepository.instance) {
-      UsersRepository.instance = new UsersRepository();
-    }
+    UsersRepository.instance ||= new UsersRepository();
     return UsersRepository.instance;
   }
 
@@ -66,7 +64,7 @@ export class UsersRepository {
       id,
       username,
       email,
-      passwordHash,
+      passwordHash: passwordHash || '',
       status: UserStatusEnum.ACTIVE,
       emailVerified: false,
       loginAttempts: 0,
@@ -156,14 +154,14 @@ export class UsersRepository {
    */
   async deleteUser(id: string): Promise<void> {
     this.users.delete(id);
-    
+
     // Delete related sessions
     for (const [sessionId, session] of this.sessions.entries()) {
       if (session.userId === id) {
         this.sessions.delete(sessionId);
       }
     }
-    
+
     // Delete related API keys
     for (const [keyId, apiKey] of this.apiKeys.entries()) {
       if (apiKey.userId === id) {
@@ -187,7 +185,7 @@ export class UsersRepository {
     if (success) {
       user.lastLoginAt = new Date();
       user.loginAttempts = 0;
-      user.lockedUntil = undefined;
+      user.lockedUntil = new Date(0);
     } else {
       user.loginAttempts++;
     }
@@ -233,8 +231,8 @@ export class UsersRepository {
       id,
       userId,
       tokenHash,
-      ipAddress,
-      userAgent,
+      ipAddress: ipAddress || '',
+      userAgent: userAgent || '',
       expiresAt,
       createdAt: new Date(),
       lastActivityAt: new Date()
@@ -303,7 +301,7 @@ export class UsersRepository {
       userId,
       name,
       keyHash,
-      permissions,
+      permissions: permissions || [],
       createdAt: new Date()
     };
 

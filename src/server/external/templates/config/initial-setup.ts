@@ -3,7 +3,10 @@
  * @module server/external/templates/config/initial-setup
  */
 
-import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
+// Mock interface for missing module
+interface IdentityProvider {
+  name: string;
+}
 
 /**
  * Renders the initial setup page when no admin users exist.

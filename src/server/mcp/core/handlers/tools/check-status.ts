@@ -4,7 +4,7 @@
  */
 
 import type {
- CallToolResult, ToolHandler, ToolHandlerContext
+ CallToolResult, IToolHandlerContext, ToolHandler
 } from '@/server/mcp/core/handlers/tools/types.js';
 import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
@@ -109,7 +109,7 @@ interface SystemStatus {
  */
 export const handleCheckStatus: ToolHandler<CheckStatusArgs | undefined> = async (
   args: CheckStatusArgs | undefined,
-  context?: ToolHandlerContext,
+  context?: IToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
     logger.info('Admin checking system status', {
@@ -230,7 +230,7 @@ usagePercent: 0
  * Get service status.
  */
 const getServiceStatus = async function () {
-  const services: unknown = {
+  const services: any = {
     mcp: {
       status: 'active',
       version: process.env['npm_package_version'] || 'unknown',
@@ -322,7 +322,7 @@ const getUserStatus = async function () {
       created_at: string;
     }
 
-    return users.map((user: UserStatusRow) => { return {
+    return (users as UserStatusRow[]).map((user: UserStatusRow) => { return {
       id: user.id,
       email: user.email,
       name: user.name || 'N/A',

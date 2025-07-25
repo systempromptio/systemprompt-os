@@ -24,11 +24,10 @@ export interface ProtectedResourceMetadata {
 
 export class ProtectedResourceEndpoint {
   private readonly baseUrl: string;
-  
-  constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env['BASE_URL'] || 'http://localhost:3000';
+
+  constructor(baseUrl: string = 'http://localhost:3000') {
+    this.baseUrl = baseUrl;
   }
-  
   getProtectedResourceMetadata = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);

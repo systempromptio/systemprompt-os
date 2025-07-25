@@ -73,20 +73,20 @@ export const command = {
         for (const check of report.checks) {
           if (check.status === 'fail') {
             switch (check.name) {
-              case 'disk':
-                console.log('- Creating missing directories...');
-                {
-                  const { mkdirSync } = import('fs');
-                }
-                mkdirSync('./state', { recursive: true });
-                break;
+            case 'disk':
+              console.log('- Creating missing directories...');
+              {
+                const { mkdirSync } = import('fs');
+              }
+              mkdirSync('./state', { recursive: true });
+              break;
 
-              case 'modules':
-                console.log('- Module issues require manual intervention');
-                break;
+            case 'modules':
+              console.log('- Module issues require manual intervention');
+              break;
 
-              default:
-                console.log(`- Cannot auto-fix ${check.name} issues`);
+            default:
+              console.log(`- Cannot auto-fix ${check.name} issues`);
             }
           }
         }

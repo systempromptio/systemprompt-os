@@ -23,10 +23,10 @@ export function createPermissionsRevokeCommand(module: PermissionsModule): Comma
           resource,
           action,
           options.scope as PermissionScope,
-          options.revokedBy
+          options.revokedBy,
         );
-        
-        console.log(`\n✓ Permission revoked successfully!`);
+
+        console.log('\n✓ Permission revoked successfully!');
         console.log(`  Target: ${target} (${options.role ? 'role' : 'user'})`);
         console.log(`  Resource: ${resource}`);
         console.log(`  Action: ${action}`);
@@ -39,6 +39,6 @@ export function createPermissionsRevokeCommand(module: PermissionsModule): Comma
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

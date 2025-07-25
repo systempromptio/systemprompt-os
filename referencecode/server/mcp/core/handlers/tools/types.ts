@@ -3,7 +3,7 @@
  * @module handlers/tools/types
  */
 
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 export type { CallToolResult };
 
@@ -28,7 +28,7 @@ export type ToolHandler<T = any> = (
  * Standard response type for all tool handlers
  */
 export interface ToolResponse<T = any> {
-  status: "success" | "error";
+  status: 'success' | 'error';
   message: string;
   result?: T;
   error?: {
@@ -39,10 +39,10 @@ export interface ToolResponse<T = any> {
 
 /**
  * Helper function to format tool responses
- * 
+ *
  * @param response - Partial response object with required message
  * @returns Formatted CallToolResult with structured content
- * 
+ *
  * @example
  * ```typescript
  * return formatToolResponse({
@@ -52,10 +52,10 @@ export interface ToolResponse<T = any> {
  * ```
  */
 export function formatToolResponse<T>(
-  response: Partial<ToolResponse<T>> & Pick<ToolResponse<T>, "message">,
+  response: Partial<ToolResponse<T>> & Pick<ToolResponse<T>, 'message'>,
 ): CallToolResult {
   const standardResponse: ToolResponse<T> = {
-    status: response.status || "success",
+    status: response.status || 'success',
     message: response.message,
     ...(response.result && { result: response.result }),
     ...(response.error && { error: response.error }),
@@ -64,7 +64,7 @@ export function formatToolResponse<T>(
   return {
     content: [
       {
-        type: "text",
+        type: 'text',
         text: response.message,
       },
     ],

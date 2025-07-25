@@ -7,12 +7,12 @@
  */
 
 import type { ILogger } from '@/modules/core/logger/types/index.js';
+import type {DevSessionType} from '@/modules/core/dev/types/index.js';
 import {
   DevSessionStatus,
-  DevSessionType,
   type IDevProfile,
-  type IDevSession,
-  type IDevService
+  type IDevService,
+  type IDevSession
 } from '@/modules/core/dev/types/index.js';
 
 /**
@@ -71,12 +71,12 @@ export class DevService implements IDevService {
    */
   async createProfile(name: string, config?: Record<string, unknown>): Promise<IDevProfile> {
     await this.ensureInitialized();
-    
+
     // Placeholder implementation
     const profile: IDevProfile = {
       id: 1,
       name,
-      config,
+      config: config || {},
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -92,7 +92,7 @@ export class DevService implements IDevService {
    */
   async getProfile(name: string): Promise<IDevProfile | null> {
     await this.ensureInitialized();
-    
+
     // Placeholder implementation
     this.logger?.debug(`Getting profile: ${name}`);
     return null;
@@ -110,7 +110,7 @@ export class DevService implements IDevService {
     // Placeholder implementation
     const session: IDevSession = {
       id: 1,
-      profileId,
+      profileId: profileId || 0,
       type,
       status: DevSessionStatus.ACTIVE,
       startedAt: new Date()

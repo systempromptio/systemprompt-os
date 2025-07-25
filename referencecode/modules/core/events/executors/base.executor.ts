@@ -1,10 +1,10 @@
-import type { 
-  IEventExecutor, 
-  Event, 
-  EventExecution, 
-  ExecutionResult, 
+import type {
+  IEventExecutor,
+  Event,
+  EventExecution,
+  ExecutionResult,
   ExecutorCapabilities,
-  RetryPolicy
+  RetryPolicy,
 } from '../types/index.js';
 
 /**
@@ -12,12 +12,12 @@ import type {
  */
 export abstract class BaseEventExecutor implements IEventExecutor {
   abstract type: string;
-  
+
   /**
    * Execute an event
    */
   abstract execute(event: Event, execution: EventExecution): Promise<ExecutionResult>;
-  
+
   /**
    * Validate executor configuration
    * @param config Configuration to validate
@@ -28,12 +28,12 @@ export abstract class BaseEventExecutor implements IEventExecutor {
     void config; // Explicitly mark as intentionally unused
     return true;
   }
-  
+
   /**
    * Get executor capabilities
    */
   abstract getCapabilities(): ExecutorCapabilities;
-  
+
   /**
    * Helper method to create a success result
    * @param data Optional result data
@@ -41,14 +41,14 @@ export abstract class BaseEventExecutor implements IEventExecutor {
    */
   protected success(data?: Record<string, unknown>): ExecutionResult {
     const result: ExecutionResult = {
-      success: true
+      success: true,
     };
     if (data !== undefined) {
       result.data = data;
     }
     return result;
   }
-  
+
   /**
    * Helper method to create a failure result
    */
@@ -56,14 +56,14 @@ export abstract class BaseEventExecutor implements IEventExecutor {
     const result: ExecutionResult = {
       success: false,
       error,
-      shouldRetry
+      shouldRetry,
     };
     if (nextRetryDelay !== undefined) {
       result.nextRetryDelay = nextRetryDelay;
     }
     return result;
   }
-  
+
   /**
    * Calculate retry delay based on retry policy
    * @param retryCount Current retry attempt number
@@ -74,26 +74,26 @@ export abstract class BaseEventExecutor implements IEventExecutor {
     if (!retryPolicy) {
       return 1000; // Default 1 second
     }
-    
+
     const { strategy, initial_delay_ms, max_delay_ms, multiplier } = retryPolicy;
     let delay = initial_delay_ms || 1000;
-    
+
     switch (strategy) {
-      case 'exponential':
-        delay = delay * Math.pow(multiplier || 2, retryCount);
-        break;
-      case 'linear':
-        delay = delay * (retryCount + 1);
-        break;
-      case 'fixed':
-        // Use initial delay
-        break;
+    case 'exponential':
+      delay = delay * Math.pow(multiplier || 2, retryCount);
+      break;
+    case 'linear':
+      delay = delay * (retryCount + 1);
+      break;
+    case 'fixed':
+      // Use initial delay
+      break;
     }
-    
+
     if (max_delay_ms) {
       delay = Math.min(delay, max_delay_ms);
     }
-    
+
     return delay;
   }
 }

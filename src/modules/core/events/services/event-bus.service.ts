@@ -7,15 +7,14 @@ import type {
  EventHandler, IEventBusService, IEventEntry, IEventSubscription
 } from '@/modules/core/events/types/index.js';
 
-// eslint-disable-next-line @typescript-eslint/no-magic-numbers
 const EMPTY_LENGTH = 0 as const;
-// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+
 const HISTORY_LIMIT = 1000 as const;
-// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+
 const INITIAL_ID = 1 as const;
-// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+
 const HISTORY_KEEP_SIZE = -1000 as const;
-// eslint-disable-next-line @typescript-eslint/no-magic-numbers
+
 const DEFAULT_HISTORY_LIMIT = 10 as const;
 
 /**

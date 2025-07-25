@@ -13,14 +13,14 @@ async function execute(options: { key: string; value: string }): Promise<void> {
     console.error('Error: Both key and value are required.');
     process.exit(1);
   }
-  
+
   // Create a temporary config module instance
   const configModule = new ConfigModule();
   await configModule.initialize();
-  
+
   // Parse value if it looks like JSON
   let parsedValue: any = options.value;
-  if (options.value.startsWith('{') || options.value.startsWith('[') || 
+  if (options.value.startsWith('{') || options.value.startsWith('[') ||
       options.value === 'true' || options.value === 'false' ||
       !isNaN(Number(options.value))) {
     try {
@@ -29,10 +29,10 @@ async function execute(options: { key: string; value: string }): Promise<void> {
       // Keep as string if JSON parse fails
     }
   }
-  
+
   configModule.set(options.key, parsedValue);
-  
-  console.log(`✓ Configuration updated:`);
+
+  console.log('✓ Configuration updated:');
   console.log(`  ${options.key} = ${JSON.stringify(parsedValue)}`);
 }
 
@@ -40,5 +40,5 @@ async function execute(options: { key: string; value: string }): Promise<void> {
  * Command export for CLI discovery
  */
 export const command = {
-  execute
+  execute,
 };

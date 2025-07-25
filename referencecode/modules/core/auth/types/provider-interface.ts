@@ -1,7 +1,7 @@
 /**
  * @fileoverview Identity Provider Interface
  * @module modules/core/auth/types/provider-interface
- * 
+ *
  * This file defines the interfaces for OAuth2/OIDC providers
  * Using standard OAuth2 types from RFC 6749
  */
@@ -27,27 +27,27 @@ export interface IdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc' | 'saml';
-  
+
   /**
    * Get the authorization URL for this provider
    */
   getAuthorizationUrl(state: string, nonce?: string): string;
-  
+
   /**
    * Exchange authorization code for tokens
    */
   exchangeCodeForTokens(code: string): Promise<IDPTokens>;
-  
+
   /**
    * Get user information from the provider
    */
   getUserInfo(accessToken: string): Promise<IDPUserInfo>;
-  
+
   /**
    * Refresh tokens if supported
    */
   refreshTokens?(refreshToken: string): Promise<IDPTokens>;
-  
+
   /**
    * Revoke tokens if supported
    */

@@ -4,9 +4,9 @@
  * @module database/services/sql-parser
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQL parser service for parsing and validating SQL statements.

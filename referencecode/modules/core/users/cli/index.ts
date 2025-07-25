@@ -17,7 +17,7 @@ export function createUsersCommand(module: UsersModule): Command {
   const cmd = new Command('users')
     .alias('user')
     .description('User management commands');
-  
+
   // Add subcommands
   cmd.addCommand(createListCommand(module));
   cmd.addCommand(createCreateCommand(module));
@@ -27,6 +27,6 @@ export function createUsersCommand(module: UsersModule): Command {
   cmd.addCommand(createDisableCommand(module));
   cmd.addCommand(createSessionsCommand(module));
   cmd.addCommand(createActivityCommand(module));
-  
+
   return cmd;
 }

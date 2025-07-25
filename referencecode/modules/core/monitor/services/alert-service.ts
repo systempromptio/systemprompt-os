@@ -206,41 +206,41 @@ export class AlertService extends EventEmitter {
       const values = result.data.map((d) => d.value);
 
       switch (condition.aggregation || 'avg') {
-        case 'avg':
-          value = values.reduce((a, b) => a + b, 0) / values.length;
-          break;
-        case 'sum':
-          value = values.reduce((a, b) => a + b, 0);
-          break;
-        case 'min':
-          value = Math.min(...values);
-          break;
-        case 'max':
-          value = Math.max(...values);
-          break;
-        case 'count':
-          value = values.length;
-          break;
-        default:
-          value = values[values.length - 1] as string;
+      case 'avg':
+        value = values.reduce((a, b) => a + b, 0) / values.length;
+        break;
+      case 'sum':
+        value = values.reduce((a, b) => a + b, 0);
+        break;
+      case 'min':
+        value = Math.min(...values);
+        break;
+      case 'max':
+        value = Math.max(...values);
+        break;
+      case 'count':
+        value = values.length;
+        break;
+      default:
+        value = values[values.length - 1] as string;
       }
 
       // Evaluate condition
       switch (condition.operator) {
-        case '>':
-          return value > condition.threshold;
-        case '<':
-          return value < condition.threshold;
-        case '>=':
-          return value >= condition.threshold;
-        case '<=':
-          return value <= condition.threshold;
-        case '==':
-          return value === condition.threshold;
-        case '!=':
-          return value !== condition.threshold;
-        default:
-          return false;
+      case '>':
+        return value > condition.threshold;
+      case '<':
+        return value < condition.threshold;
+      case '>=':
+        return value >= condition.threshold;
+      case '<=':
+        return value <= condition.threshold;
+      case '==':
+        return value === condition.threshold;
+      case '!=':
+        return value !== condition.threshold;
+      default:
+        return false;
       }
     } catch (error) {
       this.logger?.error('Failed to check alert condition', { condition, error });

@@ -2,7 +2,6 @@
   logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
   systemprompt-os/no-block-comments
 */
 /**
@@ -16,13 +15,13 @@ import { randomUUID } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { MCPRepository } from '@/modules/core/mcp/repositories/mcp-repository.js';
 import {
-  type MCPRoleEnum,
-  MCPSessionStatusEnum,
-  type IMCPContext,
   type IMCPConfig,
-  type IMCPSession,
+  type IMCPContext,
   type IMCPMessage,
-  type IMCPService
+  type IMCPService,
+  type IMCPSession,
+  type MCPRoleEnum,
+  MCPSessionStatusEnum
 } from '@/modules/core/mcp/types/index.js';
 
 /**

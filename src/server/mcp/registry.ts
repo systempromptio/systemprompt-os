@@ -7,11 +7,11 @@ import type {
  Express, Request, RequestHandler, Response
 } from 'express';
 import type {
-  LocalMCPServer,
+  ILocalMCPServer,
+  IMCPServerStatus,
+  IRemoteMCPConfig,
+  IRemoteMCPServer,
   MCPServer,
-  MCPServerStatus,
-  RemoteMCPConfig,
-  RemoteMCPServer,
 } from '@/server/mcp/types.js';
 import { MCPServerType } from '@/server/mcp/types.js';
 import { mcpAuthAdapter } from '@/server/mcp/auth-adapter.js';
@@ -20,7 +20,6 @@ import { LoggerService } from '@/modules/core/logger/index.js';
 /**
  * HTTP Status Codes.
  */
-const HTTP_OK = 200;
 
 const logger = LoggerService.getInstance();
 
@@ -168,7 +167,7 @@ export class MCPServerRegistry {
    * @description Handles request forwarding, authentication, timeout management,
    * and error handling for remote MCP server communication.
    */
-  private createProxyHandler(server: RemoteMCPServer): RequestHandler {
+  private createProxyHandler(server: IRemoteMCPServer): RequestHandler {
     return async (req: Request, res: Response): Promise<void> => {
       try {
         const response = await this.forwardRequest(req, server);
@@ -187,7 +186,7 @@ export class MCPServerRegistry {
    */
   private async forwardRequest(
     req: Request,
-    server: RemoteMCPServer,
+    server: IRemoteMCPServer,
   ): Promise<globalThis.Response> {
     const {
  url, auth, headers, timeout
@@ -221,7 +220,7 @@ export class MCPServerRegistry {
    */
   private buildRequestHeaders(
     customHeaders?: Record<string, string>,
-    auth?: RemoteMCPConfig['auth'],
+    auth?: IRemoteMCPConfig['auth'],
   ): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -240,7 +239,7 @@ export class MCPServerRegistry {
    * @param {RemoteMCPConfig['auth']} auth - Authentication configuration.
    * @returns {string} Authorization header value.
    */
-  private buildAuthorizationHeader(auth: RemoteMCPConfig['auth']): string {
+  private buildAuthorizationHeader(auth: IRemoteMCPConfig['auth']): string {
     if (!auth) {
       return '';
     }
@@ -289,7 +288,7 @@ export class MCPServerRegistry {
    */
   private handleProxyError(
     error: unknown,
-    server: RemoteMCPServer,
+    server: IRemoteMCPServer,
     req: Request,
     res: Response,
   ): void {
@@ -325,8 +324,8 @@ export class MCPServerRegistry {
    * @description Collects runtime information including session counts for local servers
    * and connection details for remote servers.
    */
-  public async getServerStatuses(): Promise<Map<string, MCPServerStatus>> {
-    const statuses = new Map<string, MCPServerStatus>();
+  public async getServerStatuses(): Promise<Map<string, IMCPServerStatus>> {
+    const statuses = new Map<string, IMCPServerStatus>();
 
     for (const [id, server] of this.servers) {
       statuses.set(id, await this.getServerStatus(server));
@@ -340,8 +339,8 @@ export class MCPServerRegistry {
    * @param {MCPServer} server - Server to get status for.
    * @returns {Promise<MCPServerStatus>} Server status information.
    */
-  private async getServerStatus(server: MCPServer): Promise<MCPServerStatus> {
-    const status: MCPServerStatus = {
+  private async getServerStatus(server: MCPServer): Promise<IMCPServerStatus> {
+    const status: IMCPServerStatus = {
       id: server.id,
       name: server.name,
       status: 'running',
@@ -399,7 +398,7 @@ export class MCPServerRegistry {
     logger.info('Shutting down MCP server registry...');
 
     const shutdownPromises = Array.from(this.servers.values())
-      .filter((server): server is LocalMCPServer => { return server.type === MCPServerType.LOCAL })
+      .filter((server): server is ILocalMCPServer => { return server.type === MCPServerType.LOCAL })
       .filter((server) => { return server.shutdown !== undefined })
       .map(async (server) => { await this.shutdownServer(server); });
 
@@ -414,7 +413,7 @@ export class MCPServerRegistry {
    * @param {LocalMCPServer} server - Server to shut down.
    * @returns {Promise<void>}
    */
-  private async shutdownServer(server: LocalMCPServer): Promise<void> {
+  private async shutdownServer(server: ILocalMCPServer): Promise<void> {
     try {
       await server.shutdown!();
       logger.info(`Shut down local server: ${server.name}`);

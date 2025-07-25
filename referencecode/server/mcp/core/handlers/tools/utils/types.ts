@@ -3,8 +3,8 @@
  * @module handlers/tools/orchestrator/utils/types
  */
 
-import { z } from "zod";
-import type { Task } from "../../../types/task.js";
+import { z } from 'zod';
+import type { Task } from '../../../types/task.js';
 
 /**
  * Schema for create task arguments
@@ -56,37 +56,37 @@ export type CheckStatusArgs = z.infer<typeof CheckStatusArgsSchema>;
  * System status enumeration
  */
 export enum SystemStatus {
-  ACTIVE = "active",
-  PARTIAL = "partial",
-  NOTACTIVE = "notactive"
+  ACTIVE = 'active',
+  PARTIAL = 'partial',
+  NOTACTIVE = 'notactive'
 }
 
 /**
  * Service status enumeration
  */
 export enum ServiceStatus {
-  ACTIVE = "active",
-  NOTACTIVE = "notactive"
+  ACTIVE = 'active',
+  NOTACTIVE = 'notactive'
 }
 
 /**
  * Session status enumeration
  */
 export enum SessionStatus {
-  ACTIVE = "active",
-  BUSY = "busy",
-  TERMINATED = "terminated"
+  ACTIVE = 'active',
+  BUSY = 'busy',
+  TERMINATED = 'terminated'
 }
 
 /**
  * Task status enumeration
  */
 export enum TaskStatus {
-  PENDING = "pending",
-  INPROGRESS = "inprogress",
-  COMPLETED = "completed",
-  FAILED = "failed",
-  CANCELLED = "cancelled"
+  PENDING = 'pending',
+  INPROGRESS = 'inprogress',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
 }
 
 /**
@@ -115,7 +115,7 @@ export interface CheckStatusResponse {
   };
   processes: Array<{
     id: string;
-    type: "claude";
+    type: 'claude';
     status: SessionStatus;
     taskId?: string;
   }>;
@@ -153,7 +153,7 @@ export class ValidationError extends Error {
     public readonly value?: unknown,
   ) {
     super( message);
-    this.name = "ValidationError";
+    this.name = 'ValidationError';
   }
 }
 
@@ -163,7 +163,7 @@ export class ValidationError extends Error {
 export class TaskNotFoundError extends Error {
   constructor( taskId: string) {
     super(`Task not found: ${taskId}`);
-    this.name = "TaskNotFoundError";
+    this.name = 'TaskNotFoundError';
   }
 }
 
@@ -173,7 +173,7 @@ export class TaskNotFoundError extends Error {
 export class ToolNotAvailableError extends Error {
   constructor( tool: string) {
     super(`Tool not available: ${tool}`);
-    this.name = "ToolNotAvailableError";
+    this.name = 'ToolNotAvailableError';
   }
 }
 
@@ -186,7 +186,7 @@ export class GitOperationError extends Error {
     public readonly details?: unknown,
   ) {
     super(`Git operation failed: ${operation}`);
-    this.name = "GitOperationError";
+    this.name = 'GitOperationError';
   }
 }
 
@@ -199,7 +199,7 @@ export class StatusCheckError extends Error {
     public readonly details?: unknown,
   ) {
     super( message);
-    this.name = "StatusCheckError";
+    this.name = 'StatusCheckError';
   }
 }
 

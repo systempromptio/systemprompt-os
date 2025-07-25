@@ -1,15 +1,15 @@
 import { Service, Inject } from 'typedi';
-import { 
-  EventStatus
+import {
+  EventStatus,
 } from '../types/index.js';
-import type { 
-  Event, 
-  EventExecution, 
+import type {
+  Event,
+  EventExecution,
   EventHandler,
   EventListener,
   EventSchedule,
   EventStats,
-  EventQueryFilter
+  EventQueryFilter,
 } from '../types/index.js';
 import type { IDatabaseService } from '../../database/types/index.js';
 import { TYPES } from '@/modules/core/types.js';
@@ -17,9 +17,9 @@ import { TYPES } from '@/modules/core/types.js';
 @Service()
 export class EventRepository {
   constructor(
-    @Inject(TYPES.Database) private readonly db: IDatabaseService
+    @Inject(TYPES.Database) private readonly db: IDatabaseService,
   ) {}
-  
+
   /**
    * Create an event
    */
@@ -40,30 +40,30 @@ export class EventRepository {
         event.trigger_id,
         event.scheduled_at?.toISOString(),
         event.created_at.toISOString(),
-        event.updated_at.toISOString()
-      ]
+        event.updated_at.toISOString(),
+      ],
     );
   }
-  
+
   /**
    * Get event by ID
    */
   async getById(id: string): Promise<Event | null> {
     const row = await this.db.get(
       'SELECT * FROM events WHERE id = ?',
-      [id]
+      [id],
     );
-    
+
     return row ? this.rowToEvent(row) : null;
   }
-  
+
   /**
    * Query events
    */
   async query(filter: EventQueryFilter): Promise<{ events: Event[]; total: number }> {
     let query = 'SELECT * FROM events WHERE 1=1';
     const params: any[] = [];
-    
+
     // Build filters
     if (filter.type) {
       if (Array.isArray(filter.type)) {
@@ -74,7 +74,7 @@ export class EventRepository {
         params.push(filter.type);
       }
     }
-    
+
     if (filter.priority) {
       if (Array.isArray(filter.priority)) {
         query += ` AND priority IN (${filter.priority.map(() => '?').join(',')})`;
@@ -84,7 +84,7 @@ export class EventRepository {
         params.push(filter.priority);
       }
     }
-    
+
     if (filter.trigger_type) {
       if (Array.isArray(filter.trigger_type)) {
         query += ` AND trigger_type IN (${filter.trigger_type.map(() => '?').join(',')})`;
@@ -94,47 +94,47 @@ export class EventRepository {
         params.push(filter.trigger_type);
       }
     }
-    
+
     if (filter.created_after) {
       query += ' AND created_at >= ?';
       params.push(filter.created_after.toISOString());
     }
-    
+
     if (filter.created_before) {
       query += ' AND created_at <= ?';
       params.push(filter.created_before.toISOString());
     }
-    
+
     // Count total
     const countResult = await this.db.get(
       query.replace('SELECT *', 'SELECT COUNT(*) as count'),
-      params
+      params,
     );
     const total = countResult?.count || 0;
-    
+
     // Add ordering
     const orderBy = filter.order_by || 'created_at';
     const orderDir = filter.order_direction || 'desc';
     query += ` ORDER BY ${orderBy} ${orderDir}`;
-    
+
     // Add pagination
     if (filter.limit) {
       query += ' LIMIT ?';
       params.push(filter.limit);
     }
-    
+
     if (filter.offset) {
       query += ' OFFSET ?';
       params.push(filter.offset);
     }
-    
+
     // Execute query
     const rows = await this.db.all(query, params);
     const events = rows.map(row => this.rowToEvent(row));
-    
+
     return { events, total };
   }
-  
+
   /**
    * Create an execution
    */
@@ -161,103 +161,103 @@ export class EventRepository {
         execution.max_retries,
         execution.next_retry_at?.toISOString(),
         execution.created_at.toISOString(),
-        execution.updated_at.toISOString()
-      ]
+        execution.updated_at.toISOString(),
+      ],
     );
   }
-  
+
   /**
    * Get execution by ID
    */
   async getExecution(id: string): Promise<EventExecution | null> {
     const row = await this.db.get(
       'SELECT * FROM event_executions WHERE id = ?',
-      [id]
+      [id],
     );
-    
+
     return row ? this.rowToExecution(row) : null;
   }
-  
+
   /**
    * Get executions for an event
    */
   async getExecutions(eventId: string): Promise<EventExecution[]> {
     const rows = await this.db.all(
       'SELECT * FROM event_executions WHERE event_id = ? ORDER BY created_at DESC',
-      [eventId]
+      [eventId],
     );
-    
+
     return rows.map(row => this.rowToExecution(row));
   }
-  
+
   /**
    * Update execution
    */
   async updateExecution(id: string, updates: Partial<EventExecution>): Promise<void> {
     const fields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.status !== undefined) {
       fields.push('status = ?');
       values.push(updates.status);
     }
-    
+
     if (updates.started_at !== undefined) {
       fields.push('started_at = ?');
       values.push(updates.started_at.toISOString());
     }
-    
+
     if (updates.completed_at !== undefined) {
       fields.push('completed_at = ?');
       values.push(updates.completed_at.toISOString());
     }
-    
+
     if (updates.duration_ms !== undefined) {
       fields.push('duration_ms = ?');
       values.push(updates.duration_ms);
     }
-    
+
     if (updates.result !== undefined) {
       fields.push('result = ?');
       values.push(JSON.stringify(updates.result));
     }
-    
+
     if (updates.error !== undefined) {
       fields.push('error = ?');
       values.push(updates.error);
     }
-    
+
     if (updates.retry_count !== undefined) {
       fields.push('retry_count = ?');
       values.push(updates.retry_count);
     }
-    
+
     if (updates.next_retry_at !== undefined) {
       fields.push('next_retry_at = ?');
       values.push(updates.next_retry_at?.toISOString());
     }
-    
+
     if (fields.length > 0) {
       values.push(id);
       await this.db.run(
         `UPDATE event_executions SET ${fields.join(', ')} WHERE id = ?`,
-        values
+        values,
       );
     }
   }
-  
+
   /**
    * Get handlers for an event type
    */
   async getHandlersForEvent(eventType: string): Promise<EventHandler[]> {
     const rows = await this.db.all(
       'SELECT * FROM event_handlers WHERE event_type = ? AND enabled = 1 ORDER BY priority DESC',
-      [eventType]
+      [eventType],
     );
-    
+
     return rows.map(row => this.rowToHandler(row));
   }
-  
+
   /**
    * Create a handler
    */
@@ -278,27 +278,27 @@ export class EventRepository {
         handler.retry_policy ? JSON.stringify(handler.retry_policy) : null,
         handler.timeout_ms,
         handler.created_at.toISOString(),
-        handler.updated_at.toISOString()
-      ]
+        handler.updated_at.toISOString(),
+      ],
     );
   }
-  
+
   /**
    * Get listeners matching an event
    */
   async getListenersForEvent(eventType: string): Promise<EventListener[]> {
     // Get all enabled listeners
     const rows = await this.db.all(
-      'SELECT * FROM event_listeners WHERE enabled = 1 ORDER BY priority DESC'
+      'SELECT * FROM event_listeners WHERE enabled = 1 ORDER BY priority DESC',
     );
-    
+
     // Filter by pattern matching
     const listeners = rows.map(row => this.rowToListener(row));
-    return listeners.filter(listener => 
-      this.matchesPattern(eventType, listener.event_pattern)
+    return listeners.filter(listener =>
+      this.matchesPattern(eventType, listener.event_pattern),
     );
   }
-  
+
   /**
    * Create a listener
    */
@@ -317,11 +317,11 @@ export class EventRepository {
         listener.priority,
         listener.enabled ? 1 : 0,
         listener.created_at.toISOString(),
-        listener.updated_at.toISOString()
-      ]
+        listener.updated_at.toISOString(),
+      ],
     );
   }
-  
+
   /**
    * Get due schedules
    */
@@ -329,12 +329,12 @@ export class EventRepository {
     const now = new Date().toISOString();
     const rows = await this.db.all(
       'SELECT * FROM event_schedules WHERE enabled = 1 AND next_run_at <= ?',
-      [now]
+      [now],
     );
-    
+
     return rows.map(row => this.rowToSchedule(row));
   }
-  
+
   /**
    * Create a schedule
    */
@@ -357,58 +357,58 @@ export class EventRepository {
         schedule.enabled ? 1 : 0,
         schedule.timezone,
         schedule.created_at.toISOString(),
-        schedule.updated_at.toISOString()
-      ]
+        schedule.updated_at.toISOString(),
+      ],
     );
   }
-  
+
   /**
    * Update a schedule
    */
   async updateSchedule(id: string, updates: Partial<EventSchedule>): Promise<void> {
     const fields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.next_run_at !== undefined) {
       fields.push('next_run_at = ?');
       values.push(updates.next_run_at.toISOString());
     }
-    
+
     if (updates.last_run_at !== undefined) {
       fields.push('last_run_at = ?');
       values.push(updates.last_run_at.toISOString());
     }
-    
+
     if (updates.enabled !== undefined) {
       fields.push('enabled = ?');
       values.push(updates.enabled ? 1 : 0);
     }
-    
+
     if (fields.length > 0) {
       values.push(id);
       await this.db.run(
         `UPDATE event_schedules SET ${fields.join(', ')} WHERE id = ?`,
-        values
+        values,
       );
     }
   }
-  
+
   /**
    * Get event statistics
    */
   async getStats(eventType?: string): Promise<EventStats[]> {
     let query = 'SELECT * FROM event_stats';
     const params: any[] = [];
-    
+
     if (eventType) {
       query += ' WHERE event_type = ?';
       params.push(eventType);
     }
-    
+
     const rows = await this.db.all(query, params);
     return rows.map(row => this.rowToStats(row));
   }
-  
+
   /**
    * Update event statistics
    */
@@ -417,9 +417,9 @@ export class EventRepository {
     // For now, we'll do a simple update
     const stats = await this.db.get(
       'SELECT * FROM event_stats WHERE event_type = ?',
-      [eventType]
+      [eventType],
     );
-    
+
     if (stats) {
       // Update existing stats
       await this.db.run(
@@ -438,8 +438,8 @@ export class EventRepository {
           execution.completed_at?.toISOString(),
           execution.status === EventStatus.COMPLETED ? execution.completed_at?.toISOString() : stats.last_success_at,
           execution.status === EventStatus.FAILED ? execution.completed_at?.toISOString() : stats.last_failure_at,
-          eventType
-        ]
+          eventType,
+        ],
       );
     } else {
       // Create new stats
@@ -456,12 +456,12 @@ export class EventRepository {
           execution.duration_ms || 0,
           execution.completed_at?.toISOString(),
           execution.status === EventStatus.COMPLETED ? execution.completed_at?.toISOString() : null,
-          execution.status === EventStatus.FAILED ? execution.completed_at?.toISOString() : null
-        ]
+          execution.status === EventStatus.FAILED ? execution.completed_at?.toISOString() : null,
+        ],
       );
     }
   }
-  
+
   /**
    * Check if event type matches pattern
    */
@@ -470,13 +470,13 @@ export class EventRepository {
       .split('.')
       .map(part => part === '*' ? '[^.]+' : part)
       .join('\\.');
-    
+
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(eventType);
   }
-  
+
   // Row conversion methods
-  
+
   private rowToEvent(row: any): Event {
     const event: Event = {
       id: row.id,
@@ -487,7 +487,7 @@ export class EventRepository {
       metadata: JSON.parse(row.metadata || '{}'),
       trigger_type: row.trigger_type,
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
     if (row.trigger_id) {
       event.trigger_id = row.trigger_id;
@@ -497,7 +497,7 @@ export class EventRepository {
     }
     return event;
   }
-  
+
   private rowToExecution(row: any): EventExecution {
     const execution: EventExecution = {
       id: row.id,
@@ -510,7 +510,7 @@ export class EventRepository {
       retry_count: row.retry_count,
       max_retries: row.max_retries,
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
     if (row.completed_at) {
       execution.completed_at = new Date(row.completed_at);
@@ -529,7 +529,7 @@ export class EventRepository {
     }
     return execution;
   }
-  
+
   private rowToHandler(row: any): EventHandler {
     return {
       id: row.id,
@@ -542,10 +542,10 @@ export class EventRepository {
       retry_policy: row.retry_policy ? JSON.parse(row.retry_policy) : undefined,
       timeout_ms: row.timeout_ms,
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
   }
-  
+
   private rowToListener(row: any): EventListener {
     return {
       id: row.id,
@@ -556,10 +556,10 @@ export class EventRepository {
       priority: row.priority,
       enabled: Boolean(row.enabled),
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
   }
-  
+
   private rowToSchedule(row: any): EventSchedule {
     const schedule: EventSchedule = {
       id: row.id,
@@ -569,7 +569,7 @@ export class EventRepository {
       next_run_at: new Date(row.next_run_at),
       enabled: Boolean(row.enabled),
       created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at)
+      updated_at: new Date(row.updated_at),
     };
     if (row.cron_expression) {
       schedule.cron_expression = row.cron_expression;
@@ -585,7 +585,7 @@ export class EventRepository {
     }
     return schedule;
   }
-  
+
   private rowToStats(row: any): EventStats {
     const stats: EventStats = {
       event_type: row.event_type,
@@ -593,7 +593,7 @@ export class EventRepository {
       success_count: row.success_count,
       failure_count: row.failure_count,
       pending_count: row.pending_count,
-      average_duration_ms: row.average_duration_ms
+      average_duration_ms: row.average_duration_ms,
     };
     if (row.last_execution_at) {
       stats.last_execution_at = new Date(row.last_execution_at);

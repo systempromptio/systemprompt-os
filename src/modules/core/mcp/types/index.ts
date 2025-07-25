@@ -1,8 +1,4 @@
 /**
- * MCP (Model Context Protocol) type definitions.
- */
-
-/**
  * MCP role enumeration.
  */
 export const enum MCPRoleEnum {

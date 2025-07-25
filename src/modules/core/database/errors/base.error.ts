@@ -4,13 +4,13 @@
  * @module database/errors/base.error
  */
 
-import { HTTP_500 } from '@/modules/core/database/constants/index.js';
+import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Base error class for all database-related errors.
  */
 export class DatabaseError extends Error {
-  public readonly name: string;
+  public override readonly name: string;
   public readonly code: string;
   public readonly statusCode: number;
   public override readonly cause?: Error;
@@ -32,7 +32,9 @@ export class DatabaseError extends Error {
     this.name = 'DatabaseError';
     this.code = code;
     this.statusCode = statusCode;
-    this.cause = cause;
+    if (cause !== undefined) {
+      this.cause = cause;
+    }
     Error.captureStackTrace(this, this.constructor);
   }
 

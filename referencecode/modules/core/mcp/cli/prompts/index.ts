@@ -15,7 +15,7 @@ import { createPromptsDeleteCommand } from './delete.js';
 export function createPromptsCommand(module: MCPModule): Command {
   const cmd = new Command('prompts')
     .description('Manage MCP prompts');
-  
+
   // Add subcommands
   cmd.addCommand(createPromptsListCommand(module));
   cmd.addCommand(createPromptsSearchCommand(module));
@@ -23,6 +23,6 @@ export function createPromptsCommand(module: MCPModule): Command {
   cmd.addCommand(createPromptsCreateCommand(module));
   cmd.addCommand(createPromptsUpdateCommand(module));
   cmd.addCommand(createPromptsDeleteCommand(module));
-  
+
   return cmd;
 }

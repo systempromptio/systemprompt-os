@@ -16,7 +16,7 @@ import { createToolsRefreshCommand } from './refresh.js';
 export function createToolsCommand(module: MCPModule): Command {
   const cmd = new Command('tools')
     .description('Manage MCP tools');
-  
+
   // Add subcommands
   cmd.addCommand(createToolsListCommand(module));
   cmd.addCommand(createToolsSearchCommand(module));
@@ -25,6 +25,6 @@ export function createToolsCommand(module: MCPModule): Command {
   cmd.addCommand(createToolsEnableCommand(module));
   cmd.addCommand(createToolsDisableCommand(module));
   cmd.addCommand(createToolsRefreshCommand(module));
-  
+
   return cmd;
 }

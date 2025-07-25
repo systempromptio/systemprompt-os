@@ -34,7 +34,7 @@ export class UserInfoEndpoint {
 
     // Fetch actual user data from database
     const authRepo = AuthRepository.getInstance();
-    const user = await authRepo.getUserById(req.user.id);
+    const user = await authRepo.getIUserById(req.user.id);
 
     if (!user) {
       const error = OAuth2Error.invalidRequest('User not found');

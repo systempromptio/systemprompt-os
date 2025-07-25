@@ -65,7 +65,7 @@ export class LoggerModule implements IModule {
       this.initialized = true;
 
       // Log initialization success
-      this.loggerService.info(`Logger module initialized successfully`, {
+      this.loggerService.info('Logger module initialized successfully', {
         version: this.version,
         logLevel: config.logLevel,
         outputs: config.outputs,

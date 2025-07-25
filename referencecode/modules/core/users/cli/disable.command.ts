@@ -13,8 +13,8 @@ export function createDisableCommand(module: UsersModule): Command {
     .action(async (id, options) => {
       try {
         const user = await module.disableUser(id, options.reason);
-        
-        console.log(`\nUser disabled successfully!`);
+
+        console.log('\nUser disabled successfully!');
         console.log(`ID: ${user.id}`);
         console.log(`Email: ${user.email}`);
         console.log(`Name: ${user.name}`);
@@ -28,6 +28,6 @@ export function createDisableCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

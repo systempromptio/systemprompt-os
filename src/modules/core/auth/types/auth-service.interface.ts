@@ -1,5 +1,10 @@
 import type {
- AuthToken, LoginInput, LoginResult, MFASetupResult, TokenCreateInput, TokenValidationResult
+  AuthToken,
+  LoginInput,
+  LoginResult,
+  MFASetupResult,
+  TokenCreateInput,
+  TokenValidationResult,
 } from '@/modules/core/auth/types/index.js';
 
 /**
@@ -15,3 +20,6 @@ export interface IIAuthService {
   validateToken(_token: string): Promise<TokenValidationResult>;
   logout(userId: string): Promise<void>;
 }
+
+// Type alias for compatibility
+export type IAuthService = IIAuthService;

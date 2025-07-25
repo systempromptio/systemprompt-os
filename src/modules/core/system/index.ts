@@ -1,4 +1,4 @@
-/* eslint-disable systemprompt-os/enforce-file-naming, systemprompt-os/no-block-comments */
+/* eslint-disable systemprompt-os/no-block-comments */
 /**
  * System module exports.
  * Core system management and configuration functionality.

@@ -9,37 +9,37 @@
 export interface IModule {
   /** Unique module identifier */
   readonly name: string;
-  
+
   /** Module version following semver */
   readonly version: string;
-  
+
   /** List of module names this module depends on */
   readonly dependencies?: readonly string[];
-  
+
   /** Current module status */
   status: ModuleStatus;
-  
+
   /**
    * Initialize the module
    * @returns Promise that resolves when initialization is complete
    * @throws Error if initialization fails
    */
   initialize(): Promise<void>;
-  
+
   /**
    * Start the module after initialization
    * @returns Promise that resolves when the module is started
    * @throws Error if starting fails
    */
   start(): Promise<void>;
-  
+
   /**
    * Stop the module
    * @returns Promise that resolves when the module is stopped
    * @throws Error if stopping fails
    */
   stop(): Promise<void>;
-  
+
   /**
    * Check module health
    * @returns Health status with optional message
@@ -120,17 +120,17 @@ export interface ModuleInfo {
   autoStart: boolean;
   status: ModuleStatus;
   healthStatus: ModuleHealthStatus;
-  
+
   // Optional database fields
   id?: number;
   createdAt?: Date;
   updatedAt?: Date;
-  
+
   // Optional module metadata
   dependencies?: string[];
   config?: Record<string, any>;
   metadata?: Record<string, any>;
-  
+
   // Optional status information
   lastError?: string;
   discoveredAt?: Date;
@@ -147,7 +147,7 @@ export interface ModuleEvent {
   // Required fields
   moduleId: number;
   eventType: ModuleEventType;
-  
+
   // Optional fields
   id?: number;
   eventData?: Record<string, any>;
@@ -162,7 +162,7 @@ export interface ModuleDependency {
   moduleId: number;
   dependencyName: string;
   required: boolean;
-  
+
   // Optional fields
   id?: number;
   versionConstraint?: string;
@@ -178,7 +178,7 @@ export interface ScannedModule {
   version: string;
   type: ModuleType;
   path: string;
-  
+
   // Optional fields from manifest
   dependencies?: string[];
   config?: Record<string, any>;
@@ -200,7 +200,7 @@ export interface ModuleScanOptions {
 export interface ModuleConfig {
   // Required fields
   enabled: boolean;
-  
+
   // Optional runtime settings
   autoStart?: boolean;
   config?: Record<string, unknown>;
@@ -226,7 +226,7 @@ export interface ExtensionModuleConfig {
   // Required paths
   modulesPath: string;
   extensionsPath: string;
-  
+
   // Optional settings
   autoDiscover?: boolean;
 }
@@ -241,7 +241,7 @@ export interface ExtensionInfo {
   version: string;
   path: string;
   enabled: boolean;
-  
+
   // Optional metadata
   description?: string;
   author?: string;
@@ -271,7 +271,7 @@ export interface ModuleManifest {
   name: string;
   version: string;
   type: string;
-  
+
   // Optional metadata
   description?: string;
   author?: string;
@@ -327,7 +327,7 @@ export interface CLICommand {
   // Required fields
   name: string;
   description: string;
-  
+
   // Optional fields
   options?: CLIOption[];
 }
@@ -340,7 +340,7 @@ export interface CLIOption {
   name: string;
   type: 'string' | 'number' | 'boolean';
   description: string;
-  
+
   // Optional fields
   alias?: string;
   required?: boolean;

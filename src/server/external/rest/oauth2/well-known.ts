@@ -5,6 +5,7 @@
 
 import type { Request, Response } from 'express';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status.js';
+
 /*
  * Import { exportJWK, generateKeyPair } from 'jose';
  * TODO: Implement proper key generation
@@ -34,11 +35,10 @@ export interface OpenIDConfiguration {
 export class WellKnownEndpoint {
   private readonly baseUrl: string;
   private readonly publicKeyJWK: any | null = null;
-  
-  constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env['BASE_URL'] || 'http://localhost:3000';
+
+  constructor(baseUrl: string = 'http://localhost:3000') {
+    this.baseUrl = baseUrl;
   }
-  
   getOpenIDConfiguration = (_req: Request, res: Response): Response => {
     // Use dynamic base URL from tunnel status or fallback
     const currentBaseUrl = tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
@@ -74,8 +74,10 @@ export class WellKnownEndpoint {
     return res.json(config);
   };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
-    // Initialize keys if needed
-    // TODO: Implement key initialization when JWT service is available
+    /*
+     * Initialize keys if needed
+     * TODO: Implement key initialization when JWT service is available
+     */
 
     if (!this.publicKeyJWK) {
       return res.status(500).json({ error: 'Keys not initialized' });

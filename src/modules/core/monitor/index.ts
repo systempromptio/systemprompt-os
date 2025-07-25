@@ -1,4 +1,4 @@
-/* eslint-disable systemprompt-os/enforce-file-naming, systemprompt-os/no-block-comments */
+/* eslint-disable systemprompt-os/no-block-comments */
 /**
  * Monitor module exports.
  * System monitoring and performance tracking functionality.

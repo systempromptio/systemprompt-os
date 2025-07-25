@@ -4,16 +4,14 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { DatabaseService } from '@/modules/core/database/index.js';
+import type { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
-
-
+import { ZERO } from '@/const/numbers.js';
 
 /**
  *  *
- * CreateUserOptions interface
-
+ * CreateUserOptions interface.
+ *
  */
 
 export interface ICreateUserOptions {
@@ -26,8 +24,8 @@ export interface ICreateUserOptions {
 
 /**
  *  *
- * User interface
-
+ * User interface.
+ *
  */
 
 export interface IUser {
@@ -42,8 +40,8 @@ export interface IUser {
 
 /**
  *  *
- * DatabaseUser interface
-
+ * DatabaseUser interface.
+ *
  */
 
 export interface IDatabaseUser {
@@ -60,7 +58,7 @@ export interface IDatabaseUser {
 /**
  *  *
  * DatabaseConnection interface.
-
+ *
  */
 
 export interface IDatabaseConnection {
@@ -69,69 +67,64 @@ export interface IDatabaseConnection {
 }
 
 /**
- *  *  * Service for managing users with proper first-user detection and role assignment.
- */
-/**
- *  *  * UserService class
+ *  *  * UserService class.
  */
 export class UserService {
-  private static instance: UserService;
+  private static _instance: UserService;
+  private readonly db!: DatabaseService;
+  private readonly logger!: ILogger;
 
-  /**
- *  * Get singleton instance
-   */
   public static getInstance(): UserService {
-    UserService.instance ??= new UserService();
-    return UserService.instance;
+    UserService._instance ||= new UserService();
+    return UserService._instance;
   }
 
-  /**
- *  * Private constructor for singleton
-   */
   private constructor() {
-    // Initialize
+    // Initialize lazily
   }
 
-  private db!: DatabaseService;
-  private logger!: ILogger;
-
   /**
- *  *    * Check if any admin users exist in the system.
- * This is checked BEFORE any user creation to avoid race conditions.
+   *  *    * Check if any admin users exist in the system.
+   * This is checked BEFORE any user creation to avoid race conditions.
    */
   async hasAdminUsers(): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_users u
        JOIN auth_user_roles ur ON u.id = ur.userId
        JOIN auth_roles r ON ur.roleId = r.id
-       WHERE r.name = 'admin'`
+       WHERE r.name = 'admin'`,
     );
     return (result[ZERO]?.count ?? ZERO) > ZERO;
   }
 
   /**
- *  *    * Create or update a user from OAuth login.
- * Handles first-user admin assignment properly.
+   *  *    * Create or update a user from OAuth login.
+   * Handles first-user admin assignment properly.
    * @param options
+   * @param _options
    */
   async createOrUpdateUserFromOAuth(_options: ICreateUserOptions): Promise<IUser> {
     const {
  provider, providerId, email, name, avatar
 } = _options;
 
-    /** Check if admins exist BEFORE starting the transaction */
+    /**
+     * Check if admins exist BEFORE starting the transaction.
+     */
     const hasAdmins = await this.hasAdminUsers();
     this.logger.info('Creating/updating user', {
- email,
-hasAdmins
-});
+      email,
+      hasAdmins,
+    });
 
-  /** TODO: Refactor this function to reduce complexity */
+    /**
+     * TODO: Refactor this function to reduce complexity.
+     */
     return await this.db.transaction<IUser>(async (conn: IDatabaseConnection) => {
       const identityResult = await conn.query<{ userId: string }>(
         `SELECT userId FROM auth_oauth_identities
          WHERE provider = ? AND provider_userId = ?`,
-        [provider, providerId]
+        [provider, providerId],
       );
       const identity = identityResult.rows[ZERO];
 
@@ -143,46 +136,53 @@ hasAdmins
           `UPDATE auth_users
            SET name = ?, avatar_url = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now')
            WHERE id = ?`,
-          [name ?? null, avatar ?? null, userId]
+          [name ?? null, avatar ?? null, userId],
         );
         this.logger.info('Updated existing user', {
- userId,
-email
-});
+          userId,
+          email,
+        });
       } else {
         userId = randomUUID();
 
         await conn.execute(
           `INSERT INTO auth_users (id, email, name, avatar_url, lastLoginAt)
            VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, email, name ?? null, avatar ?? null]
+          [userId, email, name ?? null, avatar ?? null],
         );
 
         await conn.execute(
           `INSERT INTO auth_oauth_identities
            (id, userId, provider, provider_userId, providerData)
            VALUES (?, ?, ?, ?, ?)`,
-          [randomUUID(), userId, provider, providerId, JSON.stringify({
- email,
-name,
-avatar
-})]
+          [
+            randomUUID(),
+            userId,
+            provider,
+            providerId,
+            JSON.stringify({
+              email,
+              name,
+              avatar,
+            }),
+          ],
         );
 
+        /**
          * Assign role based on whether admins exist
          * This decision was made BEFORE the transaction started.
- */
+         */
         const roleId = hasAdmins ? 'role_user' : 'role_admin';
 
-        await conn.execute(
-          `INSERT INTO auth_user_roles (userId, roleId) VALUES (?, ?)`,
-          [userId, roleId]
-        );
+        await conn.execute(`INSERT INTO auth_user_roles (userId, roleId) VALUES (?, ?)`, [
+          userId,
+          roleId,
+        ]);
 
         this.logger.info('Created new user with role', {
           userId,
           email,
-          role: hasAdmins ? 'user' : 'admin'
+          role: hasAdmins ? 'user' : 'admin',
         });
       }
 
@@ -196,15 +196,17 @@ avatar
   }
 
   /**
- *  *    * Get user by ID with roles using a specific connection.
+   *  *    * Get user by ID with roles using a specific connection.
    * @param userId
    * @param conn
    */
-  private async getUserByIdWithConnection(userId: string, conn: IDatabaseConnection): Promise<IUser | null> {
-    const userResult = await conn.query<IDatabaseUser>(
-      'SELECT * FROM auth_users WHERE id = ?',
-      [userId]
-    );
+  private async getUserByIdWithConnection(
+    userId: string,
+    conn: IDatabaseConnection,
+  ): Promise<IUser | null> {
+    const userResult = await conn.query<IDatabaseUser>('SELECT * FROM auth_users WHERE id = ?', [
+      userId,
+    ]);
 
     const userRow = userResult.rows[ZERO];
     if (userRow === undefined) {
@@ -215,7 +217,7 @@ avatar
       `SELECT r.name FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.roleId
        WHERE ur.userId = ?`,
-      [userId]
+      [userId],
     );
 
     return {
@@ -223,21 +225,22 @@ avatar
       email: userRow.email,
       name: userRow.name,
       avatarurl: userRow.avatarurl,
-      roles: rolesResult.rows.map(r => { return r.name }),
+      roles: rolesResult.rows.map((r) => {
+        return r.name;
+      }),
       createdAt: userRow.createdAt,
-      updatedAt: userRow.updatedAt
+      updatedAt: userRow.updatedAt,
     };
   }
 
   /**
- *  *    * Get user by ID with roles.
+   *  *    * Get user by ID with roles.
    * @param userId
    */
   async getUserById(userId: string): Promise<IUser | null> {
-    const userRows = await this.db.query<IDatabaseUser>(
-      'SELECT * FROM auth_users WHERE id = ?',
-      [userId]
-    );
+    const userRows = await this.db.query<IDatabaseUser>('SELECT * FROM auth_users WHERE id = ?', [
+      userId,
+    ]);
 
     const userRow = userRows[ZERO];
     if (userRow === undefined) {
@@ -248,7 +251,7 @@ avatar
       `SELECT r.name FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.roleId
        WHERE ur.userId = ?`,
-      [userId]
+      [userId],
     );
 
     return {
@@ -256,20 +259,22 @@ avatar
       email: userRow.email,
       name: userRow.name,
       avatarurl: userRow.avatarurl,
-      roles: roles.map((r: { name: string }) => { return r.name }),
+      roles: roles.map((r: { name: string }) => {
+        return r.name;
+      }),
       createdAt: userRow.createdAt,
-      updatedAt: userRow.updatedAt
+      updatedAt: userRow.updatedAt,
     };
   }
 
   /**
- *  *    * Get user by email.
+   *  *    * Get user by email.
    * @param email
    */
   async getUserByEmail(email: string): Promise<IUser | null> {
     const userRows = await this.db.query<IDatabaseUser>(
       'SELECT * FROM auth_users WHERE email = ?',
-      [email]
+      [email],
     );
 
     const userRow = userRows[ZERO];

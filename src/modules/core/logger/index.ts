@@ -5,7 +5,7 @@
  */
 
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { LoggerInitializationError } from '@/modules/core/logger/utils/errors/index.js';
+import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
 import type {
   ILogFiles,
   ILogger,

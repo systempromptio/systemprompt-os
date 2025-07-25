@@ -2,7 +2,6 @@
   logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
   systemprompt-os/no-block-comments
 */
 /**
@@ -12,18 +11,20 @@
  * Provides business logic for user management operations.
  */
 
-import { randomUUID, randomBytes, createHash } from 'crypto';
+import {
+ createHash, randomBytes, randomUUID
+} from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { UsersRepository } from '@/modules/core/users/repositories/users-repository.js';
 import {
-  UserStatusEnum,
+  type IAuthResult,
   type IUser,
-  type IUserSession,
   type IUserApiKey,
   type IUserCreateData,
+  type IUserSession,
   type IUserUpdateData,
-  type IAuthResult,
-  type IUsersService
+  type IUsersService,
+  UserStatusEnum
 } from '@/modules/core/users/types/index.js';
 
 const SESSION_EXPIRY_HOURS = 24;
@@ -111,7 +112,7 @@ export class UsersService implements IUsersService {
         const { PermissionsService } = await import('@/modules/core/permissions/services/permissions.service.js');
         const permissionsService = PermissionsService.getInstance();
         const roles = await permissionsService.listRoles();
-        const role = roles.find(r => r.name === data.role);
+        const role = roles.find(r => { return r.name === data.role });
         if (role) {
           await permissionsService.assignRole(id, role.id);
         }
@@ -374,7 +375,10 @@ export class UsersService implements IUsersService {
       permissions
     );
 
-    return { key, apiKey };
+    return {
+ key,
+apiKey
+};
   }
 
   /**
@@ -420,7 +424,7 @@ export class UsersService implements IUsersService {
    */
   private async handleFailedLogin(user: IUser): Promise<void> {
     const attempts = user.loginAttempts + 1;
-    
+
     if (attempts >= MAX_LOGIN_ATTEMPTS) {
       const lockedUntil = new Date();
       lockedUntil.setMinutes(lockedUntil.getMinutes() + LOCKOUT_DURATION_MINUTES);
@@ -438,7 +442,8 @@ export class UsersService implements IUsersService {
    */
   private hashPassword(password: string): string {
     // Simplified for demo - use bcrypt or argon2 in production
-    return createHash('sha256').update(password).digest('hex');
+    return createHash('sha256').update(password)
+.digest('hex');
   }
 
   /**
@@ -473,7 +478,8 @@ export class UsersService implements IUsersService {
    * @returns The hashed token.
    */
   private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return createHash('sha256').update(token)
+.digest('hex');
   }
 
   /**

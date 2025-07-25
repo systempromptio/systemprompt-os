@@ -12,8 +12,8 @@ export function createEnableCommand(module: UsersModule): Command {
     .action(async (id) => {
       try {
         const user = await module.enableUser(id);
-        
-        console.log(`\nUser enabled successfully!`);
+
+        console.log('\nUser enabled successfully!');
         console.log(`ID: ${user.id}`);
         console.log(`Email: ${user.email}`);
         console.log(`Name: ${user.name}`);
@@ -23,6 +23,6 @@ export function createEnableCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

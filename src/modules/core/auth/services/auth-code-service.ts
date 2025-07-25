@@ -1,16 +1,15 @@
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 /**
  *  *  * @file Authorization code persistence service.
  * @module modules/core/auth/services/auth-code-service
  */
 
 import { randomBytes } from 'crypto';
-import type { DatabaseService } from '@/modules/core/database/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import {
- EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
-} from '@/modules/core/auth/constants';
+ ZERO
+} from '@/const/numbers.js';
 
 /**
  *  *
@@ -56,12 +55,17 @@ export interface IAuthCodeRow {
  *  *  * AuthCodeService class.
  */
 export class AuthCodeService {
-  private static readonly instance: AuthCodeService;
+  private static _instance: AuthCodeService;
   private logger!: ILogger;
   private db!: DatabaseService;
 
   private constructor() {
     // Initialize lazily when first used
+  }
+
+  public static getInstance(): AuthCodeService {
+    AuthCodeService._instance ||= new AuthCodeService();
+    return AuthCodeService._instance;
   }
 
   /**
@@ -127,16 +131,16 @@ export class AuthCodeService {
     }
 
     return {
-      clientId: row.client_id,
-      redirectUri: row.redirect_uri,
+      clientId: row.clientid,
+      redirectUri: row.redirecturi,
       scope: row.scope,
       ...row.userId && { userId: row.userId },
-      ...row.user_email && { userEmail: row.user_email },
+      ...row.useremail && { userEmail: row.useremail },
       ...row.provider && { provider: row.provider },
-      ...row.provider_tokens && { providerTokens: JSON.parse(row.provider_tokens) },
-      ...row.code_challenge && { codeChallenge: row.code_challenge },
-      ...row.code_challenge_method && { codeChallengeMethod: row.code_challenge_method },
-      expiresAt: new Date(row.expires_at)
+      ...row.providertokens && { providerTokens: JSON.parse(row.providertokens) },
+      ...row.codechallenge && { codeChallenge: row.codechallenge },
+      ...row.codechallenge_method && { codeChallengeMethod: row.codechallenge_method },
+      expiresAt: new Date(row.expiresat)
     };
   }
 

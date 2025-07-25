@@ -18,7 +18,11 @@ export async function resolve(specifier, context, nextResolve) {
   // Check if this is one of our aliases
   for (const [alias, path] of Object.entries(aliases)) {
     if (specifier.startsWith(alias)) {
-      const resolved = specifier.replace(alias, path);
+      let resolved = specifier.replace(alias, path);
+      // Add .js extension if missing and not already a full filename
+      if (!resolved.endsWith('.js') && !resolved.endsWith('.json')) {
+        resolved += '.js';
+      }
       return nextResolve(resolved, context);
     }
   }

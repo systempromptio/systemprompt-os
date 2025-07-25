@@ -110,7 +110,7 @@ export class MCPCacheService {
     memorySize: number;
     hitRate: number;
     evictions: number;
-  } {
+    } {
     // Simple stats for now
     return {
       entries: this.memoryCache.size,

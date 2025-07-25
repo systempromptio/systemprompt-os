@@ -8,9 +8,9 @@
 import { readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types.js';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * MCP content scanner interface.
@@ -181,7 +181,7 @@ schema
     await this.importService.initialize();
 
     const schemaFiles = [];
-    for (const [moduleKey, schema] of this.schemas) {
+    for (const [moduleKey, schema] of Array.from(this.schemas.entries())) {
       schemaFiles.push({
         module: moduleKey,
         filepath: schema.schemaPath,
@@ -225,7 +225,7 @@ schema
       return;
     }
 
-    for (const [moduleKey, schema] of this.schemas) {
+    for (const [moduleKey, schema] of Array.from(this.schemas.entries())) {
       try {
         const modulePath = dirname(dirname(schema.schemaPath));
         const moduleName = moduleKey.replace('core/', '');

@@ -2,7 +2,6 @@
   logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
   systemprompt-os/no-block-comments
 */
 /**
@@ -18,15 +17,14 @@ import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { SystemRepository } from '@/modules/core/system/repositories/system-repository.js';
 import {
   type ConfigTypeEnum,
-  type ModuleStatusEnum,
-  type EventSeverityEnum,
-  type MaintenanceTypeEnum,
-  type ISystemModule,
-  type ISystemEvent,
-  type ISystemMaintenance,
-  type ISystemInfo,
+  EventSeverityEnum,
   type ISystemHealth,
-  type ISystemService
+  type ISystemInfo,
+  type ISystemMaintenance,
+  type ISystemModule,
+  type ISystemService,
+  type MaintenanceTypeEnum,
+  type ModuleStatusEnum
 } from '@/modules/core/system/types/index.js';
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -39,7 +37,7 @@ export class SystemService implements ISystemService {
   private readonly repository: SystemRepository;
   private logger?: ILogger;
   private initialized = false;
-  private startTime: Date;
+  private readonly startTime: Date;
 
   /**
    * Private constructor for singleton.
@@ -111,11 +109,11 @@ export class SystemService implements ISystemService {
 
     this.logger?.info(`Setting system config: ${key}`);
     await this.repository.upsertConfig(key, value, type);
-    
+
     await this.logEvent(
       'config.changed',
       'system',
-      'info',
+      EventSeverityEnum.INFO,
       `Configuration ${key} updated`
     );
   }
@@ -135,11 +133,11 @@ export class SystemService implements ISystemService {
 
     this.logger?.info(`Deleting system config: ${key}`);
     await this.repository.deleteConfig(key);
-    
+
     await this.logEvent(
       'config.deleted',
       'system',
-      'info',
+      EventSeverityEnum.INFO,
       `Configuration ${key} deleted`
     );
   }
@@ -155,11 +153,11 @@ export class SystemService implements ISystemService {
 
     this.logger?.info(`Registering module: ${name} v${version}`);
     const module = await this.repository.upsertModule(name, version);
-    
+
     await this.logEvent(
       'module.registered',
       'system',
-      'info',
+      EventSeverityEnum.INFO,
       `Module ${name} v${version} registered`
     );
 
@@ -177,11 +175,11 @@ export class SystemService implements ISystemService {
 
     this.logger?.info(`Updating module status: ${name} -> ${status}`);
     await this.repository.updateModuleStatus(name, status);
-    
+
     await this.logEvent(
       'module.status_changed',
       'system',
-      status === 'error' ? 'error' : 'info',
+      status === 'error' ? EventSeverityEnum.ERROR : EventSeverityEnum.INFO,
       `Module ${name} status changed to ${status}`
     );
   }
@@ -196,9 +194,9 @@ export class SystemService implements ISystemService {
     const modules = await this.repository.findAllModules();
     const moduleCounts = {
       total: modules.length,
-      active: modules.filter(m => m.status === 'active').length,
-      inactive: modules.filter(m => m.status === 'inactive').length,
-      error: modules.filter(m => m.status === 'error').length
+      active: modules.filter(m => { return m.status === 'active' }).length,
+      inactive: modules.filter(m => { return m.status === 'inactive' }).length,
+      error: modules.filter(m => { return m.status === 'error' }).length
     };
 
     const uptime = Math.floor(
@@ -206,13 +204,13 @@ export class SystemService implements ISystemService {
     );
 
     return {
-      version: process.env.SYSTEMPROMPT_VERSION ?? '1.0.0',
+      version: process.env['SYSTEMPROMPT_VERSION'] ?? '1.0.0',
       uptime,
       hostname: os.hostname(),
       platform: os.platform(),
       architecture: os.arch(),
       nodeVersion: process.version,
-      environment: process.env.NODE_ENV ?? 'development',
+      environment: process.env['NODE_ENV'] ?? 'development',
       modules: moduleCounts
     };
   }
@@ -246,8 +244,8 @@ export class SystemService implements ISystemService {
 
     // Check modules
     const modules = await this.repository.findAllModules();
-    const errorModules = modules.filter(m => m.status === 'error');
-    
+    const errorModules = modules.filter(m => { return m.status === 'error' });
+
     if (errorModules.length === 0) {
       checks.push({
         name: 'modules',
@@ -262,7 +260,7 @@ export class SystemService implements ISystemService {
     }
 
     // Determine overall status
-    const hasFailures = checks.some(c => c.status === 'fail');
+    const hasFailures = checks.some(c => { return c.status === 'fail' });
     const status = hasFailures ? 'unhealthy' : 'healthy';
 
     return {
@@ -306,13 +304,13 @@ export class SystemService implements ISystemService {
 
     const id = randomUUID();
     this.logger?.info(`Starting ${type} maintenance: ${reason}`);
-    
+
     const maintenance = await this.repository.createMaintenance(id, type, reason);
-    
+
     await this.logEvent(
       'maintenance.started',
       'system',
-      'warning',
+      EventSeverityEnum.WARNING,
       `${type} maintenance started: ${reason}`
     );
 
@@ -338,11 +336,11 @@ export class SystemService implements ISystemService {
 
     this.logger?.info(`Ending maintenance: ${id}`);
     await this.repository.endMaintenance(id);
-    
+
     await this.logEvent(
       'maintenance.ended',
       'system',
-      'info',
+      EventSeverityEnum.INFO,
       `Maintenance ended: ${maintenance.reason}`
     );
   }
@@ -353,9 +351,21 @@ export class SystemService implements ISystemService {
    */
   private async initializeDefaults(): Promise<void> {
     const defaults = [
-      { key: 'system.version', value: '1.0.0', type: 'string' as ConfigTypeEnum },
-      { key: 'system.environment', value: 'development', type: 'string' as ConfigTypeEnum },
-      { key: 'system.debug', value: 'false', type: 'boolean' as ConfigTypeEnum }
+      {
+ key: 'system.version',
+value: '1.0.0',
+type: 'string' as ConfigTypeEnum
+},
+      {
+ key: 'system.environment',
+value: 'development',
+type: 'string' as ConfigTypeEnum
+},
+      {
+ key: 'system.debug',
+value: 'false',
+type: 'boolean' as ConfigTypeEnum
+}
     ];
 
     for (const config of defaults) {

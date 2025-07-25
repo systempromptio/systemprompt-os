@@ -3,10 +3,10 @@
  * a unified interface for all modules
  */
 
-import type { 
-  DatabaseAdapter, 
-  DatabaseConfig, 
-  DatabaseConnection 
+import type {
+  DatabaseAdapter,
+  DatabaseConfig,
+  DatabaseConnection,
 } from '@/modules/core/database/types/index.js';
 import { SQLiteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
@@ -49,7 +49,7 @@ export class DatabaseService {
     if (!DatabaseService.instance?.initialized) {
       throw new DatabaseError(
         'DatabaseService not initialized. Call initialize() first.',
-        'SERVICE_NOT_INITIALIZED'
+        'SERVICE_NOT_INITIALIZED',
       );
     }
     return DatabaseService.instance;
@@ -64,14 +64,14 @@ export class DatabaseService {
     if (!this.connection || !this.adapter?.isConnected()) {
       await this.connect();
     }
-    
+
     if (!this.connection) {
       throw new ConnectionError(
         'Failed to establish database connection',
-        { type: this.config.type }
+        { type: this.config.type },
       );
     }
-    
+
     return this.connection;
   }
 
@@ -82,14 +82,14 @@ export class DatabaseService {
     try {
       // Create appropriate adapter based on config
       switch (this.config.type) {
-        case 'sqlite':
-          this.adapter = new SQLiteAdapter();
-          break;
-        case 'postgres':
-          // TODO: Implement PostgreSQL adapter
-          throw new Error('PostgreSQL adapter not yet implemented');
-        default:
-          throw new Error(`Unsupported database type: ${this.config.type}`);
+      case 'sqlite':
+        this.adapter = new SQLiteAdapter();
+        break;
+      case 'postgres':
+        // TODO: Implement PostgreSQL adapter
+        throw new Error('PostgreSQL adapter not yet implemented');
+      default:
+        throw new Error(`Unsupported database type: ${this.config.type}`);
       }
 
       this.connection = await this.adapter.connect(this.config);
@@ -99,7 +99,7 @@ export class DatabaseService {
       throw new ConnectionError(
         `Failed to connect to ${this.config.type} database`,
         { type: this.config.type },
-        error as Error
+        error as Error,
       );
     }
   }
@@ -145,7 +145,7 @@ export class DatabaseService {
    * ```
    */
   async transaction<T>(
-    callback: (conn: DatabaseConnection) => Promise<T>
+    callback: (conn: DatabaseConnection) => Promise<T>,
   ): Promise<T> {
     const _conn = await this.getConnection();
     return _conn.transaction(async (tx) => {
@@ -159,7 +159,7 @@ export class DatabaseService {
         },
         close: async () => {
           // No-op for transaction
-        }
+        },
       };
       return callback(txConn);
     });
@@ -207,7 +207,7 @@ export class DatabaseService {
       // Check for existence of system tables
       const result = await this.query<{ count: number }>(
         `SELECT COUNT(*) as count FROM sqlite_master 
-         WHERE type='table' AND name='_schema_versions'`
+         WHERE type='table' AND name='_schema_versions'`,
       );
 
       return result && result.length > 0 && result[0].count > 0;

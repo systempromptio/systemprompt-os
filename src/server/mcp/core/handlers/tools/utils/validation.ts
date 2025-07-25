@@ -24,7 +24,7 @@ import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
  * const result = validateInput(schema, { name: "test" });
  * ```
  */
-export const validateInput = <T, I = unknown>function (schema: z.ZodSchema<T>, input: I): T {
+export const validateInput = <T, I = unknown>(schema: z.ZodSchema<T>, input: I): T => {
   try {
     return schema.parse(input);
   } catch (error) {
@@ -51,10 +51,10 @@ export const validateInput = <T, I = unknown>function (schema: z.ZodSchema<T>, i
  * @param input - The input to validate.
  * @returns Either the validated input or an error response.
  */
-export const validateWithResponse = <T, I = unknown>function (
+export const validateWithResponse = <T, I = unknown>(
   schema: z.ZodSchema<T>,
   input: I,
-): T | CallToolResult {
+): T | CallToolResult => {
   try {
     return validateInput(schema, input);
   } catch (error) {
@@ -90,7 +90,7 @@ export const validateWithResponse = <T, I = unknown>function (
  * @param schema - The Zod schema to validate against.
  * @returns A validator function that returns a result object.
  */
-export const createSafeValidator = <T>function (schema: z.ZodSchema<T>) {
+export const createSafeValidator = <T = any>(schema: z.ZodSchema<T>) => {
   return (
     input: unknown,
   ): { success: true; data: T } | { success: false; error: ValidationError } => {
@@ -126,7 +126,7 @@ error
 const getNestedValue = function (obj: unknown, path: (string | number)[]): unknown {
   if (!obj || typeof obj !== "object") { return undefined; }
 
-  let current: unknown = obj;
+  let current: any = obj;
   for (const key of path) {
     if (current === null || current === undefined) { return undefined; }
     current = current[key];

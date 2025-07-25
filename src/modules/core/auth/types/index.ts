@@ -175,8 +175,8 @@ export interface ILoginInput {
  */
 
 export interface ILoginResult {
-  user: AuthUser;
-  session: AuthSession;
+  user: IAuthUser;
+  session: IAuthSession;
   accessToken: string;
   refreshToken: string;
   requiresMFA: boolean;
@@ -192,7 +192,7 @@ export interface ITokenValidationResult {
   valid: boolean;
   userId?: string;
   scope?: string[];
-  token?: AuthToken;
+  token?: IAuthToken;
   reason?: string;
 }
 
@@ -237,7 +237,7 @@ export interface IJWTConfig {
  */
 
 export interface IAuthConfig {
-  jwt: JWTConfig;
+  jwt: IJWTConfig;
   mfa?: {
     enabled: boolean;
     appName: string;
@@ -404,12 +404,37 @@ export interface IAuthModuleExports {
   auditService: () => AuditService;
   getProvider: (id: string) => IdentityProvider | undefined;
   getAllProviders: () => IdentityProvider[];
-  createToken: (_input: TokenCreateInput) => Promise<AuthToken>;
-  validateToken: (_token: string) => Promise<TokenValidationResult>;
+  createToken: (_input: ITokenCreateInput) => Promise<IAuthToken>;
+  validateToken: (_token: string) => Promise<ITokenValidationResult>;
   hasProvider: (id: string) => boolean;
   getProviderRegistry: () => any;
   reloadProviders: () => Promise<void>;
+  [key: string]: unknown;
 }
 
 export type * from '@/modules/core/auth/types/provider-interface.js';
 export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface.js';
+
+// Type aliases for compatibility
+export type AuthUser = IAuthUser;
+export type AuthToken = IAuthToken;
+export type AuthSession = IAuthSession;
+export type AuthAuditEntry = IAuthAuditEntry;
+export type LoginInput = ILoginInput;
+export type LoginResult = ILoginResult;
+export type TokenValidationResult = ITokenValidationResult;
+export type JWTPayload = IJWTPayload;
+export type JWTConfig = IJWTConfig;
+export type AuthConfig = IAuthConfig;
+export type ProviderUser = IProviderUser;
+export type UserRow = IUserRow;
+export type RoleRow = IRoleRow;
+export type PermissionRow = IPermissionRow;
+export type UserRoleRow = IUserRoleRow;
+export type SessionRow = ISessionRow;
+export type AuditRow = IAuditRow;
+export type UserListRow = IUserListRow;
+export type AuthModuleExports = IAuthModuleExports;
+export type TokenCreateInput = ITokenCreateInput;
+export type MFASetupResult = IMFASetupResult;
+export type MFAVerifyInput = IMFAVerifyInput;

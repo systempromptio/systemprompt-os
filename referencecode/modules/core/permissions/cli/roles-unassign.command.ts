@@ -19,10 +19,10 @@ export function createRolesUnassignCommand(module: PermissionsModule): Command {
           console.error(`Error: Role '${roleName}' not found`);
           process.exit(1);
         }
-        
+
         await module.unassignRole(userId, role.id, options.unassignedBy);
-        
-        console.log(`\n✓ Role removed successfully!`);
+
+        console.log('\n✓ Role removed successfully!');
         console.log(`  User: ${userId}`);
         console.log(`  Role: ${role.name}\n`);
       } catch (error: any) {
@@ -30,6 +30,6 @@ export function createRolesUnassignCommand(module: PermissionsModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

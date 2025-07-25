@@ -1,7 +1,7 @@
 /**
  * @fileoverview MCP Authentication Adapter
  * @module server/mcp/auth-adapter
- * 
+ *
  * Adapts the existing auth middleware to return MCP-compliant responses
  */
 
@@ -17,7 +17,7 @@ import { tunnelStatus } from '../../modules/core/auth/tunnel-status.js';
 export function mcpAuthAdapter(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void {
   // Allow disabling auth for development
   if (process.env['MCP_AUTH_DISABLED'] === 'true') {
@@ -40,19 +40,19 @@ export function mcpAuthAdapter(
     if (statusCode === 401) {
       // Set WWW-Authenticate header as required by RFC 9728
       const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
-      res.setHeader('WWW-Authenticate', 
+      res.setHeader('WWW-Authenticate',
         `Bearer realm="${baseUrl}/mcp", ` +
-        `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`
+        `as_uri="${baseUrl}/.well-known/oauth-protected-resource"`,
       );
-      
+
       // Transform to MCP-compliant error response
       const mcpError = {
         jsonrpc: '2.0',
         error: {
           code: -32001, // Authentication required
-          message: body.error_description || 'Authentication required'
+          message: body.error_description || 'Authentication required',
         },
-        id: req.body?.id || null
+        id: req.body?.id || null,
       };
       return originalJson(mcpError);
     }

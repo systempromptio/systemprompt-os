@@ -20,7 +20,7 @@ export function createUpdateCommand(module: UsersModule): Command {
           console.error('Error: No update options provided');
           process.exit(1);
         }
-        
+
         let metadata;
         if (options.metadata) {
           try {
@@ -30,16 +30,16 @@ export function createUpdateCommand(module: UsersModule): Command {
             process.exit(1);
           }
         }
-        
+
         const updateData: any = {};
         if (options.name) {updateData.name = options.name;}
         if (options.email) {updateData.email = options.email;}
         if (options.status) {updateData.status = options.status;}
         if (metadata) {updateData.metadata = metadata;}
-        
+
         const user = await module.updateUser(id, updateData);
-        
-        console.log(`\nUser updated successfully!`);
+
+        console.log('\nUser updated successfully!');
         console.log(`ID: ${user.id}`);
         console.log(`Email: ${user.email}`);
         console.log(`Name: ${user.name}`);
@@ -50,6 +50,6 @@ export function createUpdateCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

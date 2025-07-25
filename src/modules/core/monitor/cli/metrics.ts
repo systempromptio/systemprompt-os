@@ -9,7 +9,7 @@
 
 import { Command } from 'commander';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service.js';
-import { MetricTypeEnum } from '@/modules/core/monitor/types/index.js';
+import type { MetricTypeEnum } from '@/modules/core/monitor/types/index.js';
 
 const ERROR_EXIT_CODE = 1;
 const DEFAULT_LIMIT = 10;
@@ -43,8 +43,8 @@ export const createMetricsCommand = (): Command => {
         metrics.forEach((metric): void => {
           const unit = metric.unit ? ` ${metric.unit}` : '';
           console.log(
-            `- [${metric.metricType}] ${metric.metricName}: ${metric.metricValue}${unit} ` +
-            `(${metric.recordedAt.toISOString()})`
+            `- [${metric.metricType}] ${metric.metricName}: ${metric.metricValue}${unit} `
+            + `(${metric.recordedAt.toISOString()})`
           );
         });
       } catch (error) {

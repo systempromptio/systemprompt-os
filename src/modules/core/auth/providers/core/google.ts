@@ -1,11 +1,7 @@
 import type {
-  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/modules/core/auth/types/provider-interface.js';
-import {
- EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
-} from '@/modules/core/auth/constants';
-
-const THREE = 3;
+  IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
+} from '@/modules/core/auth/types/provider-interface';
+// Removed unused imports
 
 /**
  *
@@ -23,17 +19,17 @@ export interface IGoogleConfig extends IDPConfig {
  *
  */
 
-export class GoogleProvider implements IdentityProvider {
+export class GoogleProvider implements IIdentityProvider {
   id = "google";
   name = "Google";
   type = "oidc" as const;
-  private readonly config: GoogleConfig;
+  private readonly config: IGoogleConfig;
   private readonly authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
   private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
   private readonly userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
   private readonly revocationEndpoint = "https://oauth2.googleapis.com/revoke";
 
-  constructor(config: GoogleConfig) {
+  constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
       scope: config.scope || "openid email profile",
@@ -43,7 +39,7 @@ export class GoogleProvider implements IdentityProvider {
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
       clientId: this.config.clientId,
-      redirectUri: this.config.redirect_uri,
+      redirectUri: this.config.redirectUri,
       responseType: "code",
       scope: this.config.scope!,
       state,
@@ -62,8 +58,8 @@ export class GoogleProvider implements IdentityProvider {
     const params = new URLSearchParams({
       code,
       clientId: this.config.clientId,
-      clientSecret: this.config.client_secret || '',
-      redirectUri: this.config.redirect_uri,
+      clientSecret: this.config.clientSecret || '',
+      redirectUri: this.config.redirectUri,
       grantType: "authorization_code",
     });
 
@@ -104,7 +100,7 @@ export class GoogleProvider implements IdentityProvider {
     return {
       id: data.sub,
       email: data.email,
-      emailVerified: data.email_verified,
+      email_verified: data.email_verified,
       name: data.name,
       picture: data.picture,
       locale: data.locale,
@@ -116,7 +112,7 @@ export class GoogleProvider implements IdentityProvider {
     const params = new URLSearchParams({
       refreshToken,
       clientId: this.config.clientId,
-      clientSecret: this.config.client_secret || '',
+      clientSecret: this.config.clientSecret || '',
       grantType: "refresh_token",
     });
 

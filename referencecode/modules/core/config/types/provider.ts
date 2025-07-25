@@ -5,7 +5,7 @@
 
 import type {
   GenerationConfig,
-  SafetySetting
+  SafetySetting,
 } from '@google/genai';
 
 /**
@@ -14,19 +14,19 @@ import type {
 export interface ProviderConfig {
   /** Provider name */
   name: string;
-  
+
   /** Provider display name */
   displayName: string;
-  
+
   /** Provider description */
   description: string;
-  
+
   /** Whether provider is enabled */
   enabled: boolean;
-  
+
   /** Provider version */
   version: string;
-  
+
   /** Provider-specific configuration */
   config: GoogleLiveAPIConfig | Record<string, unknown>;
 }
@@ -40,10 +40,10 @@ export interface GoogleLiveAPIConfig {
     apiKey: string;
     vertexai?: boolean;
   };
-  
+
   /** Available models for this provider */
   models: Record<string, ModelConfig>;
-  
+
   /** Default model to use */
   defaultModel: string;
 }
@@ -54,22 +54,22 @@ export interface GoogleLiveAPIConfig {
 export interface ModelConfig {
   /** Model identifier */
   model: string;
-  
+
   /** Model display name */
   displayName: string;
-  
+
   /** Model description */
   description: string;
-  
+
   /** Generation configuration */
   generationConfig: GenerationConfig;
-  
+
   /** Safety settings */
   safetySettings: SafetySetting[];
-  
+
   /** System instruction */
   systemInstruction?: string;
-  
+
   /** Available tools for this model */
   tools?: Array<{
     functionDeclarations?: any[];
@@ -83,10 +83,10 @@ export interface ModelConfig {
 export interface ProviderRegistry {
   /** List of available providers */
   availableProviders: string[];
-  
+
   /** List of enabled providers */
   enabledProviders: string[];
-  
+
   /** Default provider */
   defaultProvider: string;
 }

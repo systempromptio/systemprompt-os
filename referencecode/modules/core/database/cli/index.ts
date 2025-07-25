@@ -29,11 +29,11 @@ export function createDatabaseCommand(db: DatabaseService, logger: Logger): Comm
   // command.addCommand(createRollbackCommand(db, logger));
   // command.addCommand(createSchemaCommand(db, logger));
   // command.addCommand(createStatusCommand(db, logger));
-  
+
   // Add data sub-command group
   const dataCommand = new Command('data')
     .description('Data management commands');
-  
+
   dataCommand.addCommand(createExportCommand(db, logger));
   dataCommand.addCommand(createImportCommand(db, logger));
   dataCommand.addCommand(createBackupCommand(db, logger));
@@ -41,7 +41,7 @@ export function createDatabaseCommand(db: DatabaseService, logger: Logger): Comm
   dataCommand.addCommand(createValidateCommand(db, logger));
   dataCommand.addCommand(createCleanCommand(db, logger));
   dataCommand.addCommand(createDataMigrateCommand(db, logger));
-  
+
   command.addCommand(dataCommand);
 
   return command;

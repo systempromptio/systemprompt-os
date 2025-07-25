@@ -17,50 +17,50 @@ export const command = {
       type: 'string',
       description: 'Export format',
       default: 'json',
-      choices: ['json', 'csv', 'prometheus']
+      choices: ['json', 'csv', 'prometheus'],
     },
     {
       name: 'output',
       alias: 'o',
       type: 'string',
-      description: 'Output file (default: stdout)'
+      description: 'Output file (default: stdout)',
     },
     {
       name: 'start',
       alias: 's',
       type: 'string',
-      description: 'Start date (ISO 8601)'
+      description: 'Start date (ISO 8601)',
     },
     {
       name: 'end',
       alias: 'e',
       type: 'string',
-      description: 'End date (ISO 8601)'
+      description: 'End date (ISO 8601)',
     },
     {
       name: 'metrics',
       alias: 'm',
       type: 'string',
-      description: 'Comma-separated list of metrics to export'
+      description: 'Comma-separated list of metrics to export',
     },
     {
       name: 'include-alerts',
       alias: 'a',
       type: 'boolean',
-      description: 'Include alerts in export'
+      description: 'Include alerts in export',
     },
     {
       name: 'include-traces',
       alias: 't',
       type: 'boolean',
-      description: 'Include traces in export'
-    }
+      description: 'Include traces in export',
+    },
   ],
   async execute(context: any) {
     try {
       const moduleLoader = getModuleLoader();
       await moduleLoader.loadModules();
-      
+
       const monitorModule = moduleLoader.getModule('monitor');
       if (!monitorModule?.exports?.MonitorService) {
         throw new Error('Monitor module not available');
@@ -72,7 +72,7 @@ export const command = {
       const exportOptions: any = {
         format: context.options.format,
         include_alerts: context.options['include-alerts'],
-        include_traces: context.options['include-traces']
+        include_traces: context.options['include-traces'],
       };
 
       if (context.options.start) {
@@ -87,7 +87,7 @@ export const command = {
 
       // Export data
       const exportData = await service.exportData(exportOptions);
-      
+
       // Format output
       let output: string;
       if (context.options.format === 'json') {
@@ -110,5 +110,5 @@ export const command = {
       console.error('Error:', error.message);
       process.exit(1);
     }
-  }
+  },
 };

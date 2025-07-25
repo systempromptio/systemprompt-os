@@ -53,11 +53,11 @@ export class WebhookDeliveryService {
         headers,
         signal: controller.signal,
       };
-      
+
       if (webhook.method !== 'GET') {
         requestInit.body = body;
       }
-      
+
       const response = await fetch(webhook.url, requestInit);
 
       clearTimeout(timeoutId);
@@ -111,11 +111,11 @@ export class WebhookDeliveryService {
         headers,
         signal: controller.signal,
       };
-      
+
       if (webhook.method !== 'GET') {
         requestInit.body = body;
       }
-      
+
       const response = await fetch(webhook.url, requestInit);
 
       clearTimeout(timeoutId);
@@ -212,35 +212,35 @@ export class WebhookDeliveryService {
     // Add authentication
     if (webhook.auth) {
       switch (webhook.auth.type) {
-        case 'basic':
-          if (webhook.auth.credentials?.username && webhook.auth.credentials?.password) {
-            const auth = Buffer.from(
-              `${webhook.auth.credentials.username}:${webhook.auth.credentials.password}`,
-            ).toString('base64');
-            headers['Authorization'] = `Basic ${auth}`;
-          }
-          break;
+      case 'basic':
+        if (webhook.auth.credentials?.username && webhook.auth.credentials?.password) {
+          const auth = Buffer.from(
+            `${webhook.auth.credentials.username}:${webhook.auth.credentials.password}`,
+          ).toString('base64');
+          headers['Authorization'] = `Basic ${auth}`;
+        }
+        break;
 
-        case 'bearer':
-          if (webhook.auth.credentials?.token) {
-            headers['Authorization'] = `Bearer ${webhook.auth.credentials.token}`;
-          }
-          break;
+      case 'bearer':
+        if (webhook.auth.credentials?.token) {
+          headers['Authorization'] = `Bearer ${webhook.auth.credentials.token}`;
+        }
+        break;
 
-        case 'api-key':
-          if (webhook.auth.credentials?.api_key && webhook.auth.credentials?.header_name) {
-            headers[webhook.auth.credentials.header_name] = webhook.auth.credentials.api_key;
-          }
-          break;
+      case 'api-key':
+        if (webhook.auth.credentials?.api_key && webhook.auth.credentials?.header_name) {
+          headers[webhook.auth.credentials.header_name] = webhook.auth.credentials.api_key;
+        }
+        break;
 
-        case 'hmac':
-          if (webhook.auth.credentials?.secret) {
-            const signature = createHmac('sha256', webhook.auth.credentials.secret)
-              .update(body)
-              .digest('hex');
-            headers['X-Webhook-Signature'] = `sha256=${signature}`;
-          }
-          break;
+      case 'hmac':
+        if (webhook.auth.credentials?.secret) {
+          const signature = createHmac('sha256', webhook.auth.credentials.secret)
+            .update(body)
+            .digest('hex');
+          headers['X-Webhook-Signature'] = `sha256=${signature}`;
+        }
+        break;
       }
     }
 
@@ -278,18 +278,18 @@ export class WebhookDeliveryService {
     let delay: number;
 
     switch (strategy) {
-      case 'exponential':
-        delay = initial_delay * Math.pow(multiplier || 2, attempt - 1);
-        break;
+    case 'exponential':
+      delay = initial_delay * Math.pow(multiplier || 2, attempt - 1);
+      break;
 
-      case 'linear':
-        delay = initial_delay * attempt;
-        break;
+    case 'linear':
+      delay = initial_delay * attempt;
+      break;
 
-      case 'fixed':
-      default:
-        delay = initial_delay;
-        break;
+    case 'fixed':
+    default:
+      delay = initial_delay;
+      break;
     }
 
     // Apply max delay cap

@@ -4,15 +4,10 @@ import {
 import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index.js";
-import type { IDPConfig, IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
-import { type GenericOAuth2Config, GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2.js';
-import { GoogleProvider } from '@/modules/core/auth/providers/core/google.js';
-import { GitHubProvider } from '@/modules/core/auth/providers/core/github.js';
-import {
- EIGHTY, FIFTY, FIVE, FORTY, FOUR, ONE, ONE_HUNDRED, SIXTY, TEN, THIRTY, THREE, TWENTY, TWO, ZERO
-} from '@/modules/core/auth/constants';
-
-const TWO = TWO;
+import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
+import { GenericOAuth2Provider, type IGenericOAuth2Config } from '@/modules/core/auth/providers/core/oauth2';
+import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
+import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
 
 /**
  *
@@ -20,7 +15,7 @@ const TWO = TWO;
  *
  */
 
-export interface IIProviderConfig {
+export interface IProviderConfig {
   id: string;
   name: string;
   type: "oauth2" | "oidc" | "saml";
@@ -48,16 +43,19 @@ export interface IIProviderConfig {
   };
 }
 
+// Type alias for compatibility
+export type IIProviderConfig = IProviderConfig;
+
 /**
  *
  * IOIDCDiscoveryResponse interface.
  *
  */
 
-export interface IIOIDCDiscoveryResponse {
+export interface IOIDCDiscoveryResponse {
   issuer: string;
-  authorizationEndpoint: string;
-  tokenEndpoint: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
   userinfo_endpoint?: string;
   jwks_uri?: string;
   scopes_supported?: string[];
@@ -73,8 +71,8 @@ export interface IIOIDCDiscoveryResponse {
  */
 
 export class ProviderRegistry {
-  private readonly providers = new Map<string, IdentityProvider>();
-  private readonly configs = new Map<string, IIProviderConfig>();
+  private readonly providers = new Map<string, IIdentityProvider>();
+  private readonly configs = new Map<string, IProviderConfig>();
   private readonly logger?: ILogger;
   private readonly configPath: string;
 
@@ -255,7 +253,7 @@ export class ProviderRegistry {
    * @param config - Provider configuration.
    * @returns Provider instance or null if unsupported.
    */
-  private async createProvider(config: IIProviderConfig): Promise<IdentityProvider | null> {
+  private async createProvider(config: IProviderConfig): Promise<IIdentityProvider | null> {
     const idpConfig: IDPConfig = {
       clientId: config.credentials.clientId,
       clientSecret: config.credentials.clientSecret,
@@ -282,9 +280,9 @@ export class ProviderRegistry {
    * @returns Generic provider instance or null if unsupported.
    */
   private async createGenericProvider(
-    config: IIProviderConfig,
+    config: IProviderConfig,
     idpConfig: IDPConfig
-  ): Promise<IdentityProvider | null> {
+  ): Promise<IIdentityProvider | null> {
     if (config.type !== "oauth2" && config.type !== "oidc") {
       this.logger?.warn(`Unsupported provider type ${config.type} for ${config.id}`);
       return null;
@@ -294,19 +292,19 @@ export class ProviderRegistry {
       ...idpConfig,
       id: config.id,
       name: config.name,
-      authorizationEndpoint: config.endpoints.authorization,
-      tokenEndpoint: config.endpoints.token,
-      ...config.endpoints.userinfo && { userinfoEndpoint: config.endpoints.userinfo },
+      authorization_endpoint: config.endpoints.authorization,
+      token_endpoint: config.endpoints.token,
+      ...config.endpoints.userinfo && { userinfo_endpoint: config.endpoints.userinfo },
       ...this.extractIssuer(config) !== undefined && { issuer: this.extractIssuer(config) },
-      ...config.endpoints.jwks && { jwksUri: config.endpoints.jwks },
-      ...config.userinfo_mapping && { userinfoMapping: config.userinfo_mapping },
+      ...config.endpoints.jwks && { jwks_uri: config.endpoints.jwks },
+      ...config.userinfo_mapping && { userinfo_mapping: config.userinfo_mapping },
     };
 
     if (config.type === "oidc" && config.endpoints.discovery) {
       await this.enrichWithDiscovery(genericConfig, config.endpoints.discovery, config.id);
     }
 
-    return new GenericOAuth2Provider(genericConfig as unknown as GenericOAuth2Config);
+    return new GenericOAuth2Provider(genericConfig as unknown as IGenericOAuth2Config);
   }
 
   /**
@@ -314,7 +312,7 @@ export class ProviderRegistry {
    * @param config - Provider configuration.
    * @returns Issuer URL or undefined.
    */
-  private extractIssuer(config: IIProviderConfig): string | undefined {
+  private extractIssuer(config: IProviderConfig): string | undefined {
     if (config.type !== "oidc" || !config.endpoints.discovery) {
       return undefined;
     }
@@ -353,13 +351,13 @@ export class ProviderRegistry {
       throw new Error(`Failed to fetch OIDC discovery: ${response.statusText}`);
     }
 
-    const config = (await response.json()) as IIOIDCDiscoveryResponse;
+    const config = (await response.json()) as IOIDCDiscoveryResponse;
 
     return {
-      authorizationendpoint: config.authorizationEndpoint,
-      tokenendpoint: config.tokenEndpoint,
-      userinfoendpoint: config.userinfo_endpoint || "",
-      jwksuri: config.jwks_uri || "",
+      authorization_endpoint: config.authorization_endpoint,
+      token_endpoint: config.token_endpoint,
+      userinfo_endpoint: config.userinfo_endpoint || "",
+      jwks_uri: config.jwks_uri || "",
       issuer: config.issuer,
     };
   }
@@ -369,7 +367,7 @@ export class ProviderRegistry {
    * @param id - Provider identifier.
    * @returns Provider instance or undefined if not found.
    */
-  getProvider(id: string): IdentityProvider | undefined {
+  getProvider(id: string): IIdentityProvider | undefined {
     return this.providers.get(id);
   }
 
@@ -377,7 +375,7 @@ export class ProviderRegistry {
    * Gets all enabled providers.
    * @returns Array of all provider instances.
    */
-  getAllProviders(): IdentityProvider[] {
+  getAllProviders(): IIdentityProvider[] {
     return Array.from(this.providers.values());
   }
 
@@ -386,7 +384,7 @@ export class ProviderRegistry {
    * @param id - Provider identifier.
    * @returns Provider configuration or undefined if not found.
    */
-  getProviderConfig(id: string): IIProviderConfig | undefined {
+  getProviderConfig(id: string): IProviderConfig | undefined {
     return this.configs.get(id);
   }
 

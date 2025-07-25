@@ -1,0 +1,14 @@
+FROM systemprompt-os:latest
+
+# Switch to root to copy files
+USER root
+
+# Copy provider YAML files to the build directory
+RUN cp -r /app/src/modules/core/auth/providers/*.yaml /app/build/modules/core/auth/providers/ 2>/dev/null || true
+
+# Switch back to app user
+USER appuser
+
+# Use the same entrypoint and command
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "--loader", "./loader.mjs", "build/index.js"]

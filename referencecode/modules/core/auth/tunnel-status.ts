@@ -9,16 +9,16 @@
 class TunnelStatus {
   private static instance: TunnelStatus;
   private _baseUrl: string | null = null;
-  
+
   private constructor() {}
-  
+
   static getInstance(): TunnelStatus {
     if (!TunnelStatus.instance) {
       TunnelStatus.instance = new TunnelStatus();
     }
     return TunnelStatus.instance;
   }
-  
+
   /**
    * Set the current base URL (tunnel or permanent domain)
    */
@@ -26,14 +26,14 @@ class TunnelStatus {
     this._baseUrl = url;
     console.log(`[TunnelStatus] Base URL updated to: ${url}`);
   }
-  
+
   /**
    * Get the current base URL
    */
   getBaseUrl(): string | null {
     return this._baseUrl;
   }
-  
+
   /**
    * Get base URL or fallback to default
    */

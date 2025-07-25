@@ -13,8 +13,8 @@ export interface IUser {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
-  roles: Role[];
-  permissions: Permission[];
+  roles: IRole[];
+  permissions: IPermission[];
 }
 
 /**

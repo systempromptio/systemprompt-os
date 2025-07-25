@@ -49,14 +49,14 @@ export const command = {
       type: 'string',
       description: 'Output format',
       default: 'table',
-      choices: ['json', 'yaml', 'table']
-    }
+      choices: ['json', 'yaml', 'table'],
+    },
   ],
   async execute(context: any) {
     try {
       const moduleLoader = getModuleLoader();
       await moduleLoader.loadModules();
-      
+
       const monitorModule = moduleLoader.getModule('monitor');
       if (!monitorModule?.exports?.MonitorService) {
         throw new Error('Monitor module not available');
@@ -118,5 +118,5 @@ export const command = {
       console.error('Error:', error.message);
       process.exit(1);
     }
-  }
+  },
 };

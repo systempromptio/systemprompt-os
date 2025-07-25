@@ -12,12 +12,12 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
-} from '@/modules/core/database/types/database.types.js';
-import { ConnectionError } from '@/modules/core/database/errors/connection.error.js';
+} from '@/modules/core/database/types/database.types';
+import { ConnectionError } from '@/modules/core/database/errors/connection.error';
 import {
   BUSY_TIMEOUT_MS,
   CACHE_SIZE_PAGES,
-} from '@/modules/core/database/constants/index.js';
+} from '@/modules/core/database/constants/index';
 import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
 
 /**
@@ -41,16 +41,16 @@ export class SqliteAdapter implements IDatabaseAdapter {
     try {
       await mkdir(dirname(filename), { recursive: true });
 
-      this.db = new BetterSqlite3(filename);
+      this.db = new (BetterSqlite3 as any)(filename);
 
-      this.db.pragma('journal_mode = WAL');
-      this.db.pragma(`busy_timeout = ${String(BUSY_TIMEOUT_MS)}`);
-      this.db.pragma('synchronous = NORMAL');
-      this.db.pragma(`cache_size = ${String(CACHE_SIZE_PAGES)}`);
-      this.db.pragma('foreign_keys = ON');
-      this.db.pragma('temp_store = MEMORY');
+      this.db!.pragma('journal_mode = WAL');
+      this.db!.pragma(`busy_timeout = ${String(BUSY_TIMEOUT_MS)}`);
+      this.db!.pragma('synchronous = NORMAL');
+      this.db!.pragma(`cache_size = ${String(CACHE_SIZE_PAGES)}`);
+      this.db!.pragma('foreign_keys = ON');
+      this.db!.pragma('temp_store = MEMORY');
 
-      return new SqliteConnection(this.db);
+      return new SqliteConnection(this.db!);
     } catch (error) {
       const errorAsError = error as Error;
       throw new ConnectionError(

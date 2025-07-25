@@ -126,7 +126,7 @@ export class MCPContentScannerService {
       [moduleName],
     );
 
-    const existingMap = new Map(existingPrompts.map((p) => [p.file_path, p]));
+    const existingMap = new Map(existingPrompts.map((p) => { return [p.file_path, p] }));
     const processedPaths = new Set<string>();
 
     for (const file of files) {
@@ -185,12 +185,12 @@ export class MCPContentScannerService {
     }
 
     const toDelete = Array.from(existingMap.entries())
-      .filter(([path]) => !processedPaths.has(path))
-      .map(([_, prompt]) => prompt.name);
+      .filter(([path]) => { return !processedPaths.has(path) })
+      .map(([_, prompt]) => { return prompt.name });
 
     if (toDelete.length > 0) {
       await db.execute(
-        `DELETE FROM mcp_prompts WHERE module_name = ? AND name IN (${toDelete.map(() => '?').join(',')})`,
+        `DELETE FROM mcp_prompts WHERE module_name = ? AND name IN (${toDelete.map(() => { return '?' }).join(',')})`,
         [moduleName, ...toDelete],
       );
       this.logger.info(`Removed ${toDelete.length} obsolete prompts`, { module: moduleName });
@@ -205,7 +205,7 @@ export class MCPContentScannerService {
   private parsePromptContent(content: string): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 
-    const sections = content.split(/^##\s+/m).filter((s) => s.trim());
+    const sections = content.split(/^##\s+/m).filter((s) => { return s.trim() });
 
     for (const section of sections) {
       const lines = section.split('\n');
@@ -225,7 +225,8 @@ export class MCPContentScannerService {
         continue;
       }
 
-      const messageContent = lines.slice(1).join('\n').trim();
+      const messageContent = lines.slice(1).join('\n')
+.trim();
       if (messageContent) {
         messages.push({
           role,
@@ -258,7 +259,7 @@ export class MCPContentScannerService {
       [moduleName],
     );
 
-    const existingMap = new Map(existingResources.map((r) => [r.file_path, r]));
+    const existingMap = new Map(existingResources.map((r) => { return [r.file_path, r] }));
     const processedPaths = new Set<string>();
 
     for (const file of files) {
@@ -302,7 +303,6 @@ export class MCPContentScannerService {
           };
         }
 
-        
         await db.execute(
           `
           INSERT INTO mcp_resources (
@@ -349,12 +349,12 @@ export class MCPContentScannerService {
     }
 
     const toDelete = Array.from(existingMap.entries())
-      .filter(([path]) => !processedPaths.has(path))
-      .map(([_, resource]) => resource.uri);
+      .filter(([path]) => { return !processedPaths.has(path) })
+      .map(([_, resource]) => { return resource.uri });
 
     if (toDelete.length > 0) {
       await db.execute(
-        `DELETE FROM mcp_resources WHERE module_name = ? AND uri IN (${toDelete.map(() => '?').join(',')})`,
+        `DELETE FROM mcp_resources WHERE module_name = ? AND uri IN (${toDelete.map(() => { return '?' }).join(',')})`,
         [moduleName, ...toDelete],
       );
       this.logger.info(`Removed ${toDelete.length} obsolete resources`, { module: moduleName });

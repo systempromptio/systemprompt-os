@@ -77,7 +77,7 @@ export class SQLiteModuleAdapter implements ModuleDatabaseAdapter {
    */
   prepare<T = DatabaseRow>(sql: string): ModulePreparedStatement<T> {
     const stmt = this.db.prepare(sql);
-    
+
     return {
       all: (...params: unknown[]): T[] => stmt.all(...params) as T[],
       get: (...params: unknown[]): T | undefined => stmt.get(...params) as T | undefined,
@@ -85,9 +85,9 @@ export class SQLiteModuleAdapter implements ModuleDatabaseAdapter {
         const result = stmt.run(...params);
         return {
           changes: result.changes,
-          lastInsertRowid: result.lastInsertRowid
+          lastInsertRowid: result.lastInsertRowid,
         };
-      }
+      },
     };
   }
 
@@ -129,7 +129,6 @@ export class SQLiteModuleAdapter implements ModuleDatabaseAdapter {
   }
 }
 
-
 /**
  * Creates a module database adapter from the database service
  * @returns A module database adapter instance
@@ -137,31 +136,31 @@ export class SQLiteModuleAdapter implements ModuleDatabaseAdapter {
  */
 export async function createModuleAdapter(moduleName: string): Promise<ModuleDatabaseAdapter> {
   const dbService = DatabaseService.getInstance();
-  
+
   // Get the connection to ensure database is connected
   await dbService.getConnection();
-  
+
   // For now, we only support SQLite
   if (dbService.getDatabaseType() !== 'sqlite') {
     throw new ModuleDatabaseError(
       'Module adapter currently only supports SQLite database',
       moduleName,
-      'createAdapter'
+      'createAdapter',
     );
   }
-  
+
   // Access the internal SQLite database instance
   // This is a temporary solution until we have a proper abstraction
   const adapter = (dbService as any).adapter;
   const db = adapter?.db;
-  
+
   if (!db) {
     throw new ModuleDatabaseError(
       'SQLite database instance not available',
       moduleName,
-      'createAdapter'
+      'createAdapter',
     );
   }
-  
+
   return new SQLiteModuleAdapter(db);
 }

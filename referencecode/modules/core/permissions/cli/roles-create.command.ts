@@ -32,28 +32,28 @@ export function createRolesCreateCommand(module: PermissionsModule): Command {
             process.exit(1);
           }
         }
-        
+
         const roleData: Parameters<typeof module.createRole>[0] = {
           name,
-          description: options.description
+          description: options.description,
         };
-        
+
         if (permissions) {
           roleData.permissions = permissions;
         }
-        
+
         const role = await module.createRole(roleData, options.createdBy);
-        
-        console.log(`\n✓ Role created successfully!`);
+
+        console.log('\n✓ Role created successfully!');
         console.log(`  ID: ${role.id}`);
         console.log(`  Name: ${role.name}`);
         if (role.description) {
           console.log(`  Description: ${role.description}`);
         }
         console.log(`  Created: ${role.createdAt.toISOString()}`);
-        
+
         if (permissions && permissions.length > 0) {
-          console.log(`\n  Initial permissions:`);
+          console.log('\n  Initial permissions:');
           permissions.forEach((perm: any) => {
             console.log(`    - ${perm.resource}:${perm.action}${perm.scope ? `:${perm.scope}` : ''}`);
           });
@@ -64,6 +64,6 @@ export function createRolesCreateCommand(module: PermissionsModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

@@ -15,51 +15,51 @@ export const command = {
       name: 'list',
       alias: 'l',
       type: 'boolean',
-      description: 'List configured alerts'
+      description: 'List configured alerts',
     },
     {
       name: 'create',
       alias: 'c',
       type: 'boolean',
-      description: 'Create new alert config'
+      description: 'Create new alert config',
     },
     {
       name: 'update',
       alias: 'u',
       type: 'string',
-      description: 'Update alert config by ID'
+      description: 'Update alert config by ID',
     },
     {
       name: 'name',
       type: 'string',
-      description: 'Alert name'
+      description: 'Alert name',
     },
     {
       name: 'metric',
       type: 'string',
-      description: 'Metric to monitor'
+      description: 'Metric to monitor',
     },
     {
       name: 'operator',
       type: 'string',
       description: 'Comparison operator',
-      choices: ['>', '<', '>=', '<=', '==', '!=']
+      choices: ['>', '<', '>=', '<=', '==', '!='],
     },
     {
       name: 'threshold',
       type: 'number',
-      description: 'Alert threshold'
+      description: 'Alert threshold',
     },
     {
       name: 'severity',
       type: 'string',
       description: 'Alert severity',
-      choices: ['critical', 'warning', 'info']
+      choices: ['critical', 'warning', 'info'],
     },
     {
       name: 'enabled',
       type: 'boolean',
-      description: 'Enable/disable alert'
+      description: 'Enable/disable alert',
     },
     {
       name: 'format',
@@ -67,14 +67,14 @@ export const command = {
       type: 'string',
       description: 'Output format',
       default: 'table',
-      choices: ['json', 'yaml', 'table']
-    }
+      choices: ['json', 'yaml', 'table'],
+    },
   ],
   async execute(context: any) {
     try {
       const moduleLoader = getModuleLoader();
       await moduleLoader.loadModules();
-      
+
       const monitorModule = moduleLoader.getModule('monitor');
       if (!monitorModule?.exports?.MonitorService) {
         throw new Error('Monitor module not available');
@@ -85,7 +85,7 @@ export const command = {
       if (context.options.list) {
         // List alert configs
         const configs = await service.getAlertConfigs();
-        
+
         if (context.options.format === 'json') {
           console.log(JSON.stringify(configs, null, 2));
         } else if (context.options.format === 'yaml') {
@@ -108,7 +108,7 @@ export const command = {
           console.log('Alert Configurations:\n');
           console.log('ID                                    | Name                | Severity | Condition                    | Enabled');
           console.log('--------------------------------------|---------------------|----------|------------------------------|--------');
-          
+
           configs.forEach((config: any) => {
             const id = config.id.substring(0, 36);
             const name = config.name.substring(0, 19).padEnd(19);
@@ -116,13 +116,13 @@ export const command = {
             const condition = `${config.condition.metric} ${config.condition.operator} ${config.condition.threshold}`;
             const conditionStr = condition.substring(0, 28).padEnd(28);
             const enabled = config.enabled ? 'Yes' : 'No';
-            
+
             console.log(`${id} | ${name} | ${severity} | ${conditionStr} | ${enabled}`);
           });
         }
       } else if (context.options.create) {
         // Create new alert config
-        if (!context.options.name || !context.options.metric || 
+        if (!context.options.name || !context.options.metric ||
             !context.options.operator || context.options.threshold === undefined ||
             !context.options.severity) {
           throw new Error('Missing required parameters: --name, --metric, --operator, --threshold, --severity');
@@ -134,13 +134,13 @@ export const command = {
           condition: {
             metric: context.options.metric,
             operator: context.options.operator,
-            threshold: context.options.threshold
+            threshold: context.options.threshold,
           },
           severity: context.options.severity,
           channels: [], // TODO: Add channel configuration
           enabled: context.options.enabled !== false,
           created_at: new Date(),
-          updated_at: new Date()
+          updated_at: new Date(),
         };
 
         await service.configureAlert(config);
@@ -148,16 +148,16 @@ export const command = {
       } else if (context.options.update) {
         // Update existing alert config
         const updates: any = {};
-        
+
         if (context.options.name !== undefined) {updates.name = context.options.name;}
         if (context.options.severity !== undefined) {updates.severity = context.options.severity;}
         if (context.options.enabled !== undefined) {updates.enabled = context.options.enabled;}
-        
+
         if (context.options.metric || context.options.operator || context.options.threshold !== undefined) {
           updates.condition = {
             metric: context.options.metric,
             operator: context.options.operator,
-            threshold: context.options.threshold
+            threshold: context.options.threshold,
           };
         }
 
@@ -171,5 +171,5 @@ export const command = {
       console.error('Error:', error.message);
       process.exit(1);
     }
-  }
+  },
 };

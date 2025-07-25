@@ -49,9 +49,9 @@ export interface IToolResponse<T = any> {
  * });
  * ```
  */
-export const formatToolResponse = <T>function (
+export const formatToolResponse = <T = any>(
   response: Partial<IToolResponse<T>> & Pick<IToolResponse<T>, "message">,
-): CallToolResult {
+): CallToolResult => {
   const standardResponse: IToolResponse<T> = {
     status: response.status || "success",
     message: response.message,

@@ -79,15 +79,15 @@ export function createEventCreateCommand(): Command {
           metadata,
           trigger_type: triggerType,
         };
-        
+
         if (options.triggerId) {
           eventData.trigger_id = options.triggerId;
         }
-        
+
         if (scheduledAt) {
           eventData.scheduled_at = scheduledAt;
         }
-        
+
         const event = await eventService.createEvent(eventData);
 
         console.log('Event created successfully:');

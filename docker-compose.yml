@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   systemprompt-os:
     image: systemprompt-os:latest
@@ -8,31 +6,39 @@ services:
       dockerfile: Dockerfile
     container_name: systemprompt-os
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-3000}:3000"
     environment:
+      # Core settings
       - NODE_ENV=production
-      - PORT=${PORT:-3000}
+      - PORT=3000
       - DATABASE_FILE=/data/state/systemprompt.db
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
-      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-https://democontainer.systemprompt.io}
       - STATE_PATH=/data/state
       - PROJECTS_PATH=/data/projects
+      - CONFIG_PATH=/data/config
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      
+      # URLs and domains
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-https://democontainer.systemprompt.io}
+      
+      # File system settings
       - FILE_ROOT=/workspace
       - PROJECT_ROOT=/workspace
       - GIT_AVAILABLE=${GIT_AVAILABLE:-true}
-      # JWT Configuration (RSA keys auto-generated on first run)
+      
+      # JWT Configuration (keys auto-generated on first run)
       - JWT_KEY_PATH=/data/state/auth/keys
-      # OAuth Providers
+      
+      # OAuth Providers (optional)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      
       # Cloudflare Tunnel (optional)
       - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-      # Core module settings
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - CONFIG_PATH=/data/config
+      
       # MCP Settings
       - MCP_AUTH_REQUIRED=${MCP_AUTH_REQUIRED:-true}
     volumes:
@@ -44,12 +50,11 @@ services:
       - ${WORKSPACE_PATH:-./workspace}:/workspace:rw
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
 
 volumes:
   systemprompt-data:

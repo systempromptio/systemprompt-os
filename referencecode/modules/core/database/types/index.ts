@@ -1,6 +1,6 @@
 /**
  * Database Module Types
- * 
+ *
  * Central export point for all database-related types and interfaces.
  * This ensures consistent type usage across the SystemPrompt OS platform.
  */
@@ -18,20 +18,20 @@ export type {
   TableDefinition,
   ColumnDefinition,
   IndexDefinition,
-  ConstraintDefinition
+  ConstraintDefinition,
 } from '../interfaces/database.interface.js';
 
 // Database service interface
 export type {
   IDatabaseService,
-  IPreparedStatement
+  IPreparedStatement,
 } from './db-service.interface.js';
 
 // Module adapter types
 export type {
   ModuleDatabaseAdapter,
   ModuleQueryResult,
-  ModuleTransaction
+  ModuleTransaction,
 } from '../adapters/module-adapter.js';
 
 // Import types that are used in this file
@@ -124,15 +124,15 @@ export type TransactionIsolationLevel = 'READ UNCOMMITTED' | 'READ COMMITTED' | 
 
 // Type guards
 export function isDatabaseConfig(obj: any): obj is DatabaseConfig {
-  return obj && 
-    typeof obj === 'object' && 
+  return obj &&
+    typeof obj === 'object' &&
     ['sqlite', 'postgres'].includes(obj.type);
 }
 
 export function isQueryResult<T = any>(obj: any): obj is QueryResult<T> {
-  return obj && 
-    typeof obj === 'object' && 
-    Array.isArray(obj.rows) && 
+  return obj &&
+    typeof obj === 'object' &&
+    Array.isArray(obj.rows) &&
     typeof obj.rowCount === 'number';
 }
 

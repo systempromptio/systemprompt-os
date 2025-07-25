@@ -7,7 +7,7 @@ export * from '@/server/mcp/core/handlers/tools/types.js';
 
 export type {
   ToolHandler,
-  ToolHandlerContext,
+  IToolHandlerContext,
 } from '@/server/mcp/core/handlers/tools/types.js';
 
 export { handleCheckStatus } from '@/server/mcp/core/handlers/tools/check-status.js';

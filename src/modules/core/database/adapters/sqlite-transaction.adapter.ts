@@ -4,14 +4,14 @@
  * @module database/adapters/sqlite-transaction
  */
 
-import type Database from 'better-sqlite3';
+import type * as Database from 'better-sqlite3';
 import type {
   IPreparedStatement,
   IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types.js';
+} from '@/modules/core/database/types/database.types';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
-import { ZERO } from '@/modules/core/database/constants/index.js';
+import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQLite transaction implementation.

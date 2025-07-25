@@ -28,9 +28,9 @@ import type {
 
 import { getModuleLoader } from '@/modules/loader.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
-import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
 import { ROLE_PERMISSIONS, hasPermission } from '@/server/mcp/core/types/permissions.js';
-import type { UserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions.js';
+import type { IUserPermissionContext, UserRole } from '@/server/mcp/core/types/permissions.js';
 
 const logger = LoggerService.getInstance();
 
@@ -75,7 +75,7 @@ interface ToolPermissionMeta {
  * 3. Role assignments
  * 4. Custom permissions
  */
-const getUserPermissionContext = async function (context: MCPToolContext): Promise<UserPermissionContext> {
+const getUserPermissionContext = async function (context: IMCPToolContext): Promise<IUserPermissionContext> {
   if (!context.sessionId) {
     throw new Error('Session ID is required');
   }
@@ -91,7 +91,7 @@ const getUserPermissionContext = async function (context: MCPToolContext): Promi
     permissions: ROLE_PERMISSIONS[role],
   };
 
-  return UserPermissionContextSchema.parse(mockData) as UserPermissionContext;
+  return UserPermissionContextSchema.parse(mockData) as IUserPermissionContext;
 }
 
 /**
@@ -107,7 +107,7 @@ const getUserPermissionContext = async function (context: MCPToolContext): Promi
  * 4. Support wildcard permissions (e.g., admin:*)
  */
 const hasToolPermission = function (
-  userContext: UserPermissionContext,
+  userContext: IUserPermissionContext,
   metadata?: ToolPermissionMeta,
 ): boolean {
   const validatedMeta = ToolMetadataSchema.parse(metadata);
@@ -141,7 +141,7 @@ const hasToolPermission = function (
  */
 export const handleListTools = async function (
   _request: ListToolsRequest,
-  context?: MCPToolContext,
+  context?: IMCPToolContext,
 ): Promise<ListToolsResult> {
   try {
     logger.info('Tool listing requested', {
@@ -174,7 +174,7 @@ export const handleListTools = async function (
     const enabledTools = await toolsModule.exports.getEnabledToolsByScope('remote');
 
     const availableTools = enabledTools.filter((tool: unknown) => {
-      const metadata = tool.metadata as ToolPermissionMeta | undefined;
+      const metadata = (tool as any).metadata as ToolPermissionMeta | undefined;
       return hasToolPermission(userContext, metadata);
     });
 
@@ -183,7 +183,7 @@ export const handleListTools = async function (
       role: userContext.role,
       totalTools: enabledTools.length,
       availableTools: availableTools.length,
-      toolNames: availableTools.map((t: unknown) => { return t.name }),
+      toolNames: availableTools.map((t: unknown) => { return (t as any).name }),
     });
 
     return { tools: availableTools };
@@ -210,7 +210,7 @@ export const handleListTools = async function (
  */
 export const handleToolCall = async function (
   request: CallToolRequest,
-  context: MCPToolContext,
+  context: IMCPToolContext,
 ): Promise<CallToolResult> {
   const startTime = Date.now();
   const requestId = randomUUID();

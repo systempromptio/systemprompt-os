@@ -310,7 +310,7 @@ export class TokenEndpoint {
     let userRoles: string[] = [];
     try {
       const authRepo = AuthRepository.getInstance();
-      const user = await authRepo.getUserById(userId);
+      const user = await authRepo.getIUserById(userId);
       if (user) {
         userData = {
           id: user.id,
@@ -320,8 +320,8 @@ export class TokenEndpoint {
           roles: [], // Will be populated below
         };
         // Get user roles
-        const roles = await authRepo.getUserRoles(userId);
-        userRoles = roles.map((r) => {
+        const roles = await authRepo.getIUserIRoles(userId);
+        userRoles = roles.map((r: any) => {
           return r.name;
         });
         userData.roles = userRoles;

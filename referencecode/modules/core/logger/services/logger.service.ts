@@ -129,17 +129,17 @@ export class LoggerService implements Logger {
     const formatted =
       args.length > 0
         ? `${message} ${args
-            .map((arg) => {
-              if (typeof arg === 'object' && arg !== null) {
-                try {
-                  return JSON.stringify(arg);
-                } catch {
-                  return String(arg);
-                }
+          .map((arg) => {
+            if (typeof arg === 'object' && arg !== null) {
+              try {
+                return JSON.stringify(arg);
+              } catch {
+                return String(arg);
               }
-              return String(arg);
-            })
-            .join(' ')}`
+            }
+            return String(arg);
+          })
+          .join(' ')}`
         : message;
     return `[${this.formatTimestamp()}] [${level}] ${formatted}`;
   }
@@ -176,18 +176,18 @@ export class LoggerService implements Logger {
     const formattedArgs = args.length > 0 ? [message, ...args] : [message];
 
     switch (level.toLowerCase()) {
-      case 'debug':
-        console.debug(`[${timestamp}] [DEBUG]`, ...formattedArgs);
-        break;
-      case 'info':
-        console.log(`[${timestamp}] [INFO]`, ...formattedArgs);
-        break;
-      case 'warn':
-        console.warn(`[${timestamp}] [WARN]`, ...formattedArgs);
-        break;
-      case 'error':
-        console.error(`[${timestamp}] [ERROR]`, ...formattedArgs);
-        break;
+    case 'debug':
+      console.debug(`[${timestamp}] [DEBUG]`, ...formattedArgs);
+      break;
+    case 'info':
+      console.log(`[${timestamp}] [INFO]`, ...formattedArgs);
+      break;
+    case 'warn':
+      console.warn(`[${timestamp}] [WARN]`, ...formattedArgs);
+      break;
+    case 'error':
+      console.error(`[${timestamp}] [ERROR]`, ...formattedArgs);
+      break;
     }
   }
 

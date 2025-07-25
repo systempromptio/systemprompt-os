@@ -45,7 +45,7 @@ export class ModuleRepository {
    */
   findByType(type: ExtensionType): ExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
-      (moduleInfo): boolean => moduleInfo.type === type,
+      (moduleInfo): boolean => { return moduleInfo.type === type },
     );
   }
 
@@ -89,7 +89,7 @@ export class ModuleRepository {
    */
   findByPattern(pattern: RegExp): ExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
-      (moduleInfo): boolean => pattern.test(moduleInfo.name),
+      (moduleInfo): boolean => { return pattern.test(moduleInfo.name) },
     );
   }
 
@@ -100,7 +100,7 @@ export class ModuleRepository {
    */
   findByAuthor(author: string): ExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
-      (moduleInfo): boolean => moduleInfo.author === author,
+      (moduleInfo): boolean => { return moduleInfo.author === author },
     );
   }
 
@@ -111,7 +111,7 @@ export class ModuleRepository {
    */
   findByDependency(dependency: string): ExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
-      (moduleInfo): boolean => moduleInfo.dependencies?.includes(dependency) ?? false,
+      (moduleInfo): boolean => { return moduleInfo.dependencies?.includes(dependency) ?? false },
     );
   }
 
@@ -121,7 +121,7 @@ export class ModuleRepository {
    */
   toJsonString(): string {
     const modulesArray = Array.from(this.modules.entries()).map(
-      ([, info]): ExtensionInfo => ({ ...info }),
+      ([, info]): ExtensionInfo => { return { ...info } },
     );
     const jsonIndent = 2;
     return JSON.stringify(modulesArray, null, jsonIndent);

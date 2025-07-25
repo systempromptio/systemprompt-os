@@ -4,22 +4,22 @@
  * @module handlers/tools/orchestrator/utils/validation
  */
 
-import type { z} from "zod";
-import { ZodError } from "zod";
-import { ValidationError } from "./types.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { formatToolResponse } from "../types.js";
+import type { z} from 'zod';
+import { ZodError } from 'zod';
+import { ValidationError } from './types.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { formatToolResponse } from '../types.js';
 
 /**
  * Validates input against a Zod schema with detailed error reporting
- * 
+ *
  * @template T The expected output type
  * @template I The input type
  * @param schema The Zod schema to validate against
  * @param input The input to validate
  * @returns The validated and parsed input
  * @throws ValidationError with detailed field information
- * 
+ *
  * @example
  * ```typescript
  * const schema = z.object({ name: z.string() });
@@ -37,7 +37,7 @@ export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I):
       }
       throw new ValidationError(
         firstError.message,
-        firstError.path.join("."),
+        firstError.path.join('.'),
         firstError.path.length > 0 ? getNestedValue(input, firstError.path) : input,
       );
     }
@@ -47,7 +47,7 @@ export function validateInput<T, I = unknown>(schema: z.ZodSchema<T>, input: I):
 
 /**
  * Validates input and returns a formatted error response on failure
- * 
+ *
  * @template T The expected output type
  * @template I The input type
  * @param schema The Zod schema to validate against
@@ -63,10 +63,10 @@ export function validateWithResponse<T, I = unknown>(
   } catch ( error) {
     if (error instanceof ValidationError) {
       return formatToolResponse({
-        status: "error",
+        status: 'error',
         message: `Invalid input: ${error.message}`,
         error: {
-          type: "validationerror",
+          type: 'validationerror',
           details: {
             field: error.field,
             value: error.value,
@@ -77,10 +77,10 @@ export function validateWithResponse<T, I = unknown>(
     }
 
     return formatToolResponse({
-      status: "error",
-      message: "Validation failed",
+      status: 'error',
+      message: 'Validation failed',
       error: {
-        type: "validationerror",
+        type: 'validationerror',
         details: error instanceof Error ? error.message : String( error),
       },
     });
@@ -89,7 +89,7 @@ export function validateWithResponse<T, I = unknown>(
 
 /**
  * Creates a safe validator function that returns a result object
- * 
+ *
  * @template T The expected output type
  * @param schema The Zod schema to validate against
  * @returns A validator function that returns a result object
@@ -108,7 +108,7 @@ export function createSafeValidator<T>( schema: z.ZodSchema<T>) {
       return {
         success: false,
         error: new ValidationError(
-          error instanceof Error ? error.message : "Unknown validation error",
+          error instanceof Error ? error.message : 'Unknown validation error',
         ),
       };
     }
@@ -117,13 +117,13 @@ export function createSafeValidator<T>( schema: z.ZodSchema<T>) {
 
 /**
  * Gets a nested value from an object using a path array
- * 
+ *
  * @param obj The object to traverse
  * @param path The path array
  * @returns The value at the path or undefined
  */
 function getNestedValue( obj: unknown, path: (string | number)[]): unknown {
-  if (!obj || typeof obj !== "object") {return undefined;}
+  if (!obj || typeof obj !== 'object') {return undefined;}
 
   let current: any = obj;
   for (const key of path) {
@@ -135,26 +135,26 @@ function getNestedValue( obj: unknown, path: (string | number)[]): unknown {
 
 /**
  * Validates that a tool is available based on environment
- * 
+ *
  * @param tool The tool name to check
  * @returns True if available, false otherwise
  */
-export function isToolAvailable( tool: "CLAUDECODE"): boolean {
+export function isToolAvailable( tool: 'CLAUDECODE'): boolean {
   switch ( tool) {
-    case "CLAUDECODE":
-      // Check if Claude is available and authenticated on the host
-      return process.env['CLAUDEAVAILABLE'] === "true";
-    default:
-      return false;
+  case 'CLAUDECODE':
+    // Check if Claude is available and authenticated on the host
+    return process.env['CLAUDEAVAILABLE'] === 'true';
+  default:
+    return false;
   }
 }
 
 /**
  * Sanitizes a string for safe logging (removes sensitive patterns)
- * 
+ *
  * @param input The string to sanitize
  * @returns The sanitized string
- * 
+ *
  * @example
  * ```typescript
  * sanitizeForLogging("API key: sk-abcd1234..."); // "API key: sk-***"
@@ -162,8 +162,8 @@ export function isToolAvailable( tool: "CLAUDECODE"): boolean {
  */
 export function sanitizeForLogging( input: string): string {
   return input
-    .replace(/sk-[a-zA-Z0-9]{48}/g, "sk-***")
-    .replace(/AIza[a-zA-Z0-9-_]{35}/g, "AIza***")
-    .replace(/(password|token|secret|key)[\s]*[:=][\s]*["']?([^"'\s]+)["']?/gi, "$1=***")
-    .replace(/Bearer\s+[a-zA-Z0-9-._~+/]+/g, "Bearer ***");
+    .replace(/sk-[a-zA-Z0-9]{48}/g, 'sk-***')
+    .replace(/AIza[a-zA-Z0-9-_]{35}/g, 'AIza***')
+    .replace(/(password|token|secret|key)[\s]*[:=][\s]*["']?([^"'\s]+)["']?/gi, '$1=***')
+    .replace(/Bearer\s+[a-zA-Z0-9-._~+/]+/g, 'Bearer ***');
 }

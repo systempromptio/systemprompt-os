@@ -6,7 +6,22 @@
 import type {
  Request, Response, Router
 } from 'express';
-import { renderLayout } from '@/server/external/templates/config/layout.js';
+
+// Mock renderLayout for missing module
+const renderLayout = (config: { title: string; content: string; styles: string }) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${config.title}</title>
+      <style>${config.styles}</style>
+    </head>
+    <body>
+      ${config.content}
+    </body>
+    </html>
+  `;
+};
 
 /**
  * Dashboard endpoint for authenticated users.

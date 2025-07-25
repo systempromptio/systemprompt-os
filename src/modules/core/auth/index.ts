@@ -11,7 +11,6 @@ import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import { ProviderRegistry } from '@/modules/core/auth/providers/registry.js';
-import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface.js';
 import { TunnelService } from '@/modules/core/auth/services/tunnel-service.js';
 import { TokenService } from '@/modules/core/auth/services/token.service.js';
 import { AuthService } from '@/modules/core/auth/services/auth.service.js';
@@ -24,23 +23,24 @@ import type {
   AuthConfig,
   AuthModuleExports,
   AuthToken,
+  IdentityProvider,
   LoginInput,
   LoginResult,
   TokenCreateInput,
-  TokenValidationResult,
+  TokenValidationResult
 } from '@/modules/core/auth/types/index.js';
 
 const _filename = fileURLToPath(import.meta.url);
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from './constants';
-
-
+import {
+ FIVE, TEN
+} from '@/const/numbers.js';
 
 const _dirname = dirname(_filename);
 
 /**
-
+ *
  * AuthModule class.
-
+ *
  */
 
 export class AuthModule implements IModule {
@@ -65,27 +65,27 @@ export class AuthModule implements IModule {
   private started = false;
   get exports(): AuthModuleExports {
     return {
-      service: () => this.authService,,
-      tokenService: () => this.tokenService,,
-      userService: () => this.userService,,
-      authCodeService: () => this.authCodeService,,
-      mfaService: () => this.mfaService,,
-      auditService: () => this.auditService,,
+      service: () => { return this.authService },
+      tokenService: () => { return this.tokenService },
+      userService: () => { return this.userService },
+      authCodeService: () => { return this.authCodeService },
+      mfaService: () => { return this.mfaService },
+      auditService: () => { return this.auditService },
       getProvider: (id: string) => { return this.getProvider(id) },
-      getAllProviders: () => this.getAllProviders(),,
+      getAllProviders: () => { return this.getAllProviders() },
       createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
       validateToken: async (token: string) => { return await this.validateToken(token) },
       hasProvider: (id: string) => { return this.hasProvider(id) },
-      getProviderRegistry: () => this.getProviderRegistry(),,
+      getProviderRegistry: () => { return this.getProviderRegistry() },
       reloadProviders: async () => { await this.reloadProviders(); },
     };
   }
 
   /**
- *  * Initialize the auth module.
+   *  * Initialize the auth module.
    */
   async initialize(): Promise<void> {
-    if (this.initialized === true) {
+    if (this.initialized) {
       throw new ConfigurationError('Auth module already initialized');
     }
 
@@ -99,7 +99,7 @@ export class AuthModule implements IModule {
       const keyStorePath = this.config.jwt.keyStorePath ?? './state/auth/keys';
       const absolutePath = resolve(process.cwd(), keyStorePath);
 
-      if (existsSync(absolutePath) === false) {
+      if (!existsSync(absolutePath)) {
         mkdirSync(absolutePath, { recursive: true });
         this.logger.info(`Created key store directory: ${absolutePath}`);
       }
@@ -107,20 +107,10 @@ export class AuthModule implements IModule {
       const privateKeyPath = join(absolutePath, 'private.key');
       const publicKeyPath = join(absolutePath, 'public.key');
 
-      if (existsSync(privateKeyPath) === false || existsSync(publicKeyPath) === false) {
+      if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
         this.logger.info('JWT keys not found, generating new keys...');
 
-        
-        const { generateJWTKeyPair } = await import('@/modules/core/auth/cli/generatekey.js');
-
-
-
-
-
-
-
-
-
+        const { generateJWTKeyPair } = await import('@/modules/core/auth/utils/generate-key.js');
 
         await generateJWTKeyPair({
           type: 'jwt',
@@ -132,25 +122,13 @@ export class AuthModule implements IModule {
         this.logger.info('JWT keys generated successfully');
       }
 
-      const jwtConfig = {
-        ...this.config.jwt,
-        privateKey: readFileSync(privateKeyPath, 'utf8'),
-        publicKey: readFileSync(publicKeyPath, 'utf8'),
-      };
+      this.tokenService = (TokenService as any).getInstance();
+      this.userService = (UserService as any).getInstance();
+      this.authCodeService = (AuthCodeService as any).getInstance();
+      this.mfaService = (MFAService as any).getInstance();
+      this.auditService = (AuditService as any).getInstance();
 
-      this.tokenService = new TokenService({ jwt: jwtConfig }, this.logger);
-      this.userService = new UserService(this.database, this.logger);
-      this.authCodeService = new AuthCodeService(this.database, this.logger);
-      this.mfaService = new MFAService(this.database, this.logger);
-      this.auditService = new AuditService(this.database, this.logger);
-
-      this.authService = new AuthService(
-        this.logger,
-        this.database,
-        this.tokenService,
-        this.userService,
-        this.authCodeService
-      );
+      this.authService = (AuthService as any).getInstance();
 
       const providersPath = join(_dirname, 'providers');
       this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
@@ -174,14 +152,14 @@ export class AuthModule implements IModule {
   }
 
   /**
- *  * Start the auth module.
+   *  * Start the auth module.
    */
   async start(): Promise<void> {
-    if (this.initialized === false) {
+    if (!this.initialized) {
       throw new Error('Auth module not initialized');
     }
 
-    if (this.started === true) {
+    if (this.started) {
       return;
     }
 
@@ -189,14 +167,14 @@ export class AuthModule implements IModule {
       const schemaPath = join(_dirname, 'database', 'schema.sql');
       if (existsSync(schemaPath)) {
         const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter((s) => s.trim() !== '');
+        const statements = schema.split(';').filter((s) => { return s.trim() !== '' });
 
         for (const statement of statements) {
           if (statement.trim() !== '') {
             try {
               await this.database.execute(statement);
             } catch (error) {
-              if (error instanceof Error && error.message.includes('duplicate column') === false) {
+              if (error instanceof Error && !error.message.includes('duplicate column')) {
                 this.logger.warn('Schema statement warning', { error: error.message });
               }
             }
@@ -212,7 +190,7 @@ export class AuthModule implements IModule {
             .cleanupExpiredTokens()
             .catch((err) => { this.logger.error('Token cleanup failed', err); });
         },
-        24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
+        24 * 60 * 60 * 1000
       ); // Daily
 
       this.status = ModuleStatus.RUNNING;
@@ -225,7 +203,7 @@ export class AuthModule implements IModule {
   }
 
   /**
- *  * Stop the auth module.
+   *  * Stop the auth module.
    */
   async stop(): Promise<void> {
     if (this.tunnelService !== null) {
@@ -237,7 +215,7 @@ export class AuthModule implements IModule {
   }
 
   /**
- *  * Health check.
+   *  * Health check.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
@@ -255,7 +233,7 @@ export class AuthModule implements IModule {
   }
 
   /**
- *  * Get logger instance.
+   *  * Get logger instance.
    */
   getLogger(): ILogger {
     return this.logger;
@@ -342,7 +320,7 @@ export class AuthModule implements IModule {
   }
 
   /**
- *  * Build configuration with defaults.
+   *  * Build configuration with defaults.
    */
   private buildConfig(): AuthConfig {
     return {
@@ -358,8 +336,8 @@ export class AuthModule implements IModule {
       },
       session: {
         maxConcurrent: FIVE,
-        absoluteTimeout: SECONDS_PER_DAY, // 24 hours
-        inactivityTimeout: SECONDS_PER_HOUR, // ONE hour
+        absoluteTimeout: 86400, // 24 hours in seconds
+        inactivityTimeout: 3600, // 1 hour in seconds
       },
       security: {
         maxLoginAttempts: FIVE,

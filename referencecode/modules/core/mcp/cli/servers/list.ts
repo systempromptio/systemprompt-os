@@ -16,7 +16,7 @@ export function createServersListCommand(module: MCPModule): Command {
         // Get server info
         const serverInfo = await module.getServerInfo();
         const registry = module.getRegistry();
-        
+
         // Build server list
         const servers = [
           {
@@ -24,10 +24,10 @@ export function createServersListCommand(module: MCPModule): Command {
             type: 'stdio',
             status: registry.getHealth().healthy ? 'running' : 'stopped',
             version: serverInfo.version,
-            capabilities: serverInfo.capabilities
-          }
+            capabilities: serverInfo.capabilities,
+          },
         ];
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(servers, null, 2));
         } else if (options.format === 'yaml') {
@@ -37,9 +37,9 @@ export function createServersListCommand(module: MCPModule): Command {
           // Table format
           const table = new Table({
             head: ['Name', 'Type', 'Status', 'Version', 'Capabilities'],
-            colWidths: [15, 10, 10, 10, 40]
+            colWidths: [15, 10, 10, 10, 40],
           });
-          
+
           for (const server of servers) {
             const capabilities = [];
             if (server.capabilities.tools) {capabilities.push('tools');}
@@ -47,16 +47,16 @@ export function createServersListCommand(module: MCPModule): Command {
             if (server.capabilities.resources) {capabilities.push('resources');}
             if (server.capabilities.resourceTemplates) {capabilities.push('templates');}
             if (server.capabilities.resourceSubscriptions) {capabilities.push('subscriptions');}
-            
+
             table.push([
               server.name,
               server.type,
               server.status,
               server.version,
-              capabilities.join(', ')
+              capabilities.join(', '),
             ]);
           }
-          
+
           console.log(table.toString());
         }
       } catch (error: any) {

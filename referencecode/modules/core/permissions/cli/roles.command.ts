@@ -16,7 +16,7 @@ export function createRolesSubcommand(module: PermissionsModule): Command {
   const cmd = new Command('roles')
     .alias('role')
     .description('Role management commands');
-  
+
   // Add subcommands
   cmd.addCommand(createRolesListCommand(module));
   cmd.addCommand(createRolesCreateCommand(module));
@@ -25,6 +25,6 @@ export function createRolesSubcommand(module: PermissionsModule): Command {
   cmd.addCommand(createRolesAssignCommand(module));
   cmd.addCommand(createRolesUnassignCommand(module));
   cmd.addCommand(createRolesMembersCommand(module));
-  
+
   return cmd;
 }

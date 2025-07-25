@@ -20,9 +20,9 @@ export function createListCommand(module: UsersModule): Command {
           role: options.role,
           status: options.status,
           provider: options.provider,
-          search: options.search
+          search: options.search,
         });
-        
+
         if (options.json) {
           console.log(JSON.stringify(users, null, 2));
         } else {
@@ -30,11 +30,11 @@ export function createListCommand(module: UsersModule): Command {
             console.log('No users found');
             return;
           }
-          
+
           // Table header
           console.log('\nID                                Email                     Name                Status    Roles');
           console.log('--------------------------------  ------------------------  ------------------  --------  ----------------');
-          
+
           // Table rows
           users.forEach(user => {
             const id = user.id.substring(0, 32);
@@ -42,10 +42,10 @@ export function createListCommand(module: UsersModule): Command {
             const name = user.name.substring(0, 18).padEnd(18);
             const status = user.status.padEnd(8);
             const roles = user.roles.join(', ') || 'none';
-            
+
             console.log(`${id}  ${email}  ${name}  ${status}  ${roles}`);
           });
-          
+
           console.log(`\nTotal: ${users.length} user(s)\n`);
         }
       } catch (error: any) {
@@ -53,6 +53,6 @@ export function createListCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

@@ -46,8 +46,8 @@ export function createCreateCommand(_service: ModuleManagerService, _logger?: Lo
         console.log(`   ${modulePath}`);
         console.log('\nNext steps:');
         console.log(`  1. cd ${modulePath}`);
-        console.log(`  2. Implement your module logic in index.ts`);
-        console.log(`  3. Add CLI commands in the cli/ directory`);
+        console.log('  2. Implement your module logic in index.ts');
+        console.log('  3. Add CLI commands in the cli/ directory');
         console.log(`  4. Run 'systemprompt modules:validate -p ${modulePath}' to verify`);
 
         process.exit(0);

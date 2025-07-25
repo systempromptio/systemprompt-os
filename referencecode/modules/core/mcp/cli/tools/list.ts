@@ -16,24 +16,24 @@ export function createToolsListCommand(module: MCPModule): Command {
     .action(async (options) => {
       try {
         const tools = await module.listTools();
-        
+
         // Filter by category if specified
         let filteredTools = tools;
         if (options.category) {
-          filteredTools = filteredTools.filter(tool => 
-            tool.metadata?.category === options.category
+          filteredTools = filteredTools.filter(tool =>
+            tool.metadata?.category === options.category,
           );
         }
-        
+
         // Search if specified
         if (options.search) {
           const searchLower = options.search.toLowerCase();
-          filteredTools = filteredTools.filter(tool => 
+          filteredTools = filteredTools.filter(tool =>
             tool.name.toLowerCase().includes(searchLower) ||
-            (tool.description?.toLowerCase().includes(searchLower))
+            (tool.description?.toLowerCase().includes(searchLower)),
           );
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(filteredTools, null, 2));
         } else if (options.format === 'yaml') {
@@ -45,22 +45,22 @@ export function createToolsListCommand(module: MCPModule): Command {
             console.log('No tools found');
             return;
           }
-          
+
           const table = new Table({
             head: ['Name', 'Description', 'Category', 'Auth Required', 'Source'],
-            colWidths: [25, 40, 15, 15, 10]
+            colWidths: [25, 40, 15, 15, 10],
           });
-          
+
           for (const tool of filteredTools) {
             table.push([
               tool.name,
               tool.description || '-',
               tool.metadata?.category || 'default',
               tool.metadata?.requiresAuth ? 'Yes' : 'No',
-              tool.metadata?.source || 'registry'
+              tool.metadata?.source || 'registry',
             ]);
           }
-          
+
           console.log(table.toString());
           console.log(`\nTotal: ${filteredTools.length} tool(s)`);
         }

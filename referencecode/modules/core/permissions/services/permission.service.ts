@@ -120,7 +120,7 @@ export class PermissionService {
       if (input.expiresAt) {
         details['expiresAt'] = input.expiresAt;
       }
-      
+
       await this.auditService.recordAudit({
         userId: input.grantedBy || 'system',
         targetType: input.targetType,
@@ -128,7 +128,7 @@ export class PermissionService {
         action: 'grant',
         resource: input.resource,
         permissionAction: input.action,
-        details
+        details,
       });
 
       this.logger.info('Permission granted', {
@@ -175,7 +175,7 @@ export class PermissionService {
       if (scope) {
         revokeDetails['scope'] = scope;
       }
-      
+
       await this.auditService.recordAudit({
         userId: revokedBy || 'system',
         targetType,
@@ -183,7 +183,7 @@ export class PermissionService {
         action: 'revoke',
         resource,
         permissionAction: action,
-        details: revokeDetails
+        details: revokeDetails,
       });
 
       this.logger.info('Permission revoked', {

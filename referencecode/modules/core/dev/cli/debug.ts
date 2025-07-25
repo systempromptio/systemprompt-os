@@ -16,30 +16,30 @@ export const command = {
   options: {
     mode: {
       description: 'Debug mode (on, off, status)',
-      default: 'on'
-    }
+      default: 'on',
+    },
   },
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
     const moduleLoader = getModuleLoader();
     await moduleLoader.loadModules();
     const devModule = moduleLoader.getModule('dev');
-    
+
     if (!devModule) {
       console.error('Dev module not found');
       process.exit(1);
     }
-    
+
     const module = devModule.exports;
     const devService = module.getService ? module.getService() : module;
-    
+
     if (!devService) {
       console.error('Dev service not available');
       process.exit(1);
     }
-    
+
     const mode = args['mode'] || args['_']?.[0] || 'on';
-    
+
     if (!mode || mode === 'on') {
       await devService.enableDebugMode();
       console.log('✓ Debug mode enabled');
@@ -59,5 +59,5 @@ export const command = {
       console.error('Invalid argument. Use: dev:debug [on|off|status]');
       process.exit(1);
     }
-  }
+  },
 };

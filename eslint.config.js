@@ -159,15 +159,6 @@ export default [
         ignoreArrowShorthand: false,
         ignoreVoidOperator: false
       }],
-      "@typescript-eslint/no-magic-numbers": ["error", {
-        ignore: [],
-        ignoreArrayIndexes: false,
-        ignoreDefaultValues: false,
-        ignoreEnums: false,
-        ignoreNumericLiteralTypes: false,
-        ignoreReadonlyClassProperties: false,
-        ignoreTypeIndexes: false
-      }],
       "@typescript-eslint/naming-convention": [
         "error",
         {

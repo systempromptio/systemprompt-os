@@ -1,27 +1,30 @@
 import { generateKeyPairSync } from 'crypto';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
+import {
+  TWO
+} from '@/const/numbers.js';
 
-const ZERO = ZERO;
-const ONE = ONE;
-const TWO = TWO;
+// Constants are already imported above
 
 /**
-
+ *
  * IGenerateKeyOptions interface.
-
+ *
  */
 
-export interface IIGenerateKeyOptions {
+export interface IGenerateKeyOptions {
   type: 'jwt';
   algorithm: 'RS256' | 'RS512' | 'ES256' | 'ES512';
   outputDir: string;
   format: 'pem' | 'jwk';
 }
 
-  /** TODO: Refactor this function to reduce complexity */
-export async function generateJWTKeyPair(_options: GenerateKeyOptions): Promise<void> {
+/**
+ * TODO: Refactor this function to reduce complexity.
+ * @param options
+ */
+export async function generateJWTKeyPair(options: IGenerateKeyOptions): Promise<void> {
   const {
  algorithm, outputDir, format
 } = options;
@@ -31,17 +34,17 @@ export async function generateJWTKeyPair(_options: GenerateKeyOptions): Promise<
   let publicKey: string;
   let privateKey: string;
 
-  if (keyType === 'rsa')) {
+  if (keyType === 'rsa') {
     const keyPair = generateKeyPairSync('rsa', {
       modulusLength: algorithm === 'RS256' ? 2048 : 4096,
       publicKeyEncoding: {
- type: 'spki',
-format: 'pem'
-},
+        type: 'spki',
+        format: 'pem',
+      },
       privateKeyEncoding: {
- type: 'pkcs8',
-format: 'pem'
-}
+        type: 'pkcs8',
+        format: 'pem',
+      },
     });
     publicKey = keyPair.publicKey;
     privateKey = keyPair.privateKey;
@@ -49,32 +52,31 @@ format: 'pem'
     const keyPair = generateKeyPairSync('ec', {
       namedCurve: algorithm === 'ES256' ? 'prime256v1' : 'secp521r1',
       publicKeyEncoding: {
- type: 'spki',
-format: 'pem'
-},
+        type: 'spki',
+        format: 'pem',
+      },
       privateKeyEncoding: {
- type: 'pkcs8',
-format: 'pem'
-}
+        type: 'pkcs8',
+        format: 'pem',
+      },
     });
     publicKey = keyPair.publicKey;
     privateKey = keyPair.privateKey;
   }
 
-  if (format === 'pem')) {
+  if (format === 'pem') {
     writeFileSync(join(outputDir, 'private.key'), privateKey);
     writeFileSync(join(outputDir, 'public.key'), publicKey);
   } else {
     const jwks = {
-      keys: [{
-        kty: keyType.toUpperCase(),
-        alg: algorithm,
-        use: 'sig',
-        kid: `${algorithm}-${Date.now()}`,
-         * Note: In production, you'd need proper JWK conversion.
-         * This is simplified for the example.
- */
-      }]
+      keys: [
+        {
+          kty: keyType.toUpperCase(),
+          alg: algorithm,
+          use: 'sig',
+          kid: `${algorithm}-${Date.now()}`,
+        },
+      ],
     };
 
     writeFileSync(join(outputDir, 'jwks.json'), JSON.stringify(jwks, null, TWO));

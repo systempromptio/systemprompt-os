@@ -65,12 +65,12 @@ export type ExtendedModule = ModuleInterface & {
  */
 export class ModuleRegistry {
   private readonly modules: Map<string, ModuleInterface> = new Map();
-  
+
   constructor() {
     // Register core modules
     this.registerCoreModules();
   }
-  
+
   private registerCoreModules(): void {
     // Register each core module
     // Database must be registered first as other modules depend on it
@@ -81,41 +81,41 @@ export class ModuleRegistry {
       Container.get(CLIModule),
       // Extension module no longer exists (renamed to modules)
     ];
-    
+
     coreModules.forEach(module => {
       this.modules.set(module.name, module);
     });
   }
-  
+
   register(module: ModuleInterface): void {
     this.modules.set(module.name, module);
   }
-  
+
   async initializeAll(context: any): Promise<void> {
     for (const module of this.modules.values()) {
       // Check if module has stored config
       const moduleWithConfig = module as any;
-      const moduleContext = moduleWithConfig._config 
+      const moduleContext = moduleWithConfig._config
         ? { ...context, config: moduleWithConfig._config }
         : context;
       await module.initialize(moduleContext);
     }
   }
-  
+
   async shutdownAll(): Promise<void> {
     for (const module of this.modules.values()) {
       await module.stop();
     }
   }
-  
+
   get(name: string): ModuleInterface | undefined {
     return this.modules.get(name);
   }
-  
+
   getAll(): ModuleInterface[] {
     return Array.from(this.modules.values());
   }
-  
+
   has(name: string): boolean {
     return this.modules.has(name);
   }

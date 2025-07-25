@@ -1,30 +1,20 @@
 /* eslint-disable max-lines-per-function */
 /* eslint-disable max-statements */
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 /**
  *  *  * @file Role management CLI commands.
  * @module modules/core/auth/cli/role
  */
 
 import { getDatabase } from '@/modules/core/database/index.js';
-import { ONE, ZERO } from '@/modules/core/auth/constants';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
-
-/**
- *  *
- * CLIContext interface.
- *
- */
-
-export
+import { ONE, ZERO } from '@/const/numbers.js';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
 
 export const command = {
   description: 'Role management commands',
   subcommands: {
     grant: {
-      execute: async (_context: ICliContext): Promise<void> => {
+      execute: async (context: ICliContext): Promise<void> => {
         const { args } = context;
 
         if (!args.user) {
@@ -32,7 +22,7 @@ export const command = {
           process.exit(ONE);
         }
 
-        if (!args.role || !['admin', 'user'].includes(args.role as string)) {
+        if (!args.role || !['admin', 'user'].includes(args.role)) {
           console.error('❌ Error: Role must be "admin" or "user" (--role or -r)');
           process.exit(ONE);
         }
@@ -101,7 +91,7 @@ export const command = {
     },
 
     revoke: {
-      execute: async (_context: ICliContext): Promise<void> => {
+      execute: async (context: ICliContext): Promise<void> => {
         const { args } = context;
 
         if (!args.user) {
@@ -109,7 +99,7 @@ export const command = {
           process.exit(ONE);
         }
 
-        if (!args.role || !['admin', 'user'].includes(args.role as string)) {
+        if (!args.role || !['admin', 'user'].includes(args.role)) {
           console.error('❌ Error: Role must be "admin" or "user" (--role or -r)');
           process.exit(ONE);
         }

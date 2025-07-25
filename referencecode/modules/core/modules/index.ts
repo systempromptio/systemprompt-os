@@ -40,9 +40,9 @@ export class ModulesModule implements IModule {
 
     const config = this.globalConfig?.['modules']?.['modules']
       ? {
-          ...defaultConfig,
-          ...(this.globalConfig['modules']['modules'] as unknown as ExtensionModuleConfig),
-        }
+        ...defaultConfig,
+        ...(this.globalConfig['modules']['modules'] as unknown as ExtensionModuleConfig),
+      }
       : defaultConfig;
 
     // Initialize module manager service
@@ -132,7 +132,7 @@ export class ModulesModule implements IModule {
     if ('force' in options) {installOptions.force = options['force'] as boolean;}
     if ('skipDependencies' in options) {installOptions.skipDependencies = options['skipDependencies'] as boolean;}
     if ('autoEnable' in options) {installOptions.autoEnable = options['autoEnable'] as boolean;}
-    
+
     await this.service.installExtension(name, installOptions);
   }
 

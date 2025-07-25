@@ -1,14 +1,11 @@
 /**
-
  * TunnelStatus class.
-
  */
-
 class TunnelStatus {
   private static instance: TunnelStatus;
   private baseUrl: string | null = null;
 
-  private constructor(): unknown {}
+  private constructor() {}
 
   static getInstance(): TunnelStatus {
     TunnelStatus.instance ||= new TunnelStatus();
@@ -16,26 +13,23 @@ class TunnelStatus {
   }
 
   /**
- *  * Description.
- */    * Set the current base URL (tunnel or permanent domain).
+   * Set the current base URL (tunnel or permanent domain).
    * @param url
    */
-  setBaseUrl(url: string)) {
+  setBaseUrl(url: string) {
     this.baseUrl = url;
-    logger.log(`[TunnelStatus] Base URL updated to: ${url}`);
+    console.log(`[TunnelStatus] Base URL updated to: ${url}`);
   }
 
   /**
- *  * Description.
- */    * Get the current base URL.
+   * Get the current base URL.
    */
   getBaseUrl(): string | null {
     return this.baseUrl;
   }
 
   /**
- *  * Description.
- */    * Get base URL or fallback to default.
+   * Get base URL or fallback to default.
    * @param defaultUrl
    */
   getBaseUrlOrDefault(defaultUrl: string): string {

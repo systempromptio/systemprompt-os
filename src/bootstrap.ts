@@ -360,7 +360,7 @@ export class Bootstrap {
     }
 
     // Get the CLI service from the module
-    const cliService = cliModule.exports?.['service']?.();
+    const cliService = (cliModule.exports as any)?.service?.();
     if (!cliService || !cliService.scanAndRegisterAllCommands) {
       this.logger.warn('CLI service not available, skipping command registration');
       return;

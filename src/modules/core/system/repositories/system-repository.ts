@@ -9,13 +9,13 @@
 
 import {
   type ConfigTypeEnum,
-  type ModuleStatusEnum,
   type EventSeverityEnum,
-  type MaintenanceTypeEnum,
   type ISystemConfig,
-  type ISystemModule,
   type ISystemEvent,
-  type ISystemMaintenance
+  type ISystemMaintenance,
+  type ISystemModule,
+  type MaintenanceTypeEnum,
+  type ModuleStatusEnum
 } from '@/modules/core/system/types/index.js';
 
 /**
@@ -23,10 +23,10 @@ import {
  */
 export class SystemRepository {
   private static instance: SystemRepository;
-  private configs: Map<string, ISystemConfig> = new Map();
-  private modules: Map<string, ISystemModule> = new Map();
-  private events: ISystemEvent[] = [];
-  private maintenance: Map<string, ISystemMaintenance> = new Map();
+  private readonly configs: Map<string, ISystemConfig> = new Map();
+  private readonly modules: Map<string, ISystemModule> = new Map();
+  private readonly events: ISystemEvent[] = [];
+  private readonly maintenance: Map<string, ISystemMaintenance> = new Map();
   private eventIdCounter = 1;
 
   /**
@@ -39,9 +39,7 @@ export class SystemRepository {
    * @returns The repository instance.
    */
   static getInstance(): SystemRepository {
-    if (!SystemRepository.instance) {
-      SystemRepository.instance = new SystemRepository();
-    }
+    SystemRepository.instance ||= new SystemRepository();
     return SystemRepository.instance;
   }
 
@@ -58,8 +56,10 @@ export class SystemRepository {
    * @returns Promise that resolves when checked.
    */
   async checkDatabase(): Promise<void> {
-    // Placeholder - would check actual database connection
-    // Simulate potential failure for testing
+    /*
+     * Placeholder - would check actual database connection
+     * Simulate potential failure for testing
+     */
     if (Math.random() > 0.95) {
       throw new Error('Database connection failed');
     }
@@ -87,7 +87,7 @@ export class SystemRepository {
     type: ConfigTypeEnum
   ): Promise<ISystemConfig> {
     const existing = this.configs.get(key);
-    
+
     const config: ISystemConfig = {
       key,
       value,
@@ -127,11 +127,11 @@ export class SystemRepository {
    */
   async upsertModule(name: string, version: string): Promise<ISystemModule> {
     const existing = this.modules.get(name);
-    
+
     const module: ISystemModule = {
       name,
       version,
-      status: existing?.status ?? 'active',
+      status: existing?.status ?? ('active' as ModuleStatusEnum),
       enabled: existing?.enabled ?? true,
       initializedAt: existing?.initializedAt ?? new Date(),
       createdAt: existing?.createdAt ?? new Date(),
@@ -179,7 +179,7 @@ export class SystemRepository {
       source,
       severity,
       message,
-      metadata,
+      metadata: metadata || {},
       createdAt: new Date()
     };
 

@@ -5,17 +5,16 @@
  * @module database/services/cli-handler
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { MigrationService } from '@/modules/core/database/services/migration.service.js';
-import { SchemaService } from '@/modules/core/database/services/schema.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { MigrationService } from '@/modules/core/database/services/migration.service';
+import { SchemaService } from '@/modules/core/database/services/schema.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
 
 /**
  * CLI handler service for database commands.
  */
 export class DatabaseCLIHandlerService {
   private static instance: DatabaseCLIHandlerService;
-  private logger?: ILogger;
 
   /**
    * Private constructor.
@@ -30,7 +29,6 @@ export class DatabaseCLIHandlerService {
   public static getInstance(logger?: ILogger): DatabaseCLIHandlerService {
     DatabaseCLIHandlerService.instance ||= new DatabaseCLIHandlerService();
     if (logger !== undefined) {
-      DatabaseCLIHandlerService.instance.logger = logger;
     }
     return DatabaseCLIHandlerService.instance;
   }

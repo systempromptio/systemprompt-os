@@ -121,7 +121,7 @@ async function importSQL(
       // Skip DROP TABLE statements unless force is true
       if (!stmt) {throw new Error('stmt is required');}
       if (stmt.toUpperCase().startsWith('DROP TABLE') && !options.force) {
-        logger.warn(`Skipping DROP TABLE statement (use --force to execute)`);
+        logger.warn('Skipping DROP TABLE statement (use --force to execute)');
         continue;
       }
 

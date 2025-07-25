@@ -1,7 +1,6 @@
 /* eslint-disable max-statements */
 /* eslint-disable no-underscore-dangle */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 /**
  *  *  * @file Provider management CLI commands.
  * @module modules/core/auth/cli/providers
@@ -9,16 +8,9 @@
 
 import { getAuthModule } from '@/modules/core/auth/singleton.js';
 import {
- ONE, TWO, ZERO
-} from '@/modules/core/auth/constants';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
-
-const TWO = TWO;
-
-/**
- *  *  * CLIContext interface.
- */
-export
+ ONE, ZERO
+} from '@/const/numbers.js';
+import type { ICliContext } from '@/modules/core/auth/types/cli.types.js';
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',

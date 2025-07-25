@@ -4,12 +4,12 @@
  */
 
 import type {
- CallToolResult, ToolHandler, ToolHandlerContext
+ CallToolResult, IToolHandlerContext, ToolHandler
 } from '@/server/mcp/core/handlers/tools/types.js';
 import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types.js';
 import { LoggerService } from '@/modules/core/logger/index.js';
-import type { MCPToolContext } from '@/server/mcp/core/types/request-context.js';
-import type { UserPermissionContext } from '@/server/mcp/core/types/permissions.js';
+import type { IMCPToolContext } from '@/server/mcp/core/types/request-context.js';
+import type { IUserPermissionContext } from '@/server/mcp/core/types/permissions.js';
 import { ROLE_PERMISSIONS } from '@/server/mcp/core/types/permissions.js';
 
 const logger = LoggerService.getInstance();
@@ -42,7 +42,7 @@ interface WhoamiResponse {
  * Get user permission context (imported from tool-handlers.ts logic).
  * @param context
  */
-const getUserContext = async function (context: MCPToolContext): Promise<UserPermissionContext> {
+const getUserContext = async function (context: IMCPToolContext): Promise<IUserPermissionContext> {
   if (!context.sessionId) {
     throw new Error('Session ID is required');
   }
@@ -67,7 +67,7 @@ const getUserContext = async function (context: MCPToolContext): Promise<UserPer
  */
 export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
   args: WhoamiArgs | undefined,
-  context?: ToolHandlerContext,
+  context?: IToolHandlerContext,
 ): Promise<CallToolResult> => {
   try {
     logger.info('Whoami tool invoked', {
@@ -81,7 +81,7 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       throw new Error('Authentication context is required');
     }
 
-    const userContext = await getUserContext(context as MCPToolContext);
+    const userContext = await getUserContext(context as IMCPToolContext);
 
     const response: WhoamiResponse = {
       userId: userContext.userId,

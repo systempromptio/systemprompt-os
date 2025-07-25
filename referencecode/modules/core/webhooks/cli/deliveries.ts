@@ -59,8 +59,8 @@ export const command = {
             'Code'.padEnd(6) +
             'Attempt'.padEnd(8) +
             'Duration'.padEnd(10) +
-            'Delivered At'.padEnd(20) 
-            }Error`,
+            'Delivered At'.padEnd(20)
+          }Error`,
         );
         console.log('─'.repeat(140));
 

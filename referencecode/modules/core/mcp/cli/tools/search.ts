@@ -17,28 +17,28 @@ export function createToolsSearchCommand(module: MCPModule): Command {
     .action(async (query: string, options) => {
       try {
         const tools = await module.listTools();
-        
+
         // Search tools
         const searchLower = query.toLowerCase();
-        let filteredTools = tools.filter(tool => 
+        let filteredTools = tools.filter(tool =>
           tool.name.toLowerCase().includes(searchLower) ||
           (tool.description?.toLowerCase().includes(searchLower)) ||
-          (tool.inputSchema?.description?.toLowerCase().includes(searchLower))
+          (tool.inputSchema?.description?.toLowerCase().includes(searchLower)),
         );
-        
+
         // Filter by category if specified
         if (options.category) {
-          filteredTools = filteredTools.filter(tool => 
-            tool.metadata?.category === options.category
+          filteredTools = filteredTools.filter(tool =>
+            tool.metadata?.category === options.category,
           );
         }
-        
+
         // Apply limit
         const limit = parseInt(options.limit, 10);
         if (!isNaN(limit) && limit > 0) {
           filteredTools = filteredTools.slice(0, limit);
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(filteredTools, null, 2));
         } else if (options.format === 'yaml') {
@@ -50,12 +50,12 @@ export function createToolsSearchCommand(module: MCPModule): Command {
             console.log(`No tools found matching: "${query}"`);
             return;
           }
-          
+
           const table = new Table({
             head: ['Name', 'Description', 'Match Type', 'Category'],
-            colWidths: [25, 45, 15, 15]
+            colWidths: [25, 45, 15, 15],
           });
-          
+
           for (const tool of filteredTools) {
             // Determine match type
             let matchType = 'description';
@@ -64,15 +64,15 @@ export function createToolsSearchCommand(module: MCPModule): Command {
             } else if (tool.inputSchema?.description?.toLowerCase().includes(searchLower)) {
               matchType = 'schema';
             }
-            
+
             table.push([
               tool.name,
               tool.description || '-',
               matchType,
-              tool.metadata?.category || 'default'
+              tool.metadata?.category || 'default',
             ]);
           }
-          
+
           console.log(table.toString());
           console.log(`\nFound ${filteredTools.length} tool(s) matching: "${query}"`);
         }

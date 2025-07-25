@@ -2,7 +2,6 @@
   logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
   systemprompt-os/no-block-comments
 */
 /**
@@ -17,9 +16,9 @@ import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { PermissionsRepository } from '@/modules/core/permissions/repositories/permissions-repository.js';
 import {
   type IPermission,
-  type IRole,
   type IPermissionCheck,
-  type IPermissionsService
+  type IPermissionsService,
+  type IRole
 } from '@/modules/core/permissions/types/index.js';
 
 /**
@@ -242,10 +241,10 @@ export class PermissionsService implements IPermissionsService {
     await this.ensureInitialized();
 
     const userRoles = await this.repository.findUserRoles(userId);
-    
+
     for (const userRole of userRoles) {
       const permissions = await this.repository.findRolePermissions(userRole.roleId);
-      
+
       for (const permission of permissions) {
         if (permission.resource === resource && permission.action === action) {
           return {
@@ -270,17 +269,17 @@ export class PermissionsService implements IPermissionsService {
    */
   async getUserRoles(userId: string): Promise<IRole[]> {
     await this.ensureInitialized();
-    
+
     const userRoles = await this.repository.findUserRoles(userId);
     const roles: IRole[] = [];
-    
+
     for (const userRole of userRoles) {
       const role = await this.repository.findRoleById(userRole.roleId);
       if (role !== null) {
         roles.push(role);
       }
     }
-    
+
     return roles;
   }
 

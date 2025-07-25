@@ -20,7 +20,7 @@ export interface IAuthModuleWithExports extends IModule {
   getPublicUrl(): string | null;
 }
 
-export function getAuthModule(): AuthModuleWithExports {
+export function getAuthModule(): IAuthModuleWithExports {
   const moduleLoader = getModuleLoader();
   const authModule = moduleLoader.getModule('auth');
 
@@ -28,5 +28,5 @@ export function getAuthModule(): AuthModuleWithExports {
     throw new Error('Auth module not loaded');
   }
 
-  return authModule as AuthModuleWithExports;
+  return authModule as IAuthModuleWithExports;
 }

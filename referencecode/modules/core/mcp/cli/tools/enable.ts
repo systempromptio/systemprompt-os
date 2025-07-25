@@ -14,18 +14,18 @@ export function createToolsEnableCommand(module: MCPModule): Command {
     .action(async (name, options) => {
       try {
         const enabled = await module.enableTool(name, options.force);
-        
+
         if (!enabled) {
           console.error(`Failed to enable tool '${name}'`);
           process.exit(1);
         }
-        
+
         console.log(`Tool '${name}' enabled successfully`);
-        
+
         if (options.force) {
           console.log('Warning: Tool was force-enabled. It may not function correctly.');
         }
-        
+
       } catch (error: any) {
         console.error('Error:', error.message);
         process.exit(1);

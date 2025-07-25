@@ -74,7 +74,7 @@ export class RoleService {
             targetId: role.id,
             targetType: 'role',
             resource: perm.resource,
-            action: perm.action
+            action: perm.action,
           };
           if (perm.scope) {
             grantInput.scope = perm.scope;

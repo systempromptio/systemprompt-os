@@ -16,14 +16,14 @@ export function createActivityCommand(module: UsersModule): Command {
     .action(async (options) => {
       try {
         const days = parseInt(options.days, 10);
-        
+
         if (options.stats) {
           // Show statistics
           const stats = await module.getActivityStats(
             options.user,
-            days
+            days,
           );
-          
+
           if (options.json) {
             console.log(JSON.stringify(stats, null, 2));
           } else {
@@ -32,12 +32,12 @@ export function createActivityCommand(module: UsersModule): Command {
             if (stats.uniqueUsers !== undefined) {
               console.log(`Unique users: ${stats.uniqueUsers}`);
             }
-            
+
             console.log('\nActivities by type:');
             for (const [type, count] of Object.entries(stats.activitiesByType)) {
               console.log(`  ${type}: ${count}`);
             }
-            
+
             console.log('\nMost active hours (UTC):');
             stats.mostActiveHours.forEach((count: number, hour: number) => {
               if (count > 0) {
@@ -49,10 +49,10 @@ export function createActivityCommand(module: UsersModule): Command {
           }
           return;
         }
-        
+
         // List activities
         const activities = await module.getUserActivity(options.user, days);
-        
+
         if (options.json) {
           console.log(JSON.stringify(activities, null, 2));
         } else {
@@ -60,25 +60,25 @@ export function createActivityCommand(module: UsersModule): Command {
             console.log('No activity found');
             return;
           }
-          
+
           console.log(`\nUser Activity (last ${days} days):`);
           console.log('\nTimestamp                 User ID           Type              Action');
           console.log('------------------------  ----------------  ----------------  ----------------------------------------');
-          
+
           activities.forEach(activity => {
             const timestamp = new Date(activity.timestamp).toISOString();
             const userId = activity.userId.substring(0, 16);
             const type = activity.type.padEnd(16);
             const action = activity.action.substring(0, 40);
-            
+
             console.log(`${timestamp}  ${userId}  ${type}  ${action}`);
-            
+
             // Show details if present
             if (activity.details && Object.keys(activity.details).length > 0) {
               console.log(`                                                              Details: ${JSON.stringify(activity.details)}`);
             }
           });
-          
+
           console.log(`\nTotal: ${activities.length} activities\n`);
         }
       } catch (error: any) {
@@ -86,6 +86,6 @@ export function createActivityCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

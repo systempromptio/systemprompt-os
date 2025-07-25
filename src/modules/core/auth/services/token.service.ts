@@ -13,27 +13,25 @@ import type {
   TokenValidationResult,
 } from '@/modules/core/auth/types/index.js';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { ZERO, ONE, TWO, THREE, FOUR, FIVE, TEN, TWENTY, THIRTY, FORTY, FIFTY, SIXTY, EIGHTY, ONE_HUNDRED } from '../constants';
-
-
-
-
-
-
-
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import {
+ MILLISECONDS_PER_SECOND, SIXTY, THREE, TWO, ZERO
+} from '@/const/numbers.js';
 
 /**
  *  *
  * TokenService class.
-
+ *
  */
 
 export class TokenService {
   private static instance: TokenService;
+  private logger!: ILogger;
+  private db!: DatabaseService;
+  private config!: any;
 
   /**
- *  * Get singleton instance
+   *  * Get singleton instance.
    */
   public static getInstance(): TokenService {
     TokenService.instance ??= new TokenService();
@@ -41,7 +39,7 @@ export class TokenService {
   }
 
   /**
- *  * Private constructor for singleton
+   *  * Private constructor for singleton.
    */
   private constructor() {
     // Initialize lazily when first used
@@ -73,13 +71,8 @@ export class TokenService {
     return this.config;
   }
 
-
-  private readonly db: DatabaseService;
-
-
-
   /**
- *  *    * Create a new token.
+   *  *    * Create a new token.
    * @param input
    */
   async createToken(input: TokenCreateInput): Promise<AuthToken> {
@@ -138,7 +131,7 @@ error
   }
 
   /**
- *  *    * Create JWT access token.
+   *  *    * Create JWT access token.
    * @param userId
    * @param email
    * @param name
@@ -180,17 +173,21 @@ error
   }
 
   /**
- *  *    * Validate token.
+   *  *    * Validate token.
    * @param tokenString
    */
   async validateToken(tokenString: string): Promise<TokenValidationResult> {
     try {
-      /** Check if it's a JWT */
+      /**
+       * Check if it's a JWT.
+       */
       if (tokenString.includes('.') && tokenString.split('.').length === THREE) {
         return this.validateJWT(tokenString);
       }
 
-      /** API token format: id.value */
+      /**
+       * API token format: id.value.
+       */
       const parts = tokenString.split('.');
       if (parts.length !== TWO) {
         return {
@@ -232,7 +229,9 @@ error
         };
       }
 
-      /** Update last used */
+      /**
+       * Update last used.
+       */
       await this.getDb().execute(
         `
         UPDATE auth_tokens
@@ -271,7 +270,7 @@ error
   }
 
   /**
- *  *    * Validate JWT.
+   *  *    * Validate JWT.
    * @param token
    */
   private validateJWT(token: string): TokenValidationResult {
@@ -290,13 +289,13 @@ error
     } catch (error) {
       return {
         valid: false,
-        reason: error.message ?? 'Invalid JWT',
+        reason: (error as Error).message ?? 'Invalid JWT',
       };
     }
   }
 
   /**
- *  *    * Revoke token.
+   *  *    * Revoke token.
    * @param tokenId
    */
   async revokeToken(tokenId: string): Promise<void> {
@@ -321,7 +320,7 @@ error
   }
 
   /**
- *  *    * Revoke all user tokens.
+   *  *    * Revoke all user tokens.
    * @param userId
    * @param type
    */
@@ -351,7 +350,7 @@ error
   }
 
   /**
- *  *    * List user tokens.
+   *  *    * List user tokens.
    * @param userId
    */
   async listUserTokens(userId: string): Promise<AuthToken[]> {
@@ -376,18 +375,18 @@ error
         isRevoked: Boolean(row.is_revoked),
         ...row.last_used_at && { lastUsedAt: new Date(row.last_used_at) },
         ...row.metadata && { metadata: JSON.parse(row.metadata) },
-      }));
+      } });
     } catch (error) {
       this.getLogger().error('Failed to list user tokens', {
- userId,
-error
-});
+        userId,
+        error
+      });
       throw new Error('Failed to list user tokens');
     }
   }
 
   /**
- *  *    * Clean up expired tokens.
+   *  *    * Clean up expired tokens.
    */
   async cleanupExpiredTokens(): Promise<number> {
     try {
@@ -415,21 +414,21 @@ error
   }
 
   /**
- *  *    * Generate token ID.
+   *  *    * Generate token ID.
    */
   private generateTokenId(): string {
     return randomBytes(16).toString('hex');
   }
 
   /**
- *  *    * Generate token value.
+   *  *    * Generate token value.
    */
   private generateTokenValue(): string {
     return randomBytes(32).toString('base64url');
   }
 
   /**
- *  *    * Hash token for storage.
+   *  *    * Hash token for storage.
    * @param token
    */
   private hashToken(token: string): string {
@@ -438,7 +437,7 @@ error
   }
 
   /**
- *  *    * Get default TTL for token type.
+   *  *    * Get default TTL for token type.
    * @param type
    */
   private getDefaultTTL(type: string): number {
@@ -448,13 +447,13 @@ error
       case 'refresh':
         return this.getConfig().jwt.refreshTokenTTL;
       case 'api':
-        return 365 * 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // ONE year
+        return 365 * 24 * SIXTY * SIXTY; // ONE year
       case 'personal':
-        return 90 * 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // 90 days
+        return 90 * 24 * SIXTY * SIXTY; // 90 days
       case 'service':
         return ZERO; // No expiry
       default:
-        return 24 * SECONDS_PER_MINUTE * SECONDS_PER_MINUTE; // 24 hours
+        return 24 * SIXTY * SIXTY; // 24 hours
     }
   }
 }

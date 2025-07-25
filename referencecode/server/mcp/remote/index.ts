@@ -13,7 +13,7 @@ import { CoreMCPServer } from './core-server.js';
  */
 export function createRemoteMCPServer(): LocalMCPServer {
   const server = new CoreMCPServer();
-  
+
   return {
     id: 'core',
     name: 'systemprompt-os-core',
@@ -22,6 +22,6 @@ export function createRemoteMCPServer(): LocalMCPServer {
     description: 'Core MCP server with resource, prompt, and tool capabilities',
     createHandler: () => server.handleRequest.bind(server),
     getActiveSessionCount: () => server.getActiveSessionCount(),
-    shutdown: () => server.shutdown()
+    shutdown: () => server.shutdown(),
   };
 }

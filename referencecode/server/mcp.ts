@@ -86,8 +86,8 @@ export class MCPHandler implements IMCPHandler {
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       logger.debug(`🔧 [${sessionId}] Calling tool: ${request.params.name}`);
-      logger.info(`MCP tool request params:`, JSON.stringify(request.params, null, 2));
-      logger.info(`MCP tool request full:`, JSON.stringify(request, null, 2));
+      logger.info('MCP tool request params:', JSON.stringify(request.params, null, 2));
+      logger.info('MCP tool request full:', JSON.stringify(request, null, 2));
       return handleToolCall(request, { sessionId });
     });
 
@@ -118,7 +118,7 @@ export class MCPHandler implements IMCPHandler {
 
     server.setRequestHandler(ListResourceTemplatesRequestSchema, async (request) => {
       logger.debug(`📋 [${sessionId}] Listing resource templates`);
-      logger.info(`Resource templates request:`, JSON.stringify(request, null, 2));
+      logger.info('Resource templates request:', JSON.stringify(request, null, 2));
       return handleListResourceTemplates(request);
     });
 

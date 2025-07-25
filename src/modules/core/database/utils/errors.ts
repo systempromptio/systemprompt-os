@@ -9,13 +9,13 @@ import {
   HTTP_500,
   HTTP_503,
   HTTP_504
-} from '@/modules/core/database/constants/index.js';
+} from '@/modules/core/database/constants/index';
 
 /**
  * Base error class for all database-related errors.
  */
 export class DatabaseError extends Error {
-  public readonly name: string;
+  public override readonly name: string;
   public readonly code: string;
   public readonly statusCode: number;
   public override readonly cause?: Error;
@@ -37,7 +37,9 @@ export class DatabaseError extends Error {
     this.name = 'DatabaseError';
     this.code = code;
     this.statusCode = statusCode;
-    this.cause = cause;
+    if (cause !== undefined) {
+      this.cause = cause;
+    }
     Error.captureStackTrace(this, this.constructor);
   }
 
@@ -76,8 +78,13 @@ export class ConnectionError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'CONNECTION_ERROR', HTTP_503, cause);
-    this.name = 'ConnectionError';
-    this.config = config;
+    Object.defineProperty(this, 'name', {
+ value: 'ConnectionError',
+configurable: true
+});
+    if (config !== undefined) {
+      this.config = config;
+    }
   }
 }
 
@@ -102,9 +109,16 @@ export class QueryError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'QUERY_ERROR', HTTP_500, cause);
-    this.name = 'QueryError';
-    this.query = query;
-    this.params = params;
+    Object.defineProperty(this, 'name', {
+ value: 'QueryError',
+configurable: true
+});
+    if (query !== undefined) {
+      this.query = query;
+    }
+    if (params !== undefined) {
+      this.params = params;
+    }
   }
 }
 
@@ -126,8 +140,13 @@ export class TransactionError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'TRANSACTION_ERROR', HTTP_500, cause);
-    this.name = 'TransactionError';
-    this.operation = operation;
+    Object.defineProperty(this, 'name', {
+ value: 'TransactionError',
+configurable: true
+});
+    if (operation !== undefined) {
+      this.operation = operation;
+    }
   }
 }
 
@@ -152,9 +171,16 @@ export class SchemaError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'SCHEMA_ERROR', HTTP_500, cause);
-    this.name = 'SchemaError';
-    this.module = module;
-    this.details = details;
+    Object.defineProperty(this, 'name', {
+ value: 'SchemaError',
+configurable: true
+});
+    if (module !== undefined) {
+      this.module = module;
+    }
+    if (details !== undefined) {
+      this.details = details;
+    }
   }
 }
 
@@ -182,9 +208,16 @@ export class MigrationError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'MIGRATION_ERROR', HTTP_500, cause);
-    this.name = 'MigrationError';
-    this.migration = migration;
-    this.operation = operation;
+    Object.defineProperty(this, 'name', {
+ value: 'MigrationError',
+configurable: true
+});
+    if (migration !== undefined) {
+      this.migration = migration;
+    }
+    if (operation !== undefined) {
+      this.operation = operation;
+    }
   }
 }
 
@@ -206,8 +239,13 @@ export class AdapterError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'ADAPTER_ERROR', HTTP_500, cause);
-    this.name = 'AdapterError';
-    this.adapterType = adapterType;
+    Object.defineProperty(this, 'name', {
+ value: 'AdapterError',
+configurable: true
+});
+    if (adapterType !== undefined) {
+      this.adapterType = adapterType;
+    }
   }
 }
 
@@ -232,9 +270,14 @@ export class ModuleDatabaseError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'MODULE_DATABASE_ERROR', HTTP_500, cause);
-    this.name = 'ModuleDatabaseError';
+    Object.defineProperty(this, 'name', {
+ value: 'ModuleDatabaseError',
+configurable: true
+});
     this.moduleName = moduleName;
-    this.operation = operation;
+    if (operation !== undefined) {
+      this.operation = operation;
+    }
   }
 }
 
@@ -256,8 +299,13 @@ export class ConfigurationError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'CONFIGURATION_ERROR', HTTP_400, cause);
-    this.name = 'ConfigurationError';
-    this.invalidFields = invalidFields;
+    Object.defineProperty(this, 'name', {
+ value: 'ConfigurationError',
+configurable: true
+});
+    if (invalidFields !== undefined) {
+      this.invalidFields = invalidFields;
+    }
   }
 }
 
@@ -282,8 +330,13 @@ export class PoolError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'POOL_ERROR', HTTP_503, cause);
-    this.name = 'PoolError';
-    this.poolStatus = poolStatus;
+    Object.defineProperty(this, 'name', {
+ value: 'PoolError',
+configurable: true
+});
+    if (poolStatus !== undefined) {
+      this.poolStatus = poolStatus;
+    }
   }
 }
 
@@ -308,9 +361,14 @@ export class TimeoutError extends DatabaseError {
     cause?: Error,
   ) {
     super(message, 'TIMEOUT_ERROR', HTTP_504, cause);
-    this.name = 'TimeoutError';
+    Object.defineProperty(this, 'name', {
+ value: 'TimeoutError',
+configurable: true
+});
     this.timeoutMs = timeoutMs;
-    this.operation = operation;
+    if (operation !== undefined) {
+      this.operation = operation;
+    }
   }
 }
 

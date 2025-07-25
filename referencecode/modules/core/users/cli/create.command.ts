@@ -24,16 +24,16 @@ export function createCreateCommand(module: UsersModule): Command {
             process.exit(1);
           }
         }
-        
+
         const user = await module.createUser({
           email: options.email,
           name: options.name,
           provider: options.provider || 'local',
           providerId: options.providerId,
-          metadata
+          metadata,
         });
-        
-        console.log(`\nUser created successfully!`);
+
+        console.log('\nUser created successfully!');
         console.log(`ID: ${user.id}`);
         console.log(`Email: ${user.email}`);
         console.log(`Name: ${user.name}`);
@@ -44,6 +44,6 @@ export function createCreateCommand(module: UsersModule): Command {
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

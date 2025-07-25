@@ -1,8 +1,4 @@
 /**
- * System type definitions.
- */
-
-/**
  * Configuration type enumeration.
  */
 export const enum ConfigTypeEnum {

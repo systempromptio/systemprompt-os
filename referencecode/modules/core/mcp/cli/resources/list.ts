@@ -16,25 +16,25 @@ export function createResourcesListCommand(module: MCPModule): Command {
     .action(async (options) => {
       try {
         const resources = await module.listResources();
-        
+
         // Filter by type if specified
         let filteredResources = resources;
         if (options.type) {
-          filteredResources = filteredResources.filter(resource => 
-            resource.mimeType === options.type
+          filteredResources = filteredResources.filter(resource =>
+            resource.mimeType === options.type,
           );
         }
-        
+
         // Search if specified
         if (options.search) {
           const searchLower = options.search.toLowerCase();
-          filteredResources = filteredResources.filter(resource => 
+          filteredResources = filteredResources.filter(resource =>
             resource.uri.toLowerCase().includes(searchLower) ||
             resource.name.toLowerCase().includes(searchLower) ||
-            (resource.description?.toLowerCase().includes(searchLower))
+            (resource.description?.toLowerCase().includes(searchLower)),
           );
         }
-        
+
         if (options.format === 'json') {
           console.log(JSON.stringify(filteredResources, null, 2));
         } else if (options.format === 'yaml') {
@@ -46,22 +46,22 @@ export function createResourcesListCommand(module: MCPModule): Command {
             console.log('No resources found');
             return;
           }
-          
+
           const table = new Table({
             head: ['URI', 'Name', 'Type', 'Description', 'Source'],
-            colWidths: [35, 25, 20, 35, 10]
+            colWidths: [35, 25, 20, 35, 10],
           });
-          
+
           for (const resource of filteredResources) {
             table.push([
               resource.uri,
               resource.name,
               resource.mimeType || 'text/plain',
               resource.description || '-',
-              resource.metadata?.source || 'registry'
+              resource.metadata?.source || 'registry',
             ]);
           }
-          
+
           console.log(table.toString());
           console.log(`\nTotal: ${filteredResources.length} resource(s)`);
         }

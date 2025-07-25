@@ -6,7 +6,7 @@
 /**
  * Webhook event types
  */
-export type WebhookEvent = 
+export type WebhookEvent =
   | 'agent.started'
   | 'agent.stopped'
   | 'agent.failed'

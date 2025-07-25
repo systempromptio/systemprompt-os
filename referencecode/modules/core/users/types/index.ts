@@ -40,7 +40,7 @@ export interface UserActivity {
   timestamp: Date;
 }
 
-export type ActivityType = 
+export type ActivityType =
   | 'auth.login'
   | 'auth.logout'
   | 'auth.failed'

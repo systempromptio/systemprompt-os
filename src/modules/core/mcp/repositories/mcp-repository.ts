@@ -1,19 +1,14 @@
-/* eslint-disable
-  @typescript-eslint/no-unnecessary-condition,
-  @typescript-eslint/strict-boolean-expressions,
-  systemprompt-os/no-block-comments
-*/
 /**
  * MCP repository implementation - placeholder for database operations.
  */
 
 import {
+  type IMCPConfig,
+  type IMCPContext,
+  type IMCPMessage,
+  type IMCPSession,
   type MCPRoleEnum,
   MCPSessionStatusEnum,
-  type IMCPContext,
-  type IMCPConfig,
-  type IMCPSession,
-  type IMCPMessage
 } from '@/modules/core/mcp/types/index.js';
 
 /**
@@ -21,9 +16,9 @@ import {
  */
 export class MCPRepository {
   private static instance: MCPRepository;
-  private contexts: Map<string, IMCPContext> = new Map();
-  private sessions: Map<string, IMCPSession> = new Map();
-  private messages: IMCPMessage[] = [];
+  private readonly contexts: Map<string, IMCPContext> = new Map();
+  private readonly sessions: Map<string, IMCPSession> = new Map();
+  private readonly messages: IMCPMessage[] = [];
   private messageIdCounter = 1;
 
   /**
@@ -36,9 +31,7 @@ export class MCPRepository {
    * @returns The repository instance.
    */
   static getInstance(): MCPRepository {
-    if (!MCPRepository.instance) {
-      MCPRepository.instance = new MCPRepository();
-    }
+    MCPRepository.instance ||= new MCPRepository();
     return MCPRepository.instance;
   }
 
@@ -62,17 +55,17 @@ export class MCPRepository {
     id: string,
     name: string,
     model: string,
-    config?: IMCPConfig
+    config?: IMCPConfig,
   ): Promise<IMCPContext> {
     const context: IMCPContext = {
       id,
       name,
       model,
-      config,
+      config: config || {},
       maxTokens: config?.maxTokens ?? 4096,
       temperature: config?.temperature ?? 0.7,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.contexts.set(id, context);
@@ -116,7 +109,7 @@ export class MCPRepository {
       id,
       contextId,
       status: MCPSessionStatusEnum.ACTIVE,
-      startedAt: new Date()
+      startedAt: new Date(),
     };
 
     this.sessions.set(id, session);
@@ -139,17 +132,13 @@ export class MCPRepository {
    * @param content - The message content.
    * @returns Promise that resolves to the created message.
    */
-  async createMessage(
-    sessionId: string,
-    role: MCPRoleEnum,
-    content: string
-  ): Promise<IMCPMessage> {
+  async createMessage(sessionId: string, role: MCPRoleEnum, content: string): Promise<IMCPMessage> {
     const message: IMCPMessage = {
       id: this.messageIdCounter++,
       sessionId,
       role,
       content,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     this.messages.push(message);
@@ -162,6 +151,8 @@ export class MCPRepository {
    * @returns Promise that resolves to array of messages.
    */
   async findMessagesBySessionId(sessionId: string): Promise<IMCPMessage[]> {
-    return this.messages.filter(m => m.sessionId === sessionId);
+    return this.messages.filter((m) => {
+      return m.sessionId === sessionId;
+    });
   }
 }

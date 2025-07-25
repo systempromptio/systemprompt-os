@@ -66,15 +66,15 @@ export function createLogsCommand(service: ModuleManagerService, logger?: Logger
 
 function getLogLevelColor(level: string): string {
   switch (level.toLowerCase()) {
-    case 'debug':
-      return '\x1b[36m'; // cyan
-    case 'info':
-      return '\x1b[32m'; // green
-    case 'warn':
-      return '\x1b[33m'; // yellow
-    case 'error':
-      return '\x1b[31m'; // red
-    default:
-      return '';
+  case 'debug':
+    return '\x1b[36m'; // cyan
+  case 'info':
+    return '\x1b[32m'; // green
+  case 'warn':
+    return '\x1b[33m'; // yellow
+  case 'error':
+    return '\x1b[31m'; // red
+  default:
+    return '';
   }
 }

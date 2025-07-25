@@ -16,7 +16,7 @@ export function createPermissionsListCommand(module: PermissionsModule): Command
     .action(async (options) => {
       try {
         let permissions;
-        
+
         if (options.user) {
           // Get user permissions
           permissions = await module.getUserPermissions(options.user);
@@ -26,10 +26,10 @@ export function createPermissionsListCommand(module: PermissionsModule): Command
         } else {
           // List all permissions with filter
           permissions = await module.listPermissions({
-            resource: options.resource
+            resource: options.resource,
           });
         }
-        
+
         if (options.json) {
           console.log(JSON.stringify(permissions, null, 2));
         } else {
@@ -37,19 +37,19 @@ export function createPermissionsListCommand(module: PermissionsModule): Command
             console.log('No permissions found');
             return;
           }
-          
+
           console.log('\nPermissions:');
           console.log('Resource              Action              Scope');
           console.log('-------------------   -----------------   --------');
-          
+
           permissions.forEach(perm => {
             const resource = perm.resource.padEnd(20).substring(0, 20);
             const action = perm.action.padEnd(18).substring(0, 18);
             const scope = perm.scope || 'all';
-            
+
             console.log(`${resource} ${action} ${scope}`);
           });
-          
+
           console.log(`\nTotal: ${permissions.length} permission(s)\n`);
         }
       } catch (error: any) {
@@ -57,6 +57,6 @@ export function createPermissionsListCommand(module: PermissionsModule): Command
         process.exit(1);
       }
     });
-  
+
   return cmd;
 }

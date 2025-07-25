@@ -24,9 +24,9 @@ export function createPromptsUpdateCommand(module: MCPModule): Command {
           console.error(`Prompt '${name}' not found`);
           process.exit(1);
         }
-        
+
         let updateData: any = {};
-        
+
         // Read from file if specified
         if (options.file) {
           const content = await fs.readFile(options.file, 'utf-8');
@@ -37,7 +37,7 @@ export function createPromptsUpdateCommand(module: MCPModule): Command {
             updateData = JSON.parse(content);
           }
         }
-        
+
         // Override with command line options
         if (options.description !== undefined) {updateData.description = options.description;}
         if (options.arguments) {
@@ -46,7 +46,7 @@ export function createPromptsUpdateCommand(module: MCPModule): Command {
         if (options.messages) {
           updateData.messages = JSON.parse(options.messages);
         }
-        
+
         // Validate messages if provided
         if (updateData.messages) {
           if (!Array.isArray(updateData.messages) || updateData.messages.length === 0) {
@@ -64,7 +64,7 @@ export function createPromptsUpdateCommand(module: MCPModule): Command {
             }
           }
         }
-        
+
         // Validate arguments if provided
         if (updateData.arguments) {
           if (!Array.isArray(updateData.arguments)) {
@@ -78,22 +78,22 @@ export function createPromptsUpdateCommand(module: MCPModule): Command {
             }
           }
         }
-        
+
         if (options.dryRun) {
           console.log(`Would update prompt '${name}' with:`);
           console.log(JSON.stringify(updateData, null, 2));
           return;
         }
-        
+
         // Update the prompt
         const updated = await module.updatePrompt(name, updateData);
         if (!updated) {
           console.error(`Failed to update prompt '${name}'`);
           process.exit(1);
         }
-        
+
         console.log(`Prompt '${name}' updated successfully`);
-        
+
       } catch (error: any) {
         console.error('Error:', error.message);
         process.exit(1);

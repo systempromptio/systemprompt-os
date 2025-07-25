@@ -47,7 +47,7 @@ async function execute(options: { file1?: string; file2: string; format?: string
       // Text format output
       const file1Source = options.file1 || 'current configuration';
       const file2Source = options.file2;
-      console.log(`\nConfiguration Differences`);
+      console.log('\nConfiguration Differences');
       console.log(`Comparing: ${file1Source} with ${file2Source}`);
       console.log('='.repeat(60));
 

@@ -40,14 +40,14 @@ export function createInfoCommand(service: ModuleManagerService, _logger?: Logge
 
         // Check for additional module details
         if (moduleInfo.dependencies && moduleInfo.dependencies.length > 0) {
-          console.log(`\nDependencies:`);
+          console.log('\nDependencies:');
           moduleInfo.dependencies.forEach((dep) => {
             console.log(`  - ${dep}`);
           });
         }
 
         if (moduleInfo.exports && moduleInfo.exports['length'] > 0) {
-          console.log(`\nExports:`);
+          console.log('\nExports:');
           moduleInfo.exports['forEach']((exp: any) => {
             console.log(`  - ${exp}`);
           });
@@ -55,7 +55,7 @@ export function createInfoCommand(service: ModuleManagerService, _logger?: Logge
 
         // Check for CLI commands
         if (moduleInfo.cli?.['commands'] && Array.isArray(moduleInfo.cli['commands']) && moduleInfo.cli['commands'].length > 0) {
-          console.log(`\nCLI Commands:`);
+          console.log('\nCLI Commands:');
           moduleInfo.cli['commands'].forEach((cmd: any) => {
             console.log(`  - ${cmd.name}: ${cmd.description}`);
           });
@@ -63,14 +63,14 @@ export function createInfoCommand(service: ModuleManagerService, _logger?: Logge
 
         // Check directory structure if path exists
         if (moduleInfo.path && existsSync(moduleInfo.path)) {
-          console.log(`\nDirectory Structure:`);
+          console.log('\nDirectory Structure:');
           try {
             const files = readdirSync(moduleInfo.path);
             files.forEach((file) => {
               console.log(`  - ${file}`);
             });
           } catch {
-            console.log(`  (Unable to read directory)`);
+            console.log('  (Unable to read directory)');
           }
         }
 

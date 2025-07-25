@@ -1,8 +1,6 @@
 /* eslint-disable
   systemprompt-os/enforce-module-structure,
   systemprompt-os/no-block-comments,
-  @typescript-eslint/no-unsafe-member-access,
-  @typescript-eslint/no-unsafe-argument,
   systemprompt-os/no-line-comments,
   systemprompt-os/no-comments-in-functions,
   @typescript-eslint/no-unnecessary-condition,
@@ -18,8 +16,7 @@
   jsdoc/check-param-names,
   @typescript-eslint/prefer-nullish-coalescing,
   @typescript-eslint/dot-notation,
-  @typescript-eslint/consistent-type-assertions,
-  @typescript-eslint/no-unsafe-return
+  @typescript-eslint/consistent-type-assertions
 */
 /**
  * Executor repository implementation - placeholder for database operations.
@@ -28,8 +25,8 @@
  * Provides database operations for executor entities.
  */
 
-import type { ModuleDatabaseAdapter } from '@/modules/core/database/types/index.js';
-import { createModuleAdapter } from '@/modules/core/database/adapters/module-adapter.js';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types.js';
+import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import {
   ExecutorRunStatusEnum,
   ExecutorStatusEnum,
@@ -44,7 +41,7 @@ import {
  */
 export class ExecutorRepository {
   private static instance: ExecutorRepository;
-  private db?: ModuleDatabaseAdapter;
+  private db?: IModuleDatabaseAdapter;
 
   /**
    * Private constructor for singleton.
@@ -212,7 +209,15 @@ export class ExecutorRepository {
       []
     );
 
-    return rows.map((row): IExecutor => {
+    return rows.map((row: {
+      id: string;
+      name: string;
+      type: ExecutorTypeEnum;
+      status: ExecutorStatusEnum;
+      config: string | null;
+      'created_at': string;
+      'updated_at': string;
+    }): IExecutor => {
       const executor: IExecutor = {
         id: row.id,
         name: row.name,

@@ -21,18 +21,18 @@ const requestCounts = new Map<string, { count: number; resetTime: number }>();
  */
 export function rateLimitMiddleware(
   windowMs: number = 60000,
-  maxRequests: number = 100
+  maxRequests: number = 100,
 ) {
   return ( req: Request, res: Response, next: NextFunction): void => {
     const key = req.ip || 'unknown';
     const now = Date.now();
-    
+
     let rateData = requestCounts.get( key);
     if (!rateData || now > rateData.resetTime) {
       rateData = { count: 0, resetTime: now + windowMs };
       requestCounts.set(key, rateData);
     }
-    
+
     if (rateData.count >= maxRequests) {
       logger.warn('Rate limit exceeded', { ip: key, count: rateData.count });
       res.status(429).json({
@@ -46,7 +46,7 @@ export function rateLimitMiddleware(
       });
       return;
     }
-    
+
     rateData.count++;
     next();
   };
@@ -60,12 +60,12 @@ export function rateLimitMiddleware(
  */
 export function validateProtocolVersion( req: Request, res: Response, next: NextFunction): void {
   const version = req.headers['mcp-protocol-version'];
-  
+
   if (!version) {
     next();
     return;
   }
-  
+
   const supportedVersions = ['2025-06-18', '2025-03-26', '2024-11-05'];
   if (!supportedVersions.includes(version as string)) {
     logger.warn('Unsupported protocol version', { version });
@@ -80,7 +80,7 @@ export function validateProtocolVersion( req: Request, res: Response, next: Next
     });
     return;
   }
-  
+
   next();
 }
 
@@ -96,7 +96,7 @@ export function validateProtocolVersion( req: Request, res: Response, next: Next
 export function requestSizeLimit( maxSize: number = 10 * 1024 * 1024) {
   return ( req: Request, res: Response, next: NextFunction): void => {
     const contentLength = parseInt(req.headers['content-length'] || '0', 10);
-    
+
     if (contentLength > maxSize) {
       logger.warn('Request too large', { size: contentLength, maxSize });
       res.status(413).json({
@@ -110,7 +110,7 @@ export function requestSizeLimit( maxSize: number = 10 * 1024 * 1024) {
       });
       return;
     }
-    
+
     next();
   };
 }

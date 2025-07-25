@@ -5,15 +5,15 @@
  * @module database
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service.js';
-import { SchemaService } from '@/modules/core/database/services/schema.service.js';
-import { MigrationService } from '@/modules/core/database/services/migration.service.js';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service.js';
-import { SQLParserService } from '@/modules/core/database/services/sql-parser.service.js';
-import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service.js';
-import type { ILogger } from '@/modules/core/logger/types/index.js';
-import type { IDatabaseConfig } from '@/modules/core/database/types/database.types.js';
-import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { SchemaService } from '@/modules/core/database/services/schema.service';
+import { MigrationService } from '@/modules/core/database/services/migration.service';
+import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
+import { SQLParserService } from '@/modules/core/database/services/sql-parser.service';
+import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
+import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 
 /**
  * Export services.
@@ -66,7 +66,7 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
 
   const dbService = DatabaseService.initialize(config, logger);
   const sqlParser = SQLParserService.initialize(logger);
-  const schemaImport = SchemaImportService.initialize(dbService, sqlParser, logger);
+  const schemaImport = SchemaImportService.initialize(dbService as any, sqlParser, logger);
   const schemaService = SchemaService.initialize(dbService, schemaImport, logger);
   const migrationService = MigrationService.initialize(dbService, logger);
 

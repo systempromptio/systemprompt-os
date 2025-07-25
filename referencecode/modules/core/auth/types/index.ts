@@ -30,7 +30,7 @@ export interface AuthToken {
   metadata?: Record<string, unknown>;
 }
 
-export type TokenType = 
+export type TokenType =
   | 'access'
   | 'refresh'
   | 'api'
@@ -84,7 +84,7 @@ export interface AuthAuditEntry {
   timestamp: Date;
 }
 
-export type AuthAuditAction = 
+export type AuthAuditAction =
   | 'auth.login'
   | 'auth.logout'
   | 'auth.failed'

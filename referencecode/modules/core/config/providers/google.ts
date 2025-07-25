@@ -4,7 +4,7 @@
  */
 
 import type {
-  SafetySetting
+  SafetySetting,
 } from '@google/genai';
 import { HarmCategory, HarmBlockThreshold } from '@google/genai';
 import type { ProviderConfig, GoogleLiveAPIConfig, ModelConfig } from '../types/provider.js';
@@ -15,20 +15,20 @@ import type { ProviderConfig, GoogleLiveAPIConfig, ModelConfig } from '../types/
 const defaultSafetySettings: SafetySetting[] = [
   {
     category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
   },
   {
     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
   },
   {
     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
   },
   {
     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
-  }
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
 ];
 
 /**
@@ -45,12 +45,12 @@ const models: Record<string, ModelConfig> = {
       topP: 0.95,
       maxOutputTokens: 8192,
       candidateCount: 1,
-      stopSequences: []
+      stopSequences: [],
     },
     safetySettings: defaultSafetySettings,
-    systemInstruction: 'You are a helpful AI assistant. Be concise and accurate in your responses.'
+    systemInstruction: 'You are a helpful AI assistant. Be concise and accurate in your responses.',
   },
-  
+
   coder: {
     model: 'gemini-1.5-pro',
     displayName: 'Gemini 1.5 Pro (Coder)',
@@ -60,13 +60,13 @@ const models: Record<string, ModelConfig> = {
       topK: 20,
       topP: 0.8,
       maxOutputTokens: 16384,
-      candidateCount: 1
+      candidateCount: 1,
     },
     safetySettings: defaultSafetySettings,
     systemInstruction: 'You are an expert software engineer. Provide clear, efficient, and well-documented code. Follow best practices and consider edge cases.',
-    tools: [{ codeExecution: {} }]
+    tools: [{ codeExecution: {} }],
   },
-  
+
   creative: {
     model: 'gemini-1.5-flash',
     displayName: 'Gemini 1.5 Flash (Creative)',
@@ -76,12 +76,12 @@ const models: Record<string, ModelConfig> = {
       topK: 60,
       topP: 0.95,
       maxOutputTokens: 8192,
-      candidateCount: 1
+      candidateCount: 1,
     },
     safetySettings: defaultSafetySettings,
-    systemInstruction: 'You are a creative writing assistant. Generate engaging, original, and imaginative content.'
+    systemInstruction: 'You are a creative writing assistant. Generate engaging, original, and imaginative content.',
   },
-  
+
   analyst: {
     model: 'gemini-1.5-pro',
     displayName: 'Gemini 1.5 Pro (Analyst)',
@@ -92,12 +92,12 @@ const models: Record<string, ModelConfig> = {
       topP: 0.9,
       maxOutputTokens: 8192,
       candidateCount: 1,
-      responseMimeType: 'application/json'
+      responseMimeType: 'application/json',
     },
     safetySettings: defaultSafetySettings,
     systemInstruction: 'You are a data analyst. Provide accurate, detailed analysis with clear insights. Use structured formats when appropriate.',
-    tools: [{ codeExecution: {} }]
-  }
+    tools: [{ codeExecution: {} }],
+  },
 };
 
 /**
@@ -112,13 +112,13 @@ export const googleLiveAPIProvider: ProviderConfig = {
   config: {
     client: {
       apiKey: process.env['GEMINI_API_KEY'] || '',
-      vertexai: false
+      vertexai: false,
       // project: process.env.GOOGLE_CLOUD_PROJECT,  // For Vertex AI
       // location: process.env.GOOGLE_CLOUD_LOCATION  // For Vertex AI
     },
     defaultModel: 'default',
-    models
-  } as GoogleLiveAPIConfig
+    models,
+  } as GoogleLiveAPIConfig,
 };
 
 /**
@@ -135,6 +135,4 @@ export function getClientOptions(): { apiKey: string; vertexai?: boolean } {
   const config = googleLiveAPIProvider.config as GoogleLiveAPIConfig;
   return config.client;
 }
-
-
 

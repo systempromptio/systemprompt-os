@@ -212,7 +212,7 @@ export interface MCPError extends Error {
   details?: any;
 }
 
-export type MCPEventType = 
+export type MCPEventType =
   | 'tool:executed'
   | 'prompt:executed'
   | 'resource:accessed'

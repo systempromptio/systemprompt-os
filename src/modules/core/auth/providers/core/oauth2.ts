@@ -1,6 +1,6 @@
 import type {
-  IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/modules/core/auth/types/provider-interface.js';
+  IDPConfig, IDPTokens, IDPUserInfo, IIdentityProvider
+} from '@/modules/core/auth/types/provider-interface';
 
 /**
  *
@@ -11,8 +11,8 @@ import type {
 export interface IGenericOAuth2Config extends IDPConfig {
   id: string;
   name: string;
-  authorizationEndpoint: string;
-  tokenEndpoint: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
   userinfo_endpoint?: string;
   issuer?: string;
   jwks_uri?: string;
@@ -29,13 +29,16 @@ export interface IGenericOAuth2Config extends IDPConfig {
   };
 }
 
+// Type alias for compatibility
+export type GenericOAuth2Config = IGenericOAuth2Config;
+
 /**
  *
  * GenericOAuth2Provider class.
  *
  */
 
-export class GenericOAuth2Provider implements IdentityProvider {
+export class GenericOAuth2Provider implements IIdentityProvider {
   id: string;
   name: string;
   type: 'oauth2' | 'oidc';
@@ -48,15 +51,15 @@ export class GenericOAuth2Provider implements IdentityProvider {
     this.config = {
       ...config,
       scope: config.scope || 'openid email profile',
-      userinfoMapping: config.userinfo_mapping || {},
+      userinfo_mapping: config.userinfo_mapping || {},
     };
   }
 
   getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
-      clientId: this.config.clientId,
-      redirectUri: this.config.redirect_uri,
-      responseType: 'code',
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
+      response_type: 'code',
       scope: this.config.scope!,
       state,
     });
@@ -79,11 +82,11 @@ export class GenericOAuth2Provider implements IdentityProvider {
 
   async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      grantType: 'authorization_code',
+      grant_type: 'authorization_code',
       code,
-      redirectUri: this.config.redirect_uri,
-      clientId: this.config.clientId,
-      clientSecret: this.config.client_secret || '',
+      redirect_uri: this.config.redirectUri,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret || '',
     });
 
     const response = await fetch(this.config.token_endpoint, {
@@ -127,21 +130,21 @@ export class GenericOAuth2Provider implements IdentityProvider {
      * Map the response to our standard format.
      */
     return {
-      id: this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id,
-      email: this.getNestedValue(data, mapping.email || 'email'),
-      emailVerified: this.getNestedValue(data, mapping.email_verified || 'email_verified'),
-      name: this.getNestedValue(data, mapping.name || 'name'),
-      picture: this.getNestedValue(data, mapping.picture || 'picture'),
+      id: String(this.getNestedValue(data, mapping.id || 'sub') || data.sub || data.id),
+      email: String(this.getNestedValue(data, mapping.email || 'email')),
+      email_verified: Boolean(this.getNestedValue(data, mapping.email_verified || 'email_verified')),
+      name: String(this.getNestedValue(data, mapping.name || 'name')),
+      picture: String(this.getNestedValue(data, mapping.picture || 'picture')),
       raw: data as Record<string, unknown>,
     };
   }
 
   async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const params = new URLSearchParams({
-      grantType: 'refresh_token',
-      refreshToken,
-      clientId: this.config.clientId,
-      clientSecret: this.config.client_secret || '',
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret || '',
     });
 
     const response = await fetch(this.config.token_endpoint, {
@@ -162,7 +165,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
   }
 
   private getNestedValue(obj: unknown, path: string): unknown {
-    return path.split('.').reduce((curr, prop) : void => { return curr?.[prop] }, obj);
+    return path.split('.').reduce((curr: any, prop: string) => { return curr?.[prop] }, obj);
   }
 }
 
@@ -178,13 +181,13 @@ export async function discoverOIDCConfiguration(issuer: string): Promise<Partial
 
   return {
     issuer: config.issuer,
-    authorizationEndpoint: config.authorization_endpoint,
-    tokenEndpoint: config.token_endpoint,
-    userinfoEndpoint: config.userinfo_endpoint,
-    jwksUri: config.jwks_uri,
-    scopesSupported: config.scopes_supported,
-    responsetypesSupported: config.response_types_supported,
-    granttypesSupported: config.grant_types_supported,
-    tokenendpointauthMethods: config.token_endpoint_auth_methods_supported,
+    authorization_endpoint: config.authorization_endpoint,
+    token_endpoint: config.token_endpoint,
+    userinfo_endpoint: config.userinfo_endpoint,
+    jwks_uri: config.jwks_uri,
+    scopes_supported: config.scopes_supported,
+    response_types_supported: config.response_types_supported,
+    grant_types_supported: config.grant_types_supported,
+    token_endpoint_auth_methods: config.token_endpoint_auth_methods_supported,
   };
 }

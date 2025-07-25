@@ -1,15 +1,17 @@
 /**
-
+ *
  * IToolDefinition interface.
-
+ *
  */
 
-export interface IIToolDefinition {
+export interface IToolDefinition {
   name: string;
   description: string;
   inputSchema: unknown;
   execute: (_input: unknown,_context: unknown) => Promise<unknown>;
 }
+
+type ToolDefinition = IToolDefinition;
 
 export const tool: ToolDefinition = {
   name: 'whoami',
@@ -31,27 +33,27 @@ export const tool: ToolDefinition = {
     },
     additionalProperties: false
   },
-  execute: async (_params: unknown,_context: unknown) => {
-    const { includePermissions = false, includeSession = false } = params || {};
+  execute: async (params: unknown, context: unknown) => {
+    const { includePermissions = false, includeSession = false } = (params as any) || {};
 
-    const result: unknown = {
-      message: `User: ${context.userEmail || 'user@example.com'} (${context.userId || 'anonymous'})`,
+    const result: any = {
+      message: `User: ${(context as any)?.userEmail || 'user@example.com'} (${(context as any)?.userId || 'anonymous'})`,
       result: {
-        userId: context.userId || 'anonymous',
-        email: context.userEmail || 'user@example.com',
-        role: context.role || 'basic',
-        isAdmin: context.role === 'admin'
+        userId: (context as any)?.userId || 'anonymous',
+        email: (context as any)?.userEmail || 'user@example.com',
+        role: (context as any)?.role || 'basic',
+        isAdmin: (context as any)?.role === 'admin'
       }
     };
 
-    if (includePermissions)) {
-      result.result.permissions = context.permissions || ['read:own'];
+    if (includePermissions) {
+      result.result.permissions = (context as any)?.permissions || ['read:own'];
     }
 
-    if (includeSession)) {
+    if (includeSession) {
       result.result.session = {
-        id: context.sessionId || 'local-session',
-        isLocal: context.isLocal || false
+        id: (context as any)?.sessionId || 'local-session',
+        isLocal: (context as any)?.isLocal || false
       };
     }
 

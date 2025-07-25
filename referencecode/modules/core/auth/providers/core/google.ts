@@ -3,27 +3,27 @@
  * @module modules/core/auth/services/providers/google
  */
 
-import type { IdentityProvider, IDPConfig, IDPTokens, IDPUserInfo } from "../../types/provider-interface.js";
+import type { IdentityProvider, IDPConfig, IDPTokens, IDPUserInfo } from '../../types/provider-interface.js';
 
 export interface GoogleConfig extends IDPConfig {
   discoveryurl?: string;
 }
 
 export class GoogleProvider implements IdentityProvider {
-  id = "google";
-  name = "Google";
-  type = "oidc" as const;
+  id = 'google';
+  name = 'Google';
+  type = 'oidc' as const;
 
   private readonly config: GoogleConfig;
-  private readonly authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
-  private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
-  private readonly userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
-  private readonly revocationEndpoint = "https://oauth2.googleapis.com/revoke";
+  private readonly authorizationEndpoint = 'https://accounts.google.com/o/oauth2/v2/auth';
+  private readonly tokenEndpoint = 'https://oauth2.googleapis.com/token';
+  private readonly userInfoEndpoint = 'https://www.googleapis.com/oauth2/v3/userinfo';
+  private readonly revocationEndpoint = 'https://oauth2.googleapis.com/revoke';
 
   constructor(config: GoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope || "openid email profile",
+      scope: config.scope || 'openid email profile',
     };
   }
 
@@ -31,15 +31,15 @@ export class GoogleProvider implements IdentityProvider {
     const params = new URLSearchParams({
       client_id: this.config.client_id,
       redirect_uri: this.config.redirect_uri,
-      response_type: "code",
+      response_type: 'code',
       scope: this.config.scope!,
       state,
-      access_type: "offline",
-      prompt: "consent",
+      access_type: 'offline',
+      prompt: 'consent',
     });
 
     if (nonce) {
-      params.append("nonce", nonce);
+      params.append('nonce', nonce);
     }
 
     return `${this.authorizationEndpoint}?${params}`;
@@ -51,13 +51,13 @@ export class GoogleProvider implements IdentityProvider {
       client_id: this.config.client_id,
       client_secret: this.config.client_secret || '',
       redirect_uri: this.config.redirect_uri,
-      grant_type: "authorization_code",
+      grant_type: 'authorization_code',
     });
 
     const response = await fetch(this.tokenEndpoint, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params,
     });
@@ -100,13 +100,13 @@ export class GoogleProvider implements IdentityProvider {
       refresh_token: refreshToken,
       client_id: this.config.client_id,
       client_secret: this.config.client_secret || '',
-      grant_type: "refresh_token",
+      grant_type: 'refresh_token',
     });
 
     const response = await fetch(this.tokenEndpoint, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params,
     });
@@ -123,9 +123,9 @@ export class GoogleProvider implements IdentityProvider {
     const params = new URLSearchParams({ token });
 
     const response = await fetch(this.revocationEndpoint, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params,
     });

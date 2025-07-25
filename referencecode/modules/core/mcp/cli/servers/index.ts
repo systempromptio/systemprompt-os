@@ -10,9 +10,9 @@ import { createServersListCommand } from './list.js';
 export function createServersCommand(module: MCPModule): Command {
   const cmd = new Command('servers')
     .description('Manage MCP servers');
-  
+
   // Add subcommands
   cmd.addCommand(createServersListCommand(module));
-  
+
   return cmd;
 }

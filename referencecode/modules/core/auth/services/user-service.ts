@@ -47,16 +47,16 @@ interface DatabaseConnection {
 export class UserService {
   private static instance: UserService;
   private logger?: Logger;
-  
+
   private constructor(private readonly db: DatabaseService) {}
-  
+
   static getInstance(): UserService {
     if (!this.instance) {
       this.instance = new UserService(DatabaseService.getInstance());
     }
     return this.instance;
   }
-  
+
   setLogger(logger: Logger): void {
     this.logger = logger;
   }
@@ -70,7 +70,7 @@ export class UserService {
       `SELECT COUNT(*) as count FROM auth_users u 
        JOIN auth_user_roles ur ON u.id = ur.user_id 
        JOIN auth_roles r ON ur.role_id = r.id 
-       WHERE r.name = 'admin'`
+       WHERE r.name = 'admin'`,
     );
     return (result[0]?.count || 0) > 0;
   }
@@ -81,7 +81,7 @@ export class UserService {
    */
   async createOrUpdateUserFromOAuth(options: CreateUserOptions): Promise<User> {
     const { provider, providerId, email, name, avatar } = options;
-    
+
     // Check if admins exist BEFORE starting the transaction
     const hasAdmins = await this.hasAdminUsers();
     this.logger?.info('Creating/updating user', { email, hasAdmins });
@@ -91,7 +91,7 @@ export class UserService {
       const identityResult = await conn.query<{ user_id: string }>(
         `SELECT user_id FROM auth_oauth_identities 
          WHERE provider = ? AND provider_user_id = ?`,
-        [provider, providerId]
+        [provider, providerId],
       );
       const identity = identityResult.rows[0];
 
@@ -104,17 +104,17 @@ export class UserService {
           `UPDATE auth_users 
            SET name = ?, avatar_url = ?, last_login_at = datetime('now'), updated_at = datetime('now')
            WHERE id = ?`,
-          [name || null, avatar || null, userId]
+          [name || null, avatar || null, userId],
         );
         this.logger?.info('Updated existing user', { userId, email });
       } else {
         // Create new user
         userId = randomUUID();
-        
+
         await conn.execute(
           `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at) 
            VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userId, email, name || null, avatar || null]
+          [userId, email, name || null, avatar || null],
         );
 
         // Insert OAuth identity
@@ -122,22 +122,22 @@ export class UserService {
           `INSERT INTO auth_oauth_identities 
            (id, user_id, provider, provider_user_id, provider_data) 
            VALUES (?, ?, ?, ?, ?)`,
-          [randomUUID(), userId, provider, providerId, JSON.stringify({ email, name, avatar })]
+          [randomUUID(), userId, provider, providerId, JSON.stringify({ email, name, avatar })],
         );
 
         // Assign role based on whether admins exist
         // This decision was made BEFORE the transaction started
         const roleId = hasAdmins ? 'role_user' : 'role_admin';
-        
+
         await conn.execute(
-          `INSERT INTO auth_user_roles (user_id, role_id) VALUES (?, ?)`,
-          [userId, roleId]
+          'INSERT INTO auth_user_roles (user_id, role_id) VALUES (?, ?)',
+          [userId, roleId],
         );
-        
-        this.logger?.info('Created new user with role', { 
-          userId, 
-          email, 
-          role: hasAdmins ? 'user' : 'admin' 
+
+        this.logger?.info('Created new user with role', {
+          userId,
+          email,
+          role: hasAdmins ? 'user' : 'admin',
         });
       }
 
@@ -157,9 +157,9 @@ export class UserService {
   private async getUserByIdWithConnection(userId: string, conn: DatabaseConnection): Promise<User | null> {
     const userResult = await conn.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
-      [userId]
+      [userId],
     );
-    
+
     const userRow = userResult.rows[0];
     if (!userRow) {
       return null;
@@ -170,7 +170,7 @@ export class UserService {
       `SELECT r.name FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.role_id
        WHERE ur.user_id = ?`,
-      [userId]
+      [userId],
     );
 
     return {
@@ -180,7 +180,7 @@ export class UserService {
       avatar_url: userRow.avatar_url,
       roles: rolesResult.rows.map(r => r.name),
       created_at: userRow.created_at,
-      updated_at: userRow.updated_at
+      updated_at: userRow.updated_at,
     };
   }
 
@@ -190,9 +190,9 @@ export class UserService {
   async getUserById(userId: string): Promise<User | null> {
     const userRows = await this.db.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE id = ?',
-      [userId]
+      [userId],
     );
-    
+
     const userRow = userRows[0];
     if (!userRow) {
       return null;
@@ -203,7 +203,7 @@ export class UserService {
       `SELECT r.name FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.role_id
        WHERE ur.user_id = ?`,
-      [userId]
+      [userId],
     );
 
     return {
@@ -213,7 +213,7 @@ export class UserService {
       avatar_url: userRow.avatar_url,
       roles: roles.map((r: { name: string }) => r.name),
       created_at: userRow.created_at,
-      updated_at: userRow.updated_at
+      updated_at: userRow.updated_at,
     };
   }
 
@@ -223,9 +223,9 @@ export class UserService {
   async getUserByEmail(email: string): Promise<User | null> {
     const userRows = await this.db.query<DatabaseUser>(
       'SELECT * FROM auth_users WHERE email = ?',
-      [email]
+      [email],
     );
-    
+
     const userRow = userRows[0];
     if (!userRow) {
       return null;

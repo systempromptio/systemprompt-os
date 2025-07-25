@@ -72,20 +72,20 @@ export class MetricsService {
     let since: number;
 
     switch (period) {
-      case '1h':
-        since = now - 60 * 60 * 1000;
-        break;
-      case '24h':
-        since = now - 24 * 60 * 60 * 1000;
-        break;
-      case '7d':
-        since = now - 7 * 24 * 60 * 60 * 1000;
-        break;
-      case '30d':
-        since = now - 30 * 24 * 60 * 60 * 1000;
-        break;
-      default:
-        since = now - 60 * 60 * 1000; // Default to 1 hour
+    case '1h':
+      since = now - 60 * 60 * 1000;
+      break;
+    case '24h':
+      since = now - 24 * 60 * 60 * 1000;
+      break;
+    case '7d':
+      since = now - 7 * 24 * 60 * 60 * 1000;
+      break;
+    case '30d':
+      since = now - 30 * 24 * 60 * 60 * 1000;
+      break;
+    default:
+      since = now - 60 * 60 * 1000; // Default to 1 hour
     }
 
     return this.metrics.filter((m) => m.timestamp.getTime() >= since);

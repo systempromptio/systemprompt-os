@@ -4,6 +4,7 @@
  * @module database/errors
  */
 
+import { DatabaseError as DatabaseErrorClass } from '@/modules/core/database/errors/base.error';
 export { DatabaseError } from '@/modules/core/database/errors/base.error';
 export { ConnectionError } from '@/modules/core/database/errors/connection.error';
 export { QueryError } from '@/modules/core/database/errors/query.error';
@@ -14,6 +15,6 @@ export { ModuleDatabaseError } from '@/modules/core/database/errors/module-datab
  * @param error - The error to check.
  * @returns True if error is a DatabaseError.
  */
-export const isDatabaseError = (error: unknown): error is import('./base.error.js').DatabaseError => {
-  return error instanceof (await import('./base.error.js')).DatabaseError;
+export const isDatabaseError = (error: unknown): error is DatabaseErrorClass => {
+  return error instanceof DatabaseErrorClass;
 };

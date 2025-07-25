@@ -8,14 +8,14 @@ import type { MonitorRepository } from '../repositories/monitor-repository.js';
 import { MetricService } from './metric-service.js';
 import { AlertService } from './alert-service.js';
 import { TraceService } from './trace-service.js';
-import type { 
-  MonitorStatus, 
+import type {
+  MonitorStatus,
   MonitoringExport,
   Alert,
   AlertConfig,
   MetricQuery,
   MetricResult,
-  Trace
+  Trace,
 } from '../types/monitor.types.js';
 
 export class MonitorService extends EventEmitter {
@@ -26,7 +26,7 @@ export class MonitorService extends EventEmitter {
   constructor(
     private readonly repository: MonitorRepository,
     private readonly logger: any,
-    private readonly config: any
+    private readonly config: any,
   ) {
     super();
 
@@ -40,7 +40,7 @@ export class MonitorService extends EventEmitter {
     await Promise.all([
       this.metricService.initialize(),
       this.alertService.initialize(),
-      this.traceService.initialize()
+      this.traceService.initialize(),
     ]);
 
     // Forward events from sub-services
@@ -57,7 +57,7 @@ export class MonitorService extends EventEmitter {
     await Promise.all([
       this.metricService.shutdown(),
       this.alertService.shutdown(),
-      this.traceService.shutdown()
+      this.traceService.shutdown(),
     ]);
   }
 
@@ -67,7 +67,7 @@ export class MonitorService extends EventEmitter {
       this.repository.getMetricStats(),
       this.repository.getAlertStats(),
       this.repository.getTraceStats(),
-      this.metricService.getSystemMetrics()
+      this.metricService.getSystemMetrics(),
     ]);
 
     // Calculate metrics rate (per minute)
@@ -85,19 +85,19 @@ export class MonitorService extends EventEmitter {
       metrics: {
         total: metricStats.total,
         active: metricStats.unique_metrics,
-        rate: Math.round(metricsRate * 100) / 100
+        rate: Math.round(metricsRate * 100) / 100,
       },
       alerts: {
         active: alertStats.active,
         acknowledged: alertStats.acknowledged,
-        resolved_today: alertStats.resolved_today
+        resolved_today: alertStats.resolved_today,
       },
       traces: {
         total: traceStats.total,
         error_rate: Math.round(errorRate * 100) / 100,
-        avg_duration: Math.round(traceStats.avg_duration || 0)
+        avg_duration: Math.round(traceStats.avg_duration || 0),
       },
-      system: systemMetrics
+      system: systemMetrics,
     };
   }
 
@@ -105,7 +105,7 @@ export class MonitorService extends EventEmitter {
   async exportData(options: MonitoringExport): Promise<any> {
     const exportData: any = {
       exported_at: new Date().toISOString(),
-      format: options.format
+      format: options.format,
     };
 
     // Export metrics
@@ -115,7 +115,7 @@ export class MonitorService extends EventEmitter {
         const query: MetricQuery = {
           metric: metricName,
           start_time: options.start_date,
-          end_time: options.end_date
+          end_time: options.end_date,
         };
         const result = await this.metricService.queryMetrics(query);
         exportData.metrics[metricName] = result.data;
@@ -134,17 +134,17 @@ export class MonitorService extends EventEmitter {
 
     // Format based on export type
     switch (options.format) {
-      case 'json':
-        return exportData;
-      
-      case 'csv':
-        return this.formatAsCSV(exportData);
-      
-      case 'prometheus':
-        return this.formatAsPrometheus(exportData);
-      
-      default:
-        return exportData;
+    case 'json':
+      return exportData;
+
+    case 'csv':
+      return this.formatAsCSV(exportData);
+
+    case 'prometheus':
+      return this.formatAsPrometheus(exportData);
+
+    default:
+      return exportData;
     }
   }
 
@@ -222,38 +222,38 @@ export class MonitorService extends EventEmitter {
   traced<T extends (...args: any[]) => any>(
     operationName: string,
     fn: T,
-    options?: any
+    options?: any,
   ): T {
     return this.traceService.traced(operationName, fn, options);
   }
 
   // Cleanup operations
   async runCleanup(): Promise<void> {
-        {
-    const retentionDays = this.config?.retention?.days || 30;
-        }
-    
+    {
+      const retentionDays = this.config?.retention?.days || 30;
+    }
+
     await Promise.all([
       this.metricService.cleanupOldMetrics(retentionDays),
-      this.traceService.cleanupOldTraces(retentionDays)
+      this.traceService.cleanupOldTraces(retentionDays),
     ]);
   }
 
   // Private formatting methods
   private formatAsCSV(data: any): string {
-        {
-    const lines: string[] = [];
-        }
-    
+    {
+      const lines: string[] = [];
+    }
+
     // Format metrics
     if (data.metrics) {
       lines.push('Metric,Timestamp,Value');
-        {
-      for (const [metricName, dataPoints] of Object.entries(data.metrics)) {
+      {
+        for (const [metricName, dataPoints] of Object.entries(data.metrics)) {
         }
         {
-        for (const point of dataPoints as any[]) {
-        }
+          for (const point of dataPoints as any[]) {
+          }
           lines.push(`${metricName},${point.timestamp},${point.value}`);
         }
       }
@@ -263,22 +263,22 @@ export class MonitorService extends EventEmitter {
   }
 
   private formatAsPrometheus(data: any): string {
-        {
-    const lines: string[] = [];
-        }
-    
+    {
+      const lines: string[] = [];
+    }
+
     // Format metrics in Prometheus exposition format
     if (data.metrics) {
-        {
-      for (const [metricName, dataPoints] of Object.entries(data.metrics)) {
+      {
+        for (const [metricName, dataPoints] of Object.entries(data.metrics)) {
         }
         {
-        const points = dataPoints as any[];
+          const points = dataPoints as any[];
         }
         if (points.length > 0) {
-        {
-          const latestPoint = points[points.length - 1];
-        }
+          {
+            const latestPoint = points[points.length - 1];
+          }
           lines.push(`# TYPE ${metricName} gauge`);
           lines.push(`${metricName} ${latestPoint.value} ${new Date(latestPoint.timestamp).getTime()}`);
         }

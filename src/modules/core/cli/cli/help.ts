@@ -122,9 +122,9 @@ export const command: CLICommand = {
       const moduleLoader = getModuleLoader();
       const cliModule = moduleLoader.getModule('cli') as unknown as ICliModule;
 
-      if (args.command !== undefined && args.command !== null) {
-        await showSpecificCommandHelp(args.command as string, cliService);
-      } else if (args.all === true) {
+      if ((args as any)?.command !== undefined && (args as any)?.command !== null) {
+        await showSpecificCommandHelp((args as any).command as string, cliService);
+      } else if ((args as any)?.all === true) {
         await showAllCommands(cliService);
       } else {
         await showGeneralHelp(cliModule, cliService);

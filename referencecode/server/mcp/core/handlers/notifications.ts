@@ -1,7 +1,7 @@
 /**
  * @fileoverview MCP notification handlers for sending various notification types
  * @module handlers/notifications
- * 
+ *
  * @remarks
  * This module provides functions for sending different types of MCP notifications:
  * - Operation notifications (task updates)
@@ -9,16 +9,16 @@
  * - Progress notifications
  * - Resource update notifications
  * - Roots list change notifications
- * 
+ *
  * Notifications can be sent to specific sessions or broadcast to all active sessions.
- * 
+ *
  * @example
  * ```typescript
  * import { sendOperationNotification, sendProgressNotification } from './handlers/notifications.js';
- * 
+ *
  * // Send operation notification
  * await sendOperationNotification('createtask', 'Task created successfully');
- * 
+ *
  * // Send progress notification
  * await sendProgressNotification('task-123', 50, 100, 'session-456');
  * ```
@@ -28,16 +28,15 @@ import type { ServerNotification } from '@modelcontextprotocol/sdk/types.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { getMCPHandlerInstance } from '../../../mcp.js';
 
-
 /**
  * Configuration change notification type
  */
 type ConfigNotification = {
-  method: "server/config/changed";
+  method: 'server/config/changed';
   params: {
     meta: Record<string, unknown>;
     message: string;
-    level: "info" | "warning" | "error";
+    level: 'info' | 'warning' | 'error';
     timestamp: string;
   };
 };
@@ -46,7 +45,7 @@ type ConfigNotification = {
  * Progress update notification type
  */
 type ProgressNotification = {
-  method: "notifications/progress";
+  method: 'notifications/progress';
   params: {
     progressToken: string | number;
     progress: number;
@@ -58,7 +57,7 @@ type ProgressNotification = {
  * Roots list change notification type
  */
 type RootsListChangedNotification = {
-  method: "notifications/roots/listchanged";
+  method: 'notifications/roots/listchanged';
   params?: Record<string, never>;
 };
 
@@ -66,7 +65,7 @@ type RootsListChangedNotification = {
  * Resource update notification type
  */
 type ResourcesUpdatedNotification = {
-  method: "notifications/resources/updated";
+  method: 'notifications/resources/updated';
   params: {
     uri: string;
   };
@@ -76,17 +75,17 @@ type ResourcesUpdatedNotification = {
  * Resources list change notification type
  */
 type ResourcesListChangedNotification = {
-  method: "notifications/resources/listchanged";
+  method: 'notifications/resources/listchanged';
   params?: Record<string, never>;
 };
 
 /**
  * Sends an operation notification for task-related events
- * 
+ *
  * @param operation - The operation type (e.g., 'createtask', 'updatetask')
  * @param message - The notification message
  * @param sessionId - Optional session ID for targeted notification
- * 
+ *
  * @example
  * ```typescript
  * await sendOperationNotification('endtask', 'Task completed successfully', 'session-123');
@@ -94,11 +93,11 @@ type ResourcesListChangedNotification = {
  */
 export async function sendOperationNotification( operation: string, message: string, sessionId?: string): Promise<void> {
   const notification: ServerNotification = {
-    method: "notifications/message",
+    method: 'notifications/message',
     params: {
       meta: {},
       message: `Operation ${operation}: ${message}`,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
@@ -107,35 +106,34 @@ export async function sendOperationNotification( operation: string, message: str
 
 /**
  * Sends a JSON result notification
- * 
+ *
  * @param message - The notification message
  */
 export async function sendJsonResultNotification( message: string): Promise<void> {
   const notification: ServerNotification = {
-    method: "notifications/message",
+    method: 'notifications/message',
     params: {
       meta: {},
       message: message,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
   await sendNotification( notification);
 }
 
-
 /**
  * Sends a configuration change notification
- * 
+ *
  * @param message - The configuration change message
  */
 export async function sendConfigNotification( message: string): Promise<void> {
   const notification: ConfigNotification = {
-    method: "server/config/changed",
+    method: 'server/config/changed',
     params: {
       meta: {},
       message: message,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
@@ -144,12 +142,12 @@ export async function sendConfigNotification( message: string): Promise<void> {
 
 /**
  * Sends a progress update notification
- * 
+ *
  * @param progressToken - Unique token identifying the operation
  * @param progress - Current progress value
  * @param total - Optional total value for percentage calculation
  * @param sessionId - Optional session ID for targeted notification
- * 
+ *
  * @example
  * ```typescript
  * await sendProgressNotification('task-123', 75, 100, 'session-456');
@@ -159,10 +157,10 @@ export async function sendProgressNotification(
   progressToken: string | number,
   progress: number,
   total?: number,
-  sessionId?: string
+  sessionId?: string,
 ): Promise<void> {
   const notification: ProgressNotification = {
-    method: "notifications/progress",
+    method: 'notifications/progress',
     params: {
       progressToken,
       progress,
@@ -174,22 +172,22 @@ export async function sendProgressNotification(
 
 /**
  * Sends a notification that the roots list has changed
- * 
+ *
  */
 export async function sendRootsListChangedNotification(): Promise<void> {
   const notification: RootsListChangedNotification = {
-    method: "notifications/roots/listchanged",
-    params: {}
+    method: 'notifications/roots/listchanged',
+    params: {},
   };
   await sendNotification( notification);
 }
 
 /**
  * Sends a notification that a specific resource has been updated
- * 
+ *
  * @param uri - The URI of the updated resource
  * @param sessionId - Optional session ID for targeted notification
- * 
+ *
  * @example
  * ```typescript
  * await sendResourcesUpdatedNotification('task://123', 'session-789');
@@ -197,31 +195,31 @@ export async function sendRootsListChangedNotification(): Promise<void> {
  */
 export async function sendResourcesUpdatedNotification( uri: string, sessionId?: string): Promise<void> {
   const notification: ResourcesUpdatedNotification = {
-    method: "notifications/resources/updated",
-    params: { uri }
+    method: 'notifications/resources/updated',
+    params: { uri },
   };
   await sendNotification(notification, sessionId);
 }
 
 /**
  * Sends a notification that the resources list has changed
- * 
+ *
  * @param sessionId - Optional session ID for targeted notification
  */
 export async function sendResourcesListChangedNotification(sessionId?: string): Promise<void> {
   const notification: ResourcesListChangedNotification = {
-    method: "notifications/resources/listchanged",
-    params: {}
+    method: 'notifications/resources/listchanged',
+    params: {},
   };
   await sendNotification(notification, sessionId);
 }
 
 /**
  * Internal function to send notifications to MCP clients
- * 
+ *
  * @param notification - The notification to send
  * @param sessionId - Optional session ID for targeted notification
- * 
+ *
  * @remarks
  * This function handles both targeted (session-specific) and broadcast
  * notifications. If sessionId is provided, the notification is sent only
@@ -229,7 +227,7 @@ export async function sendResourcesListChangedNotification(sessionId?: string): 
  */
 async function sendNotification(
   notification: ServerNotification | ConfigNotification | ProgressNotification | RootsListChangedNotification | ResourcesUpdatedNotification | ResourcesListChangedNotification,
-  sessionId?: string
+  sessionId?: string,
 ) {
   const handler = getMCPHandlerInstance();
   if (!handler) {
@@ -241,7 +239,7 @@ async function sendNotification(
     if (!server) {
       return;
     }
-    
+
     try {
       await server.notification(notification as ServerNotification);
     } catch ( err) {
@@ -250,19 +248,18 @@ async function sendNotification(
     }
     return;
   }
-  
+
   const activeServers = handler.getAllServers();
   if (activeServers.length === 0) {
     return;
   }
-  
-  
-  const notificationPromises = activeServers.map(async ( server: Server) => 
+
+  const notificationPromises = activeServers.map(async ( server: Server) =>
     server.notification(notification as ServerNotification).catch(() => {
       // Ignore broadcast failures silently
-    })
+    }),
   );
-  
+
   await Promise.all( notificationPromises);
 }
 

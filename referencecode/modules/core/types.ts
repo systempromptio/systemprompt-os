@@ -34,5 +34,5 @@ export const TYPES = {
   Auth: new Token<IAuthService>('Auth'),
   CLI: CLI_TOKEN,
   MCP: MCP_TOKEN,
-  Webhook: WEBHOOK_TOKEN
+  Webhook: WEBHOOK_TOKEN,
 } as const;

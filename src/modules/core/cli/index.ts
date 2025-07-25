@@ -27,7 +27,7 @@ export class CLIModule implements IModule {
   name = 'cli';
   version = '1.0.0';
   type = 'service' as const;
-  status: ModuleStatus = 'stopped';
+  status: ModuleStatus = 'stopped' as ModuleStatus;
   dependencies = ['logger', 'database'];
   private cliService?: CliService;
   private readonly logger = LoggerService.getInstance();
@@ -50,16 +50,16 @@ export class CLIModule implements IModule {
   /**
    * Start the CLI module.
    */
-  start(): void {
-    this.status = 'running';
+  async start(): Promise<void> {
+    this.status = 'running' as ModuleStatus;
     this.logger.info('CLI module started');
   }
 
   /**
    * Stop the CLI module.
    */
-  stop(): void {
-    this.status = 'stopped';
+  async stop(): Promise<void> {
+    this.status = 'stopped' as ModuleStatus;
     this.logger.info('CLI module stopped');
   }
 
@@ -67,7 +67,7 @@ export class CLIModule implements IModule {
    * Check the health of the CLI module.
    * @returns Health check result.
    */
-  healthCheck(): { healthy: boolean; message?: string } {
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     const isHealthy = this.status === ('running' as ModuleStatus) && this.cliService?.isInitialized();
     return {
       healthy: Boolean(isHealthy),

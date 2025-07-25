@@ -13,7 +13,7 @@ export class LoggerError extends Error {
     override message: string,
     public readonly code: LoggerErrorCode,
     public readonly statusCode?: number,
-    public override readonly cause?: Error
+    public override readonly cause?: Error,
   ) {
     super(message);
     this.name = 'LoggerError';
@@ -30,7 +30,7 @@ export class LoggerInitializationError extends LoggerError {
       `Logger initialization failed: ${message}`,
       LoggerErrorCode.INITIALIZATION_FAILED,
       500,
-      cause
+      cause,
     );
     this.name = 'LoggerInitializationError';
   }
@@ -45,7 +45,7 @@ export class LoggerFileWriteError extends LoggerError {
       `Failed to write to log file: ${filename}`,
       LoggerErrorCode.FILE_WRITE_FAILED,
       500,
-      cause
+      cause,
     );
     this.name = 'LoggerFileWriteError';
   }
@@ -60,7 +60,7 @@ export class LoggerFileReadError extends LoggerError {
       `Failed to read log file: ${filename}`,
       LoggerErrorCode.FILE_READ_FAILED,
       500,
-      cause
+      cause,
     );
     this.name = 'LoggerFileReadError';
   }
@@ -74,7 +74,7 @@ export class InvalidLogLevelError extends LoggerError {
     super(
       `Invalid log level: ${level}. Valid levels are: debug, info, warn, error`,
       LoggerErrorCode.INVALID_LOG_LEVEL,
-      400
+      400,
     );
     this.name = 'InvalidLogLevelError';
   }
@@ -89,7 +89,7 @@ export class LoggerDirectoryError extends LoggerError {
       `Failed to create or access log directory: ${directory}`,
       LoggerErrorCode.DIRECTORY_CREATE_FAILED,
       500,
-      cause
+      cause,
     );
     this.name = 'LoggerDirectoryError';
   }

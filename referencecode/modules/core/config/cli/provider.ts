@@ -22,7 +22,7 @@ async function listProviders(options: { enabled?: boolean }): Promise<void> {
   console.log('\nAI Providers:');
   console.log('=============\n');
 
-  const providerList = options.enabled 
+  const providerList = options.enabled
     ? getEnabledProviders()
     : Object.values(providers);
 
@@ -50,7 +50,7 @@ async function listProviders(options: { enabled?: boolean }): Promise<void> {
  */
 async function showProvider(options: { name: string; models?: boolean }): Promise<void> {
   const provider = getProvider(options.name);
-  
+
   if (!provider) {
     console.error(`Error: Provider '${options.name}' not found.`);
     process.exit(1);
@@ -69,7 +69,7 @@ async function showProvider(options: { name: string; models?: boolean }): Promis
     console.log('\nConfiguration:');
     console.log(`  API Key: ${config.client.apiKey ? `***${  config.client.apiKey.slice(-4)}` : 'Not set'}`);
     console.log(`  Default Model: ${config.defaultModel}`);
-    
+
     if (options.models && config.models) {
       console.log('\nAvailable Models:');
       Object.entries(config.models).forEach(([key, model]) => {
@@ -98,7 +98,7 @@ async function showProvider(options: { name: string; models?: boolean }): Promis
  */
 async function enableProviderCommand(options: { name: string }): Promise<void> {
   const provider = getProvider(options.name);
-  
+
   if (!provider) {
     console.error(`Error: Provider '${options.name}' not found.`);
     console.error('Run "provider:list" to see available providers.');
@@ -111,7 +111,7 @@ async function enableProviderCommand(options: { name: string }): Promise<void> {
   }
 
   const success = enableProvider(options.name);
-  
+
   if (success) {
     console.log(`✓ Provider '${options.name}' has been enabled.`);
     console.log(`  Display Name: ${provider.displayName}`);
@@ -127,7 +127,7 @@ async function enableProviderCommand(options: { name: string }): Promise<void> {
  */
 async function disableProviderCommand(options: { name: string }): Promise<void> {
   const provider = getProvider(options.name);
-  
+
   if (!provider) {
     console.error(`Error: Provider '${options.name}' not found.`);
     console.error('Run "provider:list" to see available providers.');
@@ -154,7 +154,7 @@ async function disableProviderCommand(options: { name: string }): Promise<void> 
   }
 
   const success = disableProvider(options.name);
-  
+
   if (success) {
     console.log(`✓ Provider '${options.name}' has been disabled.`);
     console.log(`  Remaining enabled providers: ${providerRegistry.enabledProviders.join(', ')}`);
@@ -169,7 +169,7 @@ async function disableProviderCommand(options: { name: string }): Promise<void> 
  */
 async function setDefaultProviderCommand(options: { name: string }): Promise<void> {
   const provider = getProvider(options.name);
-  
+
   if (!provider) {
     console.error(`Error: Provider '${options.name}' not found.`);
     console.error('Run "provider:list" to see available providers.');
@@ -190,7 +190,7 @@ async function setDefaultProviderCommand(options: { name: string }): Promise<voi
 
   const previousDefault = providerRegistry.defaultProvider;
   const success = setDefaultProvider(options.name);
-  
+
   if (success) {
     console.log(`✓ Default provider changed from '${previousDefault}' to '${options.name}'.`);
     console.log(`  Display Name: ${provider.displayName}`);
@@ -206,20 +206,20 @@ async function setDefaultProviderCommand(options: { name: string }): Promise<voi
  */
 async function execute(subcommand: string, options: any): Promise<void> {
   switch (subcommand) {
-    case 'list':
-      return listProviders(options);
-    case 'show':
-      return showProvider(options);
-    case 'enable':
-      return enableProviderCommand(options);
-    case 'disable':
-      return disableProviderCommand(options);
-    case 'set-default':
-      return setDefaultProviderCommand(options);
-    default:
-      console.error(`Unknown provider subcommand: ${subcommand}`);
-      console.error('Available subcommands: list, show, enable, disable, set-default');
-      process.exit(1);
+  case 'list':
+    return listProviders(options);
+  case 'show':
+    return showProvider(options);
+  case 'enable':
+    return enableProviderCommand(options);
+  case 'disable':
+    return disableProviderCommand(options);
+  case 'set-default':
+    return setDefaultProviderCommand(options);
+  default:
+    console.error(`Unknown provider subcommand: ${subcommand}`);
+    console.error('Available subcommands: list, show, enable, disable, set-default');
+    process.exit(1);
   }
 }
 
@@ -227,5 +227,5 @@ async function execute(subcommand: string, options: any): Promise<void> {
  * Command export for CLI discovery
  */
 export const command = {
-  execute
+  execute,
 };

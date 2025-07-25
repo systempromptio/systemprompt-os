@@ -2,7 +2,6 @@
   logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
-  @typescript-eslint/await-thenable,
   systemprompt-os/no-block-comments
 */
 /**
@@ -17,13 +16,11 @@ import * as os from 'os';
 import type { ILogger } from '@/modules/core/logger/types/index.js';
 import { MonitorRepository } from '@/modules/core/monitor/repositories/monitor-repository.js';
 import {
-  type MetricTypeEnum,
-  type AlertSeverityEnum,
-  type AlertComparisonEnum,
   type IMetric,
   type IMonitorAlert,
+  type IMonitorService,
   type IMonitorStats,
-  type IMonitorService
+  type MetricTypeEnum
 } from '@/modules/core/monitor/types/index.js';
 
 /**
@@ -150,7 +147,7 @@ export class MonitorService implements IMonitorService {
     for (const alert of alerts) {
       const metrics = await this.repository.findLatestMetric(alert.metricType);
       if (metrics.length > 0) {
-        const metric = metrics[0];
+        const metric = metrics[0]!;
         if (this.shouldTriggerAlert(alert, metric.metricValue)) {
           await this.triggerAlert(alert, metric.metricValue);
         }
@@ -172,9 +169,9 @@ export class MonitorService implements IMonitorService {
 
     // Calculate CPU usage (simplified)
     const cpuUsage = cpus.reduce((acc, cpu) => {
-      const total = Object.values(cpu.times).reduce((a, b) => a + b, 0);
-      const idle = cpu.times.idle;
-      return acc + ((total - idle) / total) * 100;
+      const total = Object.values(cpu.times).reduce((a, b) => { return a + b }, 0);
+      const {idle} = cpu.times;
+      return acc + (total - idle) / total * 100;
     }, 0) / cpus.length;
 
     return {
@@ -186,7 +183,7 @@ export class MonitorService implements IMonitorService {
         total: totalMemory,
         used: usedMemory,
         free: freeMemory,
-        percentage: (usedMemory / totalMemory) * 100
+        percentage: usedMemory / totalMemory * 100
       },
       disk: {
         // Placeholder values - would need platform-specific implementation

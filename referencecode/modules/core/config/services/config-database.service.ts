@@ -332,19 +332,19 @@ export class ConfigDatabaseService {
   // Utility methods
   private parseValue(value: string, type: ConfigSetting['type']): ConfigValue {
     switch (type) {
-      case 'number':
-        return Number(value);
-      case 'boolean':
-        return value === 'true' || value === '1';
-      case 'json':
-      case 'array':
-        try {
-          return JSON.parse(value);
-        } catch {
-          return value;
-        }
-      default:
+    case 'number':
+      return Number(value);
+    case 'boolean':
+      return value === 'true' || value === '1';
+    case 'json':
+    case 'array':
+      try {
+        return JSON.parse(value);
+      } catch {
         return value;
+      }
+    default:
+      return value;
     }
   }
 
