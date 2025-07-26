@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { UsersModule } from '../../../src/modules/core/users/index.js';
-import type { User, UserSession, UserActivity } from '../../../src/modules/core/users/types/index.js';
+import { UsersModule, createModule, initialize } from '../../../../../src/modules/core/users/index.js';
+import type { IUsersModuleExports } from '../../../../../src/modules/core/users/index.js';
 
 describe('UsersModule', () => {
   let module: UsersModule;

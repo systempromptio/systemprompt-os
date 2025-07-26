@@ -5,7 +5,8 @@ import {
   dirname, join, resolve
 } from 'path';
 import { fileURLToPath } from 'url';
-import { type IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
@@ -13,9 +14,9 @@ import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
 import { TunnelService } from '@/modules/core/auth/services/tunnel-service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
-import { UserService } from '@/modules/core/auth/services/user-service';
+import { UserService } from '@/modules/core/auth/services/user.service';
 import { MFAService } from '@/modules/core/auth/services/mfa.service';
-import { AuditService } from '@/modules/core/auth/services/audit.service';
+import { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import { ConfigurationError } from '@/modules/core/auth/utils/errors';
 import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
@@ -24,7 +25,6 @@ import {
 } from '@/const/numbers';
 import type {
   AuthConfig,
-  AuthModuleExports,
   AuthToken,
   IdentityProvider,
   LoginInput,
@@ -32,7 +32,29 @@ import type {
   TokenCreateInput,
   TokenValidationResult
 } from '@/modules/core/auth/types/index';
-import { AuthCodeService } from './services/auth-code.service';
+
+/**
+ * Strongly typed exports interface for Auth module.
+ */
+export interface IAuthModuleExports {
+  readonly service: () => AuthService;
+  readonly tokenService: () => TokenService;
+  readonly userService: () => UserService;
+  readonly authCodeService: () => AuthCodeService;
+  readonly mfaService: () => MFAService;
+  readonly auditService: () => AuthAuditService;
+  readonly oauth2ConfigService: () => OAuth2ConfigurationService;
+  readonly getProvider: (id: string) => IdentityProvider | undefined;
+  readonly getAllProviders: () => IdentityProvider[];
+  readonly createToken: (input: TokenCreateInput) => Promise<AuthToken>;
+  readonly validateToken: (token: string) => Promise<TokenValidationResult>;
+  readonly hasProvider: (id: string) => boolean;
+  readonly getProviderRegistry: () => ProviderRegistry | null;
+  readonly reloadProviders: () => Promise<void>;
+  readonly getTunnelService: () => TunnelService | null;
+  readonly getTunnelStatus: () => unknown;
+}
+import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 
 const filename = fileURLToPath(import.meta.url);
 const currentDirname = dirname(filename);
@@ -42,13 +64,13 @@ const currentDirname = dirname(filename);
  * Handles user authentication through multiple identity providers, token lifecycle management,
  * and secure session handling with support for OAuth2, MFA, and audit logging.
  */
-export class AuthModule implements IModule {
+export class AuthModule implements IModule<IAuthModuleExports> {
   public readonly name = 'auth';
   public readonly version = '2.0.0';
   public readonly type = 'service' as const;
   public readonly description = 'Authentication, authorization, and JWT management';
   public readonly dependencies = ['logger', 'database'];
-  public status = ModuleStatus.STOPPED;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private config!: AuthConfig;
   private providerRegistry: ProviderRegistry | null = null;
   private tunnelService: TunnelService | null = null;
@@ -57,21 +79,21 @@ export class AuthModule implements IModule {
   private userService!: UserService;
   private authCodeService!: AuthCodeService;
   private mfaService!: MFAService;
-  private auditService!: AuditService;
+  private auditService!: AuthAuditService;
   private oauth2ConfigService!: OAuth2ConfigurationService;
   private logger!: ILogger;
   private database!: DatabaseService;
   private initialized = false;
   private started = false;
   private cleanupInterval: NodeJS.Timeout | null = null;
-  get exports(): AuthModuleExports {
+  get exports(): IAuthModuleExports {
     return {
       service: (): AuthService => { return this.authService },
       tokenService: (): TokenService => { return this.tokenService },
       userService: (): UserService => { return this.userService },
       authCodeService: (): AuthCodeService => { return this.authCodeService },
       mfaService: (): MFAService => { return this.mfaService },
-      auditService: (): AuditService => { return this.auditService },
+      auditService: (): AuthAuditService => { return this.auditService },
       getProvider: (id: string): IdentityProvider | undefined => { return this.getProvider(id) },
       getAllProviders: (): IdentityProvider[] => { return this.getAllProviders() },
       createToken: async (input: TokenCreateInput): Promise<AuthToken> => {
@@ -84,6 +106,10 @@ export class AuthModule implements IModule {
       getProviderRegistry: (): ProviderRegistry | null => { return this.getProviderRegistry() },
       reloadProviders: async (): Promise<void> => { await this.reloadProviders(); },
       oauth2ConfigService: (): OAuth2ConfigurationService => { return this.oauth2ConfigService },
+      getTunnelService: (): TunnelService | null => { return this.getTunnelService() },
+      getTunnelStatus: (): unknown => {
+        return this.getTunnelStatus();
+      }
     };
   }
 
@@ -133,8 +159,28 @@ export class AuthModule implements IModule {
       this.tokenService = TokenService.getInstance();
       this.userService = UserService.getInstance();
       this.authCodeService = AuthCodeService.getInstance();
-      this.mfaService = MFAService.getInstance();
-      this.auditService = AuditService.getInstance();
+
+      const mfaConfig = {
+        appName: this.config.mfa?.appName || 'SystemPrompt OS',
+        backupCodeCount: this.config.mfa?.backupCodeCount || 10,
+        windowSize: this.config.mfa?.windowSize || 2
+      };
+      this.mfaService = MFAService.initialize(mfaConfig, this.logger);
+
+      const loggerAdapter = {
+        debug: (message: string, ...args: any[]) => { this.logger.debug(LogSource.AUTH, message, args[0]); },
+        info: (message: string, ...args: any[]) => { this.logger.info(LogSource.AUTH, message, args[0]); },
+        warn: (message: string, ...args: any[]) => { this.logger.warn(LogSource.AUTH, message, args[0]); },
+        error: (message: string, error?: Error) => { this.logger.error(LogSource.AUTH, message, error ? { error } : undefined); }
+      };
+
+      this.auditService = new AuthAuditService(
+        this.config.audit ?? {
+          enabled: true,
+          retentionDays: 90
+        },
+        loggerAdapter
+      );
       this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
 
       this.authService = AuthService.getInstance();
@@ -213,11 +259,11 @@ export class AuthModule implements IModule {
         this.cleanupInterval = intervalId;
       }
 
-      this.status = ModuleStatus.RUNNING;
+      this.status = ModuleStatusEnum.RUNNING;
       this.started = true;
       this.logger.info(LogSource.AUTH, 'Auth module started');
     } catch (error) {
-      this.status = ModuleStatus.STOPPED;
+      this.status = ModuleStatusEnum.STOPPED;
       throw error;
     }
   }
@@ -234,7 +280,7 @@ export class AuthModule implements IModule {
     if (this.tunnelService !== null) {
       await this.tunnelService.stop();
     }
-    this.status = ModuleStatus.STOPPED;
+    this.status = ModuleStatusEnum.STOPPED;
     this.started = false;
     this.logger.info(LogSource.AUTH, 'Auth module stopped');
   }
@@ -243,7 +289,7 @@ export class AuthModule implements IModule {
    * Health check.
    * @returns Promise resolving to health status object.
    */
-  healthCheck(): { healthy: boolean; message?: string } {
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
       const providers = this.providerRegistry?.getAllProviders() ?? [];
       return {
@@ -435,8 +481,8 @@ export class AuthModule implements IModule {
         algorithm: 'RS256',
         issuer: 'systemprompt-os',
         audience: 'systemprompt-os',
-        accessTokenTtl: 900,
-        refreshTokenTtl: 2592000,
+        accessTokenTTL: 900,
+        refreshTokenTTL: 2592000,
         keyStorePath: process.env.JWT_KEY_PATH ?? './state/auth/keys',
         privateKey: '',
         publicKey: ''
@@ -473,5 +519,40 @@ export const initialize = async (): Promise<AuthModule> => {
   await authModule.initialize();
   return authModule;
 };
+
+/**
+ * Gets the Auth module with type safety and validation.
+ * @returns The Auth module with guaranteed typed exports.
+ * @throws {Error} If Auth module is not available or missing required exports.
+ */
+export function getAuthModule(): IModule<IAuthModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/index');
+
+  const moduleLoader = getModuleLoader();
+  const authModule = moduleLoader.getModule(ModuleName.AUTH);
+
+  if (!authModule.exports?.service || typeof authModule.exports.service !== 'function') {
+    throw new Error('Auth module missing required service export');
+  }
+
+  if (!authModule.exports?.tokenService || typeof authModule.exports.tokenService !== 'function') {
+    throw new Error('Auth module missing required tokenService export');
+  }
+
+  if (!authModule.exports?.userService || typeof authModule.exports.userService !== 'function') {
+    throw new Error('Auth module missing required userService export');
+  }
+
+  if (!authModule.exports?.createToken || typeof authModule.exports.createToken !== 'function') {
+    throw new Error('Auth module missing required createToken export');
+  }
+
+  if (!authModule.exports?.validateToken || typeof authModule.exports.validateToken !== 'function') {
+    throw new Error('Auth module missing required validateToken export');
+  }
+
+  return authModule as IModule<IAuthModuleExports>;
+}
 
 export default AuthModule;

@@ -27,6 +27,7 @@ import { noUnsafeAssignmentWithHelp, noRestrictedSyntaxTypescriptWithHelp } from
 import warnInlineEslintComments from './rules/warn-inline-eslint-comments.mjs';
 import noJsExtensionsInImports from './rules/no-js-extensions-in-imports.mjs';
 import enforceLogsourceEnum from './rules/enforce-logsource-enum.mjs';
+import enforceModuleIndexPattern from './rules/enforce-module-index-pattern.mjs';
 
 const plugin = {
   meta: {
@@ -68,7 +69,8 @@ const plugin = {
     'no-restricted-syntax-typescript-with-help': noRestrictedSyntaxTypescriptWithHelp,
     'warn-inline-eslint-comments': warnInlineEslintComments,
     'no-js-extensions-in-imports': noJsExtensionsInImports,
-    'enforce-logsource-enum': enforceLogsourceEnum
+    'enforce-logsource-enum': enforceLogsourceEnum,
+    'enforce-module-index-pattern': enforceModuleIndexPattern
   }
 };
 

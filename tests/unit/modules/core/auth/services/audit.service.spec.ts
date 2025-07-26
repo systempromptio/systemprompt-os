@@ -4,32 +4,33 @@
 
 import { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { Logger } from '@/modules/types';
 import type { AuthAuditAction } from '@/modules/core/auth/types';
 
+import { vi } from 'vitest';
+
 // Mock dependencies
-jest.mock('@/modules/core/database/services/database.service');
+vi.mock('@/modules/core/database/services/database.service');
 
 describe('AuthAuditService', () => {
   let auditService: AuthAuditService;
-  let mockDb: jest.Mocked<DatabaseService>;
-  let mockLogger: jest.Mocked<Logger>;
+  let mockDb: any;
+  let mockLogger: any;
 
   beforeEach(() => {
     mockDb = {
-      query: jest.fn(),
-      execute: jest.fn(),
-      transaction: jest.fn(),
-    } as any;
-
-    mockLogger = {
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
+      query: vi.fn(),
+      execute: vi.fn(),
+      transaction: vi.fn(),
     };
 
-    (DatabaseService.getInstance as jest.Mock).mockReturnValue(mockDb);
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    vi.mocked(DatabaseService.getInstance).mockReturnValue(mockDb);
 
     auditService = new AuthAuditService(
       {
@@ -41,7 +42,7 @@ describe('AuthAuditService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('recordEvent', () => {
@@ -206,6 +207,18 @@ describe('AuthAuditService', () => {
         [100] // default limit
       );
     });
+
+    it('should handle database errors in getAuditEntries', async () => {
+      mockDb.query.mockRejectedValue(new Error('Database connection failed'));
+
+      const result = await auditService.getAuditEntries();
+
+      expect(result).toEqual([]);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to get audit entries',
+        expect.any(Error)
+      );
+    });
   });
 
   describe('getFailedLoginAttempts', () => {
@@ -233,6 +246,21 @@ describe('AuthAuditService', () => {
       const result = await auditService.getFailedLoginAttempts(email, since);
 
       expect(result).toBe(0);
+    });
+
+    it('should handle database errors in getFailedLoginAttempts', async () => {
+      const email = 'test@example.com';
+      const since = new Date();
+
+      mockDb.query.mockRejectedValue(new Error('Database connection failed'));
+
+      const result = await auditService.getFailedLoginAttempts(email, since);
+
+      expect(result).toBe(0);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to get failed login attempts',
+        expect.any(Error)
+      );
     });
   });
 

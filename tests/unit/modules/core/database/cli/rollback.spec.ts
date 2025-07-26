@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { CLIContext } from '../../../../cli/src/types.js';
-import { command as rollbackCommand } from '../../../../../../src/modules/core/database/cli/rollback.js';
-import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.js';
-import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service.js';
+import type { ICLIContext as CLIContext } from '../../../../../../src/modules/core/cli/types/index.ts';
+import { command as rollbackCommand } from '../../../../../../src/modules/core/database/cli/rollback.ts';
+import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.ts';
+import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service.ts';
 
 // Mock the services
-vi.mock('../../services/database.service.js');
-vi.mock('../../services/migration.service.js');
+vi.mock('../../../../../../src/modules/core/database/services/database.service.ts');
+vi.mock('../../../../../../src/modules/core/database/services/migration.service.ts');
 
 describe('database:rollback command', () => {
   let mockContext: CLIContext;
@@ -19,12 +19,10 @@ describe('database:rollback command', () => {
   beforeEach(() => {
     // Setup mocks
     mockContext = {
+      cwd: process.cwd(),
       args: {},
       flags: {},
       env: {},
-      stdin: process.stdin,
-      stdout: process.stdout,
-      stderr: process.stderr,
     };
 
     // Mock console methods
@@ -45,8 +43,8 @@ describe('database:rollback command', () => {
     };
 
     // Mock getInstance methods
-    vi.mocked(DatabaseService.getInstance).mockReturnValue(mockDbService);
-    vi.mocked(MigrationService.getInstance).mockReturnValue(mockMigrationService);
+    (DatabaseService.getInstance as any) = vi.fn().mockReturnValue(mockDbService);
+    (MigrationService.getInstance as any) = vi.fn().mockReturnValue(mockMigrationService);
   });
 
   afterEach(() => {
@@ -89,7 +87,7 @@ describe('database:rollback command', () => {
 
   it('should show warning without force flag', async () => {
     const migrations = [
-      { module: 'auth', name: '001_create_users.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
 
@@ -106,8 +104,8 @@ describe('database:rollback command', () => {
 
   it('should rollback single migration with force flag', async () => {
     const migrations = [
-      { module: 'auth', name: '002_add_roles.sql', executed_at: '2024-01-02T00:00:00Z' },
-      { module: 'auth', name: '001_create_users.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'auth', name: '002_add_roles.sql', executedAt: '2024-01-02T00:00:00Z' },
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
     mockContext.args.force = true;
@@ -132,9 +130,9 @@ describe('database:rollback command', () => {
 
   it('should rollback multiple migrations with steps parameter', async () => {
     const migrations = [
-      { module: 'core', name: '003_add_logs.sql', executed_at: '2024-01-03T00:00:00Z' },
-      { module: 'auth', name: '002_add_roles.sql', executed_at: '2024-01-02T00:00:00Z' },
-      { module: 'auth', name: '001_create_users.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'core', name: '003_add_logs.sql', executedAt: '2024-01-03T00:00:00Z' },
+      { module: 'auth', name: '002_add_roles.sql', executedAt: '2024-01-02T00:00:00Z' },
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
     mockContext.args.steps = 2;
@@ -157,9 +155,9 @@ describe('database:rollback command', () => {
 
   it('should filter migrations by module', async () => {
     const migrations = [
-      { module: 'core', name: '003_add_logs.sql', executed_at: '2024-01-03T00:00:00Z' },
-      { module: 'auth', name: '002_add_roles.sql', executed_at: '2024-01-02T00:00:00Z' },
-      { module: 'auth', name: '001_create_users.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'core', name: '003_add_logs.sql', executedAt: '2024-01-03T00:00:00Z' },
+      { module: 'auth', name: '002_add_roles.sql', executedAt: '2024-01-02T00:00:00Z' },
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
     mockContext.args.module = 'auth';
@@ -182,9 +180,9 @@ describe('database:rollback command', () => {
 
   it('should stop on first failure', async () => {
     const migrations = [
-      { module: 'core', name: '003_add_logs.sql', executed_at: '2024-01-03T00:00:00Z' },
-      { module: 'auth', name: '002_add_roles.sql', executed_at: '2024-01-02T00:00:00Z' },
-      { module: 'auth', name: '001_create_users.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'core', name: '003_add_logs.sql', executedAt: '2024-01-03T00:00:00Z' },
+      { module: 'auth', name: '002_add_roles.sql', executedAt: '2024-01-02T00:00:00Z' },
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
     mockMigrationService.rollbackMigration
@@ -227,7 +225,7 @@ describe('database:rollback command', () => {
 
   it('should handle no migrations after filtering', async () => {
     const migrations = [
-      { module: 'core', name: '001_init.sql', executed_at: '2024-01-01T00:00:00Z' },
+      { module: 'core', name: '001_init.sql', executedAt: '2024-01-01T00:00:00Z' },
     ];
     mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
     mockContext.args.module = 'auth'; // Filter by non-existent module
@@ -236,5 +234,36 @@ describe('database:rollback command', () => {
 
     expect(consoleLogSpy).toHaveBeenCalledWith('No executed migrations found to rollback.');
     expect(mockMigrationService.rollbackMigration).not.toHaveBeenCalled();
+  });
+
+  it('should handle non-Error objects thrown during rollback execution', async () => {
+    const migrations = [
+      { module: 'auth', name: '001_create_users.sql', executedAt: '2024-01-01T00:00:00Z' },
+    ];
+    mockMigrationService.getExecutedMigrations.mockResolvedValue(migrations);
+    mockMigrationService.rollbackMigration.mockRejectedValue('String error'); // Non-Error object
+    mockContext.args.force = true;
+
+    await expect(rollbackCommand.execute(mockContext)).rejects.toThrow(
+      'Process exited with code 1',
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('  ✗ Failed: Unknown error');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '\nSome rollbacks failed. Database may be in an inconsistent state.',
+    );
+  });
+
+  it('should handle non-Error objects thrown in main catch block', async () => {
+    mockMigrationService.getExecutedMigrations.mockRejectedValue('String error'); // Non-Error object
+
+    await expect(rollbackCommand.execute(mockContext)).rejects.toThrow(
+      'Process exited with code 1',
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error rolling back migrations:',
+      'Unknown error',
+    );
   });
 });

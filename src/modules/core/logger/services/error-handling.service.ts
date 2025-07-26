@@ -216,7 +216,7 @@ export class ErrorHandlingService {
    * @param category - The error category.
    * @returns The determined error severity.
    */
-  public determineErrorSeverity(error: unknown, category: ErrorCategory): ErrorSeverity {
+  public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
     if (category === 'SYSTEM' || category === 'DATABASE') {
       return 'error';
     }
@@ -290,12 +290,14 @@ export class ErrorHandlingService {
       type = 'UnknownError';
     }
 
-    if ((this.config.maxMessageLength ?? 0) > 0 && message.length > this.config.maxMessageLength) {
-      message = `${message.substring(0, this.config.maxMessageLength)}...`;
+    const maxMessageLength = this.config.maxMessageLength ?? 0;
+    if (maxMessageLength > 0 && message.length > maxMessageLength) {
+      message = `${message.substring(0, maxMessageLength)}...`;
     }
 
-    if ((this.config.maxStackLength ?? 0) > 0 && stack !== undefined && stack.length > this.config.maxStackLength) {
-      stack = `${stack.substring(0, this.config.maxStackLength)}...`;
+    const maxStackLength = this.config.maxStackLength ?? 0;
+    if (maxStackLength > 0 && stack !== undefined && stack.length > maxStackLength) {
+      stack = `${stack.substring(0, maxStackLength)}...`;
     }
 
     const fingerprint = this.generateFingerprint(message, type, context.source);
@@ -330,7 +332,7 @@ export class ErrorHandlingService {
       /authorization["\s]*[:=]["\s]*["']?Bearer\s+[^"'\s,}]+/gi,
     ];
 
-    patterns.forEach((pattern) => {
+    patterns.forEach((pattern: RegExp) => {
       error.message = error.message.replace(pattern, '[REDACTED]');
       error.stack &&= error.stack.replace(pattern, '[REDACTED]');
     });

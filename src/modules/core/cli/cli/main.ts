@@ -8,9 +8,12 @@
 import { Command } from 'commander';
 import type { CLIContext } from '@/modules/core/cli/types/index';
 import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service';
+import type { CliService } from '@/modules/core/cli/services/cli.service';
+import type { Bootstrap } from '@/bootstrap';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
+import type { CLIOption } from '@/modules/core/cli/types/index';
 
 /**
  * Global bootstrap instance for cleanup.
@@ -43,7 +46,7 @@ program
   )
   .version('0.1.0')
   .configureHelp({
-    formatHelp: (cmd): string => {
+    formatHelp: (cmd, helper): string => {
       try {
         const formatter = CliFormatterService.getInstance();
         return formatter.formatHelp(cmd, true);
@@ -52,26 +55,26 @@ program
          * Fallback to default help if formatting fails.
          */
         console.error('CLI formatting error:', error);
-        return cmd.helpInformation();
+        // Generate a simple fallback help
+        const name = cmd.name();
+        const description = cmd.description();
+        const usage = cmd.usage() || '';
+        let helpText = `\n  ${name}`;
+        if (description) helpText += ` - ${description}`;
+        helpText += `\n\n  Usage: ${name} ${usage}\n`;
+        
+        const options = cmd.options;
+        if (options.length > 0) {
+          helpText += '\n  Options:\n';
+          options.forEach(opt => {
+            helpText += `    ${opt.flags.padEnd(20)} ${opt.description || ''}\n`;
+          });
+        }
+        
+        return helpText;
       }
     }
   });
-
-interface ICommandOptions {
-  name: string;
-  alias?: string;
-  required?: boolean;
-  type?: string;
-  description?: string;
-  default?: unknown;
-}
-
-interface IDatabaseCommand {
-  command_path: string;
-  description?: string;
-  options?: ICommandOptions[];
-  executor_path: string;
-}
 
 interface ICommandModule {
   command?: { execute?: (context: CLIContext) => Promise<void> };
@@ -83,10 +86,24 @@ interface ICommandModule {
  * @param option - The option configuration.
  * @returns The formatted flags string.
  */
-const buildOptionFlags = (option: ICommandOptions): string => {
+interface IParsedDatabaseCommand {
+  id: number;
+  command_path: string;
+  command_name: string;
+  description: string;
+  module_name: string;
+  executor_path: string;
+  options: CLIOption[];
+  aliases: string[];
+  active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+const buildOptionFlags = (option: CLIOption): string => {
   const short = option.alias !== undefined && option.alias !== '' ? `-${option.alias}, ` : '';
   const long = `--${option.name}`;
-  const valueType = option.type !== undefined && option.type !== '' ? ` <${option.type}>` : '';
+  const valueType = option.type !== 'boolean' ? ` <${option.type}>` : '';
   return `${short}${long}${valueType}`;
 };
 
@@ -114,10 +131,10 @@ const findExecutor = (mod: ICommandModule): ((context: CLIContext) => Promise<vo
 
 /**
  * Creates the command action handler.
- * @param cmd - The database command configuration.
+ * @param cmd - The parsed database command configuration.
  * @returns The action handler function.
  */
-const createCommandAction = (cmd: IDatabaseCommand): 
+const createCommandAction = (cmd: IParsedDatabaseCommand): 
   ((options: Record<string, unknown>) => Promise<void>) => 
   async (options: Record<string, unknown>): Promise<void> => {
   const context: CLIContext = {
@@ -159,12 +176,12 @@ const createCommandAction = (cmd: IDatabaseCommand):
 
 /**
  * Registers a single command with the program.
- * @param cmd - The database command configuration.
+ * @param cmd - The parsed database command configuration.
  */
-const registerCommand = (cmd: IDatabaseCommand): void => {
+const registerCommand = (cmd: IParsedDatabaseCommand): void => {
   if (!cmd.command_path || typeof cmd.command_path !== 'string') {
     const logger = LoggerService.getInstance();
-    logger.debug(LogSource.CLI, `Skipping command with invalid command_path: ${typeof cmd.command_path} "${cmd.command_path}"`);
+    logger.debug(LogSource.CLI, `Skipping command with invalid command_path: ${typeof cmd.command_path} "${String(cmd.command_path)}"`);
     return;
   }
   const commandParts = cmd.command_path.split(':');
@@ -227,11 +244,11 @@ const registerCommand = (cmd: IDatabaseCommand): void => {
  * @returns The CLI service instance and bootstrap instance.
  * @throws {Error} If CLI bootstrap fails.
  */
-const registerModuleCommands = async (): Promise<{ cliService: any; bootstrap: any }> => {
+const registerModuleCommands = async (): Promise<{ cliService: CliService; bootstrap: Bootstrap }> => {
   const { cliService, bootstrap } = await bootstrapCli();
   
   try {
-    const commands = await cliService.getCommandsFromDatabase();
+    const commands = await cliService.getCommandsFromDatabase() as IParsedDatabaseCommand[];
     if (commands.length === 0) {
       const logger = LoggerService.getInstance();
       logger.warn(
@@ -267,10 +284,8 @@ const main = async (): Promise<void> => {
     /**
      * Store bootstrap instance for cleanup.
      */
-    if (result && typeof result === 'object' && 'bootstrap' in result) {
-      bootstrap = result.bootstrap;
-      globalBootstrap = bootstrap;
-    }
+    bootstrap = result.bootstrap;
+    globalBootstrap = bootstrap;
 
     /**
      * Add built-in commands.
@@ -325,7 +340,7 @@ const main = async (): Promise<void> => {
       /**
        * Commander throws an error with exitCode property for built-in commands like --version, --help.
        */
-      if (error && typeof error === 'object' && 'exitCode' in error && typeof (error as any).exitCode === 'number') {
+      if (error && typeof error === 'object' && 'exitCode' in error && typeof (error as { exitCode?: number }).exitCode === 'number') {
         const errorWithCode = error as { exitCode: number };
         process.exitCode = errorWithCode.exitCode;
         
@@ -373,7 +388,7 @@ const main = async (): Promise<void> => {
     if (bootstrap) {
       try {
         await bootstrap.shutdown();
-      } catch (cleanupError) {
+      } catch (cleanupError: unknown) {
         /**
          * Ignore cleanup errors during error handling.
          */
@@ -390,7 +405,7 @@ const main = async (): Promise<void> => {
 if (import.meta.url.startsWith('file:')) {
   const modulePath = new URL(import.meta.url).pathname;
   if (process.argv[1] === modulePath) {
-    main().catch((error) => {
+    main().catch((error: unknown) => {
       console.error('Unhandled error in main:', error);
       process.exit(1);
     });

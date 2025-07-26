@@ -3,44 +3,46 @@
  * @module tests/unit/modules/core/cli/cli
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { command } from '@/modules/core/cli/cli/list';
 import { CLIModule } from '@/modules/core/cli';
 import { CLIContext } from '@/modules/core/cli/types';
 import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
 
-// Mock CLIModule
-jest.mock('@/modules/core/cli');
+// Mock CLIModule class
+const mockCLIModule = {
+  initialize: vi.fn().mockResolvedValue(undefined),
+  getAllCommands: vi.fn().mockResolvedValue(new Map()),
+  formatCommands: vi.fn().mockReturnValue('Formatted commands output')
+};
+
+vi.mock('@/modules/core/cli', () => ({
+  CLIModule: vi.fn().mockImplementation(() => mockCLIModule)
+}));
 
 // Mock console methods
-const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
+const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
 describe('list command', () => {
-  let mockCLIModule: jest.Mocked<CLIModule>;
   let mockContext: CLIContext;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Create mock CLI module instance
-    mockCLIModule = {
-      initialize: jest.fn().mockResolvedValue(undefined),
-      getAllCommands: jest.fn().mockResolvedValue(new Map()),
-      formatCommands: jest.fn().mockReturnValue('Formatted commands output')
-    } as any;
-
-    // Mock CLIModule constructor
-    (CLIModule as jest.MockedClass<typeof CLIModule>).mockImplementation(() => mockCLIModule);
+    vi.clearAllMocks();
+    
+    // Reset mock functions
+    mockCLIModule.initialize.mockResolvedValue(undefined);
+    mockCLIModule.getAllCommands.mockResolvedValue(new Map());
+    mockCLIModule.formatCommands.mockReturnValue('Formatted commands output');
 
     // Create mock context
     mockContext = {
       cwd: '/test/dir',
       args: {},
       logger: {
-        debug: jest.fn(),
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
       }
     };
   });
@@ -58,7 +60,7 @@ describe('list command', () => {
   describe('execute', () => {
     it('should list commands in default text format', async () => {
       const mockCommands = new Map([
-        ['test:command', { description: 'Test', execute: jest.fn() }]
+        ['test:command', { description: 'Test', execute: vi.fn() }]
       ]);
       mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
@@ -67,15 +69,17 @@ describe('list command', () => {
       expect(mockCLIModule.initialize).toHaveBeenCalledWith({ logger: mockContext.logger });
       expect(mockCLIModule.getAllCommands).toHaveBeenCalled();
       expect(mockCLIModule.formatCommands).toHaveBeenCalledWith(mockCommands, 'text');
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('SystemPrompt OS - Available Commands'));
-      expect(mockConsoleLog).toHaveBeenCalledWith('Formatted commands output');
+      expect(mockConsoleLog).toHaveBeenCalledTimes(3);
+      expect(mockConsoleLog).toHaveBeenNthCalledWith(1, 'SystemPrompt OS - Available Commands');
+      expect(mockConsoleLog).toHaveBeenNthCalledWith(2, '====================================');
+      expect(mockConsoleLog).toHaveBeenNthCalledWith(3, 'Formatted commands output');
     });
 
     it('should output JSON format when specified', async () => {
       mockContext.args.format = 'json';
       const mockCommands = new Map([
-        ['auth:login', { description: 'Login', execute: jest.fn() }],
-        ['db:migrate', { description: 'Migrate', options: [{ name: 'force' }], execute: jest.fn() }]
+        ['auth:login', { description: 'Login', execute: vi.fn() }],
+        ['db:migrate', { description: 'Migrate', options: [{ name: 'force' }], execute: vi.fn() }]
       ]);
       mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
@@ -99,9 +103,9 @@ describe('list command', () => {
     it('should filter commands by module', async () => {
       mockContext.args.module = 'auth';
       const mockCommands = new Map([
-        ['auth:login', { description: 'Login', execute: jest.fn() }],
-        ['auth:logout', { description: 'Logout', execute: jest.fn() }],
-        ['db:migrate', { description: 'Migrate', execute: jest.fn() }]
+        ['auth:login', { description: 'Login', execute: vi.fn() }],
+        ['auth:logout', { description: 'Logout', execute: vi.fn() }],
+        ['db:migrate', { description: 'Migrate', execute: vi.fn() }]
       ]);
       mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
@@ -123,7 +127,7 @@ describe('list command', () => {
     it('should handle empty module filter', async () => {
       mockContext.args.module = 'nonexistent';
       const mockCommands = new Map([
-        ['auth:login', { description: 'Login', execute: jest.fn() }]
+        ['auth:login', { description: 'Login', execute: vi.fn() }]
       ]);
       mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 
@@ -156,7 +160,7 @@ describe('list command', () => {
     it('should handle commands without module prefix', async () => {
       mockContext.args.format = 'json';
       const mockCommands = new Map([
-        ['help', { description: 'Show help', execute: jest.fn() }]
+        ['help', { description: 'Show help', execute: vi.fn() }]
       ]);
       mockCLIModule.getAllCommands.mockResolvedValue(mockCommands);
 

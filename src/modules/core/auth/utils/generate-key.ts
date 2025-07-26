@@ -117,8 +117,8 @@ export const generateJwtKeyPair = (options: IGenerateKeyOptions): void => {
   const keyType = isRsaAlgorithm ? 'rsa' : 'ec';
 
   const keys = isRsaAlgorithm
-    ? generateRsaKeyPair(algorithm as 'RS256' | 'RS512')
-    : generateEcKeyPair(algorithm as 'ES256' | 'ES512');
+    ? generateRsaKeyPair(algorithm)
+    : generateEcKeyPair(algorithm);
 
   if (format === 'pem') {
     writePemKeys(outputDir, keys.publicKey, keys.privateKey);

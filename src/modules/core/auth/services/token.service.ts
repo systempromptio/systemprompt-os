@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
+import type { Algorithm } from 'jsonwebtoken';
 import type {
   AuthToken,
   IAuthConfig,
-  JWTPayload,
+  JwtPayload,
   TokenCreateInput,
   TokenType,
   TokenValidationResult,
@@ -109,7 +110,7 @@ export class TokenService {
       expiresAt,
       createdAt: new Date(),
       isRevoked: false,
-      ...input.metadata && { metadata: input.metadata },
+      ...input.metadata ? { metadata: input.metadata } : {},
     };
 
     this.getLogger().info(LogSource.AUTH, 'Token created', {
@@ -135,7 +136,7 @@ export class TokenService {
   public createJwt(params: IJwtParams): string {
     const config = this.getConfig();
     const now = Math.floor(Date.now() / MILLISECONDS_PER_SECOND);
-    const payload: JWTPayload = {
+    const payload: JwtPayload = {
       sub: params.userId,
       email: params.email,
       name: params.name,
@@ -146,7 +147,7 @@ export class TokenService {
     };
 
     return jwt.sign(payload, config.jwt.privateKey, {
-      algorithm: config.jwt.algorithm as jwt.Algorithm,
+      algorithm: config.jwt.algorithm as Algorithm,
       issuer: config.jwt.issuer,
       audience: config.jwt.audience,
     });
@@ -255,7 +256,7 @@ export class TokenService {
    * @returns Database instance.
    */
   private getDb(): IDatabaseRepository {
-    this.db ??= DatabaseService.getInstance() as IDatabaseRepository;
+    this.db ??= DatabaseService.getInstance() as unknown as IDatabaseRepository;
     return this.db;
   }
 
@@ -360,10 +361,10 @@ reason: 'Token expired'
     try {
       const config = this.getConfig();
       const decoded = jwt.verify(token, config.jwt.publicKey, {
-        algorithms: [config.jwt.algorithm as jwt.Algorithm],
+        algorithms: [config.jwt.algorithm as Algorithm],
         issuer: config.jwt.issuer,
         audience: config.jwt.audience,
-      }) as JWTPayload;
+      }) as JwtPayload;
 
       return {
         valid: true,
@@ -406,9 +407,9 @@ reason: 'Token expired'
       scope: JSON.parse(row.scope) as string[],
       expiresAt: new Date(row.expiresAt),
       createdAt: new Date(row.createdAt),
-      lastUsedAt: row.lastUsedAt ? new Date(row.lastUsedAt) : undefined,
       isRevoked: false,
-      metadata: row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : undefined,
+      ...row.lastUsedAt ? { lastUsedAt: new Date(row.lastUsedAt) } : {},
+      ...row.metadata ? { metadata: JSON.parse(row.metadata) as Record<string, unknown> } : {},
     };
 
     return token;
@@ -429,8 +430,8 @@ reason: 'Token expired'
       expiresAt: new Date(row.expiresAt),
       createdAt: new Date(row.createdAt),
       isRevoked: Boolean(row.isRevoked),
-      ...row.lastUsedAt && { lastUsedAt: new Date(row.lastUsedAt) },
-      ...row.metadata && { metadata: JSON.parse(row.metadata) as Record<string, unknown> },
+      ...row.lastUsedAt ? { lastUsedAt: new Date(row.lastUsedAt) } : {},
+      ...row.metadata ? { metadata: JSON.parse(row.metadata) as Record<string, unknown> } : {},
     } });
   }
 

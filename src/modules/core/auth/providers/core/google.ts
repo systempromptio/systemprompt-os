@@ -42,12 +42,12 @@ export class GoogleProvider implements IIdentityProvider {
   getAuthorizationUrl(state: string, nonce?: string): string {
     const scope = this.config.scope ?? "openid email profile";
     const params = new URLSearchParams({
-      clientId: this.config.clientId,
-      redirectUri: this.config.redirectUri,
-      responseType: "code",
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
+      response_type: "code",
       scope,
       state,
-      accessType: "offline",
+      access_type: "offline",
       prompt: "consent",
     });
 
@@ -72,10 +72,10 @@ export class GoogleProvider implements IIdentityProvider {
 
     const params = new URLSearchParams({
       code,
-      clientId: this.config.clientId,
-      clientSecret,
-      redirectUri: this.config.redirectUri,
-      grantType: "authorization_code",
+      client_id: this.config.clientId,
+      client_secret: clientSecret,
+      redirect_uri: this.config.redirectUri,
+      grant_type: "authorization_code",
     });
 
     const response = await fetch(this.tokenEndpoint, {
@@ -114,15 +114,28 @@ export class GoogleProvider implements IIdentityProvider {
 
     const googleUserInfo: IGoogleUserInfo = await response.json() as IGoogleUserInfo;
 
-    return {
+    const result: IIdpUserInfo = {
       id: googleUserInfo.sub,
-      email: googleUserInfo.email,
-      emailVerified: googleUserInfo.emailVerified,
-      name: googleUserInfo.name,
-      picture: googleUserInfo.picture,
-      locale: googleUserInfo.locale,
       raw: googleUserInfo as Record<string, unknown>,
     };
+
+    if (googleUserInfo.email !== undefined) {
+      result.email = googleUserInfo.email;
+    }
+    if (googleUserInfo.emailVerified !== undefined) {
+      result.emailVerified = googleUserInfo.emailVerified;
+    }
+    if (googleUserInfo.name !== undefined) {
+      result.name = googleUserInfo.name;
+    }
+    if (googleUserInfo.picture !== undefined) {
+      result.picture = googleUserInfo.picture;
+    }
+    if (googleUserInfo.locale !== undefined) {
+      result.locale = googleUserInfo.locale;
+    }
+
+    return result;
   }
 
   /**
@@ -138,10 +151,10 @@ export class GoogleProvider implements IIdentityProvider {
     }
 
     const params = new URLSearchParams({
-      refreshToken,
-      clientId: this.config.clientId,
-      clientSecret,
-      grantType: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: this.config.clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token",
     });
 
     const response = await fetch(this.tokenEndpoint, {

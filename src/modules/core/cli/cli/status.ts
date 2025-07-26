@@ -5,6 +5,7 @@
  */
 
 import { getModuleLoader } from '@/modules/loader';
+import { ModuleName } from '@/modules/types/index';
 import type {
   CLICommand,
   CLIContext,
@@ -21,7 +22,7 @@ import { StatusService } from '@/modules/core/cli/services/status.service';
  */
 const getCliService = (): ICliService => {
   const moduleLoader = getModuleLoader();
-  const cliModule = moduleLoader.getModule('cli') as unknown;
+  const cliModule = moduleLoader.getModule(ModuleName.CLI) as unknown;
 
   if (cliModule === null || cliModule === undefined
       || typeof cliModule !== 'object'

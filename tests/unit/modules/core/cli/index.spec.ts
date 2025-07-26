@@ -3,49 +3,60 @@
  * @module tests/unit/modules/core/cli
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { CLIModule } from '@/modules/core/cli';
-import { CLIService } from '@/modules/core/cli/services/cli.service';
-import { CLIInitializationError } from '@/modules/core/cli/utils/errors';
-import { ModuleContext } from '@/modules/types';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { CLIModule, initialize, createModule, service, getAllCommands, getCommandHelp, formatCommands, generateDocs } from '@/modules/core/cli';
+import { CliService } from '@/modules/core/cli/services/cli.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LogSource } from '@/modules/core/logger';
+import type { CLICommand, CLIOption } from '@/modules/core/cli/types';
+import type { ILogger } from '@/modules/core/logger/types';
+import { ModuleStatusEnum as ModuleStatus } from '@/modules/core/modules/types';
 
-// Mock the CLIService
-jest.mock('@/modules/core/cli/services/cli.service');
+// Mock the dependencies
+vi.mock('@/modules/core/cli/services/cli.service');
+vi.mock('@/modules/core/logger/services/logger.service');
+vi.mock('@/modules/core/database/services/database.service');
 
 describe('CLIModule', () => {
   let cliModule: CLIModule;
-  let mockCLIService: jest.Mocked<CLIService>;
-  let mockContext: ModuleContext;
+  let mockCliService: any;
+  let mockLogger: any;
+  let mockDatabase: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
-    // Create mock CLIService
-    mockCLIService = {
-      initialize: jest.fn().mockResolvedValue(undefined),
-      isInitialized: jest.fn().mockReturnValue(true),
-      getAllCommands: jest.fn().mockResolvedValue(new Map()),
-      getCommandMetadata: jest.fn().mockResolvedValue([]),
-      getCommandHelp: jest.fn().mockResolvedValue('Help text'),
-      formatCommands: jest.fn().mockReturnValue('Formatted commands'),
-      generateDocs: jest.fn().mockReturnValue('Generated docs')
-    } as any;
+    // Create mock services
+    mockCliService = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      isInitialized: vi.fn().mockReturnValue(true),
+      getAllCommands: vi.fn().mockResolvedValue(new Map()),
+      getCommandMetadata: vi.fn().mockResolvedValue([]),
+      getCommandHelp: vi.fn().mockResolvedValue('Help text'),
+      formatCommands: vi.fn().mockReturnValue('Formatted commands'),
+      generateDocs: vi.fn().mockReturnValue('Generated docs'),
+      scanAndRegisterModuleCommands: vi.fn().mockResolvedValue(undefined)
+    };
 
-    // Mock getInstance to return our mock service
-    (CLIService.getInstance as jest.Mock).mockReturnValue(mockCLIService);
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    mockDatabase = {
+      isInitialized: vi.fn().mockReturnValue(true)
+    };
+
+    // Mock getInstance methods
+    (CliService.getInstance as any) = vi.fn().mockReturnValue(mockCliService);
+    (LoggerService.getInstance as any) = vi.fn().mockReturnValue(mockLogger);
+    (DatabaseService.getInstance as any) = vi.fn().mockReturnValue(mockDatabase);
 
     // Create module instance
     cliModule = new CLIModule();
-
-    // Create mock context
-    mockContext = {
-      logger: {
-        debug: jest.fn(),
-        info: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn()
-      }
-    };
   });
 
   describe('constructor', () => {
@@ -53,279 +64,402 @@ describe('CLIModule', () => {
       expect(cliModule.name).toBe('cli');
       expect(cliModule.version).toBe('1.0.0');
       expect(cliModule.type).toBe('service');
+      expect(cliModule.status).toBe('stopped');
+      expect(cliModule.dependencies).toEqual(['logger', 'database']);
       expect(cliModule.exports).toBeDefined();
     });
 
     it('should set up exports correctly', () => {
+      expect(cliModule.exports.service).toBeDefined();
       expect(cliModule.exports.getAllCommands).toBeDefined();
       expect(cliModule.exports.getCommandHelp).toBeDefined();
       expect(cliModule.exports.formatCommands).toBeDefined();
       expect(cliModule.exports.generateDocs).toBeDefined();
+      expect(cliModule.exports.scanAndRegisterModuleCommands).toBeDefined();
     });
   });
 
   describe('initialize', () => {
-    it('should initialize CLI service with logger', async () => {
-      await cliModule.initialize(mockContext);
+    it('should initialize CLI service with logger and database', async () => {
+      await cliModule.initialize();
 
-      expect(mockCLIService.initialize).toHaveBeenCalledWith(mockContext.logger);
-      expect(mockContext.logger?.info).toHaveBeenCalledWith('CLI module initialized');
+      expect(mockCliService.initialize).toHaveBeenCalledWith(mockLogger, mockDatabase);
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.CLI, 'CLI module initialized');
+      expect(cliModule.status).toBe('starting');
     });
 
-    it('should throw CLIInitializationError if initialization fails', async () => {
-      const error = new Error('Init failed');
-      mockCLIService.initialize.mockRejectedValue(error);
-
-      await expect(cliModule.initialize(mockContext)).rejects.toThrow(CLIInitializationError);
-      expect(mockCLIService.initialize).toHaveBeenCalledWith(mockContext.logger);
+    it('should set status to starting after initialization', async () => {
+      await cliModule.initialize();
+      expect(cliModule.status).toBe('starting');
     });
   });
 
   describe('start', () => {
-    it('should complete without error', async () => {
-      await expect(cliModule.start()).resolves.toBeUndefined();
+    it('should set status to running and log start message', async () => {
+      await cliModule.initialize(); // Initialize first to set up logger
+      cliModule.start();
+      expect(cliModule.status).toBe('running');
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.CLI, 'CLI module started');
     });
   });
 
   describe('stop', () => {
-    it('should complete without error', async () => {
-      await expect(cliModule.stop()).resolves.toBeUndefined();
+    it('should set status to stopped and log stop message', async () => {
+      await cliModule.initialize(); // Initialize first to set up logger
+      cliModule.stop();
+      expect(cliModule.status).toBe('stopped');
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.CLI, 'CLI module stopped');
     });
   });
 
   describe('healthCheck', () => {
-    it('should return healthy when service is initialized', async () => {
-      mockCLIService.isInitialized.mockReturnValue(true);
+    it('should return healthy when status is running and service is initialized', async () => {
+      await cliModule.initialize();
+      cliModule.status = 'running';
+      mockCliService.isInitialized.mockReturnValue(true);
 
-      const result = await cliModule.healthCheck();
+      const result = cliModule.healthCheck();
 
       expect(result).toEqual({
         healthy: true,
-        message: 'CLI service is healthy'
+        message: 'CLI module is healthy'
+      });
+    });
+
+    it('should return unhealthy when status is not running', async () => {
+      await cliModule.initialize();
+      cliModule.status = 'stopped';
+      mockCliService.isInitialized.mockReturnValue(true);
+
+      const result = cliModule.healthCheck();
+
+      expect(result).toEqual({
+        healthy: false,
+        message: 'CLI module is not running or not initialized'
       });
     });
 
     it('should return unhealthy when service is not initialized', async () => {
-      mockCLIService.isInitialized.mockReturnValue(false);
+      await cliModule.initialize();
+      cliModule.status = 'running';
+      mockCliService.isInitialized.mockReturnValue(false);
 
-      const result = await cliModule.healthCheck();
+      const result = cliModule.healthCheck();
 
       expect(result).toEqual({
         healthy: false,
-        message: 'CLI service not initialized'
+        message: 'CLI module is not running or not initialized'
+      });
+    });
+
+    it('should return unhealthy when service is undefined', () => {
+      const moduleWithoutService = new CLIModule();
+      const result = moduleWithoutService.healthCheck();
+
+      expect(result).toEqual({
+        healthy: false,
+        message: 'CLI module is not running or not initialized'
       });
     });
   });
 
   describe('getAllCommands', () => {
     it('should return commands from service', async () => {
+      await cliModule.initialize();
       const mockCommands = new Map([
-        ['test:command', { description: 'Test command', execute: jest.fn() }]
+        ['test:command', { description: 'Test command', execute: vi.fn() }]
       ]);
-      mockCLIService.getAllCommands.mockResolvedValue(mockCommands);
+      mockCliService.getAllCommands.mockResolvedValue(mockCommands);
 
       const result = await cliModule.getAllCommands();
 
       expect(result).toBe(mockCommands);
-      expect(mockCLIService.getAllCommands).toHaveBeenCalled();
+      expect(mockCliService.getAllCommands).toHaveBeenCalled();
+    });
+
+    it('should throw error when service is not initialized', async () => {
+      const uninitializedModule = new CLIModule();
+      await expect(uninitializedModule.getAllCommands()).rejects.toThrow('CLI service not initialized');
+    });
+
+    it('should throw error when service is null', async () => {
+      const moduleWithNullService = new CLIModule();
+      // Manually set service to null to test null check
+      (moduleWithNullService as any).cliService = null;
+      await expect(moduleWithNullService.getAllCommands()).rejects.toThrow('CLI service not initialized');
     });
   });
 
   describe('getCommandHelp', () => {
-    it('should return help for existing command', () => {
+    it('should return help from service for existing command', async () => {
+      await cliModule.initialize();
       const mockCommands = new Map([
         ['test:command', { 
+          name: 'test:command', 
           description: 'Test command',
           options: [
             { name: 'test', type: 'string' as const, description: 'Test option' }
-          ],
-          execute: jest.fn()
+          ]
         }]
       ]);
+      const expectedHelp = 'Command: test:command\nDescription: Test command';
+      mockCliService.getCommandHelp.mockReturnValue(expectedHelp);
 
       const result = cliModule.getCommandHelp('test:command', mockCommands);
 
-      expect(result).toContain('Command: test:command');
-      expect(result).toContain('Description: Test command');
-      expect(result).toContain('--test');
-      expect(result).toContain('Test option');
+      expect(result).toBe(expectedHelp);
+      expect(mockCliService.getCommandHelp).toHaveBeenCalledWith('test:command', mockCommands);
     });
 
-    it('should return error message for non-existing command', () => {
+    it('should throw error when service is not initialized', async () => {
+      const uninitializedModule = new CLIModule();
       const mockCommands = new Map();
-
-      const result = cliModule.getCommandHelp('unknown:command', mockCommands);
-
-      expect(result).toBe('Command not found: unknown:command');
+      expect(() => uninitializedModule.getCommandHelp('test:command', mockCommands)).toThrow('CLI service not initialized');
     });
 
-    it('should handle command with no options', () => {
-      const mockCommands = new Map([
-        ['test:command', { 
-          description: 'Test command',
-          execute: jest.fn()
-        }]
-      ]);
-
-      const result = cliModule.getCommandHelp('test:command', mockCommands);
-
-      expect(result).toContain('Command: test:command');
-      expect(result).not.toContain('Options:');
+    it('should throw error when service is null', async () => {
+      const moduleWithNullService = new CLIModule();
+      (moduleWithNullService as any).cliService = null;
+      const mockCommands = new Map();
+      expect(() => moduleWithNullService.getCommandHelp('test:command', mockCommands)).toThrow('CLI service not initialized');
     });
 
-    it('should display option details correctly', () => {
-      const mockCommands = new Map([
-        ['test:command', { 
-          description: 'Test command',
-          options: [
-            { 
-              name: 'format',
-              type: 'string' as const,
-              description: 'Output format',
-              alias: 'f',
-              default: 'json',
-              required: true
-            }
-          ],
-          execute: jest.fn()
-        }]
-      ]);
-
-      const result = cliModule.getCommandHelp('test:command', mockCommands);
-
-      expect(result).toContain('--format, -f');
-      expect(result).toContain('Output format');
-      expect(result).toContain('(default: json)');
-      expect(result).toContain('[required]');
-    });
   });
 
   describe('formatCommands', () => {
     const mockCommands = new Map([
-      ['auth:login', { description: 'Login command', execute: jest.fn() }],
-      ['auth:logout', { description: 'Logout command', execute: jest.fn() }],
-      ['db:migrate', { description: 'Run migrations', execute: jest.fn() }],
-      ['help', { description: 'Show help', execute: jest.fn() }]
+      ['auth:login', { name: 'auth:login', description: 'Login command' }],
+      ['auth:logout', { name: 'auth:logout', description: 'Logout command' }],
+      ['db:migrate', { name: 'db:migrate', description: 'Run migrations' }],
+      ['help', { name: 'help', description: 'Show help' }]
     ]);
 
-    it('should format commands as JSON', () => {
+    it('should format commands using service', async () => {
+      await cliModule.initialize();
+      const expectedResult = JSON.stringify({ 'auth:login': 'Login command' });
+      mockCliService.formatCommands.mockReturnValue(expectedResult);
+
       const result = cliModule.formatCommands(mockCommands, 'json');
-      const parsed = JSON.parse(result);
 
-      expect(parsed).toHaveProperty('auth:login');
-      expect(parsed).toHaveProperty('auth:logout');
-      expect(parsed).toHaveProperty('db:migrate');
-      expect(parsed).toHaveProperty('help');
+      expect(result).toBe(expectedResult);
+      expect(mockCliService.formatCommands).toHaveBeenCalledWith(mockCommands, 'json');
     });
 
-    it('should format commands as text (default)', () => {
-      const result = cliModule.formatCommands(mockCommands, 'text');
-
-      expect(result).toContain('auth commands:');
-      expect(result).toContain('login');
-      expect(result).toContain('logout');
-      expect(result).toContain('db commands:');
-      expect(result).toContain('migrate');
-      expect(result).toContain('core commands:');
-      expect(result).toContain('help');
+    it('should throw error when service is not initialized', () => {
+      const uninitializedModule = new CLIModule();
+      expect(() => uninitializedModule.formatCommands(mockCommands, 'text')).toThrow('CLI service not initialized');
     });
 
-    it('should format commands as table', () => {
-      const result = cliModule.formatCommands(mockCommands, 'table');
-
-      expect(result).toContain('Available Commands');
-      expect(result).toContain('==================');
-      expect(result).toContain('auth:login');
-      expect(result).toContain('auth:logout');
-      expect(result).toContain('db:migrate');
-    });
-
-    it('should sort modules and commands alphabetically', () => {
-      const result = cliModule.formatCommands(mockCommands, 'text');
-      
-      // Check order by finding positions
-      const authPos = result.indexOf('auth commands:');
-      const corePos = result.indexOf('core commands:');
-      const dbPos = result.indexOf('db commands:');
-      
-      expect(authPos).toBeLessThan(corePos);
-      expect(corePos).toBeLessThan(dbPos);
+    it('should throw error when service is null', () => {
+      const moduleWithNullService = new CLIModule();
+      (moduleWithNullService as any).cliService = null;
+      expect(() => moduleWithNullService.formatCommands(mockCommands, 'text')).toThrow('CLI service not initialized');
     });
   });
 
   describe('generateDocs', () => {
     const mockCommands = new Map([
       ['auth:login', { 
+        name: 'auth:login',
         description: 'Login to the system',
         options: [
           { name: 'username', type: 'string' as const, description: 'Username', required: true },
           { name: 'password', type: 'string' as const, description: 'Password', required: true }
-        ],
-        execute: jest.fn()
+        ]
       }],
       ['db:migrate', { 
-        description: 'Run database migrations',
-        execute: jest.fn()
+        name: 'db:migrate',
+        description: 'Run database migrations'
       }]
     ]);
 
-    it('should generate markdown documentation', () => {
+    it('should generate documentation using service', async () => {
+      await cliModule.initialize();
+      const expectedDocs = '# CLI Commands\n## auth:login\nLogin to the system';
+      mockCliService.generateDocs.mockReturnValue(expectedDocs);
+
       const result = cliModule.generateDocs(mockCommands, 'markdown');
 
-      expect(result).toContain('# SystemPrompt OS CLI Commands');
-      expect(result).toContain('## Usage');
-      expect(result).toContain('systemprompt <command> [options]');
-      expect(result).toContain('### auth module');
-      expect(result).toContain('#### auth:login');
-      expect(result).toContain('Login to the system');
-      expect(result).toContain('**Options:**');
-      expect(result).toContain('`--username`: Username **[required]**');
-      expect(result).toContain('`--password`: Password **[required]**');
+      expect(result).toBe(expectedDocs);
+      expect(mockCliService.generateDocs).toHaveBeenCalledWith(mockCommands, 'markdown');
     });
 
-    it('should generate JSON documentation for non-markdown formats', () => {
-      const result = cliModule.generateDocs(mockCommands, 'json');
-      const parsed = JSON.parse(result);
-
-      expect(parsed).toHaveProperty('auth:login');
-      expect(parsed).toHaveProperty('db:migrate');
-      expect(parsed['auth:login'].description).toBe('Login to the system');
+    it('should throw error when service is not initialized', () => {
+      const uninitializedModule = new CLIModule();
+      expect(() => uninitializedModule.generateDocs(mockCommands, 'markdown')).toThrow('CLI service not initialized');
     });
 
-    it('should handle commands without options', () => {
-      const result = cliModule.generateDocs(mockCommands, 'markdown');
+    it('should throw error when service is null', () => {
+      const moduleWithNullService = new CLIModule();
+      (moduleWithNullService as any).cliService = null;
+      expect(() => moduleWithNullService.generateDocs(mockCommands, 'markdown')).toThrow('CLI service not initialized');
+    });
+  });
 
-      expect(result).toContain('#### db:migrate');
-      expect(result).toContain('Run database migrations');
-      // Should not have options section for db:migrate
-      const dbMigrateSection = result.substring(
-        result.indexOf('#### db:migrate'),
-        result.length
-      );
-      expect(dbMigrateSection).not.toContain('**Options:**');
+  describe('getService', () => {
+    it('should return the CLI service when initialized', async () => {
+      await cliModule.initialize();
+      const service = cliModule.getService();
+      expect(service).toBe(mockCliService);
+    });
+
+    it('should throw error when service is not initialized', () => {
+      const uninitializedModule = new CLIModule();
+      expect(() => uninitializedModule.getService()).toThrow('CLI service not initialized');
+    });
+
+    it('should throw error when service is null', () => {
+      const moduleWithNullService = new CLIModule();
+      (moduleWithNullService as any).cliService = null;
+      expect(() => moduleWithNullService.getService()).toThrow('CLI service not initialized');
     });
   });
 
   describe('exports', () => {
-    it('should expose methods through exports', async () => {
-      const mockCommands = new Map();
-      mockCLIService.getAllCommands.mockResolvedValue(mockCommands);
+    it('should expose service method', async () => {
+      await cliModule.initialize();
+      const service = cliModule.exports.service();
+      expect(service).toBe(mockCliService);
+    });
 
-      // Test getAllCommands export
+    it('should expose getAllCommands method', async () => {
+      await cliModule.initialize();
+      const mockCommands = new Map();
+      mockCliService.getAllCommands.mockResolvedValue(mockCommands);
+
       const commands = await cliModule.exports.getAllCommands();
       expect(commands).toBe(mockCommands);
+    });
 
-      // Test getCommandHelp export
+    it('should expose getCommandHelp method', async () => {
+      await cliModule.initialize();
+      const mockCommands = new Map();
+      const expectedHelp = 'Help text';
+      mockCliService.getCommandHelp.mockReturnValue(expectedHelp);
+
       const help = cliModule.exports.getCommandHelp('test', mockCommands);
-      expect(help).toContain('Command not found: test');
+      expect(help).toBe(expectedHelp);
+    });
 
-      // Test formatCommands export
+    it('should expose formatCommands method', async () => {
+      await cliModule.initialize();
+      const mockCommands = new Map();
+      const expectedFormat = '{}';
+      mockCliService.formatCommands.mockReturnValue(expectedFormat);
+
       const formatted = cliModule.exports.formatCommands(mockCommands, 'json');
-      expect(formatted).toBe('{}');
+      expect(formatted).toBe(expectedFormat);
+    });
 
-      // Test generateDocs export
+    it('should expose generateDocs method', async () => {
+      await cliModule.initialize();
+      const mockCommands = new Map();
+      const expectedDocs = 'Documentation';
+      mockCliService.generateDocs.mockReturnValue(expectedDocs);
+
       const docs = cliModule.exports.generateDocs(mockCommands, 'json');
-      expect(docs).toBe('{}');
+      expect(docs).toBe(expectedDocs);
+    });
+
+    it('should expose scanAndRegisterModuleCommands method', async () => {
+      await cliModule.initialize();
+      const mockModules = new Map([['test', { path: '/test/path' }]]);
+
+      await cliModule.exports.scanAndRegisterModuleCommands(mockModules);
+
+      expect(mockCliService.scanAndRegisterModuleCommands).toHaveBeenCalledWith(mockModules);
+    });
+  });
+});
+
+describe('Standalone Functions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    
+    const mockCliService = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      isInitialized: vi.fn().mockReturnValue(true),
+      getAllCommands: vi.fn().mockResolvedValue(new Map()),
+      getCommandHelp: vi.fn().mockReturnValue('Help text'),
+      formatCommands: vi.fn().mockReturnValue('Formatted commands'),
+      generateDocs: vi.fn().mockReturnValue('Generated docs'),
+      scanAndRegisterModuleCommands: vi.fn().mockResolvedValue(undefined)
+    };
+
+    const mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    };
+
+    const mockDatabase = {
+      isInitialized: vi.fn().mockReturnValue(true)
+    };
+
+    (CliService.getInstance as any) = vi.fn().mockReturnValue(mockCliService);
+    (LoggerService.getInstance as any) = vi.fn().mockReturnValue(mockLogger);
+    (DatabaseService.getInstance as any) = vi.fn().mockReturnValue(mockDatabase);
+  });
+
+  describe('initialize', () => {
+    it('should create and initialize a new CLI module', async () => {
+      await initialize();
+      
+      expect(CliService.getInstance).toHaveBeenCalled();
+      expect(LoggerService.getInstance).toHaveBeenCalled();
+      expect(DatabaseService.getInstance).toHaveBeenCalled();
+    });
+  });
+
+  describe('createModule', () => {
+    it('should return a new CLIModule instance', () => {
+      const module = createModule();
+      expect(module).toBeInstanceOf(CLIModule);
+      expect(module.name).toBe('cli');
+      expect(module.version).toBe('1.0.0');
+      expect(module.type).toBe('service');
+    });
+  });
+
+  describe('service', () => {
+    it('should return CLI service instance', () => {
+      const mockService = { test: 'service' };
+      (CliService.getInstance as any) = vi.fn().mockReturnValue(mockService as any);
+      
+      const result = service();
+      expect(result).toBe(mockService);
+    });
+  });
+
+  describe('getAllCommands', () => {
+    it('should throw error because standalone function creates uninitialized module', async () => {
+      // This tests the actual behavior - standalone functions create new uninitialized modules
+      await expect(getAllCommands()).rejects.toThrow('CLI service not initialized');
+    });
+  });
+
+  describe('getCommandHelp', () => {
+    it('should throw error because standalone function creates uninitialized module', () => {
+      const mockCommands = new Map();
+      // This tests the actual behavior - standalone functions create new uninitialized modules
+      expect(() => getCommandHelp('test', mockCommands)).toThrow('CLI service not initialized');
+    });
+  });
+
+  describe('formatCommands', () => {
+    it('should throw error because standalone function creates uninitialized module', () => {
+      const mockCommands = new Map();
+      // This tests the actual behavior - standalone functions create new uninitialized modules
+      expect(() => formatCommands(mockCommands, 'json')).toThrow('CLI service not initialized');
+    });
+  });
+
+  describe('generateDocs', () => {
+    it('should throw error because standalone function creates uninitialized module', () => {
+      const mockCommands = new Map();
+      // This tests the actual behavior - standalone functions create new uninitialized modules
+      expect(() => generateDocs(mockCommands, 'markdown')).toThrow('CLI service not initialized');
     });
   });
 });

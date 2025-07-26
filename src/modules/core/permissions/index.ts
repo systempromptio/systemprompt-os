@@ -4,7 +4,8 @@
  * @module modules/core/permissions
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -25,8 +26,8 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
   public readonly description = 'Role-based access control and permissions management';
-  public readonly dependencies = ['logger', 'database', 'auth'];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public readonly dependencies = ['logger', 'database', 'auth'] as const;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private permissionsService!: PermissionsService;
   private logger!: ILogger;
   private initialized = false;
@@ -67,10 +68,10 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
     }
 
     if (this.started) {
-      throw new Error('Permissions module already started');
+      return;
     }
 
-    this.status = 'running';
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
     this.logger.info(LogSource.AUTH, 'Permissions module started');
   }
@@ -80,7 +81,7 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = 'stopped';
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
       this.logger.info(LogSource.AUTH, 'Permissions module stopped');
     }
@@ -136,8 +137,29 @@ export const initialize = async (): Promise<PermissionsModule> => {
 };
 
 /**
+ * Gets the Permissions module with type safety and validation.
+ * @returns The Permissions module with guaranteed typed exports.
+ * @throws {Error} If Permissions module is not available or missing required exports.
+ */
+export function getPermissionsModule(): IModule<IPermissionsModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const moduleLoader = getModuleLoader();
+  const permissionsModule = moduleLoader.getModule(ModuleName.PERMISSIONS);
+
+  if (!permissionsModule.exports?.service || typeof permissionsModule.exports.service !== 'function') {
+    throw new Error('Permissions module missing required service export');
+  }
+
+  return permissionsModule as IModule<IPermissionsModuleExports>;
+}
+
+/**
  * Re-export enums for convenience.
  */
 export {
   PermissionActionEnum
 } from '@/modules/core/permissions/types/index';
+
+export default PermissionsModule;

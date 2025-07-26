@@ -1,13 +1,4 @@
 /**
- * Database view service for CLI commands.
- * This service provides database view functionality without direct database imports.
- * @file Database view service for CLI commands.
- * @module modules/core/cli/services/database-view
- */
-
-import type { ILogger } from '@/modules/core/logger/types/index';
-
-/**
  * Column information interface.
  */
 export interface IColumnInfo {
@@ -67,10 +58,9 @@ export class DatabaseViewService {
 
   /**
    * Get the service instance.
-   * @param logger - Optional logger instance.
    * @returns The service instance.
    */
-  public static getInstance(logger?: ILogger): DatabaseViewService {
+  public static getInstance(): DatabaseViewService {
     DatabaseViewService.instance ||= new DatabaseViewService();
     return DatabaseViewService.instance;
   }
@@ -84,7 +74,7 @@ export class DatabaseViewService {
     try {
       // Dynamic import to avoid direct database folder import restriction
       const { DatabaseCLIHandlerService } = await import(
-        '@/modules/core/database/services/cli-handler.service'
+        '../../database/services/cli-handler.service'
       );
       const cliHandler = DatabaseCLIHandlerService.getInstance();
       

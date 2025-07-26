@@ -1,45 +1,7 @@
 /**
- * Base interface for all SystemPrompt OS modules.
- */
-export interface IModule<TExports = unknown> {
-    readonly name: string;
-
-    readonly version: string;
-
-    readonly type?: string;
-
-    readonly dependencies?: readonly string[];
-
-    status: ModuleStatus;
-
-    readonly exports?: TExports;
-
-    setDependencies?(modules: Map<string, IModule>): void;
-
-    initialize(): Promise<void>;
-
-    start(): Promise<void>;
-
-    stop(): Promise<void>;
-
-    healthCheck?(): Promise<{ healthy: boolean; message?: string }>;
-}
-
-/**
- * Module types enum - strongly typed.
- */
-export enum ModuleType {
-  CORE = 'core',
-  SERVICE = 'service',
-  DAEMON = 'daemon',
-  PLUGIN = 'plugin',
-  EXTENSION = 'extension'
-}
-
-/**
  * Module status enum - strongly typed.
  */
-export enum ModuleStatus {
+export const enum ModuleStatusEnum {
   /**
    * Module is registered but not initialized.
    */
@@ -75,9 +37,47 @@ export enum ModuleStatus {
 }
 
 /**
+ * Module types enum - strongly typed.
+ */
+export const enum ModuleTypeEnum {
+  CORE = 'core',
+  SERVICE = 'service',
+  DAEMON = 'daemon',
+  PLUGIN = 'plugin',
+  EXTENSION = 'extension'
+}
+
+/**
+ * Base interface for all SystemPrompt OS modules.
+ */
+export interface IModule<TExports = unknown> {
+    readonly name: string;
+
+    readonly version: string;
+
+    readonly type?: string;
+
+    readonly dependencies?: readonly string[];
+
+    status: ModuleStatusEnum;
+
+    readonly exports: TExports;
+
+    setDependencies?(modules: Map<string, IModule>): void;
+
+    initialize(): Promise<void>;
+
+    start(): Promise<void>;
+
+    stop(): Promise<void>;
+
+    healthCheck?(): Promise<{ healthy: boolean; message?: string }>;
+}
+
+/**
  * Module event types enum - strongly typed.
  */
-export enum ModuleEventType {
+export const enum ModuleEventTypeEnum {
   DISCOVERED = 'discovered',
   INSTALLED = 'installed',
   STARTED = 'started',
@@ -90,7 +90,7 @@ export enum ModuleEventType {
 /**
  * Module health status enum - strongly typed.
  */
-export enum ModuleHealthStatus {
+export const enum ModuleHealthStatusEnum {
   HEALTHY = 'healthy',
   UNHEALTHY = 'unhealthy',
   UNKNOWN = 'unknown'
@@ -104,28 +104,21 @@ export type ExtensionType = 'module' | 'server';
 /**
  * Module information interface - required fields are truly required.
  */
-export interface ModuleInfo {
-  // Required core fields
+export interface IModuleInfo {
   name: string;
   version: string;
-  type: ModuleType;
+  type: ModuleTypeEnum;
   path: string;
   enabled: boolean;
   autoStart: boolean;
-  status: ModuleStatus;
-  healthStatus: ModuleHealthStatus;
-
-  // Optional database fields
+  status: ModuleStatusEnum;
+  healthStatus: ModuleHealthStatusEnum;
   id?: number;
   createdAt?: Date;
   updatedAt?: Date;
-
-  // Optional module metadata
   dependencies?: string[];
   config?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
-
-  // Optional status information
   lastError?: string;
   discoveredAt?: Date;
   lastStartedAt?: Date;
@@ -137,12 +130,9 @@ export interface ModuleInfo {
 /**
  * Module event interface - required fields for event tracking.
  */
-export interface ModuleEvent {
-  // Required fields
+export interface IModuleEvent {
   moduleId: number;
-  eventType: ModuleEventType;
-
-  // Optional fields
+  eventType: ModuleEventTypeEnum;
   id?: number;
   eventData?: Record<string, unknown>;
   createdAt?: Date;
@@ -151,13 +141,10 @@ export interface ModuleEvent {
 /**
  * Module dependency interface - explicit dependency tracking.
  */
-export interface ModuleDependency {
-  // Required fields
+export interface IModuleDependency {
   moduleId: number;
   dependencyName: string;
   required: boolean;
-
-  // Optional fields
   id?: number;
   versionConstraint?: string;
   createdAt?: Date;
@@ -166,14 +153,11 @@ export interface ModuleDependency {
 /**
  * Scanned module interface - pre-database module representation.
  */
-export interface ScannedModule {
-  // Required fields from module manifest
+export interface IScannedModule {
   name: string;
   version: string;
-  type: ModuleType;
+  type: ModuleTypeEnum;
   path: string;
-
-  // Optional fields from manifest
   dependencies?: string[];
   config?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
@@ -182,7 +166,7 @@ export interface ScannedModule {
 /**
  * Module scan options.
  */
-export interface ModuleScanOptions {
+export interface IModuleScanOptions {
   paths?: string[];
   includeDisabled?: boolean;
   deep?: boolean;
@@ -191,11 +175,8 @@ export interface ModuleScanOptions {
 /**
  * Module configuration - runtime configuration.
  */
-export interface ModuleConfig {
-  // Required fields
+export interface IModuleConfig {
   enabled: boolean;
-
-  // Optional runtime settings
   autoStart?: boolean;
   config?: Record<string, unknown>;
 }
@@ -203,40 +184,34 @@ export interface ModuleConfig {
 /**
  * Module scanner service interface.
  */
-export interface ModuleScannerService {
-  scan(options: ModuleScanOptions): Promise<ScannedModule[]>;
-  getEnabledModules(): Promise<ModuleInfo[]>;
-  updateModuleStatus(name: string, status: ModuleStatus, error?: string): Promise<void>;
+export interface IModuleScannerService {
+  scan(options: IModuleScanOptions): Promise<IScannedModule[]>;
+  getEnabledModules(): Promise<IModuleInfo[]>;
+  updateModuleStatus(name: string, status: ModuleStatusEnum, error?: string): Promise<void>;
   setModuleEnabled(name: string, enabled: boolean): Promise<void>;
   updateModuleHealth(name: string, healthy: boolean, message?: string): Promise<void>;
-  getModule(name: string): Promise<ModuleInfo | undefined>;
-  getRegisteredModules(): Promise<ModuleInfo[]>;
+  getModule(name: string): Promise<IModuleInfo | undefined>;
+  getRegisteredModules(): Promise<IModuleInfo[]>;
 }
 
 /**
  * Extension module configuration - path configuration.
  */
-export interface ExtensionModuleConfig {
-  // Required paths
+export interface IExtensionModuleConfig {
   modulesPath: string;
   extensionsPath: string;
-
-  // Optional settings
   autoDiscover?: boolean;
 }
 
 /**
  * Extension info - complete extension representation.
  */
-export interface ExtensionInfo {
-  // Required core fields
+export interface IExtensionInfo {
   name: string;
   type: ExtensionType;
   version: string;
   path: string;
   enabled: boolean;
-
-  // Optional metadata
   description?: string;
   author?: string;
   dependencies?: string[];
@@ -249,38 +224,54 @@ export interface ExtensionInfo {
 /**
  * Extension configuration - runtime settings for extensions.
  */
-export interface ExtensionConfig {
-  // All fields optional as this is runtime config
+export interface IExtensionConfig {
   autoStart?: boolean;
   dependencies?: string[];
   settings?: Record<string, unknown>;
-  [key: string]: unknown; // Allow dynamic config keys
+  [key: string]: unknown;
+}
+
+/**
+ * CLI option definition - command option structure.
+ */
+export interface ICliOption {
+  name: string;
+  type: 'string' | 'number' | 'boolean';
+  description: string;
+  alias?: string;
+  required?: boolean;
+  default?: string | number | boolean;
+}
+
+/**
+ * CLI command definition - command structure.
+ */
+export interface ICliCommand {
+  name: string;
+  description: string;
+  options?: ICliOption[];
 }
 
 /**
  * Module manifest - YAML module definition.
  */
-export interface ModuleManifest {
-  // Required fields in a valid manifest
+export interface IModuleManifest {
   name: string;
   version: string;
   type: string;
-
-  // Optional metadata
   description?: string;
   author?: string;
   dependencies?: string[];
   config?: Record<string, unknown>;
   cli?: {
-    commands?: CLICommand[];
+    commands?: ICliCommand[];
   };
 }
 
 /**
  * Validation result - comprehensive validation output.
  */
-export interface ValidationResult {
-  // Required fields
+export interface IValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
@@ -289,7 +280,7 @@ export interface ValidationResult {
 /**
  * Install options interface.
  */
-export interface InstallOptions {
+export interface IInstallOptions {
   force?: boolean;
   skipDependencies?: boolean;
   autoEnable?: boolean;
@@ -299,7 +290,7 @@ export interface InstallOptions {
 /**
  * Removal options interface.
  */
-export interface RemovalOptions {
+export interface IRemovalOptions {
   force?: boolean;
   keepData?: boolean;
   preserveConfig?: boolean;
@@ -308,43 +299,16 @@ export interface RemovalOptions {
 /**
  * Discovery options interface.
  */
-export interface DiscoveryOptions {
+export interface IDiscoveryOptions {
   paths?: string[];
   recursive?: boolean;
   types?: ExtensionType[];
 }
 
 /**
- * CLI command definition - command structure.
- */
-export interface CLICommand {
-  // Required fields
-  name: string;
-  description: string;
-
-  // Optional fields
-  options?: CLIOption[];
-}
-
-/**
- * CLI option definition - command option structure.
- */
-export interface CLIOption {
-  // Required fields
-  name: string;
-  type: 'string' | 'number' | 'boolean';
-  description: string;
-
-  // Optional fields
-  alias?: string;
-  required?: boolean;
-  default?: string | number | boolean;
-}
-
-/**
  * MCP resource data stored in database.
  */
-export interface MCPResource {
+export interface IResourceData {
   id: number;
   uri: string;
   name: string;
@@ -365,7 +329,7 @@ export interface MCPResource {
 /**
  * MCP prompt data stored in database.
  */
-export interface MCPPrompt {
+export interface IPromptData {
   id: number;
   name: string;
   description?: string;
@@ -391,7 +355,7 @@ export interface MCPPrompt {
 /**
  * MCP resource template stored in database.
  */
-export interface MCPResourceTemplate {
+export interface IResourceTemplateData {
   id: number;
   uriTemplate: string;
   name: string;
@@ -429,9 +393,49 @@ export interface IDatabaseModuleRow {
 }
 
 /**
+ * MCP resource data interface for scanning resources.
+ */
+export interface IResourceScanData {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * MCP prompt data interface for scanning prompts.
+ */
+export interface IPromptScanData {
+  name: string;
+  description?: string;
+  arguments?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+  }>;
+  metadata?: {
+    category?: string;
+    tags?: string[];
+    author?: string;
+    version?: string;
+  };
+}
+
+/**
+ * File information interface for scanned files.
+ */
+export interface IFileInfo {
+  path: string;
+  relativePath: string;
+  stats: Record<string, unknown>;
+  hash?: string;
+}
+
+/**
  * MCP content scanner service interface.
  */
-export interface IMCPContentScanner {
+export interface IContentScanner {
   scanModule(moduleName: string, modulePath: string): Promise<void>;
   removeModuleContent(moduleName: string): Promise<void>;
 }

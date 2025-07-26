@@ -130,6 +130,16 @@ export interface ICliModule {
   formatCommands: (commands: Map<string, unknown>, format: string) => string;
 }
 
+/**
+ * Summary format for CLI output.
+ */
+export type ISummaryFormatCLI = 'text' | 'json' | 'table';
+
+/**
+ * Summary sort criteria for CLI.
+ */
+export type ISummarySortByCLI = 'name' | 'rows' | 'columns';
+
 export type CLIContext = ICLIContext;
 export type CLIOption = ICLIOption;
 export type CLIPositional = ICLIPositional;

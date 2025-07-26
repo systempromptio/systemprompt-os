@@ -1,85 +1,147 @@
 /**
+ * Database status CLI command.
+ * This module provides functionality to display database connection health
+ * and status information in various formats.
  * @file Database status CLI command.
  * @module modules/core/database/cli/status
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ICLIContext } from '@/modules/core/cli/types/index';
+import {
+  DatabaseStatusService,
+  type IStatusParams,
+} from '@/modules/core/cli/services/database-status.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import type {
+  ISchemaVersion,
+  IStatusData,
+  StatusFormat,
+} from '@/modules/core/cli/types/database-status.types';
+
+/**
+ * Output detailed status information.
+ * @param statusData - Database status data.
+ * @param logger - Logger service instance.
+ */
+const outputDetailedInfo = (
+  statusData: IStatusData,
+  logger: LoggerService,
+): void => {
+  if (statusData.tableCount !== undefined) {
+    logger.info(LogSource.DATABASE, `  Tables: ${String(statusData.tableCount)}`);
+  }
+
+  if (statusData.tables !== undefined && statusData.tables.length > 0) {
+    logger.info(LogSource.DATABASE, '  Table Names:');
+    statusData.tables.forEach((table): void => {
+      logger.info(LogSource.DATABASE, `    - ${table}`);
+    });
+  }
+
+  if (statusData.schemaVersions !== undefined && statusData.schemaVersions.length > 0) {
+    logger.info(LogSource.DATABASE, '  Schema Versions:');
+    statusData.schemaVersions.forEach((schema: ISchemaVersion): void => {
+      logger.info(LogSource.DATABASE, `    ${schema.module}: ${schema.version}`);
+    });
+  }
+};
+
+/**
+ * Output status information in JSON format.
+ * @param statusData - Database status data.
+ * @param logger - Logger service instance.
+ */
+const outputJsonFormat = (
+  statusData: IStatusData,
+  logger: LoggerService,
+): void => {
+  const jsonOutput = JSON.stringify(statusData, null, 2);
+  logger.info(LogSource.DATABASE, jsonOutput);
+};
+
+/**
+ * Output status information in text format.
+ * @param statusData - Database status data.
+ * @param logger - Logger service instance.
+ */
+const outputTextFormat = (
+  statusData: IStatusData,
+  logger: LoggerService,
+): void => {
+  logger.info(LogSource.DATABASE, 'Database Status:');
+  logger.info(LogSource.DATABASE, `  Connected: ${statusData.connected ? '✓' : '✗'}`);
+  logger.info(LogSource.DATABASE, `  Initialized: ${statusData.initialized ? '✓' : '✗'}`);
+  logger.info(LogSource.DATABASE, `  Type: ${statusData.type}`);
+  logger.info(LogSource.DATABASE, `  Timestamp: ${statusData.timestamp}`);
+
+  const hasDetailedInfo = statusData.tableCount !== undefined || statusData.error !== undefined;
+  if (hasDetailedInfo) {
+    logger.info(LogSource.DATABASE, '');
+    logger.info(LogSource.DATABASE, 'Detailed Information:');
+
+    if (statusData.error === undefined) {
+      outputDetailedInfo(statusData, logger);
+    } else {
+      logger.info(LogSource.DATABASE, `  Error: ${statusData.error}`);
+    }
+  }
+};
+
+/**
+ * Handle status command execution.
+ * @param params - Status parameters.
+ * @param logger - Logger service instance.
+ */
+const handleStatusExecution = async (
+  params: IStatusParams,
+  logger: LoggerService,
+): Promise<void> => {
+  const statusService = DatabaseStatusService.getInstance();
+  const result = await statusService.getStatus(params);
+
+  if (!result.success) {
+    logger.error(LogSource.DATABASE, result.message ?? 'Unknown error');
+    process.exit(1);
+    return;
+  }
+
+  if (result.data === undefined) {
+    logger.error(LogSource.DATABASE, 'No status data received');
+    process.exit(1);
+    return;
+  }
+
+  const { format = 'text' } = params;
+
+  if (format === 'json') {
+    outputJsonFormat(result.data, logger);
+  } else {
+    outputTextFormat(result.data, logger);
+  }
+};
 
 export const command = {
   description: 'Show database connection health and status',
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const format = (args?.format ?? 'text') as 'text' | 'json';
-    const detailed = args?.detailed === true;
+    const logger = LoggerService.getInstance();
+
+    const formatValue = args.format ?? 'text';
+    const format: StatusFormat = formatValue === 'json' ? 'json' : 'text';
+    const detailed = args.detailed === true;
+
+    const params: IStatusParams = {
+      format,
+      detailed,
+    };
 
     try {
-      const dbService = DatabaseService.getInstance();
-
-      const status = {
-        connected: await dbService.isConnected(),
-        initialized: await dbService.isInitialized(),
-        type: dbService.getDatabaseType(),
-        timestamp: new Date().toISOString(),
-      };
-
-      let detailedInfo = {};
-      if (detailed && status.connected) {
-        try {
-          const tables = await dbService.query<{ name: string }>(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-          );
-          const schemaVersions = await dbService.query<{ module: string; version: string }>(
-            "SELECT module, version FROM _schema_versions ORDER BY module"
-          );
-
-          detailedInfo = {
-            tableCount: tables.length,
-            tables: tables.map(t => { return t.name }),
-            schemaVersions,
-          };
-        } catch (error) {
-          detailedInfo = { error: 'Failed to retrieve detailed information' };
-        }
-      }
-
-      const result = detailed ? {
- ...status,
-...detailedInfo
-} : status;
-
-      if (format === 'json') {
-        console.log(JSON.stringify(result, null, 2));
-      } else {
-        console.log('Database Status:');
-        console.log(`  Connected: ${status.connected ? '✓' : '✗'}`);
-        console.log(`  Initialized: ${status.initialized ? '✓' : '✗'}`);
-        console.log(`  Type: ${status.type}`);
-        console.log(`  Timestamp: ${status.timestamp}`);
-
-        if (detailed && status.connected) {
-          console.log('\nDetailed Information:');
-          if ('tableCount' in detailedInfo) {
-            console.log(`  Tables: ${(detailedInfo as any).tableCount}`);
-            if ((detailedInfo as any).tables?.length > 0) {
-              console.log('  Table Names:');
-              (detailedInfo as any).tables.forEach((table: string) => {
-                console.log(`    - ${table}`);
-              });
-            }
-            if ((detailedInfo as any).schemaVersions?.length > 0) {
-              console.log('  Schema Versions:');
-              (detailedInfo as any).schemaVersions.forEach((schema: any) => {
-                console.log(`    ${schema.module}: ${schema.version}`);
-              });
-            }
-          } else if ('error' in detailedInfo) {
-            console.log(`  Error: ${(detailedInfo as any).error}`);
-          }
-        }
-      }
+      await handleStatusExecution(params, logger);
     } catch (error) {
-      console.error('Error getting database status:', error);
+      logger.error(LogSource.DATABASE, 'Error getting database status', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
       process.exit(1);
     }
 

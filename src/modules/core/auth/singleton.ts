@@ -2,6 +2,7 @@ import type { IModule } from '@/modules/core/modules/types/index';
 import type { AuthModuleExports, IdentityProvider } from '@/modules/core/auth/types/index';
 import type { ProviderRegistry } from '@/modules/core/auth/providers/registry';
 import { getModuleLoader } from '@/modules/loader';
+import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
  *
@@ -18,15 +19,16 @@ export interface IAuthModuleWithExports extends IModule {
   reloadProviders(): Promise<void>;
   getTunnelStatus(): unknown;
   getPublicUrl(): string | null;
+  start(): Promise<void>;
 }
 
 export function getAuthModule(): IAuthModuleWithExports {
   const moduleLoader = getModuleLoader();
-  const authModule = moduleLoader.getModule('auth');
+  const authModule = moduleLoader.getModule(ModuleName.AUTH);
 
   if (authModule === undefined) {
     throw new Error('Auth module not loaded');
   }
 
-  return authModule as IAuthModuleWithExports;
+  return authModule as unknown as IAuthModuleWithExports;
 }

@@ -3,7 +3,7 @@
  * @module tests/unit/modules/core/config/providers/google
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { googleLiveAPIProvider, getModelConfig, getClientOptions } from '../../../../../../src/modules/core/config/providers/google.js';
 import { HarmCategory, HarmBlockThreshold } from '@google/genai';
 
@@ -144,6 +144,269 @@ describe('Google Live API Provider Configuration', () => {
     it('returns string API key', () => {
       const options = getClientOptions();
       expect(typeof options.apiKey).toBe('string');
+    });
+    
+    it('returns empty string when GOOGLE_API_KEY is not set', () => {
+      delete process.env.GOOGLE_API_KEY;
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('');
+    });
+    
+    it('returns environment variable value when GOOGLE_API_KEY is set', () => {
+      const testApiKey = 'test-api-key-12345';
+      process.env.GOOGLE_API_KEY = testApiKey;
+      const options = getClientOptions();
+      expect(options.apiKey).toBe(testApiKey);
+    });
+    
+    it('handles empty string GOOGLE_API_KEY environment variable', () => {
+      process.env.GOOGLE_API_KEY = '';
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('');
+    });
+    
+    it('handles whitespace-only GOOGLE_API_KEY environment variable', () => {
+      process.env.GOOGLE_API_KEY = '   ';
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('   ');
+    });
+  });
+
+  describe('Edge Cases and Error Scenarios', () => {
+    describe('getModelConfig edge cases', () => {
+      it('returns undefined for null input', () => {
+        const result = getModelConfig(null as any);
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for undefined input', () => {
+        const result = getModelConfig(undefined as any);
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for empty string', () => {
+        const result = getModelConfig('');
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for whitespace-only string', () => {
+        const result = getModelConfig('   ');
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for number input', () => {
+        const result = getModelConfig(123 as any);
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for object input', () => {
+        const result = getModelConfig({} as any);
+        expect(result).toBeUndefined();
+      });
+      
+      it('returns undefined for array input', () => {
+        const result = getModelConfig([] as any);
+        expect(result).toBeUndefined();
+      });
+      
+      it('is case sensitive for model names', () => {
+        expect(getModelConfig('DEFAULT')).toBeUndefined();
+        expect(getModelConfig('Default')).toBeUndefined();
+        expect(getModelConfig('CODER')).toBeUndefined();
+        expect(getModelConfig('Coder')).toBeUndefined();
+      });
+      
+      it('returns undefined for partially matching model names', () => {
+        expect(getModelConfig('def')).toBeUndefined();
+        expect(getModelConfig('cod')).toBeUndefined();
+        expect(getModelConfig('defaultmodel')).toBeUndefined();
+      });
+    });
+    
+    describe('Model configuration immutability', () => {
+      it('returns different object instances for same model', () => {
+        const config1 = getModelConfig('default');
+        const config2 = getModelConfig('default');
+        expect(config1).not.toBe(config2);
+        expect(config1).toEqual(config2);
+      });
+      
+      it('modifying returned config does not affect subsequent calls', () => {
+        const config1 = getModelConfig('default');
+        if (config1 && config1.generationConfig) {
+          config1.generationConfig.temperature = 999;
+        }
+        
+        const config2 = getModelConfig('default');
+        expect(config2?.generationConfig?.temperature).toBe(0.7);
+      });
+    });
+    
+    describe('Complete model configuration validation', () => {
+      it('validates all default model properties are present', () => {
+        const config = getModelConfig('default');
+        expect(config).toMatchObject({
+          model: expect.any(String),
+          displayName: expect.any(String),
+          systemInstruction: expect.any(String),
+          generationConfig: expect.objectContaining({
+            temperature: expect.any(Number),
+            topK: expect.any(Number),
+            topP: expect.any(Number),
+            maxOutputTokens: expect.any(Number),
+            candidateCount: expect.any(Number),
+            stopSequences: expect.any(Array)
+          }),
+          safetySettings: expect.arrayContaining([
+            expect.objectContaining({
+              category: expect.any(String),
+              threshold: expect.any(String)
+            })
+          ])
+        });
+      });
+      
+      it('validates all coder model specific properties', () => {
+        const config = getModelConfig('coder');
+        expect(config).toMatchObject({
+          model: 'gemini-1.5-pro',
+          displayName: 'Gemini 1.5 Pro (Coder)',
+          tools: [{ codeExecution: {} }],
+          generationConfig: expect.objectContaining({
+            temperature: 0.2
+          })
+        });
+      });
+      
+      it('validates all creative model specific properties', () => {
+        const config = getModelConfig('creative');
+        expect(config).toMatchObject({
+          model: 'gemini-1.5-flash',
+          displayName: 'Gemini 1.5 Flash (Creative)',
+          generationConfig: expect.objectContaining({
+            temperature: 1.2
+          })
+        });
+        expect(config?.tools).toBeUndefined();
+      });
+      
+      it('validates all analyst model specific properties', () => {
+        const config = getModelConfig('analyst');
+        expect(config).toMatchObject({
+          model: 'gemini-1.5-pro',
+          displayName: 'Gemini 1.5 Pro (Analyst)',
+          tools: [{ codeExecution: {} }],
+          generationConfig: expect.objectContaining({
+            responseMimeType: 'application/json'
+          })
+        });
+      });
+    });
+    
+    describe('Safety settings validation', () => {
+      it('ensures all models have exactly 4 safety settings', () => {
+        const models = ['default', 'coder', 'creative', 'analyst'];
+        models.forEach(modelName => {
+          const config = getModelConfig(modelName);
+          expect(config?.safetySettings).toHaveLength(4);
+        });
+      });
+      
+      it('ensures all required harm categories are covered', () => {
+        const requiredCategories = [
+          HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          HarmCategory.HARM_CATEGORY_HARASSMENT,
+          HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT
+        ];
+        
+        const models = ['default', 'coder', 'creative', 'analyst'];
+        models.forEach(modelName => {
+          const config = getModelConfig(modelName);
+          const categories = config?.safetySettings?.map(s => s.category) || [];
+          requiredCategories.forEach(category => {
+            expect(categories).toContain(category);
+          });
+        });
+      });
+      
+      it('ensures all safety settings use BLOCK_ONLY_HIGH threshold', () => {
+        const models = ['default', 'coder', 'creative', 'analyst'];
+        models.forEach(modelName => {
+          const config = getModelConfig(modelName);
+          config?.safetySettings?.forEach(setting => {
+            expect(setting.threshold).toBe(HarmBlockThreshold.BLOCK_ONLY_HIGH);
+          });
+        });
+      });
+    });
+  });
+
+  describe('Provider Configuration Integration', () => {
+    it('ensures provider config references correct models', () => {
+      const config = googleLiveAPIProvider.config as any;
+      expect(config.models).toBeDefined();
+      expect(config.models.default).toBeDefined();
+      expect(config.models.coder).toBeDefined();
+      expect(config.models.creative).toBeDefined();
+      expect(config.models.analyst).toBeDefined();
+    });
+    
+    it('ensures provider client config matches getClientOptions', () => {
+      const providerClientConfig = (googleLiveAPIProvider.config as any).client;
+      const clientOptions = getClientOptions();
+      expect(providerClientConfig).toEqual(clientOptions);
+    });
+    
+    it('validates provider metadata completeness', () => {
+      expect(googleLiveAPIProvider.name).toBeTruthy();
+      expect(googleLiveAPIProvider.displayName).toBeTruthy();
+      expect(googleLiveAPIProvider.description).toBeTruthy();
+      expect(googleLiveAPIProvider.version).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(typeof googleLiveAPIProvider.enabled).toBe('boolean');
+    });
+  });
+
+  describe('Environment Variable Behavior', () => {
+    it('handles undefined process.env', () => {
+      const originalProcessEnv = process.env;
+      // @ts-ignore - Testing edge case
+      global.process.env = undefined;
+      
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('');
+      
+      global.process.env = originalProcessEnv;
+    });
+    
+    it('handles process.env as non-object', () => {
+      const originalProcessEnv = process.env;
+      // @ts-ignore - Testing edge case  
+      global.process.env = 'not an object';
+      
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('');
+      
+      global.process.env = originalProcessEnv;
+    });
+    
+    it('handles exception when accessing process.env', () => {
+      const originalProcessEnv = process.env;
+      const originalProcess = global.process;
+      
+      // @ts-ignore - Testing edge case
+      global.process = {
+        get env() {
+          throw new Error('Access denied');
+        }
+      };
+      
+      const options = getClientOptions();
+      expect(options.apiKey).toBe('');
+      expect(options.vertexai).toBe(false);
+      
+      global.process = originalProcess;
+      process.env = originalProcessEnv;
     });
   });
 });

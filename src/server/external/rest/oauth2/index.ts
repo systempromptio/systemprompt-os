@@ -20,7 +20,7 @@
  */
 
 import type {
- NextFunction, Request, Response, Router
+ Request as ExpressRequest, Response as ExpressResponse, NextFunction, Router
 } from 'express';
 import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known';
 import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource';
@@ -29,7 +29,7 @@ import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize';
 
 // Mock implementations for missing modules
 class RegisterEndpoint {
-  register = (_req: Request, res: Response) => {
+  register = (_req: ExpressRequest, res: ExpressResponse) => {
     res.status(501).json({
  error: 'not_implemented',
 message: 'Client registration not implemented'
@@ -38,7 +38,7 @@ message: 'Client registration not implemented'
 }
 
 class TokenEndpoint {
-  postToken = (_req: Request, res: Response) => {
+  postToken = (_req: ExpressRequest, res: ExpressResponse) => {
     res.status(501).json({
  error: 'not_implemented',
 message: 'Token endpoint not implemented'
@@ -47,7 +47,7 @@ message: 'Token endpoint not implemented'
 }
 
 class UserInfoEndpoint {
-  getUserInfo = async (_req: Request, res: Response) => {
+  getUserInfo = async (_req: ExpressRequest, res: ExpressResponse) => {
     res.status(501).json({
  error: 'not_implemented',
 message: 'UserInfo endpoint not implemented'
@@ -56,7 +56,7 @@ message: 'UserInfo endpoint not implemented'
 }
 
 // Mock auth middleware
-const authMiddleware = (_req: Request, _res: Response, next: NextFunction) => {
+const authMiddleware = (_req: ExpressRequest, _res: ExpressResponse, next: NextFunction) => {
   next();
 };
 

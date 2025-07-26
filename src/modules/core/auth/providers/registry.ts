@@ -5,7 +5,7 @@ import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index";
 import { LogSource } from "@/modules/core/logger/types/index";
-import type { IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
+import type { IdpConfig as IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
 import {
  GenericOAuth2Provider,
  type IGenericOAuth2Config
@@ -135,8 +135,8 @@ export class ProviderRegistry {
    */
   private async loadProviderConfig(filePath: string): Promise<ProviderConfig | null> {
     const content = readFileSync(filePath, "utf8");
-    const rawConfig = parseYaml(content) as unknown;
-    const config = this.substituteEnvVars(rawConfig) as ProviderConfig;
+    const rawConfig: unknown = parseYaml(content);
+    const config = this.substituteEnvVars(rawConfig) as Partial<ProviderConfig>;
 
     if (!this.isValidProviderConfig(config)) {
       this.logger?.warn(LogSource.AUTH, `Skipping provider config ${filePath}: missing required fields`);
@@ -144,12 +144,10 @@ export class ProviderRegistry {
     }
 
     if (
-      config.credentials.clientId !== null
-      && config.credentials.clientId !== undefined
-      && config.credentials.clientId !== ''
-      && config.credentials.clientSecret !== null
-      && config.credentials.clientSecret !== undefined
-      && config.credentials.clientSecret !== ''
+      config.credentials?.clientId
+      && config.credentials.clientId.trim() !== ''
+      && config.credentials.clientSecret
+      && config.credentials.clientSecret.trim() !== ''
     ) {
       config.enabled = true;
     }
@@ -164,15 +162,12 @@ export class ProviderRegistry {
    */
   private isValidProviderConfig(config: Partial<ProviderConfig>): config is ProviderConfig {
     return Boolean(
-      config.id !== null
-      && config.id !== undefined
-      && config.id !== ''
-      && config.credentials?.clientId !== null
-      && config.credentials?.clientId !== undefined
-      && config.credentials?.clientId !== ''
-      && config.credentials?.clientSecret !== null
-      && config.credentials?.clientSecret !== undefined
-      && config.credentials?.clientSecret !== ''
+      config.id
+      && config.id.trim() !== ''
+      && config.credentials?.clientId
+      && config.credentials.clientId.trim() !== ''
+      && config.credentials.clientSecret
+      && config.credentials.clientSecret.trim() !== ''
     );
   }
 
@@ -244,9 +239,7 @@ export class ProviderRegistry {
       clientId: config.credentials.clientId,
       clientSecret: config.credentials.clientSecret,
       redirectUri: config.credentials.redirectUri,
-      ...config.scopes !== null
-        && config.scopes !== undefined
-        && config.scopes.length > 0 && { scope: config.scopes.join(" ") },
+      ...config.scopes && config.scopes.length > 0 ? { scope: config.scopes.join(" ") } : {},
     };
 
     switch (config.id) {
@@ -285,30 +278,24 @@ export class ProviderRegistry {
       name: config.name,
       authorizationEndpoint: config.endpoints.authorization,
       tokenEndpoint: config.endpoints.token,
-      ...config.endpoints.userinfo !== null
-        && config.endpoints.userinfo !== undefined
-        && config.endpoints.userinfo !== '' && {
-          userinfoEndpoint: config.endpoints.userinfo
-        },
-      ...this.extractIssuer(config) !== undefined && {
+      ...config.endpoints.userinfo && config.endpoints.userinfo.trim() !== '' ? {
+        userinfoEndpoint: config.endpoints.userinfo
+      } : {},
+      ...this.extractIssuer(config) ? {
         issuer: this.extractIssuer(config)
-      },
-      ...config.endpoints.jwks !== null
-        && config.endpoints.jwks !== undefined
-        && config.endpoints.jwks !== '' && {
-          jwksUri: config.endpoints.jwks
-        },
-      ...config.userinfoMapping !== null
-        && config.userinfoMapping !== undefined && {
-          userinfoMapping: config.userinfoMapping
-        },
+      } : {},
+      ...config.endpoints.jwks && config.endpoints.jwks.trim() !== '' ? {
+        jwksUri: config.endpoints.jwks
+      } : {},
+      ...config.userinfoMapping ? {
+        userinfoMapping: config.userinfoMapping
+      } : {},
     };
 
     if (
       config.type === "oidc"
-      && config.endpoints.discovery !== null
-      && config.endpoints.discovery !== undefined
-      && config.endpoints.discovery !== ''
+      && config.endpoints.discovery
+      && config.endpoints.discovery.trim() !== ''
     ) {
       await this.enrichWithDiscovery(
         genericConfig,
@@ -317,7 +304,7 @@ export class ProviderRegistry {
       );
     }
 
-    return new GenericOAuth2Provider(genericConfig as IGenericOAuth2Config);
+    return new GenericOAuth2Provider(genericConfig as unknown as IGenericOAuth2Config);
   }
 
   /**
@@ -328,9 +315,8 @@ export class ProviderRegistry {
   private extractIssuer(config: ProviderConfig): string | undefined {
     if (
       config.type !== "oidc"
-      || config.endpoints.discovery === null
-      || config.endpoints.discovery === undefined
-      || config.endpoints.discovery === ''
+      || !config.endpoints.discovery
+      || config.endpoints.discovery.trim() === ''
     ) {
       return undefined;
     }

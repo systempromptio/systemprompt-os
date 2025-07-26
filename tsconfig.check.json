@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "target": "ES2020"
+  },
+  "include": ["src/server/index.ts"],
+  "exclude": ["node_modules/**/*"]
+}

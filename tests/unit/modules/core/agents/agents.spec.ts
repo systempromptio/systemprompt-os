@@ -123,6 +123,12 @@ describe('AgentsModule', () => {
       await expect(module.start()).rejects.toThrow('Failed to start monitoring');
       expect(mockLogger.error).toHaveBeenCalledWith('Failed to start agents module', { error });
     });
+
+    it('should throw error when module is not initialized', async () => {
+      const uninitializedModule = new AgentsModule();
+      
+      await expect(uninitializedModule.start()).rejects.toThrow('Module not initialized');
+    });
   });
 
   describe('stop', () => {
@@ -147,6 +153,14 @@ describe('AgentsModule', () => {
       await module.stop(); // Should not throw
 
       expect(mockLogger.error).toHaveBeenCalledWith('Error stopping agents module', { error });
+    });
+
+    it('should return early when agentService is not initialized', async () => {
+      const uninitializedModule = new AgentsModule();
+      
+      await uninitializedModule.stop(); // Should not throw and return early
+      
+      expect(mockAgentService.stopMonitoring).not.toHaveBeenCalled();
     });
   });
 
@@ -216,6 +230,12 @@ describe('AgentsModule', () => {
       expect(exports).toHaveProperty('AgentRepository');
       expect(exports.AgentService).toBe(mockAgentService);
       expect(exports.AgentRepository).toBe(mockAgentRepository);
+    });
+
+    it('should throw error when module is not initialized', () => {
+      const uninitializedModule = new AgentsModule();
+      
+      expect(() => uninitializedModule.exports).toThrow('Module not initialized');
     });
   });
 });

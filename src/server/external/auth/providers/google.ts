@@ -1,56 +1,97 @@
 /**
+ * Google OAuth2/OpenID Connect Identity Provider implementation.
  * @file Google Identity Provider.
  * @module server/external/auth/providers/google
  */
 
-import type {
- IDPConfig, IDPTokens, IDPUserInfo, IdentityProvider
-} from '@/server/external/auth/providers/interface';
+import type { IGoogleConfig } from '@/server/external/auth/providers/types/google';
+import type { IIdentityProvider } from '@/server/external/rest/oauth2/types/authorize.types';
 
-export interface GoogleConfig extends IDPConfig {
-  discoveryurl?: string;
-}
+/**
+ * Type guard to check if value has access_token property.
+ * @param {unknown} value - Value to check.
+ * @returns {boolean} True if value has access_token property.
+ */
+const hasAccessToken = (value: unknown): value is {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  'access_token': unknown;
+  [key: string]: unknown
+} => {
+  return typeof value === 'object'
+    && value !== null
+    && 'access_token' in value;
+};
 
-export class GoogleProvider implements IdentityProvider {
-  id = "google";
-  name = "Google";
-  type = "oidc" as const;
-  private readonly config: GoogleConfig;
+/**
+ * Type guard to check if value has sub property.
+ * @param {unknown} value - Value to check.
+ * @returns {boolean} True if value has sub property.
+ */
+const hasSubProperty = (value: unknown): value is {
+  sub: unknown;
+  email?: unknown;
+  name?: unknown;
+  picture?: unknown;
+  [key: string]: unknown;
+} => {
+  return typeof value === 'object'
+    && value !== null
+    && 'sub' in value;
+};
+
+/**
+ * Google OAuth2/OpenID Connect provider implementation.
+ * @class GoogleProvider
+ * @implements {IdentityProvider}
+ */
+export class GoogleProvider implements IIdentityProvider {
+  name = "google";
+  private readonly config: IGoogleConfig;
   private readonly authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
   private readonly tokenEndpoint = "https://oauth2.googleapis.com/token";
   private readonly userInfoEndpoint = "https://www.googleapis.com/oauth2/v3/userinfo";
-  private readonly revocationEndpoint = "https://oauth2.googleapis.com/revoke";
 
-  constructor(config: GoogleConfig) {
+  /**
+   * Creates a new Google provider instance.
+   * @param {IGoogleConfig} config - Google OAuth2 configuration.
+   */
+  constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope || "openid email profile",
+      scope: config.scope ?? "openid email profile",
     };
   }
 
-  getAuthorizationUrl(state: string, nonce?: string): string {
+  /**
+   * Generates the Google OAuth2 authorization URL.
+   * @param {string} state - OAuth2 state parameter.
+   * @returns {string} The authorization URL.
+   */
+  getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
       client_id: this.config.client_id,
       redirect_uri: this.config.redirect_uri,
       response_type: "code",
-      scope: this.config.scope!,
+      scope: this.config.scope ?? "openid email profile",
       state,
       access_type: "offline",
       prompt: "consent",
     });
 
-    if (nonce) {
-      params.append("nonce", nonce);
-    }
-
-    return `${this.authorizationEndpoint}?${params}`;
+    return `${this.authorizationEndpoint}?${params.toString()}`;
   }
 
-  async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
+  /**
+   * Exchanges authorization code for access tokens.
+   * @param {string} code - Authorization code from Google.
+   * @returns {Promise<{ accessToken: string }>} Promise resolving to token response.
+   * @throws {Error} When token exchange fails.
+   */
+  async exchangeCodeForTokens(code: string): Promise<{ accessToken: string }> {
     const params = new URLSearchParams({
       code,
       client_id: this.config.client_id,
-      client_secret: this.config.client_secret || "",
+      client_secret: this.config.client_secret,
       redirect_uri: this.config.redirect_uri,
       grant_type: "authorization_code",
     });
@@ -58,7 +99,7 @@ export class GoogleProvider implements IdentityProvider {
     const response = await fetch(this.tokenEndpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': "application/x-www-form-urlencoded",
       },
       body: params,
     });
@@ -68,18 +109,35 @@ export class GoogleProvider implements IdentityProvider {
       throw new Error(`Failed to exchange code: ${error}`);
     }
 
-    const data = await response.json();
-    return data as IDPTokens;
+    const tokenResponse: unknown = await response.json();
+    if (!hasAccessToken(tokenResponse)) {
+      throw new Error('Invalid token response from Google');
+    }
+
+    const { 'access_token': accessTokenValue } = tokenResponse;
+    if (typeof accessTokenValue !== 'string') {
+      throw new Error('Invalid access token in response');
+    }
+    return { accessToken: accessTokenValue };
   }
 
-  async exchangeCodeForToken(code: string): Promise<IDPTokens> {
-    return await this.exchangeCodeForTokens(code);
-  }
-
-  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  /**
+   * Retrieves user information from Google using access token.
+   * @param {string} token - Valid access token.
+   * @returns {Promise<{ id: string; email?: string; name?: string; picture?: string;
+   * raw?: Record<string, unknown> }>} Promise resolving to user information.
+   * @throws {Error} When user info retrieval fails.
+   */
+  async getUserInfo(token: string): Promise<{
+    id: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    raw?: Record<string, unknown>;
+  }> {
     const response = await fetch(this.userInfoEndpoint, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -87,56 +145,65 @@ export class GoogleProvider implements IdentityProvider {
       throw new Error(`Failed to get user info: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
+    const googleUserInfo: unknown = await response.json();
+    if (!hasSubProperty(googleUserInfo)) {
+      throw new Error('Invalid user info response from Google');
+    }
 
-    return {
-      id: data.sub,
-      email: data.email,
-      email_verified: data.email_verified,
-      name: data.name,
-      picture: data.picture,
-      locale: data.locale,
-      raw: data as Record<string, any>,
+    return this.buildUserInfoResponse(googleUserInfo);
+  }
+
+  /**
+   * Builds the user info response from Google user data.
+   * @param {object} userInfo - Google user info.
+   * @param {unknown} userInfo.sub - User ID.
+   * @param {unknown} userInfo.email - User email.
+   * @param {unknown} userInfo.name - User name.
+   * @param {unknown} userInfo.picture - User picture.
+   * @returns {object} User info response.
+   * @private
+   */
+  private buildUserInfoResponse(userInfo: {
+    sub: unknown;
+    email?: unknown;
+    name?: unknown;
+    picture?: unknown;
+    [key: string]: unknown;
+  }): {
+    id: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    raw?: Record<string, unknown>;
+  } {
+    if (typeof userInfo.sub !== 'string') {
+      throw new Error('Invalid user ID in Google response');
+    }
+
+    const result: {
+      id: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+      raw?: Record<string, unknown>;
+    } = {
+      id: userInfo.sub,
+      raw: { ...userInfo },
     };
-  }
 
-  async refreshTokens(refreshToken: string): Promise<IDPTokens> {
-    const params = new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret || "",
-      grant_type: "refresh_token",
-    });
-
-    const response = await fetch(this.tokenEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to refresh tokens: ${response.statusText}`);
+    const {
+      email, name, picture
+    } = userInfo;
+    if (typeof email === 'string') {
+      result.email = email;
+    }
+    if (typeof name === 'string') {
+      result.name = name;
+    }
+    if (typeof picture === 'string') {
+      result.picture = picture;
     }
 
-    const data = await response.json();
-    return data as IDPTokens;
-  }
-
-  async revokeTokens(token: string): Promise<void> {
-    const params = new URLSearchParams({ token });
-
-    const response = await fetch(this.revocationEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to revoke token: ${response.statusText}`);
-    }
+    return result;
   }
 }

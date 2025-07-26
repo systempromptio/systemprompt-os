@@ -6,7 +6,7 @@
  */
 
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
+import type { IModule, IModuleInfo } from '@/modules/core/modules/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 
@@ -71,16 +71,16 @@ export const startModulesInOrder = async (
 
 /**
  * Load extension modules conditionally and sequentially.
- * @param {ModuleInfo[]} modules - Module information array.
+ * @param {IModuleInfo[]} modules - Module information array.
  * @param {Set<string>} enabledNames - Set of enabled module names.
  * @param {Function} loader - Function to load each module.
  * @param {ILogger} logger - Logger instance for debug messages.
  * @returns {Promise<void>} Promise that resolves when all enabled modules are loaded.
  */
 export const loadEnabledExtensionModules = async (
-  modules: ModuleInfo[],
+  modules: IModuleInfo[],
   enabledNames: Set<string>,
-  loader: (moduleInfo: ModuleInfo) => Promise<void>,
+  loader: (moduleInfo: IModuleInfo) => Promise<void>,
   logger: ILogger,
 ): Promise<void> => {
   await processSequentially(modules, async (moduleInfo) => {

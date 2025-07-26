@@ -111,3 +111,19 @@ export interface IAuthRepository {
     userData: IOAuthUserData
   ) => Promise<IDatabaseUser>;
 }
+
+/**
+ * Type for validated authorization request parameters.
+ */
+export interface IAuthorizeRequestParams {
+    responseType: 'code' | 'code id_token';
+    clientId: string;
+    redirectUri: string;
+    scope: string;
+    state?: string;
+    nonce?: string;
+    codeChallenge?: string;
+    codeChallengeMethod?: 'S256' | 'plain';
+        provider?: string;
+        providerCode?: string;
+}

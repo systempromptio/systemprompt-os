@@ -1,10 +1,10 @@
-import type { IDPConfig } from '@/modules/core/auth/types/provider-interface';
+import type { IdpConfig } from '@/modules/core/auth/types/provider-interface';
 
 /**
  * GitHub OAuth2 configuration interface.
- * Extends the base IDPConfig with GitHub-specific configuration options.
+ * Extends the base IdpConfig with GitHub-specific configuration options.
  */
-export interface IGitHubConfig extends IDPConfig {
+export interface IGitHubConfig extends IdpConfig {
     readonly clientId: string;
     readonly clientSecret: string;
     readonly redirectUri: string;
@@ -31,6 +31,7 @@ export interface IGitHubUserData {
     readonly following: number;
     readonly created_at: string;
     readonly updated_at: string;
+    readonly [key: string]: unknown;
 }
 
 /**

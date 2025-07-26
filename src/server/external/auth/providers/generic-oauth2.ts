@@ -6,7 +6,7 @@
  */
 
 import type {
- IDPTokens, IDPUserInfo, IdentityProvider
+  IDPTokens, IdentityProvider, OAuth2UserInfo
 } from '@/server/external/auth/providers/interface';
 import type { GenericOAuth2Config } from '@/server/external/auth/providers/types/generic-oauth2';
 
@@ -47,23 +47,26 @@ export class GenericOAuth2Provider implements IdentityProvider {
    */
   public getAuthorizationUrl(state: string, nonce?: string): string {
     const {
- clientId, redirectUri, scope, authorizationEndpoint
+ client_id: clientId, redirect_uri: redirectUri, scope, authorizationEndpoint
 } = this.config;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: scope as string,
+      scope: scope ?? 'openid email profile',
       state,
     });
 
-    if (nonce !== null && nonce !== '' && this.type === 'oidc') {
+    if (nonce && nonce !== '' && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorizationParams' in this.config && this.config.authorizationParams !== null) {
-      Object.entries(this.config.authorizationParams).forEach(([key, value]) => {
-        params.append(key, value as string);
+    const additionalParams = (this.config as any).authorizationParams;
+    if (additionalParams && typeof additionalParams === 'object') {
+      Object.entries(additionalParams).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          params.append(key, value);
+        }
       });
     }
 
@@ -86,7 +89,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    */
   private async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
     const {
- clientId, clientSecret, redirectUri, tokenEndpoint
+ client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, tokenEndpoint
 } = this.config;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -119,9 +122,9 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param accessToken - The access token.
    * @returns Promise resolving to user info.
    */
-  public async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  public async getUserInfo(accessToken: string): Promise<OAuth2UserInfo> {
     const { userinfoEndpoint } = this.config;
-    if (userinfoEndpoint === null || userinfoEndpoint === '') {
+    if (!userinfoEndpoint || userinfoEndpoint === '') {
       throw new Error('UserInfo endpoint not configured');
     }
 
@@ -137,18 +140,47 @@ export class GenericOAuth2Provider implements IdentityProvider {
     }
 
     const data = await response.json() as Record<string, unknown>;
-    const mapping = this.config.userinfoMapping as NonNullable<GenericOAuth2Config['userinfoMapping']>;
+    const mapping = this.config.userinfoMapping ?? {};
 
-    return {
-      id: this.getNestedValue(data, mapping.id ?? 'sub')
-          ?? this.getNestedValue(data, 'sub')
-          ?? this.getNestedValue(data, 'id') ?? '',
-      email: this.getNestedValue(data, mapping.email ?? 'email'),
-      email_verified: this.getNestedValue(data, mapping.emailVerified ?? 'email_verified'),
-      name: this.getNestedValue(data, mapping.name ?? 'name'),
-      picture: this.getNestedValue(data, mapping.picture ?? 'picture'),
-      raw: data,
+    const getStringValue = (value: unknown): string | undefined => {
+      return typeof value === 'string' ? value : undefined;
     };
+
+    const idValue = this.getNestedValue(data, mapping.id ?? 'sub')
+      ?? this.getNestedValue(data, 'sub')
+      ?? this.getNestedValue(data, 'id');
+
+    const id = getStringValue(idValue) ?? '';
+    if (!id) {
+      throw new Error('Unable to extract user ID from userinfo response');
+    }
+
+    const userInfo: OAuth2UserInfo = {
+      id,
+    };
+
+    const email = getStringValue(this.getNestedValue(data, mapping.email ?? 'email'));
+    if (email !== undefined) {
+      userInfo.email = email;
+    }
+
+    const name = getStringValue(this.getNestedValue(data, mapping.name ?? 'name'));
+    if (name !== undefined) {
+      userInfo.name = name;
+    }
+
+    const picture = getStringValue(this.getNestedValue(data, mapping.picture ?? 'picture'));
+    if (picture !== undefined) {
+      userInfo.avatar = picture;
+    }
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (!['id', 'email', 'name', 'avatar'].includes(key)) {
+        userInfo[key] = value;
+      }
+    });
+
+    return userInfo;
   }
 
   /**
@@ -156,9 +188,18 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param refreshToken - The refresh token.
    * @returns Promise resolving to new tokens.
    */
-  public async refreshTokens(refreshToken: string): Promise<IDPTokens> {
+  public async refreshToken(refreshToken: string): Promise<IDPTokens> {
+    return await this.refreshTokens(refreshToken);
+  }
+
+  /**
+   * Internal implementation for refreshing tokens.
+   * @param refreshToken - The refresh token.
+   * @returns Promise resolving to new tokens.
+   */
+  private async refreshTokens(refreshToken: string): Promise<IDPTokens> {
     const {
- clientId, clientSecret, tokenEndpoint
+ client_id: clientId, client_secret: clientSecret, tokenEndpoint
 } = this.config;
     const params = new URLSearchParams({
       grant_type: 'refresh_token',

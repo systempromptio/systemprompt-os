@@ -5,19 +5,19 @@
  * @module modules/core/modules/repositories/module.repository
  */
 
-import type { ExtensionInfo, ExtensionType } from '@/modules/core/modules/types/index';
+import type { ExtensionType, IExtensionInfo } from '@/modules/core/modules/types/index';
 
 /**
  * Repository for managing module metadata and persistence.
  */
 export class ModuleRepository {
-  private readonly modules: Map<string, ExtensionInfo> = new Map();
+  private readonly modules: Map<string, IExtensionInfo> = new Map();
 
   /**
    * Save module information.
    * @param moduleInfo - Module information to save.
    */
-  save(moduleInfo: ExtensionInfo): void {
+  save(moduleInfo: IExtensionInfo): void {
     this.modules.set(moduleInfo.name, moduleInfo);
   }
 
@@ -26,7 +26,7 @@ export class ModuleRepository {
    * @param name - Module name.
    * @returns Module information or undefined.
    */
-  findByName(name: string): ExtensionInfo | undefined {
+  findByName(name: string): IExtensionInfo | undefined {
     return this.modules.get(name);
   }
 
@@ -34,7 +34,7 @@ export class ModuleRepository {
    * Find all modules.
    * @returns Array of all modules.
    */
-  findAll(): ExtensionInfo[] {
+  findAll(): IExtensionInfo[] {
     return Array.from(this.modules.values());
   }
 
@@ -43,7 +43,7 @@ export class ModuleRepository {
    * @param type - Module type to filter by.
    * @returns Array of modules matching the type.
    */
-  findByType(type: ExtensionType): ExtensionInfo[] {
+  findByType(type: ExtensionType): IExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
       (moduleInfo): boolean => { return moduleInfo.type === type },
     );
@@ -87,7 +87,7 @@ export class ModuleRepository {
    * @param pattern - Regular expression pattern.
    * @returns Array of matching modules.
    */
-  findByPattern(pattern: RegExp): ExtensionInfo[] {
+  findByPattern(pattern: RegExp): IExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
       (moduleInfo): boolean => { return pattern.test(moduleInfo.name) },
     );
@@ -98,7 +98,7 @@ export class ModuleRepository {
    * @param author - Author name.
    * @returns Array of modules by the author.
    */
-  findByAuthor(author: string): ExtensionInfo[] {
+  findByAuthor(author: string): IExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
       (moduleInfo): boolean => { return moduleInfo.author === author },
     );
@@ -109,7 +109,7 @@ export class ModuleRepository {
    * @param dependency - Dependency name.
    * @returns Array of modules that depend on the given dependency.
    */
-  findByDependency(dependency: string): ExtensionInfo[] {
+  findByDependency(dependency: string): IExtensionInfo[] {
     return Array.from(this.modules.values()).filter(
       (moduleInfo): boolean => { return moduleInfo.dependencies?.includes(dependency) ?? false },
     );
@@ -121,7 +121,7 @@ export class ModuleRepository {
    */
   toJsonString(): string {
     const modulesArray = Array.from(this.modules.entries()).map(
-      ([, info]): ExtensionInfo => { return { ...info } },
+      ([, info]): IExtensionInfo => { return { ...info } },
     );
     const jsonIndent = 2;
     return JSON.stringify(modulesArray, null, jsonIndent);
@@ -138,7 +138,7 @@ export class ModuleRepository {
       if (!Array.isArray(parsedData)) {
         throw new Error('Expected an array of modules');
       }
-      const modulesArray = parsedData as ExtensionInfo[];
+      const modulesArray = parsedData as IExtensionInfo[];
       this.clear();
       modulesArray.forEach((moduleData): void => {
         this.save(moduleData);

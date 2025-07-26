@@ -125,7 +125,7 @@ const displayDataCsv = (rows: unknown[], logger: LoggerService): void => {
         typeof value === 'string'
         && (value.includes(',') || value.includes('"'))
       ) {
-        return `"${value.replace(/"/gu, '""')}"`;
+        return `"${value.replace(/"/g, '""')}"`;
       }
       return value !== null && value !== undefined ? String(value) : '';
     });
@@ -304,18 +304,29 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
   }
 
   try {
-    const databaseViewService = DatabaseViewService.getInstance(logger);
+    const databaseViewService = DatabaseViewService.getInstance();
 
-    const result = await databaseViewService.handleView({
+    const viewParams: Parameters<typeof databaseViewService.handleView>[0] = {
       tableName,
       format: viewFormat,
       limit,
       offset,
-      columns,
-      where,
-      orderBy,
-      schemaOnly,
-    });
+    };
+
+    if (columns !== undefined) {
+      viewParams.columns = columns;
+    }
+    if (where !== undefined) {
+      viewParams.where = where;
+    }
+    if (orderBy !== undefined) {
+      viewParams.orderBy = orderBy;
+    }
+    if (schemaOnly !== undefined) {
+      viewParams.schemaOnly = schemaOnly;
+    }
+
+    const result = await databaseViewService.handleView(viewParams);
 
     processViewResult(result, viewFormat, logger);
   } catch (error) {

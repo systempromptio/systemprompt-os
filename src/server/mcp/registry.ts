@@ -114,7 +114,7 @@ LogSource.MCP,
    * @returns {RequestHandler} Express request handler for the status endpoint.
    */
   private createStatusHandler(): RequestHandler {
-    return (req: ExpressRequest, res: ExpressResponse): void => {
+    return (_req: ExpressRequest, res: ExpressResponse): void => {
       const statuses = this.getServerStatuses();
       res.json({
         servers: Object.fromEntries(statuses),
@@ -280,13 +280,13 @@ LogSource.MCP,
    * Forwards the remote server response back to the client.
    * @param {globalThis.Response} response - Response from remote server.
    * @param {Response} res - Express response object.
-   * @param req
+   * @param _req - Express request object (unused but kept for potential future use).
    * @returns {Promise<void>}
    */
   private async forwardResponse(
     response: globalThis.Response,
     res: ExpressResponse,
-    req: ExpressRequest,
+    _req: ExpressRequest,
   ): Promise<void> {
     response.headers.forEach((value, key) => {
       if (!NON_FORWARDABLE_HEADERS.has(key.toLowerCase())) {

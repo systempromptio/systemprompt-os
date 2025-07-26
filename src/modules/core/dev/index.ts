@@ -4,7 +4,8 @@
  * @module modules/core/dev
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -25,8 +26,8 @@ export class DevModule implements IModule<IDevModuleExports> {
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
   public readonly description = 'Development tools and utilities';
-  public readonly dependencies = ['logger', 'database'];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public readonly dependencies = ['logger', 'database'] as const;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private devService!: DevService;
   private logger!: ILogger;
   private initialized = false;
@@ -67,10 +68,10 @@ export class DevModule implements IModule<IDevModuleExports> {
     }
 
     if (this.started) {
-      throw new Error('Dev module already started');
+      return;
     }
 
-    this.status = 'running';
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
     this.logger.info(LogSource.SYSTEM, 'Dev module started');
   }
@@ -80,7 +81,7 @@ export class DevModule implements IModule<IDevModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = 'stopped';
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
       this.logger.info(LogSource.SYSTEM, 'Dev module stopped');
     }
@@ -134,3 +135,24 @@ export const initialize = async (): Promise<DevModule> => {
   await devModule.initialize();
   return devModule;
 };
+
+/**
+ * Gets the Dev module with type safety and validation.
+ * @returns The Dev module with guaranteed typed exports.
+ * @throws {Error} If Dev module is not available or missing required exports.
+ */
+export function getDevModule(): IModule<IDevModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const moduleLoader = getModuleLoader();
+  const devModule = moduleLoader.getModule(ModuleName.DEV);
+
+  if (!devModule.exports?.service || typeof devModule.exports.service !== 'function') {
+    throw new Error('Dev module missing required service export');
+  }
+
+  return devModule as IModule<IDevModuleExports>;
+}
+
+export default DevModule;

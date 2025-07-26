@@ -6,7 +6,8 @@
 
 import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import type {
   ILogFiles,
   ILogger,
@@ -51,7 +52,7 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
   public readonly version = '1.0.0';
   public readonly description = 'System-wide logging service with file and console output';
   public readonly dependencies = [];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private readonly loggerService: LoggerServiceClass;
   private initialized = false;
   private started = false;
@@ -299,6 +300,33 @@ export const initialize = async (): Promise<LoggerModule> => {
   await loggerModule.initialize();
   return loggerModule;
 };
+
+/**
+ * Gets the Logger module with type safety and validation.
+ * @returns The Logger module with guaranteed typed exports.
+ * @throws {Error} If Logger module is not available or missing required exports.
+ */
+export function getLoggerModule(): IModule<ILoggerModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const moduleLoader = getModuleLoader();
+  const loggerModule = moduleLoader.getModule(ModuleName.LOGGER);
+
+  if (!loggerModule.exports?.service || typeof loggerModule.exports.service !== 'function') {
+    throw new Error('Logger module missing required service export');
+  }
+
+  if (!loggerModule.exports?.logger || typeof loggerModule.exports.logger !== 'function') {
+    throw new Error('Logger module missing required logger export');
+  }
+
+  if (!loggerModule.exports?.getInstance || typeof loggerModule.exports.getInstance !== 'function') {
+    throw new Error('Logger module missing required getInstance export');
+  }
+
+  return loggerModule as IModule<ILoggerModuleExports>;
+}
 
 /**
  * Get logger service instance.

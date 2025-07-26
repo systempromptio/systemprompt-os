@@ -166,6 +166,28 @@ describe('model CLI command', () => {
       expect(output).toContain('Model information not available for this provider.');
       expect(output).toContain('Total models available: 0');
     });
+    
+    it('handles models with unknown tool types', async () => {
+      const providerWithUnknownTools = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: {
+            test: {
+              model: 'test-model',
+              displayName: 'Test Model',
+              tools: [{ unknownTool: {} }]
+            }
+          }
+        }
+      };
+      vi.mocked(getEnabledProviders).mockReturnValue([providerWithUnknownTools]);
+      
+      await command.execute('list', {});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('Tools: Unknown Tool');
+    });
   });
   
   describe('show subcommand', () => {
@@ -200,6 +222,31 @@ describe('model CLI command', () => {
       const output = consoleOutput.join('\n');
       expect(output).toContain('Response MIME Type: application/json');
       expect(output).not.toContain('Status: DEFAULT MODEL');
+    });
+    
+    it('shows model with stop sequences', async () => {
+      const providerWithStopSequences = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: {
+            ...mockGoogleProvider.config.models,
+            default: {
+              ...mockGoogleProvider.config.models.default,
+              generationConfig: {
+                ...mockGoogleProvider.config.models.default.generationConfig,
+                stopSequences: ['STOP', 'END']
+              }
+            }
+          }
+        }
+      };
+      vi.mocked(getProvider).mockReturnValue(providerWithStopSequences);
+      
+      await command.execute('show', { provider: 'google-liveapi', model: 'default' });
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('Stop Sequences: STOP, END');
     });
     
     it('handles provider not found', async () => {
@@ -238,6 +285,40 @@ describe('model CLI command', () => {
       const errorOutput = consoleErrorOutput.join('\n');
       expect(errorOutput).toContain("Error: Model 'unknown' not found");
       expect(errorOutput).toContain('Available models: default, coder');
+    });
+    
+    it('handles provider with no models configured', async () => {
+      const providerWithoutModels = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: undefined
+        }
+      };
+      vi.mocked(getProvider).mockReturnValue(providerWithoutModels);
+      
+      await expect(command.execute('show', { provider: 'google-liveapi', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      expect(consoleErrorOutput).toContain('No models configured for this provider.');
+    });
+
+    it('handles provider with empty models object', async () => {
+      const providerWithEmptyModels = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: {}
+        }
+      };
+      vi.mocked(getProvider).mockReturnValue(providerWithEmptyModels);
+      
+      await expect(command.execute('show', { provider: 'google-liveapi', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain("Error: Model 'default' not found in provider 'google-liveapi'.");
+      expect(errorOutput).toContain('Available models: ');
     });
   });
   
@@ -337,6 +418,78 @@ describe('model CLI command', () => {
       const errorOutput = consoleErrorOutput.join('\n');
       expect(errorOutput).toContain('Stack trace:');
       expect(errorOutput).toContain('at test.js:10');
+    });
+    
+    it('handles provider with no models configured for test', async () => {
+      const providerWithoutModels = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: undefined
+        }
+      };
+      vi.mocked(getProvider).mockReturnValue(providerWithoutModels);
+      
+      await expect(command.execute('test', { provider: 'google-liveapi', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      expect(consoleErrorOutput).toContain('No models configured for this provider.');
+    });
+
+    it('handles provider with empty models object for test', async () => {
+      const providerWithEmptyModels = {
+        ...mockGoogleProvider,
+        config: {
+          ...mockGoogleProvider.config,
+          models: {}
+        }
+      };
+      vi.mocked(getProvider).mockReturnValue(providerWithEmptyModels);
+      
+      await expect(command.execute('test', { provider: 'google-liveapi', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain("Error: Model 'default' not found in provider 'google-liveapi'.");
+      expect(errorOutput).toContain('Available models: ');
+    });
+
+    it('handles model not found in test', async () => {
+      vi.mocked(getProvider).mockReturnValue(mockGoogleProvider);
+      
+      await expect(command.execute('test', { provider: 'google-liveapi', model: 'nonexistent' }))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain("Error: Model 'nonexistent' not found in provider 'google-liveapi'.");
+      expect(errorOutput).toContain('Available models: default, coder');
+    });
+
+    it('handles provider not found for test', async () => {
+      vi.mocked(getProvider).mockReturnValue(null);
+      
+      await expect(command.execute('test', { provider: 'unknown', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      expect(consoleErrorOutput).toContain("Error: Provider 'unknown' not found.");
+    });
+
+    it('handles disabled provider for test', async () => {
+      vi.mocked(getProvider).mockReturnValue({ ...mockGoogleProvider, enabled: false });
+      
+      await expect(command.execute('test', { provider: 'google-liveapi', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      expect(consoleErrorOutput).toContain("Error: Provider 'google-liveapi' is not enabled.");
+    });
+
+    it('handles non-google provider for test', async () => {
+      vi.mocked(getProvider).mockReturnValue({ name: 'other', enabled: true });
+      
+      await expect(command.execute('test', { provider: 'other', model: 'default' }))
+        .rejects.toThrow('Process exited');
+      
+      expect(consoleErrorOutput).toContain('Model testing is only available for google-liveapi provider.');
     });
   });
   

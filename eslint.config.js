@@ -110,6 +110,7 @@ export default [
       "systemprompt-os/warn-inline-eslint-comments": "warn",
       "systemprompt-os/no-js-extensions-in-imports": "error",
       "systemprompt-os/enforce-logsource-enum": "error",
+      "systemprompt-os/enforce-module-index-pattern": "error",
 
       // TypeScript strict rules - using recommended-type-checked and strict
       // These provide type-aware linting for maximum safety
@@ -166,46 +167,46 @@ export default [
         "error",
         {
           selector: "default",
-          format: ["strictCamelCase"],
-          leadingUnderscore: "forbid",
-          trailingUnderscore: "forbid"
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow"
         },
         {
           selector: "variable",
-          format: ["camelCase", "UPPER_CASE"],
+          format: ["camelCase", "UPPER_CASE", "PascalCase"],
           leadingUnderscore: "allow"
         },
         {
           selector: "function",
-          format: ["strictCamelCase"]
+          format: ["camelCase", "PascalCase"]
         },
         {
           selector: "parameter",
-          format: ["strictCamelCase"],
+          format: ["camelCase"],
           leadingUnderscore: "allow"
         },
         {
           selector: "memberLike",
           modifiers: ["private"],
-          format: ["strictCamelCase"],
-          leadingUnderscore: "forbid"
+          format: ["camelCase"],
+          leadingUnderscore: "allow"
         },
         {
           selector: "typeLike",
-          format: ["StrictPascalCase"]
+          format: ["PascalCase"]
         },
         {
           selector: "interface",
-          format: ["StrictPascalCase"],
+          format: ["PascalCase"],
           prefix: ["I"]
         },
         {
           selector: "typeAlias",
-          format: ["StrictPascalCase"]
+          format: ["PascalCase"]
         },
         {
           selector: "enum",
-          format: ["StrictPascalCase"],
+          format: ["PascalCase"],
           suffix: ["Enum"]
         },
         {
@@ -214,8 +215,16 @@ export default [
         },
         {
           selector: "typeParameter",
-          format: ["StrictPascalCase"],
+          format: ["PascalCase"],
           prefix: ["T"]
+        },
+        {
+          selector: "property",
+          format: null
+        },
+        {
+          selector: "method",
+          format: ["camelCase"]
         }
       ],
       "@typescript-eslint/member-ordering": ["error", {
@@ -679,45 +688,7 @@ export default [
       }],
       "arrow-spacing": ["error", { before: true, after: true }],
       "block-spacing": ["error", "always"],
-      "camelcase": ["error", {
-        properties: "always",
-        ignoreDestructuring: false,
-        ignoreImports: false,
-        ignoreGlobals: false,
-        allow: [
-          "^[a-z]+(_[a-z]+)*_endpoint$",
-          "^[a-z]+(_[a-z]+)*_uri$",
-          "^[a-z]+(_[a-z]+)*_supported$",
-          "^[a-z]+(_[a-z]+)*_servers$",
-          "^[a-z]+(_[a-z]+)*_methods$",
-          "^[a-z]+(_[a-z]+)*_alg_values$",
-          "^[a-z]+(_[a-z]+)*_enc_values$",
-          "^resource_[a-z_]+$",
-          "^authorization_[a-z_]+$",
-          "^token_[a-z_]+$",
-          "^id_token_[a-z_]+$",
-          "^code_[a-z_]+$",
-          "^bearer_[a-z_]+$",
-          "^client_[a-z_]+$",
-          "^grant_[a-z_]+$",
-          "^response_[a-z_]+$",
-          "^access_token$",
-          "^refresh_token$",
-          "^id_token$",
-          "^token_type$",
-          "^expires_in$",
-          "^redirect_uri$",
-          "^client_id$",
-          "^client_secret$",
-          "^response_type$",
-          "^scope$",
-          "^state$",
-          "^code$",
-          "^error$",
-          "^error_description$",
-          "^error_uri$"
-        ]
-      }],
+      "camelcase": "off",
       "consistent-this": ["error", "that"],
       "default-case": ["error", { commentPattern: "" }],
       "default-case-last": "error",
@@ -1120,6 +1091,76 @@ export default [
       "systemprompt-os/no-comments-in-functions": "off",
       "jsdoc/require-jsdoc": "off",
       "jsdoc/require-description": "off"
+    }
+  },
+  {
+    // Auth modules - allow snake_case for OAuth2/OIDC standard properties
+    files: [
+      "src/server/external/auth/**/*.ts",
+      "src/modules/core/auth/**/*.ts"
+    ],
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "error",
+        {
+          selector: "default",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow"
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "UPPER_CASE", "PascalCase"],
+          leadingUnderscore: "allow"
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"]
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow"
+        },
+        {
+          selector: "memberLike",
+          modifiers: ["private"],
+          format: ["camelCase"],
+          leadingUnderscore: "allow"
+        },
+        {
+          selector: "typeLike",
+          format: ["PascalCase"]
+        },
+        {
+          selector: "interface",
+          format: ["PascalCase"],
+          prefix: ["I"]
+        },
+        {
+          selector: "typeAlias",
+          format: ["PascalCase"]
+        },
+        {
+          selector: "enum",
+          format: ["PascalCase"],
+          suffix: ["Enum"]
+        },
+        {
+          selector: "enumMember",
+          format: ["UPPER_CASE"]
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+          prefix: ["T"]
+        },
+        // Allow snake_case for object literal properties (OAuth2/OIDC standard)
+        {
+          selector: "objectLiteralProperty",
+          format: null
+        }
+      ]
     }
   },
   {

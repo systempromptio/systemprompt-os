@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/cli/cli/docs.js';
-import { CLIModule } from '../../../../../../src/modules/core/cli/index.js';
+import { command } from '@/modules/core/cli/cli/docs';
+import { CLIModule } from '@/modules/core/cli';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 
-vi.mock('../../../../../../src/modules/core/cli/index.js');
+vi.mock('@/modules/core/cli');
 vi.mock('fs');
 vi.mock('path');
 
@@ -141,6 +141,194 @@ describe('CLI Docs Command', () => {
       await expect(command.execute(context)).rejects.toThrow('process.exit called');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Error generating documentation:', expect.any(Error));
+    });
+
+    it('should handle empty commands map', async () => {
+      const context = {
+        cwd: '/test',
+        args: {}
+      };
+
+      mockCLIModule.getAllCommands.mockResolvedValue(new Map());
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+      expect(consoleLogSpy).toHaveBeenCalledWith('\n✓ Generated documentation for 0 commands');
+    });
+
+    it('should handle null args object', async () => {
+      const context = {
+        cwd: '/test',
+        args: null
+      };
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+      expect(consoleLogSpy).toHaveBeenCalledWith('\n# Generated Documentation\n\nTest documentation content');
+    });
+
+    it('should handle undefined args object', async () => {
+      const context = {
+        cwd: '/test',
+        args: undefined
+      };
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+      expect(consoleLogSpy).toHaveBeenCalledWith('\n# Generated Documentation\n\nTest documentation content');
+    });
+
+    it('should handle empty string format', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          format: ''
+        }
+      };
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+    });
+
+    it('should handle null format', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          format: null
+        }
+      };
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+    });
+
+    it('should handle undefined format', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          format: undefined
+        }
+      };
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'markdown');
+    });
+
+    it('should handle empty string output path', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          output: ''
+        }
+      };
+
+      await command.execute(context);
+
+      // Should not write to file with empty output path
+      expect(writeFileSync).not.toHaveBeenCalled();
+      expect(consoleLogSpy).toHaveBeenCalledWith('\n# Generated Documentation\n\nTest documentation content');
+    });
+
+    it('should handle null output path', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          output: null
+        }
+      };
+
+      await command.execute(context);
+
+      // Should not write to file with null output path
+      expect(writeFileSync).not.toHaveBeenCalled();
+      expect(consoleLogSpy).toHaveBeenCalledWith('\n# Generated Documentation\n\nTest documentation content');
+    });
+
+    it('should handle both format and output parameters together', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          format: 'json',
+          output: 'docs/commands.json'
+        }
+      };
+
+      mockCLIModule.generateDocs.mockReturnValue('{"commands": []}');
+
+      await command.execute(context);
+
+      expect(mockCLIModule.generateDocs).toHaveBeenCalledWith(expect.any(Map), 'json');
+      expect(resolve).toHaveBeenCalledWith('/test', 'docs/commands.json');
+      expect(writeFileSync).toHaveBeenCalledWith('/test/docs/commands.json', '{"commands": []}');
+      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Documentation generated: /test/docs/commands.json');
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('{"commands": []}'));
+    });
+
+    it('should handle error during getAllCommands', async () => {
+      const context = {
+        cwd: '/test',
+        args: {}
+      };
+
+      mockCLIModule.getAllCommands.mockRejectedValue(new Error('Failed to get commands'));
+
+      await expect(command.execute(context)).rejects.toThrow('process.exit called');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Error generating documentation:', expect.any(Error));
+      expect(processExitSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('should handle different output file extensions', async () => {
+      const context = {
+        cwd: '/project',
+        args: {
+          format: 'html',
+          output: 'documentation/api.html'
+        }
+      };
+
+      mockCLIModule.generateDocs.mockReturnValue('<html><head><title>API Docs</title></head><body><h1>Commands</h1></body></html>');
+
+      await command.execute(context);
+
+      expect(resolve).toHaveBeenCalledWith('/project', 'documentation/api.html');
+      expect(writeFileSync).toHaveBeenCalledWith(
+        '/project/documentation/api.html',
+        '<html><head><title>API Docs</title></head><body><h1>Commands</h1></body></html>'
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Documentation generated: /project/documentation/api.html');
+    });
+
+    it('should handle complex cwd path', async () => {
+      const context = {
+        cwd: '/complex/path/with/spaces and special chars',
+        args: {
+          output: 'output.md'
+        }
+      };
+
+      await command.execute(context);
+
+      expect(resolve).toHaveBeenCalledWith('/complex/path/with/spaces and special chars', 'output.md');
+    });
+
+    it('should handle absolute output path', async () => {
+      const context = {
+        cwd: '/test',
+        args: {
+          output: '/absolute/path/docs.md'
+        }
+      };
+
+      await command.execute(context);
+
+      expect(resolve).toHaveBeenCalledWith('/test', '/absolute/path/docs.md');
     });
   });
 });

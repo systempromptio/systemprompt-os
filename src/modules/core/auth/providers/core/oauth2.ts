@@ -140,7 +140,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenData = await response.json() as IDPTokens;
+    const tokenData = await response.json() as IdpTokens;
     return tokenData;
   }
 
@@ -191,7 +191,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     return {
       id: getUserId(userData),
       email: getUserEmail(userData),
-      email_verified: getEmailVerified(userData),
+      emailVerified: getEmailVerified(userData),
       name: getUserName(userData),
       picture: getUserPicture(userData),
       raw: userData,
@@ -224,7 +224,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    const tokenData = await response.json() as IDPTokens;
+    const tokenData = await response.json() as IdpTokens;
     return tokenData;
   }
 

@@ -4,21 +4,18 @@
  * @module modules/core/tasks/services
  */
 
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import type {
-  ITask,
-  ITaskFilter,
-  ITaskHandler,
-  ITaskService,
-  ITaskStatistics
-} from '@/modules/core/tasks/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import {
+  type ITask,
+  type ITaskFilter,
+  type ITaskHandler,
+  type ITaskService,
+  type ITaskStatistics,
   TaskExecutionStatus,
-  TaskPriority,
   TaskStatus
 } from '@/modules/core/tasks/types/index';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
 
 /**
  * Task service implementation providing task management capabilities.
@@ -28,11 +25,13 @@ export class TaskService implements ITaskService {
   private static instance: TaskService | null = null;
   private readonly handlers: Map<string, ITaskHandler> = new Map();
   private logger!: ILogger;
-  private database!: DatabaseService;
+  private taskRepository!: TaskRepository;
   private initialized = false;
 
   /**
    * Private constructor for singleton pattern.
+   * Singleton pattern requires empty constructor.
+   * All initialization is done in the initialize method.
    */
   private constructor() {}
 
@@ -51,13 +50,13 @@ export class TaskService implements ITaskService {
    * @param database - Database service for data persistence.
    * @throws {Error} If already initialized.
    */
-  public async initialize(logger: ILogger, database: DatabaseService): Promise<void> {
+  public initialize(logger: ILogger, database: DatabaseService): void {
     if (this.initialized) {
       throw new Error('TaskService already initialized');
     }
 
     this.logger = logger;
-    this.database = database;
+    this.taskRepository = new TaskRepository(database);
     this.initialized = true;
 
     this.logger.info(LogSource.MODULES, 'TaskService initialized');
@@ -70,70 +69,14 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized or task creation fails.
    */
   public async addTask(task: Partial<ITask>): Promise<ITask> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
+    this.ensureInitialized();
+    this.validateTaskInput(task);
 
-    if (task.type === null || task.type === undefined) {
-      throw new Error('Task type is required');
-    }
-    if (task.moduleId === null || task.moduleId === undefined) {
-      throw new Error('Task moduleId is required');
-    }
-
-    const taskData = {
-      type: task.type,
-      moduleId: task.moduleId,
-      payload: task.payload !== null && task.payload !== undefined ? JSON.stringify(task.payload) : null,
-      priority: task.priority ?? TaskPriority.NORMAL,
-      status: TaskStatus.PENDING,
-      retryCount: 0,
-      maxRetries: task.maxRetries ?? 3,
-      scheduledAt: task.scheduledAt?.toISOString(),
-      createdBy: task.createdBy,
-      metadata: task.metadata !== null && task.metadata !== undefined ? JSON.stringify(task.metadata) : null
-    };
-
-    await this.database.execute(
-      `INSERT INTO tasks_queue 
-       (type, module_id, payload, priority, status, retry_count, max_retries, scheduled_at, created_by, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        taskData.type,
-        taskData.moduleId,
-        taskData.payload,
-        taskData.priority,
-        taskData.status,
-        taskData.retryCount,
-        taskData.maxRetries,
-        taskData.scheduledAt,
-        taskData.createdBy,
-        taskData.metadata
-      ]
+    const newTask = await this.taskRepository.create(task);
+    this.logger.info(
+      LogSource.MODULES,
+      `Task added: ${String(newTask.id)} (${newTask.type})`
     );
-
-    const idResult = await this.database.query<{id: number}>('SELECT last_insert_rowid() as id');
-    const taskId = idResult[0]?.id;
-
-    if (taskId === null || taskId === undefined) {
-      throw new Error('Failed to get task ID after insert');
-    }
-
-    const newTask: ITask = {
-      id: taskId,
-      type: taskData.type,
-      moduleId: taskData.moduleId,
-      payload: task.payload,
-      priority: taskData.priority,
-      status: taskData.status,
-      retryCount: taskData.retryCount,
-      maxRetries: taskData.maxRetries,
-      ...task.scheduledAt !== null && task.scheduledAt !== undefined && { scheduledAt: task.scheduledAt },
-      ...taskData.createdBy !== null && taskData.createdBy !== undefined && { createdBy: taskData.createdBy },
-      ...task.metadata !== null && task.metadata !== undefined && { metadata: task.metadata }
-    };
-
-    this.logger.info(LogSource.MODULES, `Task added: ${newTask.id} (${newTask.type})`);
     return newTask;
   }
 
@@ -144,57 +87,28 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async receiveTask(types?: string[]): Promise<ITask | null> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
+    this.ensureInitialized();
 
-    const now = new Date().toISOString();
-    let sql = `
-      SELECT * FROM tasks_queue 
-      WHERE status = ? 
-      AND (scheduled_at IS NULL OR scheduled_at <= ?)
-    `;
-    const params: any[] = [TaskStatus.PENDING, now];
-
-    if (types && types.length > 0) {
-      const placeholders = types.map(() => { return '?' }).join(',');
-      sql += ` AND type IN (${placeholders})`;
-      params.push(...types);
-    }
-
-    sql += ' ORDER BY priority DESC, created_at ASC LIMIT 1';
-
-    const result = await this.database.query<any>(sql, params);
-
-    if (!result || result.length === 0) {
+    const task = await this.taskRepository.findNextAvailable(types);
+    if (task === null) {
       return null;
     }
 
-    const row = result[0];
-    const taskId = row.id as number;
-
-    await this.database.execute('UPDATE tasks_queue SET status = ? WHERE id = ?', [TaskStatus.IN_PROGRESS, taskId]);
-
-    await this.database.execute('INSERT INTO tasks_executions (task_id, status) VALUES (?, ?)', [taskId, TaskExecutionStatus.RUNNING]);
-
-    const task: ITask = {
-      id: taskId,
-      type: row.type as string,
-      moduleId: row.module_id as string,
-      payload: row.payload ? JSON.parse(row.payload as string) : undefined,
-      priority: row.priority as number,
-      status: TaskStatus.IN_PROGRESS,
-      retryCount: row.retry_count as number,
-      maxRetries: row.max_retries as number,
-      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
-      createdAt: new Date(row.created_at as string),
-      updatedAt: new Date(row.updated_at as string),
-      ...row.created_by && { createdBy: row.created_by as string },
-      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
+    const { id: taskId } = task;
+    if (taskId == null) {
+      throw new Error('Task ID is required for marking in progress');
+    }
+    await this.markTaskInProgress(taskId);
+    const updatedTask = {
+      ...task,
+      status: TaskStatus.IN_PROGRESS
     };
 
-    this.logger.info(LogSource.MODULES, `Task received: ${task.id} (${task.type})`);
-    return task;
+    this.logger.info(
+      LogSource.MODULES,
+      `Task received: ${String(updatedTask.id)} (${updatedTask.type})`
+    );
+    return updatedTask;
   }
 
   /**
@@ -204,29 +118,19 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async updateTaskStatus(taskId: number, status: TaskStatus): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
+    this.ensureInitialized();
+
+    await this.taskRepository.updateStatus(taskId, status);
+
+    if (this.isTerminalStatus(status)) {
+      const executionStatus = this.mapTaskStatusToExecutionStatus(status);
+      await this.taskRepository.updateExecution(taskId, executionStatus);
     }
 
-    await this.database.execute('UPDATE tasks_queue SET status = ? WHERE id = ?', [status, taskId]);
-
-    if ([TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED].includes(status)) {
-      const executionStatus = status === TaskStatus.COMPLETED
-        ? TaskExecutionStatus.SUCCESS
-        : status === TaskStatus.FAILED
-          ? TaskExecutionStatus.FAILED
-          : TaskExecutionStatus.CANCELLED;
-
-      await this.database.execute(
-        `UPDATE tasks_executions 
-         SET status = ?, completed_at = CURRENT_TIMESTAMP,
-         duration_ms = (strftime('%s', 'now') - strftime('%s', started_at)) * 1000
-         WHERE task_id = ? AND completed_at IS NULL`,
-        [executionStatus, taskId]
-      );
-    }
-
-    this.logger.info(LogSource.MODULES, `Task ${taskId} status updated to ${status}`);
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${String(taskId)} status updated to ${status}`
+    );
   }
 
   /**
@@ -236,32 +140,8 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async getTaskById(taskId: number): Promise<ITask | null> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
-
-    const result = await this.database.query<any>('SELECT * FROM tasks_queue WHERE id = ?', [taskId]);
-
-    if (!result || result.length === 0) {
-      return null;
-    }
-
-    const row = result[0];
-    return {
-      id: row.id as number,
-      type: row.type as string,
-      moduleId: row.module_id as string,
-      payload: row.payload ? JSON.parse(row.payload as string) : undefined,
-      priority: row.priority as number,
-      status: row.status as TaskStatus,
-      retryCount: row.retry_count as number,
-      maxRetries: row.max_retries as number,
-      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
-      createdAt: new Date(row.created_at as string),
-      updatedAt: new Date(row.updated_at as string),
-      ...row.created_by && { createdBy: row.created_by as string },
-      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
-    };
+    this.ensureInitialized();
+    return await this.taskRepository.findById(taskId);
   }
 
   /**
@@ -271,61 +151,8 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async listTasks(filter?: ITaskFilter): Promise<ITask[]> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
-
-    let sql = 'SELECT * FROM tasks_queue WHERE 1=1';
-    const params: any[] = [];
-
-    if (filter?.status) {
-      sql += ' AND status = ?';
-      params.push(filter.status);
-    }
-
-    if (filter?.type) {
-      sql += ' AND type = ?';
-      params.push(filter.type);
-    }
-
-    if (filter?.moduleId) {
-      sql += ' AND module_id = ?';
-      params.push(filter.moduleId);
-    }
-
-    sql += ' ORDER BY priority DESC, created_at ASC';
-
-    if (filter?.limit) {
-      sql += ' LIMIT ?';
-      params.push(filter.limit);
-    }
-
-    if (filter?.offset) {
-      sql += ' OFFSET ?';
-      params.push(filter.offset);
-    }
-
-    const result = await this.database.query<any>(sql, params);
-
-    if (!result) {
-      return [];
-    }
-
-    return result.map(row => { return {
-      id: row.id as number,
-      type: row.type as string,
-      moduleId: row.module_id as string,
-      payload: row.payload ? JSON.parse(row.payload as string) : undefined,
-      priority: row.priority as number,
-      status: row.status as TaskStatus,
-      retryCount: row.retry_count as number,
-      maxRetries: row.max_retries as number,
-      ...row.scheduled_at && { scheduledAt: new Date(row.scheduled_at as string) },
-      createdAt: new Date(row.created_at as string),
-      updatedAt: new Date(row.updated_at as string),
-      ...row.created_by && { createdBy: row.created_by as string },
-      ...row.metadata && { metadata: JSON.parse(row.metadata as string) }
-    } });
+    this.ensureInitialized();
+    return await this.taskRepository.findWithFilter(filter);
   }
 
   /**
@@ -342,20 +169,17 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized or handler already registered.
    */
   public async registerHandler(handler: ITaskHandler): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
+    this.ensureInitialized();
 
     if (this.handlers.has(handler.type)) {
       throw new Error(`Handler for task type '${handler.type}' already registered`);
     }
 
     this.handlers.set(handler.type, handler);
-
-    await this.database.execute(
-      `INSERT OR REPLACE INTO tasks_types (type, module_id, description, enabled)
-       VALUES (?, ?, ?, ?)`,
-      [handler.type, 'unknown', `Handler for ${handler.type}`, 1]
+    await this.taskRepository.registerTaskType(
+      handler.type,
+      'unknown',
+      `Handler for ${handler.type}`
     );
 
     this.logger.info(LogSource.MODULES, `Task handler registered: ${handler.type}`);
@@ -367,14 +191,9 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async unregisterHandler(type: string): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
-
+    this.ensureInitialized();
     this.handlers.delete(type);
-
-    await this.database.execute('UPDATE tasks_types SET enabled = 0 WHERE type = ?', [type]);
-
+    await this.taskRepository.disableTaskType(type);
     this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
   }
 
@@ -384,50 +203,8 @@ export class TaskService implements ITaskService {
    * @throws {Error} If service not initialized.
    */
   public async getStatistics(): Promise<ITaskStatistics> {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
-
-    const statusCountsResult = await this.database.query<{status: string; count: number}>(
-      `SELECT status, COUNT(*) as count FROM tasks_queue GROUP BY status`
-    );
-
-    const statusCounts: Record<string, number> = {};
-    if (statusCountsResult) {
-      for (const row of statusCountsResult) {
-        statusCounts[row.status] = row.count;
-      }
-    }
-
-    const typeCountsResult = await this.database.query<{type: string; count: number}>(
-      `SELECT type, COUNT(*) as count FROM tasks_queue GROUP BY type`
-    );
-
-    const tasksByType: Record<string, number> = {};
-    if (typeCountsResult) {
-      for (const row of typeCountsResult) {
-        tasksByType[row.type] = row.count;
-      }
-    }
-
-    const avgTimeResult = await this.database.query<{avg_time: number | null}>(
-      `SELECT AVG(duration_ms) as avg_time FROM tasks_executions WHERE status = ?`,
-      [TaskExecutionStatus.SUCCESS]
-    );
-
-    const avgTime = avgTimeResult[0]?.avg_time;
-    const total = Object.values(statusCounts).reduce((sum, count) => { return sum + count }, 0);
-
-    return {
-      total,
-      pending: statusCounts[TaskStatus.PENDING] || 0,
-      inProgress: statusCounts[TaskStatus.IN_PROGRESS] || 0,
-      completed: statusCounts[TaskStatus.COMPLETED] || 0,
-      failed: statusCounts[TaskStatus.FAILED] || 0,
-      cancelled: statusCounts[TaskStatus.CANCELLED] || 0,
-      ...avgTime && { averageExecutionTime: avgTime },
-      tasksByType
-    };
+    this.ensureInitialized();
+    return await this.taskRepository.getStatistics();
   }
 
   /**
@@ -436,5 +213,68 @@ export class TaskService implements ITaskService {
    */
   public getHandlers(): Map<string, ITaskHandler> {
     return new Map(this.handlers);
+  }
+
+  /**
+   * Ensures the service is initialized.
+   * @throws {Error} If service not initialized.
+   */
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error('TaskService not initialized');
+    }
+  }
+
+  /**
+   * Validates task input parameters.
+   * @param task - Task to validate.
+   * @throws {Error} If validation fails.
+   */
+  private validateTaskInput(task: Partial<ITask>): void {
+    if (task.type === null || task.type === undefined) {
+      throw new Error('Task type is required');
+    }
+    if (task.moduleId === null || task.moduleId === undefined) {
+      throw new Error('Task moduleId is required');
+    }
+  }
+
+  /**
+   * Marks a task as in progress and creates execution record.
+   * @param taskId - Task ID to mark.
+   * @returns Promise that resolves when marking is complete.
+   */
+  private async markTaskInProgress(taskId: number): Promise<void> {
+    await this.taskRepository.updateStatus(taskId, TaskStatus.IN_PROGRESS);
+    await this.taskRepository.createExecution(taskId, TaskExecutionStatus.RUNNING);
+  }
+
+  /**
+   * Checks if a task status is terminal.
+   * @param status - Task status to check.
+   * @returns True if status is terminal.
+   */
+  private isTerminalStatus(status: TaskStatus): boolean {
+    return [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED].includes(status);
+  }
+
+  /**
+   * Maps task status to execution status.
+   * @param status - Task status.
+   * @returns Corresponding execution status.
+   * @throws {Error} If status cannot be mapped to execution status.
+   */
+  private mapTaskStatusToExecutionStatus(status: TaskStatus): TaskExecutionStatus {
+    switch (status) {
+      case TaskStatus.COMPLETED:
+        return TaskExecutionStatus.SUCCESS;
+      case TaskStatus.FAILED:
+        return TaskExecutionStatus.FAILED;
+      case TaskStatus.CANCELLED:
+        return TaskExecutionStatus.CANCELLED;
+      case TaskStatus.PENDING:
+      case TaskStatus.IN_PROGRESS:
+        throw new Error(`Cannot map non-terminal status: ${status}`);
+    }
   }
 }

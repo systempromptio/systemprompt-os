@@ -1,5 +1,9 @@
 /**
- * @file Dynamic module loader that automatically discovers and manages system modules.
+ * Dynamic module loader that automatically discovers and manages system modules.
+ * Provides automatic module discovery, loading, and lifecycle management
+ * for the SystemPrompt OS module system. Uses a database-backed module registry to
+ * track available modules and their states.
+ * @file
  * @module modules/loader
  */
 
@@ -9,58 +13,49 @@ import { ModuleRegistry } from '@/modules/registry';
 import { CONFIG } from '@/server/config';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import {
+  type IModuleInfo,
+  ModuleStatusEnum,
+} from '@/modules/core/modules/types/index';
+import type {
+  IModuleConstructor,
+  IModuleContext,
+  IModuleExports,
+  IModuleInstance,
+  IModuleScannerService,
+  IModuleWithService,
+  IModulesConfig,
+} from '@/modules/types/index';
+import type { ModuleName } from '@/modules/types/index';
 
 const logger = LoggerService.getInstance();
-import {
-  type ModuleConfig as IModuleConfig,
-  type ModuleInfo,
-  type ModuleScannerService,
-  ModuleStatus,
-} from '@/modules/core/modules/types/index';
-
-/**
- * Configuration for an individual module from config file.
- */
-export interface ModuleConfig extends IModuleConfig {
-  enabled: boolean;
-  autoStart?: boolean;
-  config?: Record<string, unknown>;
-}
-
-/**
- * Root configuration structure for all modules.
- */
-export interface ModulesConfig {
-  modules: Record<string, ModuleConfig>;
-}
-
-/**
- * Module service interface that provides scanner access.
- */
-interface ModuleService {
-  getScannerService(): ModuleScannerService;
-}
-
-/**
- * Module instance with service property.
- */
-interface ModuleWithService {
-  name: string;
-  service: ModuleService;
-  [key: string]: any;
-}
 
 /**
  * Type guard to check if a module has a service property.
- * @param module
+ * @param moduleInstance - The module instance to check.
+ * @returns True if the module has a service property with getScannerService method.
  */
-function hasModuleService(module: any): module is ModuleWithService {
+const hasModuleService = (
+  moduleInstance: unknown,
+): moduleInstance is IModuleWithService => {
+  if (
+    moduleInstance === null
+    || moduleInstance === undefined
+    || typeof moduleInstance !== 'object'
+  ) {
+    return false;
+  }
+
+  const candidate = moduleInstance as Record<string, unknown>;
+
   return (
-    module
-    && typeof module.service === 'object'
-    && typeof module.service.getScannerService === 'function'
+    'service' in candidate
+    && candidate.service !== null
+    && typeof candidate.service === 'object'
+    && 'getScannerService' in (candidate.service as Record<string, unknown>)
+    && typeof (candidate.service as Record<string, unknown>).getScannerService === 'function'
   );
-}
+};
 
 /**
  * Dynamic module loader that discovers and manages system modules.
@@ -78,7 +73,7 @@ export class ModuleLoader {
   private static instance: ModuleLoader;
   private readonly registry: ModuleRegistry;
   private readonly configPath: string;
-  private scannerService: ModuleScannerService | null = null;
+  private scannerService: IModuleScannerService | null = null;
 
   /**
    * Creates a new ModuleLoader instance.
@@ -97,7 +92,9 @@ export class ModuleLoader {
    * @static
    */
   static getInstance(configPath?: string): ModuleLoader {
-    ModuleLoader.instance ||= new ModuleLoader(configPath);
+    if (ModuleLoader.instance === undefined) {
+      ModuleLoader.instance = new ModuleLoader(configPath);
+    }
     return ModuleLoader.instance;
   }
 
@@ -106,17 +103,24 @@ export class ModuleLoader {
    * @returns The parsed modules configuration or default empty configuration.
    * @private
    */
-  private loadConfig(): ModulesConfig {
+  private loadConfig(): IModulesConfig {
     if (!existsSync(this.configPath)) {
-      logger.warn(LogSource.MODULES, `Module config not found at ${this.configPath}, using defaults`);
+      logger.warn(
+        LogSource.MODULES,
+        `Module config not found at ${this.configPath}, using defaults`,
+      );
       return { modules: {} };
     }
 
     try {
       const configData = readFileSync(this.configPath, 'utf-8');
-      return JSON.parse(configData);
+      return JSON.parse(configData) as IModulesConfig;
     } catch (error) {
-      logger.error(LogSource.MODULES, `Failed to load module config from ${this.configPath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+      logger.error(
+        LogSource.MODULES,
+        `Failed to load module config from ${this.configPath}:`,
+        { error: error instanceof Error ? error : new Error(String(error)) },
+      );
       return { modules: {} };
     }
   }
@@ -137,12 +141,75 @@ export class ModuleLoader {
   }
 
   /**
+   * Shuts down all loaded modules in reverse order.
+   * @returns Promise that resolves when all modules are shut down.
+   * @public
+   */
+  async shutdown(): Promise<void> {
+    logger.debug(LogSource.MODULES, 'Shutting down modules...');
+
+    const modules = this.registry.getAll();
+
+    for (const moduleInstance of modules.reverse()) {
+      try {
+        if (moduleInstance.stop !== undefined) {
+          await moduleInstance.stop();
+        }
+
+        if (this.scannerService !== null) {
+          await this.scannerService.updateModuleStatus(
+            moduleInstance.name,
+            ModuleStatusEnum.STOPPED,
+          );
+        }
+      } catch (error) {
+        logger.error(
+          LogSource.MODULES,
+          `Error stopping module ${moduleInstance.name}:`,
+          { error: error instanceof Error ? error : new Error(String(error)) },
+        );
+      }
+    }
+
+    logger.debug(LogSource.MODULES, 'All modules shut down');
+  }
+
+  /**
+   * Gets the module registry.
+   * @returns The module registry instance.
+   * @public
+   */
+  getRegistry(): ModuleRegistry {
+    return this.registry;
+  }
+
+  /**
+   * Gets a specific module by name.
+   * @param name - Module name to retrieve.
+   * @returns The module instance.
+   * @throws {Error} If module is not found or not properly initialized.
+   * @public
+   */
+  getModule(name: ModuleName): IModuleInstance {
+    const module = this.registry.get(name);
+    if (module === undefined) {
+      throw new Error(`Module '${name}' not found in registry`);
+    }
+
+    if ('exports' in module && module.exports) {
+      return module as unknown as IModuleInstance;
+    }
+
+    return module as unknown as IModuleInstance;
+  }
+
+  /**
    * Loads core modules required for system operation.
    * @param config - Modules configuration.
    * @returns Promise that resolves when core modules are loaded.
    * @private
    */
-  private async loadCoreModules(config: ModulesConfig): Promise<void> {
+  private async loadCoreModules(config: IModulesConfig): Promise<void> {
     logger.debug(LogSource.MODULES, 'Core modules already loaded by bootstrap');
 
     if (!this.registry.get('modules')) {
@@ -156,11 +223,14 @@ export class ModuleLoader {
    * @returns Promise that resolves when all modules are scanned and loaded.
    * @private
    */
-  private async scanAndLoadModules(config: ModulesConfig): Promise<void> {
+  private async scanAndLoadModules(config: IModulesConfig): Promise<void> {
     try {
       const modulesModule = this.registry.get('modules');
-      if (!hasModuleService(modulesModule)) {
-        logger.error(LogSource.MODULES, 'Modules module not properly initialized or missing service');
+      if (!modulesModule || !hasModuleService(modulesModule)) {
+        logger.error(
+          LogSource.MODULES,
+          'Modules module not properly initialized or missing service',
+        );
         return;
       }
 
@@ -182,7 +252,10 @@ export class ModuleLoader {
 
       for (const moduleInfo of enabledModules) {
         if (['logger', 'database', 'cli', 'modules'].includes(moduleInfo.name)) {
-          logger.debug(LogSource.MODULES, `Skipping core module ${moduleInfo.name} - already loaded by bootstrap`);
+          logger.debug(
+            LogSource.MODULES,
+            `Skipping core module ${moduleInfo.name} - already loaded by bootstrap`,
+          );
           continue;
         }
 
@@ -195,7 +268,11 @@ export class ModuleLoader {
         await this.loadModuleFromInfo(moduleInfo, config);
       }
     } catch (error) {
-      logger.error(LogSource.MODULES, 'Failed to scan and load modules:', { error: error instanceof Error ? error : new Error(String(error)) });
+      logger.error(
+        LogSource.MODULES,
+        'Failed to scan and load modules:',
+        { error: error instanceof Error ? error : new Error(String(error)) },
+      );
     }
   }
 
@@ -206,10 +283,10 @@ export class ModuleLoader {
    * @returns Promise that resolves when module is loaded.
    * @private
    */
-  private async loadModuleFromInfo(moduleInfo: ModuleInfo, config: ModulesConfig): Promise<void> {
+  private async loadModuleFromInfo(moduleInfo: IModuleInfo, config: IModulesConfig): Promise<void> {
     try {
       if (this.scannerService !== null) {
-        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.LOADING);
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatusEnum.LOADING);
       }
 
       const relativePath = moduleInfo.path.replace(process.cwd(), '.');
@@ -218,14 +295,18 @@ export class ModuleLoader {
       await this.loadModule(moduleInfo.name, importPath, config);
 
       if (this.scannerService !== null) {
-        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatus.RUNNING);
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatusEnum.RUNNING);
       }
     } catch (error) {
-      logger.error(LogSource.MODULES, `Failed to load module ${moduleInfo.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+      logger.error(
+        LogSource.MODULES,
+        `Failed to load module ${moduleInfo.name}:`,
+        { error: error instanceof Error ? error : new Error(String(error)) },
+      );
       if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(
           moduleInfo.name,
-          ModuleStatus.ERROR,
+          ModuleStatusEnum.ERROR,
           error instanceof Error ? error.message : String(error),
         );
       }
@@ -240,87 +321,97 @@ export class ModuleLoader {
    * @returns Promise that resolves when module is loaded and initialized.
    * @private
    */
-  private async loadModule(name: string, importPath: string, config: ModulesConfig): Promise<void> {
+  private async loadModule(
+    name: string,
+    importPath: string,
+    config: IModulesConfig,
+  ): Promise<void> {
     try {
       logger.debug(LogSource.MODULES, `Loading module: ${name} from ${importPath}`);
 
-      const moduleExports = await import(importPath);
+      const moduleExports = await import(importPath) as IModuleExports;
+      const moduleClass = this.findModuleClass(moduleExports, name, importPath);
+      const moduleInstance = new moduleClass();
 
-      const moduleClassName = Object.keys(moduleExports).find(
-        (key) => { return key.toLowerCase().includes(name.toLowerCase()) && key.includes('Module') },
-      );
-
-      if (moduleClassName === undefined) {
-        throw new Error(`No module class found in ${importPath}`);
-      }
-
-      const ModuleClass = moduleExports[moduleClassName];
-      const moduleInstance = new ModuleClass();
-
-      const context = {
-        config: config.modules[name]?.config ?? {},
-        logger,
-      };
-
-      await moduleInstance.initialize(context);
-
-      this.registry.register(moduleInstance);
-
-      if (config.modules[name]?.autoStart) {
-        await moduleInstance.start();
-      }
-
+      await this.initializeModule(moduleInstance, name, config);
       logger.debug(LogSource.MODULES, `Module ${name} loaded successfully`);
     } catch (error) {
-      logger.error(LogSource.MODULES, `Failed to load module ${name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+      this.logModuleError(name, error);
       throw error;
     }
   }
 
   /**
-   * Shuts down all loaded modules in reverse order.
-   * @returns Promise that resolves when all modules are shut down.
-   * @public
+   * Find module class in exports.
+   * @param moduleExports - Module exports object.
+   * @param name - Module name.
+   * @param importPath - Import path for error messages.
+   * @returns Module constructor.
+   * @private
    */
-  async shutdown(): Promise<void> {
-    logger.debug(LogSource.MODULES, 'Shutting down modules...');
+  private findModuleClass(
+    moduleExports: IModuleExports,
+    name: string,
+    importPath: string,
+  ): IModuleConstructor {
+    const moduleClassName = Object.keys(moduleExports).find((key): boolean => {
+      return key.toLowerCase().includes(name.toLowerCase()) && key.includes('Module');
+    });
 
-    const modules = this.registry.getAll();
-
-    for (const module of modules.reverse()) {
-      try {
-        if (module.stop !== undefined) {
-          await module.stop();
-        }
-
-        if (this.scannerService !== null) {
-          await this.scannerService.updateModuleStatus(module.name, ModuleStatus.STOPPED);
-        }
-      } catch (error) {
-        logger.error(LogSource.MODULES, `Error stopping module ${module.name}:`, { error: error instanceof Error ? error : new Error(String(error)) });
-      }
+    if (moduleClassName === undefined) {
+      throw new Error(`No module class found in ${importPath}`);
     }
 
-    logger.debug(LogSource.MODULES, 'All modules shut down');
+    return moduleExports[moduleClassName] as IModuleConstructor;
   }
 
   /**
-   * Gets the module registry.
-   * @returns The module registry instance.
-   * @public
+   * Initialize module with context and register it.
+   * @param moduleInstance - Module instance to initialize.
+   * @param name - Module name.
+   * @param config - Modules configuration.
+   * @private
    */
-  getRegistry(): ModuleRegistry {
-    return this.registry;
+  private async initializeModule(
+    moduleInstance: IModuleInstance,
+    name: string,
+    config: IModulesConfig,
+  ): Promise<void> {
+    const context: IModuleContext = {
+      config: config.modules[name]?.config ?? {},
+      logger,
+    };
+
+    await moduleInstance.initialize(context);
+
+    const registryModule = {
+      ...moduleInstance,
+      version: moduleInstance.version ?? '1.0.0',
+      type: moduleInstance.type ?? 'service' as const,
+      start: moduleInstance.start?.bind(moduleInstance) ?? (async (): Promise<void> => {}),
+      stop: moduleInstance.stop?.bind(moduleInstance) ?? (async (): Promise<void> => {}),
+      healthCheck: moduleInstance.healthCheck?.bind(moduleInstance) ?? (async (): Promise<{ healthy: boolean; message?: string }> => { return { healthy: true } }),
+    };
+
+    this.registry.register(registryModule);
+
+    if (config.modules[name]?.autoStart === true) {
+      await moduleInstance.start?.();
+    }
   }
 
   /**
-   * Gets a specific module by name.
-   * @param name - Module name to retrieve.
-   * @returns The module instance or undefined if not found.
-   * @public
+   * Log module loading error.
+   * @param name - Module name.
+   * @param error - Error that occurred.
+   * @private
    */
-  getModule(name: string): any {
-    return this.registry.get(name);
+  private logModuleError(name: string, error: unknown): void {
+    logger.error(
+      LogSource.MODULES,
+      `Failed to load module ${name}:`,
+      { error: error instanceof Error ? error : new Error(String(error)) },
+    );
   }
 }
 
@@ -330,6 +421,6 @@ export class ModuleLoader {
  * @returns The singleton ModuleLoader instance.
  * @public
  */
-export function getModuleLoader(configPath?: string): ModuleLoader {
+export const getModuleLoader = (configPath?: string): ModuleLoader => {
   return ModuleLoader.getInstance(configPath);
-}
+};

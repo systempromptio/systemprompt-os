@@ -12,7 +12,7 @@ import { getAuthModule } from '@/modules/core/auth/singleton';
 import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
 import { jwtSign, jwtVerify } from '@/server/external/auth/jwt';
 import { AuthRepository } from '@/modules/core/auth/database/repository';
-import type { AuthCodeService } from '@/modules/core/auth/services/auth-code-service';
+import type { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
@@ -24,6 +24,7 @@ import type {
   IUserData,
   IUserSessionData,
 } from '@/server/external/rest/oauth2/types/index';
+import type { IdentityProvider } from '@/modules/core/auth/types/index';
 
 /**
  * Schema for OAuth2 token request validation.
@@ -31,15 +32,23 @@ import type {
 const logger = LoggerService.getInstance();
 
 const tokenRequestSchema = z.object({
-  grant_type: z.enum(['authorization_code', 'refresh_token']),
+  grantType: z.enum(['authorization_code', 'refresh_token']),
   code: z.string().optional(),
-  redirect_uri: z.string().url()
+  redirectUri: z.string().url()
 .optional(),
-  client_id: z.string().optional(),
-  client_secret: z.string().optional(),
-  refresh_token: z.string().optional(),
-  code_verifier: z.string().optional(),
-});
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  refreshToken: z.string().optional(),
+  codeVerifier: z.string().optional(),
+}).transform((data) => { return {
+  grant_type: data.grantType,
+  code: data.code,
+  redirect_uri: data.redirectUri,
+  client_id: data.clientId,
+  client_secret: data.clientSecret,
+  refresh_token: data.refreshToken,
+  code_verifier: data.codeVerifier,
+} });
 
 /**
  * In-memory storage for refresh tokens
@@ -56,16 +65,16 @@ const userSessions = new Map<string, IUserSessionData>();
 /**
  * Get auth code service instance.
  */
-let authCodeService: AuthCodeService;
+let authCodeService: AuthCodeService | null = null;
 
 /**
  * Gets the authentication code service instance.
  * @returns The auth code service instance.
  */
 const getAuthCodeService = (): AuthCodeService => {
-  if (!authCodeService) {
+  if (authCodeService === null) {
     const authModule = getAuthModule();
-    authCodeService = authModule.exports.authCodeService();
+    authCodeService = authModule.exports.authCodeService() as AuthCodeService;
   }
   return authCodeService;
 };
@@ -85,7 +94,7 @@ export class TokenEndpoint {
   public postToken = async (
     req: ExpressRequest,
     res: ExpressResponse
-  ): Promise<ExpressResponse | void> => {
+  ): Promise<ExpressResponse> => {
     try {
       logger.info(LogSource.AUTH, 'Token request received', {
         category: 'oauth2',
@@ -102,13 +111,9 @@ export class TokenEndpoint {
       });
 
       if (params.grant_type === 'authorization_code') {
-        await this.handleAuthorizationCodeGrant(params, res);
-      } else if (params.grant_type === 'refresh_token') {
-        await this.handleRefreshTokenGrant(params, res);
-      } else {
-        const oauthError = OAuth2Error.unsupportedGrantType('Unsupported grant type');
-        res.status(oauthError.code).json(oauthError.toJSON());
+        return await this.handleAuthorizationCodeGrant(params, res);
       }
+        return await this.handleRefreshTokenGrant(params, res);
     } catch (error) {
       logger.error(LogSource.AUTH, 'Token endpoint error', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -117,11 +122,11 @@ export class TokenEndpoint {
       });
 
       if (error instanceof z.ZodError) {
-        const oauthError = OAuth2Error.invalidRequest(error.message);
-        return res.status(oauthError.code).json(oauthError.toJSON());
+        const invalidRequestError = OAuth2Error.invalidRequest(error.message);
+        return res.status(invalidRequestError.code).json(invalidRequestError.toJSON());
       }
-        const oauthError = OAuth2Error.serverError('Internal server error');
-        return res.status(oauthError.code).json(oauthError.toJSON());
+        const serverError = OAuth2Error.serverError('Internal server error');
+        return res.status(serverError.code).json(serverError.toJSON());
     }
   };
 
@@ -135,7 +140,7 @@ export class TokenEndpoint {
   private async handleAuthorizationCodeGrant(
     params: ITokenRequestParams,
     res: ExpressResponse,
-  ): Promise<ExpressResponse | void> {
+  ): Promise<ExpressResponse> {
     logger.info(LogSource.AUTH, 'Authorization code grant started', {
       category: 'oauth2',
       action: 'auth_code_grant',
@@ -151,15 +156,15 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
 
-    const authCodeService = getAuthCodeService();
-    const codeData = await authCodeService.getAuthorizationCode(params.code);
+    const authCodeSvc = getAuthCodeService();
+    const codeData = await authCodeSvc.getAuthorizationCode(params.code);
     logger.info(LogSource.AUTH, 'Authorization code lookup completed', {
       category: 'oauth2',
       action: 'code_lookup',
       persistToDb: false
     });
 
-    if (!codeData) {
+    if (codeData === null) {
       logger.error(LogSource.AUTH, 'Invalid authorization code', {
         category: 'oauth2',
         action: 'code_lookup'
@@ -169,12 +174,12 @@ export class TokenEndpoint {
     }
 
     if (codeData.expiresAt < new Date()) {
-      await authCodeService.deleteAuthorizationCode(params.code);
+      await authCodeSvc.deleteAuthorizationCode(params.code);
       const error = OAuth2Error.invalidGrant('Authorization code expired');
       return res.status(error.code).json(error.toJSON());
     }
 
-    if (params.client_id && codeData.clientId !== params.client_id) {
+    if (params.client_id !== undefined && codeData.clientId !== params.client_id) {
       const error = OAuth2Error.invalidGrant('Invalid client');
       return res.status(error.code).json(error.toJSON());
     }
@@ -185,7 +190,7 @@ export class TokenEndpoint {
     }
 
     if (codeData.codeChallenge) {
-      if (!params.code_verifier) {
+      if (params.code_verifier === undefined) {
         const error = OAuth2Error.invalidRequest('Code verifier required');
         return res.status(error.code).json(error.toJSON());
       }
@@ -200,7 +205,7 @@ export class TokenEndpoint {
       }
     }
 
-    await authCodeService.deleteAuthorizationCode(params.code);
+    await authCodeSvc.deleteAuthorizationCode(params.code);
 
     if (
       typeof codeData.provider === 'string'
@@ -208,13 +213,14 @@ export class TokenEndpoint {
       && typeof codeData.providerTokens === 'object'
     ) {
       try {
-        const provider = getAuthModule().exports.getProvider(codeData.provider);
+        const authModule = getAuthModule();
+        const provider = authModule.exports.getProvider(codeData.provider) as IdentityProvider | undefined;
         const tokenData = codeData.providerTokens as IProviderTokens;
         if (provider && typeof tokenData.code === 'string') {
           const {code} = tokenData;
-          if (code.length > 0) {
+          if (code.length > 0 && typeof provider.exchangeCodeForTokens === 'function') {
             const providerTokens = await provider.exchangeCodeForTokens(code);
-            codeData.providerTokens = providerTokens as Record<string, unknown>;
+            codeData.providerTokens = providerTokens as unknown as Record<string, unknown>;
           }
         }
       } catch (error) {
@@ -264,7 +270,7 @@ export class TokenEndpoint {
   private async handleRefreshTokenGrant(
     params: ITokenRequestParams,
     res: ExpressResponse,
-  ): Promise<ExpressResponse | void> {
+  ): Promise<ExpressResponse> {
     if (typeof params.refresh_token !== 'string') {
       const error = OAuth2Error.invalidRequest('Missing refresh token');
       return res.status(error.code).json(error.toJSON());
@@ -330,13 +336,15 @@ export class TokenEndpoint {
         userData = {
           id: user.id,
           email: user.email,
-          name: user.name,
-          avatar: user.avatarUrl,
+          name: user.name ?? undefined,
+          avatar: user.avatarUrl ?? undefined,
           roles: []
         };
         const roles = await authRepo.getIUserIRoles(userId);
         userRoles = roles.map((r: { name: string }) => { return r.name });
-        userData.roles = userRoles;
+        if (userData !== null) {
+          userData.roles = userRoles;
+        }
       }
     } catch (error) {
       logger.error(LogSource.AUTH, 'Failed to fetch user data', {
@@ -348,6 +356,8 @@ export class TokenEndpoint {
         userData = {
           id: userId,
           email: userEmail,
+          name: undefined,
+          avatar: undefined,
           roles: [],
         };
       }
@@ -357,8 +367,8 @@ export class TokenEndpoint {
       sub: userId,
       clientid: clientId,
       scope,
-      provider,
-      sessionid: sessionId,
+      provider: provider ?? undefined,
+      sessionid: sessionId ?? undefined,
       tokentype: 'access',
       iss: CONFIG.JWTISSUER,
       aud: CONFIG.JWTAUDIENCE,
@@ -367,10 +377,27 @@ export class TokenEndpoint {
       jti: randomBytes(16).toString('hex'),
       user: userData,
       roles: userRoles,
-      email: userData?.email,
+      email: userData?.email ?? undefined,
     };
 
-    const accessToken = await jwtSign(accessTokenPayload, {
+    const jwtPayload: Record<string, unknown> = {
+      sub: accessTokenPayload.sub,
+      iss: accessTokenPayload.iss,
+      aud: accessTokenPayload.aud,
+      iat: accessTokenPayload.iat,
+      exp: accessTokenPayload.exp,
+      jti: accessTokenPayload.jti,
+      clientid: accessTokenPayload.clientid,
+      scope: accessTokenPayload.scope,
+      provider: accessTokenPayload.provider,
+      sessionid: accessTokenPayload.sessionid,
+      tokentype: accessTokenPayload.tokentype,
+      user: accessTokenPayload.user,
+      roles: accessTokenPayload.roles,
+      email: accessTokenPayload.email,
+    };
+
+    const accessToken = await jwtSign(jwtPayload, {
       issuer: CONFIG.JWTISSUER,
       audience: CONFIG.JWTAUDIENCE,
       expiresIn: 3600,
@@ -412,12 +439,26 @@ export class TokenEndpoint {
       };
 
       if (userData !== null) {
-        idTokenPayload.email = userData.email;
-        idTokenPayload.name = userData.name;
-        idTokenPayload.picture = userData.avatar;
+        idTokenPayload.email = userData.email ?? undefined;
+        idTokenPayload.name = userData.name ?? undefined;
+        idTokenPayload.picture = userData.avatar ?? undefined;
       }
 
-      response.id_token = await jwtSign(idTokenPayload, {
+      const idJwtPayload: Record<string, unknown> = {
+        sub: idTokenPayload.sub,
+        aud: idTokenPayload.aud,
+        iss: idTokenPayload.iss,
+        iat: idTokenPayload.iat,
+        exp: idTokenPayload.exp,
+        auth_time: idTokenPayload.auth_time,
+        nonce: idTokenPayload.nonce,
+        jti: idTokenPayload.jti,
+        email: idTokenPayload.email,
+        name: idTokenPayload.name,
+        picture: idTokenPayload.picture,
+      };
+
+      response.id_token = await jwtSign(idJwtPayload, {
         issuer: CONFIG.JWTISSUER,
         audience: clientId,
         expiresIn: 3600,

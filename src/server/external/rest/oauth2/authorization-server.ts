@@ -8,6 +8,7 @@
 
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton';
+import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * OAuth 2.0 Authorization Server Endpoint handler.
@@ -17,18 +18,31 @@ export class AuthorizationServerEndpoint {
   /**
    * Handles requests for OAuth 2.0 authorization server metadata.
    * Returns the server metadata as specified in RFC 8414.
-   * @param _req - Express request object (unused).
+   * Sets appropriate headers and returns metadata regardless of request method.
+   * @param req - Express request object.
    * @param res - Express response object.
    * @returns Express response with JSON metadata.
    */
-  // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-unsafe-member-access
   getAuthorizationServerMetadata = (
-    _req: ExpressRequest,
+    req: ExpressRequest,
     res: ExpressResponse
   ): ExpressResponse => {
-    const authModule = getAuthModule();
-    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const metadata = oauth2ConfigService.getAuthorizationServerMetadata()
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    const metadata = this.getMetadata();
     return res.json(metadata);
   };
+
+  /**
+   * Retrieves OAuth 2.0 authorization server metadata.
+   * @returns The authorization server metadata conforming to RFC 8414.
+   */
+  private getMetadata(): IOAuth2ServerMetadataInternal {
+    const authModule = getAuthModule();
+    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+    const metadata: IOAuth2ServerMetadataInternal
+      = oauth2ConfigService.getAuthorizationServerMetadata();
+    return metadata;
+  }
 }

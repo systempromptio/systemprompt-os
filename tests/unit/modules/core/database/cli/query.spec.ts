@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { CLIContext } from '../../../../cli/src/types.js';
-import { command as queryCommand } from '../../cli/query.js';
-import { DatabaseService } from '../../services/database.service.js';
+import type { CLIContext } from '@/modules/core/cli/types/index.js';
+import { command as queryCommand } from '@/modules/core/database/cli/query.js';
+import { DatabaseService } from '@/modules/core/database/services/database.service.js';
 import * as readline from 'readline';
 
 // Mock the services and modules
-vi.mock('../../services/database.service.js');
+vi.mock('@/modules/core/database/services/database.service.js');
 vi.mock('readline');
 vi.mock('fs/promises');
 
@@ -219,6 +219,114 @@ describe('database:query command', () => {
     ];
 
     for (const testCase of testCases) {
+      mockContext.args.sql = testCase.sql;
+      mockContext.args.readonly = testCase.readonly;
+
+      if (testCase.shouldPass) {
+        mockDbService.query.mockResolvedValue([]);
+        await queryCommand.execute(mockContext);
+        expect(mockDbService.query).toHaveBeenCalledWith(testCase.sql);
+      } else {
+        await expect(queryCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'Error: Only SELECT queries are allowed in readonly mode.'
+        );
+      }
+
+      // Reset mocks for next iteration
+      vi.clearAllMocks();
+      consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      processExitSpy = vi.spyOn(process!, 'exit').mockImplementation((code?: number!) => {
+        throw new Error(`Process exited with code ${code}`);
+      });
+    }
+  });
+
+  it('should start interactive mode when interactive flag is true', async () => {
+    mockContext.args.interactive = true;
+    
+    // Mock readline interface
+    const mockRl = {
+      prompt: vi.fn(),
+      close: vi.fn(),
+      on: vi.fn(),
+    };
+    vi.mocked(readline.createInterface).mockReturnValue(mockRl as any);
+
+    // Start the command (this will set up the readline interface)
+    // We need to await this but also handle the fact that interactive mode doesn't naturally return
+    const executePromise = queryCommand.execute(mockContext);
+    
+    // Let the promise start executing
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Verify readline interface was created with correct options
+    expect(readline.createInterface).toHaveBeenCalledWith({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: 'query> '
+    });
+
+    // Verify initial setup
+    expect(consoleLogSpy).toHaveBeenCalledWith('Interactive SQL query mode. Type ".exit" to quit.');
+    expect(mockRl.prompt).toHaveBeenCalled();
+
+    // Verify event handlers were set up
+    expect(mockRl.on).toHaveBeenCalledWith('line', expect.any(Function));
+    expect(mockRl.on).toHaveBeenCalledWith('close', expect.any(Function));
+
+    // Simulate .exit command to close readline
+    const lineHandler = mockRl.on.mock.calls.find(call => call[0] === 'line')[1];
+    lineHandler('.exit');
+    
+    expect(mockRl.close).toHaveBeenCalled();
+  });
+
+  it('should handle file reading errors', async () => {
+    const fs = await import('fs/promises');
+    vi.mocked(fs.readFile).mockRejectedValue(new Error('File not found'));
+    
+    mockContext.args.file = '/nonexistent/file.sql';
+
+    await expect(queryCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+    
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Query failed:', 'File not found');
+  });
+
+  it('should handle files with no queries', async () => {
+    const fs = await import('fs/promises');
+    vi.mocked(fs.readFile).mockResolvedValue('   \n\n  \n  ;  ; ');
+    
+    mockContext.args.file = '/path/to/empty.sql';
+
+    await queryCommand.execute(mockContext);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith('No queries found in file.');
+  });
+
+  it('should handle write operations that return non-array results', async () => {
+    mockDbService.query.mockResolvedValue({ changes: 3, lastID: 123 });
+    mockContext.args.sql = 'DELETE FROM old_records WHERE created < "2020-01-01"';
+    mockContext.args.readonly = false;
+
+    await queryCommand.execute(mockContext);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringMatching(/Query executed successfully \(\d+ms\)/));
+    expect(mockDbService.query).toHaveBeenCalledWith('DELETE FROM old_records WHERE created < "2020-01-01"');
+  });
+
+  it('should handle different SQL command patterns for readonly validation', async () => {
+    const additionalTestCases = [
+      { sql: 'CREATE INDEX idx_name ON users(name)', readonly: true, shouldPass: false },
+      { sql: 'ALTER TABLE users ADD COLUMN email VARCHAR(255)', readonly: true, shouldPass: false },
+      { sql: 'TRUNCATE TABLE logs', readonly: true, shouldPass: false },
+      { sql: '  SELECT  *  FROM  users  ', readonly: true, shouldPass: true }, // whitespace
+      { sql: 'PRAGMA table_info(users)', readonly: true, shouldPass: true }, // PRAGMA commands
+      { sql: 'VACUUM', readonly: true, shouldPass: true }, // maintenance commands
+    ];
+
+    for (const testCase of additionalTestCases) {
       mockContext.args.sql = testCase.sql;
       mockContext.args.readonly = testCase.readonly;
 

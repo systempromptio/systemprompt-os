@@ -4,7 +4,8 @@
  * @module modules/core/system
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { SystemService } from '@/modules/core/system/services/system.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -25,8 +26,8 @@ export class SystemModule implements IModule<ISystemModuleExports> {
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
   public readonly description = 'Core system management and configuration functionality';
-  public readonly dependencies = ['logger', 'database'];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public readonly dependencies = ['logger', 'database'] as const;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private systemService!: SystemService;
   private logger!: ILogger;
   private initialized = false;
@@ -67,10 +68,10 @@ export class SystemModule implements IModule<ISystemModuleExports> {
     }
 
     if (this.started) {
-      throw new Error('System module already started');
+      return;
     }
 
-    this.status = 'running';
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
     this.logger.info(LogSource.SYSTEM, 'System module started');
   }
@@ -80,7 +81,7 @@ export class SystemModule implements IModule<ISystemModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = 'stopped';
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
       this.logger.info(LogSource.SYSTEM, 'System module stopped');
     }
@@ -136,11 +137,34 @@ export const initialize = async (): Promise<SystemModule> => {
 };
 
 /**
+ * Gets the System module with type safety and validation.
+ * @returns The System module with guaranteed typed exports.
+ * @throws {Error} If System module is not available or missing required exports.
+ */
+export function getSystemModule(): IModule<ISystemModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/index');
+
+  const moduleLoader = getModuleLoader();
+  const systemModule = moduleLoader.getModule(ModuleName.SYSTEM);
+
+  if (!systemModule.exports?.service || typeof systemModule.exports.service !== 'function') {
+    throw new Error('System module missing required service export');
+  }
+
+  return systemModule as IModule<ISystemModuleExports>;
+}
+
+/**
  * Re-export enums for convenience.
  */
 export {
   ConfigTypeEnum,
-  ModuleStatusEnum,
   EventSeverityEnum,
   MaintenanceTypeEnum
 } from '@/modules/core/system/types/index';
+
+// Re-export ModuleStatusEnum from modules/types to avoid conflicts
+export { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+
+export default SystemModule;

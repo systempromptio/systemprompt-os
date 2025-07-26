@@ -3,18 +3,22 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { SystemModule } from '../../../src/modules/core/system/index.js';
-import { SystemService } from '../../../src/modules/core/system/services/system.service.js';
-import { HealthService } from '../../../src/modules/core/system/services/health.service.js';
-import { MetricsService } from '../../../src/modules/core/system/services/metrics.service.js';
-import { BackupService } from '../../../src/modules/core/system/services/backup.service.js';
-import type { SystemStatus, HealthReport } from '../../../src/modules/core/system/types/index.js';
+import { 
+  SystemModule, 
+  createModule, 
+  initialize,
+  ConfigTypeEnum,
+  ModuleStatusEnum,
+  EventSeverityEnum,
+  MaintenanceTypeEnum
+} from '../../../../../src/modules/core/system/index.js';
+import { SystemService } from '../../../../../src/modules/core/system/services/system.service.js';
+import { LoggerService } from '../../../../../src/modules/core/logger/services/logger.service.js';
+import { LogSource } from '../../../../../src/modules/core/logger/types/index.js';
 
 // Mock the services
-vi.mock('../../../src/modules/core/system/services/system.service.js');
-vi.mock('../../../src/modules/core/system/services/health.service.js');
-vi.mock('../../../src/modules/core/system/services/metrics.service.js');
-vi.mock('../../../src/modules/core/system/services/backup.service.js');
+vi.mock('../../../../../src/modules/core/system/services/system.service.js');
+vi.mock('../../../../../src/modules/core/logger/services/logger.service.js');
 
 describe('SystemModule', () => {
   let systemModule: SystemModule;

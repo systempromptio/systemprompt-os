@@ -3,216 +3,304 @@
  * @module tests/unit/modules/core/webhooks
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { WebhooksModule } from '../../../../../src/modules/core/webhooks/index.js';
-import { ModuleInterface } from '../../../../../src/types/module.interface.js';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { WebhooksModule, WebhookService, createModule, initialize } from '../../../../../src/modules/core/webhooks/index.js';
+import type { IWebhooksModuleExports } from '../../../../../src/modules/core/webhooks/index.js';
 
-// Mock the database service to prevent initialization errors
-vi.mock('@/modules/core/database/services/database.service.js', () => ({
-  DatabaseService: {
-    initialize: vi.fn(),
-    getInstance: vi.fn().mockReturnValue({
-      isInitialized: () => true,
-      getConnection: vi.fn()
-    })
+// Mock LoggerService completely
+vi.mock('../../../../../src/modules/core/logger/services/logger.service.js', () => ({
+  LoggerService: {
+    getInstance: vi.fn()
   }
 }));
 
-// Mock dependencies
-vi.mock('../../../../../src/modules/core/webhooks/repositories/webhook-repository.js', () => ({
-  WebhookRepository: vi.fn().mockImplementation(() => ({}))
+// Mock LogSource to prevent import errors
+vi.mock('../../../../../src/modules/core/logger/types/index.js', () => ({
+  LogSource: {
+    SYSTEM: 'SYSTEM'
+  }
 }));
 
-vi.mock('../../../../../src/modules/core/webhooks/services/webhook-service.js', () => ({
-  WebhookService: vi.fn().mockImplementation(() => ({
-    createWebhook: vi.fn(),
-    listWebhooks: vi.fn(),
-    getWebhook: vi.fn(),
-    triggerWebhook: vi.fn().mockResolvedValue(undefined),
-    cleanupOldDeliveries: vi.fn()
-  }))
-}));
+// Import the mocked dependencies
+import { LoggerService } from '../../../../../src/modules/core/logger/services/logger.service.js';
+import { LogSource } from '../../../../../src/modules/core/logger/types/index.js';
 
-vi.mock('../../../../../src/modules/core/webhooks/services/webhook-delivery-service.js', () => ({
-  WebhookDeliveryService: vi.fn().mockImplementation(() => ({
-    deliver: vi.fn(),
-    deliverOnce: vi.fn(),
-    cancelAllDeliveries: vi.fn().mockResolvedValue(undefined)
-  }))
-}));
+describe('WebhookService', () => {
+  beforeEach(() => {
+    // Reset all mocks and clear singleton instance
+    vi.clearAllMocks();
+    // Reset singleton instance for clean tests
+    (WebhookService as any).instance = undefined;
+  });
 
-describe('Webhooks Module', () => {
-  let module: ModuleInterface;
-  let mockConfig: any;
-  let mockDeps: any;
+  afterEach(() => {
+    // Clean up singleton instance after each test
+    (WebhookService as any).instance = undefined;
+  });
+
+  describe('Singleton Pattern', () => {
+    it('should return the same instance when called multiple times', () => {
+      const instance1 = WebhookService.getInstance();
+      const instance2 = WebhookService.getInstance();
+      
+      expect(instance1).toBe(instance2);
+      expect(instance1).toBeInstanceOf(WebhookService);
+    });
+
+    it('should create new instance on first call', () => {
+      const instance = WebhookService.getInstance();
+      
+      expect(instance).toBeInstanceOf(WebhookService);
+    });
+
+    it('should maintain singleton pattern after reset', () => {
+      const instance1 = WebhookService.getInstance();
+      
+      // Reset the singleton
+      (WebhookService as any).instance = undefined;
+      
+      const instance2 = WebhookService.getInstance();
+      const instance3 = WebhookService.getInstance();
+      
+      // Should be different from the first instance but same as third
+      expect(instance1).not.toBe(instance2);
+      expect(instance2).toBe(instance3);
+    });
+  });
+
+  describe('initialize method', () => {
+    it('should initialize successfully', async () => {
+      const service = WebhookService.getInstance();
+      
+      await expect(service.initialize()).resolves.toBeUndefined();
+    });
+
+    it('should handle initialize being called multiple times', async () => {
+      const service = WebhookService.getInstance();
+      
+      await expect(service.initialize()).resolves.toBeUndefined();
+      await expect(service.initialize()).resolves.toBeUndefined();
+    });
+  });
+});
+
+describe('WebhooksModule', () => {
+  let module: WebhooksModule;
+  let mockLogger: any;
 
   beforeEach(() => {
-    // Reset mocks
+    // Reset all mocks
     vi.clearAllMocks();
-
-    // Mock config
-    mockConfig = {
-      name: 'webhooks',
-      type: 'service',
-      version: '1.0.0',
-      config: {
-        defaultTimeout: 30000,
-        cleanup: {
-          interval: 86400000,
-          retentionDays: 30
-        }
-      }
+    
+    // Create mock logger
+    mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
     };
 
-    // Mock dependencies
-    mockDeps = {
-      logger: {
-        info: vi.fn(),
-        error: vi.fn(),
-        warn: vi.fn(),
-        debug: vi.fn()
-      },
-      database: {
-        getAdapter: vi.fn().mockReturnValue({
-          query: vi.fn().mockResolvedValue({ rows: [{ '1': 1 }] }),
-          execute: vi.fn().mockResolvedValue({ changes: 0 }),
-          select: vi.fn().mockResolvedValue({ rows: [] }),
-          insert: vi.fn().mockResolvedValue({ changes: 1, lastInsertRowid: 1 }),
-          update: vi.fn().mockResolvedValue({ changes: 1 }),
-          delete: vi.fn().mockResolvedValue({ changes: 1 }),
-          close: vi.fn().mockResolvedValue(undefined)
-        })
-      }
-    };
-
+    // Mock LoggerService.getInstance to return our mock logger
+    vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
+    
     module = new WebhooksModule();
   });
 
-  describe('Module Lifecycle', () => {
+  afterEach(() => {
+    // Clear all mocks between tests
+    vi.clearAllMocks();
+  });
+
+  describe('Constructor and Properties', () => {
+    it('should initialize with correct default properties', () => {
+      expect(module.name).toBe('webhooks');
+      expect(module.type).toBe('service');
+      expect(module.version).toBe('1.0.0');
+      expect(module.description).toBe('Webhook management system');
+      expect(module.dependencies).toEqual(['logger', 'database', 'auth']);
+      expect(module.status).toBe('stopped');
+    });
+  });
+
+  describe('exports getter', () => {
+    it('should return correct exports interface when not initialized', () => {
+      const moduleExports = module.exports;
+      
+      expect(moduleExports).toBeDefined();
+      expect(typeof moduleExports.service).toBe('function');
+      
+      // Should throw error when trying to get service before initialization
+      expect(() => moduleExports.service()).toThrow('Webhooks module not initialized');
+    });
+
+    it('should return working service function after initialization', async () => {
+      await module.initialize();
+      
+      const moduleExports = module.exports;
+      const service = moduleExports.service();
+      
+      expect(service).toBeInstanceOf(WebhookService);
+    });
+  });
+
+  describe('initialize method', () => {
     it('should initialize successfully', async () => {
-      const result = await module.initialize(mockConfig, mockDeps);
+      await expect(module.initialize()).resolves.toBeUndefined();
       
-      expect(result).toBe(true);
-      expect(mockDeps.logger.info).toHaveBeenCalledWith('Webhooks module initialized');
-      expect(mockDeps.database.getAdapter).toHaveBeenCalledWith('webhooks');
+      expect(LoggerService.getInstance).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module initialized');
     });
 
-    it('should handle initialization errors', async () => {
-      mockDeps.database.getAdapter.mockImplementation(() => {
-        throw new Error('Database connection failed');
-      });
-
-      const result = await module.initialize(mockConfig, mockDeps);
+    it('should throw error if already initialized', async () => {
+      await module.initialize();
       
-      expect(result).toBe(false);
-      expect(mockDeps.logger.error).toHaveBeenCalled();
+      await expect(module.initialize()).rejects.toThrow('Webhooks module already initialized');
     });
 
-    it('should start successfully', async () => {
-      vi.useFakeTimers();
+    it('should handle WebhookService.initialize() errors', async () => {
+      // Mock WebhookService.getInstance to return a service that throws on initialize
+      const mockService = {
+        initialize: vi.fn().mockRejectedValue(new Error('Service initialization failed'))
+      };
       
-      await module.initialize(mockConfig, mockDeps);
-      const result = await module.start();
+      vi.spyOn(WebhookService, 'getInstance').mockReturnValue(mockService as any);
       
-      expect(result).toBe(true);
-      expect(mockDeps.logger.info).toHaveBeenCalledWith('Webhooks module started');
-      
-      vi.clearAllTimers();
-      vi.useRealTimers();
+      await expect(module.initialize()).rejects.toThrow('Failed to initialize webhooks module: Service initialization failed');
     });
 
-    it('should stop successfully', async () => {
-      vi.useFakeTimers();
+    it('should handle non-Error exceptions during initialization', async () => {
+      // Mock WebhookService.getInstance to return a service that throws a non-Error
+      const mockService = {
+        initialize: vi.fn().mockRejectedValue('String error')
+      };
       
-      await module.initialize(mockConfig, mockDeps);
+      vi.spyOn(WebhookService, 'getInstance').mockReturnValue(mockService as any);
+      
+      await expect(module.initialize()).rejects.toThrow('Failed to initialize webhooks module: String error');
+    });
+  });
+
+  describe('start method', () => {
+    it('should start successfully when initialized', async () => {
+      await module.initialize();
+      
+      await expect(module.start()).resolves.toBeUndefined();
+      
+      expect(module.status).toBe('running');
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module started');
+    });
+
+    it('should throw error if not initialized', async () => {
+      await expect(module.start()).rejects.toThrow('Webhooks module not initialized');
+    });
+
+    it('should throw error if already started', async () => {
+      await module.initialize();
       await module.start();
-      const result = await module.stop();
       
-      expect(result).toBe(true);
-      expect(mockDeps.logger.info).toHaveBeenCalledWith('Webhooks module stopped');
+      await expect(module.start()).rejects.toThrow('Webhooks module already started');
+    });
+  });
+
+  describe('stop method', () => {
+    it('should stop successfully when started', async () => {
+      await module.initialize();
+      await module.start();
       
-      vi.clearAllTimers();
-      vi.useRealTimers();
+      await expect(module.stop()).resolves.toBeUndefined();
+      
+      expect(module.status).toBe('stopped');
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module stopped');
     });
 
-    it('should perform health check', async () => {
-      await module.initialize(mockConfig, mockDeps);
+    it('should do nothing if not started', async () => {
+      await module.initialize();
+      
+      await expect(module.stop()).resolves.toBeUndefined();
+      
+      expect(module.status).toBe('stopped');
+      // Should not log anything if it wasn't started
+      expect(mockLogger.info).not.toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module stopped');
+    });
+  });
+
+  describe('healthCheck method', () => {
+    it('should return unhealthy if not initialized', async () => {
+      const health = await module.healthCheck();
+      
+      expect(health.healthy).toBe(false);
+      expect(health.message).toBe('Webhooks module not initialized');
+    });
+
+    it('should return unhealthy if initialized but not started', async () => {
+      await module.initialize();
+      
+      const health = await module.healthCheck();
+      
+      expect(health.healthy).toBe(false);
+      expect(health.message).toBe('Webhooks module not started');
+    });
+
+    it('should return healthy if initialized and started', async () => {
+      await module.initialize();
       await module.start();
       
       const health = await module.healthCheck();
       
       expect(health.healthy).toBe(true);
-      expect(health.checks).toHaveProperty('services');
-      expect(health.checks).toHaveProperty('database');
-      expect(health.checks.services).toBe(true);
-      expect(health.checks.database).toBe(true);
-    });
-
-    it('should handle health check errors', async () => {
-      await module.initialize(mockConfig, mockDeps);
-      
-      // Make query fail
-      const adapter = mockDeps.database.getAdapter();
-      adapter.query.mockRejectedValue(new Error('Database error'));
-      
-      const health = await module.healthCheck();
-      
-      expect(health.healthy).toBe(false);
-      expect(health.checks.services).toBe(false);
-      expect(health.checks.database).toBe(false);
+      expect(health.message).toBe('Webhooks module is healthy');
     });
   });
 
-  describe('Module Exports', () => {
-    it('should export WebhookService', async () => {
-      await module.initialize(mockConfig, mockDeps);
+  describe('getService method', () => {
+    it('should return service when initialized', async () => {
+      await module.initialize();
       
-      expect(module.exports).toBeDefined();
-      expect(module.exports.WebhookService).toBeDefined();
+      const service = module.getService();
+      
+      expect(service).toBeInstanceOf(WebhookService);
     });
 
-  });
-
-  describe('Module Info', () => {
-    it('should return correct module info', () => {
-      const info = module.getInfo();
-      
-      expect(info.name).toBe('webhooks');
-      expect(info.version).toBe('1.0.0');
-      expect(info.description).toBe('Event-driven webhook notifications');
-      expect(info.author).toBe('SystemPrompt OS Team');
+    it('should throw error if not initialized', () => {
+      expect(() => module.getService()).toThrow('Webhooks module not initialized');
     });
   });
+});
 
-  describe('Cleanup Interval', () => {
-    it('should start cleanup interval on start', async () => {
-      vi.useFakeTimers();
-      const setIntervalSpy = vi.spyOn(global, 'setInterval');
+describe('Factory Functions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('createModule function', () => {
+    it('should create a new WebhooksModule instance', () => {
+      const module = createModule();
       
-      await module.initialize(mockConfig, mockDeps);
-      await module.start();
-      
-      expect(setIntervalSpy).toHaveBeenCalledWith(
-        expect.any(Function),
-        86400000 // 24 hours
-      );
-      
-      vi.clearAllTimers();
-      vi.useRealTimers();
+      expect(module).toBeInstanceOf(WebhooksModule);
+      expect(module.name).toBe('webhooks');
     });
+  });
 
-    it('should clear cleanup interval on stop', async () => {
-      vi.useFakeTimers();
-      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+  describe('initialize function', () => {
+    it('should create and initialize a WebhooksModule', async () => {
+      // Mock logger for this test
+      const mockLogger = {
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn()
+      };
+      vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
       
-      await module.initialize(mockConfig, mockDeps);
-      await module.start();
-      await module.stop();
+      const module = await initialize();
       
-      expect(clearIntervalSpy).toHaveBeenCalled();
-      
-      vi.clearAllTimers();
-      vi.useRealTimers();
+      expect(module).toBeInstanceOf(WebhooksModule);
+      expect(module.name).toBe('webhooks');
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module initialized');
     });
   });
 });

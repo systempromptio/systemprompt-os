@@ -1,11 +1,56 @@
-import type {
-  AuthToken,
-  LoginInput,
-  LoginResult,
-  MFASetupResult,
-  TokenCreateInput,
-  TokenValidationResult,
-} from '@/modules/core/auth/types/index';
+// Minimal type definitions to avoid circular dependency with index.ts
+interface AuthToken {
+  id: string;
+  userId: string;
+  token: string;
+  type: string;
+  scope: string[];
+  expiresAt: Date;
+  createdAt: Date;
+  lastUsedAt?: Date;
+  isRevoked: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+interface LoginInput {
+  email: string;
+  password?: string;
+  provider?: string;
+  providerId?: string;
+  providerData?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+interface LoginResult {
+  user: unknown;
+  session: unknown;
+  accessToken: string;
+  refreshToken: string;
+  requiresMfa: boolean;
+}
+
+interface MFASetupResult {
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}
+
+interface TokenCreateInput {
+  userId: string;
+  type: string;
+  scope: string[];
+  expiresIn?: number;
+  metadata?: Record<string, unknown>;
+}
+
+interface TokenValidationResult {
+  valid: boolean;
+  userId?: string;
+  scope?: string[];
+  token?: AuthToken;
+  reason?: string;
+}
 
 /**
  * Authentication service interface that defines core authentication operations.

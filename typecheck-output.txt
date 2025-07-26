@@ -1,0 +1,197 @@
+
+> @systemprompt/os@0.1.0 typecheck
+> tsc --noEmit
+
+src/modules/core/agents/index.ts(58,50): error TS2345: Argument of type 'DatabaseService' is not assignable to parameter of type 'DatabaseConnection'.
+  Type 'DatabaseService' is missing the following properties from type 'DatabaseConnection': prepare, close
+src/modules/core/auth/cli/tunnel.ts(162,65): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/auth/cli/tunnel.ts(239,59): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/auth/index.ts(19,10): error TS2724: '"@/modules/core/auth/services/audit.service"' has no exported member named 'AuditService'. Did you mean 'AuthAuditService'?
+src/modules/core/auth/services/audit.service.ts(166,51): error TS2375: Type '{ id: string; userId: string | undefined; action: string; resource: string | undefined; ipAddress: string | undefined; userAgent: string | undefined; success: boolean; errorMessage: string | undefined; metadata: any; timestamp: Date; }' is not assignable to type 'IAuthAuditEntry' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'userId' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/core/auth/services/audit.service.ts(198,32): error TS2532: Object is possibly 'undefined'.
+src/modules/core/auth/services/audit.service.ts(218,22): error TS2352: Conversion of type 'void' to type '{ rowsAffected: number; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/modules/core/cli/cli/docs.ts(41,34): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/cli/help.ts(24,44): error TS2345: Argument of type '"cli"' is not assignable to parameter of type 'ModuleName'.
+src/modules/core/cli/cli/list.ts(20,1): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/core/cli/cli/list.ts(22,12): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/core/cli/cli/list.ts(23,1): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/core/cli/cli/list.ts(95,34): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/cli/refresh.ts(24,44): error TS2345: Argument of type '"cli"' is not assignable to parameter of type 'ModuleName'.
+src/modules/core/cli/cli/status.ts(24,44): error TS2345: Argument of type '"cli"' is not assignable to parameter of type 'ModuleName'.
+src/modules/core/cli/services/cli-formatter.service.ts(228,17): error TS6133: 'category' is declared but its value is never read.
+src/modules/core/cli/services/database-clear.service.ts(47,29): error TS6133: 'logger' is declared but its value is never read.
+src/modules/core/cli/services/database-status.service.ts(107,9): error TS2322: Type '{ connected: boolean; initialized: Promise<boolean>; type: "sqlite" | "postgres"; timestamp: string; }' is not assignable to type '{ connected: boolean; initialized: boolean; type: string; timestamp: string; tableCount?: number; tables?: string[]; schemaVersions?: { module: string; version: string; }[]; error?: string; }'.
+  Types of property 'initialized' are incompatible.
+    Type 'Promise<boolean>' is not assignable to type 'boolean'.
+src/modules/core/cli/services/database-summary.service.ts(60,29): error TS6133: 'logger' is declared but its value is never read.
+src/modules/core/cli/services/database-view.service.ts(73,29): error TS6133: 'logger' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(6,8): error TS6133: 'ora' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(6,53): error TS6133: 'OraOptions' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(8,1): error TS6133: 'randomBytes' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(9,1): error TS6133: 'chalk' is declared but its value is never read.
+src/modules/core/cli/utils/spinner.ts(61,20): error TS2564: Property 'spinner' has no initializer and is not definitely assigned in the constructor.
+src/modules/core/cli/utils/spinner.ts(62,20): error TS2564: Property 'startTime' has no initializer and is not definitely assigned in the constructor.
+src/modules/core/cli/utils/spinner.ts(156,34): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/utils/spinner.ts(173,43): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/cli/utils/spinner.ts(196,44): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/config/cli/get.ts(20,35): error TS2554: Expected 0 arguments, but got 1.
+src/modules/core/config/index.ts(40,11): error TS6133: 'database' is declared but its value is never read.
+src/modules/core/database/adapters/module.adapter.ts(108,16): error TS2416: Property 'execute' in type 'SqliteModuleAdapter' is not assignable to the same property in base type 'IModuleDatabaseAdapter'.
+  Type '(sql: string, params?: unknown[] | undefined) => Promise<void>' is not assignable to type '(sql: string, params?: unknown[] | undefined) => Promise<IMutationResult>'.
+    Type 'Promise<void>' is not assignable to type 'Promise<IMutationResult>'.
+      Type 'void' is not assignable to type 'IMutationResult'.
+src/modules/core/database/adapters/module.adapter.ts(145,3): error TS2322: Type 'SqliteModuleAdapter' is not assignable to type 'IModuleDatabaseAdapter'.
+  The types returned by 'execute(...)' are incompatible between these types.
+    Type 'Promise<void>' is not assignable to type 'Promise<IMutationResult>'.
+      Type 'void' is not assignable to type 'IMutationResult'.
+src/modules/core/database/cli/clear.ts(54,9): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/database/cli/schema.ts(33,28): error TS6133: 'context' is declared but its value is never read.
+src/modules/core/database/cli/schema.ts(53,19): error TS2345: Argument of type '(schema: IInstalledSchemaRecord) => void' is not assignable to parameter of type '(value: IInstalledSchema, index: number, array: IInstalledSchema[]) => void'.
+  Types of parameters 'schema' and 'value' are incompatible.
+    Type 'IInstalledSchema' is missing the following properties from type 'IInstalledSchemaRecord': module_name, installed_at
+src/modules/core/database/cli/schema.ts(154,53): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(predicate: (value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => value is IInstalledSchema, thisArg?: any): IInstalledSchema | undefined', gave the following error.
+    Argument of type '(schema: IInstalledSchemaRecord) => boolean' is not assignable to parameter of type '(value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => value is IInstalledSchema'.
+      Types of parameters 'schema' and 'value' are incompatible.
+        Type 'IInstalledSchema' is missing the following properties from type 'IInstalledSchemaRecord': module_name, installed_at
+  Overload 2 of 2, '(predicate: (value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => unknown, thisArg?: any): IInstalledSchema | undefined', gave the following error.
+    Argument of type '(schema: IInstalledSchemaRecord) => boolean' is not assignable to parameter of type '(value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => unknown'.
+      Types of parameters 'schema' and 'value' are incompatible.
+        Type 'IInstalledSchema' is missing the following properties from type 'IInstalledSchemaRecord': module_name, installed_at
+src/modules/core/database/cli/schema.ts(164,55): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(predicate: (value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => value is IInstalledSchema, thisArg?: any): IInstalledSchema | undefined', gave the following error.
+    Argument of type '(schema: IInstalledSchemaRecord) => boolean' is not assignable to parameter of type '(value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => value is IInstalledSchema'.
+      Types of parameters 'schema' and 'value' are incompatible.
+        Type 'IInstalledSchema' is missing the following properties from type 'IInstalledSchemaRecord': module_name, installed_at
+  Overload 2 of 2, '(predicate: (value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => unknown, thisArg?: any): IInstalledSchema | undefined', gave the following error.
+    Argument of type '(schema: IInstalledSchemaRecord) => boolean' is not assignable to parameter of type '(value: IInstalledSchema, index: number, obj: IInstalledSchema[]) => unknown'.
+      Types of parameters 'schema' and 'value' are incompatible.
+        Type 'IInstalledSchema' is missing the following properties from type 'IInstalledSchemaRecord': module_name, installed_at
+src/modules/core/database/cli/schema.ts(175,131): error TS2551: Property 'module_name' does not exist on type 'IInstalledSchema'. Did you mean 'moduleName'?
+src/modules/core/database/cli/schema.ts(178,68): error TS2551: Property 'module_name' does not exist on type 'IInstalledSchema'. Did you mean 'moduleName'?
+src/modules/core/database/cli/status.ts(143,9): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/database/cli/summary.ts(180,9): error TS2322: Type 'unknown' is not assignable to type 'string | Error | undefined'.
+src/modules/core/database/cli/view.ts(309,57): error TS2379: Argument of type '{ tableName: string; format: ViewFormat; limit: number; offset: number; columns: string | undefined; where: string | undefined; orderBy: string | undefined; schemaOnly: boolean | undefined; }' is not assignable to parameter of type 'IViewParams' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'columns' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/core/database/index.ts(127,59): error TS2345: Argument of type 'DatabaseService' is not assignable to parameter of type 'IDatabaseService'.
+  Types of property 'transaction' are incompatible.
+    Type '<T>(handler: (conn: IDatabaseConnection) => Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (conn: { execute(sql: string, params?: unknown[] | undefined): Promise<void>; query<T>(sql: string, params?: unknown[] | undefined): Promise<T[]>; }) => Promise<T>) => Promise<...>'.
+      Types of parameters 'handler' and 'fn' are incompatible.
+        Types of parameters 'conn' and 'conn' are incompatible.
+          Type 'IDatabaseConnection' is not assignable to type '{ execute(sql: string, params?: unknown[] | undefined): Promise<void>; query<T>(sql: string, params?: unknown[] | undefined): Promise<T[]>; }'.
+            The types returned by 'query(...)' are incompatible between these types.
+              Type 'Promise<IQueryResult<unknown>>' is not assignable to type 'Promise<T[]>'.
+                Type 'IQueryResult<unknown>' is missing the following properties from type 'T[]': length, pop, push, concat, and 29 more.
+src/modules/core/database/index.ts(326,55): error TS2345: Argument of type 'DatabaseService' is not assignable to parameter of type 'IDatabaseService'.
+  Types of property 'transaction' are incompatible.
+    Type '<T>(handler: (conn: IDatabaseConnection) => Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (conn: { execute(sql: string, params?: unknown[] | undefined): Promise<void>; query<T>(sql: string, params?: unknown[] | undefined): Promise<T[]>; }) => Promise<T>) => Promise<...>'.
+      Types of parameters 'handler' and 'fn' are incompatible.
+        Types of parameters 'conn' and 'conn' are incompatible.
+          Type 'IDatabaseConnection' is not assignable to type '{ execute(sql: string, params?: unknown[] | undefined): Promise<void>; query<T>(sql: string, params?: unknown[] | undefined): Promise<T[]>; }'.
+            The types returned by 'query(...)' are incompatible between these types.
+              Type 'Promise<IQueryResult<unknown>>' is not assignable to type 'Promise<T[]>'.
+                Type 'IQueryResult<unknown>' is missing the following properties from type 'T[]': length, pop, push, concat, and 29 more.
+src/modules/core/database/services/cli-handler.service.ts(685,33): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/modules/core/database/services/cli-handler.service.ts(698,33): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/modules/core/database/services/cli-handler.service.ts(748,2): error TS6133: 'format' is declared but its value is never read.
+src/modules/core/database/services/cli-handler.service.ts(1007,34): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+src/modules/core/logger/services/error-handling.service.ts(293,69): error TS2532: Object is possibly 'undefined'.
+src/modules/core/logger/services/error-handling.service.ts(297,88): error TS2532: Object is possibly 'undefined'.
+src/modules/core/modules/services/module-manager.service.ts(17,2): error TS2724: '"@/modules/core/modules/types/index"' has no exported member named 'ModuleHealthStatus'. Did you mean 'ModuleHealthStatusEnum'?
+src/modules/core/modules/services/module-manager.service.ts(17,22): error TS2724: '"@/modules/core/modules/types/index"' has no exported member named 'ModuleInfo'. Did you mean 'IModuleInfo'?
+src/modules/core/modules/services/module-manager.service.ts(17,34): error TS2724: '"@/modules/core/modules/types/index"' has no exported member named 'ModuleStatus'. Did you mean 'ModuleStatusEnum'?
+src/modules/core/modules/services/module-manager.service.ts(17,48): error TS2724: '"@/modules/core/modules/types/index"' has no exported member named 'ScannedModule'. Did you mean 'IScannedModule'?
+src/modules/core/modules/services/module-manager.service.ts(19,10): error TS2305: Module '"@/modules/core/modules/types/index"' has no exported member 'ModuleType'.
+src/modules/core/modules/services/module-scanner.service.ts(63,8): error TS2352: Conversion of type 'this' to type '{ logger?: ILogger; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'ModuleScannerService' is not comparable to type '{ logger?: ILogger; }'.
+    Property 'logger' is private in type 'ModuleScannerService' but not in type '{ logger?: ILogger; }'.
+src/modules/core/modules/services/module-scanner.service.ts(294,26): error TS2475: 'const' enums can only be used in property or index access expressions or the right hand side of an import declaration or export assignment or type query.
+src/modules/core/modules/services/module-scanner.service.ts(319,7): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(338,7): error TS2552: Cannot find name 'ModuleEventTypeEnum'. Did you mean 'ModuleTypeEnum'?
+src/modules/core/modules/services/module-scanner.service.ts(350,48): error TS2304: Cannot find name 'IModuleInfo'.
+src/modules/core/modules/services/module-scanner.service.ts(362,45): error TS2304: Cannot find name 'IModuleInfo'.
+src/modules/core/modules/services/module-scanner.service.ts(375,49): error TS2304: Cannot find name 'IModuleInfo'.
+src/modules/core/modules/services/module-scanner.service.ts(395,56): error TS2304: Cannot find name 'IModuleInfo'.
+src/modules/core/modules/services/module-scanner.service.ts(396,19): error TS2304: Cannot find name 'IModuleInfo'.
+src/modules/core/modules/services/module-scanner.service.ts(406,29): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(441,57): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(471,40): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(471,59): error TS2552: Cannot find name 'ModuleEventTypeEnum'. Did you mean 'ModuleTypeEnum'?
+src/modules/core/modules/services/module-scanner.service.ts(473,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(474,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(475,16): error TS2304: Cannot find name 'ModuleEventTypeEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(476,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(477,16): error TS2304: Cannot find name 'ModuleEventTypeEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(478,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(479,16): error TS2304: Cannot find name 'ModuleEventTypeEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(480,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(481,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(482,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(483,12): error TS2304: Cannot find name 'ModuleStatusEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(507,15): error TS2304: Cannot find name 'ModuleEventTypeEnum'.
+src/modules/core/modules/services/module-scanner.service.ts(533,15): error TS2304: Cannot find name 'ModuleEventTypeEnum'.
+src/modules/core/monitor/monitor-module.ts(63,32): error TS6138: Property 'db' is declared but its value is never read.
+src/modules/core/monitor/monitor-module.ts(65,22): error TS6133: 'data' is declared but its value is never read.
+src/modules/core/monitor/monitor-module.ts(69,20): error TS6133: 'query' is declared but its value is never read.
+src/modules/core/monitor/monitor-module.ts(77,26): error TS6133: 'retentionDays' is declared but its value is never read.
+src/modules/core/monitor/monitor-module.ts(158,9): error TS2412: Type 'undefined' is not assignable to type 'Timeout' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the type of the target.
+src/modules/core/users/index.ts(29,37): error TS1361: 'ModuleStatusEnum' cannot be used as a value because it was imported using 'import type'.
+src/modules/core/users/index.ts(73,19): error TS1361: 'ModuleStatusEnum' cannot be used as a value because it was imported using 'import type'.
+src/modules/core/users/index.ts(83,21): error TS1361: 'ModuleStatusEnum' cannot be used as a value because it was imported using 'import type'.
+src/modules/core/webhooks/services/webhook-delivery-service.ts(140,11): error TS2375: Type '{ webhook_id: string; attempt: number; success: boolean; status_code: number | undefined; response_body: string | undefined; error: string | undefined; duration: number; delivered_at: Date; }' is not assignable to type 'WebhookDeliveryRecord' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'status_code' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/modules/core/webhooks/services/webhook-delivery-service.ts(187,13): error TS2375: Type '{ webhook_id: string; attempt: number; success: boolean; status_code: number | undefined; response_body: string | undefined; error: string | undefined; duration: number; delivered_at: Date; }' is not assignable to type 'WebhookDeliveryRecord' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'status_code' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/modules/loader.ts(199,17): error TS2339: Property 'exports' does not exist on type 'ModuleInterface'.
+src/server/external/auth/providers/auth-module-adapter.ts(18,5): error TS2322: Type 'unknown' is not assignable to type 'IIdentityProvider | undefined'.
+src/server/external/auth/providers/auth-module-adapter.ts(26,5): error TS2322: Type 'unknown[]' is not assignable to type 'IIdentityProvider[]'.
+  Type 'unknown' is not assignable to type 'IIdentityProvider'.
+src/server/external/auth/providers/generic-oauth2.ts(167,5): error TS2375: Type '{ id: string; email: string | undefined; email_verified: boolean | undefined; name: string | undefined; picture: string | undefined; raw: Record<string, unknown>; }' is not assignable to type 'OAuth2UserInfo' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'email' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/auth/providers/github.ts(191,7): error TS2322: Type 'GitHubUserData' is not assignable to type 'Record<string, unknown>'.
+  Index signature for type 'string' is missing in type 'GitHubUserData'.
+src/server/external/rest/auth.ts(24,11): error TS6196: 'IOAuthCallbackQuery' is declared but never used.
+src/server/external/rest/auth.ts(45,11): error TS2430: Interface 'IAuthenticatedRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+  Types of property 'user' are incompatible.
+    Type '{ id: string; email?: string; name?: string; }' is missing the following properties from type 'User': sub, roles
+src/server/external/rest/auth.ts(133,41): error TS2345: Argument of type 'string | ParsedQs' is not assignable to parameter of type 'string'.
+  Type 'ParsedQs' is not assignable to type 'string'.
+src/server/external/rest/config.ts(35,11): error TS2430: Interface 'AuthenticatedRequest' incorrectly extends interface 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+  Types of property 'user' are incompatible.
+    Property 'sub' is missing in type '{ [key: string]: any; id: string; email: string; name?: string; roles?: string[]; }' but required in type 'User'.
+src/server/external/rest/oauth2/authorization-server.ts(31,22): error TS18046: 'oauth2ConfigService' is of type 'unknown'.
+src/server/external/rest/oauth2/authorize.ts(61,35): error TS6133: 'code' is declared but its value is never read.
+src/server/external/rest/oauth2/authorize.ts(64,25): error TS6133: 'token' is declared but its value is never read.
+src/server/external/rest/oauth2/authorize.ts(77,35): error TS6133: 'data' is declared but its value is never read.
+src/server/external/rest/oauth2/authorize.ts(121,9): error TS6133: 'provider' is declared but its value is never read.
+src/server/external/rest/oauth2/authorize.ts(122,9): error TS6133: 'providerId' is declared but its value is never read.
+src/server/external/rest/oauth2/authorize.ts(449,15): error TS2375: Type '{ clientId: string; redirectUri: string; scope: string; originalState: string | undefined; codeChallenge: string | undefined; codeChallengeMethod: "S256" | "plain" | undefined; }' is not assignable to type 'IStateData' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'originalState' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/server/external/rest/oauth2/protected-resource.ts(29,22): error TS18046: 'oauth2ConfigService' is of type 'unknown'.
+src/server/external/rest/oauth2/token.ts(68,5): error TS2322: Type 'unknown' is not assignable to type 'AuthCodeService'.
+src/server/external/rest/oauth2/token.ts(216,51): error TS2339: Property 'exchangeCodeForTokens' does not exist on type '{}'.
+src/server/external/rest/oauth2/well-known.ts(40,20): error TS18046: 'oauth2ConfigService' is of type 'unknown'.
+src/server/index.ts(26,45): error TS2345: Argument of type '"auth"' is not assignable to parameter of type 'ModuleName'.
+src/server/index.ts(77,63): error TS2345: Argument of type '"auth"' is not assignable to parameter of type 'ModuleName'.
+src/server/mcp/core/handlers/prompt-handlers.ts(72,48): error TS2345: Argument of type '"prompts"' is not assignable to parameter of type 'ModuleName'.
+src/server/mcp/core/handlers/prompt-handlers.ts(105,48): error TS2345: Argument of type '"prompts"' is not assignable to parameter of type 'ModuleName'.
+src/server/mcp/core/handlers/resource-handlers.ts(41,29): error TS18048: 'mcpModule.exports' is possibly 'undefined'.
+src/server/mcp/core/handlers/resource-handlers.ts(76,28): error TS18048: 'mcpModule.exports' is possibly 'undefined'.
+src/server/mcp/core/handlers/tool-handlers.ts(179,48): error TS2345: Argument of type '"tools"' is not assignable to parameter of type 'ModuleName'.
+src/server/mcp/core/handlers/tool-handlers.ts(249,48): error TS2345: Argument of type '"tools"' is not assignable to parameter of type 'ModuleName'.

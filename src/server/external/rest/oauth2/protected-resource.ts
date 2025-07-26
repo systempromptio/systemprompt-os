@@ -1,33 +1,46 @@
 /**
+ * OAuth 2.0 Protected Resource Metadata endpoint implementation.
+ * This module provides the OAuth 2.0 Protected Resource Metadata endpoint
+ * following RFC 9728 specification. It allows resource servers to advertise
+ * their configuration and capabilities to clients.
  * @file OAuth 2.0 Protected Resource Metadata endpoint (RFC 9728).
  * @module server/external/rest/oauth2/protected-resource
  * @see {@link https://datatracker.ietf.org/doc/rfc9728/}
  */
 
-import type { Request, Response } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { getAuthModule } from '@/modules/core/auth/singleton';
+import type {
+  IOAuth2ProtectedResourceMetadataInternal
+} from '@/modules/core/auth/types/oauth2.types';
 
 /**
- * OAuth 2.0 Protected Resource Metadata Response
- * Following RFC 9728 specification.
+ * Protected Resource Endpoint handler.
+ * Provides OAuth 2.0 protected resource metadata following RFC 9728.
  */
-export interface ProtectedResourceMetadata {
-  resource: string;
-  authorization_servers: string[];
-  bearer_methods_supported?: string[];
-  resource_documentation?: string;
-  resource_signing_alg_values_supported?: string[];
-  resource_encryption_alg_values_supported?: string[];
-  resource_encryption_enc_values_supported?: string[];
-  scopes_supported?: string[];
-}
-
 export class ProtectedResourceEndpoint {
-  getProtectedResourceMetadata = (_req: Request, res: Response): Response => {
+  /**
+   * Handles GET requests to the protected resource metadata endpoint.
+   * Returns OAuth 2.0 protected resource metadata as defined in RFC 9728.
+   * The request object is not used as this endpoint returns static metadata.
+   * @param request - The Express request object.
+   * @param response - The Express response object.
+   * @returns The Express response with protected resource metadata.
+   * @throws {Error} If the auth module or OAuth2 config service is not available.
+   */
+  getProtectedResourceMetadata = (
+    request: ExpressRequest,
+    response: ExpressResponse
+  ): ExpressResponse => {
+    if (request.method !== 'GET') {
+      return response.status(405).json({ error: 'Method not allowed' });
+    }
+
     const authModule = getAuthModule();
     const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const metadata = oauth2ConfigService.getProtectedResourceMetadata();
+    const metadata: IOAuth2ProtectedResourceMetadataInternal
+      = oauth2ConfigService.getProtectedResourceMetadata();
 
-    return res.json(metadata);
+    return response.json(metadata);
   };
 }

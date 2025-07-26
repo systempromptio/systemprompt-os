@@ -1,7 +1,7 @@
 /**
+ * MCP Prompt request handlers for coding assistant prompts.
  * @file MCP Prompt request handlers for coding assistant prompts.
  * @module handlers/prompt-handlers
- * @remarks
  * This module provides handlers for MCP prompt operations including:
  * - Listing available coding prompts
  * - Retrieving prompts with variable substitution
@@ -24,10 +24,8 @@ import type {
   GetPromptRequest,
   GetPromptResult,
   ListPromptsResult,
-  PromptMessage,
-  TextContent,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getModuleLoader } from '@/modules/loader';
+import { getMCPModule } from '@/modules/core/mcp';
 
 /**
  * Handles MCP prompt listing requests.
@@ -38,15 +36,9 @@ import { getModuleLoader } from '@/modules/loader';
  * console.log(`Available prompts: ${prompts.length}`);
  * ```
  */
-export const handleListPrompts = async function (): Promise<ListPromptsResult> {
-  const moduleLoader = getModuleLoader();
-  const promptsModule = moduleLoader.getModule('prompts');
-
-  if (!promptsModule?.exports) {
-    throw new Error('Prompts module not available');
-  }
-
-  const prompts = await promptsModule.exports.listPrompts();
+export const handleListPrompts = async function handleListPrompts(): Promise<ListPromptsResult> {
+  const mcpModule = getMCPModule();
+  const prompts = await mcpModule.exports.prompts.listPrompts();
   return { prompts };
 }
 
@@ -65,55 +57,24 @@ export const handleListPrompts = async function (): Promise<ListPromptsResult> {
  * });
  * ```
  */
-export const handleGetPrompt = async function (
+export const handleGetPrompt = async function handleGetPrompt(
   request: GetPromptRequest
 ): Promise<GetPromptResult> {
-  const moduleLoader = getModuleLoader();
-  const promptsModule = moduleLoader.getModule('prompts');
+  const mcpModule = getMCPModule();
+  const prompt = await mcpModule.exports.prompts.getPrompt(request.params.name);
 
-  if (!promptsModule?.exports) {
-    throw new Error('Prompts module not available');
-  }
-
-  const promptWithMessages = await promptsModule.exports.getPrompt(request.params.name);
-  if (!promptWithMessages) {
+  if (prompt === null) {
     throw new Error(`Prompt not found: ${request.params.name}`);
   }
 
-  const messages = promptWithMessages.messages.map((message: PromptMessage) => {
-    if (!isTextContent(message.content)) {
-      return message;
-    }
-
-    let text = String(message.content.text);
-
-    if (request.params.arguments) {
-      Object.entries(request.params.arguments).forEach(([key, value]) => {
-        const placeholder = `{{${key}}}`;
-        text = text.replace(new RegExp(placeholder, 'g'), String(value));
-      });
-    }
-
-    return {
-      role: message.role,
+  return {
+    description: prompt.description ?? '',
+    messages: prompt.arguments === undefined ? [] : [{
+      role: 'user' as const,
       content: {
         type: 'text' as const,
-        text,
-      },
-    };
-  });
-
-  return {
-    description: promptWithMessages.description,
-    messages
+        text: JSON.stringify(prompt.arguments)
+      }
+    }]
   };
-}
-
-/**
- * Type guard to check if prompt content is text type.
- * @param content - Prompt message content to check.
- * @returns True if content is text type.
- */
-const isTextContent = function (content: PromptMessage['content']): content is TextContent {
-  return content.type === 'text';
 }

@@ -332,176 +332,22 @@ timestamp
       throw new Error('Database service not available');
     }
 
-    const schemaPath = join(import.meta.url.replace('file://', ''), '../../../database/schema.sql');
-    if (existsSync(schemaPath)) {
-      const schema = await readFile(schemaPath, 'utf-8');
-      await this.databaseService.execute(schema);
-    }
-  }
-
-  /**
-   * Log debug message.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Optional args.
-   */
-  debug(source: LogSource, message: string, args: LogArgs = {}): void {
-    this.log('debug', source, message, args);
-  }
-
-  /**
-   * Log info message.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Optional args.
-   */
-  info(source: LogSource, message: string, args: LogArgs = {}): void {
-    this.log('info', source, message, args);
-  }
-
-  /**
-   * Log warning message.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Optional args.
-   */
-  warn(source: LogSource, message: string, args: LogArgs = {}): void {
-    this.log('warn', source, message, args);
-  }
-
-  /**
-   * Log error message.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Optional args.
-   */
-  error(source: LogSource, message: string, args: LogArgs = {}): void {
-    this.log('error', source, message, args);
-  }
-
-  /**
-   * Log with custom level.
-   * @param {LogLevelName} level - Log level.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Optional args.
-   */
-  log(level: LogLevelName, source: LogSource, message: string, args: LogArgs = {}): void {
-    this.checkInitialized();
-
-    const shouldLogToConsole = this.shouldLogToConsole(level);
-    const shouldLogToFile = this.shouldLogToFile(level);
-    const shouldLogToDatabase = args.persistToDb !== false && this.shouldLogToDatabase(level);
-
-    if (!shouldLogToConsole && !shouldLogToFile && !shouldLogToDatabase) {
-      return;
-    }
-
-    const timestamp = this.formatTimestamp();
-    const formatted = this.formatMessage(level.toUpperCase(), source, message, args);
-
-    if (shouldLogToConsole) {
-      this.writeToConsole(level, source, message, args);
-    }
-    if (shouldLogToFile) {
-      this.writeToFile(this.config.files.system, formatted);
-      if (level === 'error') {
-        this.writeToFile(this.config.files.error, formatted);
-      }
-    }
-    if (shouldLogToDatabase) {
-      this.writeToDatabase(level, source, message, args, timestamp);
-    }
-  }
-
-  /**
-   * Special method for access logs (HTTP requests).
-   * @param {string} message - Log message.
-   */
-  access(message: string): void {
-    this.checkInitialized();
-    const formatted = this.formatMessage('ACCESS', LogSource.ACCESS, message, {});
-    this.writeToFile(this.config.files.access, formatted);
-  }
-
-  /**
-   * Clear logs from a specific file or all log files.
-   * @param {string} [logFile] - Specific log file to clear.
-   * @throws {LoggerFileWriteError} If clear operation fails.
-   */
-  async clearLogs(logFile?: string): Promise<void> {
-    this.checkInitialized();
+    const createTableSql = `
+      CREATE TABLE IF NOT EXISTS system_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        level TEXT NOT NULL,
+        source TEXT NOT NULL,
+        category TEXT,
+        message TEXT NOT NULL,
+        args TEXT
+      );
+    `;
 
     try {
-      if (logFile !== undefined && logFile !== '') {
-        const filepath = join(this.logsDir, logFile);
-        if (existsSync(filepath)) {
-          await writeFile(filepath, '');
-        }
-      } else {
-        const files = Object.values(this.config.files);
-        await Promise.all(
-          files.map(async (file): Promise<void> => {
-            const filepath = join(this.logsDir, String(file));
-            if (existsSync(filepath)) {
-              await writeFile(filepath, '');
-            }
-          }),
-        );
-      }
+      await this.databaseService.execute(createTableSql);
     } catch (error) {
-      throw new LoggerFileWriteError(
-        logFile ?? 'all log files',
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  /**
-   * Get logs from a specific file or all logs.
-   * @param {string} [logFile] - Specific log file to read.
-   * @returns {Promise<string[]>} Array of log lines.
-   * @throws {LoggerFileReadError} If read operation fails.
-   */
-  async getLogs(logFile?: string): Promise<string[]> {
-    this.checkInitialized();
-
-    try {
-      const logs: string[] = [];
-
-      if (logFile !== undefined && logFile !== '') {
-        const filepath = join(this.logsDir, logFile);
-        if (existsSync(filepath)) {
-          const content = await readFile(filepath, 'utf-8');
-          logs.push(
-            ...content.split('\n').filter((line): boolean => {
-              return line.trim() !== '';
-            }),
-          );
-        }
-      } else {
-        const files = Object.values(this.config.files);
-        await Promise.all(
-          files.map(async (file): Promise<void> => {
-            const filepath = join(this.logsDir, String(file));
-            if (existsSync(filepath)) {
-              const content = await readFile(filepath, 'utf-8');
-              logs.push(
-                ...content.split('\n').filter((line): boolean => {
-                  return line.trim() !== '';
-                }),
-              );
-            }
-          }),
-        );
-      }
-
-      return logs;
-    } catch (error) {
-      throw new LoggerFileReadError(
-        logFile ?? 'log files',
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      throw new Error(`Failed to initialize logs table: ${String(error)}`);
     }
   }
 
@@ -623,19 +469,24 @@ timestamp
 
   /**
    * Write log message to database.
-   * @param {LogLevelName} level - Log level.
-   * @param {LogSource} source - Source module or component.
-   * @param {string} message - Log message.
-   * @param {LogArgs} args - Additional args.
-   * @param {string} timestamp - Timestamp.
+   * @param {object} params - Log entry parameters.
+   * @param {LogLevelName} params.level - Log level.
+   * @param {LogSource} params.source - Source module or component.
+   * @param {string} params.message - Log message.
+   * @param {LogArgs} params.args - Additional args.
+   * @param {string} params.timestamp - Timestamp.
    */
-  private writeToDatabase(
-    level: LogLevelName,
-    source: LogSource,
-    message: string,
-    args: LogArgs,
-    timestamp: string,
-  ): void {
+  private writeToDatabase(params: {
+    level: LogLevelName;
+    source: LogSource;
+    message: string;
+    args: LogArgs;
+    timestamp: string;
+  }): void {
+    const {
+ level, source, message, args, timestamp
+} = params;
+
     if (!this.databaseService || !this.config.database?.enabled) {
       return;
     }

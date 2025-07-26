@@ -364,9 +364,9 @@ export class UsersService implements IUsersService {
     );
 
     return {
- key,
-apiKey
-};
+      key,
+      apiKey
+    };
   }
 
   /**
@@ -465,21 +465,6 @@ apiKey
   private hashToken(token: string): string {
     return createHash('sha256').update(token)
 .digest('hex');
-  }
-
-  /**
-   * Create default users.
-   * @returns Promise that resolves when created.
-   */
-  private async createDefaultUsers(): Promise<void> {
-    const adminUser = await this.repository.findByUsername('admin');
-    if (adminUser === null) {
-      await this.createUser({
-        username: 'admin',
-        email: 'admin@systemprompt.os',
-        password: 'admin123'
-      });
-    }
   }
 
   /**

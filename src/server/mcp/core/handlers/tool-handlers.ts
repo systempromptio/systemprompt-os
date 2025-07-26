@@ -24,6 +24,7 @@ import type {
   CallToolResult,
   ListToolsRequest,
   ListToolsResult,
+  Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { getModuleLoader } from '@/modules/loader';
@@ -33,7 +34,13 @@ import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
 import {
  type IUserPermissionContext, ROLE_PERMISSIONS, type UserRole, hasPermission
 } from '@/server/mcp/core/types/permissions';
-import type { IToolPermissionMeta } from '@/server/mcp/core/types/tool';
+import type {
+  IToolPermissionMeta,
+  IToolWithMetadata,
+  IToolsExecuteModuleExports,
+  IToolsListModuleExports
+} from '@/server/mcp/core/types/tool';
+import { ModuleName } from '@/modules/types';
 
 const logger = LoggerService.getInstance();
 
@@ -72,13 +79,13 @@ const TOOL_METADATA_SCHEMA = z
 const getUserPermissionContext = function getUserPermissionContext(
   context: IMCPToolContext,
 ): IUserPermissionContext {
-  if (context.sessionId === null || context.sessionId === '') {
+  if (!context.sessionId) {
     throw new Error('Session ID is required');
   }
 
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = Boolean(
-    context.userId !== null && adminUserIds.includes(context.userId),
+    context.userId && adminUserIds.includes(context.userId),
   );
   const role: UserRole = isAdmin ? 'admin' : 'basic';
 
@@ -91,7 +98,14 @@ const getUserPermissionContext = function getUserPermissionContext(
     permissions: ROLE_PERMISSIONS[role],
   };
 
-  return USER_PERMISSION_CONTEXT_SCHEMA.parse(mockData);
+  const parsed = USER_PERMISSION_CONTEXT_SCHEMA.parse(mockData);
+  return {
+    userId: parsed.userId,
+    email: parsed.email,
+    role: parsed.role,
+    permissions: parsed.permissions,
+    ...parsed.customPermissions !== undefined && { customPermissions: parsed.customPermissions },
+  };
 }
 
 /**
@@ -105,24 +119,24 @@ const getUserPermissionContext = function getUserPermissionContext(
  * 3. Check all required permissions
  * 4. Support wildcard permissions (e.g., admin:*).
  */
-const hasToolPermission = function checkToolPermission(
+const hasToolPermission = function hasToolPermission(
   userContext: IUserPermissionContext,
   metadata?: IToolPermissionMeta,
 ): boolean {
   const validatedMeta = TOOL_METADATA_SCHEMA.parse(metadata);
 
-  if (validatedMeta == null) {
+  if (!validatedMeta) {
     return true;
   }
 
   if (
-    validatedMeta.requiredRole != null
+    validatedMeta.requiredRole
         && userContext.role !== validatedMeta.requiredRole
   ) {
     return false;
   }
 
-  if (validatedMeta.requiredPermissions != null) {
+  if (validatedMeta.requiredPermissions) {
     return validatedMeta.requiredPermissions.every(
       (permission): boolean => {
         return hasPermission(userContext, permission);
@@ -143,7 +157,7 @@ const hasToolPermission = function checkToolPermission(
  * - Strips internal metadata from tool definitions
  * - Logs access patterns for security auditing.
  */
-export const handleListTools = async function handleListToolsRequest(
+export const handleListTools = async function handleListTools(
   _request: ListToolsRequest,
   context?: IMCPToolContext,
 ): Promise<ListToolsResult> {
@@ -158,7 +172,7 @@ export const handleListTools = async function handleListToolsRequest(
       return { tools: [] };
     }
 
-    const userContext = await getUserPermissionContext(context);
+    const userContext = getUserPermissionContext(context);
 
     logger.info(LogSource.MCP, 'User permission context retrieved', {
       userId: userContext.userId,
@@ -168,20 +182,18 @@ export const handleListTools = async function handleListToolsRequest(
 
     const moduleLoader = getModuleLoader();
     await moduleLoader.loadModules();
-    const toolsModule = moduleLoader.getModule('tools');
+    const toolsModule = moduleLoader.getModule(ModuleName.MCP);
 
-    if (toolsModule?.exports == null) {
+    if (!toolsModule?.exports) {
       logger.error(LogSource.MCP, 'Tools module not available');
       return { tools: [] };
     }
 
-    const moduleExports = toolsModule.exports as {
-      getEnabledToolsByScope: (scope: string) => Promise<unknown[]>;
-    };
+    const moduleExports = toolsModule.exports as IToolsListModuleExports;
     const enabledTools = await moduleExports.getEnabledToolsByScope('remote');
 
     const availableTools = enabledTools.filter((tool: unknown): boolean => {
-      const toolWithMetadata = tool as { metadata?: IToolPermissionMeta };
+      const toolWithMetadata = tool as IToolWithMetadata;
       const {metadata} = toolWithMetadata;
       return hasToolPermission(userContext, metadata);
     });
@@ -192,12 +204,12 @@ export const handleListTools = async function handleListToolsRequest(
       totalTools: enabledTools.length,
       availableTools: availableTools.length,
       toolNames: availableTools.map((toolItem: unknown): string => {
-        const namedTool = toolItem as { name: string };
+        const namedTool = toolItem as IToolWithMetadata;
         return namedTool.name;
       }),
     });
 
-    return { tools: availableTools };
+    return { tools: availableTools as Tool[] };
   } catch (error) {
     logger.error(LogSource.MCP, 'Tool listing failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -218,7 +230,7 @@ export const handleListTools = async function handleListToolsRequest(
  * - Logs all access attempts for security auditing
  * - Provides detailed error messages for debugging.
  */
-export const handleToolCall = async function handleToolCallRequest(
+export const handleToolCall = async function handleToolCall(
   request: CallToolRequest,
   context: IMCPToolContext,
 ): Promise<CallToolResult> {
@@ -238,26 +250,18 @@ export const handleToolCall = async function handleToolCallRequest(
 
     const moduleLoader = getModuleLoader();
     await moduleLoader.loadModules();
-    const toolsModule = moduleLoader.getModule('tools');
+    const toolsModule = moduleLoader.getModule(ModuleName.MCP);
 
-    if (toolsModule?.exports == null) {
+    if (!toolsModule?.exports) {
       const error = new Error('Tools module not available');
       logger.error(LogSource.MCP, 'Tools module not loaded', { requestId });
       throw error;
     }
 
-    const moduleExports = toolsModule.exports as {
-      getTool: (name: string) => Promise<{ metadata?: IToolPermissionMeta } | null>;
-      executeTool: (name: string, args: unknown, ctx: {
-        userId: string;
-        userEmail: string;
-        sessionId: string;
-        requestId: string;
-      }) => Promise<unknown>;
-    };
+    const moduleExports = toolsModule.exports as IToolsExecuteModuleExports;
 
     const tool = await moduleExports.getTool(toolName);
-    if (tool == null) {
+    if (!tool) {
       const error = new Error(`Unknown tool: ${toolName}`);
       logger.error(LogSource.MCP, 'Tool not found in registry', {
         toolName,
@@ -266,7 +270,7 @@ export const handleToolCall = async function handleToolCallRequest(
       throw error;
     }
 
-    const userContext = await getUserPermissionContext(context);
+    const userContext = getUserPermissionContext(context);
 
     const {metadata} = tool;
     if (!hasToolPermission(userContext, metadata)) {
@@ -299,7 +303,7 @@ export const handleToolCall = async function handleToolCallRequest(
     const result = await moduleExports.executeTool(toolName, toolArgs, {
       userId: userContext.userId,
       userEmail: userContext.email,
-      sessionId: context.sessionId,
+      sessionId: context.sessionId ?? '',
       requestId,
     });
 

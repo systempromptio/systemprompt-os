@@ -9,8 +9,6 @@ import {
   createFooter, 
   createHeader, 
   createSection, 
-  formatCommand, 
-  formatOption,
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
 import type { 
@@ -141,17 +139,17 @@ export class CliFormatterService {
     const commandGroups = this.groupCommandsByCategory(cmd.commands);
     
     // Calculate the maximum command name length for consistent alignment
-    const allCommands = cmd.commands.filter(subCmd => !subCmd.hidden);
+    const allCommands = cmd.commands.filter((subCmd: Command) => !(subCmd as any).hidden);
     const maxCommandLength = Math.max(...allCommands.map(subCmd => subCmd.name().length));
     const maxOptionLength = Math.max(...cmd.options.map(opt => opt.flags.length));
     const paddingLength = Math.max(maxCommandLength + 2, maxOptionLength + 2, 15); // At least 15, or longest + 2
     
     let commandsSection = '';
-    for (const [category, commands] of commandGroups) {
+    for (const [category, commands] of commandGroups.entries()) {
       const categoryTitle = category === 'default' ? '🚀 Commands' : `🔧 ${category}`;
       const formattedCommands = commands
-        .filter(subCmd => !subCmd.hidden)
-        .map(subCmd => {
+        .filter((subCmd: Command) => !(subCmd as any).hidden)
+        .map((subCmd: Command) => {
           const meta = (subCmd as EnhancedCommand).meta;
           const icon = this.getCommandIcon(subCmd.name(), meta);
           return this.formatCommandWithPadding(icon, subCmd.name(), subCmd.description() || '', paddingLength);
@@ -213,7 +211,7 @@ export class CliFormatterService {
    * @param commands - Array of commands to group.
    * @returns Map of category to commands.
    */
-  private groupCommandsByCategory(commands: Command[]): Map<string, Command[]> {
+  private groupCommandsByCategory(commands: readonly Command[]): Map<string, Command[]> {
     const groups = new Map<string, Command[]>();
     
     for (const cmd of commands) {
@@ -227,8 +225,8 @@ export class CliFormatterService {
     }
 
     // Sort commands within each category by priority, then name
-    for (const [category, cmds] of groups) {
-      cmds.sort((a, b) => {
+    for (const [, cmds] of groups.entries()) {
+      cmds.sort((a: Command, b: Command) => {
         const aMeta = (a as EnhancedCommand).meta;
         const bMeta = (b as EnhancedCommand).meta;
         

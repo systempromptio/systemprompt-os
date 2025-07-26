@@ -4,6 +4,8 @@
  * @module modules/core/tasks
  */
 
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { TaskService } from '@/modules/core/tasks/services/task.service';
 import type { ITaskService, ITasksModuleExports } from '@/modules/core/tasks/types/index';
 import {
@@ -13,34 +15,18 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-/**
- * Module interface to avoid circular dependency.
- */
-interface ITasksModule<T = unknown> {
-  readonly name: string;
-  readonly version: string;
-  readonly type?: string;
-  readonly dependencies?: readonly string[];
-  status: string;
-  readonly exports?: T;
-  setDependencies?(modules: Map<string, ITasksModule>): void;
-  initialize(): Promise<void>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
-  healthCheck?(): Promise<{ healthy: boolean; message?: string }>;
-}
 
 /**
  * Tasks module implementation.
  * @class TasksModule
  */
-export class TasksModule implements ITasksModule<ITasksModuleExports> {
+export class TasksModule implements IModule<ITasksModuleExports> {
   public readonly name = 'tasks';
   public readonly type = 'core' as const;
   public readonly version = '1.0.0';
   public readonly description = 'Task queue and execution system for SystemPrompt OS';
-  public readonly dependencies: string[] = ['logger', 'database'];
-  public status = 'stopped';
+  public readonly dependencies = ['logger', 'database'] as const;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private taskService!: TaskService;
   private logger!: ILogger;
   private database!: DatabaseService;
@@ -56,29 +42,6 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
   }
 
   /**
-   * Set module dependencies.
-   * @param modules - Map of available modules.
-   */
-  setDependencies(modules: Map<string, ITasksModule>): void {
-    const loggerModule = modules.get('logger');
-    const databaseModule = modules.get('database');
-
-    if (!loggerModule) {
-      throw new Error('Logger module not found');
-    }
-
-    if (!databaseModule) {
-      throw new Error('Database module not found');
-    }
-
-    const loggerExports = loggerModule.exports as any;
-    const databaseExports = databaseModule.exports as any;
-
-    this.logger = loggerExports.service();
-    this.database = databaseExports.service();
-  }
-
-  /**
    * Initialize the tasks module.
    * @returns {Promise<void>} Promise that resolves when initialized.
    */
@@ -91,10 +54,6 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
 
     try {
       this.taskService = TaskService.getInstance();
-
-      if (!this.logger || !this.database) {
-        throw new Error('Dependencies not set. Call setDependencies first.');
-      }
 
       await this.taskService.initialize(this.logger, this.database);
 
@@ -120,7 +79,7 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
       throw new Error('Tasks module already started');
     }
 
-    this.status = 'running';
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
 
     this.logger.info(LogSource.MODULES, 'Tasks module started');
@@ -132,9 +91,8 @@ export class TasksModule implements ITasksModule<ITasksModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = 'stopping';
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
-      this.status = 'stopped';
       this.logger.info(LogSource.MODULES, 'Tasks module stopped');
     }
   }
@@ -201,10 +159,41 @@ export const createModule = (): TasksModule => {
  */
 export const initialize = async (): Promise<TasksModule> => {
   const tasksModule = new TasksModule();
+  await tasksModule.initialize();
   return tasksModule;
 };
 
 /**
- * Default export of initialize for module pattern.
+ * Gets the Tasks module with type safety and validation.
+ * @returns The Tasks module with guaranteed typed exports.
+ * @throws {Error} If Tasks module is not available or missing required exports.
  */
-export default initialize;
+export function getTasksModule(): IModule<ITasksModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const moduleLoader = getModuleLoader();
+  const moduleInstance = moduleLoader.getModule(ModuleName.TASKS);
+
+  const tasksModule = moduleInstance as unknown as TasksModule;
+
+  if (!tasksModule.exports?.service || typeof tasksModule.exports.service !== 'function') {
+    throw new Error('Tasks module missing required service export');
+  }
+
+  if (!tasksModule.exports?.TaskStatus) {
+    throw new Error('Tasks module missing required TaskStatus export');
+  }
+
+  if (!tasksModule.exports?.TaskExecutionStatus) {
+    throw new Error('Tasks module missing required TaskExecutionStatus export');
+  }
+
+  if (!tasksModule.exports?.TaskPriority) {
+    throw new Error('Tasks module missing required TaskPriority export');
+  }
+
+  return tasksModule;
+}
+
+export default TasksModule;

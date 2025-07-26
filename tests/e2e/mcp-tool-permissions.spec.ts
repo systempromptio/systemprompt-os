@@ -6,8 +6,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createApp } from '@/server/index';
+import express from 'express';
+import { setupMcpServers } from '@/server/mcp/index';
+import { setupExternalEndpoints } from '@/server/external/index';
 import type { Server } from 'http';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogOutput, LoggerMode } from '@/modules/core/logger/types/index';
 
 describe('MCP Tool Permissions E2E', () => {
   let app: Express;
@@ -16,8 +20,40 @@ describe('MCP Tool Permissions E2E', () => {
   let basicSessionId: string;
 
   beforeAll(async () => {
-    // Create the Express app
-    app = await createApp();
+    // Initialize logger for testing
+    const logger = LoggerService.getInstance();
+    try {
+      logger.initialize({
+        logLevel: 'error',
+        stateDir: './state',
+        outputs: [LogOutput.CONSOLE],
+        maxSize: '10m',
+        maxFiles: 5,
+        mode: LoggerMode.SERVER,
+        files: {
+          error: 'error.log',
+          combined: 'combined.log',
+          debug: 'debug.log',
+          access: 'access.log'
+        }
+      });
+    } catch (error) {
+      // Logger might already be initialized, ignore error
+    }
+
+    // Set test environment
+    process.env.NODE_ENV = 'test';
+    process.env.MCP_AUTH_DISABLED = 'true'; // Disable OAuth for simpler testing
+    process.env.LOG_LEVEL = 'error';
+    
+    // Create Express app and setup routes
+    app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    
+    // Setup external endpoints and MCP servers
+    await setupExternalEndpoints(app);
+    await setupMcpServers(app);
     
     // Start server on random port for testing
     server = await new Promise<Server>((resolve) => {
@@ -31,9 +67,15 @@ describe('MCP Tool Permissions E2E', () => {
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve());
-    });
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    }
+    
+    // Clean up environment
+    delete process.env.MCP_AUTH_DISABLED;
+    delete process.env.LOG_LEVEL;
   });
 
   describe('Tool Listing', () => {

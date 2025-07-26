@@ -14,7 +14,10 @@ import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
@@ -22,13 +25,13 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
  * Strongly typed exports interface for Database module.
  */
 export interface IDatabaseModuleExports {
-  readonly service: () => DatabaseService;
+  readonly service: () => IDatabaseService;
   readonly schemaService: () => SchemaService;
   readonly migrationService: () => MigrationService;
   readonly schemaImportService: () => SchemaImportService;
   readonly sqlParserService: () => SQLParserService;
   readonly cliHandlerService: () => DatabaseCLIHandlerService;
-  readonly createModuleAdapter: (moduleName: string) => ReturnType<typeof createModuleAdapter>;
+  readonly createModuleAdapter: (moduleName: string) => Promise<IModuleDatabaseAdapter>;
 }
 
 /**
@@ -36,13 +39,17 @@ export interface IDatabaseModuleExports {
  * @param module - Module to check.
  * @returns True if module is a Database module.
  */
-export function isDatabaseModule(module: any): module is IModule<IDatabaseModuleExports> {
+export function isDatabaseModule(module: unknown): module is IModule<IDatabaseModuleExports> {
   return (
-    module?.name === 'database'
-    && Boolean(module.exports)
-    && typeof module.exports === 'object'
-    && 'service' in module.exports
-    && typeof module.exports.service === 'function'
+    typeof module === 'object'
+    && module !== null
+    && 'name' in module
+    && (module as { name: unknown }).name === 'database'
+    && 'exports' in module
+    && typeof (module as { exports: unknown }).exports === 'object'
+    && (module as { exports: unknown }).exports !== null
+    && 'service' in (module as { exports: Record<string, unknown> }).exports
+    && typeof (module as { exports: { service: unknown } }).exports.service === 'function'
   );
 }
 
@@ -73,7 +80,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   public readonly version = '1.0.0';
   public readonly description = 'Core database management for SystemPrompt OS';
   public readonly dependencies: string[] = [];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private initialized = false;
   private started = false;
   private logger!: ILogger;
@@ -118,8 +125,26 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
 
       const dbService = DatabaseService.initialize(config, this.logger);
       const sqlParser = SQLParserService.initialize(this.logger);
-      const schemaImport = SchemaImportService.initialize(dbService as any, sqlParser, this.logger);
-      const schemaService = SchemaService.initialize(dbService, schemaImport, this.logger);
+
+      const dbAdapter = {
+        execute: async (sql: string, params?: unknown[]) => { await dbService.execute(sql, params); },
+        query: async <T>(sql: string, params?: unknown[]) => { return await dbService.query<T>(sql, params) },
+        transaction: async <T>(fn: (conn: {
+          execute(sql: string, params?: unknown[]): Promise<void>;
+          query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+        }) => Promise<T>) => { return await dbService.transaction(async (conn) => {
+          return await fn({
+            execute: async (sql: string, params?: unknown[]) => { await conn.execute(sql, params); },
+            query: async <T>(sql: string, params?: unknown[]) => {
+              const result = await conn.query<T>(sql, params);
+              return result.rows;
+            }
+          });
+        }) }
+      };
+
+      const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser, this.logger);
+      const schemaService = SchemaService.initialize(dbAdapter, schemaImport, this.logger);
       MigrationService.initialize(dbService, this.logger);
 
       const modulesPath
@@ -155,6 +180,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       throw new Error('Database module already started');
     }
 
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
     this.logger?.info(LogSource.DATABASE, 'Database module started', { category: 'startup' });
   }
@@ -168,7 +194,8 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       this.logger?.info(LogSource.DATABASE, 'Database module stopping', { category: 'shutdown' });
 
       try {
-        await this.databaseService?.disconnect();
+        const dbService = DatabaseService.getInstance();
+        await dbService.disconnect();
         this.logger?.info(LogSource.DATABASE, 'Database connection closed', { category: 'shutdown' });
       } catch (error) {
         this.logger?.error(LogSource.DATABASE, 'Error closing database connection', {
@@ -177,7 +204,9 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
         });
       }
 
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
+      this.logger?.info(LogSource.DATABASE, 'Database module stopped', { category: 'shutdown' });
     }
   }
 
@@ -243,6 +272,37 @@ export const createModule = (): DatabaseModule => {
 };
 
 /**
+ * Gets the Database module with type safety and validation.
+ * @returns The Database module with guaranteed typed exports.
+ * @throws {Error} If Database module is not available or missing required exports.
+ */
+export function getDatabaseModule(): IModule<IDatabaseModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/index');
+
+  const moduleLoader = getModuleLoader();
+  const databaseModule = moduleLoader.getModule(ModuleName.DATABASE);
+
+  if (!databaseModule.exports?.service || typeof databaseModule.exports.service !== 'function') {
+    throw new Error('Database module missing required service export');
+  }
+
+  if (!databaseModule.exports?.schemaService || typeof databaseModule.exports.schemaService !== 'function') {
+    throw new Error('Database module missing required schemaService export');
+  }
+
+  if (!databaseModule.exports?.migrationService || typeof databaseModule.exports.migrationService !== 'function') {
+    throw new Error('Database module missing required migrationService export');
+  }
+
+  if (!databaseModule.exports?.createModuleAdapter || typeof databaseModule.exports.createModuleAdapter !== 'function') {
+    throw new Error('Database module missing required createModuleAdapter export');
+  }
+
+  return databaseModule as IModule<IDatabaseModuleExports>;
+}
+
+/**
  * Build database configuration from environment.
  * @returns Database configuration.
  */
@@ -280,8 +340,26 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
 
   const dbService = DatabaseService.initialize(config, logger);
   const sqlParser = SQLParserService.initialize(logger);
-  const schemaImport = SchemaImportService.initialize(dbService as any, sqlParser, logger);
-  const schemaService = SchemaService.initialize(dbService, schemaImport, logger);
+
+  const dbAdapter = {
+    execute: async (sql: string, params?: unknown[]) => { await dbService.execute(sql, params); },
+    query: async <T>(sql: string, params?: unknown[]) => { return await dbService.query<T>(sql, params) },
+    transaction: async <T>(fn: (conn: {
+      execute(sql: string, params?: unknown[]): Promise<void>;
+      query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+    }) => Promise<T>) => { return await dbService.transaction(async (conn) => {
+      return await fn({
+        execute: async (sql: string, params?: unknown[]) => { await conn.execute(sql, params); },
+        query: async <T>(sql: string, params?: unknown[]) => {
+          const result = await conn.query<T>(sql, params);
+          return result.rows;
+        }
+      });
+    }) }
+  };
+
+  const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser, logger);
+  const schemaService = SchemaService.initialize(dbAdapter, schemaImport, logger);
   MigrationService.initialize(dbService, logger);
 
   const modulesPath

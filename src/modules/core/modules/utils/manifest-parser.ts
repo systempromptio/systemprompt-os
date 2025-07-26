@@ -5,8 +5,8 @@
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { CLICommand, ModuleManifest } from '@/modules/core/modules/types/index';
-import { ModuleType } from '@/modules/core/modules/types/index';
+import type { ICliCommand, IModuleManifest } from '@/modules/core/modules/types/index';
+import { ModuleTypeEnum } from '@/modules/core/modules/types/index';
 
 /**
  * Parse error for manifest validation failures.
@@ -25,8 +25,15 @@ export class ManifestParseError extends Error {
  * Type guard to check if a value is a valid ModuleType.
  * @param value
  */
-function isModuleType(value: unknown): value is ModuleType {
-  return typeof value === 'string' && Object.values(ModuleType).includes(value as ModuleType);
+function isModuleType(value: unknown): value is ModuleTypeEnum {
+  const validTypes: string[] = [
+    ModuleTypeEnum.CORE,
+    ModuleTypeEnum.SERVICE,
+    ModuleTypeEnum.DAEMON,
+    ModuleTypeEnum.PLUGIN,
+    ModuleTypeEnum.EXTENSION
+  ];
+  return typeof value === 'string' && validTypes.includes(value);
 }
 
 /**
@@ -35,7 +42,7 @@ function isModuleType(value: unknown): value is ModuleType {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if validation fails.
  */
-function validateManifest(raw: unknown): ModuleManifest {
+function validateManifest(raw: unknown): IModuleManifest {
   const errors: string[] = [];
 
   if (!raw || typeof raw !== 'object') {
@@ -55,8 +62,15 @@ function validateManifest(raw: unknown): ModuleManifest {
   if (!manifestData.type || typeof manifestData.type !== 'string') {
     errors.push('type: required field missing or not a string');
   } else if (!isModuleType(manifestData.type)) {
+    const validTypes = [
+      ModuleTypeEnum.CORE,
+      ModuleTypeEnum.SERVICE,
+      ModuleTypeEnum.DAEMON,
+      ModuleTypeEnum.PLUGIN,
+      ModuleTypeEnum.EXTENSION
+    ];
     errors.push(
-      `type: invalid value '${manifestData.type}', must be one of: ${Object.values(ModuleType).join(', ')}`,
+      `type: invalid value '${manifestData.type}', must be one of: ${validTypes.join(', ')}`,
     );
   }
 
@@ -101,10 +115,10 @@ function validateManifest(raw: unknown): ModuleManifest {
     );
   }
 
-  const result: ModuleManifest = {
+  const result: IModuleManifest = {
     name: String(manifestData.name),
     version: String(manifestData.version),
-    type: String(manifestData.type),
+    type: manifestData.type as string,
   };
 
   if (manifestData.description !== undefined) {
@@ -120,7 +134,7 @@ function validateManifest(raw: unknown): ModuleManifest {
     result.config = manifestData.config as Record<string, unknown>;
   }
   if (manifestData.cli !== undefined) {
-    result.cli = manifestData.cli as { commands?: CLICommand[] };
+    result.cli = manifestData.cli as { commands?: ICliCommand[] };
   }
 
   return result;
@@ -132,7 +146,7 @@ function validateManifest(raw: unknown): ModuleManifest {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if parsing or validation fails.
  */
-export const parseModuleManifest = (yamlContent: string): ModuleManifest => {
+export const parseModuleManifest = (yamlContent: string): IModuleManifest => {
   try {
     const raw = parseYaml(yamlContent);
     return validateManifest(raw);
@@ -151,7 +165,7 @@ export const parseModuleManifest = (yamlContent: string): ModuleManifest => {
  * @param yamlContent - YAML content to parse.
  * @returns ModuleManifest or undefined.
  */
-export const tryParseModuleManifest = (yamlContent: string): ModuleManifest | undefined => {
+export const tryParseModuleManifest = (yamlContent: string): IModuleManifest | undefined => {
   try {
     return parseModuleManifest(yamlContent);
   } catch {
@@ -165,7 +179,7 @@ export const tryParseModuleManifest = (yamlContent: string): ModuleManifest | un
  * @returns Object with either manifest or errors.
  */
 export const parseModuleManifestSafe = (yamlContent: string): {
-  manifest?: ModuleManifest;
+  manifest?: IModuleManifest;
   errors?: string[];
 } => {
   try {

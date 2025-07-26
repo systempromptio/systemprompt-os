@@ -3,18 +3,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { command } from '../../../../../../src/modules/core/database/cli/migrate.js';
-import type { CLIContext } from '../../../../../../src/cli/src/types.js';
+import { command } from '@/modules/core/database/cli/migrate';
+import type { CLIContext } from '@/cli/src/types';
 
 // Mock dependencies
-vi.mock('../../../../../../src/modules/core/database/cli/utils', () => ({
+vi.mock('@/modules/core/database/cli/utils', () => ({
   ensureDatabaseInitialized: vi.fn()
 }));
+
+// Import the mocked function
+import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils';
 
 // Mock console methods
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation((code) => {
+const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
   throw new Error(`Process exited with code ${code}`);
 });
 
@@ -36,8 +39,7 @@ describe('database:migrate command', () => {
       runMigration: vi.fn().mockResolvedValue(undefined)
     };
     
-    const { ensureDatabaseInitialized } = vi.mocked(await import('../../../../../../src/modules/core/database/cli/utils'));
-    ensureDatabaseInitialized.mockResolvedValue({
+    vi.mocked(ensureDatabaseInitialized).mockResolvedValue({
       dbService: mockDbService,
       migrationService: mockMigrationService,
       schemaService: {} as any
@@ -197,8 +199,7 @@ describe('database:migrate command', () => {
     });
 
     it('should handle errors during command execution', async () => {
-      const { ensureDatabaseInitialized } = vi.mocked(await import('../../../../../../src/modules/core/database/cli/utils'));
-      ensureDatabaseInitialized.mockRejectedValue(new Error('Initialization failed'));
+      vi.mocked(ensureDatabaseInitialized).mockRejectedValue(new Error('Initialization failed'));
       
       await expect(command.execute(mockContext)).rejects.toThrow('Process exited with code 1');
       

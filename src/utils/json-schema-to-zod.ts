@@ -28,7 +28,16 @@ const createStringEnum = (enumValues: unknown[]): z.ZodEnum<[string, ...string[]
   const stringValues = enumValues.filter((value): value is string => {
     return typeof value === 'string';
   });
+
+  if (stringValues.length === 0) {
+    throw new Error('Cannot create enum from empty array');
+  }
+
   const [first, ...rest] = stringValues;
+  if (first === undefined) {
+    throw new Error('First enum value cannot be undefined');
+  }
+
   return z.enum([first, ...rest]);
 };
 
@@ -39,12 +48,29 @@ const createStringEnum = (enumValues: unknown[]): z.ZodEnum<[string, ...string[]
  */
 const createLiteralUnion = (
   enumValues: unknown[]
-): z.ZodUnion<[z.ZodLiteral<unknown>, ...z.ZodLiteral<unknown>[]]> => {
-  const literals = enumValues.map((value: unknown): z.ZodLiteral<unknown> => {
-    return z.literal(value);
+): z.ZodTypeAny => {
+  if (enumValues.length === 0) {
+    throw new Error('Cannot create union from empty array');
+  }
+
+  const literals = enumValues.map((value: unknown) => {
+    if (value === null || value === undefined
+        || typeof value === 'string' || typeof value === 'number'
+        || typeof value === 'boolean') {
+      return z.literal(value);
+    }
+    return z.literal(String(value));
   });
+
   const [first, ...rest] = literals;
-  return z.union([first, ...rest]);
+  if (first === undefined) {
+    throw new Error('First literal value cannot be undefined');
+  }
+
+  if (rest.length === 0) {
+    return first;
+  }
+  return z.union([first, ...rest] as unknown as readonly [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
 };
 
 /**

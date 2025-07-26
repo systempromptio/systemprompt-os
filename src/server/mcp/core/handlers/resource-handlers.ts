@@ -1,7 +1,7 @@
 /**
+ * MCP Resource handlers for agent status and task resources.
  * @file MCP Resource handlers for agent status and task resources.
  * @module handlers/resource-handlers
- * @remarks
  * This module provides handlers for MCP resource operations including:
  * - Listing available resources (static and dynamic)
  * - Reading resource contents (tasks, logs, status)
@@ -18,12 +18,13 @@
  * ```
  */
 
+import { getMCPModule } from '@/server/mcp/index';
 import type {
   ListResourcesResult,
   ReadResourceRequest,
   ReadResourceResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getModuleLoader } from '@/modules/loader';
+
 /**
  * Lists all available MCP resources including static and dynamic task resources.
  * @returns List of available resources with metadata.
@@ -34,36 +35,30 @@ import { getModuleLoader } from '@/modules/loader';
  * console.log(`Available resources: ${resources.length}`);
  * ```
  */
-export const handleListResources = async function (): Promise<ListResourcesResult> {
+export const handleListResources = async function handleListResources()
+: Promise<ListResourcesResult> {
   try {
-    const moduleLoader = getModuleLoader();
-    const resourcesModule = moduleLoader.getModule('resources');
-
-    if (!resourcesModule?.exports) {
-      throw new Error('Resources module not available');
-    }
-
-    const resources = await resourcesModule.exports.listResources();
+    const mcpModule = getMCPModule();
+    const resources = await mcpModule.exports.resources.listResources();
     return { resources };
   } catch (error) {
-    throw new Error(`Failed to list resources: ${error}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to list resources: ${errorMessage}`);
   }
-}
+};
 
 /**
  * Handles MCP resource read requests for various resource types.
  * @param request - The resource read request with URI.
- * @param extra - Additional context ( unused).
  * @returns Resource content in appropriate format.
  * @throws {Error} If resource is not found or read fails.
- * @remarks
  * Supports multiple resource URI patterns:
  * - `agent://status` - Agent status and capabilities
  * - `task://list` - List of all tasks
  * - `task://[id]` - Individual task details
  * - `task://[id]/logs` - Task logs
  * - `task://[id]/result` - Task result
- * - Various template-based resources
+ * - Various template-based resources.
  * @example
  * ```typescript
  * const result = await handleResourceCall({
@@ -72,26 +67,27 @@ export const handleListResources = async function (): Promise<ListResourcesResul
  * const status = JSON.parse(result.contents[0].text);
  * ```
  */
-export const handleResourceCall = async function (
+export const handleResourceCall = async function handleResourceCall(
   request: ReadResourceRequest,
 ): Promise<ReadResourceResult> {
   try {
-    const moduleLoader = getModuleLoader();
-    const resourcesModule = moduleLoader.getModule('resources');
-
-    if (!resourcesModule?.exports) {
-      throw new Error('Resources module not available');
-    }
-
-    const resourceWithContents = await resourcesModule.exports.getResource(request.params.uri);
-    if (!resourceWithContents) {
+    const mcpModule = getMCPModule();
+    const resource = await mcpModule.exports.resources.getResource(request.params.uri);
+    if (resource === null) {
       throw new Error(`Resource not found: ${request.params.uri}`);
     }
 
     return {
-      contents: resourceWithContents.contents,
+      contents: [
+        {
+          uri: resource.uri,
+          mimeType: resource.mimeType ?? 'application/json',
+          text: JSON.stringify(resource),
+        },
+      ],
     };
   } catch (error) {
-    throw new Error(`Failed to read resource: ${error}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read resource: ${errorMessage}`);
   }
-}
+};

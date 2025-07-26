@@ -6,11 +6,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
 import { command } from '../../../../../../src/modules/core/config/cli/validate.js';
-import { ConfigModule } from '../../../../../../src/modules/core/config.js';
+import { ConfigModule } from '../../../../../../src/modules/core/config/index.js';
 
 // Mock dependencies
 vi.mock('fs');
-vi.mock('../../../../../../src/modules/core/config', () => ({
+vi.mock('../../../../../../src/modules/core/config/index.js', () => ({
   ConfigModule: vi.fn()
 }));
 vi.mock('yaml', () => ({
@@ -242,6 +242,227 @@ describe('validate CLI command', () => {
       
       const errorOutput = consoleErrorOutput.join('\n');
       expect(errorOutput).toContain('Missing required section: providers');
+    });
+  });
+
+  describe('edge cases and additional coverage', () => {
+    it('handles invalid providers.available type in displayConfigSummary', async () => {
+      mockConfigModule.get.mockReturnValue({
+        ...validConfig,
+        providers: {
+          ...validConfig.providers,
+          available: 'not-an-array'
+        }
+      });
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('providers.available must be an array');
+    });
+
+    it('handles invalid providers.enabled type in displayConfigSummary', async () => {
+      mockConfigModule.get.mockReturnValue({
+        ...validConfig,
+        providers: {
+          ...validConfig.providers,
+          enabled: null
+        }
+      });
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('providers.enabled must be an array');
+    });
+
+    it('validates config without system defaults', async () => {
+      mockConfigModule.get.mockReturnValue({
+        defaults: {}, // No system section
+        providers: validConfig.providers
+      });
+      
+      await command.execute({});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('✓ Configuration is valid!');
+    });
+
+    it('handles YAML parsing error', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readFileSync).mockReturnValue('invalid: yaml: content:');
+      
+      const yaml = await import('yaml');
+      vi.mocked(yaml.parse).mockImplementation(() => {
+        throw new Error('YAML parsing failed');
+      });
+      
+      await expect(command.execute({ file: 'config.yaml' }))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('Error: YAML parsing failed');
+    });
+
+    it('handles generic error in execute function', async () => {
+      mockConfigModule.initialize.mockRejectedValue(new Error('Config initialization failed'));
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('Error: Config initialization failed');
+    });
+
+    it('displays configuration summary with missing host/port', async () => {
+      mockConfigModule.get.mockReturnValue({
+        defaults: {
+          system: {
+            environment: 'production'
+            // No host or port
+          }
+        },
+        providers: validConfig.providers
+      });
+      
+      await command.execute({});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('✓ Configuration is valid!');
+      expect(output).toContain('Environment: production');
+      expect(output).not.toContain('Server:');
+    });
+
+    it('displays configuration summary with missing environment', async () => {
+      mockConfigModule.get.mockReturnValue({
+        defaults: {
+          system: {
+            host: 'test.example.com',
+            port: 3000
+            // No environment
+          }
+        },
+        providers: validConfig.providers
+      });
+      
+      await command.execute({});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('✓ Configuration is valid!');
+      expect(output).toContain('Server: test.example.com:3000');
+      expect(output).not.toContain('Environment:');
+    });
+
+    it('handles missing default provider validation error', async () => {
+      mockConfigModule.get.mockReturnValue({
+        defaults: validConfig.defaults,
+        providers: {
+          available: ['provider1', 'provider2'],
+          enabled: ['provider1']
+          // No default - this should cause validation error
+        }
+      });
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('✗ Configuration is invalid!');
+      expect(errorOutput).toContain('providers.default must be a string');
+    });
+
+    it('handles configuration with completely missing providers section in displayConfigSummary', async () => {
+      mockConfigModule.get.mockReturnValue({
+        defaults: validConfig.defaults
+        // No providers section at all
+      });
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('Missing required section: providers');
+    });
+
+    it('validates configuration with all optional fields present', async () => {
+      const completeConfig = {
+        defaults: {
+          system: {
+            port: 8080,
+            host: 'localhost',
+            environment: 'development',
+            logLevel: 'info'
+          }
+        },
+        providers: {
+          available: ['google-liveapi', 'other-provider'],
+          enabled: ['google-liveapi'],
+          default: 'google-liveapi'
+        }
+      };
+      
+      mockConfigModule.get.mockReturnValue(completeConfig);
+      
+      await command.execute({});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('✓ Configuration is valid!');
+      expect(output).toContain('Providers: 2 available, 1 enabled');
+      expect(output).toContain('Default Provider: google-liveapi');
+      expect(output).toContain('Environment: development');
+      expect(output).toContain('Server: localhost:8080');
+    });
+
+    it('displays configuration summary when providers fields are invalid types but displayConfigSummary still runs', async () => {
+      // This test covers the ternary operators in displayConfigSummary when arrays are not arrays
+      const configWithInvalidProviders = {
+        defaults: validConfig.defaults,
+        providers: {
+          available: 'not-an-array', // This will fail validation
+          enabled: null, // This will fail validation
+          default: 123 // This will fail validation
+        }
+      };
+      
+      mockConfigModule.get.mockReturnValue(configWithInvalidProviders);
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('✗ Configuration is invalid!');
+      expect(errorOutput).toContain('providers.available must be an array');
+      expect(errorOutput).toContain('providers.enabled must be an array');
+      expect(errorOutput).toContain('providers.default must be a string');
+    });
+
+    it('displays configuration summary with mixed valid and missing provider fields', async () => {
+      const mixedConfig = {
+        defaults: {
+          system: {
+            host: 'mixed-host'
+            // Missing port and environment
+          }
+        },
+        providers: {
+          available: ['provider1'],
+          enabled: ['provider1'],
+          default: 'provider1'
+        }
+      };
+      
+      mockConfigModule.get.mockReturnValue(mixedConfig);
+      
+      await command.execute({});
+      
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('✓ Configuration is valid!');
+      expect(output).toContain('Providers: 1 available, 1 enabled');
+      expect(output).toContain('Default Provider: provider1');
+      expect(output).not.toContain('Environment:');
+      expect(output).not.toContain('Server:'); // Missing port means no server info
     });
   });
 });

@@ -328,9 +328,13 @@ export class TunnelService extends EventEmitter {
       }, 30000);
 
       const originalResolve = resolve;
-      resolve = (value: string) => {
+      resolve = (value: string | PromiseLike<string>) => {
         clearTimeout(timeoutId);
-        originalResolve(value);
+        if (typeof value === 'string') {
+          originalResolve(value);
+        } else {
+          value.then((resolvedValue) => { originalResolve(resolvedValue); });
+        }
       }
     });
   }

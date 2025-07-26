@@ -8,16 +8,19 @@
 import type {
   IDatabaseAdapter,
   IDatabaseConfig,
-  IDatabaseConnection
+  IDatabaseConnection,
+  ITransaction
 } from '@/modules/core/database/types/database.types';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
+import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 import { ZERO } from '@/modules/core/database/constants/index';
 import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
 
 /**
  * Database service singleton for managing database connections.
  */
-export class DatabaseService {
+export class DatabaseService implements IDatabaseService {
   private static instance: DatabaseService;
   private config: IDatabaseConfig | null = null;
   private adapter: IDatabaseAdapter | null = null;
@@ -122,7 +125,7 @@ export class DatabaseService {
     handler: (conn: IDatabaseConnection) => Promise<T>
   ): Promise<T> {
     const connection = await this.getConnection();
-    return await connection.transaction(async (tx): Promise<T> => {
+    return await connection.transaction(async (tx: ITransaction): Promise<T> => {
       const txConn: IDatabaseConnection = {
         query: tx.query.bind(tx),
         execute: tx.execute.bind(tx),
@@ -215,7 +218,7 @@ export class DatabaseService {
       this.connection = await this.adapter.connect(this.config);
       this.logger?.info(LogSource.DATABASE, 'Database connection established', { type: this.config.type });
     } catch (error) {
-      this.logger?.error(LogSource.DATABASE, 'Failed to connect to database', { error });
+      this.logger?.error(LogSource.DATABASE, 'Failed to connect to database', { error: error as Error });
       throw new Error(
         `Failed to connect to ${this.config.type} database`
       );

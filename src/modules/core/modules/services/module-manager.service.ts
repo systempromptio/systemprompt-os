@@ -14,9 +14,11 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/index';
 import type {
- ModuleHealthStatus, ModuleInfo, ModuleStatus, ScannedModule
+ IModuleInfo, IScannedModule
 } from '@/modules/core/modules/types/index';
-import { ModuleType } from '@/modules/core/modules/types/index';
+import {
+ ModuleHealthStatusEnum, ModuleStatusEnum, ModuleTypeEnum
+} from '@/modules/core/modules/types/index';
 
 interface ModuleManagerConfig {
   modulesPath: string;
@@ -74,8 +76,8 @@ export class ModuleManagerService {
   /**
    * Scan for injectable modules.
    */
-  async scanForModules(): Promise<ScannedModule[]> {
-    const modules: ScannedModule[] = [];
+  async scanForModules(): Promise<IScannedModule[]> {
+    const modules: IScannedModule[] = [];
     const injectablePath = resolve(process.cwd(), this.config.injectablePath);
 
     if (!existsSync(injectablePath)) {
@@ -97,10 +99,10 @@ export class ModuleManagerService {
               const manifestData = parse(content);
 
               if (manifestData && manifestData.name) {
-                const scannedModule: ScannedModule = {
+                const scannedModule: IScannedModule = {
                   name: manifestData.name,
                   version: manifestData.version || '1.0.0',
-                  type: manifestData.type || 'service',
+                  type: ModuleTypeEnum.SERVICE,
                   path: modulePath,
                   dependencies: manifestData.dependencies,
                   config: manifestData.config,
@@ -133,10 +135,10 @@ export class ModuleManagerService {
    * @returns Promise that resolves when registration is complete.
    */
   async registerCoreModule(name: string, path: string, dependencies: string[] = []): Promise<void> {
-    const moduleData: ScannedModule = {
+    const moduleData: IScannedModule = {
       name,
       version: '1.0.0',
-      type: ModuleType.SERVICE,
+      type: ModuleTypeEnum.SERVICE,
       path,
       dependencies,
       config: {},
@@ -152,7 +154,7 @@ export class ModuleManagerService {
    * @param module - Module data to upsert.
    * @returns Promise that resolves when upsert is complete.
    */
-  private async upsertModule(module: ScannedModule): Promise<void> {
+  private async upsertModule(module: IScannedModule): Promise<void> {
     const existingModule = await this.database.query<{ id: number }>(
       'SELECT id FROM modules WHERE name = ?',
       [module.name]
@@ -196,7 +198,7 @@ export class ModuleManagerService {
   /**
    * Get all enabled modules.
    */
-  async getEnabledModules(): Promise<ModuleInfo[]> {
+  async getEnabledModules(): Promise<IModuleInfo[]> {
     const rows = await this.database.query<DatabaseModuleRow>(
       'SELECT * FROM modules WHERE enabled = 1 ORDER BY name'
     );
@@ -209,7 +211,7 @@ export class ModuleManagerService {
    * @param name - Module name.
    * @returns Promise that resolves to module info or undefined.
    */
-  async getModule(name: string): Promise<ModuleInfo | undefined> {
+  async getModule(name: string): Promise<IModuleInfo | undefined> {
     const rows = await this.database.query<DatabaseModuleRow>(
       'SELECT * FROM modules WHERE name = ?',
       [name]
@@ -253,17 +255,17 @@ export class ModuleManagerService {
    * @param row - Database row data.
    * @returns ModuleInfo object.
    */
-  private rowToModuleInfo(row: DatabaseModuleRow): ModuleInfo {
+  private rowToModuleInfo(row: DatabaseModuleRow): IModuleInfo {
     return {
       id: row.id,
       name: row.name,
       version: row.version,
-      type: row.type as ModuleType,
+      type: row.type as ModuleTypeEnum,
       path: row.path,
       enabled: Boolean(row.enabled),
       autoStart: true,
-      status: 'installed' as ModuleStatus,
-      healthStatus: 'unknown' as ModuleHealthStatus,
+      status: ModuleStatusEnum.INSTALLED,
+      healthStatus: ModuleHealthStatusEnum.UNKNOWN,
       dependencies: JSON.parse(row.dependencies || '[]'),
       config: JSON.parse(row.config || '{}'),
       metadata: JSON.parse(row.metadata || '{}'),

@@ -47,5 +47,5 @@ export interface IModuleDatabaseAdapter {
   exec(sql: string): void;
   transaction<T>(fn: () => T): T;
   query<T = IDatabaseRow>(sql: string, params?: unknown[]): Promise<T[]>;
-  execute(sql: string, params?: unknown[]): Promise<void>;
+  execute(sql: string, params?: unknown[]): Promise<IMutationResult>;
 }

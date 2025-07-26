@@ -3,17 +3,16 @@
  * @module cli/utils/spinner
  */
 
-import ora from 'ora';
-import { randomBytes } from 'crypto';
-import chalk from 'chalk';
+import ora, { type Color, type Ora } from 'ora';
+import { type SpinnerName } from 'cli-spinners';
 
 /**
  * Spinner configuration interface.
  */
 export interface SpinnerConfig {
   text?: string;
-  color?: 'orange' | 'yellow' | 'green' | 'blue' | 'red' | 'magenta' | 'cyan' | 'white' | 'gray';
-  spinner?: 'dots' | 'line' | 'pipe' | 'simpleDots' | 'simpleDotsScrolling' | 'star' | 'triangle' | 'arc' | 'circle' | 'squareCorners' | 'circleQuarters' | 'circleHalves' | 'squish' | 'toggle' | 'growVertical' | 'growHorizontal' | 'balloon' | 'balloon2' | 'noise' | 'bounce' | 'boxBounce' | 'boxBounce2' | 'triangle2' | 'arc2' | 'circle2';
+  color?: Color;
+  spinner?: SpinnerName;
   interval?: number;
 }
 
@@ -23,7 +22,7 @@ export interface SpinnerConfig {
 export const SPINNER_PRESETS = {
   loading: {
     spinner: 'dots' as const,
-    color: 'orange' as const,
+    color: 'yellow' as const,
     text: 'Loading...'
   },
   processing: {
@@ -57,10 +56,122 @@ export const SPINNER_PRESETS = {
  * Enhanced spinner class with SystemPrompt theming.
  */
 export class SystemPromptSpinner {
-  private readonly spinner: any;
-  private readonly startTime: number = 0;
+  private readonly spinner: Ora;
+  private readonly startTime: number;
+  
+  constructor(config: SpinnerConfig = {}) {
+    const baseOptions: any = {
+      text: config.text || '',
+      color: config.color || 'yellow',
+      interval: config.interval || 80
+    };
+    
+    if (config.spinner !== undefined) {
+      baseOptions.spinner = config.spinner;
+    }
+    
+    this.spinner = ora(baseOptions);
+    this.startTime = Date.now();
+  }
+  
   get isSpinning(): boolean {
     return this.spinner.isSpinning;
+  }
+
+  /**
+   * Start the spinner with optional text.
+   * @param text - Optional text to display.
+   * @returns This spinner instance.
+   */
+  start(text?: string): this {
+    if (text) {
+      this.spinner.text = text;
+    }
+    this.spinner.start();
+    return this;
+  }
+
+  /**
+   * Stop the spinner and show success.
+   * @param text - Optional success text.
+   * @returns This spinner instance.
+   */
+  succeed(text?: string): this {
+    if (text !== undefined) {
+      this.spinner.succeed(text);
+    } else {
+      this.spinner.succeed();
+    }
+    return this;
+  }
+
+  /**
+   * Stop the spinner and show failure.
+   * @param text - Optional failure text.
+   * @returns This spinner instance.
+   */
+  fail(text?: string): this {
+    if (text !== undefined) {
+      this.spinner.fail(text);
+    } else {
+      this.spinner.fail();
+    }
+    return this;
+  }
+
+  /**
+   * Update the spinner text.
+   * @param text - New text to display.
+   * @returns This spinner instance.
+   */
+  updateText(text: string): this {
+    this.spinner.text = text;
+    return this;
+  }
+
+  /**
+   * Stop the spinner.
+   * @returns This spinner instance.
+   */
+  stop(): this {
+    this.spinner.stop();
+    return this;
+  }
+
+  /**
+   * Get the elapsed time since the spinner started.
+   * @returns Elapsed time in milliseconds.
+   */
+  getElapsedTime(): number {
+    return Date.now() - this.startTime;
+  }
+
+  /**
+   * Show warning message.
+   * @param text - Optional warning text.
+   * @returns This spinner instance.
+   */
+  warn(text?: string): this {
+    if (text !== undefined) {
+      this.spinner.warn(text);
+    } else {
+      this.spinner.warn();
+    }
+    return this;
+  }
+
+  /**
+   * Show info message.
+   * @param text - Optional info text.
+   * @returns This spinner instance.
+   */
+  info(text?: string): this {
+    if (text !== undefined) {
+      this.spinner.info(text);
+    } else {
+      this.spinner.info();
+    }
+    return this;
   }
 }
 

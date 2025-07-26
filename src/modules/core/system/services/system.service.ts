@@ -24,9 +24,9 @@ import {
   type ISystemMaintenance,
   type ISystemModule,
   type ISystemService,
-  type MaintenanceTypeEnum,
-  type ModuleStatusEnum
+  type MaintenanceTypeEnum
 } from '@/modules/core/system/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -180,7 +180,7 @@ export class SystemService implements ISystemService {
     await this.logEvent(
       'module.status_changed',
       'system',
-      status === 'error' ? EventSeverityEnum.ERROR : EventSeverityEnum.INFO,
+      status === ModuleStatusEnum.ERROR ? EventSeverityEnum.ERROR : EventSeverityEnum.INFO,
       `Module ${name} status changed to ${status}`
     );
   }
@@ -195,9 +195,9 @@ export class SystemService implements ISystemService {
     const modules = await this.repository.findAllModules();
     const moduleCounts = {
       total: modules.length,
-      active: modules.filter(m => { return m.status === 'active' }).length,
-      inactive: modules.filter(m => { return m.status === 'inactive' }).length,
-      error: modules.filter(m => { return m.status === 'error' }).length
+      active: modules.filter(m => { return m.status === ModuleStatusEnum.RUNNING }).length,
+      inactive: modules.filter(m => { return m.status === ModuleStatusEnum.STOPPED }).length,
+      error: modules.filter(m => { return m.status === ModuleStatusEnum.ERROR }).length
     };
 
     const uptime = Math.floor(
@@ -243,7 +243,7 @@ export class SystemService implements ISystemService {
     }
 
     const modules = await this.repository.findAllModules();
-    const errorModules = modules.filter(m => { return m.status === 'error' });
+    const errorModules = modules.filter(m => { return m.status === ModuleStatusEnum.ERROR });
 
     if (errorModules.length === 0) {
       checks.push({

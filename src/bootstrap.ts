@@ -21,9 +21,9 @@ import {
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { IModulesModuleExports } from '@/modules/core/modules/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
-import type { IModule, ModuleInfo } from '@/modules/core/modules/types/index';
-import { type IDatabaseModuleExports, isDatabaseModule } from '@/modules/core/database/index';
-import { type ILoggerModuleExports, isLoggerModule } from '@/modules/core/logger/index';
+import type { IModule, IModuleInfo } from '@/modules/core/modules/types/index';
+import { isDatabaseModule } from '@/modules/core/database/index';
+import { isLoggerModule } from '@/modules/core/logger/index';
 import type { IModuleExports } from './types/bootstrap-module';
 
 import { loadCoreModule, loadExtensionModule } from './bootstrap/module-loader';
@@ -39,6 +39,7 @@ const isModulesModule = (
   return moduleInstance.name === 'modules'
          && Boolean(moduleInstance.exports)
          && typeof moduleInstance.exports === 'object'
+         && moduleInstance.exports !== null
          && 'registerCoreModule' in moduleInstance.exports;
 };
 
@@ -53,6 +54,7 @@ const isCLIModule = (
   return moduleInstance.name === 'cli'
          && Boolean(moduleInstance.exports)
          && typeof moduleInstance.exports === 'object'
+         && moduleInstance.exports !== null
          && 'scanAndRegisterModuleCommands' in moduleInstance.exports;
 };
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
@@ -353,12 +355,12 @@ persistToDb: false
    * Load discovered modules checking enabled status.
    * Sequential loading is required to handle module dependencies.
    * @param {IModuleExports} moduleExports - Module exports.
-   * @param {ModuleInfo[]} discoveredModules - Discovered modules.
+   * @param {IModuleInfo[]} discoveredModules - Discovered modules.
    * @returns {Promise<void>} Promise that resolves when loading is complete.
    */
   private async loadDiscoveredModules(
     moduleExports: IModuleExports,
-    discoveredModules: ModuleInfo[],
+    discoveredModules: IModuleInfo[],
   ): Promise<void> {
     const enabledModules = await moduleExports.getEnabledModules();
     const enabledNames = new Set(
@@ -379,10 +381,10 @@ persistToDb: false
 
   /**
    * Load an extension module safely with error handling.
-   * @param {ModuleInfo} moduleInfo - Module information.
+   * @param {IModuleInfo} moduleInfo - Module information.
    * @returns {Promise<void>} Promise that resolves when module is loaded.
    */
-  private async loadExtensionModuleSafely(moduleInfo: ModuleInfo): Promise<void> {
+  private async loadExtensionModuleSafely(moduleInfo: IModuleInfo): Promise<void> {
     try {
       const moduleInstance = await loadExtensionModule(moduleInfo, this.config);
       this.modules.set(moduleInfo.name, moduleInstance);
@@ -656,8 +658,8 @@ persistToDb: false
         return;
       }
 
-      const loggerService = loggerModule.exports!.service();
-      const databaseService = databaseModule.exports!.service();
+      const loggerService = loggerModule.exports.service();
+      const databaseService = databaseModule.exports.service();
 
       if (!loggerService || typeof loggerService.setDatabaseService !== 'function') {
         this.logger.warn(LogSource.BOOTSTRAP, 'Logger service does not support database injection', { category: 'database' });

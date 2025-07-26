@@ -70,23 +70,23 @@ export interface IAuthorizationServerMetadata {
  */
 export interface IJWTTokenPayload {
   sub: string;
-  clientid?: string;
-  scope?: string;
-  provider?: string;
-  sessionid?: string;
-  tokentype?: 'access';
+  clientid?: string | undefined;
+  scope?: string | undefined;
+  provider?: string | undefined;
+  sessionid?: string | undefined;
+  tokentype?: 'access' | undefined;
   iss: string;
   aud: string | string[];
   iat: number;
   exp: number;
-  jti?: string;
-  user?: IUserData | null;
-  roles?: string[];
-  email?: string;
-  auth_time?: number;
-  nonce?: string;
-  name?: string;
-  picture?: string;
+  jti?: string | undefined;
+  user?: IUserData | null | undefined;
+  roles?: string[] | undefined;
+  email?: string | undefined;
+  auth_time?: number | undefined;
+  nonce?: string | undefined;
+  name?: string | undefined;
+  picture?: string | undefined;
 }
 
 /**
@@ -117,12 +117,12 @@ export interface IRefreshTokenData {
  */
 export interface ITokenRequestParams {
   grant_type: 'authorization_code' | 'refresh_token';
-  code?: string;
-  redirect_uri?: string;
-  client_id?: string;
-  client_secret?: string;
-  refresh_token?: string;
-  code_verifier?: string;
+  code?: string | undefined;
+  redirect_uri?: string | undefined;
+  client_id?: string | undefined;
+  client_secret?: string | undefined;
+  refresh_token?: string | undefined;
+  code_verifier?: string | undefined;
 }
 
 /**
@@ -143,8 +143,8 @@ export interface ITokenResponse {
 export interface IUserData {
   id: string;
   email: string;
-  name?: string;
-  avatar?: string;
+  name?: string | undefined;
+  avatar?: string | undefined;
   roles: string[];
 }
 

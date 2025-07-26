@@ -4,7 +4,8 @@
  * @module modules/core/users
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -21,12 +22,12 @@ export interface IUsersModuleExports {
  * Users module implementation.
  */
 export class UsersModule implements IModule<IUsersModuleExports> {
-  public readonly name = 'users';
+  public readonly name = 'users' as const;
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
   public readonly description = 'User management system';
-  public readonly dependencies = ['logger', 'database', 'auth'];
-  public status: ModuleStatus = 'stopped' as ModuleStatus;
+  public readonly dependencies = ['logger', 'database', 'auth'] as const;
+  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private usersService!: UsersService;
   private logger!: ILogger;
   private initialized = false;
@@ -67,10 +68,10 @@ export class UsersModule implements IModule<IUsersModuleExports> {
     }
 
     if (this.started) {
-      throw new Error('Users module already started');
+      return;
     }
 
-    this.status = 'running';
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
     this.logger.info(LogSource.AUTH, 'Users module started');
   }
@@ -80,7 +81,7 @@ export class UsersModule implements IModule<IUsersModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = 'stopped';
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
       this.logger.info(LogSource.AUTH, 'Users module stopped');
     }
@@ -134,3 +135,24 @@ export const initialize = async (): Promise<UsersModule> => {
   await usersModule.initialize();
   return usersModule;
 };
+
+/**
+ * Gets the Users module with type safety and validation.
+ * @returns The Users module with guaranteed typed exports.
+ * @throws {Error} If Users module is not available or missing required exports.
+ */
+export function getUsersModule(): IModule<IUsersModuleExports> {
+  const { getModuleLoader } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const moduleLoader = getModuleLoader();
+  const usersModule = moduleLoader.getModule(ModuleName.USERS);
+
+  if (!usersModule.exports?.service || typeof usersModule.exports.service !== 'function') {
+    throw new Error('Users module missing required service export');
+  }
+
+  return usersModule as IModule<IUsersModuleExports>;
+}
+
+export default UsersModule;

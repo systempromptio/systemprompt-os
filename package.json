@@ -82,6 +82,7 @@
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/figlet": "^1.7.0",
     "@types/http-cache-semantics": "^4.0.4",
     "@types/inquirer": "^9.0.8",
     "@types/js-yaml": "^4.0.9",

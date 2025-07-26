@@ -1,3 +1,6 @@
+import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+export { ModuleStatusEnum };
+
 /**
  * Configuration type enumeration.
  */
@@ -8,14 +11,10 @@ export const enum ConfigTypeEnum {
   JSON = 'json'
 }
 
-/**
- * Module status enumeration.
+/*
+ * ModuleStatusEnum is now imported from @/modules/core/modules/types/index
+ * to avoid conflicts with the standard module system
  */
-export const enum ModuleStatusEnum {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  ERROR = 'error'
-}
 
 /**
  * Event severity enumeration.

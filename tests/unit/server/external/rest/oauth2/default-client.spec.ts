@@ -3,15 +3,22 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { logger } from '../../../../../../src/utils/logger.js';
+import { LogSource } from '../../../../../../src/modules/core/logger/types/index.js';
 
-// Mock dependencies before importing the module under test
-vi.mock('../../../../../../src/utils/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn()
+// Mock LoggerService before importing the module under test
+const mockLogger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn()
+};
+
+vi.mock('../../../../../../src/modules/core/logger/index', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => mockLogger)
+  },
+  LogSource: {
+    AUTH: 'auth'
   }
 }));
 
@@ -35,6 +42,10 @@ describe('getDefaultOAuthClient', () => {
     vi.clearAllMocks();
     mockGetClient.mockReset();
     mockRegisterClient.mockReset();
+    mockLogger.info.mockReset();
+    mockLogger.warn.mockReset();
+    mockLogger.error.mockReset();
+    mockLogger.debug.mockReset();
     
     // Reset modules to clear the default client cache
     vi.resetModules();
@@ -89,9 +100,10 @@ describe('getDefaultOAuthClient', () => {
       redirect_uris: mockRegisteredClient.redirect_uris
     });
 
-    expect(logger.info).toHaveBeenCalledWith('Created default OAuth client', {
-      client_id: 'default-web-client',
-      redirect_uris: mockRegisteredClient.redirect_uris
+    expect(mockLogger.info).toHaveBeenCalledWith(LogSource.AUTH, 'Created default OAuth client', {
+      category: 'oauth2',
+      action: 'client_create',
+      persistToDb: true
     });
   });
 
@@ -115,7 +127,7 @@ describe('getDefaultOAuthClient', () => {
 
     expect(mockGetClient).toHaveBeenCalledWith('default-web-client');
     expect(mockRegisterClient).not.toHaveBeenCalled();
-    expect(logger.info).not.toHaveBeenCalled();
+    expect(mockLogger.info).not.toHaveBeenCalled();
 
     expect(client).toEqual({
       client_id: 'default-web-client',
@@ -210,5 +222,202 @@ describe('getDefaultOAuthClient', () => {
         ]
       })
     );
+  });
+
+  it('should throw error when registerClient fails', async () => {
+    const error = new Error('Registration failed');
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockRejectedValue(error);
+
+    await expect(getDefaultOAuthClient(baseUrl)).rejects.toThrow('Registration failed');
+    
+    expect(mockGetClient).toHaveBeenCalledWith('default-web-client');
+    expect(mockRegisterClient).toHaveBeenCalled();
+    expect(mockLogger.info).not.toHaveBeenCalled();
+  });
+
+  it('should handle empty baseUrl', async () => {
+    const emptyBaseUrl = '';
+    
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockImplementation((registration) => {
+      return Promise.resolve({
+        ...registration,
+        client_secret: undefined
+      });
+    });
+
+    await getDefaultOAuthClient(emptyBaseUrl);
+
+    expect(mockRegisterClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirect_uris: [
+          '/oauth2/callback/google',
+          '/oauth2/callback/github',
+          '/auth/callback'
+        ]
+      })
+    );
+  });
+
+  it('should handle baseUrl with trailing slash', async () => {
+    const baseUrlWithSlash = 'https://example.com/';
+    
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockImplementation((registration) => {
+      return Promise.resolve({
+        ...registration,
+        client_secret: undefined
+      });
+    });
+
+    await getDefaultOAuthClient(baseUrlWithSlash);
+
+    expect(mockRegisterClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirect_uris: [
+          'https://example.com//oauth2/callback/google',
+          'https://example.com//oauth2/callback/github',
+          'https://example.com//auth/callback'
+        ]
+      })
+    );
+  });
+
+  it('should handle existing client with null redirect_uris and client_secret', async () => {
+    const existingClient = {
+      client_id: 'default-web-client',
+      client_secret: null,
+      redirect_uris: null
+    };
+
+    mockGetClient.mockReturnValue(existingClient);
+
+    const client = await getDefaultOAuthClient(baseUrl);
+
+    expect(client).toEqual({
+      client_id: 'default-web-client',
+      client_secret: '',
+      redirect_uris: []
+    });
+  });
+
+  it('should handle registered client with all optional fields undefined', async () => {
+    const mockRegisteredClient = {
+      client_id: 'default-web-client',
+      client_secret: undefined,
+      redirect_uris: undefined
+    };
+
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockResolvedValue(mockRegisteredClient);
+
+    const client = await getDefaultOAuthClient(baseUrl);
+
+    expect(client).toEqual({
+      client_id: 'default-web-client',
+      client_secret: '',
+      redirect_uris: []
+    });
+
+    expect(mockLogger.info).toHaveBeenCalledWith(LogSource.AUTH, 'Created default OAuth client', {
+      category: 'oauth2',
+      action: 'client_create',
+      persistToDb: true
+    });
+  });
+
+  it('should handle registered client with empty string client_secret', async () => {
+    const mockRegisteredClient = {
+      client_id: 'default-web-client',
+      client_secret: '',
+      redirect_uris: ['https://example.com/callback']
+    };
+
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockResolvedValue(mockRegisteredClient);
+
+    const client = await getDefaultOAuthClient(baseUrl);
+
+    expect(client).toEqual({
+      client_id: 'default-web-client',
+      client_secret: '',
+      redirect_uris: ['https://example.com/callback']
+    });
+  });
+
+  it('should handle registered client with empty redirect_uris array', async () => {
+    const mockRegisteredClient = {
+      client_id: 'default-web-client',
+      client_secret: 'secret',
+      redirect_uris: []
+    };
+
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockResolvedValue(mockRegisteredClient);
+
+    const client = await getDefaultOAuthClient(baseUrl);
+
+    expect(client).toEqual({
+      client_id: 'default-web-client',
+      client_secret: 'secret',
+      redirect_uris: []
+    });
+  });
+
+  it('should create new client with all required registration fields', async () => {
+    mockGetClient.mockReturnValue(undefined);
+    
+    const mockRegisteredClient = {
+      client_id: 'default-web-client',
+      client_secret: 'generated-secret',
+      redirect_uris: [
+        'https://example.com/oauth2/callback/google',
+        'https://example.com/oauth2/callback/github',
+        'https://example.com/auth/callback'
+      ]
+    };
+
+    mockRegisterClient.mockResolvedValue(mockRegisteredClient);
+
+    await getDefaultOAuthClient(baseUrl);
+
+    expect(mockRegisterClient).toHaveBeenCalledWith({
+      client_name: 'SystemPrompt Web Client',
+      client_id: 'default-web-client',
+      redirect_uris: [
+        'https://example.com/oauth2/callback/google',
+        'https://example.com/oauth2/callback/github',
+        'https://example.com/auth/callback'
+      ],
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      scope: 'openid profile email',
+      token_endpoint_auth_method: 'none'
+    });
+  });
+
+  it('should not cache client if registration fails', async () => {
+    const error = new Error('Registration failed');
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockRejectedValue(error);
+
+    // First call should fail
+    await expect(getDefaultOAuthClient(baseUrl)).rejects.toThrow('Registration failed');
+    
+    // Reset mocks for second call
+    vi.clearAllMocks();
+    mockGetClient.mockReturnValue(undefined);
+    mockRegisterClient.mockResolvedValue({
+      client_id: 'default-web-client',
+      client_secret: 'secret',
+      redirect_uris: ['https://example.com/callback']
+    });
+
+    // Second call should attempt registration again (not use cache)
+    await getDefaultOAuthClient(baseUrl);
+    
+    expect(mockGetClient).toHaveBeenCalledWith('default-web-client');
+    expect(mockRegisterClient).toHaveBeenCalled();
   });
 });

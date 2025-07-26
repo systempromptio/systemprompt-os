@@ -1,7 +1,7 @@
 import type {
-  IDPTokens,
-  IDPUserInfo,
   IIdentityProvider,
+  IIdpUserInfo,
+  IdpTokens,
 } from '@/modules/core/auth/types/provider-interface';
 import type {
   IGitHubConfig,
@@ -57,7 +57,7 @@ export class GitHubProvider implements IIdentityProvider {
    * @param code - The authorization code from GitHub.
    * @returns Promise resolving to IDPTokens.
    */
-  async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
+  async exchangeCodeForTokens(code: string): Promise<IdpTokens> {
     const clientSecret = this.config.clientSecret ?? '';
     if (clientSecret.length === 0) {
       throw new Error('Client secret is required for token exchange');
@@ -84,7 +84,7 @@ export class GitHubProvider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenResponse: IDPTokens = await response.json();
+    const tokenResponse = await response.json() as IdpTokens;
 
     return tokenResponse;
   }
@@ -94,7 +94,7 @@ export class GitHubProvider implements IIdentityProvider {
    * @param accessToken - The access token for API authentication.
    * @returns Promise resolving to IDPUserInfo.
    */
-  async getUserInfo(accessToken: string): Promise<IDPUserInfo> {
+  async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
     const userData = await this.fetchUserData(accessToken);
     const emailInfo = await this.resolveUserEmail(accessToken, userData.email);
 
@@ -118,7 +118,7 @@ export class GitHubProvider implements IIdentityProvider {
       throw new Error(`Failed to get user info: ${userResponse.statusText}`);
     }
 
-    return await userResponse.json();
+    return await userResponse.json() as IGitHubUserData;
   }
 
   /**
@@ -149,7 +149,7 @@ verified: true
       return { verified: true };
     }
 
-    const emails: IGitHubEmailData[] = await emailResponse.json();
+    const emails = await emailResponse.json() as IGitHubEmailData[];
     const primaryEmail = emails.find((emailData: IGitHubEmailData): boolean => { return emailData.primary });
 
     if (!primaryEmail) {
@@ -173,8 +173,8 @@ verified: true
   private buildUserInfo(
     userData: IGitHubUserData,
     emailInfo: { email?: string; verified: boolean }
-  ): IDPUserInfo {
-    const userInfo: IDPUserInfo = {
+  ): IIdpUserInfo {
+    const userInfo: IIdpUserInfo = {
       id: userData.id.toString(),
       emailVerified: emailInfo.verified,
       name: userData.name ?? userData.login,

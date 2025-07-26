@@ -4,7 +4,7 @@
  * Provides command-line interface utilities, help system, and command management functionality.
  */
 
-import type { IModule, ModuleStatus } from '@/modules/core/modules/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { CliService } from '@/modules/core/cli/services/cli.service';
 import type { CLICommand } from '@/modules/core/cli/types/index';
@@ -23,7 +23,7 @@ export interface ICLIModuleExports {
   readonly generateDocs: (commands: Map<string, CLICommand>, format: string) => string;
   readonly scanAndRegisterModuleCommands: (
     modules: Map<string, { path: string }>,
-  ) => Promise<unknown>;
+  ) => Promise<void>;
 }
 
 /**
@@ -42,7 +42,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
   name = 'cli';
   version = '1.0.0';
   type = 'service' as const;
-  status: ModuleStatus = 'stopped' as ModuleStatus;
+  status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   dependencies = ['logger', 'database'];
   private cliService?: CliService;
   private logger!: ILogger;
@@ -71,23 +71,23 @@ export class CLIModule implements IModule<ICLIModuleExports> {
     const database = DatabaseService.getInstance();
     this.cliService = CliService.getInstance();
     this.cliService.initialize(this.logger, database);
-    this.status = 'starting' as ModuleStatus;
+    this.status = ModuleStatusEnum.INITIALIZING;
     this.logger.info(LogSource.CLI, 'CLI module initialized');
   }
 
   /**
    * Start the CLI module.
    */
-  start(): void {
-    this.status = 'running' as ModuleStatus;
+  async start(): Promise<void> {
+    this.status = ModuleStatusEnum.RUNNING;
     this.logger.info(LogSource.CLI, 'CLI module started');
   }
 
   /**
    * Stop the CLI module.
    */
-  stop(): void {
-    this.status = 'stopped' as ModuleStatus;
+  async stop(): Promise<void> {
+    this.status = ModuleStatusEnum.STOPPED;
     this.logger.info(LogSource.CLI, 'CLI module stopped');
   }
 
@@ -95,9 +95,9 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * Check the health of the CLI module.
    * @returns Health check result.
    */
-  healthCheck(): { healthy: boolean; message?: string } {
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     const isHealthy =
-      this.status === ('running' as ModuleStatus) && this.cliService?.isInitialized();
+      this.status === ModuleStatusEnum.RUNNING && this.cliService?.isInitialized();
     return {
       healthy: Boolean(isHealthy),
       message: isHealthy ? 'CLI module is healthy' : 'CLI module is not running or not initialized',
@@ -179,11 +179,56 @@ export function createModule(): CLIModule {
   return new CLIModule();
 }
 
-export { CliService };
-export { CliService as CLIService };
+/**
+ * Gets the CLI module with type safety and validation.
+ * @returns The CLI module with guaranteed typed exports.
+ * @throws {Error} If CLI module is not available.
+ */
+export function getCLIModule(): IModule<ICLIModuleExports> {
+  // Dynamic imports required for circular dependency resolution
+  const { getModuleLoader } = require('@/modules/loader') as typeof import('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/index') as typeof import('@/modules/types/index');
+  
+  const moduleLoader = getModuleLoader();
+  const cliModule = moduleLoader.getModule(ModuleName.CLI);
+  
+  // Get the actual CLI module instance
+  const cliModuleInstance = cliModule as unknown as CLIModule;
+  
+  // Create a wrapper that conforms to IModule interface
+  const wrappedModule: IModule<ICLIModuleExports> = {
+    name: 'cli',
+    version: '1.0.0',
+    type: 'core',
+    status: ModuleStatusEnum.RUNNING,
+    exports: {
+      service,
+      getAllCommands,
+      getCommandHelp,
+      formatCommands,
+      generateDocs,
+      scanAndRegisterModuleCommands
+    },
+    initialize: async () => {
+      await cliModuleInstance.initialize();
+    },
+    start: async () => {
+      await cliModuleInstance.start();
+    },
+    stop: async () => {
+      await cliModuleInstance.stop();
+    }
+  };
+  
+  return wrappedModule;
+}
 
-export const service = (): CliService | undefined => {
-  return CliService.getInstance();
+export const service = (): CliService => {
+  const instance = CliService.getInstance();
+  if (!instance) {
+    throw new Error('CLI service not initialized');
+  }
+  return instance;
 };
 
 export const getAllCommands = async (): Promise<Map<string, CLICommand>> => {
@@ -204,4 +249,12 @@ export const formatCommands = (commands: Map<string, CLICommand>, format: string
 export const generateDocs = (commands: Map<string, CLICommand>, format: string): string => {
   const cliModule = new CLIModule();
   return cliModule.generateDocs(commands, format);
+};
+
+export const scanAndRegisterModuleCommands = async (modules: Map<string, { path: string }>): Promise<void> => {
+  const cliService = CliService.getInstance();
+  if (!cliService) {
+    throw new Error('CLI service not initialized');
+  }
+  await cliService.scanAndRegisterModuleCommands(modules);
 };

@@ -4,124 +4,251 @@
  */
 
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { ONE_HUNDRED } from '@/const/numbers';
+import type { AuthAuditAction, IAuthAuditEntry as IAuthAuditEntryBase } from '@/modules/core/auth/types/index';
 
 /**
- * AuditEvent interface.
+ * Configuration interface for AuthAuditService.
  */
-export interface IAuditEvent {
-  userId?: string;
-  action: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
+interface IAuditConfig {
+  enabled: boolean;
+  retentionDays: number;
 }
 
 /**
- * AuditService class.
+ * Logger interface expected by AuthAuditService.
  */
-export class AuditService {
-  private static instance: AuditService;
-  private readonly logger!: ILogger;
-  private readonly db!: DatabaseService;
+interface Logger {
+  debug: (message: string, ...args: any[]) => void;
+  info: (message: string, ...args: any[]) => void;
+  warn: (message: string, ...args: any[]) => void;
+  error: (message: string, error?: Error) => void;
+}
+
+/**
+ * Audit event interface for AuthAuditService.
+ */
+interface IAuthAuditEvent {
+  action: AuthAuditAction;
+  userId?: string;
+  resource?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  success: boolean;
+  errorMessage?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Audit entry interface returned by getAuditEntries.
+ * Extends the base interface from types.
+ */
+type IAuthAuditEntry = IAuthAuditEntryBase;
+
+/**
+ * Filter interface for getAuditEntries.
+ */
+interface IAuditFilters {
+  userId?: string;
+  action?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+/**
+ * AuthAuditService class for comprehensive audit logging.
+ */
+export class AuthAuditService {
+  private readonly config: IAuditConfig;
+  private readonly logger: Logger;
+  private readonly db: DatabaseService;
 
   /**
-   * Get singleton instance.
-   * @returns AuditService instance.
+   * Constructor for AuthAuditService.
+   * @param config - Audit configuration.
+   * @param logger - Logger instance.
    */
-  public static getInstance(): AuditService {
-    AuditService.instance ||= new AuditService();
-    return AuditService.instance;
-  }
-
-  /**
-   * Private constructor for singleton.
-   */
-  private constructor() {
-    this.logger = LoggerService.getInstance();
+  constructor(config: IAuditConfig, logger: Logger) {
+    this.config = config;
+    this.logger = logger;
     this.db = DatabaseService.getInstance();
   }
 
   /**
-   * Log an audit event.
-   * @param event - Event to log.
-   * @returns Promise that resolves when logged.
+   * Record an audit event.
+   * @param event - Event to record.
+   * @returns Promise that resolves when recorded.
    */
-  async logEvent(event: IAuditEvent): Promise<void> {
+  async recordEvent(event: IAuthAuditEvent): Promise<void> {
+    if (!this.config.enabled) {
+      return;
+    }
+
     try {
+      const id = this.generateId();
       await this.db.execute(
-        `INSERT INTO auth_audit_log (userId, action, details, ip_address, user_agent, createdAt)
-         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        `INSERT INTO auth_audit (id, user_id, action, resource, ip_address, user_agent, success, error_message, metadata, timestamp)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
         [
+          id,
           event.userId ?? null,
           event.action,
-          event.details ? JSON.stringify(event.details) : null,
+          event.resource ?? null,
           event.ipAddress ?? null,
           event.userAgent ?? null,
-        ],
+          event.success ? 1 : 0,
+          event.errorMessage ?? null,
+          event.metadata ? JSON.stringify(event.metadata) : null,
+        ]
       );
-
-      this.logger.debug(LogSource.AUTH, 'Audit event logged', {
-        action: event.action,
-        userId: event.userId,
-        persistToDb: false
-      });
     } catch (error) {
-      this.logger.error(LogSource.AUTH, 'Failed to log audit event', {
-        event,
-        error: error instanceof Error ? error : String(error)
-      });
+      this.logger.error('Failed to record audit event', error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
-   * Get audit events.
-   * @param userId - Optional user ID filter.
-   * @param limit - Maximum number of events.
-   * @returns Array of audit events.
+   * Get audit entries with optional filtering.
+   * @param filters - Optional filters to apply.
+   * @returns Array of audit entries.
    */
-  async getEvents(userId?: string, limit = ONE_HUNDRED): Promise<IAuditEvent[]> {
+  async getAuditEntries(filters?: IAuditFilters): Promise<IAuthAuditEntry[]> {
     try {
-      let query = 'SELECT * FROM auth_audit_log';
-      const params: string[] = [];
+      let query = 'SELECT * FROM auth_audit WHERE 1=1';
+      const params: any[] = [];
 
-      if (userId !== undefined && userId !== null) {
-        query += ' WHERE userId = ?';
-        params.push(userId);
+      if (filters?.userId) {
+        query += ' AND user_id = ?';
+        params.push(filters.userId);
       }
 
-      query += ' ORDER BY createdAt DESC LIMIT ?';
-      params.push(String(limit));
+      if (filters?.action) {
+        query += ' AND action = ?';
+        params.push(filters.action);
+      }
+
+      if (filters?.startDate) {
+        query += ' AND timestamp >= ?';
+        params.push(filters.startDate);
+      }
+
+      if (filters?.endDate) {
+        query += ' AND timestamp <= ?';
+        params.push(filters.endDate);
+      }
+
+      query += ' ORDER BY timestamp DESC LIMIT ?';
+      params.push(filters?.limit ?? 100);
 
       interface IAuditRow {
-        userId: string;
+        id: string;
+        user_id: string | null;
         action: string;
-        details: string | null;
+        resource: string | null;
         ip_address: string | null;
         user_agent: string | null;
+        success: number;
+        error_message: string | null;
+        metadata: string | null;
+        timestamp: string;
       }
 
       const rows = await this.db.query<IAuditRow>(query, params);
 
-      return rows.map((row): IAuditEvent => {
-        const event: IAuditEvent = {
-          action: row.action,
+      return rows.map((row): IAuthAuditEntry => {
+        const entry: IAuthAuditEntry = {
+          id: row.id,
+          action: row.action as AuthAuditAction,
+          success: row.success === 1,
+          timestamp: new Date(row.timestamp),
         };
-        if (row.userId) { event.userId = row.userId; }
-        if (row.details) { event.details = JSON.parse(row.details); }
-        if (row.ip_address) { event.ipAddress = row.ip_address; }
-        if (row.user_agent) { event.userAgent = row.user_agent; }
-        return event;
+
+        if (row.user_id !== null) {
+          entry.userId = row.user_id;
+        }
+        if (row.resource !== null) {
+          entry.resource = row.resource;
+        }
+        if (row.ip_address !== null) {
+          entry.ipAddress = row.ip_address;
+        }
+        if (row.user_agent !== null) {
+          entry.userAgent = row.user_agent;
+        }
+        if (row.error_message !== null) {
+          entry.errorMessage = row.error_message;
+        }
+        if (row.metadata !== null) {
+          entry.metadata = JSON.parse(row.metadata);
+        }
+
+        return entry;
       });
     } catch (error) {
-      this.logger.error(LogSource.AUTH, 'Failed to get audit events', {
-        userId,
-        error: error instanceof Error ? error : String(error)
-      });
+      this.logger.error('Failed to get audit entries', error instanceof Error ? error : new Error(String(error)));
       return [];
     }
+  }
+
+  /**
+   * Get failed login attempts for a given email since a specific time.
+   * @param email - Email address to check.
+   * @param since - Date to check from.
+   * @returns Number of failed attempts.
+   */
+  async getFailedLoginAttempts(email: string, since: Date): Promise<number> {
+    try {
+      const rows = await this.db.query<{ count: number }>(
+        `SELECT COUNT(*) as count FROM auth_audit 
+         WHERE action = ? AND resource = ? AND timestamp >= ?`,
+        ['auth.failed', email, since]
+      );
+
+      return rows.length > 0 && rows[0] !== undefined ? rows[0].count : 0;
+    } catch (error) {
+      this.logger.error('Failed to get failed login attempts', error instanceof Error ? error : new Error(String(error)));
+      return 0;
+    }
+  }
+
+  /**
+   * Cleanup old audit entries based on retention policy.
+   * @returns Number of entries deleted.
+   */
+  async cleanupOldEntries(): Promise<number> {
+    if (!this.config.enabled) {
+      return 0;
+    }
+
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - this.config.retentionDays);
+
+      const countRows = await this.db.query<{ count: number }>(
+        'SELECT COUNT(*) as count FROM auth_audit WHERE timestamp < ?',
+        [cutoffDate]
+      );
+
+      const deletedCount = countRows.length > 0 && countRows[0] !== undefined ? countRows[0].count : 0;
+
+      await this.db.execute(
+        'DELETE FROM auth_audit WHERE timestamp < ?',
+        [cutoffDate]
+      );
+
+      this.logger.info('Cleaned up old audit entries', { count: deletedCount });
+      return deletedCount;
+    } catch (error) {
+      this.logger.error('Failed to cleanup audit entries', error instanceof Error ? error : new Error(String(error)));
+      return 0;
+    }
+  }
+
+  /**
+   * Generate a unique ID for audit entries.
+   * @returns Unique ID string.
+   */
+  private generateId(): string {
+    return `audit-${Date.now()}-${Math.random().toString(36)
+.substr(2, 9)}`;
   }
 }

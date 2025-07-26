@@ -18,6 +18,7 @@ export type LogLevelName = keyof ILogLevel;
  * Log sources for structured logging.
  */
 export enum LogSource {
+  AGENT = 'agent',
   BOOTSTRAP = 'bootstrap',
   CLI = 'cli',
   DATABASE = 'database',

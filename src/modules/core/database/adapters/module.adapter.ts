@@ -103,27 +103,34 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * Execute a statement without returning results.
    * @param sql - The SQL statement to execute.
    * @param params - Optional parameters for the statement.
-   * @returns Promise resolving when execution is complete.
+   * @returns Promise resolving to mutation result.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<void> {
+  public async execute(sql: string, params?: unknown[]): Promise<IMutationResult> {
     if (params !== undefined && params.length > ZERO) {
       const stmt = this.db.prepare(sql);
-      stmt.run(...params);
-    } else {
-      this.db.exec(sql);
+      const result = stmt.run(...params);
+      return {
+        changes: result.changes,
+        lastInsertRowid: result.lastInsertRowid
+      };
     }
-    await Promise.resolve();
+      this.db.exec(sql);
+      return {
+        changes: 0,
+        lastInsertRowid: 0
+      };
   }
 }
 
 /**
  * Creates a module database adapter from the database service.
  * @param moduleName - The name of the module requesting the adapter.
- * @param _moduleName
  * @returns A module database adapter instance.
  * @throws Error if the database is not SQLite or adapter is not available.
  */
-export const createModuleAdapter = async (_moduleName: string): Promise<IModuleDatabaseAdapter> => {
+export const createModuleAdapter = async (moduleName: string): Promise<IModuleDatabaseAdapter> => {
+  void moduleName;
+
   const dbService = DatabaseService.getInstance();
 
   await dbService.getConnection();
