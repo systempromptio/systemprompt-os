@@ -7,6 +7,7 @@ import type { Express } from 'express';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import cookieParser from 'cookie-parser';
+import { securityHeaders } from '@/server/external/middleware/security';
 
 const logger = LoggerService.getInstance();
 
@@ -23,6 +24,7 @@ const logger = LoggerService.getInstance();
 export async function setupExternalEndpoints(app: Express): Promise<void> {
   logger.info(LogSource.SERVER, 'Setting up external REST endpoints');
 
+  app.use(securityHeaders);
   app.use(cookieParser());
 
   const { configureRoutes } = await import('./routes');

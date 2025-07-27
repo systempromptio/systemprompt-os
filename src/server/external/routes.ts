@@ -11,6 +11,7 @@ import { HTTP_STATUS } from '@/server/external/constants/http.constants';
 import { createAuthMiddleware } from '@/server/external/middleware/auth';
 import { setupOAuth2Routes } from '@/server/external/rest/oauth2/index';
 import { HealthEndpoint } from '@/server/external/rest/health';
+import { StatusEndpoint } from '@/server/external/rest/status';
 import { setupRoutes as splashSetup } from '@/server/external/rest/splash';
 import { setupRoutes as authSetup } from '@/server/external/rest/auth';
 import { setupRoutes as configSetup } from '@/server/external/rest/config';
@@ -38,6 +39,8 @@ const logger = LoggerService.getInstance();
  */
 const setupPublicRoutes = (publicRouter: Router): void => {
   const healthEndpoint = new HealthEndpoint();
+  const statusEndpoint = new StatusEndpoint();
+
   publicRouter.get('/health', (req: Request, res: Response): void => {
     try {
       healthEndpoint.getHealth(req, res);
@@ -45,6 +48,19 @@ const setupPublicRoutes = (publicRouter: Router): void => {
       logger.error(LogSource.SERVER, 'Health endpoint error', {
         error: error instanceof Error ? error : new Error(String(error)),
         category: 'health',
+        persistToDb: false
+      });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
+    }
+  });
+
+  publicRouter.get('/api/status', (req: Request, res: Response): void => {
+    try {
+      statusEndpoint.getStatus(req, res);
+    } catch (error: unknown) {
+      logger.error(LogSource.SERVER, 'Status endpoint error', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'status',
         persistToDb: false
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
@@ -122,6 +138,18 @@ export const configureRoutes = (app: Express): void => {
   app.use(webRouter);
   app.use(apiRouter);
   app.use(adminRouter);
+
+  app.use((req: Request, res: Response, next: Function): void => {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({
+        error: 'Not Found',
+        message: 'The requested endpoint does not exist',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      next();
+    }
+  });
 
   logger.info(LogSource.SERVER, 'Routes configured successfully', {
     category: 'routes',

@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SQLiteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
 import type { DatabaseConfig } from '@/modules/core/database/interfaces/database.interface.js';
+import type { IDatabaseConfig } from '@/modules/core/database/types/database.types.js';
 
 // Mock better-sqlite3
 const mockDatabase = {

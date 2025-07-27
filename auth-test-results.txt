@@ -1,0 +1,779 @@
+
+> @systemprompt/os@0.1.0 test
+> vitest run tests/e2e/02-server-auth.e2e.spec.ts 2
+
+
+ RUN  v2.1.9 /var/www/html/systemprompt-os
+
+ ❯ tests/e2e/modules/core/heartbeat/heartbeat-e2e.spec.ts (0 test)
+ ❯ tests/unit/server/external/rest/oauth2/register.spec.ts (0 test)
+ ❯ tests/unit/modules/core/auth/providers/core/oauth2.spec.ts (13 tests | 3 failed) 34ms
+   × GenericOAuth2Provider > exchangeCodeForTokens > exchanges authorization code for tokens 15ms
+     → expected { …(4) } to deeply equal { …(4) }
+   × GenericOAuth2Provider > getUserInfo > fetches user info with access token 4ms
+     → expected { id: '123456', …(5) } to deeply equal { id: '123456', …(5) }
+   × GenericOAuth2Provider > refreshTokens > refreshes access token using refresh token 2ms
+     → expected { …(3) } to deeply equal { …(3) }
+ ❯ tests/unit/server/external/rest/oauth2/errors.spec.ts (32 tests | 1 failed) 34ms
+   × OAuth2 Errors > OAuth2Error Class > should have readonly properties 13ms
+     → expected true to be false // Object.is equality
+ ✓ tests/unit/server/external/rest/oauth2/userinfo.spec.ts (48 tests) 67ms
+ ❯ tests/unit/server/external/auth/providers/generic-oauth2.spec.ts (53 tests | 15 failed) 76ms
+   × GenericOAuth2Provider > Constructor > should initialize OAuth2 provider with correct properties 12ms
+     → expected 'oidc' to be 'oauth2' // Object.is equality
+   × GenericOAuth2Provider > Constructor > should set default scope when not provided 3ms
+     → expected 'email profile' to be 'openid email profile' // Object.is equality
+   × GenericOAuth2Provider > Constructor > should set default scope when scope is null 3ms
+     → expected 'email profile' to be 'openid email profile' // Object.is equality
+   × GenericOAuth2Provider > Constructor > should set default scope when scope is undefined 2ms
+     → expected 'email profile' to be 'openid email profile' // Object.is equality
+   × GenericOAuth2Provider > getAuthorizationUrl > should include nonce for OIDC provider when provided 3ms
+     → expected null to be 'test-nonce' // Object.is equality
+   × GenericOAuth2Provider > exchangeCodeForToken > should successfully exchange code for tokens 7ms
+     → expected { …(5) } to deeply equal { …(5) }
+   × GenericOAuth2Provider > getUserInfo > should successfully retrieve user info with default mapping 5ms
+     → expected { id: 'user-123', …(7) } to deeply equal { id: 'user-123', …(5) }
+   × GenericOAuth2Provider > getUserInfo > should use custom userinfo mapping when provided 2ms
+     → expected { id: 'custom-user-123', …(8) } to deeply equal { id: 'custom-user-123', …(5) }
+   × GenericOAuth2Provider > getUserInfo > should fallback to standard fields when custom mapping returns undefined 1ms
+     → expected undefined to be 'fallback@example.com' // Object.is equality
+   × GenericOAuth2Provider > getUserInfo > should return empty string for id when no fallbacks are available 1ms
+     → Unable to extract user ID from userinfo response
+   × GenericOAuth2Provider > refreshTokens > should successfully refresh tokens 1ms
+     → expected { …(5) } to deeply equal { …(4) }
+   × GenericOAuth2Provider > OIDC-specific functionality > should support OIDC-specific features 1ms
+     → expected null to be 'nonce-value' // Object.is equality
+   × GenericOAuth2Provider > OIDC-specific functionality > should include nonce in authorization URL for OIDC providers 1ms
+     → expected null to be 'test-nonce' // Object.is equality
+   × GenericOAuth2Provider > getNestedValue functionality > should handle primitive values in nested objects 1ms
+     → Unable to extract user ID from userinfo response
+   × GenericOAuth2Provider > getNestedValue functionality > should handle circular references gracefully 3ms
+     → expected undefined to be { Object (sub, circular) } // Object.is equality
+ ❯ tests/unit/server/external/rest/oauth2/well-known.spec.ts (28 tests | 15 failed) 80ms
+   × WellKnownEndpoint > constructor > should create an instance with default publicKeyJWK as null 17ms
+     → expected { kty: 'RSA', …(5) } to be null
+   × WellKnownEndpoint > getOpenIDConfiguration > should return OpenID configuration from oauth2ConfigService 2ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > getOpenIDConfiguration > should handle when authModule throws an error 6ms
+     → expected [Function] to throw error including 'Auth module not loaded' but got 'endpoint.getOpenIDConfiguration is no…'
+   × WellKnownEndpoint > getOpenIDConfiguration > should handle when oauth2ConfigService throws an error 4ms
+     → expected [Function] to throw error including 'OAuth2 config service error' but got 'endpoint.getOpenIDConfiguration is no…'
+   × WellKnownEndpoint > getOpenIDConfiguration > should handle when getOpenIDConfiguration throws an error 4ms
+     → expected [Function] to throw error including 'Configuration retrieval error' but got 'endpoint.getOpenIDConfiguration is no…'
+   × WellKnownEndpoint > getOpenIDConfiguration > should work with different request objects 2ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > getOpenIDConfiguration > should handle null/undefined config gracefully 2ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > getJWKS > should return 500 error when publicKeyJWK is null 3ms
+     → expected { kty: 'RSA', …(5) } to be null
+   × WellKnownEndpoint > OpenIDConfiguration interface > should accept valid OpenIDConfiguration objects 1ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > OpenIDConfiguration interface > should handle minimal OpenIDConfiguration objects 1ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > Edge cases and error scenarios > should handle when response.json throws an error 2ms
+     → expected [Function] to throw error including 'JSON serialization error' but got 'endpoint.getOpenIDConfiguration is no…'
+   × WellKnownEndpoint > Edge cases and error scenarios > should handle when response.status throws an error in getJWKS 2ms
+     → promise resolved "undefined" instead of rejecting
+   × WellKnownEndpoint > Edge cases and error scenarios > should handle concurrent calls to getOpenIDConfiguration 3ms
+     → endpoint.getOpenIDConfiguration is not a function
+   × WellKnownEndpoint > Property access and method binding > should maintain method binding when extracted 1ms
+     → extractedMethod is not a function
+   × WellKnownEndpoint > Property access and method binding > should handle this context correctly in arrow functions 1ms
+     → Cannot read properties of undefined (reading 'bind')
+ ❯ tests/unit/server/external/rest/oauth2/index.spec.ts (6 tests | 6 failed) 22ms
+   × setupOAuth2Routes > should setup all OAuth2 routes 8ms
+     → router.use is not a function
+   × setupOAuth2Routes > should initialize all endpoint handlers with correct parameters 8ms
+     → router.use is not a function
+   × setupOAuth2Routes > should use authMiddleware for protected routes 1ms
+     → router.use is not a function
+   × setupOAuth2Routes > should handle routes correctly when called 1ms
+     → router.use is not a function
+   × setupOAuth2Routes > should return a Promise that resolves to void 1ms
+     → router.use is not a function
+   × setupOAuth2Routes > should work with different baseUrl formats 1ms
+     → router.use is not a function
+ ❯ tests/unit/server/external/rest/oauth2/default-client.spec.ts (15 tests | 2 failed) 185ms
+   × getDefaultOAuthClient > should create new default client when none exists 45ms
+     → expected "spy" to be called with arguments: [ { …(7) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "client_id": "default-web-client",
+      "client_name": "SystemPrompt Web Client",
+      "grant_types": Array [
+        "authorization_code",
+        "refresh_token",
+      ],
+      "redirect_uris": Array [
+        "https://example.com/oauth2/callback/google",
+        "https://example.com/oauth2/callback/github",
+        "https://example.com/auth/callback",
+      ],
+      "response_types": Array [
+        "code",
+      ],
+-     "scope": "openid profile email",
++     "scope": "profile email",
+      "token_endpoint_auth_method": "none",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × getDefaultOAuthClient > should create new client with all required registration fields 7ms
+     → expected "spy" to be called with arguments: [ { …(7) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "client_id": "default-web-client",
+      "client_name": "SystemPrompt Web Client",
+      "grant_types": Array [
+        "authorization_code",
+        "refresh_token",
+      ],
+      "redirect_uris": Array [
+        "https://example.com/oauth2/callback/google",
+        "https://example.com/oauth2/callback/github",
+        "https://example.com/auth/callback",
+      ],
+      "response_types": Array [
+        "code",
+      ],
+-     "scope": "openid profile email",
++     "scope": "profile email",
+      "token_endpoint_auth_method": "none",
+    },
+  ]
+
+
+Number of calls: 1
+
+ ❯ tests/e2e/02-server-auth.e2e.spec.ts (19 tests | 12 failed) 149ms
+   × [02] Server Auth Domain > OAuth2 Authorization Flow > should reject authorization request without client_id 13ms
+     → expected { error: 'invalid_request', …(1) } to have property "error_description"
+   × [02] Server Auth Domain > OAuth2 Authorization Flow > should reject authorization request without response_type 6ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × [02] Server Auth Domain > OAuth2 Authorization Flow > should reject unsupported response_type 7ms
+     → expected { error: 'invalid_request', …(1) } to have property "error" with value 'unsupported_response_type'
+   × [02] Server Auth Domain > OAuth2 Authorization Flow > should show IDP selection for valid authorization request 7ms
+     → expected 400 to be 200 // Object.is equality
+   × [02] Server Auth Domain > OAuth2 Authorization Flow > should handle IDP selection and redirect 6ms
+     → expected 400 to be 302 // Object.is equality
+   × [02] Server Auth Domain > OAuth2 Token Endpoint > should reject token request without grant_type 7ms
+     → expected '[\n  {\n    "expected": "\'authorizat…' to contain 'grant_type'
+   × [02] Server Auth Domain > OAuth2 Token Endpoint > should reject unsupported grant_type 9ms
+     → expected { error: 'invalid_request', …(1) } to have property "error" with value 'unsupported_grant_type'
+   × [02] Server Auth Domain > OAuth2 Token Endpoint > should reject invalid authorization code 6ms
+     → expected { error: 'invalid_request', …(1) } to have property "error" with value 'invalid_grant'
+   × [02] Server Auth Domain > OAuth2 Token Endpoint > should handle refresh_token grant type 6ms
+     → expected { error: 'invalid_request', …(1) } to have property "error" with value 'invalid_grant'
+   × [02] Server Auth Domain > Authorization Callback > should handle OAuth callback with error 5ms
+     → expected 302 to be 400 // Object.is equality
+   × [02] Server Auth Domain > Authorization Callback > should validate state parameter in callback 7ms
+     → expected 302 to be 400 // Object.is equality
+   × [02] Server Auth Domain > Security Headers > should include security headers on auth endpoints 8ms
+     → expected { 'x-powered-by': 'Express', …(8) } to have property "x-frame-options" with value 'DENY'
+ ❯ tests/e2e/mcp-tool-api.spec.ts (7 tests | 7 failed) 51ms
+   × MCP Tool API E2E Tests > Tool Listing Flow > should show different tools based on user role 14ms
+     → Logger initialization failed: Logger not initialized
+   × MCP Tool API E2E Tests > Tool Execution Flow > should enforce permissions throughout tool execution 3ms
+     → Logger initialization failed: Logger not initialized
+   × MCP Tool API E2E Tests > Tool Execution Flow > should handle tool errors gracefully 15ms
+     → expected [Function] to throw error including 'Unknown tool: nonexistent-tool' but got 'Logger initialization failed: Logger …'
+   × MCP Tool API E2E Tests > Audit Trail > should create comprehensive audit logs 3ms
+     → Logger initialization failed: Logger not initialized
+   × MCP Tool API E2E Tests > Performance > should handle concurrent requests efficiently 8ms
+     → Target cannot be null or undefined.
+   × MCP Tool API E2E Tests > Integration with Permission System > should respect custom permissions 1ms
+     → Logger initialization failed: Logger not initialized
+   × MCP Tool API E2E Tests > Error Recovery > should handle and log various error conditions 3ms
+     → expected 'Logger initialization failed: Logger …' to contain 'Session ID is required'
+ ❯ tests/unit/server/external/rest/oauth2/token.spec.ts (0 test)
+ ❯ tests/unit/server/external/rest/oauth2/protected-resource.spec.ts (0 test)
+ ❯ tests/unit/server/external/rest/oauth2/authorization-server.spec.ts (16 tests | 15 failed) 47ms
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should successfully return authorization server metadata 9ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle different metadata configurations 10ms
+     → expected "spy" to be called with arguments: [ { …(9) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "authorization_endpoint": "https://alternative.example.com/auth",
+-     "grant_types_supported": Array [
+-       "authorization_code",
+-     ],
+-     "issuer": "https://alternative.example.com",
+-     "jwks_uri": "https://alternative.example.com/jwks",
+-     "response_types_supported": Array [
+-       "code",
+-     ],
+-     "scopes_supported": Array [
+-       "openid",
+-       "profile",
+-     ],
+-     "token_endpoint": "https://alternative.example.com/token",
+-     "token_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-     ],
+-     "userinfo_endpoint": "https://alternative.example.com/userinfo",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle metadata with minimal required fields only 2ms
+     → expected "spy" to be called with arguments: [ { …(5) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "authorization_endpoint": "https://minimal.example.com/oauth2/authorize",
+-     "issuer": "https://minimal.example.com",
+-     "jwks_uri": "https://minimal.example.com/.well-known/jwks.json",
+-     "response_types_supported": Array [
+-       "code",
+-     ],
+-     "token_endpoint": "https://minimal.example.com/oauth2/token",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle metadata with all optional fields populated 3ms
+     → expected "spy" to be called with arguments: [ { …(25) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "acr_values_supported": Array [
+-       "1",
+-       "2",
+-     ],
+-     "authorization_endpoint": "https://test.example.com/oauth2/authorize",
+-     "claims_supported": Array [
+-       "sub",
+-       "iss",
+-       "aud",
+-       "exp",
+-       "iat",
+-       "name",
+-       "preferred_username",
+-       "email",
+-       "email_verified",
+-       "agent_id",
+-       "agent_type",
+-     ],
+-     "code_challenge_methods_supported": Array [
+-       "S256",
+-       "plain",
+-     ],
+-     "grant_types_supported": Array [
+-       "authorization_code",
+-       "refresh_token",
+-     ],
+-     "id_token_signing_alg_values_supported": Array [
+-       "RS256",
+-       "HS256",
+-     ],
+-     "introspection_endpoint": "https://test.example.com/oauth2/introspect",
+-     "introspection_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-     ],
+-     "issuer": "https://test.example.com",
+-     "jwks_uri": "https://test.example.com/.well-known/jwks.json",
+-     "op_policy_uri": "https://test.example.com/policy",
+-     "op_tos_uri": "https://test.example.com/tos",
+-     "registration_endpoint": "https://test.example.com/oauth2/register",
+-     "response_modes_supported": Array [
+-       "query",
+-       "fragment",
+-     ],
+-     "response_types_supported": Array [
+-       "code",
+-       "code id_token",
+-     ],
+-     "revocation_endpoint": "https://test.example.com/oauth2/revoke",
+-     "revocation_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-     ],
+-     "scopes_supported": Array [
+-       "openid",
+-       "profile",
+-       "email",
+-       "offline_access",
+-       "agent",
+-     ],
+-     "service_documentation": "https://test.example.com/docs/api",
+-     "subject_types_supported": Array [
+-       "public",
+-     ],
+-     "token_endpoint": "https://test.example.com/oauth2/token",
+-     "token_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-       "client_secret_post",
+-       "none",
+-     ],
+-     "token_endpoint_auth_signing_alg_values_supported": Array [
+-       "RS256",
+-       "HS256",
+-     ],
+-     "ui_locales_supported": Array [
+-       "en",
+-       "es",
+-       "fr",
+-     ],
+-     "userinfo_endpoint": "https://test.example.com/oauth2/userinfo",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from auth module not being loaded 2ms
+     → expected [Function] to throw an error
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from oauth2ConfigService being undefined 1ms
+     → expected [Function] to throw an error
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from oauth2ConfigService method failure 1ms
+     → expected [Function] to throw an error
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle response.json method throwing an error 2ms
+     → expected "spy" to be called 1 times, but got 0 times
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should validate interface compliance with IOAuth2ServerMetadataInternal 1ms
+     → expected { error: 'Method not allowed' } to have property "issuer"
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle empty arrays in metadata 1ms
+     → expected "spy" to be called with arguments: [ { …(8) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "authorization_endpoint": "https://empty.example.com/oauth2/authorize",
+-     "claims_supported": Array [],
+-     "grant_types_supported": Array [],
+-     "issuer": "https://empty.example.com",
+-     "jwks_uri": "https://empty.example.com/.well-known/jwks.json",
+-     "response_types_supported": Array [],
+-     "scopes_supported": Array [],
+-     "token_endpoint": "https://empty.example.com/oauth2/token",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should preserve exact metadata structure without modification 1ms
+     → expected "spy" to be called with arguments: [ { …(16) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "authorization_endpoint": "https://test.example.com/oauth2/authorize",
+-     "claims_supported": Array [
+-       "sub",
+-       "iss",
+-       "aud",
+-       "exp",
+-       "iat",
+-       "name",
+-       "preferred_username",
+-       "email",
+-       "email_verified",
+-       "agent_id",
+-       "agent_type",
+-     ],
+-     "code_challenge_methods_supported": Array [
+-       "S256",
+-       "plain",
+-     ],
+-     "grant_types_supported": Array [
+-       "authorization_code",
+-       "refresh_token",
+-     ],
+-     "id_token_signing_alg_values_supported": Array [
+-       "RS256",
+-       "HS256",
+-     ],
+-     "issuer": "https://test.example.com",
+-     "jwks_uri": "https://test.example.com/.well-known/jwks.json",
+-     "registration_endpoint": "https://test.example.com/oauth2/register",
+-     "response_modes_supported": Array [
+-       "query",
+-       "fragment",
+-     ],
+-     "response_types_supported": Array [
+-       "code",
+-       "code id_token",
+-     ],
+-     "scopes_supported": Array [
+-       "openid",
+-       "profile",
+-       "email",
+-       "offline_access",
+-       "agent",
+-     ],
+-     "service_documentation": "https://test.example.com/docs/api",
+-     "subject_types_supported": Array [
+-       "public",
+-     ],
+-     "token_endpoint": "https://test.example.com/oauth2/token",
+-     "token_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-       "client_secret_post",
+-       "none",
+-     ],
+-     "userinfo_endpoint": "https://test.example.com/oauth2/userinfo",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > getAuthorizationServerMetadata > should work with different request types 3ms
+     → expected "spy" to be called with arguments: [ { …(16) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+-     "authorization_endpoint": "https://test.example.com/oauth2/authorize",
+-     "claims_supported": Array [
+-       "sub",
+-       "iss",
+-       "aud",
+-       "exp",
+-       "iat",
+-       "name",
+-       "preferred_username",
+-       "email",
+-       "email_verified",
+-       "agent_id",
+-       "agent_type",
+-     ],
+-     "code_challenge_methods_supported": Array [
+-       "S256",
+-       "plain",
+-     ],
+-     "grant_types_supported": Array [
+-       "authorization_code",
+-       "refresh_token",
+-     ],
+-     "id_token_signing_alg_values_supported": Array [
+-       "RS256",
+-       "HS256",
+-     ],
+-     "issuer": "https://test.example.com",
+-     "jwks_uri": "https://test.example.com/.well-known/jwks.json",
+-     "registration_endpoint": "https://test.example.com/oauth2/register",
+-     "response_modes_supported": Array [
+-       "query",
+-       "fragment",
+-     ],
+-     "response_types_supported": Array [
+-       "code",
+-       "code id_token",
+-     ],
+-     "scopes_supported": Array [
+-       "openid",
+-       "profile",
+-       "email",
+-       "offline_access",
+-       "agent",
+-     ],
+-     "service_documentation": "https://test.example.com/docs/api",
+-     "subject_types_supported": Array [
+-       "public",
+-     ],
+-     "token_endpoint": "https://test.example.com/oauth2/token",
+-     "token_endpoint_auth_methods_supported": Array [
+-       "client_secret_basic",
+-       "client_secret_post",
+-       "none",
+-     ],
+-     "userinfo_endpoint": "https://test.example.com/oauth2/userinfo",
++     "error": "Method not allowed",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × AuthorizationServerEndpoint > error boundary coverage > should handle auth module exports being null 2ms
+     → expected [Function] to throw an error
+   × AuthorizationServerEndpoint > error boundary coverage > should handle auth module exports being undefined 1ms
+     → expected [Function] to throw an error
+   × AuthorizationServerEndpoint > error boundary coverage > should handle oauth2ConfigService method being undefined 1ms
+     → expected [Function] to throw an error
+ ❯ tests/unit/server/external/rest/oauth2/authorize.spec.ts (18 tests | 14 failed) 54ms
+   × OAuth2 Authorize Endpoint > getAuthorize > without provider parameter > should display authorization consent form with valid parameters 16ms
+     → expected "spy" to be called with arguments: [ 'html' ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × OAuth2 Authorize Endpoint > getAuthorize > without provider parameter > should handle missing required parameters 7ms
+     → expected "spy" to be called with arguments: [ { error: 'invalid_request', …(1) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "error": "invalid_request",
+-     "message": Any<String>,
++     "error_description": "client_id is required",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > getAuthorize > without provider parameter > should handle invalid responseType 3ms
+     → expected "spy" to be called with arguments: [ { error: 'invalid_request', …(1) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "error": "invalid_request",
+-     "message": Any<String>,
++     "error_description": "client_id is required",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > getAuthorize > with provider parameter > should redirect to Google provider with state 2ms
+     → expected "spy" to be called with arguments: [ Any<String> ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × OAuth2 Authorize Endpoint > getAuthorize > with provider parameter > should handle case insensitive provider names 1ms
+     → expected "spy" to be called with arguments: [ 'google' ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × OAuth2 Authorize Endpoint > getAuthorize > with provider parameter > should handle unknown provider 2ms
+     → expected "spy" to be called with arguments: [ 500 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   500,
++   400,
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > getAuthorize > error handling > should handle server errors during HTML generation 2ms
+     → expected "spy" to be called with arguments: [ 500 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   500,
++   400,
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > getAuthorize > error handling > should handle non-Error exceptions 1ms
+     → expected "spy" to be called with arguments: [ 500 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   500,
++   400,
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > postAuthorize > authorization denial > should handle denial with missing redirectUri 1ms
+     → expected "spy" to be called with arguments: [ { error: 'server_error', …(1) } ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+    Object {
+      "error": "server_error",
+-     "message": "Internal server error",
++     "error_description": "Internal server error",
+    },
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > postAuthorize > authorization approval > should handle authorization approval with valid user 1ms
+     → expected "spy" to be called with arguments: [ { clientId: 'test-client', …(5) } ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × OAuth2 Authorize Endpoint > postAuthorize > authorization approval > should handle missing user authentication 2ms
+     → expected "spy" to be called with arguments: [ 500 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   500,
++   400,
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > handleProviderCallback > successful callback handling > should handle provider callback with authorization code 2ms
+     → expected "spy" to be called with arguments: [ 'provider-auth-code' ]
+
+Received: 
+
+
+
+Number of calls: 0
+
+   × OAuth2 Authorize Endpoint > handleProviderCallback > error handling > should handle provider callback error 2ms
+     → expected "spy" to be called with arguments: [ StringContaining{…} ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   StringContaining "User denied access",
++   "
++     <html>
++     <body>
++       <h1>Authentication Failed</h1>
++       <p>Error: access_denied</p>
++       
++     </body>
++     </html>
++   ",
+  ]
+
+
+Number of calls: 1
+
+   × OAuth2 Authorize Endpoint > handleProviderCallback > error handling > should handle unknown provider 1ms
+     → expected "spy" to be called with arguments: [ StringContaining{…} ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   StringContaining "Unknown provider: unknown",
++   "
++     <html>
++     <body>
++       <h1>Authentication Error</h1>
++       <p>An error occurred during authentication. Please try again.</p>
++       <p>Auth module not found in registry</p>
++     </body>
++     </html>
++   ",
+  ]
+
+
+Number of calls: 1
+
+ ❯ tests/e2e/mcp-tool-permissions.spec.ts (13 tests | 13 failed) 723ms
+   × MCP Tool Permissions E2E > Tool Listing > should return check-status tool for admin session 27ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Listing > should return empty tool list for basic session 5ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Listing > should return empty tool list without session 4ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Execution > should allow admin to execute check-status tool 3ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Execution > should deny basic user from executing check-status tool 4ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Execution > should return error for unknown tool 4ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Execution > should require session for tool execution 6ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Arguments > should accept valid arguments for check-status 7ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Tool Arguments > should handle invalid argument types 6ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Security Headers > should not expose internal metadata in tool list 6ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Rate Limiting > should handle multiple rapid requests 25ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Error Handling > should handle malformed JSON-RPC requests 3ms
+     → expected 302 to be 200 // Object.is equality
+   × MCP Tool Permissions E2E > Error Handling > should handle invalid method names 2ms
+     → expected 302 to be 200 // Object.is equality
+ ✓ tests/e2e/tunnel/cloudflared-tunnel.spec.ts (4 tests) 7404ms
+   ✓ Cloudflared Tunnel E2E Tests > should start cloudflared tunnel in Docker and expose local service 5765ms
+
+ Test Files  15 failed | 2 passed (17)
+      Tests  103 failed | 169 passed (272)
+   Start at  14:26:54
+   Duration  8.87s (transform 7.25s, setup 1.14s, collect 10.52s, tests 8.93s, environment 8ms, prepare 3.58s)
+

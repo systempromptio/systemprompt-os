@@ -17,9 +17,9 @@ import { ensureDatabaseInitialized } from '@/modules/core/database/cli/utils';
 // Mock console methods
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
-  throw new Error(`Process exited with code ${code}`);
-});
+const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+  throw new Error(`process.exit unexpectedly called with "${code}"`);
+}) as typeof process.exit);
 
 describe('database:migrate command', () => {
   let mockDbService: any;
@@ -46,8 +46,11 @@ describe('database:migrate command', () => {
     });
     
     mockContext = {
+      cwd: '/test',
       args: {},
+      flags: {},
       options: {},
+      env: {},
       stdin: null,
       stdout: process.stdout,
       stderr: process.stderr
@@ -90,7 +93,7 @@ describe('database:migrate command', () => {
     it('should exit if database is not initialized', async () => {
       mockDbService.isInitialized.mockResolvedValue(false);
       
-      await expect(command.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+      await expect(command.execute(mockContext)).rejects.toThrow('process.exit unexpectedly called with "1"');
       
       expect(mockConsoleError).toHaveBeenCalledWith(
         "Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize."
@@ -119,6 +122,7 @@ describe('database:migrate command', () => {
       ];
       
       mockMigrationService.getPendingMigrations.mockResolvedValue(allMigrations);
+      mockMigrationService.executeMigration = vi.fn().mockResolvedValue(undefined);
       mockContext.args.module = 'auth';
       
       await command.execute(mockContext);
@@ -173,7 +177,7 @@ describe('database:migrate command', () => {
       mockMigrationService.executeMigration = vi.fn()
         .mockRejectedValueOnce(new Error('Migration failed'));
       
-      await expect(command.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+      await expect(command.execute(mockContext)).rejects.toThrow('process.exit unexpectedly called with "1"');
       
       expect(mockConsoleError).toHaveBeenCalledWith('  ✗ Failed: Migration failed');
       expect(mockConsoleError).toHaveBeenCalledWith('\nSome migrations failed. Database may be in an inconsistent state.');
@@ -191,7 +195,7 @@ describe('database:migrate command', () => {
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(new Error('Failed'));
       
-      await expect(command.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+      await expect(command.execute(mockContext)).rejects.toThrow('process.exit unexpectedly called with "1"');
       
       expect(mockConsoleLog).toHaveBeenCalledWith('\nMigration summary:');
       expect(mockConsoleLog).toHaveBeenCalledWith('  Successful: 1');
@@ -201,7 +205,7 @@ describe('database:migrate command', () => {
     it('should handle errors during command execution', async () => {
       vi.mocked(ensureDatabaseInitialized).mockRejectedValue(new Error('Initialization failed'));
       
-      await expect(command.execute(mockContext)).rejects.toThrow('Process exited with code 1');
+      await expect(command.execute(mockContext)).rejects.toThrow('process.exit unexpectedly called with "1"');
       
       expect(mockConsoleError).toHaveBeenCalledWith('Error running migrations:', 'Initialization failed');
     });

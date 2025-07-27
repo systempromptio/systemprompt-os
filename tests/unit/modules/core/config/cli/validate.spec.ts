@@ -77,9 +77,7 @@ describe('validate CLI command', () => {
       await command.execute({});
       
       expect(ConfigModule).toHaveBeenCalled();
-      expect(mockConfigModule.initialize).toHaveBeenCalledWith({ 
-        config: { configPath: './state/config' } 
-      });
+      expect(mockConfigModule.initialize).toHaveBeenCalledWith();
       
       const output = consoleOutput.join('\n');
       expect(output).toContain('Validating Configuration...');
@@ -463,6 +461,28 @@ describe('validate CLI command', () => {
       expect(output).toContain('Default Provider: provider1');
       expect(output).not.toContain('Environment:');
       expect(output).not.toContain('Server:'); // Missing port means no server info
+    });
+
+    it('displays summary with empty provider arrays (should fail validation)', async () => {
+      // This test will fail validation because default provider is not in enabled array
+      // but it shows the logic path where arrays are empty
+      const configWithEmptyArrays = {
+        defaults: validConfig.defaults,
+        providers: {
+          available: [], // Empty array - should pass array check
+          enabled: [], // Empty array - should pass array check 
+          default: 'some-default' // Valid string but not in enabled array
+        }
+      };
+      
+      mockConfigModule.get.mockReturnValue(configWithEmptyArrays);
+      
+      await expect(command.execute({}))
+        .rejects.toThrow('Process exited');
+      
+      const errorOutput = consoleErrorOutput.join('\n');
+      expect(errorOutput).toContain('✗ Configuration is invalid!');
+      expect(errorOutput).toContain("Default provider 'some-default' is not enabled");
     });
   });
 });

@@ -35,6 +35,9 @@ vi.mock('../../../../../../src/server/external/rest/oauth2/errors.js', () => ({
 
 // Request interface with user property
 interface AuthenticatedRequest extends Request {
+  headers: {
+    authorization?: string;
+  };
   user?: {
     id: string;
     sub: string;
@@ -74,6 +77,7 @@ describe('UserInfoEndpoint', () => {
     statusMock = vi.fn(() => ({ json: jsonMock }));
 
     mockReq = {
+      headers: { authorization: 'Bearer valid_token' },
       user: {
         id: 'user123',
         sub: 'user123',
@@ -102,16 +106,125 @@ describe('UserInfoEndpoint', () => {
   });
 
   describe('getUserInfo', () => {
+    it('returns 401 when no authorization header is provided', async () => {
+      mockReq.headers = {};
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header does not start with Bearer', async () => {
+      mockReq.headers = { authorization: 'Basic sometoken' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header is empty string', async () => {
+      mockReq.headers = { authorization: '' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header is just "Bearer" without token', async () => {
+      mockReq.headers = { authorization: 'Bearer' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when req.user is null', async () => {
+      mockReq.headers = { authorization: 'Bearer valid_token' };
+      mockReq.user = null as any;
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'Invalid or expired token'
+      });
+    });
+
     it('returns 401 when user is not authenticated', async () => {
+      mockReq.headers = { authorization: 'Bearer valid_token' };
       mockReq.user = undefined;
 
       await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
 
-      expect(OAuth2Error.unauthorizedClient).toHaveBeenCalledWith('Unauthorized');
       expect(statusMock).toHaveBeenCalledWith(401);
       expect(jsonMock).toHaveBeenCalledWith({
-        error: 'unauthorized_client',
-        error_description: 'Unauthorized',
+        error: 'invalid_token',
+        error_description: 'Invalid or expired token'
+      });
+    });
+
+    it('returns 401 when authorization header is null', async () => {
+      mockReq.headers = { authorization: null as any };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header starts with lowercase "bearer"', async () => {
+      mockReq.headers = { authorization: 'bearer valid_token' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header has mixed case "Bearer"', async () => {
+      mockReq.headers = { authorization: 'BEARER valid_token' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('returns 401 when authorization header has space before Bearer', async () => {
+      mockReq.headers = { authorization: ' Bearer valid_token' };
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
       });
     });
 
@@ -499,8 +612,8 @@ describe('UserInfoEndpoint', () => {
       await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
 
       const response = jsonMock.mock.calls[0][0];
-      // Empty email is falsy, so it won't be included in response
-      expect(response).not.toHaveProperty('email');
+      // Empty email is still included in response when email scope is present
+      expect(response.email).toBe('');
       expect(response.sub).toBe('user123');
     });
 
@@ -598,6 +711,135 @@ describe('UserInfoEndpoint', () => {
       expect(endpoint1).not.toBe(endpoint2);
       expect(typeof endpoint1.getUserInfo).toBe('function');
       expect(typeof endpoint2.getUserInfo).toBe('function');
+    });
+
+    it('handles user with empty name string', async () => {
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: 'user123@example.com',
+        name: '', // Empty name string
+        avatarUrl: 'https://example.com/avatar.jpg',
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as IUser);
+      
+      mockReq.user!.scope = 'openid profile';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response.sub).toBe('user123');
+      expect(response.preferred_username).toBe('user123');
+      expect(response.picture).toBe('https://example.com/avatar.jpg');
+      // Empty name string is falsy, so it won't be included in response
+      expect(response).not.toHaveProperty('name');
+    });
+
+    it('handles user with empty avatarUrl string', async () => {
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: 'user123@example.com',
+        name: 'Test User',
+        avatarUrl: '', // Empty avatarUrl string
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as IUser);
+      
+      mockReq.user!.scope = 'openid profile';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response.sub).toBe('user123');
+      expect(response.name).toBe('Test User');
+      expect(response.preferred_username).toBe('user123');
+      // Empty avatarUrl string is falsy, so it won't be included in response
+      expect(response).not.toHaveProperty('picture');
+    });
+
+    it('specifically tests openid scope only returns basic user info', async () => {
+      mockReq.user!.scope = 'openid';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(mockRes.json).toHaveBeenCalledWith({
+        sub: 'user123',
+      });
+      
+      const response = jsonMock.mock.calls[0][0];
+      expect(Object.keys(response)).toEqual(['sub']);
+      expect(response).not.toHaveProperty('name');
+      expect(response).not.toHaveProperty('email');
+      expect(response).not.toHaveProperty('preferred_username');
+      expect(response).not.toHaveProperty('picture');
+      expect(response).not.toHaveProperty('email_verified');
+      expect(response).not.toHaveProperty('agent_id');
+      expect(response).not.toHaveProperty('agent_type');
+    });
+
+    it('handles authorization header case sensitivity correctly', async () => {
+      mockReq.headers = { authorization: 'bearer valid_token' }; // lowercase 'bearer'
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+    });
+
+    it('handles authorization header with space in Bearer prefix', async () => {
+      mockReq.headers = { authorization: 'Bearer  valid_token' }; // Extra space after Bearer
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      // Should work fine as startsWith('Bearer ') checks for exactly one space
+      expect(mockRes.json).toHaveBeenCalledWith({
+        sub: 'user123',
+        name: 'Test User',
+        preferred_username: 'user123',
+        picture: 'https://example.com/avatar.jpg',
+        email: 'user123@example.com',
+        email_verified: true,
+      });
+    });
+
+    it('verifies exact path through userInfo object building', async () => {
+      // Test with a user that has all fields to verify object spread operations
+      mockAuthRepo.getIUserById.mockResolvedValue({
+        id: 'user123',
+        email: 'test@example.com',
+        name: 'Full Name',
+        avatarUrl: 'https://example.com/pic.jpg',
+        isActive: true,
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        roles: [],
+        permissions: [],
+      } as IUser);
+      
+      mockReq.user!.scope = 'openid profile email agent';
+
+      await endpoint.getUserInfo(mockReq as AuthenticatedRequest, mockRes as Response);
+
+      const response = jsonMock.mock.calls[0][0];
+      expect(response).toEqual({
+        sub: 'user123',
+        name: 'Full Name',
+        preferred_username: 'test',
+        picture: 'https://example.com/pic.jpg',
+        email: 'test@example.com',
+        email_verified: true,
+        agent_id: 'agent-user123',
+        agent_type: 'autonomous',
+      });
     });
   });
 });

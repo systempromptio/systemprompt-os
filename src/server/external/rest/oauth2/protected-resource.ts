@@ -15,6 +15,13 @@ import type {
 } from '@/modules/core/auth/types/oauth2.types';
 
 /**
+ * Type alias for protected resource metadata returned by the endpoint.
+ * This is the same as IOAuth2ProtectedResourceMetadataInternal but exported
+ * for use in tests and other modules.
+ */
+export type ProtectedResourceMetadata = IOAuth2ProtectedResourceMetadataInternal;
+
+/**
  * Protected Resource Endpoint handler.
  * Provides OAuth 2.0 protected resource metadata following RFC 9728.
  */

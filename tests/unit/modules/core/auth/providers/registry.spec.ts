@@ -10,6 +10,9 @@ import { parse as parseYaml } from 'yaml';
 // Mock dependencies
 vi.mock('fs');
 vi.mock('yaml');
+
+// Mock global fetch for OIDC discovery
+global.fetch = vi.fn();
 vi.mock('../../../../../../src/modules/core/auth/providers/core/oauth2', () => {
   return {
     GenericOAuth2Provider: vi.fn().mockImplementation((config) => {
@@ -72,6 +75,21 @@ describe('ProviderRegistry', () => {
 
   afterEach(() => {
     vi.resetAllMocks();
+  });
+
+  describe('constructor', () => {
+    it('should initialize with logger', () => {
+      const registryWithLogger = new ProviderRegistry(configPath, mockLogger);
+      expect(registryWithLogger).toBeDefined();
+      // Verify private properties are set correctly
+      expect(registryWithLogger.hasProvider('any')).toBe(false);
+    });
+
+    it('should initialize without logger', () => {
+      const registryWithoutLogger = new ProviderRegistry(configPath);
+      expect(registryWithoutLogger).toBeDefined();
+      expect(registryWithoutLogger.hasProvider('any')).toBe(false);
+    });
   });
 
   describe('initialize', () => {
@@ -168,6 +186,64 @@ credentials:
       await registry.initialize();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(`Providers directory not found: ${configPath}/providers`);
+    });
+
+    it('should skip disabled providers', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['disabled.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('disabled config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'disabled-provider',
+        name: 'Disabled Provider',
+        type: 'oauth2',
+        enabled: false,
+        endpoints: {
+          authorization: 'https://disabled.com/auth',
+          token: 'https://disabled.com/token'
+        },
+        credentials: {
+          client_id: 'disabled-id',
+          client_secret: 'disabled-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      // Should not load disabled provider
+      expect(registry.hasProvider('disabled-provider')).toBe(false);
+      expect(registry.getProvider('disabled-provider')).toBeUndefined();
+    });
+
+    it('should skip providers with empty credentials', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['empty-creds.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('empty creds config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'empty-creds-provider',
+        name: 'Empty Creds Provider',
+        type: 'oauth2',
+        endpoints: {
+          authorization: 'https://empty.com/auth',
+          token: 'https://empty.com/token'
+        },
+        credentials: {
+          client_id: '',
+          client_secret: '',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      // Should not load provider with empty credentials
+      expect(registry.hasProvider('empty-creds-provider')).toBe(false);
     });
   });
 
@@ -387,6 +463,96 @@ credentials:
 
     it('should return false for non-existent provider', () => {
       expect(registry.hasProvider('non-existent')).toBe(false);
+    });
+  });
+
+  describe('listProviderIds', () => {
+    it('should return array of provider IDs', async () => {
+      const { GenericOAuth2Provider } = await import('../../../../../../src/modules/core/auth/providers/core/oauth2');
+      
+      const mockProvider1 = {
+        id: 'provider1',
+        name: 'Provider 1',
+        type: 'oauth2' as const,
+        getAuthorizationUrl: vi.fn(),
+        handleCallback: vi.fn(),
+        refreshAccessToken: vi.fn()
+      };
+      
+      const mockProvider2 = {
+        id: 'provider2',
+        name: 'Provider 2',
+        type: 'oauth2' as const,
+        getAuthorizationUrl: vi.fn(),
+        handleCallback: vi.fn(),
+        refreshAccessToken: vi.fn()
+      };
+      
+      vi.mocked(GenericOAuth2Provider).mockImplementation((config: any) => {
+        if (config.id === 'provider1') return mockProvider1;
+        if (config.id === 'provider2') return mockProvider2;
+        return mockProvider1;
+      });
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider1.yaml', 'provider2.yaml'];
+      });
+      
+      vi.mocked(readFileSync).mockImplementation((path: any) => {
+        if (path.includes('provider1')) return 'config 1';
+        if (path.includes('provider2')) return 'config 2';
+        return '';
+      });
+      
+      vi.mocked(parseYaml).mockImplementation((content: any) => {
+        if (content.includes('1')) {
+          return {
+            id: 'provider1',
+            type: 'oauth2',
+            enabled: true,
+            endpoints: {
+              authorization: 'https://provider1.com/auth',
+              token: 'https://provider1.com/token'
+            },
+            credentials: {
+              client_id: 'provider1-client',
+              client_secret: 'provider1-secret',
+              redirect_uri: 'http://localhost:3000/callback'
+            }
+          };
+        }
+        if (content.includes('2')) {
+          return {
+            id: 'provider2',
+            type: 'oauth2',
+            enabled: true,
+            endpoints: {
+              authorization: 'https://provider2.com/auth',
+              token: 'https://provider2.com/token'
+            },
+            credentials: {
+              client_id: 'provider2-client',
+              client_secret: 'provider2-secret',
+              redirect_uri: 'http://localhost:3000/callback'
+            }
+          };
+        }
+        return {};
+      });
+
+      await registry.initialize();
+
+      const providerIds = registry.listProviderIds();
+      expect(providerIds).toHaveLength(2);
+      expect(providerIds).toContain('provider1');
+      expect(providerIds).toContain('provider2');
+    });
+
+    it('should return empty array when no providers exist', () => {
+      const providerIds = registry.listProviderIds();
+      expect(providerIds).toEqual([]);
     });
   });
 
@@ -634,6 +800,629 @@ credentials:
       await registry.initialize();
 
       expect(GenericOAuth2Provider).toHaveBeenCalled();
+    });
+  });
+
+  describe('reload', () => {
+    it('should clear and reinitialize providers', async () => {
+      // First, load some providers
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider1.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'provider1',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://provider1.com/auth',
+          token: 'https://provider1.com/token'
+        },
+        credentials: {
+          client_id: 'provider1-client',
+          client_secret: 'provider1-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+      
+      // Verify provider exists
+      expect(registry.hasProvider('provider1')).toBe(true);
+      expect(registry.listProviderIds()).toHaveLength(1);
+
+      // Now simulate different files for reload
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider2.yaml'];
+      });
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'provider2',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://provider2.com/auth',
+          token: 'https://provider2.com/token'
+        },
+        credentials: {
+          client_id: 'provider2-client',
+          client_secret: 'provider2-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.reload();
+
+      // Old provider should be gone, new one loaded
+      expect(registry.hasProvider('provider1')).toBe(false);
+      expect(registry.hasProvider('provider2')).toBe(true);
+      expect(registry.listProviderIds()).toHaveLength(1);
+      expect(registry.listProviderIds()).toContain('provider2');
+    });
+
+    it('should handle reload errors gracefully', async () => {
+      // First load a provider successfully
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider1.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'provider1',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://provider1.com/auth',
+          token: 'https://provider1.com/token'
+        },
+        credentials: {
+          client_id: 'provider1-client',
+          client_secret: 'provider1-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+      expect(registry.hasProvider('provider1')).toBe(true);
+
+      // Simulate error during reload
+      vi.mocked(readFileSync).mockImplementation(() => {
+        throw new Error('File read error');
+      });
+
+      await registry.reload();
+
+      // All providers should be cleared, error should be logged
+      expect(registry.hasProvider('provider1')).toBe(false);
+      expect(registry.listProviderIds()).toHaveLength(0);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load provider config'),
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('credential validation and auto-enabling', () => {
+    it('should auto-enable provider with valid credentials', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['valid-creds.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('valid config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'valid-provider',
+        type: 'oauth2',
+        // enabled is not set, should be auto-enabled due to valid credentials
+        endpoints: {
+          authorization: 'https://valid.com/auth',
+          token: 'https://valid.com/token'
+        },
+        credentials: {
+          client_id: 'valid-client-id',
+          client_secret: 'valid-client-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      const config = registry.getProviderConfig('valid-provider');
+      expect(config?.enabled).toBe(true);
+      expect(registry.hasProvider('valid-provider')).toBe(true);
+    });
+
+    it('should not auto-enable provider with whitespace-only credentials', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['whitespace-creds.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('whitespace config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'whitespace-provider',
+        type: 'oauth2',
+        endpoints: {
+          authorization: 'https://whitespace.com/auth',
+          token: 'https://whitespace.com/token'
+        },
+        credentials: {
+          client_id: '   ',  // Only whitespace
+          client_secret: '\t\n',  // Only whitespace
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(registry.hasProvider('whitespace-provider')).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Skipping provider config')
+      );
+    });
+  });
+
+  describe('OIDC discovery functionality', () => {
+    beforeEach(() => {
+      vi.mocked(fetch).mockClear();
+    });
+
+    it('should successfully enrich provider with OIDC discovery', async () => {
+      const mockDiscoveryResponse = {
+        issuer: 'https://oidc.example.com',
+        authorization_endpoint: 'https://oidc.example.com/auth',
+        token_endpoint: 'https://oidc.example.com/token',
+        userinfo_endpoint: 'https://oidc.example.com/userinfo',
+        jwks_uri: 'https://oidc.example.com/jwks',
+        scopes_supported: ['openid', 'profile', 'email'],
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code'],
+        token_endpoint_auth_methods_supported: ['client_secret_basic']
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockDiscoveryResponse
+      } as Response);
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oidc-provider.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oidc config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oidc-provider',
+        type: 'oidc',
+        enabled: true,
+        endpoints: {
+          discovery: 'https://oidc.example.com/.well-known/openid-configuration'
+        },
+        credentials: {
+          client_id: 'oidc-client',
+          client_secret: 'oidc-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(fetch).toHaveBeenCalledWith('https://oidc.example.com/.well-known/openid-configuration');
+      expect(registry.hasProvider('oidc-provider')).toBe(true);
+    });
+
+    it('should handle OIDC discovery failure gracefully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found'
+      } as Response);
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oidc-failed.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oidc config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oidc-failed',
+        type: 'oidc',
+        enabled: true,
+        endpoints: {
+          discovery: 'https://invalid.example.com/.well-known/openid-configuration',
+          authorization: 'https://fallback.com/auth',
+          token: 'https://fallback.com/token'
+        },
+        credentials: {
+          client_id: 'oidc-client',
+          client_secret: 'oidc-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to discover OIDC config for oidc-failed'),
+        expect.any(Object)
+      );
+      // Provider should still be created with fallback endpoints
+      expect(registry.hasProvider('oidc-failed')).toBe(true);
+    });
+
+    it('should handle fetch network errors during discovery', async () => {
+      vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oidc-network-error.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oidc config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oidc-network-error',
+        type: 'oidc',
+        enabled: true,
+        endpoints: {
+          discovery: 'https://network-error.example.com/.well-known/openid-configuration',
+          authorization: 'https://fallback.com/auth',
+          token: 'https://fallback.com/token'
+        },
+        credentials: {
+          client_id: 'oidc-client',
+          client_secret: 'oidc-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to discover OIDC config for oidc-network-error'),
+        expect.any(Object)
+      );
+    });
+
+    it('should extract issuer from discovery URL correctly', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oidc-issuer.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oidc config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oidc-issuer',
+        type: 'oidc',
+        enabled: true,
+        endpoints: {
+          discovery: 'https://issuer.example.com/.well-known/openid-configuration'
+        },
+        credentials: {
+          client_id: 'oidc-client',
+          client_secret: 'oidc-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      // Mock successful discovery
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          issuer: 'https://issuer.example.com',
+          authorization_endpoint: 'https://issuer.example.com/auth',
+          token_endpoint: 'https://issuer.example.com/token'
+        })
+      } as Response);
+
+      await registry.initialize();
+
+      expect(registry.hasProvider('oidc-issuer')).toBe(true);
+    });
+
+    it('should not perform discovery for non-OIDC providers', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oauth2-provider.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oauth2 config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oauth2-provider',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://oauth2.example.com/auth',
+          token: 'https://oauth2.example.com/token'
+        },
+        credentials: {
+          client_id: 'oauth2-client',
+          client_secret: 'oauth2-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(registry.hasProvider('oauth2-provider')).toBe(true);
+    });
+
+    it('should not perform discovery when discovery URL is empty', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['oidc-no-discovery.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('oidc config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'oidc-no-discovery',
+        type: 'oidc',
+        enabled: true,
+        endpoints: {
+          discovery: '',  // Empty discovery URL
+          authorization: 'https://oidc.example.com/auth',
+          token: 'https://oidc.example.com/token'
+        },
+        credentials: {
+          client_id: 'oidc-client',
+          client_secret: 'oidc-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(registry.hasProvider('oidc-no-discovery')).toBe(true);
+    });
+  });
+
+  describe('provider creation edge cases', () => {
+    it('should handle provider with optional fields', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider-with-optional.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('config with optional fields');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'provider-with-optional',
+        name: 'Provider With Optional Fields',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://optional.com/auth',
+          token: 'https://optional.com/token',
+          userinfo: 'https://optional.com/userinfo',
+          jwks: 'https://optional.com/jwks'
+        },
+        credentials: {
+          client_id: 'optional-client',
+          client_secret: 'optional-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        },
+        scopes: ['openid', 'profile', 'email'],
+        userinfoMapping: {
+          id: 'sub',
+          email: 'email',
+          name: 'name'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(registry.hasProvider('provider-with-optional')).toBe(true);
+    });
+
+    it('should handle provider with empty optional string fields', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['provider-empty-optional.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('config with empty optional');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'provider-empty-optional',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://empty.com/auth',
+          token: 'https://empty.com/token',
+          userinfo: '',  // Empty string
+          jwks: '   '    // Whitespace only
+        },
+        credentials: {
+          client_id: 'empty-client',
+          client_secret: 'empty-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(registry.hasProvider('provider-empty-optional')).toBe(true);
+    });
+
+    it('should handle provider instantiation errors in createProvider', async () => {
+      const { GenericOAuth2Provider } = await import('../../../../../../src/modules/core/auth/providers/core/oauth2');
+      
+      // Mock GenericOAuth2Provider to throw an error
+      vi.mocked(GenericOAuth2Provider).mockImplementation(() => {
+        throw new Error('Provider instantiation failed');
+      });
+
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['failing-provider.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('failing config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'failing-provider',
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://failing.com/auth',
+          token: 'https://failing.com/token'
+        },
+        credentials: {
+          client_id: 'failing-client',
+          client_secret: 'failing-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to instantiate provider failing-provider'),
+        expect.any(Object)
+      );
+      expect(registry.hasProvider('failing-provider')).toBe(false);
+    });
+
+    it('should handle missing ID in config', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['no-id.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('no id config');
+      vi.mocked(parseYaml).mockReturnValue({
+        // id is missing
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://noid.com/auth',
+          token: 'https://noid.com/token'
+        },
+        credentials: {
+          client_id: 'noid-client',
+          client_secret: 'noid-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Skipping provider config'),
+        expect.stringContaining('missing required fields')
+      );
+    });
+
+    it('should handle empty ID in config', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['empty-id.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('empty id config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: '',  // Empty ID
+        type: 'oauth2',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://emptyid.com/auth',
+          token: 'https://emptyid.com/token'
+        },
+        credentials: {
+          client_id: 'emptyid-client',
+          client_secret: 'emptyid-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Skipping provider config'),
+        expect.stringContaining('missing required fields')
+      );
+    });
+
+    it('should filter out template.yaml files', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['template.yaml', 'valid-provider.yaml'];
+      });
+      vi.mocked(readFileSync).mockImplementation((path: any) => {
+        if (path.includes('template.yaml')) return 'template config';
+        return 'valid config';
+      });
+      vi.mocked(parseYaml).mockImplementation((content: any) => {
+        if (content.includes('template')) {
+          return {
+            id: 'template-provider',
+            type: 'oauth2',
+            enabled: true,
+            endpoints: {
+              authorization: 'https://template.com/auth',
+              token: 'https://template.com/token'
+            },
+            credentials: {
+              client_id: 'template-client',
+              client_secret: 'template-secret',
+              redirect_uri: 'http://localhost:3000/callback'
+            }
+          };
+        }
+        return {
+          id: 'valid-provider',
+          type: 'oauth2',
+          enabled: true,
+          endpoints: {
+            authorization: 'https://valid.com/auth',
+            token: 'https://valid.com/token'
+          },
+          credentials: {
+            client_id: 'valid-client',
+            client_secret: 'valid-secret',
+            redirect_uri: 'http://localhost:3000/callback'
+          }
+        };
+      });
+
+      await registry.initialize();
+
+      // Template should be ignored, only valid provider loaded
+      expect(registry.hasProvider('template-provider')).toBe(false);
+      expect(registry.hasProvider('valid-provider')).toBe(true);
+      expect(registry.listProviderIds()).toHaveLength(1);
+    });
+
+    it('should handle unsupported provider types gracefully', async () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation((path: any) => {
+        if (path.includes('custom')) return [];
+        return ['unsupported.yaml'];
+      });
+      vi.mocked(readFileSync).mockReturnValue('unsupported config');
+      vi.mocked(parseYaml).mockReturnValue({
+        id: 'unsupported-provider',
+        type: 'unsupported-type',
+        enabled: true,
+        endpoints: {
+          authorization: 'https://unsupported.com/auth',
+          token: 'https://unsupported.com/token'
+        },
+        credentials: {
+          client_id: 'unsupported-client',
+          client_secret: 'unsupported-secret',
+          redirect_uri: 'http://localhost:3000/callback'
+        }
+      });
+
+      await registry.initialize();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Unsupported provider type unsupported-type for unsupported-provider')
+      );
+      expect(registry.hasProvider('unsupported-provider')).toBe(false);
     });
   });
 });

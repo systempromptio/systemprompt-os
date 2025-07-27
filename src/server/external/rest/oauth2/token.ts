@@ -30,24 +30,14 @@ import type {
 const logger = LoggerService.getInstance();
 
 const tokenRequestSchema = z.object({
-  grantType: z.enum(['authorization_code', 'refresh_token']),
+  grant_type: z.enum(['authorization_code', 'refresh_token']),
   code: z.string().optional(),
-  redirectUri: z.string().url()
+  redirect_uri: z.string().url()
 .optional(),
-  clientId: z.string().optional(),
-  clientSecret: z.string().optional(),
-  refreshToken: z.string().optional(),
-  codeVerifier: z.string().optional(),
-}).transform((input): ITokenRequestParams => {
-  return {
-    grant_type: input.grantType,
-    code: input.code,
-    redirect_uri: input.redirectUri,
-    client_id: input.clientId,
-    client_secret: input.clientSecret,
-    refresh_token: input.refreshToken,
-    code_verifier: input.codeVerifier,
-  };
+  client_id: z.string().optional(),
+  client_secret: z.string().optional(),
+  refresh_token: z.string().optional(),
+  code_verifier: z.string().optional(),
 });
 
 /**
@@ -93,9 +83,9 @@ export class TokenEndpoint {
       });
 
       if (params.grant_type === 'authorization_code') {
-        return await this.handleAuthorizationCodeGrant(params, res);
+        return await this.handleAuthorizationCodeGrant(params as ITokenRequestParams, res);
       }
-        return await this.handleRefreshTokenGrant(params, res);
+        return await this.handleRefreshTokenGrant(params as ITokenRequestParams, res);
     } catch (error) {
       logger.error(LogSource.AUTH, 'Token endpoint error', {
         error: error instanceof Error ? error : new Error(String(error)),
@@ -106,10 +96,10 @@ export class TokenEndpoint {
       if (error instanceof z.ZodError) {
         const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
 
-        if (missingFields.some(e => { return e.path[0] === 'grantType' })) {
+        if (missingFields.some(e => { return e.path[0] === 'grant_type' })) {
           const invalidRequestError = OAuth2Error.invalidRequest('grant_type is required');
           return res.status(invalidRequestError.code).json(invalidRequestError.toJSON());
-        } if (error.errors.some(e => { return e.path[0] === 'grantType' && e.code === 'invalid_enum_value' })) {
+        } if (error.errors.some(e => { return e.path[0] === 'grant_type' && e.code === 'invalid_enum_value' })) {
           const unsupportedGrantError = OAuth2Error.unsupportedGrantType('Unsupported grant_type');
           return res.status(unsupportedGrantError.code).json(unsupportedGrantError.toJSON());
         }
@@ -138,12 +128,21 @@ export class TokenEndpoint {
       persistToDb: false
     });
 
-    if (typeof params.code !== 'string' || typeof params.redirect_uri !== 'string') {
-      logger.error(LogSource.AUTH, 'Missing required parameters', {
+    if (typeof params.code !== 'string') {
+      logger.error(LogSource.AUTH, 'Missing code parameter', {
         category: 'oauth2',
         action: 'auth_code_grant'
       });
-      const error = OAuth2Error.invalidRequest('Missing required parameters');
+      const error = OAuth2Error.invalidRequest('code is required for authorization_code grant');
+      return res.status(error.code).json(error.toJSON());
+    }
+
+    if (typeof params.redirect_uri !== 'string') {
+      logger.error(LogSource.AUTH, 'Missing redirect_uri parameter', {
+        category: 'oauth2',
+        action: 'auth_code_grant'
+      });
+      const error = OAuth2Error.invalidRequest('redirect_uri is required for authorization_code grant');
       return res.status(error.code).json(error.toJSON());
     }
 

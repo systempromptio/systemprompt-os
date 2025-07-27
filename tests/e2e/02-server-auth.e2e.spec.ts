@@ -112,7 +112,7 @@ describe('[02] Server Auth Domain', () => {
         });
       
       expect(response.status).toBe(200);
-      expect(response.text).toContain('Select Identity Provider');
+      expect(response.text).toContain('Sign in to continue');
       expect(response.text).toContain('Google');
       expect(response.text).toContain('GitHub');
     });

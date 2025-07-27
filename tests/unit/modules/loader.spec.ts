@@ -16,6 +16,21 @@ vi.mock('fs', () => ({
   writeFileSync: vi.fn()
 }));
 
+// Mock LoggerService before importing the loader
+vi.mock('../../../src/modules/core/logger/services/logger.service', () => ({
+  LoggerService: {
+    getInstance: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      log: vi.fn(),
+      initialize: vi.fn().mockResolvedValue(undefined),
+      initialized: true
+    })
+  }
+}));
+
 vi.mock('../../../src/utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -81,6 +96,23 @@ vi.mock('../../../src/modules/core/heartbeat/index', () => ({
   }))
 }));
 
+vi.mock('../../../src/modules/core/modules/index', () => ({
+  ModulesModule: vi.fn().mockImplementation(() => ({
+    name: 'modules',
+    version: '1.0.0',
+    type: 'service',
+    initialize: vi.fn().mockResolvedValue(undefined),
+    shutdown: vi.fn().mockResolvedValue(undefined),
+    service: {
+      getScannerService: vi.fn().mockReturnValue({
+        scan: vi.fn().mockResolvedValue([]),
+        getEnabledModules: vi.fn().mockResolvedValue([]),
+        updateModuleStatus: vi.fn().mockResolvedValue(undefined)
+      })
+    }
+  }))
+}));
+
 vi.mock('../../../src/modules/core/database/index', () => ({
   initializeDatabase: vi.fn().mockResolvedValue(undefined),
   shutdownDatabase: vi.fn().mockResolvedValue(undefined),
@@ -105,6 +137,23 @@ describe('ModuleLoader', () => {
     };
     
     vi.mocked(ModuleRegistry).mockImplementation(() => mockRegistry as any);
+    
+    // Mock dynamic imports for core modules
+    vi.doMock('./core/modules/index.js', () => ({
+      ModulesModule: vi.fn().mockImplementation(() => ({
+        name: 'modules',
+        version: '1.0.0',
+        type: 'service',
+        initialize: vi.fn().mockResolvedValue(undefined),
+        service: {
+          getScannerService: vi.fn().mockReturnValue({
+            scan: vi.fn().mockResolvedValue([]),
+            getEnabledModules: vi.fn().mockResolvedValue([]),
+            updateModuleStatus: vi.fn().mockResolvedValue(undefined)
+          })
+        }
+      }))
+    }));
   });
 
   afterEach(() => {

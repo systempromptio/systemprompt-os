@@ -8,6 +8,7 @@ import { WebhookService } from '../../../../../src/modules/core/webhooks/service
 import type { WebhookRepository } from '../../../../../src/modules/core/webhooks/repositories/webhook-repository.js';
 import type { WebhookDeliveryService } from '../../../../../src/modules/core/webhooks/services/webhook-delivery-service.js';
 import type { CreateWebhookDto } from '../../../../../src/modules/core/webhooks/types/webhook.types.js';
+import { LogSource } from '../../../../../src/modules/core/logger/types/index.js';
 
 describe('WebhookService', () => {
   let service: WebhookService;
@@ -72,7 +73,7 @@ describe('WebhookService', () => {
 
       expect(result).toEqual(mockWebhook);
       expect(mockRepository.createWebhook).toHaveBeenCalledWith(createDto);
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhook created', expect.any(Object));
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhook created', expect.any(Object));
     });
 
     it('should reject invalid URL', async () => {
@@ -121,7 +122,7 @@ describe('WebhookService', () => {
 
       expect(mockRepository.getWebhooksByEvent).toHaveBeenCalledWith('agent.started');
       expect(mockDeliveryService.deliver).toHaveBeenCalledTimes(2);
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhooks triggered', expect.any(Object));
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhooks triggered', expect.any(Object));
     });
 
     it('should handle no webhooks for event', async () => {
@@ -130,7 +131,7 @@ describe('WebhookService', () => {
       await service.triggerWebhook('agent.started', { agent_id: '123' });
 
       expect(mockDeliveryService.deliver).not.toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith('No webhooks subscribed to event', { event: 'agent.started' });
+      expect(mockLogger.debug).toHaveBeenCalledWith(LogSource.WEBHOOK, 'No webhooks subscribed to event', { data: { event: 'agent.started' } });
     });
 
     it('should not throw on delivery errors', async () => {
@@ -147,7 +148,7 @@ describe('WebhookService', () => {
       // Should not throw
       await service.triggerWebhook('agent.started', { agent_id: '123' });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhooks triggered', expect.any(Object));
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhooks triggered', expect.any(Object));
     });
   });
 
@@ -202,7 +203,7 @@ describe('WebhookService', () => {
 
       expect(result).toEqual(mockWebhook);
       expect(mockRepository.updateWebhook).toHaveBeenCalledWith('wh_123', { name: 'Updated Webhook' });
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhook updated', expect.any(Object));
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhook updated', expect.any(Object));
     });
 
     it('should validate URL when updating', async () => {
@@ -218,7 +219,7 @@ describe('WebhookService', () => {
 
       expect(result).toBe(true);
       expect(mockRepository.deleteWebhook).toHaveBeenCalledWith('wh_123');
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhook deleted', { webhookId: 'wh_123' });
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhook deleted', { data: { webhookId: 'wh_123' } });
     });
   });
 
@@ -337,7 +338,7 @@ describe('WebhookService', () => {
       mockRepository.createWebhook.mockRejectedValue(new Error('Database error'));
 
       await expect(service.createWebhook(createDto)).rejects.toThrow('Database error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to create webhook', expect.any(Object));
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to create webhook', expect.any(Object));
     });
 
     it('should handle non-Error objects thrown during creation', async () => {
@@ -350,7 +351,7 @@ describe('WebhookService', () => {
       mockRepository.createWebhook.mockRejectedValue('String error');
 
       await expect(service.createWebhook(createDto)).rejects.toBe('String error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to create webhook', 
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to create webhook', 
         expect.objectContaining({ error: 'String error' })
       );
     });
@@ -388,14 +389,14 @@ describe('WebhookService', () => {
       mockRepository.updateWebhook.mockRejectedValue(new Error('Database error'));
 
       await expect(service.updateWebhook('wh_123', { name: 'Updated' })).rejects.toThrow('Database error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to update webhook', expect.any(Object));
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to update webhook', expect.any(Object));
     });
 
     it('should handle non-Error objects thrown during update', async () => {
       mockRepository.updateWebhook.mockRejectedValue('String error');
 
       await expect(service.updateWebhook('wh_123', { name: 'Updated' })).rejects.toBe('String error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to update webhook', 
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to update webhook', 
         expect.objectContaining({ error: 'String error' })
       );
     });
@@ -438,14 +439,14 @@ describe('WebhookService', () => {
       mockRepository.getWebhooksByEvent.mockRejectedValue(new Error('Database error'));
 
       await expect(service.triggerWebhook('agent.started', { data: 'test' })).rejects.toThrow('Database error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to trigger webhooks', expect.any(Object));
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to trigger webhooks', expect.any(Object));
     });
 
     it('should handle non-Error objects thrown when getting webhooks by event', async () => {
       mockRepository.getWebhooksByEvent.mockRejectedValue('String error');
 
       await expect(service.triggerWebhook('agent.started', { data: 'test' })).rejects.toBe('String error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to trigger webhooks', 
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Failed to trigger webhooks', 
         expect.objectContaining({ error: 'String error' })
       );
     });
@@ -463,11 +464,11 @@ describe('WebhookService', () => {
 
       await service.triggerWebhook('agent.started', { agent_id: '123' });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Webhook delivery failed', expect.objectContaining({
-        webhookId: 'wh_1',
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhook delivery failed', expect.objectContaining({
+        data: { webhookId: 'wh_1' },
         error: 'Delivery failed'
       }));
-      expect(mockLogger.info).toHaveBeenCalledWith('Webhooks triggered', expect.any(Object));
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhooks triggered', expect.any(Object));
     });
 
     it('should handle non-Error delivery failures', async () => {
@@ -483,8 +484,8 @@ describe('WebhookService', () => {
 
       await service.triggerWebhook('agent.started', { agent_id: '123' });
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Webhook delivery failed', expect.objectContaining({
-        webhookId: 'wh_1',
+      expect(mockLogger.error).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Webhook delivery failed', expect.objectContaining({
+        data: { webhookId: 'wh_1' },
         error: 'String error'
       }));
     });
@@ -498,9 +499,11 @@ describe('WebhookService', () => {
 
       expect(result).toBe(50);
       expect(mockRepository.cleanupOldDeliveries).toHaveBeenCalledWith(30);
-      expect(mockLogger.info).toHaveBeenCalledWith('Cleaned up old webhook deliveries', {
-        deleted: 50,
-        retentionDays: 30
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.WEBHOOK, 'Cleaned up old webhook deliveries', {
+        data: {
+          deleted: 50,
+          retentionDays: 30
+        }
       });
     });
 

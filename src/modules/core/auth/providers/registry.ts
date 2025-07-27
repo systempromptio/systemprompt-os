@@ -55,7 +55,7 @@ export class ProviderRegistry {
    * For enabled providers. Also checks for custom providers in a subdirectory.
    */
   private async loadProviderConfigs(): Promise<void> {
-    const providersPath = join(this.configPath, "providers");
+    const providersPath = this.configPath;
 
     this.logger?.info(LogSource.AUTH, `Looking for providers in: ${providersPath}`);
 

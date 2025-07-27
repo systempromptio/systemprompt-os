@@ -25,7 +25,7 @@ export interface IOAuth2Error {
 
     toJSON: () => {
     error: string;
-    message: string;
+    error_description: string;
   };
 }
 

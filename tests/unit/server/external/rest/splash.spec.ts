@@ -52,8 +52,10 @@ describe('SplashEndpoint', () => {
 describe('setupRoutes', () => {
   let mockRouter: Partial<Router>;
   let routeHandler: Function;
+  let mockNext: Function;
 
   beforeEach(() => {
+    mockNext = vi.fn();
     mockRouter = {
       get: vi.fn((path: string, handler: Function) => {
         if (path === '/') {
@@ -69,7 +71,7 @@ describe('setupRoutes', () => {
     expect(mockRouter.get).toHaveBeenCalledWith('/', expect.any(Function));
   });
 
-  it('should handle requests through the registered route', async () => {
+  it('should handle requests through the registered route when no code query parameter', async () => {
     setupRoutes(mockRouter as Router);
     
     const mockReq = { query: {} } as Request;
@@ -81,6 +83,91 @@ describe('setupRoutes', () => {
     // Call the registered handler
     await routeHandler(mockReq, mockRes);
     
+    expect(mockRes.type).toHaveBeenCalledWith('html');
+    expect(mockRes.send).toHaveBeenCalledWith('<html>Test Splash Page</html>');
+  });
+
+  it('should call next() when code query parameter is present', () => {
+    setupRoutes(mockRouter as Router);
+    
+    const mockReq = { query: { code: 'oauth_auth_code_123' } } as Request;
+    const mockRes = {
+      type: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis()
+    } as unknown as Response;
+    
+    // Call the registered handler with next function
+    routeHandler(mockReq, mockRes, mockNext);
+    
+    expect(mockNext).toHaveBeenCalledOnce();
+    expect(mockRes.type).not.toHaveBeenCalled();
+    expect(mockRes.send).not.toHaveBeenCalled();
+  });
+
+  it('should call next() when code query parameter is empty string', () => {
+    setupRoutes(mockRouter as Router);
+    
+    const mockReq = { query: { code: '' } } as Request;
+    const mockRes = {
+      type: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis()
+    } as unknown as Response;
+    
+    // Call the registered handler with next function
+    routeHandler(mockReq, mockRes, mockNext);
+    
+    expect(mockNext).toHaveBeenCalledOnce();
+    expect(mockRes.type).not.toHaveBeenCalled();
+    expect(mockRes.send).not.toHaveBeenCalled();
+  });
+
+  it('should call next() when code query parameter is truthy value', () => {
+    setupRoutes(mockRouter as Router);
+    
+    const mockReq = { query: { code: 'any_value' } } as Request;
+    const mockRes = {
+      type: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis()
+    } as unknown as Response;
+    
+    // Call the registered handler with next function
+    routeHandler(mockReq, mockRes, mockNext);
+    
+    expect(mockNext).toHaveBeenCalledOnce();
+    expect(mockRes.type).not.toHaveBeenCalled();
+    expect(mockRes.send).not.toHaveBeenCalled();
+  });
+
+  it('should handle splash page when code is undefined', async () => {
+    setupRoutes(mockRouter as Router);
+    
+    const mockReq = { query: { code: undefined } } as Request;
+    const mockRes = {
+      type: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis()
+    } as unknown as Response;
+    
+    // Call the registered handler
+    await routeHandler(mockReq, mockRes, mockNext);
+    
+    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockRes.type).toHaveBeenCalledWith('html');
+    expect(mockRes.send).toHaveBeenCalledWith('<html>Test Splash Page</html>');
+  });
+
+  it('should handle splash page when code is null', async () => {
+    setupRoutes(mockRouter as Router);
+    
+    const mockReq = { query: { code: null } } as Request;
+    const mockRes = {
+      type: vi.fn().mockReturnThis(),
+      send: vi.fn().mockReturnThis()
+    } as unknown as Response;
+    
+    // Call the registered handler
+    await routeHandler(mockReq, mockRes, mockNext);
+    
+    expect(mockNext).not.toHaveBeenCalled();
     expect(mockRes.type).toHaveBeenCalledWith('html');
     expect(mockRes.send).toHaveBeenCalledWith('<html>Test Splash Page</html>');
   });

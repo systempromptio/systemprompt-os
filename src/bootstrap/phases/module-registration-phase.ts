@@ -141,14 +141,14 @@ export async function registerModulesWithLoader(context: ModuleRegistrationPhase
 
     modules.forEach((module, name) => {
       const moduleInterface = {
-        name,
-        version: '1.0.0',
-        type: 'service' as const,
+        name: module.name || name,
+        version: module.version || '1.0.0',
+        type: (module.type || 'service') as 'service' | 'daemon' | 'plugin',
         exports: module.exports,
-        initialize: async () => {},
+        initialize: module.initialize ? module.initialize.bind(module) : async () => {},
         start: module.start ? module.start.bind(module) : async () => {},
         stop: module.stop ? module.stop.bind(module) : async () => {},
-        healthCheck: async () => { return { healthy: true }; }
+        healthCheck: module.healthCheck ? module.healthCheck.bind(module) : async () => { return { healthy: true }; }
       };
       registry.register(moduleInterface);
     });

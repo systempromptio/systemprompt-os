@@ -1,0 +1,164 @@
+   GenericOAuth2Provider > exchangeCodeForTokens > exchanges authorization code for tokens 14ms
+   GenericOAuth2Provider > getUserInfo > fetches user info with access token 4ms
+   GenericOAuth2Provider > refreshAccessToken > refreshes access token using refresh token 2ms
+   UserInfoEndpoint > getUserInfo > returns 401 when user is not authenticated 9ms
+   UserInfoEndpoint > getUserInfo > returns 400 when user is not found in database 2ms
+   UserInfoEndpoint > getUserInfo > returns basic user info with openid scope only 2ms
+   UserInfoEndpoint > getUserInfo > handles undefined scope 1ms
+   UserInfoEndpoint > getUserInfo > handles empty string scope 1ms
+   UserInfoEndpoint > getUserInfo > includes profile information when profile scope is present 1ms
+   UserInfoEndpoint > getUserInfo > includes email information when email scope is present 1ms
+   UserInfoEndpoint > getUserInfo > includes agent information when agent scope is present 1ms
+   UserInfoEndpoint > getUserInfo > includes all information when all scopes are present 1ms
+   UserInfoEndpoint > getUserInfo > handles user without name field 1ms
+   UserInfoEndpoint > getUserInfo > handles user without avatarUrl field 1ms
+   UserInfoEndpoint > getUserInfo > handles email without @ symbol 1ms
+   UserInfoEndpoint > getUserInfo > handles email with multiple @ symbols 2ms
+   UserInfoEndpoint > getUserInfo > handles multiple scopes separated by spaces 1ms
+   UserInfoEndpoint > getUserInfo > handles different user ID 1ms
+   UserInfoEndpoint > getUserInfo > ignores unknown scopes 1ms
+   UserInfoEndpoint > getUserInfo > only includes scope-specific data in response 3ms
+   UserInfoEndpoint > getUserInfo > tests all conditional branches in scope checking 1ms
+   UserInfoEndpoint > getUserInfo > verifies AuthRepository singleton is called 1ms
+   UserInfoEndpoint > getUserInfo > handles empty email parts correctly 1ms
+   UserInfoEndpoint > getUserInfo > tests email_verified is always true 1ms
+   UserInfoEndpoint > getUserInfo > tests agent_id generation format 1ms
+   UserInfoEndpoint > getUserInfo > ensures profile scope conditional checks work correctly 1ms
+   UserInfoEndpoint > getUserInfo > ensures email scope conditional checks work correctly 1ms
+   UserInfoEndpoint > getUserInfo > ensures agent scope conditional checks work correctly 2ms
+   UserInfoEndpoint > getUserInfo > handles database errors gracefully 12ms
+   UserInfoEndpoint > getUserInfo > handles user with empty email string 1ms
+   UserInfoEndpoint > getUserInfo > handles user with null name field 1ms
+   UserInfoEndpoint > getUserInfo > handles user with null avatarUrl field 1ms
+   UserInfoEndpoint > getUserInfo > verifies email_verified undefined check branch 1ms
+   UserInfoEndpoint > getUserInfo > handles scope with mixed case 2ms
+   UserInfoEndpoint > getUserInfo > handles scope string with trailing/leading spaces 0ms
+   OAuth2 Errors > OAuth2ErrorType Enum > should have correct error type values 8ms
+   OAuth2 Errors > OAuth2Error Class > should create error with type and description 2ms
+   OAuth2 Errors > OAuth2Error Class > should use error type as message when description is not provided 1ms
+   OAuth2 Errors > OAuth2Error Class > should accept custom error code 1ms
+   OAuth2 Errors > OAuth2Error Class > should include error URI when provided 1ms
+   OAuth2 Errors > OAuth2Error Class > toJSON
+   OAuth2 Errors > OAuth2Error Class > toJSON
+   OAuth2 Errors > OAuth2Error Class > toJSON
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > Static factory methods
+   OAuth2 Errors > OAuth2Error Class > should be instanceof Error 1ms
+   GenericOAuth2Provider > Constructor > should initialize OAuth2 provider with correct properties 13ms
+   GenericOAuth2Provider > Constructor > should set default scope when not provided 2ms
+   GenericOAuth2Provider > Constructor > should set default scope when scope is null 1ms
+   GenericOAuth2Provider > Constructor > should set default scope when scope is undefined 1ms
+   GenericOAuth2Provider > getAuthorizationUrl > should include nonce for OIDC provider when provided 2ms
+   GenericOAuth2Provider > exchangeCodeForToken > should successfully exchange code for tokens 1ms
+   GenericOAuth2Provider > exchangeCodeForToken > should handle missing client secret gracefully 1ms
+   GenericOAuth2Provider > exchangeCodeForToken > should handle null client secret gracefully 1ms
+   GenericOAuth2Provider > exchangeCodeForToken > should throw error when token exchange fails 1ms
+   GenericOAuth2Provider > exchangeCodeForToken > should throw error when fetch throws 1ms
+   GenericOAuth2Provider > getUserInfo > should successfully retrieve user info with default mapping 3ms
+   GenericOAuth2Provider > getUserInfo > should use custom userinfo mapping when provided 1ms
+   GenericOAuth2Provider > getUserInfo > should fallback to standard fields when custom mapping returns undefined 1ms
+   GenericOAuth2Provider > getUserInfo > should fallback to id field when sub is not available 1ms
+   GenericOAuth2Provider > getUserInfo > should return empty string for id when no fallbacks are available 1ms
+   GenericOAuth2Provider > getUserInfo > should handle nested object paths in mapping 1ms
+   GenericOAuth2Provider > getUserInfo > should handle deep nested paths that do not exist 1ms
+   GenericOAuth2Provider > getUserInfo > should handle null values in nested objects 2ms
+   GenericOAuth2Provider > getUserInfo > should throw error when userinfo request fails 1ms
+   GenericOAuth2Provider > getUserInfo > should throw error when fetch throws 1ms
+   GenericOAuth2Provider > refreshTokens > should successfully refresh tokens 1ms
+   GenericOAuth2Provider > refreshTokens > should handle missing client secret gracefully 1ms
+   GenericOAuth2Provider > refreshTokens > should handle null client secret gracefully 1ms
+   GenericOAuth2Provider > refreshTokens > should throw error when token refresh fails 1ms
+   GenericOAuth2Provider > refreshTokens > should throw error when fetch throws 1ms
+   GenericOAuth2Provider > OIDC-specific functionality > should support OIDC-specific features 1ms
+   GenericOAuth2Provider > OIDC-specific functionality > should include nonce in authorization URL for OIDC providers 1ms
+   GenericOAuth2Provider > Edge cases and error scenarios > should handle malformed JSON responses in token exchange 1ms
+   GenericOAuth2Provider > Edge cases and error scenarios > should handle malformed JSON responses in token refresh 0ms
+   GenericOAuth2Provider > Edge cases and error scenarios > should handle malformed JSON responses in getUserInfo 2ms
+   GenericOAuth2Provider > getNestedValue functionality > should handle primitive values in nested objects 1ms
+   GenericOAuth2Provider > getNestedValue functionality > should handle arrays in nested paths 0ms
+   GenericOAuth2Provider > getNestedValue functionality > should return undefined for out-of-bounds array access 0ms
+   GenericOAuth2Provider > getNestedValue functionality > should handle empty path segments 0ms
+   GenericOAuth2Provider > getNestedValue functionality > should handle paths with multiple dots 0ms
+   GenericOAuth2Provider > getNestedValue functionality > should handle circular references gracefully 0ms
+   WellKnownEndpoint > constructor > should create an instance with default publicKeyJWK as null 19ms
+   WellKnownEndpoint > getOpenIDConfiguration > should return OpenID configuration from oauth2ConfigService 3ms
+   WellKnownEndpoint > getOpenIDConfiguration > should handle when authModule throws an error 8ms
+   WellKnownEndpoint > getOpenIDConfiguration > should handle when oauth2ConfigService throws an error 3ms
+   WellKnownEndpoint > getOpenIDConfiguration > should handle when getOpenIDConfiguration throws an error 4ms
+   WellKnownEndpoint > getOpenIDConfiguration > should work with different request objects 2ms
+   WellKnownEndpoint > getOpenIDConfiguration > should handle null/undefined config gracefully 2ms
+   WellKnownEndpoint > getJWKS > should return 500 error when publicKeyJWK is null 3ms
+   WellKnownEndpoint > OpenIDConfiguration interface > should accept valid OpenIDConfiguration objects 1ms
+   WellKnownEndpoint > OpenIDConfiguration interface > should handle minimal OpenIDConfiguration objects 1ms
+   WellKnownEndpoint > Edge cases and error scenarios > should handle when response.json throws an error 2ms
+   WellKnownEndpoint > Edge cases and error scenarios > should handle when response.status throws an error in getJWKS 2ms
+   WellKnownEndpoint > Edge cases and error scenarios > should handle concurrent calls to getOpenIDConfiguration 3ms
+   WellKnownEndpoint > Property access and method binding > should maintain method binding when extracted 1ms
+   WellKnownEndpoint > Property access and method binding > should handle this context correctly in arrow functions 1ms
+   OAuth2 Authorize Endpoint > getAuthorize > without provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > without provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > without provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > with provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > with provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > with provider parameter
+   OAuth2 Authorize Endpoint > getAuthorize > error handling
+   OAuth2 Authorize Endpoint > getAuthorize > error handling
+   OAuth2 Authorize Endpoint > postAuthorize > authorization denial
+   OAuth2 Authorize Endpoint > postAuthorize > authorization approval
+   OAuth2 Authorize Endpoint > postAuthorize > authorization approval
+   OAuth2 Authorize Endpoint > handleProviderCallback > successful callback handling
+   OAuth2 Authorize Endpoint > handleProviderCallback > error handling
+   [02] Server Auth Domain > OAuth2 Authorization Flow > should reject authorization request without client_id 13ms
+   [02] Server Auth Domain > OAuth2 Authorization Flow > should reject authorization request without response_type 7ms
+   [02] Server Auth Domain > OAuth2 Authorization Flow > should reject unsupported response_type 6ms
+   [02] Server Auth Domain > OAuth2 Authorization Flow > should show IDP selection for valid authorization request 7ms
+   [02] Server Auth Domain > OAuth2 Authorization Flow > should handle IDP selection and redirect 5ms
+   [02] Server Auth Domain > OAuth2 Token Endpoint > should reject token request without grant_type 6ms
+   [02] Server Auth Domain > OAuth2 Token Endpoint > should reject unsupported grant_type 5ms
+   [02] Server Auth Domain > OAuth2 Token Endpoint > should reject invalid authorization code 5ms
+   [02] Server Auth Domain > OAuth2 Token Endpoint > should handle refresh_token grant type 4ms
+   [02] Server Auth Domain > Authorization Callback > should handle OAuth callback with error 3ms
+   [02] Server Auth Domain > Authorization Callback > should validate state parameter in callback 4ms
+   [02] Server Auth Domain > Security Headers > should include security headers on auth endpoints 4ms
+   MCP Tool API E2E Tests > Tool Listing Flow > should show different tools based on user role 12ms
+   MCP Tool API E2E Tests > Tool Execution Flow > should enforce permissions throughout tool execution 1ms
+   MCP Tool API E2E Tests > Tool Execution Flow > should handle tool errors gracefully 7ms
+   MCP Tool API E2E Tests > Audit Trail > should create comprehensive audit logs 2ms
+   MCP Tool API E2E Tests > Performance > should handle concurrent requests efficiently 7ms
+   MCP Tool API E2E Tests > Integration with Permission System > should respect custom permissions 1ms
+   MCP Tool API E2E Tests > Error Recovery > should handle and log various error conditions 4ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should successfully return authorization server metadata 5ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle different metadata configurations 5ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle metadata with minimal required fields only 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle metadata with all optional fields populated 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from auth module not being loaded 2ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from oauth2ConfigService being undefined 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should propagate errors from oauth2ConfigService method failure 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle response.json method throwing an error 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should validate interface compliance with IOAuth2ServerMetadataInternal 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should handle empty arrays in metadata 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should preserve exact metadata structure without modification 1ms
+   AuthorizationServerEndpoint > getAuthorizationServerMetadata > should work with different request types 1ms
+   AuthorizationServerEndpoint > error boundary coverage > should handle auth module exports being null 1ms
+   AuthorizationServerEndpoint > error boundary coverage > should handle auth module exports being undefined 1ms
+   AuthorizationServerEndpoint > error boundary coverage > should handle oauth2ConfigService method being undefined 1ms
+   MCP Tool Permissions E2E > Tool Listing > should return check-status tool for admin session 25ms
+   MCP Tool Permissions E2E > Tool Listing > should return empty tool list for basic session 4ms
+   MCP Tool Permissions E2E > Tool Listing > should return empty tool list without session 2ms
+   MCP Tool Permissions E2E > Tool Execution > should allow admin to execute check-status tool 2ms
+   MCP Tool Permissions E2E > Tool Execution > should deny basic user from executing check-status tool 2ms
+   MCP Tool Permissions E2E > Tool Execution > should return error for unknown tool 2ms
+   MCP Tool Permissions E2E > Tool Execution > should require session for tool execution 2ms
+   MCP Tool Permissions E2E > Tool Arguments > should accept valid arguments for check-status 2ms
+   MCP Tool Permissions E2E > Tool Arguments > should handle invalid argument types 3ms
+   MCP Tool Permissions E2E > Security Headers > should not expose internal metadata in tool list 2ms
+   MCP Tool Permissions E2E > Rate Limiting > should handle multiple rapid requests 15ms
+   MCP Tool Permissions E2E > Error Handling > should handle malformed JSON-RPC requests 2ms
+   MCP Tool Permissions E2E > Error Handling > should handle invalid method names 1ms

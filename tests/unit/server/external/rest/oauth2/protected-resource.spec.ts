@@ -541,4 +541,211 @@ describe('ProtectedResourceEndpoint', () => {
       expect(sentMetadata.scopes_supported).toHaveLength(8);
     });
   });
+
+  describe('HTTP method validation', () => {
+    let mockStatus: any;
+
+    beforeEach(() => {
+      mockStatus = vi.fn().mockReturnThis();
+      mockRes.status = mockStatus;
+    });
+
+    it('should return 405 Method Not Allowed for POST requests', () => {
+      mockReq.method = 'POST';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return 405 Method Not Allowed for PUT requests', () => {
+      mockReq.method = 'PUT';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return 405 Method Not Allowed for DELETE requests', () => {
+      mockReq.method = 'DELETE';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return 405 Method Not Allowed for PATCH requests', () => {
+      mockReq.method = 'PATCH';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return 405 Method Not Allowed for HEAD requests', () => {
+      mockReq.method = 'HEAD';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return 405 Method Not Allowed for OPTIONS requests', () => {
+      mockReq.method = 'OPTIONS';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should process GET requests normally', () => {
+      mockReq.method = 'GET';
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: ['https://auth.example.com']
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      // Verify that status(405) was not called
+      expect(mockRes.status).not.toHaveBeenCalled();
+      
+      // Verify normal processing occurred
+      expect(getAuthModule).toHaveBeenCalledTimes(1);
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).toHaveBeenCalledTimes(1);
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+      expect(result).toBe(mockRes);
+    });
+
+    it('should return 200 status implicitly for successful GET requests', () => {
+      mockReq.method = 'GET';
+      const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
+        resource: 'https://api.example.com/protected',
+        authorization_servers: ['https://auth.example.com']
+      };
+
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+
+      protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      // Verify that status was never called (Express defaults to 200)
+      expect(mockRes.status).not.toHaveBeenCalled();
+      
+      // Verify json was called directly (Express sets 200 status by default)
+      expect(mockRes.json).toHaveBeenCalledWith(mockMetadata);
+    });
+
+    it('should handle undefined method as non-GET and return 405', () => {
+      mockReq.method = undefined;
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should handle lowercase get method and return 405', () => {
+      mockReq.method = 'get';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should handle mixed case method and return 405', () => {
+      mockReq.method = 'Get';
+
+      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+        mockReq as Request, 
+        mockRes as Response
+      );
+
+      expect(mockRes.status).toHaveBeenCalledWith(405);
+      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+      expect(result).toBe(mockRes);
+
+      // Verify that auth module methods were not called
+      expect(getAuthModule).not.toHaveBeenCalled();
+      expect(mockOAuth2ConfigService.getProtectedResourceMetadata).not.toHaveBeenCalled();
+    });
+  });
 });

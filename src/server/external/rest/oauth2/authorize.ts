@@ -8,17 +8,16 @@ import type { Request as ExpressRequest, Response as ExpressResponse } from 'exp
 import { z } from 'zod';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { getAuthModule } from '@/modules/core/auth/index';
+import { AuthRepository } from '@/modules/core/auth/database/repository';
 import type {
   IAuthCodeParams,
   IAuthCodeService,
-  IAuthRepository,
   IAuthenticatedUser,
   IAuthorizeRequestParams,
-  IDatabaseUser,
   IIdentityProvider,
   IOAuth2Error,
   IOAuthUserData,
-  IProviderRegistry,
   IStateData
 } from '@/server/external/rest/oauth2/types/authorize.types';
 
@@ -58,88 +57,15 @@ const oauth2Error = {
         };
       }
     };
-  }
-};
-
-/**
- * Mock provider registry - needs to be replaced with actual implementation.
- */
-const mockProviders: Record<string, IIdentityProvider> = {
-  google: {
-    name: 'google',
-    getAuthorizationUrl: (state: string): string => {
-      return `https://accounts.google.com/oauth/authorize?state=${state}`;
-    },
-    exchangeCodeForTokens: async (): Promise<{ accessToken: string }> => {
-      return await Promise.resolve({ accessToken: 'mock_token' });
-    },
-    getUserInfo: async (): Promise<{ id: string; email: string }> => {
-      return await Promise.resolve({
-        id: 'mock_id',
-        email: 'mock@email.com'
-      });
-    }
-  }
-};
-
-/**
- * Mock auth code service - needs to be replaced with actual implementation.
- */
-const mockAuthCodeService: IAuthCodeService = {
-  createAuthorizationCode: async (): Promise<string> => {
-    return await Promise.resolve('mock_auth_code');
   },
-  cleanupExpiredCodes: async (): Promise<void> => {
-    await Promise.resolve();
-  }
-};
-
-/**
- * Mock auth module getter - needs to be replaced with actual implementation.
- * @returns Auth module with provider registry and auth code service exports.
- */
-const getAuthModule = (): {
-  exports: {
-    getProviderRegistry: () => IProviderRegistry;
-    authCodeService: () => IAuthCodeService;
-  };
-} => {
-  return {
-    exports: {
-      getProviderRegistry: (): IProviderRegistry => {
-        return {
-          getProvider: (name: string): IIdentityProvider | undefined => {
-            return mockProviders[name];
-          },
-          getAllProviders: (): IIdentityProvider[] => {
-            return Object.values(mockProviders);
-          }
-        };
-      },
-      authCodeService: (): IAuthCodeService => {
-        return mockAuthCodeService;
-      }
-    }
-  };
-};
-
-/**
- * Mock auth repository - needs to be replaced with actual implementation.
- */
-const authRepository = {
-  getInstance: (): IAuthRepository => {
+  accessDenied: (message: string): IOAuth2Error => {
     return {
-      async upsertUserFromOAuth(
-        _provider: string,
-        _providerId: string,
-        userData: IOAuthUserData
-      ): Promise<IDatabaseUser> {
-        return await Promise.resolve({
-          id: 'mock_user_id',
-          email: userData.email,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+      code: 400,
+      toJSON(): { error: string; error_description: string } {
+        return {
+          error: 'access_denied',
+          error_description: message
+        };
       }
     };
   }
@@ -154,14 +80,16 @@ const authorizeRequestSchema = z.object({
   response_type: z.enum(['code', 'code id_token']),
   client_id: z.string(),
   redirect_uri: z.string().url(),
-  scope: z.string(),
+  scope: z.string().optional()
+.default('openid email profile'), // Make optional with default
   state: z.string().optional(),
   nonce: z.string().optional(),
   code_challenge: z.string().optional(),
   code_challenge_method: z.enum(['S256', 'plain']).optional(),
   provider: z.string().optional(),
+  idp: z.string().optional(), // Support both 'provider' and 'idp' for backwards compatibility
   provider_code: z.string().optional()
-}).transform((input) => ({
+}).transform((input) => { return {
   responseType: input.response_type,
   clientId: input.client_id,
   redirectUri: input.redirect_uri,
@@ -170,9 +98,9 @@ const authorizeRequestSchema = z.object({
   nonce: input.nonce,
   codeChallenge: input.code_challenge,
   codeChallengeMethod: input.code_challenge_method,
-  provider: input.provider,
+  provider: input.provider || input.idp
   providerCode: input.provider_code
-}));
+} });
 
 /**
  * Build URL search params for OAuth provider redirect.
@@ -533,13 +461,13 @@ export class AuthorizeEndpoint {
       if (error instanceof z.ZodError) {
         const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
 
-        if (missingFields.some(e => { return e.path[0] === 'clientId' })) {
+        if (missingFields.some(e => { return e.path[0] === 'client_id' })) {
           const oauthError = oauth2Error.invalidRequest('client_id is required');
           res.status(oauthError.code).json(oauthError.toJSON());
-        } else if (missingFields.some(e => { return e.path[0] === 'responseType' })) {
+        } else if (missingFields.some(e => { return e.path[0] === 'response_type' })) {
           const oauthError = oauth2Error.invalidRequest('response_type is required');
           res.status(oauthError.code).json(oauthError.toJSON());
-        } else if (error.errors.some(e => { return e.path[0] === 'responseType' && e.code === 'invalid_enum_value' })) {
+        } else if (error.errors.some(e => { return e.path[0] === 'response_type' && e.code === 'invalid_enum_value' })) {
           const oauthError = oauth2Error.unsupportedResponseType('Unsupported response_type');
           res.status(oauthError.code).json(oauthError.toJSON());
         } else {
@@ -580,6 +508,47 @@ export class AuthorizeEndpoint {
 
       const params = authorizeRequestSchema.parse(req.body);
 
+      if (params.provider !== undefined) {
+        const authModule = getAuthModule();
+        const providerRegistry = authModule.exports.getProviderRegistry();
+
+        if (providerRegistry === null) {
+          throw new Error('Provider registry not initialized');
+        }
+
+        const provider = providerRegistry.getProvider(
+          params.provider.toLowerCase()
+        );
+        if (provider === undefined) {
+          throw new Error(`Unknown provider: ${params.provider}`);
+        }
+
+        const stateData: IStateData = {
+          clientId: params.clientId,
+          redirectUri: params.redirectUri,
+          scope: params.scope
+        };
+
+        if (params.state !== undefined) {
+          stateData.originalState = params.state;
+        }
+        if (params.codeChallenge !== undefined) {
+          stateData.codeChallenge = params.codeChallenge;
+        }
+        if (params.codeChallengeMethod !== undefined) {
+          stateData.codeChallengeMethod = params.codeChallengeMethod;
+        }
+
+        const providerState = Buffer.from(
+          JSON.stringify(stateData)
+        ).toString('base64url');
+
+        const providerAuthUrl = provider.getAuthorizationUrl(providerState);
+
+        res.redirect(providerAuthUrl);
+        return;
+      }
+
       const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
       const { user } = extendedReq;
       if (user === undefined) {
@@ -605,13 +574,13 @@ export class AuthorizeEndpoint {
       if (error instanceof z.ZodError) {
         const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
 
-        if (missingFields.some(e => { return e.path[0] === 'clientId' })) {
+        if (missingFields.some(e => { return e.path[0] === 'client_id' })) {
           const oauthError = oauth2Error.invalidRequest('client_id is required');
           res.status(oauthError.code).json(oauthError.toJSON());
-        } else if (missingFields.some(e => { return e.path[0] === 'responseType' })) {
+        } else if (missingFields.some(e => { return e.path[0] === 'response_type' })) {
           const oauthError = oauth2Error.invalidRequest('response_type is required');
           res.status(oauthError.code).json(oauthError.toJSON());
-        } else if (error.errors.some(e => { return e.path[0] === 'responseType' && e.code === 'invalid_enum_value' })) {
+        } else if (error.errors.some(e => { return e.path[0] === 'response_type' && e.code === 'invalid_enum_value' })) {
           const oauthError = oauth2Error.unsupportedResponseType('Unsupported response_type');
           res.status(oauthError.code).json(oauthError.toJSON());
         } else {
@@ -627,8 +596,34 @@ export class AuthorizeEndpoint {
   handleProviderCallback = async (req: ExpressRequest, res: ExpressResponse): Promise<ExpressResponse | void> => {
     try {
       const { provider } = req.params;
+
       if (!provider) {
-        throw new Error('Provider parameter is required');
+        const {
+ error, error_description: errorDescription, state, code
+} = req.query as {
+          error?: string;
+          error_description?: string;
+          state?: string;
+          code?: string;
+        };
+
+        if (error) {
+          const oauthError = oauth2Error.accessDenied(errorDescription || 'User denied access');
+          return res.status(oauthError.code).json(oauthError.toJSON());
+        }
+
+        if (code && state) {
+          try {
+            const decodedState = Buffer.from(state, 'base64url').toString();
+            JSON.parse(decodedState) as IStateData;
+          } catch (parseError: unknown) {
+            const invalidError = oauth2Error.invalidRequest('Invalid state parameter');
+            return res.status(invalidError.code).json(invalidError.toJSON());
+          }
+        }
+
+        const invalidError = oauth2Error.invalidRequest('Provider parameter is required');
+        return res.status(invalidError.code).json(invalidError.toJSON());
       }
       const providerName = provider.toLowerCase();
       const {
@@ -662,7 +657,9 @@ export class AuthorizeEndpoint {
       }
 
       if (!code || !state) {
-        throw new Error('Missing code or state parameter');
+        const missingParam = !code ? 'code' : 'state';
+        const invalidError = oauth2Error.invalidRequest(`Missing ${missingParam} parameter`);
+        return res.status(invalidError.code).json(invalidError.toJSON());
       }
 
       let stateData: IStateData;
@@ -678,7 +675,8 @@ export class AuthorizeEndpoint {
           category: 'oauth2',
           action: 'callback'
         });
-        throw new Error('Invalid state parameter');
+        const invalidError = oauth2Error.invalidRequest('Invalid state parameter');
+        return res.status(invalidError.code).json(invalidError.toJSON());
       }
 
       const authModule = getAuthModule();
@@ -706,7 +704,7 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      const authRepo = authRepository.getInstance();
+      const authRepo = AuthRepository.getInstance();
       const avatarUrl = extractAvatarUrl(userInfo);
 
       const userData: IOAuthUserData = {
@@ -721,7 +719,7 @@ export class AuthorizeEndpoint {
         userData.avatar = avatarUrl;
       }
 
-      const user = await authRepo.upsertUserFromOAuth(
+      const user = await authRepo.upsertIUserFromOAuth(
         providerName,
         userInfo.id,
         userData
@@ -741,7 +739,7 @@ export class AuthorizeEndpoint {
         userId: user.id,
         userEmail: user.email,
         provider: providerName,
-        providerTokens,
+        providerTokens: providerTokens as unknown as Record<string, unknown>,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)
       };
 

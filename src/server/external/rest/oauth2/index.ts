@@ -41,6 +41,22 @@ const authMiddleware = (_req: ExpressRequest, _res: ExpressResponse, next: NextF
 };
 
 /**
+ * Security headers middleware for OAuth2 endpoints.
+ * @param _req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next function.
+ */
+const securityHeadersMiddleware = (_req: ExpressRequest, res: ExpressResponse, next: NextFunction): void => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';");
+  next();
+};
+
+/**
  * Sets up discovery endpoints on the router.
  * @param router - Express router instance.
  * @param endpoints - Endpoint instances.
@@ -99,6 +115,10 @@ const setupOAuth2FlowRoutes = (
     void endpoints.authorize.postAuthorize(req, res);
   });
 
+  router.get('/oauth2/callback', (req, res): void => {
+    void endpoints.authorize.handleProviderCallback(req, res);
+  });
+
   router.get('/oauth2/callback/:provider', (req, res): void => {
     void endpoints.authorize.handleProviderCallback(req, res);
   });
@@ -141,6 +161,8 @@ const setupOAuth2FlowRoutes = (
  * @public
  */
 export const setupOAuth2Routes = (router: Router): void => {
+  router.use(securityHeadersMiddleware);
+
   const endpoints = {
     wellKnown: new WellKnownEndpoint(),
     protectedResource: new ProtectedResourceEndpoint(),

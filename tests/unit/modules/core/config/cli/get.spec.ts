@@ -38,9 +38,7 @@ describe('Config Get Command', () => {
 
       await command.execute({ key: 'api' });
 
-      expect(mockConfigModule.initialize).toHaveBeenCalledWith({ 
-        config: { configPath: './state/config' } 
-      });
+      expect(mockConfigModule.initialize).toHaveBeenCalledWith();
       expect(mockConfigModule.get).toHaveBeenCalledWith('api');
       expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(testValue, null, 2));
     });

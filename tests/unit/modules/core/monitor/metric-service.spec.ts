@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { MetricService } from '../../../../../src/modules/core/monitor/services/metric-service.js';
+import { MetricService } from '../../../../../src/modules/core/monitor/services/metric.service.js';
 import type { MonitorRepository } from '../../../../../src/modules/core/monitor/repositories/monitor-repository.js';
 
 describe('MetricService', () => {
@@ -76,7 +76,6 @@ describe('MetricService', () => {
           name: 'test_metric',
           value: 100,
           type: 'gauge',
-          labels: {},
           timestamp: expect.any(Date)
         })
       );
@@ -130,6 +129,75 @@ describe('MetricService', () => {
         'Failed to auto-flush metrics',
         expect.objectContaining({ error: 'Flush failed' })
       );
+    });
+
+    it('should handle auto-flush non-Error exceptions gracefully', async () => {
+      vi.useFakeTimers();
+      mockRepository.recordMetric.mockRejectedValue('String error');
+
+      // Fill buffer to trigger auto-flush
+      for (let i = 0; i < mockConfig.metrics.bufferSize; i++) {
+        service.recordMetric(`metric_${i}`, i);
+      }
+
+      // Wait for async operations
+      await vi.runAllTimersAsync();
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to auto-flush metrics',
+        expect.objectContaining({ error: 'String error' })
+      );
+    });
+
+    it('should record metric with empty name', () => {
+      const metricSpy = vi.fn();
+      service.on('metric:recorded', metricSpy);
+
+      service.recordMetric('', 100);
+
+      expect(metricSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: '',
+          value: 100,
+          type: 'gauge',
+          timestamp: expect.any(Date)
+        })
+      );
+    });
+
+    it('should record metric with falsy type (empty string)', () => {
+      const metricSpy = vi.fn();
+      service.on('metric:recorded', metricSpy);
+
+      service.recordMetric('test_metric', 100, '' as any);
+
+      expect(metricSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'test_metric',
+          value: 100,
+          timestamp: expect.any(Date)
+        })
+      );
+    });
+
+    it('should record metric without labels when labels object is empty', () => {
+      const metricSpy = vi.fn();
+      service.on('metric:recorded', metricSpy);
+
+      service.recordMetric('test_metric', 100, 'gauge', {});
+
+      expect(metricSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'test_metric',
+          value: 100,
+          type: 'gauge',
+          timestamp: expect.any(Date)
+        })
+      );
+      
+      // Should not have labels property since empty object
+      const call = metricSpy.mock.calls[0][0];
+      expect(call).not.toHaveProperty('labels');
     });
   });
 
@@ -234,6 +302,29 @@ describe('MetricService', () => {
       expect(mockRepository.getMetricNames).toHaveBeenCalled();
       expect(result).toEqual(['cpu_usage', 'memory_usage']);
     });
+
+    it('should query metrics with undefined labels', async () => {
+      const mockData = [
+        { name: 'cpu_usage', value: 75, timestamp: new Date() }
+      ];
+      mockRepository.getMetrics.mockResolvedValue(mockData);
+
+      const query = {
+        metric: 'cpu_usage',
+        start_time: new Date('2023-01-01'),
+        end_time: new Date('2023-01-02')
+        // labels is undefined
+      };
+
+      const result = await service.queryMetrics(query);
+
+      expect(mockRepository.getMetrics).toHaveBeenCalledWith(query);
+      expect(result).toEqual({
+        metric: 'cpu_usage',
+        data: mockData,
+        labels: {}
+      });
+    });
   });
 
   describe('System Metrics', () => {
@@ -274,6 +365,18 @@ describe('MetricService', () => {
         { error: 'Cleanup failed', retentionDays: 30 }
       );
     });
+
+    it('should handle cleanup non-Error exceptions', async () => {
+      const error = 'String cleanup error';
+      mockRepository.deleteOldMetrics.mockRejectedValue(error);
+
+      await expect(service.cleanupOldMetrics(30)).rejects.toThrow('String cleanup error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to cleanup old metrics',
+        { error: 'String cleanup error', retentionDays: 30 }
+      );
+    });
   });
 
   describe('Flush Operations', () => {
@@ -308,6 +411,26 @@ describe('MetricService', () => {
         'Failed to flush metrics',
         expect.objectContaining({
           error: 'Repository error',
+          count: 2
+        })
+      );
+    });
+
+    it('should handle flush non-Error exceptions and restore buffer', async () => {
+      vi.useFakeTimers();
+      mockRepository.recordMetric.mockRejectedValue('String repository error');
+
+      // Add metrics to buffer
+      service.recordMetric('metric1', 10);
+      service.recordMetric('metric2', 20);
+
+      // Attempt flush - should handle error gracefully
+      await expect(service.shutdown()).rejects.toThrow('String repository error');
+
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to flush metrics',
+        expect.objectContaining({
+          error: 'String repository error',
           count: 2
         })
       );

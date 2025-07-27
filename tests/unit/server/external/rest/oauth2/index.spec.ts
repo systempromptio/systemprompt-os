@@ -3,61 +3,59 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { setupOAuth2Routes } from '../../../../../../src/server/external/rest/oauth2/index.js';
 
 // Mock all the endpoint classes
 vi.mock('../../../../../../src/server/external/rest/oauth2/well-known', () => ({
   WellKnownEndpoint: vi.fn().mockImplementation(() => ({
-    getJWKS: vi.fn()
+    getJWKS: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/protected-resource', () => ({
   ProtectedResourceEndpoint: vi.fn().mockImplementation(() => ({
-    getProtectedResourceMetadata: vi.fn()
+    getProtectedResourceMetadata: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/authorization-server', () => ({
   AuthorizationServerEndpoint: vi.fn().mockImplementation(() => ({
-    getAuthorizationServerMetadata: vi.fn()
+    getAuthorizationServerMetadata: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/register', () => ({
   RegisterEndpoint: vi.fn().mockImplementation(() => ({
-    register: vi.fn()
+    register: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/authorize', () => ({
   AuthorizeEndpoint: vi.fn().mockImplementation(() => ({
-    getAuthorize: vi.fn(),
-    postAuthorize: vi.fn(),
-    handleProviderCallback: vi.fn()
+    getAuthorize: vi.fn().mockResolvedValue(undefined),
+    postAuthorize: vi.fn().mockResolvedValue(undefined),
+    handleProviderCallback: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/token', () => ({
   TokenEndpoint: vi.fn().mockImplementation(() => ({
-    postToken: vi.fn()
+    postToken: vi.fn().mockResolvedValue(undefined)
   }))
 }));
 
 vi.mock('../../../../../../src/server/external/rest/oauth2/userinfo', () => ({
   UserInfoEndpoint: vi.fn().mockImplementation(() => ({
-    getUserInfo: vi.fn()
+    getUserInfo: vi.fn().mockResolvedValue(undefined)
   }))
-}));
-
-vi.mock('../../../../../../src/server/external/middleware/auth', () => ({
-  authMiddleware: vi.fn((req, res, next) => next())
 }));
 
 describe('setupOAuth2Routes', () => {
   let mockRouter: any;
-  const baseUrl = 'https://example.com';
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let mockNext: NextFunction;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,16 +69,28 @@ describe('setupOAuth2Routes', () => {
       post: vi.fn((path, ...handlers) => {
         routes.push({ method: 'POST', path, handlers });
       }),
+      use: vi.fn(),
       routes
     };
+
+    // Create mock Express objects
+    mockRequest = {};
+    mockResponse = {
+      setHeader: vi.fn(),
+    };
+    mockNext = vi.fn();
   });
 
   afterEach(() => {
     vi.resetAllMocks();
   });
 
-  it('should setup all OAuth2 routes', async () => {
-    await setupOAuth2Routes(mockRouter, baseUrl);
+  it('should setup all OAuth2 routes with security headers middleware', () => {
+    setupOAuth2Routes(mockRouter);
+
+    // Check that security headers middleware was applied
+    expect(mockRouter.use).toHaveBeenCalledTimes(1);
+    expect(mockRouter.use).toHaveBeenCalledWith(expect.any(Function));
 
     // Check that all expected routes were registered
     expect(mockRouter.get).toHaveBeenCalledTimes(6);
@@ -126,33 +136,47 @@ describe('setupOAuth2Routes', () => {
     );
   });
 
-  it('should initialize all endpoint handlers with correct parameters', async () => {
-    const { WellKnownEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/well-known');
-    const { ProtectedResourceEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/protected-resource');
-    const { AuthorizationServerEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/authorization-server');
-    const { RegisterEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/register');
-    const { AuthorizeEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/authorize');
-    const { TokenEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/token');
-    const { UserInfoEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/userinfo');
+  it('should initialize all endpoint handlers without parameters', async () => {
+    const { WellKnownEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/well-known'));
+    const { ProtectedResourceEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/protected-resource'));
+    const { AuthorizationServerEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/authorization-server'));
+    const { RegisterEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/register'));
+    const { AuthorizeEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/authorize'));
+    const { TokenEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/token'));
+    const { UserInfoEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/userinfo'));
 
-    await setupOAuth2Routes(mockRouter, baseUrl);
+    setupOAuth2Routes(mockRouter);
 
-    // Check endpoints that require baseUrl
-    expect(WellKnownEndpoint).toHaveBeenCalledWith(baseUrl);
-    expect(ProtectedResourceEndpoint).toHaveBeenCalledWith(baseUrl);
-    expect(AuthorizationServerEndpoint).toHaveBeenCalledWith(baseUrl);
-
-    // Check endpoints that don't require baseUrl
+    // Check that all endpoints are initialized without parameters
+    expect(WellKnownEndpoint).toHaveBeenCalledWith();
+    expect(ProtectedResourceEndpoint).toHaveBeenCalledWith();
+    expect(AuthorizationServerEndpoint).toHaveBeenCalledWith();
     expect(RegisterEndpoint).toHaveBeenCalledWith();
     expect(AuthorizeEndpoint).toHaveBeenCalledWith();
     expect(TokenEndpoint).toHaveBeenCalledWith();
     expect(UserInfoEndpoint).toHaveBeenCalledWith();
   });
 
-  it('should use authMiddleware for protected routes', async () => {
-    const { authMiddleware } = await import('../../../../../../src/server/external/middleware/auth');
+  it('should apply security headers middleware correctly', () => {
+    setupOAuth2Routes(mockRouter);
+
+    // Get the security headers middleware function
+    const securityHeadersMiddleware = mockRouter.use.mock.calls[0][0];
     
-    await setupOAuth2Routes(mockRouter, baseUrl);
+    // Call the middleware with mock objects
+    securityHeadersMiddleware(mockRequest, mockResponse, mockNext);
+
+    // Verify all security headers are set
+    expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
+    expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
+    expect(mockResponse.setHeader).toHaveBeenCalledWith('X-XSS-Protection', '1; mode=block');
+    expect(mockResponse.setHeader).toHaveBeenCalledWith('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    expect(mockResponse.setHeader).toHaveBeenCalledWith('Referrer-Policy', 'strict-origin-when-cross-origin');
+    expect(mockNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('should use internal authMiddleware for userinfo route', () => {
+    setupOAuth2Routes(mockRouter);
 
     // Find the userinfo route registration
     const userinfoRoute = mockRouter.routes.find(
@@ -161,86 +185,144 @@ describe('setupOAuth2Routes', () => {
 
     expect(userinfoRoute).toBeDefined();
     expect(userinfoRoute.handlers).toHaveLength(2);
-    expect(userinfoRoute.handlers[0]).toBe(authMiddleware);
+    // The first handler should be the internal authMiddleware
+    expect(userinfoRoute.handlers[0]).toBeTypeOf('function');
   });
 
-  it('should handle routes correctly when called', async () => {
-    await setupOAuth2Routes(mockRouter, baseUrl);
+  it('should test internal authMiddleware behavior', () => {
+    setupOAuth2Routes(mockRouter);
 
-    // Simulate calling the routes
-    const routes = mockRouter.routes;
-
-    // Test well-known routes
-    const protectedResourceRoute = routes.find(
-      (r: any) => r.path === '/.well-known/oauth-protected-resource'
-    );
-    expect(protectedResourceRoute).toBeDefined();
-
-    const authServerRoute = routes.find(
-      (r: any) => r.path === '/.well-known/oauth-authorization-server'
-    );
-    expect(authServerRoute).toBeDefined();
-
-    const jwksRoute = routes.find(
-      (r: any) => r.path === '/.well-known/jwks.json'
-    );
-    expect(jwksRoute).toBeDefined();
-
-    // Test OAuth2 routes
-    const registerRoute = routes.find(
-      (r: any) => r.method === 'POST' && r.path === '/oauth2/register'
-    );
-    expect(registerRoute).toBeDefined();
-
-    const authorizeGetRoute = routes.find(
-      (r: any) => r.method === 'GET' && r.path === '/oauth2/authorize'
-    );
-    expect(authorizeGetRoute).toBeDefined();
-
-    const authorizePostRoute = routes.find(
-      (r: any) => r.method === 'POST' && r.path === '/oauth2/authorize'
-    );
-    expect(authorizePostRoute).toBeDefined();
-
-    const callbackRoute = routes.find(
-      (r: any) => r.path === '/oauth2/callback/:provider'
-    );
-    expect(callbackRoute).toBeDefined();
-
-    const tokenRoute = routes.find(
-      (r: any) => r.method === 'POST' && r.path === '/oauth2/token'
-    );
-    expect(tokenRoute).toBeDefined();
-
-    const userinfoRoute = routes.find(
+    // Find the userinfo route and get the auth middleware
+    const userinfoRoute = mockRouter.routes.find(
       (r: any) => r.method === 'GET' && r.path === '/oauth2/userinfo'
     );
-    expect(userinfoRoute).toBeDefined();
+
+    const authMiddleware = userinfoRoute.handlers[0];
+    
+    // Test that the auth middleware calls next()
+    authMiddleware(mockRequest, mockResponse, mockNext);
+    expect(mockNext).toHaveBeenCalledTimes(1);
   });
 
-  it('should return a Promise that resolves to void', async () => {
-    const result = await setupOAuth2Routes(mockRouter, baseUrl);
+  it('should handle discovery route calls correctly', async () => {
+    const { WellKnownEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/well-known'));
+    const { ProtectedResourceEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/protected-resource'));
+    const { AuthorizationServerEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/authorization-server'));
+
+    const mockWellKnownInstance = { getJWKS: vi.fn() };
+    const mockProtectedResourceInstance = { getProtectedResourceMetadata: vi.fn() };
+    const mockAuthServerInstance = { getAuthorizationServerMetadata: vi.fn() };
+
+    WellKnownEndpoint.mockImplementation(() => mockWellKnownInstance as any);
+    ProtectedResourceEndpoint.mockImplementation(() => mockProtectedResourceInstance as any);
+    AuthorizationServerEndpoint.mockImplementation(() => mockAuthServerInstance as any);
+
+    setupOAuth2Routes(mockRouter);
+
+    // Test protected resource route
+    const protectedResourceRoute = mockRouter.routes.find(
+      (r: any) => r.path === '/.well-known/oauth-protected-resource'
+    );
+    const protectedResourceHandler = protectedResourceRoute.handlers[0];
+    protectedResourceHandler(mockRequest, mockResponse);
+    expect(mockProtectedResourceInstance.getProtectedResourceMetadata).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test authorization server route
+    const authServerRoute = mockRouter.routes.find(
+      (r: any) => r.path === '/.well-known/oauth-authorization-server'
+    );
+    const authServerHandler = authServerRoute.handlers[0];
+    authServerHandler(mockRequest, mockResponse);
+    expect(mockAuthServerInstance.getAuthorizationServerMetadata).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test JWKS route
+    const jwksRoute = mockRouter.routes.find(
+      (r: any) => r.path === '/.well-known/jwks.json'
+    );
+    const jwksHandler = jwksRoute.handlers[0];
+    jwksHandler(mockRequest, mockResponse);
+    expect(mockWellKnownInstance.getJWKS).toHaveBeenCalledWith(mockRequest, mockResponse);
+  });
+
+  it('should handle OAuth2 flow route calls correctly', async () => {
+    const { RegisterEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/register'));
+    const { AuthorizeEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/authorize'));
+    const { TokenEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/token'));
+    const { UserInfoEndpoint } = vi.mocked(await import('../../../../../../src/server/external/rest/oauth2/userinfo'));
+
+    const mockRegisterInstance = { register: vi.fn() };
+    const mockAuthorizeInstance = { 
+      getAuthorize: vi.fn(),
+      postAuthorize: vi.fn(),
+      handleProviderCallback: vi.fn()
+    };
+    const mockTokenInstance = { postToken: vi.fn() };
+    const mockUserInfoInstance = { getUserInfo: vi.fn() };
+
+    RegisterEndpoint.mockImplementation(() => mockRegisterInstance as any);
+    AuthorizeEndpoint.mockImplementation(() => mockAuthorizeInstance as any);
+    TokenEndpoint.mockImplementation(() => mockTokenInstance as any);
+    UserInfoEndpoint.mockImplementation(() => mockUserInfoInstance as any);
+
+    setupOAuth2Routes(mockRouter);
+
+    // Test register route
+    const registerRoute = mockRouter.routes.find(
+      (r: any) => r.method === 'POST' && r.path === '/oauth2/register'
+    );
+    const registerHandler = registerRoute.handlers[0];
+    registerHandler(mockRequest, mockResponse);
+    expect(mockRegisterInstance.register).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test authorize GET route
+    const authorizeGetRoute = mockRouter.routes.find(
+      (r: any) => r.method === 'GET' && r.path === '/oauth2/authorize'
+    );
+    const authorizeGetHandler = authorizeGetRoute.handlers[0];
+    authorizeGetHandler(mockRequest, mockResponse);
+    expect(mockAuthorizeInstance.getAuthorize).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test authorize POST route
+    const authorizePostRoute = mockRouter.routes.find(
+      (r: any) => r.method === 'POST' && r.path === '/oauth2/authorize'
+    );
+    const authorizePostHandler = authorizePostRoute.handlers[0];
+    authorizePostHandler(mockRequest, mockResponse);
+    expect(mockAuthorizeInstance.postAuthorize).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test callback route
+    const callbackRoute = mockRouter.routes.find(
+      (r: any) => r.path === '/oauth2/callback/:provider'
+    );
+    const callbackHandler = callbackRoute.handlers[0];
+    callbackHandler(mockRequest, mockResponse);
+    expect(mockAuthorizeInstance.handleProviderCallback).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test token route
+    const tokenRoute = mockRouter.routes.find(
+      (r: any) => r.method === 'POST' && r.path === '/oauth2/token'
+    );
+    const tokenHandler = tokenRoute.handlers[0];
+    tokenHandler(mockRequest, mockResponse);
+    expect(mockTokenInstance.postToken).toHaveBeenCalledWith(mockRequest, mockResponse);
+
+    // Test userinfo route (async handler)
+    const userinfoRoute = mockRouter.routes.find(
+      (r: any) => r.method === 'GET' && r.path === '/oauth2/userinfo'
+    );
+    const userinfoHandler = userinfoRoute.handlers[1]; // Second handler after auth middleware
+    await userinfoHandler(mockRequest, mockResponse);
+    expect(mockUserInfoInstance.getUserInfo).toHaveBeenCalledWith(mockRequest, mockResponse);
+  });
+
+  it('should return void', () => {
+    const result = setupOAuth2Routes(mockRouter);
     expect(result).toBeUndefined();
   });
 
-  it('should work with different baseUrl formats', async () => {
-    const { WellKnownEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/well-known');
-    const { ProtectedResourceEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/protected-resource');
-    const { AuthorizationServerEndpoint } = await import('../../../../../../src/server/external/rest/oauth2/authorization-server');
-
-    const testUrls = [
-      'http://localhost:3000',
-      'https://api.example.com',
-      'https://example.com/api/v1'
-    ];
-
-    for (const testUrl of testUrls) {
-      vi.clearAllMocks();
-      await setupOAuth2Routes(mockRouter, testUrl);
-
-      expect(WellKnownEndpoint).toHaveBeenCalledWith(testUrl);
-      expect(ProtectedResourceEndpoint).toHaveBeenCalledWith(testUrl);
-      expect(AuthorizationServerEndpoint).toHaveBeenCalledWith(testUrl);
-    }
+  it('should handle route execution without errors', () => {
+    expect(() => {
+      setupOAuth2Routes(mockRouter);
+    }).not.toThrow();
   });
 });

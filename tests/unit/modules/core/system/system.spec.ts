@@ -7,6 +7,7 @@ import {
   SystemModule, 
   createModule, 
   initialize,
+  getSystemModule,
   ConfigTypeEnum,
   ModuleStatusEnum,
   EventSeverityEnum,
@@ -19,17 +20,43 @@ import { LogSource } from '../../../../../src/modules/core/logger/types/index.js
 // Mock the services
 vi.mock('../../../../../src/modules/core/system/services/system.service.js');
 vi.mock('../../../../../src/modules/core/logger/services/logger.service.js');
+vi.mock('@/modules/loader', () => ({
+  getModuleLoader: vi.fn(() => ({
+    getModule: vi.fn()
+  }))
+}));
+vi.mock('@/modules/types/index', () => ({
+  ModuleName: {
+    SYSTEM: 'system'
+  }
+}));
 
 describe('SystemModule', () => {
   let systemModule: SystemModule;
+  let mockSystemService: any;
   let mockLogger: any;
   
   beforeEach(() => {
+    vi.clearAllMocks();
+    
+    // Create mock logger
     mockLogger = {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn()
     };
+    
+    // Create mock system service
+    mockSystemService = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      setLogger: vi.fn()
+    };
+    
+    // Mock LoggerService.getInstance
+    vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
+    
+    // Mock SystemService.getInstance
+    vi.mocked(SystemService.getInstance).mockReturnValue(mockSystemService);
     
     systemModule = new SystemModule();
   });
@@ -42,7 +69,10 @@ describe('SystemModule', () => {
     it('should have correct module properties', () => {
       expect(systemModule.name).toBe('system');
       expect(systemModule.version).toBe('1.0.0');
-      expect(systemModule.type).toBe('daemon');
+      expect(systemModule.type).toBe('service');
+      expect(systemModule.description).toBe('Core system management and configuration functionality');
+      expect(systemModule.dependencies).toEqual(['logger', 'database']);
+      expect(systemModule.status).toBe(ModuleStatusEnum.STOPPED);
     });
     
     it('should implement required methods', () => {
@@ -50,251 +80,260 @@ describe('SystemModule', () => {
       expect(systemModule.start).toBeDefined();
       expect(systemModule.stop).toBeDefined();
       expect(systemModule.healthCheck).toBeDefined();
+      expect(systemModule.getService).toBeDefined();
+    });
+    
+    it('should have exports getter', () => {
+      expect(systemModule.exports).toBeDefined();
+      expect(typeof systemModule.exports.service).toBe('function');
+    });
+    
+    it('should not be initialized or started initially', () => {
+      expect((systemModule as any).initialized).toBe(false);
+      expect((systemModule as any).started).toBe(false);
     });
   });
   
   describe('initialize', () => {
-    it('should initialize with config and logger', async () => {
-      const config = {
-        monitoring: { enabled: true, interval: 60000 },
-        health: { checks: ['memory', 'cpu'] }
-      };
+    it('should initialize successfully', async () => {
+      await systemModule.initialize();
       
-      await systemModule.initialize({ config, logger: mockLogger });
-      
-      expect(mockLogger.info).toHaveBeenCalledWith('System module initialized');
+      expect(LoggerService.getInstance).toHaveBeenCalled();
+      expect(SystemService.getInstance).toHaveBeenCalled();
+      expect(mockSystemService.initialize).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'System module initialized');
+      expect((systemModule as any).initialized).toBe(true);
     });
     
-    it('should initialize successfully with default config', async () => {
-      await systemModule.initialize({ logger: mockLogger });
+    it('should throw error if already initialized', async () => {
+      await systemModule.initialize();
       
-      expect(mockLogger.info).toHaveBeenCalledWith('System module initialized');
-      expect(systemModule.name).toBe('system');
-      expect(systemModule.version).toBe('1.0.0');
+      await expect(systemModule.initialize()).rejects.toThrow('System module already initialized');
+    });
+    
+    it('should handle initialization error from system service', async () => {
+      const error = new Error('SystemService initialization failed');
+      mockSystemService.initialize.mockRejectedValue(error);
+      
+      await expect(systemModule.initialize()).rejects.toThrow('Failed to initialize system module: SystemService initialization failed');
+      expect((systemModule as any).initialized).toBe(false);
+    });
+    
+    it('should handle non-Error objects during initialization', async () => {
+      mockSystemService.initialize.mockRejectedValue('String error');
+      
+      await expect(systemModule.initialize()).rejects.toThrow('Failed to initialize system module: String error');
     });
   });
   
   describe('start', () => {
-    it('should start monitoring when enabled', async () => {
-      const config = {
-        monitoring: { enabled: true, interval: 60000 }
-      };
-      
-      await systemModule.initialize({ config, logger: mockLogger });
+    it('should start successfully when initialized', async () => {
+      await systemModule.initialize();
       await systemModule.start();
       
-      expect(mockLogger.info).toHaveBeenCalledWith('System module started');
+      expect(systemModule.status).toBe(ModuleStatusEnum.RUNNING);
+      expect((systemModule as any).started).toBe(true);
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'System module started');
     });
     
-    it('should not start monitoring when disabled', async () => {
-      const config = {
-        monitoring: { enabled: false }
-      };
-      
-      await systemModule.initialize({ config, logger: mockLogger });
+    it('should throw error when not initialized', async () => {
+      await expect(systemModule.start()).rejects.toThrow('System module not initialized');
+      expect(systemModule.status).toBe(ModuleStatusEnum.STOPPED);
+      expect((systemModule as any).started).toBe(false);
+    });
+    
+    it('should handle multiple start calls gracefully', async () => {
+      await systemModule.initialize();
       await systemModule.start();
+      await systemModule.start(); // Second call should not throw
       
-      expect(mockLogger.info).toHaveBeenCalledWith('System module started');
+      expect(systemModule.status).toBe(ModuleStatusEnum.RUNNING);
+      expect((systemModule as any).started).toBe(true);
     });
   });
   
   describe('stop', () => {
-    it('should stop monitoring and flush metrics', async () => {
-      await systemModule.initialize({ logger: mockLogger });
+    it('should stop successfully when started', async () => {
+      await systemModule.initialize();
       await systemModule.start();
       await systemModule.stop();
       
-      expect(mockLogger.info).toHaveBeenCalledWith('System module stopped');
+      expect(systemModule.status).toBe(ModuleStatusEnum.STOPPED);
+      expect((systemModule as any).started).toBe(false);
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'System module stopped');
+    });
+    
+    it('should handle stop when not started', async () => {
+      await systemModule.initialize();
+      await systemModule.stop(); // Not started yet
+      
+      expect(systemModule.status).toBe(ModuleStatusEnum.STOPPED);
+      expect((systemModule as any).started).toBe(false);
+      // Should not log stop message since it wasn't started
+      expect(mockLogger.info).not.toHaveBeenCalledWith(LogSource.SYSTEM, 'System module stopped');
+    });
+    
+    it('should handle multiple stop calls gracefully', async () => {
+      await systemModule.initialize();
+      await systemModule.start();
+      await systemModule.stop();
+      await systemModule.stop(); // Second call should not throw
+      
+      expect(systemModule.status).toBe(ModuleStatusEnum.STOPPED);
     });
   });
   
   describe('healthCheck', () => {
-    it('should return healthy status', async () => {
-      const mockReport: HealthReport = {
-        overall: 'healthy',
-        checks: [],
-        timestamp: new Date()
-      };
-      
-      await systemModule.initialize({ logger: mockLogger });
-      
-      // Mock the health service
-      const healthService = (systemModule as any).healthService;
-      vi.spyOn(healthService, 'runHealthCheck').mockResolvedValue(mockReport);
-      
+    it('should return unhealthy when not initialized', async () => {
       const result = await systemModule.healthCheck();
       
-      expect(result.healthy).toBe(true);
-      expect(result.message).toBe('System is healthy');
+      expect(result.healthy).toBe(false);
+      expect(result.message).toBe('System module not initialized');
     });
     
-    it('should return unhealthy status on error', async () => {
-      await systemModule.initialize({ logger: mockLogger });
-      
-      // Mock the health service to throw error
-      const healthService = (systemModule as any).healthService;
-      vi.spyOn(healthService, 'runHealthCheck').mockRejectedValue(new Error('Test error'));
+    it('should return unhealthy when not started', async () => {
+      await systemModule.initialize();
       
       const result = await systemModule.healthCheck();
       
       expect(result.healthy).toBe(false);
-      expect(result.message).toContain('Health check failed');
+      expect(result.message).toBe('System module not started');
     });
-  });
-  
-  describe('getSystemStatus', () => {
-    it('should return system status', async () => {
-      const mockStatus: SystemStatus = {
-        uptime: 1000,
-        version: '1.0.0',
-        nodeVersion: 'v18.0.0',
-        platform: 'linux',
-        architecture: 'x64',
-        hostname: 'test-host',
-        memory: {
-          total: 8000000000,
-          free: 4000000000,
-          used: 4000000000,
-          usagePercent: 50
-        },
-        cpu: {
-          model: 'Test CPU',
-          cores: 4,
-          usage: 25,
-          loadAverage: [1, 1, 1]
-        },
-        disk: {
-          total: 100000000000,
-          free: 50000000000,
-          used: 50000000000,
-          usagePercent: 50,
-          path: '/'
-        },
-        modules: [],
-        timestamp: new Date()
-      };
-      
-      await systemModule.initialize({ logger: mockLogger });
-      
-      // Mock the system service
-      const systemService = (systemModule as any).systemService;
-      vi.spyOn(systemService, 'getStatus').mockResolvedValue(mockStatus);
-      
-      const status = await systemModule.getSystemStatus();
-      
-      expect(status).toEqual(mockStatus);
-    });
-  });
-  
-  describe('Metrics Collection', () => {
-    it('should collect metrics on interval', async () => {
-      vi.useFakeTimers();
-      
-      const config = {
-        monitoring: { enabled: true, interval: 1000 }
-      };
-      
-      await systemModule.initialize({ config, logger: mockLogger });
-      
-      // Mock services
-      const systemService = (systemModule as any).systemService;
-      const metricsService = (systemModule as any).metricsService;
-      
-      const mockStatus: SystemStatus = {
-        uptime: 1000,
-        version: '1.0.0',
-        nodeVersion: 'v18.0.0',
-        platform: 'linux',
-        architecture: 'x64',
-        hostname: 'test-host',
-        memory: { total: 8000000000, free: 4000000000, used: 4000000000, usagePercent: 50 },
-        cpu: { model: 'Test CPU', cores: 4, usage: 25, loadAverage: [1, 1, 1] },
-        disk: { total: 100000000000, free: 50000000000, used: 50000000000, usagePercent: 50, path: '/' },
-        modules: [],
-        timestamp: new Date()
-      };
-      
-      vi.spyOn(systemService, 'getStatus').mockResolvedValue(mockStatus);
-      vi.spyOn(metricsService, 'record').mockResolvedValue(undefined);
-      
+    
+    it('should return healthy when initialized and started', async () => {
+      await systemModule.initialize();
       await systemModule.start();
       
-      // Fast forward time
-      await vi.advanceTimersByTimeAsync(1000);
+      const result = await systemModule.healthCheck();
       
-      expect(metricsService.record).toHaveBeenCalled();
-      
-      await systemModule.stop();
-      vi.useRealTimers();
-    }, 15000);
-    
-    it('should warn on high resource usage', async () => {
-      const config = {
-        monitoring: { enabled: true, interval: 60000 },
-        health: {
-          thresholds: {
-            memory: 0.8,
-            cpu: 0.7,
-            disk: 0.8
-          }
-        }
-      };
-      
-      await systemModule.initialize({ config, logger: mockLogger });
-      
-      // Mock high usage status
-      const systemService = (systemModule as any).systemService;
-      const mockStatus: SystemStatus = {
-        uptime: 1000,
-        version: '1.0.0',
-        nodeVersion: 'v18.0.0',
-        platform: 'linux',
-        architecture: 'x64',
-        hostname: 'test-host',
-        memory: { total: 8000000000, free: 1000000000, used: 7000000000, usagePercent: 87.5 },
-        cpu: { model: 'Test CPU', cores: 4, usage: 75, loadAverage: [3, 3, 3] },
-        disk: { total: 100000000000, free: 10000000000, used: 90000000000, usagePercent: 90, path: '/' },
-        modules: [],
-        timestamp: new Date()
-      };
-      
-      vi.spyOn(systemService, 'getStatus').mockResolvedValue(mockStatus);
-      
-      // Trigger metric collection
-      await (systemModule as any).collectMetrics();
-      
-      expect(mockLogger.warn).toHaveBeenCalledWith('High memory usage', { usage: 87.5 });
-      expect(mockLogger.warn).toHaveBeenCalledWith('High CPU usage', { usage: 75 });
-      expect(mockLogger.warn).toHaveBeenCalledWith('High disk usage', { usage: 90 });
-    });
-  });
-});
-
-describe('System Services', () => {
-  describe('HealthService', () => {
-    it('should run health checks', async () => {
-      const mockLogger = { info: vi.fn(), error: vi.fn() };
-      const config = {
-        checks: ['memory', 'cpu'],
-        thresholds: { memory: 0.9, cpu: 0.8 }
-      };
-      
-      // Note: In a real test, we would test the actual HealthService
-      // For now, we're just verifying the interface
-      const healthService = new HealthService(config, mockLogger);
-      expect(healthService.runHealthCheck).toBeDefined();
+      expect(result.healthy).toBe(true);
+      expect(result.message).toBe('System module is healthy');
     });
   });
   
-  describe('MetricsService', () => {
-    it('should record and retrieve metrics', async () => {
-      const mockLogger = { info: vi.fn(), error: vi.fn() };
-      const config = { metricsFile: './test-metrics.json' };
+  describe('getService', () => {
+    it('should return system service when initialized', async () => {
+      await systemModule.initialize();
       
-      // Note: In a real test, we would test the actual MetricsService
-      const metricsService = new MetricsService(config, mockLogger);
-      expect(metricsService.record).toBeDefined();
-      expect(metricsService.getMetrics).toBeDefined();
+      const service = systemModule.getService();
+      
+      expect(service).toBe(mockSystemService);
+    });
+    
+    it('should throw error when not initialized', () => {
+      expect(() => systemModule.getService()).toThrow('System module not initialized');
+    });
+  });
+  
+  describe('exports', () => {
+    it('should return system service through exports when initialized', async () => {
+      await systemModule.initialize();
+      
+      const service = systemModule.exports.service();
+      
+      expect(service).toBe(mockSystemService);
+    });
+    
+    it('should throw error when accessing exports.service() before initialization', () => {
+      expect(() => systemModule.exports.service()).toThrow('System module not initialized');
+    });
+  });
+  
+});
+
+describe('Factory Functions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  
+  describe('createModule', () => {
+    it('should create a new SystemModule instance', () => {
+      const module = createModule();
+      
+      expect(module).toBeInstanceOf(SystemModule);
+      expect(module.name).toBe('system');
+      expect(module.version).toBe('1.0.0');
+      expect(module.type).toBe('service');
+    });
+  });
+  
+  describe('initialize', () => {
+    it('should create and initialize a SystemModule', async () => {
+      const mockSystemService = {
+        initialize: vi.fn().mockResolvedValue(undefined),
+        setLogger: vi.fn()
+      };
+      const mockLogger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
+      };
+      
+      vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
+      vi.mocked(SystemService.getInstance).mockReturnValue(mockSystemService);
+      
+      const module = await initialize();
+      
+      expect(module).toBeInstanceOf(SystemModule);
+      expect(mockSystemService.initialize).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'System module initialized');
+    });
+  });
+  
+  describe('getSystemModule', () => {
+    it('should return system module with valid exports', () => {
+      const mockModule = {
+        exports: {
+          service: vi.fn()
+        }
+      };
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockModule)
+      };
+      const mockGetModuleLoader = vi.fn().mockReturnValue(mockModuleLoader);
+      
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: mockGetModuleLoader
+      }));
+      
+      const result = getSystemModule();
+      
+      expect(result).toBe(mockModule);
+      expect(mockModuleLoader.getModule).toHaveBeenCalledWith('system');
+    });
+    
+    it('should throw error when service export is missing', () => {
+      const mockModule = {
+        exports: {}
+      };
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockModule)
+      };
+      const mockGetModuleLoader = vi.fn().mockReturnValue(mockModuleLoader);
+      
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: mockGetModuleLoader
+      }));
+      
+      expect(() => getSystemModule()).toThrow('System module missing required service export');
+    });
+    
+    it('should throw error when service export is not a function', () => {
+      const mockModule = {
+        exports: {
+          service: 'not a function'
+        }
+      };
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockModule)
+      };
+      const mockGetModuleLoader = vi.fn().mockReturnValue(mockModuleLoader);
+      
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: mockGetModuleLoader
+      }));
+      
+      expect(() => getSystemModule()).toThrow('System module missing required service export');
     });
   });
 });

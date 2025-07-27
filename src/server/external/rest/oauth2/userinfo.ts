@@ -9,6 +9,20 @@ import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
 import { AuthRepository } from '@/modules/core/auth/database/repository';
 
 /**
+ * UserInfo response interface for OAuth2 user information.
+ */
+export interface UserInfo {
+  sub: string;
+  name?: string;
+  preferred_username?: string;
+  email?: string;
+  email_verified?: boolean;
+  picture?: string;
+  agent_id?: string;
+  agent_type?: string;
+}
+
+/**
  * UserInfoEndpoint handles OAuth2 user information requests.
  */
 export class UserInfoEndpoint {

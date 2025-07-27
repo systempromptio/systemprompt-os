@@ -5,10 +5,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { command } from '../../../../../../src/modules/core/auth/cli/providers.js';
-import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/index.js';
 
-// Mock the singleton
-vi.mock('../../../../../../src/modules/core/auth/singleton', () => ({
+// Mock the auth module
+vi.mock('../../../../../../src/modules/core/auth/index', () => ({
   getAuthModule: vi.fn()
 }));
 
@@ -38,10 +38,12 @@ describe('providers CLI command', () => {
       throw new Error('Process exited');
     }) as any;
     
-    // Mock auth module
+    // Mock auth module with proper exports structure
     mockAuthModule = {
-      getAllProviders: vi.fn(),
-      reloadProviders: vi.fn()
+      exports: {
+        getAllProviders: vi.fn(),
+        reloadProviders: vi.fn()
+      }
     };
     
     vi.mocked(getAuthModule).mockReturnValue(mockAuthModule);
@@ -61,7 +63,7 @@ describe('providers CLI command', () => {
   
   describe('list subcommand', () => {
     it('displays message when no providers configured', async () => {
-      mockAuthModule.getAllProviders.mockReturnValue([]);
+      mockAuthModule.exports.getAllProviders.mockReturnValue([]);
       
       await command.subcommands.list.execute(mockContext);
       
@@ -87,7 +89,7 @@ describe('providers CLI command', () => {
         }
       ];
       
-      mockAuthModule.getAllProviders.mockReturnValue(mockProviders);
+      mockAuthModule.exports.getAllProviders.mockReturnValue(mockProviders);
       
       await command.subcommands.list.execute(mockContext);
       
@@ -103,7 +105,7 @@ describe('providers CLI command', () => {
     });
     
     it('handles errors when listing providers', async () => {
-      mockAuthModule.getAllProviders.mockImplementation(() => {
+      mockAuthModule.exports.getAllProviders.mockImplementation(() => {
         throw new Error('Failed to get providers');
       });
       
@@ -123,8 +125,8 @@ describe('providers CLI command', () => {
         { id: 'github', name: 'GitHub' }
       ];
       
-      mockAuthModule.reloadProviders.mockResolvedValue(undefined);
-      mockAuthModule.getAllProviders.mockReturnValue(mockProviders);
+      mockAuthModule.exports.reloadProviders.mockResolvedValue(undefined);
+      mockAuthModule.exports.getAllProviders.mockReturnValue(mockProviders);
       
       await command.subcommands.reload.execute(mockContext);
       
@@ -134,12 +136,12 @@ describe('providers CLI command', () => {
       expect(output).toContain('Active providers:');
       expect(output).toContain('- google (Google)');
       expect(output).toContain('- github (GitHub)');
-      expect(mockAuthModule.reloadProviders).toHaveBeenCalled();
+      expect(mockAuthModule.exports.reloadProviders).toHaveBeenCalled();
     });
     
     it('reloads with no providers', async () => {
-      mockAuthModule.reloadProviders.mockResolvedValue(undefined);
-      mockAuthModule.getAllProviders.mockReturnValue([]);
+      mockAuthModule.exports.reloadProviders.mockResolvedValue(undefined);
+      mockAuthModule.exports.getAllProviders.mockReturnValue([]);
       
       await command.subcommands.reload.execute(mockContext);
       
@@ -150,7 +152,7 @@ describe('providers CLI command', () => {
     });
     
     it('handles reload errors', async () => {
-      mockAuthModule.reloadProviders.mockRejectedValue(new Error('Reload failed'));
+      mockAuthModule.exports.reloadProviders.mockRejectedValue(new Error('Reload failed'));
       
       await expect(command.subcommands.reload.execute(mockContext))
         .rejects.toThrow('Process exited');

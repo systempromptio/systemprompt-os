@@ -2,16 +2,22 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { CLIContext } from '@/modules/core/cli/types/index.js';
 import { command as queryCommand } from '@/modules/core/database/cli/query.js';
 import { DatabaseService } from '@/modules/core/database/services/database.service.js';
+import { DatabaseQueryService } from '@/modules/core/cli/services/database-query.service.js';
+import { LoggerService } from '@/modules/core/logger/services/logger.service.js';
 import * as readline from 'readline';
 
 // Mock the services and modules
 vi.mock('@/modules/core/database/services/database.service.js');
+vi.mock('@/modules/core/cli/services/database-query.service.js');
+vi.mock('@/modules/core/logger/services/logger.service.js');
 vi.mock('readline');
 vi.mock('fs/promises');
 
 describe('database:query command', () => {
   let mockContext: CLIContext;
   let mockDbService: any;
+  let mockQueryService: any;
+  let mockLogger: any;
   let consoleLogSpy: any;
   let consoleErrorSpy: any;
   let processExitSpy: any;
@@ -41,8 +47,22 @@ describe('database:query command', () => {
       getDatabaseType: vi.fn().mockReturnValue('sqlite'),
     };
 
+    mockQueryService = {
+      isInitialized: vi.fn().mockResolvedValue(true),
+      executeQuery: vi.fn().mockResolvedValue({ output: [], executionTime: 10 }),
+      isReadOnlyQuery: vi.fn().mockReturnValue(true),
+      parseQueries: vi.fn().mockReturnValue([]),
+    };
+
+    mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+    };
+
     // Mock getInstance methods
     vi.mocked(DatabaseService.getInstance).mockReturnValue(mockDbService);
+    vi.mocked(DatabaseQueryService.getInstance).mockReturnValue(mockQueryService);
+    vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
   });
 
   afterEach(() => {
@@ -63,11 +83,12 @@ describe('database:query command', () => {
   });
 
   it('should show error when database is not initialized', async () => {
-    mockDbService.isInitialized.mockResolvedValue(false);
+    mockQueryService.isInitialized.mockResolvedValue(false);
 
     await expect(queryCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
     
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'CLI',
       "Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize."
     );
   });
@@ -75,7 +96,8 @@ describe('database:query command', () => {
   it('should require query input option', async () => {
     await expect(queryCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
     
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      'CLI',
       'Please provide --sql, --file, or --interactive option.'
     );
   });

@@ -64,7 +64,8 @@ describe('UserService', () => {
       createUserWithOAuthIdentity: vi.fn(),
       getUserByIdWithConnection: vi.fn(),
       getUserById: vi.fn(),
-      getUserByEmail: vi.fn()
+      getUserByEmail: vi.fn(),
+      performTransaction: vi.fn()
     };
 
     vi.mocked(UserRepository.getInstance).mockReturnValue(mockUserRepository);
@@ -164,7 +165,7 @@ describe('UserService', () => {
     };
 
     beforeEach(() => {
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
     });
@@ -336,7 +337,7 @@ describe('UserService', () => {
 
     it('should handle transaction errors', async () => {
       mockUserRepository.hasAdminUsers.mockResolvedValue(false);
-      mockDb.transaction.mockRejectedValue(new Error('Transaction failed'));
+      mockUserRepository.performTransaction.mockRejectedValue(new Error('Transaction failed'));
 
       await expect(userService.createOrUpdateUserFromOauth(options))
         .rejects.toThrow('Transaction failed');
@@ -558,8 +559,9 @@ describe('UserService', () => {
     });
   });
 
-  describe('createNewUserFromOAuth (private method)', () => {
-    const options: ICreateUserOptions = {
+  describe('Private Method Coverage', () => {
+    describe('createNewUserFromOAuth', () => {
+      const options: ICreateUserOptions = {
       provider: 'google',
       providerId: 'google-123',
       email: 'test@example.com',
@@ -582,7 +584,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -610,7 +612,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -621,6 +623,7 @@ describe('UserService', () => {
         true, // hasAdmins = true
         mockConnection
       );
+    });
     });
   });
 
@@ -646,7 +649,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -687,7 +690,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -732,7 +735,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -746,6 +749,93 @@ describe('UserService', () => {
           email: 'test@example.com'
         }
       );
+    });
+  });
+
+  describe('Logger Dependency Injection', () => {
+    it('should handle missing logger gracefully during initialization', () => {
+      // Reset instance to test fresh initialization
+      (UserService as any).instance = undefined;
+      
+      const instance = UserService.getInstance();
+      
+      // Logger should be injected properly via dependency injection
+      expect(instance).toBeInstanceOf(UserService);
+      expect((instance as any).logger).toBeDefined();
+    });
+
+    it('should handle logger injection in fresh instance', () => {
+      // Reset and create new instance
+      (UserService as any).instance = undefined;
+      
+      const instance = UserService.getInstance();
+      const customLogger = {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn()
+      };
+      
+      // Inject custom logger
+      (instance as any).logger = customLogger;
+      
+      expect((instance as any).logger).toBe(customLogger);
+    });
+  });
+
+  describe('Error Boundary Tests', () => {
+    it('should handle null callback in performTransaction', async () => {
+      mockUserRepository.hasAdminUsers.mockResolvedValue(false);
+      mockUserRepository.performTransaction.mockImplementation(async () => {
+        throw new Error('Transaction callback is null');
+      });
+
+      const options: ICreateUserOptions = {
+        provider: 'google',
+        providerId: 'google-123',
+        email: 'test@example.com'
+      };
+
+      await expect(userService.createOrUpdateUserFromOauth(options))
+        .rejects.toThrow('Transaction callback is null');
+    });
+
+    it('should handle database connection failures in transaction', async () => {
+      mockUserRepository.hasAdminUsers.mockResolvedValue(false);
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
+        const failingConnection = {
+          query: vi.fn().mockRejectedValue(new Error('Connection lost')),
+          execute: vi.fn().mockRejectedValue(new Error('Connection lost'))
+        };
+        return callback(failingConnection);
+      });
+
+      const options: ICreateUserOptions = {
+        provider: 'google',
+        providerId: 'google-123',
+        email: 'test@example.com'
+      };
+
+      await expect(userService.createOrUpdateUserFromOauth(options))
+        .rejects.toThrow('Connection lost');
+    });
+  });
+
+  describe('Dependency Validation', () => {
+    it('should maintain singleton instance across multiple getInstance calls', () => {
+      const instance1 = UserService.getInstance();
+      const instance2 = UserService.getInstance();
+      const instance3 = UserService.getInstance();
+      
+      expect(instance1).toBe(instance2);
+      expect(instance2).toBe(instance3);
+      expect(instance1).toBe(instance3);
+    });
+
+    it('should properly initialize userRepository dependency', () => {
+      const instance = UserService.getInstance();
+      expect(UserRepository.getInstance).toHaveBeenCalled();
+      expect((instance as any).userRepository).toBeDefined();
     });
   });
 
@@ -773,7 +863,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-01T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 
@@ -825,7 +915,7 @@ describe('UserService', () => {
         updatedAt: '2024-01-02T00:00:00Z'
       });
 
-      mockDb.transaction.mockImplementation(async (callback: any) => {
+      mockUserRepository.performTransaction.mockImplementation(async (callback: any) => {
         return callback(mockConnection);
       });
 

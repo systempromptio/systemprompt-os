@@ -17,9 +17,9 @@ describe('GitHubProvider', () => {
     vi.clearAllMocks();
     
     mockConfig = {
-      client_id: 'test-client-id',
-      client_secret: 'test-client-secret',
-      redirect_uri: 'http://localhost:3000/callback'
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback'
     };
   });
   
@@ -88,8 +88,8 @@ describe('GitHubProvider', () => {
       expect(fetch).toHaveBeenCalledWith('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'accept': 'application/json',
+          'content-type': 'application/x-www-form-urlencoded'
         },
         body: expect.any(URLSearchParams)
       });
@@ -111,6 +111,29 @@ describe('GitHubProvider', () => {
       
       await expect(provider.exchangeCodeForTokens('invalid-code'))
         .rejects.toThrow('Failed to exchange code: Bad verification code');
+    });
+    
+    it('throws error when client secret is missing', async () => {
+      const configWithoutSecret = {
+        clientId: 'test-client-id',
+        clientSecret: '',
+        redirectUri: 'http://localhost:3000/callback'
+      };
+      const providerWithoutSecret = new GitHubProvider(configWithoutSecret);
+      
+      await expect(providerWithoutSecret.exchangeCodeForTokens('test-code'))
+        .rejects.toThrow('Client secret is required for token exchange');
+    });
+    
+    it('throws error when client secret is undefined', async () => {
+      const configWithoutSecret = {
+        clientId: 'test-client-id',
+        redirectUri: 'http://localhost:3000/callback'
+      };
+      const providerWithoutSecret = new GitHubProvider(configWithoutSecret);
+      
+      await expect(providerWithoutSecret.exchangeCodeForTokens('test-code'))
+        .rejects.toThrow('Client secret is required for token exchange');
     });
   });
   
@@ -147,22 +170,22 @@ describe('GitHubProvider', () => {
       
       expect(fetch).toHaveBeenCalledWith('https://api.github.com/user', {
         headers: {
-          'Authorization': 'Bearer test-token',
-          'Accept': 'application/json'
+          'authorization': 'Bearer test-token',
+          'accept': 'application/json'
         }
       });
       
       expect(fetch).toHaveBeenNthCalledWith(2, 'https://api.github.com/user/emails', {
         headers: {
-          'Authorization': 'Bearer test-token',
-          'Accept': 'application/json'
+          'authorization': 'Bearer test-token',
+          'accept': 'application/json'
         }
       });
       
       expect(userInfo).toEqual({
         id: '123456',
         email: 'primary@example.com',
-        email_verified: true,
+        emailVerified: true,
         name: 'Test User',
         picture: 'https://github.com/avatar.jpg',
         raw: mockUser
@@ -191,7 +214,7 @@ describe('GitHubProvider', () => {
       const userInfo = await provider.getUserInfo('test-token');
       
       expect(userInfo.email).toBe('public@example.com');
-      expect(userInfo.email_verified).toBe(true); // Default to true when using public email
+      expect(userInfo.emailVerified).toBe(true); // Default to true when using public email
     });
     
     it('handles user info fetch errors', async () => {
@@ -227,6 +250,7 @@ describe('GitHubProvider', () => {
       // Should still return user info with public email
       expect(userInfo.email).toBe('fallback@example.com');
       expect(userInfo.name).toBe('User Three');
+      expect(userInfo.emailVerified).toBe(true);
     });
     
     it('returns undefined email if no primary and no public email', async () => {
@@ -253,9 +277,163 @@ describe('GitHubProvider', () => {
       
       const userInfo = await provider.getUserInfo('test-token');
       
-      expect(userInfo.email).toBeNull();
-      expect(userInfo.email_verified).toBe(true); // Default value
+      expect(userInfo.email).toBeUndefined();
+      expect(userInfo.emailVerified).toBe(true); // Default value
       expect(userInfo.name).toBe('user5'); // Uses login as name
+    });
+    
+    it('uses public email when available and returns proper user info structure', async () => {
+      const mockUser = {
+        id: 777,
+        login: 'publicuser',
+        name: 'Public User',
+        email: 'public@example.com',
+        avatar_url: 'https://github.com/public.jpg'
+      };
+      
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUser
+      } as Response);
+      
+      const userInfo = await provider.getUserInfo('test-token');
+      
+      expect(fetch).toHaveBeenCalledWith('https://api.github.com/user', {
+        headers: {
+          'authorization': 'Bearer test-token',
+          'accept': 'application/json'
+        }
+      });
+      
+      expect(userInfo).toEqual({
+        id: '777',
+        email: 'public@example.com',
+        emailVerified: true,
+        name: 'Public User',
+        picture: 'https://github.com/public.jpg',
+        raw: mockUser
+      });
+      
+      // Should not make a second request to emails endpoint when public email is available
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+    
+    it('handles user with no name and uses login as fallback', async () => {
+      const mockUser = {
+        id: 888,
+        login: 'noname',
+        email: 'noname@example.com',
+        avatar_url: 'https://github.com/noname.jpg'
+      };
+      
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUser
+      } as Response);
+      
+      const userInfo = await provider.getUserInfo('test-token');
+      
+      expect(userInfo.name).toBe('noname');
+      expect(userInfo.id).toBe('888');
+    });
+    
+    it('handles primary email with correct verification status', async () => {
+      const mockUser = {
+        id: 999,
+        login: 'primarytest',
+        email: null
+      };
+      
+      const mockEmails = [
+        { email: 'secondary@example.com', verified: false, primary: false },
+        { email: 'primary@example.com', verified: false, primary: true }
+      ];
+      
+      vi.mocked(fetch)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockUser
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockEmails
+        } as Response);
+      
+      const userInfo = await provider.getUserInfo('test-token');
+      
+      expect(userInfo.email).toBe('primary@example.com');
+      expect(userInfo.emailVerified).toBe(false); // Uses actual verification status
+    });
+  });
+  
+  describe('configuration validation', () => {
+    it('handles config with all required fields', () => {
+      const fullConfig = {
+        clientId: 'test-id',
+        clientSecret: 'test-secret',
+        redirectUri: 'http://localhost:3000/callback',
+        scope: 'custom:scope'
+      };
+      
+      const provider = new GitHubProvider(fullConfig);
+      expect(provider.id).toBe('github');
+      expect(provider.name).toBe('GitHub');
+      expect(provider.type).toBe('oauth2');
+    });
+  });
+  
+  describe('authorization URL edge cases', () => {
+    beforeEach(() => {
+      provider = new GitHubProvider(mockConfig);
+    });
+    
+    it('handles undefined scope in config during URL generation', () => {
+      const configWithoutScope = {
+        clientId: 'test-client-id',
+        clientSecret: 'test-client-secret',
+        redirectUri: 'http://localhost:3000/callback'
+      };
+      const providerWithoutScope = new GitHubProvider(configWithoutScope);
+      
+      const url = providerWithoutScope.getAuthorizationUrl('test-state');
+      expect(url).toContain('scope=read%3Auser+user%3Aemail');
+    });
+    
+    it('properly URL encodes special characters in state', () => {
+      const specialState = 'state-with-special-chars+&=';
+      const url = provider.getAuthorizationUrl(specialState);
+      
+      const urlObj = new URL(url);
+      expect(urlObj.searchParams.get('state')).toBe(specialState);
+    });
+  });
+  
+  describe('HTTP request headers', () => {
+    beforeEach(() => {
+      provider = new GitHubProvider(mockConfig);
+    });
+    
+    it('uses correct header casing for token exchange', async () => {
+      const mockTokens = {
+        access_token: 'test-token',
+        token_type: 'bearer'
+      };
+      
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockTokens
+      } as Response);
+      
+      await provider.exchangeCodeForTokens('test-code');
+      
+      expect(fetch).toHaveBeenCalledWith('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: expect.any(URLSearchParams)
+      });
     });
   });
   

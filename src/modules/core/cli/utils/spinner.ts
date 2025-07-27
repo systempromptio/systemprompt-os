@@ -58,17 +58,6 @@ export const SPINNER_PRESETS = {
 export class SystemPromptSpinner {
   private readonly spinner: Ora;
   private readonly startTime: number;
-
-  constructor(config: ISpinnerConfig = {}) {
-    this.spinner = ora({
-      text: config.text,
-      color: config.color,
-      spinner: config.spinner,
-      interval: config.interval
-    } as Options);
-    this.startTime = Date.now();
-  }
-
   get isSpinning(): boolean {
     return this.spinner.isSpinning;
   }

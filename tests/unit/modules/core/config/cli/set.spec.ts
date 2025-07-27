@@ -35,9 +35,7 @@ describe('Config Set Command', () => {
     it('should set string value for given key', async () => {
       await command.execute({ key: 'api.url', value: 'https://api.example.com' });
 
-      expect(mockConfigModule.initialize).toHaveBeenCalledWith({ 
-        config: { configPath: './state/config' } 
-      });
+      expect(mockConfigModule.initialize).toHaveBeenCalledWith();
       expect(mockConfigModule.set).toHaveBeenCalledWith('api.url', 'https://api.example.com');
       expect(consoleLogSpy).toHaveBeenCalledWith('✓ Configuration updated:');
       expect(consoleLogSpy).toHaveBeenCalledWith('  api.url = "https://api.example.com"');
@@ -362,9 +360,7 @@ describe('Config Set Command', () => {
     it('should initialize ConfigModule with correct config path', async () => {
       await command.execute({ key: 'test', value: 'value' });
 
-      expect(mockConfigModule.initialize).toHaveBeenCalledWith({ 
-        config: { configPath: './state/config' } 
-      });
+      expect(mockConfigModule.initialize).toHaveBeenCalledWith();
     });
 
     it('should call ConfigModule constructor', async () => {

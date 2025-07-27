@@ -6,7 +6,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup/test-env.ts'],
-    include: ['tests/**/*.spec.ts'],
+    include: ['tests/**/*.spec.ts', 'tests/**/*.test.ts'],
     exclude: ['node_modules', 'dist', 'build', 'tests/manual/**'],
     testTimeout: 10000,
     pool: 'forks',

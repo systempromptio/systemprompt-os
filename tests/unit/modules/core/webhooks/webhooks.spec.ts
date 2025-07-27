@@ -4,8 +4,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { WebhooksModule, WebhookService, createModule, initialize } from '../../../../../src/modules/core/webhooks/index.js';
+import { WebhooksModule, WebhookService, createModule, initialize, getWebhooksModule } from '../../../../../src/modules/core/webhooks/index.js';
+import WebhooksModuleDefault from '../../../../../src/modules/core/webhooks/index.js';
 import type { IWebhooksModuleExports } from '../../../../../src/modules/core/webhooks/index.js';
+import { ModuleStatusEnum } from '../../../../../src/modules/core/modules/types/index.js';
 
 // Mock LoggerService completely
 vi.mock('../../../../../src/modules/core/logger/services/logger.service.js', () => ({
@@ -118,7 +120,7 @@ describe('WebhooksModule', () => {
       expect(module.version).toBe('1.0.0');
       expect(module.description).toBe('Webhook management system');
       expect(module.dependencies).toEqual(['logger', 'database', 'auth']);
-      expect(module.status).toBe('stopped');
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
     });
   });
 
@@ -186,19 +188,33 @@ describe('WebhooksModule', () => {
       
       await expect(module.start()).resolves.toBeUndefined();
       
-      expect(module.status).toBe('running');
+      expect(module.status).toBe(ModuleStatusEnum.RUNNING);
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module started');
+    });
+
+    it('should set status to RUNNING when started', async () => {
+      await module.initialize();
+      
+      // Verify initial status is STOPPED
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
+      
+      await module.start();
+      
+      // Verify status is now RUNNING
+      expect(module.status).toBe(ModuleStatusEnum.RUNNING);
     });
 
     it('should throw error if not initialized', async () => {
       await expect(module.start()).rejects.toThrow('Webhooks module not initialized');
     });
 
-    it('should throw error if already started', async () => {
+    it('should not throw error if already started and return silently', async () => {
       await module.initialize();
       await module.start();
       
-      await expect(module.start()).rejects.toThrow('Webhooks module already started');
+      // Should not throw error, just return silently
+      await expect(module.start()).resolves.toBeUndefined();
+      expect(module.status).toBe(ModuleStatusEnum.RUNNING);
     });
   });
 
@@ -209,7 +225,7 @@ describe('WebhooksModule', () => {
       
       await expect(module.stop()).resolves.toBeUndefined();
       
-      expect(module.status).toBe('stopped');
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module stopped');
     });
 
@@ -218,7 +234,7 @@ describe('WebhooksModule', () => {
       
       await expect(module.stop()).resolves.toBeUndefined();
       
-      expect(module.status).toBe('stopped');
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
       // Should not log anything if it wasn't started
       expect(mockLogger.info).not.toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module stopped');
     });
@@ -301,6 +317,151 @@ describe('Factory Functions', () => {
       expect(module).toBeInstanceOf(WebhooksModule);
       expect(module.name).toBe('webhooks');
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.SYSTEM, 'Webhooks module initialized');
+    });
+  });
+
+  describe('getWebhooksModule function', () => {
+    beforeEach(() => {
+      vi.resetModules();
+    });
+
+    it('should return a properly typed webhooks module when found', async () => {
+      // Mock the module loader and its dependencies
+      const mockWebhooksModule = {
+        name: 'webhooks',
+        exports: {
+          service: vi.fn(() => ({}))
+        }
+      };
+
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockWebhooksModule)
+      };
+
+      const mockModuleName = {
+        WEBHOOKS: 'webhooks'
+      };
+
+      // Mock the dynamic imports
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: () => mockModuleLoader
+      }));
+
+      vi.doMock('@/modules/types/module-names.types', () => ({
+        ModuleName: mockModuleName
+      }));
+
+      const result = await getWebhooksModule();
+      
+      expect(result).toBe(mockWebhooksModule);
+      expect(mockModuleLoader.getModule).toHaveBeenCalledWith('webhooks');
+    });
+
+    it('should throw error when webhooks module is not found', async () => {
+      // Mock the module loader to return null
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(null)
+      };
+
+      const mockModuleName = {
+        WEBHOOKS: 'webhooks'
+      };
+
+      // Mock the dynamic imports
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: () => mockModuleLoader
+      }));
+
+      vi.doMock('@/modules/types/module-names.types', () => ({
+        ModuleName: mockModuleName
+      }));
+
+      await expect(getWebhooksModule()).rejects.toThrow('Webhooks module not found');
+    });
+
+    it('should throw error when webhooks module exports is missing', async () => {
+      // Mock module without exports
+      const mockWebhooksModule = {
+        name: 'webhooks'
+        // Missing exports property
+      };
+
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockWebhooksModule)
+      };
+
+      const mockModuleName = {
+        WEBHOOKS: 'webhooks'
+      };
+
+      // Mock the dynamic imports
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: () => mockModuleLoader
+      }));
+
+      vi.doMock('@/modules/types/module-names.types', () => ({
+        ModuleName: mockModuleName
+      }));
+
+      await expect(getWebhooksModule()).rejects.toThrow('Webhooks module missing required service export');
+    });
+
+    it('should throw error when webhooks module service export is missing', async () => {
+      // Mock module with exports but no service
+      const mockWebhooksModule = {
+        name: 'webhooks',
+        exports: {
+          // Missing service property
+        }
+      };
+
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockWebhooksModule)
+      };
+
+      const mockModuleName = {
+        WEBHOOKS: 'webhooks'
+      };
+
+      // Mock the dynamic imports
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: () => mockModuleLoader
+      }));
+
+      vi.doMock('@/modules/types/module-names.types', () => ({
+        ModuleName: mockModuleName
+      }));
+
+      await expect(getWebhooksModule()).rejects.toThrow('Webhooks module missing required service export');
+    });
+
+    it('should throw error when webhooks module service export is not a function', async () => {
+      // Mock module with service that's not a function
+      const mockWebhooksModule = {
+        name: 'webhooks',
+        exports: {
+          service: 'not-a-function'
+        }
+      };
+
+      const mockModuleLoader = {
+        getModule: vi.fn().mockReturnValue(mockWebhooksModule)
+      };
+
+      const mockModuleName = {
+        WEBHOOKS: 'webhooks'
+      };
+
+      // Mock the dynamic imports
+      vi.doMock('@/modules/loader', () => ({
+        getModuleLoader: () => mockModuleLoader
+      }));
+
+      vi.doMock('@/modules/types/module-names.types', () => ({
+        ModuleName: mockModuleName
+      }));
+
+      await expect(getWebhooksModule()).rejects.toThrow('Webhooks module missing required service export');
     });
   });
 });

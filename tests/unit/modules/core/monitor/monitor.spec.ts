@@ -3,12 +3,16 @@
  * @module tests/unit/modules/core/monitor
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MonitorModule } from '../../../../../src/modules/core/monitor/index.js';
-import type { ModuleInterface } from '../../../../../src/types/module.interface.js';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { EventEmitter } from 'events';
+import { MonitorModule, isMonitorModule } from '../../../../../src/modules/core/monitor/index.js';
+import { ModuleStatusEnum } from '../../../../../src/modules/core/modules/types/index.js';
+import { MetricService } from '../../../../../src/modules/core/monitor/services/metric.service.js';
+import type { IModule } from '../../../../../src/modules/core/modules/types/index.js';
+import type { IMonitorModuleExports } from '../../../../../src/modules/core/monitor/monitor-module.js';
 
 describe('Monitor Module', () => {
-  let module: ModuleInterface;
+  let module: MonitorModule;
   let mockConfig: any;
   let mockDeps: any;
 
@@ -353,6 +357,18 @@ describe('Monitor Module', () => {
       expect(info.version).toBe('1.0.0');
       expect(info.description).toBe('System monitoring and observability');
       expect(info.author).toBe('SystemPrompt OS Team');
+    });
+  });
+
+  describe('Module Properties', () => {\n    it('should have correct static properties', () => {
+      expect(module.name).toBe('monitor');
+      expect(module.version).toBe('1.0.0');
+      expect(module.type).toBe('daemon');
+      expect(module.status).toBe(ModuleStatusEnum.PENDING);
+    });
+
+    it('should extend EventEmitter', () => {
+      expect(module).toBeInstanceOf(EventEmitter);
     });
   });
 });

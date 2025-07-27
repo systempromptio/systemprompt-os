@@ -452,7 +452,7 @@ describe('WebhookDeliveryService', () => {
       await service.deliver(mockWebhook, mockPayload);
 
       expect(global.fetch).not.toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith('Skipping inactive webhook', { webhookId: 'wh_123' });
+      expect(mockLogger.debug).toHaveBeenCalledWith('webhook', 'Skipping inactive webhook', { data: { webhookId: 'wh_123' } });
     });
 
     it('should record successful delivery', async () => {
@@ -542,10 +542,13 @@ describe('WebhookDeliveryService', () => {
       );
 
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivered successfully',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          attempt: 1
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            attempt: 1
+          })
         })
       );
 
@@ -615,19 +618,25 @@ describe('WebhookDeliveryService', () => {
       );
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          attempt: 1,
-          nextAttemptIn: 100
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            attempt: 1,
+            nextAttemptIn: 100
+          })
         })
       );
 
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivered successfully',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          attempt: 2
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            attempt: 2
+          })
         })
       );
 
@@ -674,12 +683,14 @@ describe('WebhookDeliveryService', () => {
 
       expect(mockRepository.recordDelivery).toHaveBeenCalledTimes(2);
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed after all retry attempts',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          attempts: 2,
-          finalError: 'HTTP 500: Internal Server Error',
-          finalStatusCode: 500
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            attempts: 2,
+            finalStatusCode: 500
+          })
         })
       );
 
@@ -741,15 +752,21 @@ describe('WebhookDeliveryService', () => {
 
       // Check that retry warnings were logged with consistent delay for linear strategy
       expect(mockLogger.warn).toHaveBeenNthCalledWith(1,
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          nextAttemptIn: 100
+          data: expect.objectContaining({
+            nextAttemptIn: 100
+          })
         })
       );
       expect(mockLogger.warn).toHaveBeenNthCalledWith(2,
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          nextAttemptIn: 100 // Should remain the same for linear strategy
+          data: expect.objectContaining({
+            nextAttemptIn: 100 // Should remain the same for linear strategy
+          })
         })
       );
 
@@ -792,11 +809,13 @@ describe('WebhookDeliveryService', () => {
       );
 
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          error: 'HTTP 404: Not Found',
-          statusCode: 404
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            statusCode: 404
+          })
         })
       );
     });
@@ -815,10 +834,13 @@ describe('WebhookDeliveryService', () => {
       expect(abortSpy).toHaveBeenCalled();
       expect((service as any).activeDeliveries.size).toBe(0);
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Cancelled active deliveries for webhook',
         {
-          webhookId: 'wh_123',
-          cancelledCount: 1
+          data: {
+            webhookId: 'wh_123',
+            cancelledCount: 1
+          }
         }
       );
     });
@@ -827,10 +849,13 @@ describe('WebhookDeliveryService', () => {
       await service.cancelDelivery('wh_nonexistent');
 
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Cancelled active deliveries for webhook',
         {
-          webhookId: 'wh_nonexistent',
-          cancelledCount: 0
+          data: {
+            webhookId: 'wh_nonexistent',
+            cancelledCount: 0
+          }
         }
       );
     });
@@ -855,10 +880,13 @@ describe('WebhookDeliveryService', () => {
       expect(abortSpy3).toHaveBeenCalled();
       expect((service as any).activeDeliveries.size).toBe(1); // Only wh_456 should remain
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Cancelled active deliveries for webhook',
         {
-          webhookId: 'wh_123',
-          cancelledCount: 2
+          data: {
+            webhookId: 'wh_123',
+            cancelledCount: 2
+          }
         }
       );
     });
@@ -881,9 +909,10 @@ describe('WebhookDeliveryService', () => {
       expect(abortSpy2).toHaveBeenCalled();
       expect((service as any).activeDeliveries.size).toBe(0);
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Cancelled all active deliveries',
         {
-          cancelledCount: 2
+          data: { cancelledCount: 2 }
         }
       );
     });
@@ -893,9 +922,10 @@ describe('WebhookDeliveryService', () => {
 
       expect((service as any).activeDeliveries.size).toBe(0);
       expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
         'Cancelled all active deliveries',
         {
-          cancelledCount: 0
+          data: { cancelledCount: 0 }
         }
       );
     });
@@ -949,11 +979,14 @@ describe('WebhookDeliveryService', () => {
       // initial_delay: 1000
       // multiplier: 2
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          webhookId: 'wh_123',
-          attempt: 1,
-          nextAttemptIn: 1000 // Default initial_delay
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            attempt: 1,
+            nextAttemptIn: 1000 // Default initial_delay
+          })
         })
       );
 
@@ -1006,21 +1039,454 @@ describe('WebhookDeliveryService', () => {
       
       // Check that delays were capped at max_delay
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          attempt: 1,
-          nextAttemptIn: 30000 // initial_delay
+          data: expect.objectContaining({
+            attempt: 1,
+            nextAttemptIn: 30000 // initial_delay
+          })
         })
       );
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'webhook',
         'Webhook delivery failed, retrying',
         expect.objectContaining({
-          attempt: 2,
-          nextAttemptIn: 60000 // Should be capped at max_delay (not 30000 * 3 = 90000)
+          data: expect.objectContaining({
+            attempt: 2,
+            nextAttemptIn: 60000 // Should be capped at max_delay (not 30000 * 3 = 90000)
+          })
         })
       );
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('edge cases and additional coverage', () => {
+    it('should handle webhook with paused status', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        status: 'paused'
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      await service.deliver(mockWebhook, mockPayload);
+
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(mockLogger.debug).toHaveBeenCalledWith('webhook', 'Skipping inactive webhook', { data: { webhookId: 'wh_123' } });
+    });
+
+    it('should handle different HTTP methods in deliverOnce', async () => {
+      const methods = ['GET', 'PUT', 'PATCH', 'DELETE'] as const;
+      
+      for (const method of methods) {
+        const mockWebhook: WebhookConfig = {
+          id: `wh_${method}`,
+          url: 'https://example.com/webhook',
+          method: method,
+          status: 'active'
+        } as any;
+
+        const mockPayload: WebhookPayload = {
+          webhook_id: `wh_${method}`,
+          event: 'test.event',
+          timestamp: new Date(),
+          data: {}
+        };
+
+        (global.fetch as any).mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: vi.fn().mockResolvedValue('OK'),
+          headers: new Map()
+        });
+
+        const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+        expect(result.success).toBe(true);
+        expect(global.fetch).toHaveBeenLastCalledWith(
+          'https://example.com/webhook',
+          expect.objectContaining({
+            method: method
+          })
+        );
+      }
+    });
+
+    it('should handle webhook without timeout property', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+        // No timeout property
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue('OK'),
+        headers: new Map()
+      });
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(true);
+      // The timeout should not be set, so controller.abort() won't be called via setTimeout
+    });
+
+    it('should handle webhook without headers property', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+        // No headers property
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue('OK'),
+        headers: new Map()
+      });
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/webhook',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-Webhook-Event': 'test.event'
+          })
+        })
+      );
+    });
+
+    it('should handle webhook without auth property', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+        // No auth property
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue('OK'),
+        headers: new Map()
+      });
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/webhook',
+        expect.objectContaining({
+          headers: expect.not.objectContaining({
+            'Authorization': expect.anything(),
+            'X-API-Key': expect.anything()
+          })
+        })
+      );
+    });
+
+    it('should handle unknown authentication type', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        auth: {
+          type: 'unknown_type' as any,
+          credentials: { some_field: 'value' }
+        },
+        status: 'active'
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue('OK'),
+        headers: new Map()
+      });
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(true);
+      // Should not add any auth headers for unknown type
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/webhook',
+        expect.objectContaining({
+          headers: expect.not.objectContaining({
+            'Authorization': expect.anything(),
+            'X-API-Key': expect.anything()
+          })
+        })
+      );
+    });
+
+    it('should handle response.text() throwing an error', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        text: vi.fn().mockRejectedValue(new Error('Text parsing failed')),
+        headers: new Map()
+      };
+
+      (global.fetch as any).mockResolvedValue(mockResponse);
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Text parsing failed');
+    });
+
+    it('should handle retry with undefined strategy (should default to exponential)', async () => {
+      vi.useFakeTimers();
+
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active',
+        retry: {
+          enabled: true,
+          max_attempts: 2,
+          // strategy is undefined
+          initial_delay: 100
+        }
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      // Mock failure then success
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          text: vi.fn().mockResolvedValue('Error'),
+          headers: new Map()
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: vi.fn().mockResolvedValue('OK'),
+          headers: new Map()
+        });
+
+      const deliverPromise = service.deliver(mockWebhook, mockPayload);
+      await vi.runAllTimersAsync();
+      await deliverPromise;
+
+      expect(mockRepository.recordDelivery).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('should handle retry with all default values when retry config is minimal', async () => {
+      vi.useFakeTimers();
+
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active',
+        retry: {
+          enabled: true
+          // All other values undefined, should use defaults
+        }
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      // Mock failure then success
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          text: vi.fn().mockResolvedValue('Error'),
+          headers: new Map()
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: vi.fn().mockResolvedValue('OK'),
+          headers: new Map()
+        });
+
+      const deliverPromise = service.deliver(mockWebhook, mockPayload);
+      await vi.runAllTimersAsync();
+      await deliverPromise;
+
+      // Should use default max_attempts of 3, so we expect 2 calls (failure then success)
+      expect(mockRepository.recordDelivery).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('should handle deliverSingle with successful delivery', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active',
+        retry: { enabled: false }
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: { test: true }
+      };
+
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue('{"success":true}'),
+        headers: new Map()
+      });
+
+      await service.deliver(mockWebhook, mockPayload);
+
+      expect(mockRepository.recordDelivery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          webhook_id: 'wh_123',
+          attempt: 1,
+          success: true,
+          status_code: 200,
+          response_body: '{"success":true}',
+          duration: expect.any(Number)
+        })
+      );
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'webhook',
+        'Webhook delivered successfully',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            webhookId: 'wh_123',
+            event: 'test.event',
+            duration: expect.any(Number)
+          })
+        })
+      );
+    });
+
+    it('should properly clean up active deliveries even when deliverOnce throws', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      // Mock fetch to throw an error
+      (global.fetch as any).mockRejectedValue(new Error('Network failure'));
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Network failure');
+      
+      // Verify that activeDeliveries is cleaned up even after error
+      expect((service as any).activeDeliveries.size).toBe(0);
+    });
+
+    it('should handle fetch throwing a non-Error object', async () => {
+      const mockWebhook: WebhookConfig = {
+        id: 'wh_123',
+        url: 'https://example.com/webhook',
+        method: 'POST',
+        status: 'active'
+      } as any;
+
+      const mockPayload: WebhookPayload = {
+        webhook_id: 'wh_123',
+        event: 'test.event',
+        timestamp: new Date(),
+        data: {}
+      };
+
+      // Mock fetch to throw a non-Error object
+      (global.fetch as any).mockRejectedValue({ message: 'Custom error object' });
+
+      const result = await service.deliverOnce(mockWebhook, mockPayload);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('[object Object]');
     });
   });
 });

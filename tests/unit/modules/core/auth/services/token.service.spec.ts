@@ -516,10 +516,17 @@ describe('TokenService', () => {
           valid: true,
           userId: 'user-123',
           token: expect.objectContaining({
-            lastUsedAt: undefined,
-            metadata: undefined,
+            id: 'token-id-123',
+            userId: 'user-123',
+            type: 'access',
+            scope: ['read'],
+            isRevoked: false,
           }),
         });
+        
+        // Specifically check that optional fields are not present
+        expect(result.token).not.toHaveProperty('lastUsedAt');
+        expect(result.token).not.toHaveProperty('metadata');
       });
     });
   });

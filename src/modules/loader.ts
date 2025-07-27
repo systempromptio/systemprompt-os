@@ -176,6 +176,15 @@ export class ModuleLoader {
   }
 
   /**
+   * Gets all loaded modules.
+   * @returns Array of all loaded module instances.
+   * @public
+   */
+  getAllModules(): IModuleInterface[] {
+    return this.registry.getAll();
+  }
+
+  /**
    * Loads module configuration from disk.
    * @returns The parsed modules configuration or default empty configuration.
    * @private
@@ -453,4 +462,13 @@ export class ModuleLoader {
  */
 export const getModuleLoader = (configPath?: string): ModuleLoader => {
   return ModuleLoader.getInstance(configPath);
+};
+
+/**
+ * Resets the singleton module loader instance.
+ * This is primarily used for testing purposes to ensure clean state.
+ * @public
+ */
+export const resetModuleLoader = (): void => {
+  (ModuleLoader as any).instance = undefined;
 };

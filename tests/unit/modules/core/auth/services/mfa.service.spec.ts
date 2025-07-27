@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MFAService } from '@/modules/core/auth/services/mfa.service';
+import { MFAService, MFAError, MFASetupError, MFAVerificationError } from '@/modules/core/auth/services/mfa.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ILogger } from '@/modules/core/logger/types';
 import { LogSource } from '@/modules/core/logger/types';
@@ -14,6 +14,76 @@ import * as qrcode from 'qrcode';
 vi.mock('@/modules/core/database/services/database.service');
 vi.mock('speakeasy');
 vi.mock('qrcode');
+
+describe('MFA Error Classes', () => {
+  describe('MFAError', () => {
+    it('should create MFAError with message, code, and optional userId', () => {
+      const error = new MFAError('Test error', 'TEST_CODE', 'user-123');
+      
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(MFAError);
+      expect(error.name).toBe('MFAError');
+      expect(error.message).toBe('Test error');
+      expect(error.code).toBe('TEST_CODE');
+      expect(error.userId).toBe('user-123');
+    });
+
+    it('should create MFAError without userId', () => {
+      const error = new MFAError('Test error', 'TEST_CODE');
+      
+      expect(error.name).toBe('MFAError');
+      expect(error.message).toBe('Test error');
+      expect(error.code).toBe('TEST_CODE');
+      expect(error.userId).toBeUndefined();
+    });
+  });
+
+  describe('MFASetupError', () => {
+    it('should create MFASetupError with correct properties', () => {
+      const error = new MFASetupError('Setup failed', 'user-123');
+      
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(MFAError);
+      expect(error).toBeInstanceOf(MFASetupError);
+      expect(error.name).toBe('MFASetupError');
+      expect(error.message).toBe('Setup failed');
+      expect(error.code).toBe('MFA_SETUP_ERROR');
+      expect(error.userId).toBe('user-123');
+    });
+
+    it('should create MFASetupError without userId', () => {
+      const error = new MFASetupError('Setup failed');
+      
+      expect(error.name).toBe('MFASetupError');
+      expect(error.message).toBe('Setup failed');
+      expect(error.code).toBe('MFA_SETUP_ERROR');
+      expect(error.userId).toBeUndefined();
+    });
+  });
+
+  describe('MFAVerificationError', () => {
+    it('should create MFAVerificationError with correct properties', () => {
+      const error = new MFAVerificationError('Verification failed', 'user-123');
+      
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(MFAError);
+      expect(error).toBeInstanceOf(MFAVerificationError);
+      expect(error.name).toBe('MFAVerificationError');
+      expect(error.message).toBe('Verification failed');
+      expect(error.code).toBe('MFA_VERIFICATION_ERROR');
+      expect(error.userId).toBe('user-123');
+    });
+
+    it('should create MFAVerificationError without userId', () => {
+      const error = new MFAVerificationError('Verification failed');
+      
+      expect(error.name).toBe('MFAVerificationError');
+      expect(error.message).toBe('Verification failed');
+      expect(error.code).toBe('MFA_VERIFICATION_ERROR');
+      expect(error.userId).toBeUndefined();
+    });
+  });
+});
 
 describe('MFAService', () => {
   let mfaService: MFAService;
@@ -179,6 +249,36 @@ describe('MFAService', () => {
       const result = await customService.setupMFA(userId, email);
 
       expect(result.backupCodes).toHaveLength(10);
+    });
+
+    it('should throw error when secret generation fails to produce otpauth_url', async () => {
+      const userId = 'user-123';
+      const email = 'test@example.com';
+      const mockSecret = {
+        base32: 'JBSWY3DPEHPK3PXP',
+        otpauth_url: undefined, // Missing otpauth_url
+      };
+
+      (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
+
+      await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('Failed to generate OTP auth URL');
+      expect(qrcode.toDataURL).not.toHaveBeenCalled();
+      expect(mockDb.execute).not.toHaveBeenCalled();
+    });
+
+    it('should throw error when secret generation produces null otpauth_url', async () => {
+      const userId = 'user-123';
+      const email = 'test@example.com';
+      const mockSecret = {
+        base32: 'JBSWY3DPEHPK3PXP',
+        otpauth_url: null, // null otpauth_url
+      };
+
+      (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
+
+      await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('Failed to generate OTP auth URL');
+      expect(qrcode.toDataURL).not.toHaveBeenCalled();
+      expect(mockDb.execute).not.toHaveBeenCalled();
     });
   });
 
@@ -411,6 +511,26 @@ describe('MFAService', () => {
       await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
     });
 
+    it('should handle undefined user object in array during verify', async () => {
+      const userId = 'user-123';
+      const code = '123456';
+
+      // Simulate database returning array with undefined element
+      mockDb.query.mockResolvedValueOnce([undefined]);
+
+      await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
+    });
+
+    it('should handle null user object in array during verify', async () => {
+      const userId = 'user-123';
+      const code = '123456';
+
+      // Simulate database returning array with null element
+      mockDb.query.mockResolvedValueOnce([null]);
+
+      await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
+    });
+
     it('should handle invalid backup code', async () => {
       const userId = 'user-123';
       const backupCode = 'invalid123';
@@ -563,6 +683,133 @@ describe('MFAService', () => {
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'MFA verification attempted for user without MFA enabled', { userId });
     });
+
+    it('should handle null mfa_secret during TOTP verification', async () => {
+      const userId = 'user-123';
+      const code = '123456';
+      const mockUser = {
+        id: userId,
+        mfa_secret: null,
+        mfa_enabled: 1,
+      };
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'MFA secret not found for user', { userId });
+      expect(speakeasy.totp.verify).not.toHaveBeenCalled();
+    });
+
+    it('should handle backup codes with non-string elements', async () => {
+      const userId = 'user-123';
+      const backupCode = 'backup123';
+      const mockUser = {
+        id: userId,
+        mfa_secret: 'encrypted_secret',
+        mfa_enabled: 1,
+        mfa_backup_codes: JSON.stringify(['backup123', 123, 'backup456']), // Contains non-string element
+      };
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
+      expect(mockDb.execute).not.toHaveBeenCalled();
+    });
+
+    it('should handle backup codes with mixed data types', async () => {
+      const userId = 'user-123';
+      const backupCode = 'backup123';
+      const mockUser = {
+        id: userId,
+        mfa_secret: 'encrypted_secret',
+        mfa_enabled: 1,
+        mfa_backup_codes: JSON.stringify([true, null, 'backup456']), // Contains boolean and null
+      };
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
+      expect(mockDb.execute).not.toHaveBeenCalled();
+    });
+
+    it('should handle backup codes as non-array JSON', async () => {
+      const userId = 'user-123';
+      const backupCode = 'backup123';
+      const mockUser = {
+        id: userId,
+        mfa_secret: 'encrypted_secret',
+        mfa_enabled: 1,
+        mfa_backup_codes: JSON.stringify({ codes: ['backup123'] }), // Object instead of array
+      };
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
+      expect(mockDb.execute).not.toHaveBeenCalled();
+    });
+
+    it('should log specific error message when JSON parsing fails', async () => {
+      const userId = 'user-123';
+      const backupCode = 'backup123';
+      const mockUser = {
+        id: userId,
+        mfa_secret: 'encrypted_secret',
+        mfa_enabled: 1,
+        mfa_backup_codes: '{invalid-json-syntax}', // Malformed JSON
+      };
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Failed to parse backup codes', {
+        userId,
+        error: expect.any(String)
+      });
+      expect(mockDb.execute).not.toHaveBeenCalled();
+    });
+
+    it('should handle non-Error objects in JSON parse catch block', async () => {
+      const userId = 'user-123';
+      const backupCode = 'backup123';
+      const mockUser = {
+        id: userId,
+        mfa_secret: 'encrypted_secret',
+        mfa_enabled: 1,
+        mfa_backup_codes: 'invalid-json',
+      };
+
+      // Mock JSON.parse to throw a non-Error object
+      const originalParse = JSON.parse;
+      JSON.parse = vi.fn().mockImplementation(() => {
+        throw 'String error'; // Non-Error object
+      });
+
+      mockDb.query.mockResolvedValueOnce([mockUser]);
+
+      const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
+
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Failed to parse backup codes', {
+        userId,
+        error: 'String error'
+      });
+
+      // Restore original JSON.parse
+      JSON.parse = originalParse;
+    });
   });
 
   describe('disableMFA', () => {
@@ -636,6 +883,24 @@ describe('MFAService', () => {
       const userId = 'user-123';
 
       mockDb.query.mockResolvedValueOnce([]);
+
+      await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
+    });
+
+    it('should handle undefined user object in array during regenerate', async () => {
+      const userId = 'user-123';
+
+      // Simulate database returning array with undefined element
+      mockDb.query.mockResolvedValueOnce([undefined]);
+
+      await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
+    });
+
+    it('should handle null user object in array during regenerate', async () => {
+      const userId = 'user-123';
+
+      // Simulate database returning array with null element
+      mockDb.query.mockResolvedValueOnce([null]);
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
     });

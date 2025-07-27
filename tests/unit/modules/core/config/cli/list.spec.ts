@@ -1,16 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { command, formatTree, formatYaml } from '../../../../../../src/modules/core/config/cli/list.js';
 import { ConfigModule } from '../../../../../../src/modules/core/config/index.js';
+import { LoggerModule } from '../../../../../../src/modules/core/logger/index.js';
 
 vi.mock('../../../../../../src/modules/core/config/index.js');
+vi.mock('../../../../../../src/modules/core/logger/index.js');
 
 describe('Config List Command', () => {
   let mockConfigModule: any;
-  let consoleLogSpy: any;
+  let mockLoggerModule: any;
+  let mockLogger: any;
 
   beforeEach(() => {
-    // Mock console methods
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation();
+    // Mock logger
+    mockLogger = {
+      info: vi.fn().mockImplementation()
+    };
+
+    // Mock LoggerModule
+    mockLoggerModule = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      exports: {
+        logger: vi.fn().mockReturnValue(mockLogger)
+      }
+    };
 
     // Mock ConfigModule
     mockConfigModule = {
@@ -19,6 +32,7 @@ describe('Config List Command', () => {
     };
 
     vi.mocked(ConfigModule).mockImplementation(() => mockConfigModule);
+    vi.mocked(LoggerModule).mockImplementation(() => mockLoggerModule);
   });
 
   afterEach(() => {
@@ -41,20 +55,20 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      expect(mockConfigModule.initialize).toHaveBeenCalledWith({ 
-        config: { configPath: './state/config' } 
-      });
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nConfiguration Values:');
-      expect(consoleLogSpy).toHaveBeenCalledWith('====================\n');
+      expect(mockConfigModule.initialize).toHaveBeenCalledWith();
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', '\nConfiguration Values:');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', '====================\n');
       
       // Check for tree format output
-      const output = consoleLogSpy.mock.calls.map(call => call[0]).join('');
-      expect(output).toContain('├── api/');
-      expect(output).toContain('│   ├── url: "https://api.example.com"');
-      expect(output).toContain('│   └── timeout: 5000');
-      expect(output).toContain('└── auth/');
-      expect(output).toContain('    ├── provider: "google"');
-      expect(output).toContain('    └── enabled: true');
+      const loggerCalls = mockLogger.info.mock.calls;
+      const treeOutput = loggerCalls.find(call => call[1].includes('├── api/'));
+      expect(treeOutput).toBeDefined();
+      expect(treeOutput[1]).toContain('├── api/');
+      expect(treeOutput[1]).toContain('│   ├── url: "https://api.example.com"');
+      expect(treeOutput[1]).toContain('│   └── timeout: 5000');
+      expect(treeOutput[1]).toContain('└── auth/');
+      expect(treeOutput[1]).toContain('    ├── provider: "google"');
+      expect(treeOutput[1]).toContain('    └── enabled: true');
     });
 
     it('should display config in JSON format when specified', async () => {
@@ -66,7 +80,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'json' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(testConfig, null, 2));
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', JSON.stringify(testConfig, null, 2));
     });
 
     it('should display config in YAML format when specified', async () => {
@@ -81,11 +95,13 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'yaml' });
 
-      const output = consoleLogSpy.mock.calls.map(call => call[0]).join('');
-      expect(output).toContain('api:');
-      expect(output).toContain('  url: "https://api.example.com"');
-      expect(output).toContain('  port: 443');
-      expect(output).toContain('debug: false');
+      const loggerCalls = mockLogger.info.mock.calls;
+      const yamlOutput = loggerCalls.find(call => call[1].includes('api:'));
+      expect(yamlOutput).toBeDefined();
+      expect(yamlOutput[1]).toContain('api:');
+      expect(yamlOutput[1]).toContain('  url: "https://api.example.com"');
+      expect(yamlOutput[1]).toContain('  port: 443');
+      expect(yamlOutput[1]).toContain('debug: false');
     });
 
     it('should show message when no config values exist', async () => {
@@ -93,8 +109,8 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
-      expect(consoleLogSpy).not.toHaveBeenCalledWith('\nConfiguration Values:');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
+      expect(mockLogger.info).not.toHaveBeenCalledWith('CLI', '\nConfiguration Values:');
     });
 
     it('should handle null config', async () => {
@@ -102,7 +118,7 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
     });
 
     it('should handle arrays in tree format', async () => {
@@ -114,9 +130,11 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      const output = consoleLogSpy.mock.calls.map(call => call[0]).join('');
-      expect(output).toContain('├── servers: ["server1","server2","server3"]');
-      expect(output).toContain('└── ports: [8080,8081,8082]');
+      const loggerCalls = mockLogger.info.mock.calls;
+      const treeOutput = loggerCalls.find(call => call[1].includes('├── servers:'));
+      expect(treeOutput).toBeDefined();
+      expect(treeOutput[1]).toContain('├── servers: ["server1","server2","server3"]');
+      expect(treeOutput[1]).toContain('└── ports: [8080,8081,8082]');
     });
 
     it('should handle nested objects in tree format', async () => {
@@ -136,11 +154,13 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      const output = consoleLogSpy.mock.calls.map(call => call[0]).join('');
-      expect(output).toContain('└── database/');
-      expect(output).toContain('    ├── primary/');
-      expect(output).toContain('    │   ├── host: "db1.example.com"');
-      expect(output).toContain('    └── replica/');
+      const loggerCalls = mockLogger.info.mock.calls;
+      const treeOutput = loggerCalls.find(call => call[1].includes('└── database/'));
+      expect(treeOutput).toBeDefined();
+      expect(treeOutput[1]).toContain('└── database/');
+      expect(treeOutput[1]).toContain('    ├── primary/');
+      expect(treeOutput[1]).toContain('    │   ├── host: "db1.example.com"');
+      expect(treeOutput[1]).toContain('    └── replica/');
     });
 
     it('should handle mixed value types', async () => {
@@ -156,7 +176,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'json' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(testConfig, null, 2));
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', JSON.stringify(testConfig, null, 2));
     });
 
     it('should handle undefined config', async () => {
@@ -164,7 +184,7 @@ describe('Config List Command', () => {
 
       await command.execute({});
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
     });
 
     it('should handle null values in YAML format', async () => {
@@ -172,7 +192,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'yaml' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
     });
 
     it('should handle primitive values in YAML format', async () => {
@@ -228,8 +248,8 @@ describe('Config List Command', () => {
       await command.execute({ format: 'unknown' });
 
       // Should default to tree format
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nConfiguration Values:');
-      expect(consoleLogSpy).toHaveBeenCalledWith('====================\n');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', '\nConfiguration Values:');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', '====================\n');
       
       const output = consoleLogSpy.mock.calls.map(call => call[0]).join('');
       expect(output).toContain('└── key: "value"');
@@ -267,7 +287,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'json' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(testConfig, null, 2));
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', JSON.stringify(testConfig, null, 2));
     });
 
     it('should handle boolean and numeric edge cases in tree format', async () => {
@@ -301,7 +321,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'yaml' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
     });
 
     it('should handle undefined primitive value directly in YAML', async () => {
@@ -310,7 +330,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'yaml' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No configuration values found.');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', 'No configuration values found.');
     });
 
     it('should handle single primitive string in YAML format', async () => {
@@ -320,7 +340,7 @@ describe('Config List Command', () => {
 
       await command.execute({ format: 'yaml' });
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('"simple string"');
+      expect(mockLogger.info).toHaveBeenCalledWith('CLI', '"simple string"');
     });
 
     it('should handle single number in YAML format', async () => {
