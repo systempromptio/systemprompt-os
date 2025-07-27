@@ -64,7 +64,7 @@ export class SystemPromptSpinner {
       text: config.text ?? '',
       color: config.color ?? 'yellow',
       spinner: config.spinner ?? 'dots',
-      interval: config.interval
+      ...(config.interval !== undefined && { interval: config.interval })
     });
     this.startTime = Date.now();
   }

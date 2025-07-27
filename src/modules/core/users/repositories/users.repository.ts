@@ -233,19 +233,16 @@ export class UsersRepository {
    * Delete user.
    * @param id - The user ID.
    */
-  deleteUser(id: string): void {
-    this.users.delete(id);
-
-    for (const [sessionId, session] of Array.from(this.sessions.entries())) {
-      if (session.userId === id) {
-        this.sessions.delete(sessionId);
-      }
+  async deleteUser(id: string): Promise<void> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
     }
 
-    for (const [keyId, apiKey] of Array.from(this.apiKeys.entries())) {
-      if (apiKey.userId === id) {
-        this.apiKeys.delete(keyId);
-      }
+    const stmt = this.database.prepare('DELETE FROM users WHERE id = ?');
+    const result = stmt.run(id);
+    
+    if (result.changes === 0) {
+      throw new Error(`User not found: ${id}`);
     }
   }
 
