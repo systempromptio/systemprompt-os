@@ -51,6 +51,7 @@ logs/tunnel-url.txt
 coverage/
 .nyc_output/
 .test-temp/
+html/
 
 # Temporary files
 *.tmp
