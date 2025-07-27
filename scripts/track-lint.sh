@@ -1,18 +1,21 @@
 #!/bin/bash
 
+# Create output directory if it doesn't exist
+mkdir -p scripts/output
+
 # Run lint check and save output
-npm run lint:check 2>&1 | tee /tmp/lint.log
+npm run lint:check 2>&1 | tee scripts/output/lint.log
 
 # Create temporary file to collect file error counts
 temp_file=$(mktemp)
 
 # Extract all filenames that have errors
-grep '^/var/www/html/systemprompt-os/src/' /tmp/lint.log | sed 's|^/var/www/html/systemprompt-os/||' | sort -u | while read -r filepath; do
+grep '^/var/www/html/systemprompt-os/src/' scripts/output/lint.log | sed 's|^/var/www/html/systemprompt-os/||' | sort -u | while read -r filepath; do
     # Count all error lines that come after this file's header line
     # We need to count lines that have "error" and are associated with this file
     
     # Find the line number where this file appears
-    line_num=$(grep -n "^/var/www/html/systemprompt-os/$filepath$" /tmp/lint.log | cut -d: -f1)
+    line_num=$(grep -n "^/var/www/html/systemprompt-os/$filepath$" scripts/output/lint.log | cut -d: -f1)
     
     if [ -n "$line_num" ]; then
         # Count error lines for this file by looking at the section starting from this line
@@ -28,7 +31,7 @@ grep '^/var/www/html/systemprompt-os/src/' /tmp/lint.log | sed 's|^/var/www/html
                 }
             }
             END { print count+0 }
-        ' /tmp/lint.log)
+        ' scripts/output/lint.log)
         
         # Add to temp file only if it has errors
         if [ "$error_count" -gt 0 ] 2>/dev/null; then

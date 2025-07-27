@@ -5,6 +5,8 @@ export { command as status } from '@/modules/core/users/cli/status';
 export { command as create } from '@/modules/core/users/cli/create';
 export { command as list } from '@/modules/core/users/cli/list';
 export { command as get } from '@/modules/core/users/cli/get';
+export { command as update } from '@/modules/core/users/cli/update';
+export { command as delete } from '@/modules/core/users/cli/delete';
 
 /**
  * Users command metadata for CLI registration.

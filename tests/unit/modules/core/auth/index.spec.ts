@@ -40,7 +40,6 @@ import type {
 vi.mock('fs');
 vi.mock('path');
 vi.mock('url');
-vi.mock('@/modules/core/logger/services/logger.service');
 vi.mock('@/modules/core/database/services/database.service');
 vi.mock('@/modules/core/auth/providers/registry');
 vi.mock('@/modules/core/auth/services/tunnel-service');
@@ -90,13 +89,7 @@ describe('AuthModule', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('CREATE TABLE test (id INTEGER);');
 
-    // Setup service mocks
-    mockLogger = {
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    };
+    // mockLogger is already imported from logger setup
 
     mockDatabase = {
       execute: vi.fn().mockResolvedValue(undefined),
@@ -150,8 +143,8 @@ describe('AuthModule', () => {
     };
 
     // Setup singleton getInstance mocks
-    (LoggerService.getInstance as any).mockReturnValue(mockLogger);
-    (DatabaseService.getInstance as any).mockReturnValue(mockDatabase);
+    vi.mocked(LoggerService.getInstance).mockReturnValue(mockLogger);
+    vi.mocked(DatabaseService.getInstance).mockReturnValue(mockDatabase);
     (TokenService.getInstance as any).mockReturnValue(mockTokenService);
     (AuthService.getInstance as any).mockReturnValue(mockAuthService);
     (UserService.getInstance as any).mockReturnValue(mockUserService);

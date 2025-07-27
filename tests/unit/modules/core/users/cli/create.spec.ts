@@ -6,7 +6,6 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 vi.mock('@/modules/core/users/services/users.service');
 vi.mock('@/modules/core/cli/services/cli-output.service');
-vi.mock('@/modules/core/logger/services/logger.service');
 
 describe('Users Create CLI Command', () => {
   let mockUsersService: any;
@@ -26,9 +25,7 @@ describe('Users Create CLI Command', () => {
       error: vi.fn(),
       keyValue: vi.fn()
     };
-    mockLogger = {
-      error: vi.fn()
-    };
+    // mockLogger is already imported from logger setup
 
     vi.mocked(UsersService.getInstance).mockReturnValue(mockUsersService);
     vi.mocked(CliOutputService.getInstance).mockReturnValue(mockCliOutput);

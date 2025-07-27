@@ -9,7 +9,6 @@ import * as readline from 'readline';
 // Mock the services and modules
 vi.mock('@/modules/core/database/services/database.service.js');
 vi.mock('@/modules/core/cli/services/database-query.service.js');
-vi.mock('@/modules/core/logger/services/logger.service.js');
 vi.mock('readline');
 vi.mock('fs/promises');
 

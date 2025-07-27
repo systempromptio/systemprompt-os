@@ -15,7 +15,6 @@ import { ModuleStatusEnum as ModuleStatus } from '@/modules/core/modules/types';
 
 // Mock the dependencies
 vi.mock('@/modules/core/cli/services/cli.service');
-vi.mock('@/modules/core/logger/services/logger.service');
 vi.mock('@/modules/core/database/services/database.service');
 
 describe('CLIModule', () => {
@@ -39,12 +38,7 @@ describe('CLIModule', () => {
       scanAndRegisterModuleCommands: vi.fn().mockResolvedValue(undefined)
     };
 
-    mockLogger = {
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn()
-    };
+    // mockLogger is already imported from logger setup
 
     mockDatabase = {
       isInitialized: vi.fn().mockReturnValue(true)

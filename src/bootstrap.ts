@@ -18,7 +18,10 @@ import type { IModule } from '@/modules/core/modules/types/index';
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import { BootstrapLogger } from './bootstrap/bootstrap-logger';
 import { executeCoreModulesPhase } from './bootstrap/phases/core-modules-phase';
-import { type McpServersPhaseContext, executeMcpServersPhase } from './bootstrap/phases/mcp-servers-phase';
+import {
+  type McpServersPhaseContext,
+  executeMcpServersPhase
+} from './bootstrap/phases/mcp-servers-phase';
 import { executeModuleDiscoveryPhase } from './bootstrap/phases/module-discovery-phase';
 import {
   registerCliCommands,
@@ -85,9 +88,9 @@ export class Bootstrap {
 
       await this.executeRegistrationPhase();
 
-      this.currentPhase = BootstrapPhaseEnum.READY;
+      this.setCurrentPhase(BootstrapPhaseEnum.READY);
       this.bootstrapLogger.info(
-        `Bootstrap completed - ${this.modules.size} modules`,
+        `Bootstrap completed - ${String(this.modules.size)} modules`,
         'startup'
       );
 
@@ -159,8 +162,16 @@ export class Bootstrap {
     await shutdownAllModules(this.modules, this.logger);
 
     this.modules.clear();
-    this.currentPhase = BootstrapPhaseEnum.INIT;
+    this.setCurrentPhase(BootstrapPhaseEnum.INIT);
     this.bootstrapLogger.info('All modules shut down', 'shutdown');
+  }
+
+  /**
+   * Set the current bootstrap phase.
+   * @param {BootstrapPhaseEnum} phase - Phase to set.
+   */
+  private setCurrentPhase(phase: BootstrapPhaseEnum): void {
+    this.currentPhase = phase;
   }
 
   /**
@@ -168,7 +179,7 @@ export class Bootstrap {
    */
   private async executeCoreModulesPhase(): Promise<void> {
     this.bootstrapLogger.phaseTransition('core modules');
-    this.currentPhase = BootstrapPhaseEnum.CORE_MODULES;
+    this.setCurrentPhase(BootstrapPhaseEnum.CORE_MODULES);
 
     await executeCoreModulesPhase({
       modules: this.modules,
@@ -185,13 +196,13 @@ export class Bootstrap {
    */
   private async executeMcpServersPhase(): Promise<void> {
     this.bootstrapLogger.phaseTransition('MCP servers');
-    this.currentPhase = BootstrapPhaseEnum.MCP_SERVERS;
+    this.setCurrentPhase(BootstrapPhaseEnum.MCP_SERVERS);
 
     const mcpServersContext: McpServersPhaseContext = {
       logger: this.logger
     };
-    if (this.mcpApp) {
-      mcpServersContext.mcpApp = this.mcpApp;
+    if (this.mcpApp !== undefined) {
+      ({ mcpApp: mcpServersContext.mcpApp } = this);
     }
     this.mcpApp = await executeMcpServersPhase(mcpServersContext);
 
@@ -203,7 +214,7 @@ export class Bootstrap {
    */
   private async executeModuleDiscoveryPhase(): Promise<void> {
     this.bootstrapLogger.phaseTransition('module discovery');
-    this.currentPhase = BootstrapPhaseEnum.MODULE_DISCOVERY;
+    this.setCurrentPhase(BootstrapPhaseEnum.MODULE_DISCOVERY);
 
     await executeModuleDiscoveryPhase({
       modules: this.modules,
@@ -252,8 +263,8 @@ export class Bootstrap {
  * @param {IBootstrapOptions} options - Bootstrap options.
  * @returns {Promise<Bootstrap>} Bootstrap instance.
  */
-export async function runBootstrap(options: IBootstrapOptions = {}): Promise<Bootstrap> {
+export const runBootstrap = async (options: IBootstrapOptions = {}): Promise<Bootstrap> => {
   const bootstrap = new Bootstrap(options);
   await bootstrap.bootstrap();
   return bootstrap;
-}
+};

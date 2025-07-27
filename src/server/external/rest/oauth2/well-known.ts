@@ -5,6 +5,7 @@
 
 import type { Request, Response } from 'express';
 import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
+import { getAuthModule } from '@/modules/core/auth/index';
 
 /**
  * OpenID Configuration interface (alias to OAuth2 Server Metadata)
@@ -14,6 +15,12 @@ export type OpenIDConfiguration = IOAuth2ServerMetadataInternal;
 
 export class WellKnownEndpoint {
   private readonly publicKeyJWK: any | null = null;
+  getOpenIDConfiguration = (_req: Request, res: Response): Response => {
+    const authModule = getAuthModule();
+    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+    const config = oauth2ConfigService.getAuthorizationServerMetadata();
+    return res.json(config);
+  };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
     if (!this.publicKeyJWK) {
       return res.status(500).json({ error: 'Keys not initialized' });

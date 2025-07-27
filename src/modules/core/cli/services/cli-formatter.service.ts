@@ -12,14 +12,14 @@ import {
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
 import type { 
-  SystemPromptSpinner
-} from '@/modules/core/cli/utils/spinner';
+  ProgressLogger
+} from '@/modules/core/cli/utils/progress-logger';
 import { 
-  SPINNER_PRESETS, 
-  createProgressSpinner, 
-  createSpinner,
-  withSpinner 
-} from '@/modules/core/cli/utils/spinner';
+  PROGRESS_PRESETS, 
+  createMultiStepProgress, 
+  createProgressLogger,
+  withProgress 
+} from '@/modules/core/cli/utils/progress-logger';
 
 /**
  * CLI command metadata interface.
@@ -402,18 +402,18 @@ optionsSection };
   }
 
   /**
-   * Create a spinner with SystemPrompt branding.
-   * @param preset - Spinner preset name.
+   * Create a progress logger with SystemPrompt branding.
+   * @param preset - Progress preset name.
    * @param text - Optional custom text.
-   * @returns New SystemPromptSpinner instance.
+   * @returns New ProgressLogger instance.
    */
-  public createSpinner(preset: keyof typeof SPINNER_PRESETS = 'loading', text?: string): SystemPromptSpinner {
-    return createSpinner(preset, text);
+  public createProgressLogger(preset: keyof typeof PROGRESS_PRESETS = 'loading', text?: string): ProgressLogger {
+    return createProgressLogger(preset, text);
   }
 
   /**
-   * Execute a function with a spinner.
-   * @param config - Spinner configuration.
+   * Execute a function with progress logging.
+   * @param config - Progress configuration.
    * @param config.fn
    * @param config.text
    * @param config.preset
@@ -421,10 +421,10 @@ optionsSection };
    * @param config.errorText
    * @returns Promise with the function result.
    */
-  public async withSpinner<T>(config: {
+  public async withProgress<T>(config: {
     fn: () => Promise<T>;
     text?: string;
-    preset?: keyof typeof SPINNER_PRESETS;
+    preset?: keyof typeof PROGRESS_PRESETS;
     successText?: string;
     errorText?: string;
   }): Promise<T> {
@@ -435,7 +435,7 @@ optionsSection };
       successText,
       errorText
     } = config;
-    const spinnerConfig = { ...SPINNER_PRESETS[preset],
+    const progressConfig = { ...PROGRESS_PRESETS[preset],
 text };
     const options: { successText?: string; errorText?: string } = {};
     if (successText !== undefined) {
@@ -444,17 +444,17 @@ text };
     if (errorText !== undefined) {
       options.errorText = errorText;
     }
-    return await withSpinner(fn, spinnerConfig, options);
+    return await withProgress(fn, progressConfig, options);
   }
 
   /**
-   * Create a progress spinner for multi-step operations.
+   * Create a progress logger for multi-step operations.
    * @param steps - Array of step descriptions.
-   * @param preset - Spinner preset.
-   * @returns New ProgressSpinner instance.
+   * @param preset - Progress preset.
+   * @returns New MultiStepProgress instance.
    */
-  public createProgressSpinner(steps: string[], preset: keyof typeof SPINNER_PRESETS = 'loading'): ReturnType<typeof createProgressSpinner> {
-    const config = SPINNER_PRESETS[preset];
-    return createProgressSpinner(steps, config);
+  public createMultiStepProgress(steps: string[], preset: keyof typeof PROGRESS_PRESETS = 'loading'): ReturnType<typeof createMultiStepProgress> {
+    const config = PROGRESS_PRESETS[preset];
+    return createMultiStepProgress(steps, config);
   }
 }

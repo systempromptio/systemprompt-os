@@ -66,14 +66,6 @@ cli:
           type: string
           description: Output format (table, json)
           default: table
-    - name: delete
-      description: Delete a user
-      options:
-        - name: id
-          alias: i
-          type: string
-          description: User ID
-          required: true
     - name: update
       description: Update user information
       options:
@@ -90,6 +82,23 @@ cli:
           alias: s
           type: string
           description: User status (active, inactive, suspended)
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+    - name: delete
+      description: Delete a user
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID
+          required: true
+        - name: force
+          type: boolean
+          description: Force deletion without confirmation
+          default: false
 
 exports:
   - services

@@ -12,6 +12,24 @@ import type { ModuleConstructor } from '@/types/bootstrap-module';
 import { MIN_MODULE_NAME_LENGTH } from '@/constants/bootstrap';
 
 /**
+ * Type guard for function type checking.
+ * @param {unknown} value - Value to check.
+ * @returns {boolean} True if value is a function.
+ */
+const isFunction = (value: unknown): value is ((...args: unknown[]) => unknown) => {
+  return typeof value === 'function';
+};
+
+/**
+ * Type guard for module constructor.
+ * @param {unknown} value - Value to check.
+ * @returns {boolean} True if value is a module constructor.
+ */
+const isModuleConstructor = (value: unknown): value is ModuleConstructor => {
+  return typeof value === 'function';
+};
+
+/**
  * Find module class in exports.
  * @param {Record<string, unknown>} moduleExports - Module exports.
  * @param {string} path - Module path.
@@ -22,21 +40,56 @@ export const findModuleClass = (
   moduleExports: Record<string, unknown>,
   path: string,
 ): ModuleConstructor => {
-  if (moduleExports.default !== undefined
-    && typeof moduleExports.default === 'function') {
-    return moduleExports.default as ModuleConstructor;
+  const { default: defaultExport } = moduleExports;
+  if (defaultExport !== undefined && isModuleConstructor(defaultExport)) {
+    return defaultExport;
   }
 
   const moduleKey = Object.keys(moduleExports).find(
-    (key): boolean => { return key.endsWith('Module')
-      && typeof moduleExports[key] === 'function' },
+    (key): boolean => {
+      return key.endsWith('Module')
+        && isModuleConstructor(moduleExports[key]);
+    },
   );
 
   if (moduleKey === undefined) {
     throw new Error(`No module class found in ${path}`);
   }
 
-  return moduleExports[moduleKey] as ModuleConstructor;
+  const { [moduleKey]: moduleConstructor } = moduleExports;
+  if (isModuleConstructor(moduleConstructor)) {
+    return moduleConstructor;
+  }
+
+  throw new Error(`Invalid module constructor in ${path}`);
+};
+
+/**
+ * Check if an export is a valid module.
+ * @param {unknown} instance - Module instance to check.
+ * @returns {boolean} True if valid module.
+ */
+export const isValidModule = (instance: unknown): instance is IModule => {
+  if (
+    typeof instance !== 'object'
+    || instance === null
+    || !('name' in instance)
+    || !('version' in instance)
+    || !('type' in instance)
+  ) {
+    return false;
+  }
+
+  if (!('name' in instance)) {
+    return false;
+  }
+
+  const instanceRecord = instance;
+
+  return (
+    typeof instanceRecord.name === 'string'
+    && instanceRecord.name.length >= MIN_MODULE_NAME_LENGTH
+  );
 };
 
 /**
@@ -53,36 +106,28 @@ export const createModuleInstance = (
   type: string,
 ): IModule => {
   if (type === 'self-contained' || type === 'service') {
-    if (typeof moduleExports.createModule === 'function') {
-      const createFn = moduleExports.createModule as () => IModule;
-      return createFn();
+    const { createModule } = moduleExports;
+    if (isFunction(createModule)) {
+      const moduleInstance = createModule();
+      if (moduleInstance !== null
+        && moduleInstance !== undefined
+        && typeof moduleInstance === 'object'
+        && isValidModule(moduleInstance)) {
+        return moduleInstance;
+      }
     }
-    if (moduleExports.default !== undefined
-      && typeof moduleExports.default === 'function') {
-      const ModuleConstructorFn = moduleExports.default as ModuleConstructor;
-      return new ModuleConstructorFn();
+
+    const { default: defaultExport } = moduleExports;
+    if (defaultExport !== undefined && isModuleConstructor(defaultExport)) {
+      const Ctor = defaultExport;
+      return new Ctor();
     }
-    throw new Error(`Module ${name} must export createModule function or default constructor`);
+
+    throw new Error(
+      `Module ${name} must export createModule function or default constructor`
+    );
   }
   throw new Error(`Unknown module type: ${type}`);
-};
-
-/**
- * Check if an export is a valid module.
- * @param {unknown} instance - Module instance to check.
- * @returns {boolean} True if valid module.
- */
-export const isValidModule = (instance: unknown): instance is IModule => {
-  const mod = instance as IModule;
-  return (
-    typeof instance === 'object'
-    && instance !== null
-    && 'name' in instance
-    && 'version' in instance
-    && 'type' in instance
-    && typeof mod.name === 'string'
-    && mod.name.length >= MIN_MODULE_NAME_LENGTH
-  );
 };
 
 /**
@@ -96,8 +141,8 @@ export const loadCoreModule = async (
   modules: Map<string, IModule>,
 ): Promise<IModule> => {
   const {
- name, path, dependencies, type
-} = definition;
+    name, path, dependencies, type
+  } = definition;
 
   for (const dep of dependencies) {
     if (!modules.has(dep)) {
@@ -105,7 +150,9 @@ export const loadCoreModule = async (
     }
   }
 
-  const resolvedPath = new URL(path, `file://${process.cwd()}/`).href;
+  const { href: resolvedPath } = new URL(path, `file://${process.cwd()}/`);
+  // Dynamic import needed for lazy loading core modules at runtime
+  // eslint-disable-next-line no-restricted-syntax
   const moduleExports = await import(resolvedPath) as Record<string, unknown>;
   const moduleInstance = createModuleInstance(moduleExports, name, type);
 
@@ -118,21 +165,25 @@ export const loadCoreModule = async (
 
 /**
  * Load an extension module.
- * @param moduleInfo - Module information.
- * @param moduleInfo.name
- * @param _config - Global configuration.
- * @param moduleInfo.path
- * @param moduleInfo.type
- * @returns Module instance.
+ * Config parameter is reserved for future use.
+ * @param {object} moduleInfo - Module information.
+ * @param {string} moduleInfo.name - Module name.
+ * @param {string} moduleInfo.path - Module path.
+ * @param {string} moduleInfo.type - Module type.
+ * @param {unknown} config - Global configuration (unused).
+ * @returns {Promise<IModule>} Module instance.
  */
 export const loadExtensionModule = async (
   moduleInfo: { name: string; path: string; type: string },
-  _config: unknown,
+  config: unknown,
 ): Promise<IModule> => {
+  config;
   const {
- name, path, type
-} = moduleInfo;
-  const resolvedPath = new URL(path, `file://${process.cwd()}/`).href;
+    name, path, type
+  } = moduleInfo;
+  const { href: resolvedPath } = new URL(path, `file://${process.cwd()}/`);
+  // Dynamic import needed for lazy loading extension modules at runtime
+  // eslint-disable-next-line no-restricted-syntax
   const moduleExports = await import(resolvedPath) as Record<string, unknown>;
   const moduleInstance = createModuleInstance(moduleExports, name, type);
 

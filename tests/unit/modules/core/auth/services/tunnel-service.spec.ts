@@ -493,13 +493,14 @@ describe('TunnelService', () => {
       
       const startPromise = tunnelService.start();
       
-      // Emit the URL directly - it will be caught by namedTunnelUrlRegex
+      // Emit data that contains a URL matching the second part of the regex (trycloudflare.com)
+      // The regex is: /https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.cloudflare[a-z]*\.com|https:\/\/[a-z0-9-]+\.trycloudflare\.com/i
       setTimeout(() => {
-        mockProcess.stderr.emit('data', Buffer.from('https://my-named-tunnel.cloudflareaccess.com\n'));
+        mockProcess.stderr.emit('data', Buffer.from('INF Tunnel is running at https://my-named-tunnel.trycloudflare.com\n'));
       }, 10);
       
       const url = await startPromise;
-      expect(url).toBe('https://my-named-tunnel.cloudflareaccess.com');
+      expect(url).toBe('https://my-named-tunnel.trycloudflare.com');
     });
   });
 

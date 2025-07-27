@@ -1,12 +1,8 @@
-Here is a list of 10 files, create 10 agents, one per file, to enforce the unit test coverage standards. 
-
-11. `src/server/external/templates/config/initial-setup.ts` - 0% coverage
-12. `src/server/external/types/auth.ts` - 0% coverage
-13. `src/server/external/types/routes.types.ts` - 0% coverage
-14. `src/server/mcp/local/daemon.ts` - 0% coverage
-15. `src/server/mcp/local/server.ts` - 0% coverage
-16. `src/server/mcp/loader.ts` - 4.79% coverage
-17. `src/server/mcp/registry.ts` - 4.29% coverage
-18. `src/server/mcp/remote/core-server.ts` - 4.08% coverage
-19. `src/utils/console-logger.ts` - 0% coverage
-20. `src/modules/core/modules/services/module-scanner.service.ts` - Low coverage (modified file)
+1. Run the reporting script at `/var/www/html/systemprompt-os/scripts/unit-test-report.sh` to identify failing unit tests
+2. Get the list of failing test files from the report output in `scripts/output/unit-test-report.txt`
+3. Process files in batches of 5:
+   - Spawn 5 unit-test-coverage-enforcer agents simultaneously (one per file)
+   - Each agent should fix ALL failing tests in their assigned file
+   - Each agent must verify their file has 0 failing tests before completing
+4. After each batch of 5 files is complete, run `npm run test:unit` to verify fixes
+5. Repeat the process with the next batch of 5 files until every unit test in the project passes

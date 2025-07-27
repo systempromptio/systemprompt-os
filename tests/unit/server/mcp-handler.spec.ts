@@ -6,14 +6,6 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 vi.mock('@modelcontextprotocol/sdk/server/index.js');
 vi.mock('@modelcontextprotocol/sdk/server/streamableHttp.js');
-vi.mock('../../../src/utils/logger', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn()
-  }
-}));
 vi.mock('../../../src/server/mcp/core/handlers/prompt-handlers');
 vi.mock('../../../src/server/mcp/core/handlers/resource-handlers');
 vi.mock('../../../src/server/mcp/core/handlers/resource-templates-handler');
@@ -32,7 +24,7 @@ describe('McpHandler', () => {
     mockServer = {
       setRequestHandler: vi.fn(),
       connect: vi.fn().mockResolvedValue(undefined),
-      close: vi.fn()
+      close: vi.fn().mockResolvedValue(undefined)
     };
     
     mockTransport = {
@@ -46,7 +38,7 @@ describe('McpHandler', () => {
           res.setHeader('x-session-id', newSessionId);
         }
       }),
-      close: vi.fn()
+      close: vi.fn().mockResolvedValue(undefined)
     };
     
     vi.mocked(Server).mockImplementation(() => mockServer);
@@ -357,7 +349,7 @@ describe('McpHandler', () => {
   describe('request handlers', () => {
     it('should register all required request handlers', async () => {
       // Creating the handler will create a server and register handlers
-      const newHandler = new MCPHandler();
+      const newHandler = new McpHandler();
       
       // The createServer method is called when a new session is created
       // Let's trigger it by making a request
@@ -444,7 +436,7 @@ describe('McpHandler', () => {
       vi.mocked(StreamableHTTPServerTransport).mockImplementationOnce((options: any) => {
         const errorTransport = {
           handleRequest: vi.fn().mockRejectedValue(new Error('Transport error')),
-          close: vi.fn()
+          close: vi.fn().mockResolvedValue(undefined)
         };
         // Call the sessionIdGenerator if provided
         if (options?.sessionIdGenerator) {

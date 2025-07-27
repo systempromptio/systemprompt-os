@@ -202,15 +202,15 @@ cliOutput.table(items, columns);
 ### Operation Commands
 
 ```typescript
-const spinner = cliOutput.createSpinner('Processing...');
-spinner.start();
+const logger = cliOutput.createProgressLogger('Processing...');
+logger.start();
 
 try {
   await performOperation();
-  spinner.succeed('Operation completed');
+  logger.succeed('Operation completed');
   cliOutput.success('All tasks completed successfully');
 } catch (error) {
-  spinner.fail('Operation failed');
+  logger.fail('Operation failed');
   cliOutput.error('Failed to complete operation');
   throw error;
 }

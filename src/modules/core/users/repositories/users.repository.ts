@@ -10,14 +10,14 @@ import {
   UserStatusEnum
 } from '@/modules/core/users/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
+import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 
 /**
  * Repository for users data operations.
  */
 export class UsersRepository {
   private static instance: UsersRepository;
-  private readonly dbService?: DatabaseService;
+  private database?: IDatabaseConnection;
 
   /**
    * Private constructor for singleton.
@@ -40,9 +40,7 @@ export class UsersRepository {
    */
   async initialize(): Promise<void> {
     const dbService = DatabaseService.getInstance();
-    this.database = dbService.getDatabase();
-
-    await dbService.ensureSchemaInitialized('users');
+    this.database = await dbService.getConnection();
   }
 
   /**
@@ -69,12 +67,12 @@ export class UsersRepository {
     } = options;
 
     const now = new Date().toISOString();
-    const stmt = this.database.prepare(`
+    const stmt = await this.database.prepare(`
       INSERT INTO users (id, username, email, password_hash, status, email_verified, login_attempts, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
+    await stmt.run([
       id,
       username,
       email,
@@ -84,7 +82,7 @@ export class UsersRepository {
       0,
       now,
       now
-    );
+    ]);
 
     const user: IUser = {
       id,
@@ -111,8 +109,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM users WHERE id = ?');
-    const row = stmt.get(id) as any;
+    const stmt = await this.database.prepare('SELECT * FROM users WHERE id = ?');
+    const row = await stmt.get([id]) as any;
 
     if (!row) {
       return null;
@@ -131,8 +129,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM users WHERE username = ?');
-    const row = stmt.get(username) as any;
+    const stmt = await this.database.prepare('SELECT * FROM users WHERE username = ?');
+    const row = await stmt.get([username]) as any;
 
     if (!row) {
       return null;
@@ -151,8 +149,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM users WHERE email = ?');
-    const row = stmt.get(email) as any;
+    const stmt = await this.database.prepare('SELECT * FROM users WHERE email = ?');
+    const row = await stmt.get([email]) as any;
 
     if (!row) {
       return null;
@@ -170,8 +168,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
-    const rows = stmt.all() as any[];
+    const stmt = await this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
+    const rows = await stmt.all();
 
     return rows.map(row => { return this.mapRowToUser(row) });
   }
@@ -207,13 +205,13 @@ export class UsersRepository {
     values.push(new Date().toISOString());
     values.push(id);
 
-    const stmt = this.database.prepare(`
+    const stmt = await this.database.prepare(`
       UPDATE users 
       SET ${updates.join(', ')} 
       WHERE id = ?
     `);
 
-    const result = stmt.run(...values);
+    const result = await stmt.run(values);
 
     if (result.changes === 0) {
       throw new Error(`User not found: ${id}`);
@@ -236,8 +234,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('DELETE FROM users WHERE id = ?');
-    const result = stmt.run(id);
+    const stmt = await this.database.prepare('DELETE FROM users WHERE id = ?');
+    const result = await stmt.run([id]);
 
     if (result.changes === 0) {
       throw new Error(`User not found: ${id}`);
@@ -256,13 +254,13 @@ export class UsersRepository {
 
     const now = new Date().toISOString();
     const stmt = success
-      ? this.database.prepare('UPDATE users SET last_login_at = ?, login_attempts = 0, updated_at = ? WHERE id = ?')
-      : this.database.prepare('UPDATE users SET login_attempts = login_attempts + 1, updated_at = ? WHERE id = ?');
+      ? await this.database.prepare('UPDATE users SET last_login_at = ?, login_attempts = 0, updated_at = ? WHERE id = ?')
+      : await this.database.prepare('UPDATE users SET login_attempts = login_attempts + 1, updated_at = ? WHERE id = ?');
 
     if (success) {
-      stmt.run(now, now, id);
+      await stmt.run([now, now, id]);
     } else {
-      stmt.run(now, id);
+      await stmt.run([now, id]);
     }
   }
 
@@ -276,10 +274,10 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare(
+    const stmt = await this.database.prepare(
       'UPDATE users SET locked_until = ?, login_attempts = 0, updated_at = ? WHERE id = ?'
     );
-    stmt.run(until.toISOString(), new Date().toISOString(), id);
+    await stmt.run([until.toISOString(), new Date().toISOString(), id]);
   }
 
   /**
@@ -310,12 +308,12 @@ export class UsersRepository {
     } = options;
 
     const now = new Date().toISOString();
-    const stmt = this.database.prepare(`
+    const stmt = await this.database.prepare(`
       INSERT INTO user_sessions (id, user_id, token_hash, expires_at, ip_address, user_agent, created_at, last_activity_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
+    await stmt.run([
       id,
       userId,
       tokenHash,
@@ -324,7 +322,7 @@ export class UsersRepository {
       userAgent || null,
       now,
       now
-    );
+    ]);
 
     return {
       id,
@@ -348,24 +346,33 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM user_sessions WHERE token_hash = ?');
-    const row = stmt.get(tokenHash) as any;
+    const stmt = await this.database.prepare('SELECT * FROM user_sessions WHERE token_hash = ?');
+    const row = await stmt.get([tokenHash]) as any;
 
     if (!row) {
       return null;
     }
 
-    return {
+    const session: IUserSession = {
       id: row.id,
       userId: row.user_id,
       tokenHash: row.token_hash,
-      ipAddress: row.ip_address || '',
-      userAgent: row.user_agent || '',
       expiresAt: new Date(row.expires_at),
       createdAt: new Date(row.created_at),
-      lastActivityAt: new Date(row.last_activity_at),
-      revokedAt: row.revoked_at ? new Date(row.revoked_at) : undefined
+      lastActivityAt: new Date(row.last_activity_at)
     };
+    
+    if (row.ip_address) {
+      session.ipAddress = row.ip_address;
+    }
+    if (row.user_agent) {
+      session.userAgent = row.user_agent;
+    }
+    if (row.revoked_at) {
+      session.revokedAt = new Date(row.revoked_at);
+    }
+    
+    return session;
   }
 
   /**
@@ -377,10 +384,10 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare(
+    const stmt = await this.database.prepare(
       'UPDATE user_sessions SET last_activity_at = ? WHERE id = ?'
     );
-    stmt.run(new Date().toISOString(), id);
+    await stmt.run([new Date().toISOString(), id]);
   }
 
   /**
@@ -392,10 +399,10 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare(
+    const stmt = await this.database.prepare(
       'UPDATE user_sessions SET revoked_at = ? WHERE id = ?'
     );
-    stmt.run(new Date().toISOString(), id);
+    await stmt.run([new Date().toISOString(), id]);
   }
 
   /**
@@ -424,19 +431,19 @@ export class UsersRepository {
     } = options;
 
     const now = new Date().toISOString();
-    const stmt = this.database.prepare(`
+    const stmt = await this.database.prepare(`
       INSERT INTO user_api_keys (id, user_id, name, key_hash, permissions, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
+    await stmt.run([
       id,
       userId,
       name,
       keyHash,
       JSON.stringify(permissions || []),
       now
-    );
+    ]);
 
     return {
       id,
@@ -458,23 +465,33 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('SELECT * FROM user_api_keys WHERE key_hash = ?');
-    const row = stmt.get(keyHash) as any;
+    const stmt = await this.database.prepare('SELECT * FROM user_api_keys WHERE key_hash = ?');
+    const row = await stmt.get([keyHash]) as any;
 
     if (!row) {
       return null;
     }
 
-    return {
+    const apiKey: IUserApiKey = {
       id: row.id,
       userId: row.user_id,
       name: row.name,
       keyHash: row.key_hash,
-      permissions: JSON.parse(row.permissions || '[]'),
-      expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
-      lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : undefined,
       createdAt: new Date(row.created_at)
     };
+    
+    const permissions = JSON.parse(row.permissions || '[]');
+    if (permissions && permissions.length > 0) {
+      apiKey.permissions = permissions;
+    }
+    if (row.expires_at) {
+      apiKey.expiresAt = new Date(row.expires_at);
+    }
+    if (row.last_used_at) {
+      apiKey.lastUsedAt = new Date(row.last_used_at);
+    }
+    
+    return apiKey;
   }
 
   /**
@@ -486,10 +503,10 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare(
+    const stmt = await this.database.prepare(
       'UPDATE user_api_keys SET last_used_at = ? WHERE id = ?'
     );
-    stmt.run(new Date().toISOString(), id);
+    await stmt.run([new Date().toISOString(), id]);
   }
 
   /**
@@ -501,8 +518,8 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = this.database.prepare('DELETE FROM user_api_keys WHERE id = ?');
-    stmt.run(id);
+    const stmt = await this.database.prepare('DELETE FROM user_api_keys WHERE id = ?');
+    await stmt.run([id]);
   }
 
   /**
@@ -511,18 +528,27 @@ export class UsersRepository {
    * @returns User object.
    */
   private mapRowToUser(row: any): IUser {
-    return {
+    const user: IUser = {
       id: row.id,
       username: row.username,
       email: row.email,
-      passwordHash: row.password_hash || '',
       status: row.status as UserStatusEnum,
       emailVerified: Boolean(row.email_verified),
-      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
       loginAttempts: row.login_attempts || 0,
-      lockedUntil: row.locked_until ? new Date(row.locked_until) : undefined,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };
+    
+    if (row.password_hash) {
+      user.passwordHash = row.password_hash;
+    }
+    if (row.last_login_at) {
+      user.lastLoginAt = new Date(row.last_login_at);
+    }
+    if (row.locked_until) {
+      user.lockedUntil = new Date(row.locked_until);
+    }
+    
+    return user;
   }
 }

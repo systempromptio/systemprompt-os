@@ -66,3 +66,18 @@ export type CoreModuleType =
   | IModule<IDatabaseModuleExports>
   | IModule<ILoggerModuleExports>
   | IModule;
+
+/**
+ * Log category types for bootstrap operations.
+ */
+export type LogCategory =
+  | 'startup'
+  | 'shutdown'
+  | 'modules'
+  | 'database'
+  | 'discovery'
+  | 'mcp'
+  | 'cli'
+  | 'error'
+  | 'logger'
+  | 'debug';

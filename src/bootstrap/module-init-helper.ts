@@ -5,28 +5,27 @@
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { moduleHasMethod } from '@/bootstrap/shutdown-helper';
 
 /**
  * Initialize a single module safely.
- * @param {string} _name - Module name.
+ * @param {string} name - Module name.
  * @param {IModule} moduleInstance - Module instance.
- * @param {ILogger} _logger - Logger instance.
+ * @param {ILogger} logger - Logger instance.
  * @returns {Promise<void>} Promise that resolves when module is initialized.
  * @throws {Error} If initialization fails.
  */
 export const initializeSingleModule = async (
-  _name: string,
+  name: string,
   moduleInstance: IModule,
-  _logger: ILogger,
+  logger: ILogger,
 ): Promise<void> => {
   if (moduleHasMethod(moduleInstance, 'initialize')) {
-    const { initialize: initMethod } = moduleInstance;
-    if (initMethod !== undefined) {
-      await initMethod.call(moduleInstance);
-    }
+    logger.debug(LogSource.BOOTSTRAP, `Initializing module: ${name}`, { persistToDb: false });
+    const boundInitialize = moduleInstance.initialize.bind(moduleInstance);
+    await boundInitialize();
+    logger.debug(LogSource.BOOTSTRAP, `Initialized module: ${name}`, { persistToDb: false });
   }
 };
 
@@ -48,11 +47,68 @@ export const startSingleModule = async (
   }
 
   logger.debug(LogSource.BOOTSTRAP, `Starting module: ${name}`, { persistToDb: false });
-  const { start: startMethod } = moduleInstance;
-  if (startMethod !== undefined) {
-    await startMethod.call(moduleInstance);
+  if (moduleHasMethod(moduleInstance, 'start')) {
+    const boundStart = moduleInstance.start.bind(moduleInstance);
+    await boundStart();
   }
   logger.debug(LogSource.BOOTSTRAP, `Started module: ${name}`, { persistToDb: false });
+};
+
+/**
+ * Check if module exports have a logger service.
+ * @param {unknown} moduleExports - Module exports to check.
+ * @returns {boolean} True if exports contain a logger service.
+ */
+const hasLoggerService = (moduleExports: unknown): moduleExports is { service: unknown } => {
+  return (
+    moduleExports !== null
+    && typeof moduleExports === 'object'
+    && 'service' in moduleExports
+  );
+};
+
+/**
+ * Type guard to check if object is a valid logger instance.
+ * @param {unknown} obj - Object to check.
+ * @returns {boolean} True if object is a logger.
+ */
+const isLoggerInstance = (obj: unknown): obj is ILogger => {
+  return (
+    obj !== null
+    && typeof obj === 'object'
+    && 'info' in obj
+    && typeof obj.info === 'function'
+    && 'warn' in obj
+    && typeof obj.warn === 'function'
+    && 'error' in obj
+    && typeof obj.error === 'function'
+    && 'debug' in obj
+    && typeof obj.debug === 'function'
+  );
+};
+
+/**
+ * Extract logger from service accessor.
+ * @param {unknown} serviceAccessor - Service accessor to check.
+ * @returns {ILogger | undefined} Logger instance if valid.
+ */
+const extractLoggerFromService = (serviceAccessor: unknown): ILogger | undefined => {
+  if (typeof serviceAccessor === 'function') {
+    try {
+      const loggerInstance = serviceAccessor();
+      if (isLoggerInstance(loggerInstance)) {
+        return loggerInstance;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (isLoggerInstance(serviceAccessor)) {
+    return serviceAccessor;
+  }
+
+  return undefined;
 };
 
 /**
@@ -69,37 +125,11 @@ export const checkLoggerUpgrade = (
     return undefined;
   }
 
-  const hasExports = moduleInstance.exports !== undefined;
-  if (!hasExports) {
-    return undefined;
-  }
-
   const { exports: moduleExports } = moduleInstance;
-  if (!moduleExports || typeof moduleExports !== 'object') {
+  if (moduleExports === undefined || !hasLoggerService(moduleExports)) {
     return undefined;
   }
 
-  const hasService = 'service' in moduleExports;
-  if (!hasService) {
-    return undefined;
-  }
-
-  const serviceAccessor = (moduleExports as any).service;
-
-  if (typeof serviceAccessor === 'function') {
-    try {
-      const loggerInstance = serviceAccessor();
-      if (loggerInstance && typeof loggerInstance.info === 'function') {
-        return loggerInstance as ILogger;
-      }
-    } catch (error) {
-      return undefined;
-    }
-  }
-
-  if (serviceAccessor && typeof serviceAccessor.info === 'function') {
-    return serviceAccessor as ILogger;
-  }
-
-  return undefined;
+  const { service: serviceAccessor } = moduleExports;
+  return extractLoggerFromService(serviceAccessor);
 };

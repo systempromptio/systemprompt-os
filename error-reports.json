@@ -1,0 +1,72 @@
+[
+  {
+    "id": "1753645376125",
+    "path": "src/modules/core/users/repositories/users.repository.ts",
+    "errors": 139,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:42:56.125Z"
+  },
+  {
+    "id": "1753645377140",
+    "path": "src/server/external/rest/oauth2/authorize.ts",
+    "errors": 95,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:42:57.140Z"
+  },
+  {
+    "id": "1753645378109",
+    "path": "src/bootstrap/module-loader.ts",
+    "errors": 92,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:42:58.109Z"
+  },
+  {
+    "id": "1753645379128",
+    "path": "src/modules/core/agents/repositories/agent-repository.ts",
+    "errors": 81,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:42:59.128Z"
+  },
+  {
+    "id": "1753645380115",
+    "path": "src/modules/core/database/index.ts",
+    "errors": 78,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:00.115Z"
+  },
+  {
+    "id": "1753645381117",
+    "path": "src/modules/core/auth/database/repository.ts",
+    "errors": 75,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:01.117Z"
+  },
+  {
+    "id": "1753645382110",
+    "path": "src/modules/core/auth/services/mfa.service.ts",
+    "errors": 74,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:02.110Z"
+  },
+  {
+    "id": "1753645383103",
+    "path": "src/modules/core/auth/index.ts",
+    "errors": 71,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:03.103Z"
+  },
+  {
+    "id": "1753645384116",
+    "path": "src/modules/core/monitor/monitor-module.ts",
+    "errors": 67,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:04.116Z"
+  },
+  {
+    "id": "1753645385098",
+    "path": "src/modules/core/database/services/cli-handler.service.ts",
+    "errors": 65,
+    "type": "lint",
+    "timestamp": "2025-07-27T19:43:05.098Z"
+  }
+]
