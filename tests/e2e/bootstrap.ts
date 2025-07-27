@@ -40,14 +40,14 @@ export function getTestBaseUrl(): string {
 
 // Configuration for the test environment
 export const TEST_CONFIG = {
-  baseUrl: process.env.TUNNEL_URL || process.env.BASE_URL || 'http://localhost:3001',
+  baseUrl: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : 'http://localhost:3001',
   testTimeout: 180000, // 3 minutes for Docker operations
   projectName: 'systemprompt-e2e-test',
   envVars: {
     PORT: '3001',
-    BASE_URL: process.env.BASE_URL || 'http://localhost:3001',
-    TUNNEL_URL: process.env.TUNNEL_URL || '',
-    OAUTH_DOMAIN: process.env.TUNNEL_URL || process.env.OAUTH_DOMAIN || 'http://localhost:3001',
+    BASE_URL: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : 'http://localhost:3001',
+    TUNNEL_URL: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : '',
+    OAUTH_DOMAIN: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : 'http://localhost:3001',
     NODE_ENV: 'test',
     JWT_SECRET: 'test-secret-key-for-e2e-testing',
     GOOGLE_CLIENT_ID: 'test-google-client',
@@ -58,8 +58,8 @@ export const TEST_CONFIG = {
     PROJECT_ROOT: '/workspace',
     HOST_FILE_ROOT: '/var/www/html/systemprompt-os',
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || 'test-gemini-api-key',
-    ENABLE_OAUTH_TUNNEL: 'false',
-    CLOUDFLARE_TUNNEL_TOKEN: ''
+    ENABLE_OAUTH_TUNNEL: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'true' : 'false',
+    CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN || ''
   }
 };
 
@@ -70,10 +70,14 @@ export const TEST_CONFIG = {
 export async function bootstrapTestEnvironment(): Promise<void> {
   console.log('🚀 Bootstrapping E2E test environment...');
   
+  const baseUrl = process.env.CLOUDFLARE_TUNNEL_TOKEN 
+    ? 'https://democontainer.systemprompt.io' 
+    : 'http://localhost:3001';
+  
   dockerEnv = new DockerTestEnvironment(TEST_CONFIG.projectName, {
     serviceName: 'mcp-server',
     composeFile: 'docker-compose.yml',
-    healthEndpoint: `http://localhost:3001/health`,
+    healthEndpoint: `${baseUrl}/health`,
     envVars: TEST_CONFIG.envVars
   });
 
@@ -82,7 +86,7 @@ export async function bootstrapTestEnvironment(): Promise<void> {
   // Write state for test files to access
   writeTestState({
     projectName: TEST_CONFIG.projectName,
-    baseUrl: 'http://localhost:3001',
+    baseUrl: baseUrl,
     isReady: true
   });
   

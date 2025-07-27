@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { ServerConfig } from '../../../src/server/types.js';
 
+// Mock dotenv to prevent loading .env file during tests
+vi.mock('dotenv', () => ({
+  config: vi.fn()
+}));
+
 describe('ServerConfig', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -14,9 +19,12 @@ describe('ServerConfig', () => {
 
   describe('default configuration', () => {
     it('should load default configuration values', async () => {
-      // Clear all env vars
-      vi.stubEnv('PORT', '');
-      vi.stubEnv('NODEENV', '');
+      // Clear all env vars by making them undefined instead of empty strings
+      delete process.env.PORT;
+      delete process.env.NODEENV;
+      delete process.env.JWTISSUER;
+      delete process.env.SERVERNAME;
+      delete process.env.SERVERVERSION;
       
       const { CONFIG } = await import('../../../src/server/config');
 
@@ -66,10 +74,13 @@ describe('ServerConfig', () => {
     });
 
     it('should construct BASEURL from PORT', async () => {
-      // Clear any existing BASE_URL/BASEURL
-      vi.stubEnv('BASE_URL', '');
-      vi.stubEnv('BASEURL', '');
+      // Use vitest's stubEnv to properly override environment variables
+      vi.stubEnv('BASE_URL', undefined as any);
+      vi.stubEnv('BASEURL', undefined as any);
       vi.stubEnv('PORT', '4000');
+      
+      // Reset modules to ensure fresh import after env changes
+      vi.resetModules();
       
       const { CONFIG } = await import('../../../src/server/config');
 

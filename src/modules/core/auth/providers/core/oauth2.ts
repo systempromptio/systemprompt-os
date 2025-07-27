@@ -155,8 +155,13 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     };
 
     const getUserEmail = (userInfo: Record<string, unknown>): string => {
-      const emailValue = this.getNestedValue(userInfo, mapping.email ?? 'email');
-      return String(emailValue ?? '');
+      // Try custom mapping first, then fall back to default
+      const customMappingPath = mapping.email;
+      const emailValue = customMappingPath
+        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.email
+        : userInfo.email;
+      // Convert null/undefined to empty string, but convert other values to string representation
+      return emailValue === null || emailValue === undefined ? '' : String(emailValue);
     };
 
     const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
@@ -168,13 +173,21 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     };
 
     const getUserName = (userInfo: Record<string, unknown>): string => {
-      const nameValue = this.getNestedValue(userInfo, mapping.name ?? 'name');
-      return String(nameValue ?? '');
+      const customMappingPath = mapping.name;
+      const nameValue = customMappingPath
+        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.name
+        : userInfo.name;
+      // Convert null/undefined to empty string, but convert other values to string representation
+      return nameValue === null || nameValue === undefined ? '' : String(nameValue);
     };
 
     const getUserPicture = (userInfo: Record<string, unknown>): string => {
-      const pictureValue = this.getNestedValue(userInfo, mapping.picture ?? 'picture');
-      return String(pictureValue ?? '');
+      const customMappingPath = mapping.picture;
+      const pictureValue = customMappingPath
+        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.picture
+        : userInfo.picture;
+      // Convert null/undefined to empty string, but convert other values to string representation
+      return pictureValue === null || pictureValue === undefined ? '' : String(pictureValue);
     };
 
     return {

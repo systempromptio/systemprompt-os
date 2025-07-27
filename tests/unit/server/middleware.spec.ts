@@ -1,6 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 
+// Mock the logger module
+vi.mock('../../../src/modules/core/logger/index', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => ({
+      warn: vi.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      error: vi.fn()
+    }))
+  },
+  LogSource: {
+    SERVER: 'server'
+  }
+}));
+
 // We need to reset the module between tests to clear the rate limit state
 let rateLimitMiddleware: any;
 let validateProtocolVersion: any;
@@ -71,7 +86,7 @@ describe('Server Middleware', () => {
         error: {
           code: -32000,
           message: 'Too many requests',
-          data: expect.any(Object)
+          information: expect.any(Object)
         },
         id: null
       });
@@ -150,8 +165,8 @@ describe('Server Middleware', () => {
       middleware(mockReq as Request, mockRes as Response, mockNext);
       
       const jsonCall = (mockRes.json as any).mock.calls[0][0];
-      expect(jsonCall.error.data.retryAfter).toBeGreaterThanOrEqual(29);
-      expect(jsonCall.error.data.retryAfter).toBeLessThanOrEqual(31);
+      expect(jsonCall.error.information.retryAfter).toBeGreaterThanOrEqual(29);
+      expect(jsonCall.error.information.retryAfter).toBeLessThanOrEqual(31);
     });
   });
 
@@ -190,7 +205,7 @@ describe('Server Middleware', () => {
         error: {
           code: -32600,
           message: 'Unsupported protocol version',
-          data: {
+          information: {
             supported: ['2025-06-18', '2025-03-26', '2024-11-05'],
             requested: '2023-01-01'
           }
@@ -224,7 +239,7 @@ describe('Server Middleware', () => {
         error: {
           code: -32000,
           message: 'Request entity too large',
-          data: {
+          information: {
             maxSize: 1024,
             received: 2048
           }

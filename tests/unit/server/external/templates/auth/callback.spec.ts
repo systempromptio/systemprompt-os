@@ -1256,4 +1256,3 @@ describe('renderCallbackHandler', () => {
       expect(html).toMatch(/id="[^"]+"/);
     });
   });
-});

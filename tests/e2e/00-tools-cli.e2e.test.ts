@@ -63,7 +63,7 @@ describe('[00] Tools CLI Domain', () => {
       const { stdout } = await execInContainer('/app/bin/systemprompt modules status');
       expect(stdout).toContain('Modules Module Status');
       expect(stdout).toContain('Total modules managed');
-      expect(stdout).toContain('Enabled modules:');
+      expect(stdout).toContain('Enabled modules');
     });
   });
 

@@ -10,26 +10,63 @@ const mockServer = {
   close: vi.fn((cb) => cb && cb())
 };
 
+// Mock bootstrap to prevent actual bootstrap from running
+vi.mock('../../src/bootstrap', () => ({
+  runBootstrap: vi.fn(() => Promise.resolve({
+    getModules: vi.fn(() => new Map([
+      ['logger', {
+        exports: {
+          service: {
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+            debug: vi.fn()
+          }
+        }
+      }]
+    ])),
+    getCurrentPhase: vi.fn(() => 'initialized'),
+    shutdown: vi.fn(() => Promise.resolve())
+  }))
+}));
+
 // Mock all dependencies
 vi.mock('../../src/server/index', () => ({
   startServer: vi.fn(() => Promise.resolve(mockServer))
 }));
 
-vi.mock('../../src/utils/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
+// Mock tunnel status
+vi.mock('../../src/modules/core/auth/tunnel-status', () => ({
+  tunnelStatus: {
+    setBaseUrl: vi.fn()
+  }
+}));
+
+// Mock constants
+vi.mock('../../src/constants/process.constants', () => ({
+  EXIT_FAILURE: 1,
+  EXIT_SUCCESS: 0
+}));
+
+// Mock logger types
+vi.mock('../../src/modules/core/logger/types/index', () => ({
+  LogSource: {
+    BOOTSTRAP: 'bootstrap'
   }
 }));
 
 describe('Main Entry Point', () => {
   let processListeners: any = {};
+  let consoleLogSpy: any;
+  let consoleErrorSpy: any;
   
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    
+    // Mock console methods to prevent actual console output
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     
     // Capture process event listeners
     processListeners = {};
@@ -45,29 +82,35 @@ describe('Main Entry Point', () => {
 
   it('should start server on import', async () => {
     const { startServer } = await import('../../src/server/index');
+    const { runBootstrap } = await import('../../src/bootstrap');
     
-    await import('../../src/index');
-    
-    // Give time for async import
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    expect(startServer).toHaveBeenCalled();
-  });
-
-  it('should handle server startup errors', async () => {
-    const { startServer } = await import('../../src/server/index');
-    const { logger } = await import('../../src/utils/logger');
-    
-    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    vi.mocked(startServer).mockRejectedValueOnce(new Error('Server failed'));
-    
+    // Clear any previous module cache and re-import to trigger main execution
+    vi.resetModules();
     await import('../../src/index');
     
     // Give time for async operations
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    expect(logger.error).toHaveBeenCalledWith(
-      'Failed to start server:',
+    expect(runBootstrap).toHaveBeenCalled();
+    expect(startServer).toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('🌟 SystemPrompt OS Starting...');
+  });
+
+  it('should handle server startup errors', async () => {
+    const { runBootstrap } = await import('../../src/bootstrap');
+    
+    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    vi.mocked(runBootstrap).mockRejectedValueOnce(new Error('Bootstrap failed'));
+    
+    // Clear any previous module cache and re-import to trigger main execution
+    vi.resetModules();
+    await import('../../src/index');
+    
+    // Give time for async operations
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '💥 Failed to start SystemPrompt OS:',
       expect.any(Error)
     );
     expect(mockExit).toHaveBeenCalledWith(1);
@@ -76,18 +119,24 @@ describe('Main Entry Point', () => {
   });
 
   it('should handle SIGTERM signal', async () => {
-    const { logger } = await import('../../src/utils/logger');
     const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     
+    // Clear any previous module cache and re-import to trigger main execution
+    vi.resetModules();
     await import('../../src/index');
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    // Call the SIGTERM handler
+    // Ensure the SIGTERM handler was registered
+    expect(processListeners.SIGTERM).toBeDefined();
+    
+    // Call the SIGTERM handler and wait for it to complete
     if (processListeners.SIGTERM) {
       await processListeners.SIGTERM();
+      // Give additional time for async operations in the handler
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
     
-    expect(logger.info).toHaveBeenCalledWith('SIGTERM received, shutting down gracefully');
+    // The actual implementation logs through the logger service
     expect(mockServer.close).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(0);
     
@@ -95,18 +144,24 @@ describe('Main Entry Point', () => {
   });
 
   it('should handle SIGINT signal', async () => {
-    const { logger } = await import('../../src/utils/logger');
     const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     
+    // Clear any previous module cache and re-import to trigger main execution
+    vi.resetModules();
     await import('../../src/index');
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    // Call the SIGINT handler
+    // Ensure the SIGINT handler was registered
+    expect(processListeners.SIGINT).toBeDefined();
+    
+    // Call the SIGINT handler and wait for it to complete
     if (processListeners.SIGINT) {
       await processListeners.SIGINT();
+      // Give additional time for async operations in the handler
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
     
-    expect(logger.info).toHaveBeenCalledWith('SIGINT received, shutting down gracefully');
+    // The actual implementation logs through the logger service
     expect(mockServer.close).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(0);
     

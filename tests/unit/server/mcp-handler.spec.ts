@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
-import { MCPHandler, setMCPHandlerInstance, getMCPHandlerInstance } from '../../../src/server/mcp.js';
+import { McpHandler, setMcpHandlerInstance, getMcpHandlerInstance } from '../../../src/server/mcp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
@@ -20,8 +20,8 @@ vi.mock('../../../src/server/mcp/core/handlers/resource-templates-handler');
 vi.mock('../../../src/server/mcp/core/handlers/roots-handlers');
 vi.mock('../../../src/server/mcp/core/handlers/tool-handlers');
 
-describe('MCPHandler', () => {
-  let handler: MCPHandler;
+describe('McpHandler', () => {
+  let handler: McpHandler;
   let mockApp: any;
   let mockServer: any;
   let mockTransport: any;
@@ -67,7 +67,7 @@ describe('MCPHandler', () => {
       all: vi.fn()
     };
     
-    handler = new MCPHandler();
+    handler = new McpHandler();
   });
 
   afterEach(() => {
@@ -78,7 +78,7 @@ describe('MCPHandler', () => {
   describe('constructor', () => {
     it('should set up cleanup interval', () => {
       const setIntervalSpy = vi.spyOn(global, 'setInterval');
-      new MCPHandler();
+      new McpHandler();
       expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 5 * 60 * 1000);
     });
   });
@@ -473,19 +473,19 @@ describe('MCPHandler', () => {
 
 describe('Global MCP Handler instance', () => {
   it('should set and get MCP handler instance', () => {
-    const handler = new MCPHandler();
+    const handler = new McpHandler();
     
-    setMCPHandlerInstance(handler);
+    setMcpHandlerInstance(handler);
     
-    const retrievedHandler = getMCPHandlerInstance();
+    const retrievedHandler = getMcpHandlerInstance();
     expect(retrievedHandler).toBe(handler);
   });
 
   it('should return null when no instance is set', () => {
     // Reset the global instance
-    setMCPHandlerInstance(null as any);
+    setMcpHandlerInstance(null as any);
     
-    const handler = getMCPHandlerInstance();
+    const handler = getMcpHandlerInstance();
     expect(handler).toBeNull();
   });
 });
