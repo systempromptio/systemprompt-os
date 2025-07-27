@@ -156,9 +156,9 @@ describe('OAuth2 Authorize Endpoint', () => {
     describe('without provider parameter', () => {
       it('should display authorization consent form with valid parameters', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read write',
           state: 'client-state',
         };
@@ -186,8 +186,8 @@ describe('OAuth2 Authorize Endpoint', () => {
 
       it('should handle missing required parameters', async () => {
         mockReq.query = {
-          clientId: 'test-client',
-          // missing redirectUri and responseType
+          client_id: 'test-client',
+          // missing redirect_uri and response_type
         };
 
         await authorizeEndpoint.getAuthorize(mockReq as Request, mockRes as Response);
@@ -201,9 +201,9 @@ describe('OAuth2 Authorize Endpoint', () => {
 
       it('should handle invalid responseType', async () => {
         mockReq.query = {
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
-          responseType: 'token', // not supported
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
+          response_type: 'token', // not supported
           scope: 'read',
         };
 
@@ -220,9 +220,9 @@ describe('OAuth2 Authorize Endpoint', () => {
     describe('with provider parameter', () => {
       it('should redirect to Google provider with state', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'openid',
           provider: 'google',
         };
@@ -239,9 +239,9 @@ describe('OAuth2 Authorize Endpoint', () => {
 
       it('should handle case insensitive provider names', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'openid',
           provider: 'GOOGLE',
         };
@@ -254,9 +254,9 @@ describe('OAuth2 Authorize Endpoint', () => {
 
       it('should handle unknown provider', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read',
           provider: 'unknown',
         };
@@ -274,9 +274,9 @@ describe('OAuth2 Authorize Endpoint', () => {
     describe('error handling', () => {
       it('should handle server errors during HTML generation', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read',
         };
 
@@ -296,9 +296,9 @@ describe('OAuth2 Authorize Endpoint', () => {
 
       it('should handle non-Error exceptions', async () => {
         mockReq.query = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read',
         };
 
@@ -366,9 +366,9 @@ describe('OAuth2 Authorize Endpoint', () => {
     describe('authorization approval', () => {
       it('should handle authorization approval with valid user', async () => {
         mockReq.body = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read write',
           state: 'client-state',
         };
@@ -394,9 +394,9 @@ describe('OAuth2 Authorize Endpoint', () => {
       it('should handle missing user authentication', async () => {
         mockReq.user = undefined;
         mockReq.body = {
-          responseType: 'code',
-          clientId: 'test-client',
-          redirectUri: 'http://localhost:3000/callback',
+          response_type: 'code',
+          client_id: 'test-client',
+          redirect_uri: 'http://localhost:3000/callback',
           scope: 'read',
         };
 
@@ -491,10 +491,11 @@ describe('OAuth2 Authorize Endpoint', () => {
 
         await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.send).toHaveBeenCalledWith(
-          expect.stringContaining('Provider parameter is required'),
-        );
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Provider parameter is required',
+        });
       });
 
       it('should handle provider callback error', async () => {
@@ -502,7 +503,7 @@ describe('OAuth2 Authorize Endpoint', () => {
           params: { provider: 'google' },
           query: {
             error: 'access_denied',
-            error_description: 'User denied access',
+            errorDescription: 'User denied access',
           },
         };
 
@@ -530,10 +531,11 @@ describe('OAuth2 Authorize Endpoint', () => {
 
         await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.send).toHaveBeenCalledWith(
-          expect.stringContaining('Missing code or state parameter'),
-        );
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Missing code parameter',
+        });
       });
 
       it('should handle missing state parameter', async () => {
@@ -546,10 +548,11 @@ describe('OAuth2 Authorize Endpoint', () => {
 
         await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.send).toHaveBeenCalledWith(
-          expect.stringContaining('Missing code or state parameter'),
-        );
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Missing state parameter',
+        });
       });
 
       it('should handle invalid state decoding', async () => {
@@ -563,10 +566,11 @@ describe('OAuth2 Authorize Endpoint', () => {
 
         await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.send).toHaveBeenCalledWith(
-          expect.stringContaining('Invalid state parameter'),
-        );
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Invalid state parameter',
+        });
       });
 
       it('should handle malformed JSON in state', async () => {
@@ -581,10 +585,11 @@ describe('OAuth2 Authorize Endpoint', () => {
 
         await authorizeEndpoint.handleProviderCallback(mockReq as any, mockRes as Response);
 
-        expect(mockRes.status).toHaveBeenCalledWith(500);
-        expect(mockRes.send).toHaveBeenCalledWith(
-          expect.stringContaining('Invalid state parameter'),
-        );
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Invalid state parameter',
+        });
       });
 
       it('should handle unknown provider', async () => {

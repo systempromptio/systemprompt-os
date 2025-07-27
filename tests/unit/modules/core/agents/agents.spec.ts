@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AgentsModule } from '../../../../../src/modules/core/agents/index.js';
-import { AgentService } from '../../../../../src/modules/core/agents/services/agent-service.js';
+import { AgentService } from '../../../../../src/modules/core/agents/services/agent.service.js';
 import { AgentRepository } from '../../../../../src/modules/core/agents/repositories/agent-repository.js';
 
 // Mock dependencies
@@ -17,7 +17,7 @@ vi.mock('../../../../../src/modules/core/database/adapters/module-adapter.js', (
   })
 }));
 
-vi.mock('../../../../../src/modules/core/agents/services/agent-service.js');
+vi.mock('../../../../../src/modules/core/agents/services/agent.service.js');
 vi.mock('../../../../../src/modules/core/agents/repositories/agent-repository.js');
 
 describe('AgentsModule', () => {

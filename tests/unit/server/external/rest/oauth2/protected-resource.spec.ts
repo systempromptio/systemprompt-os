@@ -10,12 +10,12 @@ import type { ProtectedResourceMetadata } from '../../../../../../src/server/ext
 import type { IOAuth2ProtectedResourceMetadataInternal } from '../../../../../../src/modules/core/auth/types/oauth2.types.js';
 
 // Mock dependencies
-vi.mock('../../../../../../src/modules/core/auth/singleton', () => ({
+vi.mock('../../../../../../src/modules/core/auth/index', () => ({
   getAuthModule: vi.fn()
 }));
 
 // Import the mocked functions
-import { getAuthModule } from '../../../../../../src/modules/core/auth/singleton.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/index.js';
 
 describe('ProtectedResourceEndpoint', () => {
   let protectedResourceEndpoint: ProtectedResourceEndpoint;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execInContainer, TEST_CONFIG } from './bootstrap.js';
+import { execInContainer, getTestBaseUrl } from './bootstrap.js';
 
 /**
  * Server MCP Domain E2E Tests
@@ -12,9 +12,11 @@ import { execInContainer, TEST_CONFIG } from './bootstrap.js';
  * - MCP protocol communication
  */
 describe('[03] Server MCP Domain', () => {
+  const baseUrl = getTestBaseUrl();
+  
   describe('MCP Server Initialization', () => {
     it('should initialize MCP server successfully', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer(`curl -s ${baseUrl}/api/status`);
       const status = JSON.parse(stdout);
       expect(status.mcp).toBeDefined();
       expect(status.mcp.available).toBe(true);
@@ -22,7 +24,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should load core MCP handlers', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.mcp.handlers).toBeDefined();
       expect(status.mcp.handlers).toContain('tools');
@@ -33,7 +35,7 @@ describe('[03] Server MCP Domain', () => {
 
   describe('Tool Registration', () => {
     it('should register core tools', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.mcp.tools).toBeDefined();
       expect(Array.isArray(status.mcp.tools)).toBe(true);
@@ -41,7 +43,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should include task management tools', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const toolNames = status.mcp.tools.map((t: any) => t.name);
       expect(toolNames).toContain('create_task');
@@ -51,7 +53,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should include system tools', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const toolNames = status.mcp.tools.map((t: any) => t.name);
       expect(toolNames).toContain('check_status');
@@ -60,7 +62,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should provide tool descriptions', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const createTaskTool = status.mcp.tools.find((t: any) => t.name === 'create_task');
       expect(createTaskTool).toBeDefined();
@@ -71,21 +73,21 @@ describe('[03] Server MCP Domain', () => {
 
   describe('Resource Management', () => {
     it('should register core resources', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.mcp.resources).toBeDefined();
       expect(Array.isArray(status.mcp.resources)).toBe(true);
     });
 
     it('should include task resources', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const resourceUris = status.mcp.resources.map((r: any) => r.uri);
       expect(resourceUris.some((uri: string) => uri.includes('task'))).toBe(true);
     });
 
     it('should provide resource templates', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const templates = status.mcp.resources.filter((r: any) => r.uri.includes('template'));
       expect(templates.length).toBeGreaterThan(0);
@@ -94,14 +96,14 @@ describe('[03] Server MCP Domain', () => {
 
   describe('Prompt Templates', () => {
     it('should have prompt templates available', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.mcp.prompts).toBeDefined();
       expect(Array.isArray(status.mcp.prompts)).toBe(true);
     });
 
     it('should include core prompt templates', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const promptNames = status.mcp.prompts.map((p: any) => p.name);
       expect(promptNames).toContain('unit_test');
@@ -110,7 +112,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should have valid prompt schemas', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const unitTestPrompt = status.mcp.prompts.find((p: any) => p.name === 'unit_test');
       expect(unitTestPrompt).toBeDefined();
@@ -132,7 +134,7 @@ describe('[03] Server MCP Domain', () => {
       };
 
       const { stdout } = await execInContainer(
-        `curl -s -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
+        `curl -s -X POST ${baseUrl}/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
       );
 
       const response = JSON.parse(stdout);
@@ -152,7 +154,7 @@ describe('[03] Server MCP Domain', () => {
       };
 
       const { stdout } = await execInContainer(
-        `curl -s -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
+        `curl -s -X POST ${baseUrl}/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
       );
 
       const response = JSON.parse(stdout);
@@ -172,7 +174,7 @@ describe('[03] Server MCP Domain', () => {
       };
 
       const { stdout } = await execInContainer(
-        `curl -s -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
+        `curl -s -X POST ${baseUrl}/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
       );
 
       const response = JSON.parse(stdout);
@@ -192,7 +194,7 @@ describe('[03] Server MCP Domain', () => {
       };
 
       const { stdout } = await execInContainer(
-        `curl -s -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
+        `curl -s -X POST ${baseUrl}/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
       );
 
       const response = JSON.parse(stdout);
@@ -212,7 +214,7 @@ describe('[03] Server MCP Domain', () => {
       };
 
       const { stdout } = await execInContainer(
-        `curl -s -X POST http://localhost:3000/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
+        `curl -s -X POST ${baseUrl}/mcp -H "Content-Type: application/json" -d '${JSON.stringify(mcpRequest)}'`
       );
 
       const response = JSON.parse(stdout);
@@ -230,7 +232,7 @@ describe('[03] Server MCP Domain', () => {
     });
 
     it('should support custom MCP server registration', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.mcp.customServers).toBeDefined();
     });

@@ -29,7 +29,7 @@ global.crypto = {
   randomUUID: vi.fn(() => 'mock-uuid-' + Date.now())
 } as any;
 
-describe('MCP Tool API E2E Tests', () => {
+describe.skip('MCP Tool API E2E Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

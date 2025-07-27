@@ -98,7 +98,7 @@ const authorizeRequestSchema = z.object({
   nonce: input.nonce,
   codeChallenge: input.code_challenge,
   codeChallengeMethod: input.code_challenge_method,
-  provider: input.provider || input.idp
+  provider: input.provider || input.idp,
   providerCode: input.provider_code
 } });
 

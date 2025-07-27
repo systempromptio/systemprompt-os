@@ -22,12 +22,14 @@ vi.mock('@google/genai', () => ({
   GoogleGenAI: vi.fn()
 }));
 
-// Create shared logger mock that will be updated in beforeEach
-let mockLogger: any;
-
-// Mock logger service
+// Mock logger service with function that returns fresh mock each time
 vi.mock('../../../../../../src/modules/core/logger', () => ({
-  getLoggerService: vi.fn(() => mockLogger)
+  getLoggerService: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn()
+  }))
 }));
 
 // Mock helper functions

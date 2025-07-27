@@ -895,7 +895,7 @@ describe('GenericOAuth2Provider', () => {
         .rejects.toThrow('Unable to extract user ID from userinfo response');
     });
 
-    it('should throw error when user ID is not a string', async () => {
+    it('should convert numeric user ID to string', async () => {
       const mockUserData = {
         sub: 12345, // number instead of string
         email: 'user@example.com'
@@ -906,8 +906,9 @@ describe('GenericOAuth2Provider', () => {
         json: () => Promise.resolve(mockUserData)
       } as Response);
 
-      await expect(provider.getUserInfo('access-token-123'))
-        .rejects.toThrow('Unable to extract user ID from userinfo response');
+      const result = await provider.getUserInfo('access-token-123');
+      expect(result.id).toBe('12345');
+      expect(result.email).toBe('user@example.com');
     });
 
     it('should handle non-string values in email field', async () => {
@@ -1315,7 +1316,7 @@ describe('GenericOAuth2Provider', () => {
       } as Response);
 
       const result = await testProvider.getUserInfo('access-token-123');
-      expect(result.id).toBe(42);
+      expect(result.id).toBe('42');
     });
 
     it('should handle arrays in nested paths', async () => {

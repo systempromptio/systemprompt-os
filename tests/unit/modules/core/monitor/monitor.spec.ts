@@ -360,7 +360,8 @@ describe('Monitor Module', () => {
     });
   });
 
-  describe('Module Properties', () => {\n    it('should have correct static properties', () => {
+  describe('Module Properties', () => {
+    it('should have correct static properties', () => {
       expect(module.name).toBe('monitor');
       expect(module.version).toBe('1.0.0');
       expect(module.type).toBe('daemon');

@@ -5,16 +5,34 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderCallbackHandler } from '@/server/external/templates/auth/callback';
+import { JSDOM } from 'jsdom';
 
 describe('renderCallbackHandler', () => {
   let mockFetch: any;
   let mockLocalStorage: any;
   let mockWindow: any;
+  let dom: JSDOM;
   
   beforeEach(() => {
+    // Setup JSDOM environment
+    dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div class="container"><div class="spinner"></div><h1></h1><p></p><div id="error-container"></div></div></body></html>', {
+      url: 'http://localhost:3000/auth/callback?code=test123&state=xyz',
+      pretendToBeVisual: true,
+      resources: 'usable'
+    });
+    
+    // Set global references
+    global.window = dom.window as any;
+    global.document = dom.window.document;
+    global.navigator = dom.window.navigator;
+    global.HTMLElement = dom.window.HTMLElement;
+    global.Element = dom.window.Element;
+    global.localStorage = dom.window.localStorage;
+    
     // Mock fetch
     mockFetch = vi.fn();
     global.fetch = mockFetch;
+    dom.window.fetch = mockFetch;
     
     // Mock localStorage
     mockLocalStorage = {
@@ -26,20 +44,21 @@ describe('renderCallbackHandler', () => {
       key: vi.fn()
     };
     
+    // Override the window localStorage with our mock
+    Object.defineProperty(dom.window, 'localStorage', {
+      value: mockLocalStorage,
+      writable: true
+    });
+    
+    global.localStorage = mockLocalStorage;
+    
     // Mock window object
-    mockWindow = {
-      location: {
-        href: 'http://localhost:3000/auth/callback?code=test123&state=xyz',
-        origin: 'http://localhost:3000',
-        search: '?code=test123&state=xyz'
-      },
-      localStorage: mockLocalStorage,
-      URLSearchParams: global.URLSearchParams
-    };
+    mockWindow = dom.window;
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    dom?.window?.close();
   });
 
   describe('HTML Structure and Content', () => {

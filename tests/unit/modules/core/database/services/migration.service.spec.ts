@@ -3,11 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service.js';
-import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service.js';
+import { MigrationService } from '../../../../../../src/modules/core/database/services/migration.service';
+import { DatabaseService } from '../../../../../../src/modules/core/database/services/database.service';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
-import { logger } from '../../../../../../src/utils/logger.js';
+import { logger } from '../../../../../../src/utils/logger';
 
 // Mock dependencies
 vi.mock('node:fs/promises');

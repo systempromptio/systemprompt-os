@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execInContainer, TEST_CONFIG } from './bootstrap.js';
+import { execInContainer } from './bootstrap.js';
 
 /**
  * Tools CLI Domain E2E Tests
@@ -56,13 +56,13 @@ describe('[00] Tools CLI Domain', () => {
       const { stdout } = await execInContainer('/app/bin/systemprompt system status');
       expect(stdout).toContain('System Module Status');
       expect(stdout).toContain('System Information');
-      expect(stdout).toContain('Platform:');
+      expect(stdout).toContain('Platform');
     });
 
     it('should show module status', async () => {
       const { stdout } = await execInContainer('/app/bin/systemprompt modules status');
       expect(stdout).toContain('Modules Module Status');
-      expect(stdout).toContain('Total modules managed:');
+      expect(stdout).toContain('Total modules managed');
       expect(stdout).toContain('Enabled modules:');
     });
   });

@@ -16,7 +16,7 @@
 // Import all domain test suites
 import './00-tools-cli.e2e.test';
 import './01-server-external.e2e.test';
-import './02-server-auth.e2e.test';
+import './02-server-auth.e2e.spec';
 import './03-server-mcp.e2e.test';
 import './04-modules-core.e2e.test';
 import './05-google-live-api.e2e.test';

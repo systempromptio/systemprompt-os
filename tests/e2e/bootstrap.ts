@@ -1,4 +1,3 @@
-import { beforeAll, afterAll } from 'vitest';
 import { DockerTestEnvironment } from './utils/docker-test-utils.js';
 import { config } from 'dotenv';
 
@@ -8,14 +7,47 @@ config();
 // Global Docker environment instance
 export let dockerEnv: DockerTestEnvironment;
 
+// Shared state file for test environment
+import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
+const E2E_STATE_FILE = join(process.cwd(), '.test-temp', 'e2e-state.json');
+
+export function writeTestState(state: any): void {
+  const tempDir = join(process.cwd(), '.test-temp');
+  if (!existsSync(tempDir)) {
+    require('fs').mkdirSync(tempDir, { recursive: true });
+  }
+  writeFileSync(E2E_STATE_FILE, JSON.stringify(state, null, 2));
+}
+
+export function readTestState(): any {
+  if (!existsSync(E2E_STATE_FILE)) {
+    throw new Error('E2E test state not found. Make sure global setup has run.');
+  }
+  return JSON.parse(readFileSync(E2E_STATE_FILE, 'utf-8'));
+}
+
+export function getTestBaseUrl(): string {
+  try {
+    const testState = readTestState();
+    return testState.baseUrl;
+  } catch {
+    // Fallback to localhost if state not available (for backwards compatibility)
+    return 'http://localhost:3001';
+  }
+}
+
 // Configuration for the test environment
 export const TEST_CONFIG = {
-  baseUrl: 'http://localhost:3000',
+  baseUrl: process.env.TUNNEL_URL || process.env.BASE_URL || 'http://localhost:3001',
   testTimeout: 180000, // 3 minutes for Docker operations
   projectName: 'systemprompt-e2e-test',
   envVars: {
-    PORT: '3000',
-    BASE_URL: 'http://localhost:3000',
+    PORT: '3001',
+    BASE_URL: process.env.BASE_URL || 'http://localhost:3001',
+    TUNNEL_URL: process.env.TUNNEL_URL || '',
+    OAUTH_DOMAIN: process.env.TUNNEL_URL || process.env.OAUTH_DOMAIN || 'http://localhost:3001',
     NODE_ENV: 'test',
     JWT_SECRET: 'test-secret-key-for-e2e-testing',
     GOOGLE_CLIENT_ID: 'test-google-client',
@@ -25,7 +57,9 @@ export const TEST_CONFIG = {
     LOG_LEVEL: 'debug',
     PROJECT_ROOT: '/workspace',
     HOST_FILE_ROOT: '/var/www/html/systemprompt-os',
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY || 'test-gemini-api-key'
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || 'test-gemini-api-key',
+    ENABLE_OAUTH_TUNNEL: 'false',
+    CLOUDFLARE_TUNNEL_TOKEN: ''
   }
 };
 
@@ -39,11 +73,19 @@ export async function bootstrapTestEnvironment(): Promise<void> {
   dockerEnv = new DockerTestEnvironment(TEST_CONFIG.projectName, {
     serviceName: 'mcp-server',
     composeFile: 'docker-compose.yml',
-    healthEndpoint: `${TEST_CONFIG.baseUrl}/health`,
+    healthEndpoint: `http://localhost:3001/health`,
     envVars: TEST_CONFIG.envVars
   });
 
   await dockerEnv.setup();
+  
+  // Write state for test files to access
+  writeTestState({
+    projectName: TEST_CONFIG.projectName,
+    baseUrl: 'http://localhost:3001',
+    isReady: true
+  });
+  
   console.log('✅ E2E test environment ready!');
 }
 
@@ -71,8 +113,20 @@ export async function getContainerLogs(): Promise<string> {
 
 // Export utility function for executing commands in container
 export async function execInContainer(command: string): Promise<{ stdout: string; stderr: string }> {
-  if (!dockerEnv) {
-    throw new Error('Docker environment not initialized');
+  // Create a temporary Docker environment instance for command execution
+  const testState = readTestState();
+  if (!testState.isReady) {
+    throw new Error('Docker environment not ready');
   }
-  return dockerEnv.exec(command);
+  
+  const tempDockerEnv = new DockerTestEnvironment(testState.projectName, {
+    serviceName: 'mcp-server',
+    composeFile: 'docker-compose.yml',
+    envVars: TEST_CONFIG.envVars
+  });
+  
+  // Set it as running since global setup already started it
+  (tempDockerEnv as any).isRunning = true;
+  
+  return tempDockerEnv.exec(command);
 }

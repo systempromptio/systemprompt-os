@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import { TEST_CONFIG } from './bootstrap.js';
+import { getTestBaseUrl } from './bootstrap.js';
 
 /**
  * Server Auth Domain E2E Tests
@@ -13,7 +13,8 @@ import { TEST_CONFIG } from './bootstrap.js';
  * - JWT handling
  */
 describe('[02] Server Auth Domain', () => {
-  const baseUrl = TEST_CONFIG.baseUrl;
+  const baseUrl = getTestBaseUrl();
+  console.log('Auth tests using baseUrl:', baseUrl);
 
   describe('OAuth2 Authorization Server Discovery', () => {
     it('should provide OAuth 2.1 authorization server metadata', async () => {

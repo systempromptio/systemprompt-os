@@ -15,7 +15,7 @@ import { createServer } from 'http';
 import request from 'supertest';
 import { TunnelService } from '../../src/modules/core/auth/services/tunnel-service.js';
 import { setupExternalAPI } from '../../src/server/external/index.js';
-import { initializeAuthModule } from '../../src/modules/core/auth/singleton.js';
+import { initialize as initializeAuthModule } from '../../src/modules/core/auth/index.js';
 
 describe.skip('Tunnel OAuth Integration Tests (requires tunnel setup)', () => {
   let app: express.Express;

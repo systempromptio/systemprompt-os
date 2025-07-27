@@ -17,7 +17,7 @@ import request from 'supertest';
 import express from 'express';
 import { setupMCPServers } from '../../src/server/mcp/index.js';
 import { setupExternalAPI } from '../../src/server/external/index.js';
-import { initializeAuthModule } from '../../src/modules/core/auth/singleton.js';
+import { initialize as initializeAuthModule } from '../../src/modules/core/auth/index.js';
 // import puppeteer, { Browser, Page } from 'puppeteer';
 import { parse as parseCookie } from 'cookie';
 import { URLSearchParams } from 'url';

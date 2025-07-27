@@ -181,7 +181,6 @@ describe('Heartbeat Module - E2E Tests', () => {
       expect(response.body.status).toBe('ok');
       
       // Clean up
-      const stateDataPath = join(process.cwd(), 'state', 'data');
       rmSync(stateDataPath, { force: true });
       // Recreate the directory
       const { mkdirSync } = require('fs');

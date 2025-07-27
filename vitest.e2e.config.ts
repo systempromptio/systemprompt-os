@@ -7,6 +7,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup/test-env.ts'],
     globalSetup: ['./tests/e2e/global-setup.ts'],
+    globalTeardown: ['./tests/e2e/global-teardown.ts'],
     include: ['tests/e2e/**/*.spec.ts', 'tests/e2e/**/*.test.ts'],
     exclude: ['node_modules', 'dist', 'build', 'tests/manual/**'],
     testTimeout: 180000, // 3 minutes for Docker operations

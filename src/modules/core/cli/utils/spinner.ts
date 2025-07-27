@@ -3,7 +3,7 @@
  * @module cli/utils/spinner
  */
 
-import ora, { type Color, type Options, type Ora, type Spinner } from 'ora';
+import ora, { type Color, type Ora, type Spinner } from 'ora';
 import { type SpinnerName } from 'cli-spinners';
 
 /**
@@ -58,6 +58,18 @@ export const SPINNER_PRESETS = {
 export class SystemPromptSpinner {
   private readonly spinner: Ora;
   private readonly startTime: number;
+
+  constructor(config: ISpinnerConfig = {}) {
+    const oraConfig: any = {};
+    if (config.text !== undefined) oraConfig.text = config.text;
+    if (config.color !== undefined) oraConfig.color = config.color;
+    if (config.spinner !== undefined) oraConfig.spinner = config.spinner;
+    if (config.interval !== undefined) oraConfig.interval = config.interval;
+    
+    this.spinner = ora(oraConfig);
+    this.startTime = Date.now();
+  }
+
   get isSpinning(): boolean {
     return this.spinner.isSpinning;
   }

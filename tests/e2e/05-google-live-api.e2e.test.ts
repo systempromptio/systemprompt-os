@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execInContainer, TEST_CONFIG } from './bootstrap.js';
+import { execInContainer, getTestBaseUrl } from './bootstrap.js';
 
 /**
  * Google Live API Integration E2E Tests
@@ -10,16 +10,17 @@ import { execInContainer, TEST_CONFIG } from './bootstrap.js';
  * - Sending and receiving messages through the Live API
  */
 describe('[05] Google Live API Integration', () => {
+  const baseUrl = getTestBaseUrl();
   describe('Config Module Integration', () => {
     it('should load config module successfully', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3001/api/status');
+      const { stdout } = await execInContainer(`curl -s ${baseUrl}/api/status`);
       const status = JSON.parse(stdout);
       expect(status.modules.loaded).toContain('core/config');
     });
 
     it('should retrieve Google configuration from config module', async () => {
       // Get config through the systemprompt CLI
-      const { stdout } = await execInContainer('/app/bin/systemprompt config:get --key google');
+      const { stdout } = await execInContainer('/app/bin/systemprompt config get --key google');
       expect(stdout).toBeDefined();
 
       // Parse the output (it should be JSON)
@@ -36,7 +37,7 @@ describe('[05] Google Live API Integration', () => {
 
     it('should have default model configurations', async () => {
       const { stdout } = await execInContainer(
-        '/app/bin/systemprompt config:get --key models.default',
+        '/app/bin/systemprompt config get --key models.default',
       );
       const modelConfig = JSON.parse(stdout);
 
@@ -176,7 +177,7 @@ EOF`);
 
   describe('Config Validation', () => {
     it('should validate Google configuration', async () => {
-      const { stdout, stderr } = await execInContainer('/app/bin/systemprompt config:validate');
+      const { stdout, stderr } = await execInContainer('/app/bin/systemprompt config validate');
 
       // Should not have errors for valid config
       expect(stderr).toBe('');
@@ -198,7 +199,7 @@ EOF`);
   describe('Model Presets', () => {
     it('should have coder preset configuration', async () => {
       const { stdout } = await execInContainer(
-        '/app/bin/systemprompt config:get --key models.coder',
+        '/app/bin/systemprompt config get --key models.coder',
       );
       const coderConfig = JSON.parse(stdout);
 
@@ -209,7 +210,7 @@ EOF`);
 
     it('should have creative preset configuration', async () => {
       const { stdout } = await execInContainer(
-        '/app/bin/systemprompt config:get --key models.creative',
+        '/app/bin/systemprompt config get --key models.creative',
       );
       const creativeConfig = JSON.parse(stdout);
 

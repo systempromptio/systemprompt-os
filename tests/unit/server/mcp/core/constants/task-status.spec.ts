@@ -9,7 +9,7 @@ import {
   TaskStatusType, 
   TERMINALSTATUSES, 
   ACTIVESTATUSES 
-} from '../../../../../../src/server/mcp/core/constants/task-status.js';
+} from '../../../../../../src/server/mcp/core/constants/task-status';
 
 describe('task-status constants', () => {
   describe('TaskStatus', () => {

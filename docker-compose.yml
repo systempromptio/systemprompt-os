@@ -20,6 +20,7 @@ services:
       # URLs and domains
       - BASE_URL=${BASE_URL:-http://localhost:3000}
       - OAUTH_DOMAIN=${OAUTH_DOMAIN:-http://localhost:3000}
+      - TUNNEL_URL=${TUNNEL_URL}
       
       # File system settings
       - FILE_ROOT=/workspace
@@ -55,6 +56,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      cloudflared:
+        condition: service_started
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: systemprompt-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    network_mode: host
+    restart: unless-stopped
+    profiles:
+      - tunnel
 
 volumes:
   systemprompt-data:

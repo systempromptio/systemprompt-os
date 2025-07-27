@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PROMPTS } from '../../../../../../src/server/mcp/core/constants/prompts.js';
+import { PROMPTS } from '../../../../../../src/server/mcp/core/constants/prompts';
 
 describe('prompts constants', () => {
   describe('PROMPTS array', () => {

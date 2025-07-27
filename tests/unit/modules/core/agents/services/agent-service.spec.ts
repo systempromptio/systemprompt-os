@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AgentService } from '../../../../../../src/modules/core/agents/services/agent-service.js';
-import type { Agent, AgentTask, CreateAgentDto } from '../../../../../../src/modules/core/agents/types/agent.types.js';
+import { AgentService } from '../../../../../../src/modules/core/agents/services/agent.service';
+import type { Agent, AgentTask, CreateAgentDto } from '../../../../../../src/modules/core/agents/types/agent.types';
 
 describe('AgentService', () => {
   let service: AgentService;

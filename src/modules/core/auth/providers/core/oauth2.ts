@@ -155,8 +155,8 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     };
 
     const getUserEmail = (userInfo: Record<string, unknown>): string => {
-      const emailValue = this.getNestedValue(userInfo, mapping.email ?? 'email') ?? '';
-      return String(emailValue);
+      const emailValue = this.getNestedValue(userInfo, mapping.email ?? 'email');
+      return String(emailValue ?? '');
     };
 
     const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
@@ -168,13 +168,13 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     };
 
     const getUserName = (userInfo: Record<string, unknown>): string => {
-      const nameValue = this.getNestedValue(userInfo, mapping.name ?? 'name') ?? '';
-      return String(nameValue);
+      const nameValue = this.getNestedValue(userInfo, mapping.name ?? 'name');
+      return String(nameValue ?? '');
     };
 
     const getUserPicture = (userInfo: Record<string, unknown>): string => {
-      const pictureValue = this.getNestedValue(userInfo, mapping.picture ?? 'picture') ?? '';
-      return String(pictureValue);
+      const pictureValue = this.getNestedValue(userInfo, mapping.picture ?? 'picture');
+      return String(pictureValue ?? '');
     };
 
     return {
@@ -250,12 +250,24 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @returns The nested value or undefined if not found.
    */
   private getNestedValue(object: unknown, path: string): unknown {
-    return path.split('.').reduce((current: unknown, property: string): unknown => {
-      if (current !== null && current !== undefined && typeof current === 'object') {
-        return (current as Record<string, unknown>)[property];
+    const parts = path.split('.');
+    let current: unknown = object;
+    
+    for (const property of parts) {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return undefined;
       }
-      return undefined;
-    }, object);
+      
+      const obj = current as Record<string, unknown>;
+      // Check if property exists to distinguish between undefined value and missing property
+      if (!(property in obj)) {
+        return undefined;
+      }
+      
+      current = obj[property];
+    }
+    
+    return current;
   }
 }
 

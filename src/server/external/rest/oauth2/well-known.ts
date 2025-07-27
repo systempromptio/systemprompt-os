@@ -4,10 +4,6 @@
  */
 
 import type { Request, Response } from 'express';
-import { existsSync, readFileSync } from 'fs';
-import { join, resolve } from 'path';
-import { createPublicKey } from 'crypto';
-import { getAuthModule } from '@/modules/core/auth/index';
 import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
 
 /**

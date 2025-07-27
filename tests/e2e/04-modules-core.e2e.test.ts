@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execInContainer, TEST_CONFIG } from './bootstrap.js';
+import { execInContainer, getTestBaseUrl } from './bootstrap.js';
 
 /**
  * Modules Core Domain E2E Tests
@@ -12,9 +12,10 @@ import { execInContainer, TEST_CONFIG } from './bootstrap.js';
  * - Module lifecycle management
  */
 describe('[04] Modules Core Domain', () => {
+  const baseUrl = getTestBaseUrl();
   describe('Module Loader', () => {
     it('should load core modules successfully', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.modules).toBeDefined();
       expect(status.modules.loaded).toBeDefined();
@@ -22,19 +23,19 @@ describe('[04] Modules Core Domain', () => {
     });
 
     it('should register heartbeat module', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.modules.loaded).toContain('core/heartbeat');
     });
 
     it('should register logger module', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.modules.loaded).toContain('core/logger');
     });
 
     it('should register system module', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.modules.loaded).toContain('core/system');
     });
@@ -73,7 +74,7 @@ describe('[04] Modules Core Domain', () => {
 
   describe('Logger Module', () => {
     it('should initialize logger with correct configuration', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.logging).toBeDefined();
       expect(status.logging.level).toBe('debug'); // Based on TEST_CONFIG
@@ -105,7 +106,7 @@ describe('[04] Modules Core Domain', () => {
 
   describe('System Module', () => {
     it('should provide system information', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.system).toBeDefined();
       expect(status.system.platform).toBeDefined();
@@ -114,7 +115,7 @@ describe('[04] Modules Core Domain', () => {
     });
 
     it('should track memory usage', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.system.memory).toBeDefined();
       expect(status.system.memory.total).toBeGreaterThan(0);
@@ -123,7 +124,7 @@ describe('[04] Modules Core Domain', () => {
     });
 
     it('should track CPU usage', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.system.cpu).toBeDefined();
       expect(status.system.cpu.count).toBeGreaterThan(0);
@@ -131,7 +132,7 @@ describe('[04] Modules Core Domain', () => {
     });
 
     it('should provide uptime information', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.server.uptime).toBeDefined();
       expect(status.server.uptime).toBeGreaterThan(0);
@@ -140,14 +141,14 @@ describe('[04] Modules Core Domain', () => {
 
   describe('Module Registry', () => {
     it('should maintain module registry', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       expect(status.modules.registry).toBeDefined();
       expect(Object.keys(status.modules.registry).length).toBeGreaterThan(0);
     });
 
     it('should track module versions', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       const heartbeatModule = status.modules.registry['core/heartbeat'];
       expect(heartbeatModule).toBeDefined();
@@ -156,7 +157,7 @@ describe('[04] Modules Core Domain', () => {
     });
 
     it('should track module status', async () => {
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/api/status');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/api/status');
       const status = JSON.parse(stdout);
       Object.values(status.modules.registry).forEach((module: any) => {
         expect(module.status).toBe('active');
@@ -191,7 +192,7 @@ describe('[04] Modules Core Domain', () => {
 
     it('should continue running if a module fails', async () => {
       // Server should still be healthy even if a module has issues
-      const { stdout } = await execInContainer('curl -s http://localhost:3000/health');
+      const { stdout } = await execInContainer('curl -s ${baseUrl}/health');
       const health = JSON.parse(stdout);
       expect(health.status).toBe('ok');
     });
