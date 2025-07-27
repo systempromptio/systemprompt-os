@@ -10,19 +10,20 @@ import {
   UserStatusEnum
 } from '@/modules/core/users/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
+import type { Database } from 'better-sqlite3';
 
 /**
  * Repository for users data operations.
  */
 export class UsersRepository {
   private static instance: UsersRepository;
-  private readonly dbService?: DatabaseService;
+  private database?: Database;
 
   /**
    * Private constructor for singleton.
    */
   private constructor() {
+    // Database will be set during initialization
   }
 
   /**
@@ -41,7 +42,8 @@ export class UsersRepository {
   async initialize(): Promise<void> {
     const dbService = DatabaseService.getInstance();
     this.database = dbService.getDatabase();
-
+    
+    // Ensure tables are created
     await dbService.ensureSchemaInitialized('users');
   }
 
@@ -67,13 +69,13 @@ export class UsersRepository {
     const {
       id, username, email, passwordHash
     } = options;
-
+    
     const now = new Date().toISOString();
     const stmt = this.database.prepare(`
       INSERT INTO users (id, username, email, password_hash, status, email_verified, login_attempts, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-
+    
     stmt.run(
       id,
       username,
@@ -113,7 +115,7 @@ export class UsersRepository {
 
     const stmt = this.database.prepare('SELECT * FROM users WHERE id = ?');
     const row = stmt.get(id) as any;
-
+    
     if (!row) {
       return null;
     }
@@ -133,7 +135,7 @@ export class UsersRepository {
 
     const stmt = this.database.prepare('SELECT * FROM users WHERE username = ?');
     const row = stmt.get(username) as any;
-
+    
     if (!row) {
       return null;
     }
@@ -153,7 +155,7 @@ export class UsersRepository {
 
     const stmt = this.database.prepare('SELECT * FROM users WHERE email = ?');
     const row = stmt.get(email) as any;
-
+    
     if (!row) {
       return null;
     }
@@ -172,8 +174,8 @@ export class UsersRepository {
 
     const stmt = this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
     const rows = stmt.all() as any[];
-
-    return rows.map(row => { return this.mapRowToUser(row) });
+    
+    return rows.map(row => this.mapRowToUser(row));
   }
 
   /**
@@ -212,9 +214,9 @@ export class UsersRepository {
       SET ${updates.join(', ')} 
       WHERE id = ?
     `);
-
+    
     const result = stmt.run(...values);
-
+    
     if (result.changes === 0) {
       throw new Error(`User not found: ${id}`);
     }
@@ -223,7 +225,7 @@ export class UsersRepository {
     if (!user) {
       throw new Error(`User not found after update: ${id}`);
     }
-
+    
     return user;
   }
 
@@ -238,7 +240,7 @@ export class UsersRepository {
 
     const stmt = this.database.prepare('DELETE FROM users WHERE id = ?');
     const result = stmt.run(id);
-
+    
     if (result.changes === 0) {
       throw new Error(`User not found: ${id}`);
     }
@@ -258,7 +260,7 @@ export class UsersRepository {
     const stmt = success
       ? this.database.prepare('UPDATE users SET last_login_at = ?, login_attempts = 0, updated_at = ? WHERE id = ?')
       : this.database.prepare('UPDATE users SET login_attempts = login_attempts + 1, updated_at = ? WHERE id = ?');
-
+    
     if (success) {
       stmt.run(now, now, id);
     } else {
@@ -308,13 +310,13 @@ export class UsersRepository {
     const {
       id, userId, tokenHash, expiresAt, ipAddress, userAgent
     } = options;
-
+    
     const now = new Date().toISOString();
     const stmt = this.database.prepare(`
       INSERT INTO user_sessions (id, user_id, token_hash, expires_at, ip_address, user_agent, created_at, last_activity_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-
+    
     stmt.run(
       id,
       userId,
@@ -343,59 +345,35 @@ export class UsersRepository {
    * @param tokenHash - The token hash.
    * @returns The session or null.
    */
-  async findSessionByToken(tokenHash: string): Promise<IUserSession | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  findSessionByToken(tokenHash: string): IUserSession | null {
+    for (const session of Array.from(this.sessions.values())) {
+      if (session.tokenHash === tokenHash) {
+        return session;
+      }
     }
-
-    const stmt = this.database.prepare('SELECT * FROM user_sessions WHERE token_hash = ?');
-    const row = stmt.get(tokenHash) as any;
-
-    if (!row) {
-      return null;
-    }
-
-    return {
-      id: row.id,
-      userId: row.user_id,
-      tokenHash: row.token_hash,
-      ipAddress: row.ip_address || '',
-      userAgent: row.user_agent || '',
-      expiresAt: new Date(row.expires_at),
-      createdAt: new Date(row.created_at),
-      lastActivityAt: new Date(row.last_activity_at),
-      revokedAt: row.revoked_at ? new Date(row.revoked_at) : undefined
-    };
+    return null;
   }
 
   /**
    * Update session activity.
    * @param id - The session ID.
    */
-  async updateSessionActivity(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  updateSessionActivity(id: string): void {
+    const session = this.sessions.get(id);
+    if (session) {
+      session.lastActivityAt = new Date();
     }
-
-    const stmt = this.database.prepare(
-      'UPDATE user_sessions SET last_activity_at = ? WHERE id = ?'
-    );
-    stmt.run(new Date().toISOString(), id);
   }
 
   /**
    * Revoke session.
    * @param id - The session ID.
    */
-  async revokeSession(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  revokeSession(id: string): void {
+    const session = this.sessions.get(id);
+    if (session) {
+      session.revokedAt = new Date();
     }
-
-    const stmt = this.database.prepare(
-      'UPDATE user_sessions SET revoked_at = ? WHERE id = ?'
-    );
-    stmt.run(new Date().toISOString(), id);
   }
 
   /**
@@ -408,44 +386,27 @@ export class UsersRepository {
    * @param options.permissions
    * @returns The created API key.
    */
-  async createApiKey(options: {
+  createApiKey(options: {
     id: string;
     userId: string;
     name: string;
     keyHash: string;
     permissions?: string[];
-  }): Promise<IUserApiKey> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
+  }): IUserApiKey {
     const {
-      id, userId, name, keyHash, permissions
-    } = options;
-
-    const now = new Date().toISOString();
-    const stmt = this.database.prepare(`
-      INSERT INTO user_api_keys (id, user_id, name, key_hash, permissions, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      id,
-      userId,
-      name,
-      keyHash,
-      JSON.stringify(permissions || []),
-      now
-    );
-
-    return {
+ id, userId, name, keyHash, permissions
+} = options;
+    const apiKey: IUserApiKey = {
       id,
       userId,
       name,
       keyHash,
       permissions: permissions ?? [],
-      createdAt: new Date(now)
+      createdAt: new Date()
     };
+
+    this.apiKeys.set(id, apiKey);
+    return apiKey;
   }
 
   /**
@@ -453,56 +414,32 @@ export class UsersRepository {
    * @param keyHash - The key hash.
    * @returns The API key or null.
    */
-  async findApiKeyByHash(keyHash: string): Promise<IUserApiKey | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  findApiKeyByHash(keyHash: string): IUserApiKey | null {
+    for (const apiKey of Array.from(this.apiKeys.values())) {
+      if (apiKey.keyHash === keyHash) {
+        return apiKey;
+      }
     }
-
-    const stmt = this.database.prepare('SELECT * FROM user_api_keys WHERE key_hash = ?');
-    const row = stmt.get(keyHash) as any;
-
-    if (!row) {
-      return null;
-    }
-
-    return {
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      keyHash: row.key_hash,
-      permissions: JSON.parse(row.permissions || '[]'),
-      expiresAt: row.expires_at ? new Date(row.expires_at) : undefined,
-      lastUsedAt: row.last_used_at ? new Date(row.last_used_at) : undefined,
-      createdAt: new Date(row.created_at)
-    };
+    return null;
   }
 
   /**
    * Update API key usage.
    * @param id - The API key ID.
    */
-  async updateApiKeyUsage(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
+  updateApiKeyUsage(id: string): void {
+    const apiKey = this.apiKeys.get(id);
+    if (apiKey) {
+      apiKey.lastUsedAt = new Date();
     }
-
-    const stmt = this.database.prepare(
-      'UPDATE user_api_keys SET last_used_at = ? WHERE id = ?'
-    );
-    stmt.run(new Date().toISOString(), id);
   }
 
   /**
    * Delete API key.
    * @param id - The API key ID.
    */
-  async deleteApiKey(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = this.database.prepare('DELETE FROM user_api_keys WHERE id = ?');
-    stmt.run(id);
+  deleteApiKey(id: string): void {
+    this.apiKeys.delete(id);
   }
 
   /**

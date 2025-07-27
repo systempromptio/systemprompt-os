@@ -138,7 +138,7 @@ export class UsersService implements IUsersService {
    */
   async getUser(id: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return this.repository.findById(id);
+    return await this.repository.findById(id);
   }
 
   /**
@@ -148,7 +148,7 @@ export class UsersService implements IUsersService {
    */
   async getUserByUsername(username: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return this.repository.findByUsername(username);
+    return await this.repository.findByUsername(username);
   }
 
   /**
@@ -158,7 +158,7 @@ export class UsersService implements IUsersService {
    */
   async getUserByEmail(email: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return this.repository.findByEmail(email);
+    return await this.repository.findByEmail(email);
   }
 
   /**
@@ -167,7 +167,7 @@ export class UsersService implements IUsersService {
    */
   async listUsers(): Promise<IUser[]> {
     await this.ensureInitialized();
-    return this.repository.findAll();
+    return await this.repository.findAll();
   }
 
   /**
@@ -333,7 +333,7 @@ export class UsersService implements IUsersService {
 
     await this.repository.updateSessionActivity(session.id);
 
-    return this.repository.findById(session.userId);
+    return await this.repository.findById(session.userId);
   }
 
   /**
@@ -406,7 +406,7 @@ export class UsersService implements IUsersService {
 
     await this.repository.updateApiKeyUsage(apiKey.id);
 
-    return this.repository.findById(apiKey.userId);
+    return await this.repository.findById(apiKey.userId);
   }
 
   /**

@@ -41,4 +41,3 @@ export const usersCommands = {
  * Export command metadata for CLI registration.
  */
 export default usersCommands;
-

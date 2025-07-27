@@ -1,0 +1,2 @@
+Do npm run lint, find a 5 files with linting errors, spawn a lint standards enforcer agent to fix them (5 at a time), they agent should repeat until there are 0 lint errors in the file, then check there are no typescript errors in the project. Once 5 files have been linted, with no errors, repeat the process until       │
+│   every file in the project conforms to linting standards.       

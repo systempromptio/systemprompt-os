@@ -144,9 +144,8 @@ describe('[01] Server External Domain', () => {
     });
   });
 
-  describe.skip('Container Health', () => {
-    // These tests require Docker bootstrap to be initialized
-    // Skip them when running against an external server
+  describe('Container Health', () => {
+    // These tests verify Docker container health
     it('should have healthy container logs', async () => {
       const logs = await getContainerLogs();
       expect(logs).not.toContain('ERROR');
@@ -156,9 +155,9 @@ describe('[01] Server External Domain', () => {
 
     it('should log startup messages', async () => {
       const logs = await getContainerLogs();
-      expect(logs).toContain('Starting SystemPrompt OS');
+      expect(logs).toContain('SystemPrompt OS Starting');
       expect(logs).toContain('MCP server initialized');
-      expect(logs).toContain('Server listening on port 3000');
+      expect(logs).toContain('systemprompt-os running on port');
     });
   });
 });

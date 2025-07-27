@@ -493,6 +493,7 @@ describe('TunnelService', () => {
       
       const startPromise = tunnelService.start();
       
+      // Emit the URL directly - it will be caught by namedTunnelUrlRegex
       setTimeout(() => {
         mockProcess.stderr.emit('data', Buffer.from('https://my-named-tunnel.cloudflareaccess.com\n'));
       }, 10);
