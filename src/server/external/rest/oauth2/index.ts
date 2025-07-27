@@ -1,7 +1,7 @@
 /**
  * OAuth2 Provider Routes Configuration.
  * This module sets up all OAuth2-related routes for the application, including:
- * - OpenID Connect discovery endpoints
+ * - OAuth 2.1 discovery endpoints
  * - OAuth2 authorization flow endpoints
  * - Token exchange endpoints
  * - User information endpoints
@@ -116,7 +116,8 @@ const setupOAuth2FlowRoutes = (
  * Configures and sets up all OAuth2-related routes on the provided Express router.
  * This function sets up the following endpoints:
  * Discovery Endpoints (No authentication required):
- * - `GET /.well-known/openid-configuration` - OpenID Connect discovery document
+ * - `GET /.well-known/oauth-authorization-server` - OAuth 2.1 authorization server metadata
+ * - `GET /.well-known/oauth-protected-resource` - OAuth 2.1 protected resource metadata
  * - `GET /.well-known/jwks.json` - JSON Web Key Set for token verification
  * Authorization Flow Endpoints:
  * - `GET /oauth2/authorize` - OAuth2 authorization endpoint for initiating login
@@ -133,7 +134,7 @@ const setupOAuth2FlowRoutes = (
  * await setupOAuth2Routes(router);
  * app.use('/api', router);
  * // Routes are now available at:
- * // - /api/.well-known/openid-configuration
+ * // - /api/.well-known/oauth-authorization-server
  * // - /api/oauth2/authorize
  * // - etc.
  * ```

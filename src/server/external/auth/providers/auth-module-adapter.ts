@@ -16,7 +16,7 @@ export class AuthModuleProviderRegistry {
   get(providerId: string): IdentityProvider | undefined {
     const authModule = getAuthModule();
     const provider = authModule.exports.getProvider(providerId);
-    return provider as IdentityProvider | undefined;
+    return provider;
   }
 
   /**
@@ -25,7 +25,7 @@ export class AuthModuleProviderRegistry {
   list(): IdentityProvider[] {
     const authModule = getAuthModule();
     const providers = authModule.exports.getAllProviders();
-    return providers as IdentityProvider[];
+    return providers;
   }
 
   /**

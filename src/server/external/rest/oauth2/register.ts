@@ -64,7 +64,7 @@ export class RegisterEndpoint {
           registrationRequest.token_endpoint_auth_method ?? 'client_secret_basic',
         grant_types: registrationRequest.grant_types ?? ['authorization_code', 'refresh_token'],
         response_types: registrationRequest.response_types ?? ['code'],
-        scope: registrationRequest.scope ?? 'openid profile email',
+        scope: registrationRequest.scope ?? 'profile email',
         ...registrationRequest.client_uri && { client_uri: registrationRequest.client_uri },
         ...registrationRequest.logo_uri && { logo_uri: registrationRequest.logo_uri },
         ...registrationRequest.contacts && { contacts: registrationRequest.contacts },
@@ -149,7 +149,7 @@ export class RegisterEndpoint {
       token_endpoint_auth_method: registration.token_endpoint_auth_method ?? 'client_secret_basic',
       grant_types: registration.grant_types ?? ['authorization_code'],
       response_types: registration.response_types ?? ['code'],
-      scope: registration.scope ?? 'openid profile email',
+      scope: registration.scope ?? 'profile email',
     };
 
     registeredClients.set(clientId, response);

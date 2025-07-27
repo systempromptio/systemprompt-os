@@ -6,7 +6,7 @@ import { TEST_CONFIG } from './bootstrap.js';
  * Server Auth Domain E2E Tests
  * 
  * Tests the critical functionality of the authentication domain including:
- * - OAuth2 OpenID Discovery
+ * - OAuth2 Authorization Server Discovery
  * - OAuth2 Authorization Flow
  * - OAuth2 Token Endpoint
  * - Protected Endpoints
@@ -15,9 +15,12 @@ import { TEST_CONFIG } from './bootstrap.js';
 describe('[02] Server Auth Domain', () => {
   const baseUrl = TEST_CONFIG.baseUrl;
 
-  describe('OAuth2 OpenID Discovery', () => {
-    it('should provide OpenID configuration', async () => {
-      const response = await request(baseUrl).get('/.well-known/openid-configuration');
+  describe('OAuth2 Authorization Server Discovery', () => {
+    it('should provide OAuth 2.1 authorization server metadata', async () => {
+      const response = await request(baseUrl).get('/.well-known/oauth-authorization-server');
+      if (response.status !== 200) {
+        console.error('OAuth endpoint error:', response.status, JSON.stringify(response.body, null, 2));
+      }
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('issuer', baseUrl);
       expect(response.body).toHaveProperty('authorization_endpoint', `${baseUrl}/oauth2/authorize`);
@@ -27,7 +30,7 @@ describe('[02] Server Auth Domain', () => {
     });
 
     it('should include supported OAuth2 features', async () => {
-      const response = await request(baseUrl).get('/.well-known/openid-configuration');
+      const response = await request(baseUrl).get('/.well-known/oauth-authorization-server');
       expect(response.body).toHaveProperty('response_types_supported');
       expect(response.body.response_types_supported).toContain('code');
       expect(response.body).toHaveProperty('grant_types_supported');
@@ -105,7 +108,7 @@ describe('[02] Server Auth Domain', () => {
           response_type: 'code',
           redirect_uri: 'http://localhost:8080/callback',
           state: 'test-state',
-          scope: 'openid profile email'
+          scope: 'profile email'
         });
       
       expect(response.status).toBe(200);

@@ -231,7 +231,7 @@ const commands: Record<string, () => Promise<void> | void> = {
 if (process.argv[TWO] !== undefined && process.argv[TWO] !== '') {
   const { [TWO]: commandArg } = process.argv;
   if (commandArg && commandArg in commands) {
-    const command = commands[commandArg as keyof typeof commands];
+    const command = commands[commandArg];
     if (command !== undefined) {
       const result = command();
       if (result instanceof Promise) {

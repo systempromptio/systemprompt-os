@@ -10,11 +10,12 @@ export let dockerEnv: DockerTestEnvironment;
 
 // Configuration for the test environment
 export const TEST_CONFIG = {
-  baseUrl: 'http://localhost:3001',
+  baseUrl: 'http://localhost:3000',
   testTimeout: 180000, // 3 minutes for Docker operations
   projectName: 'systemprompt-e2e-test',
   envVars: {
-    PORT: '3001',
+    PORT: '3000',
+    BASE_URL: 'http://localhost:3000',
     NODE_ENV: 'test',
     JWT_SECRET: 'test-secret-key-for-e2e-testing',
     GOOGLE_CLIENT_ID: 'test-google-client',

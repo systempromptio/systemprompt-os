@@ -23,6 +23,8 @@ import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
 import {
   FIVE, TEN
 } from '@/constants/numbers';
+import { getModuleLoader } from '@/modules/loader';
+import { ModuleName } from '@/modules/types/module-names.types';
 import type {
   AuthConfig,
   AuthToken,
@@ -109,7 +111,10 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       hasProvider: (id: string): boolean => { return this.hasProvider(id) },
       getProviderRegistry: (): ProviderRegistry | null => { return this.getProviderRegistry() },
       reloadProviders: async (): Promise<void> => { await this.reloadProviders(); },
-      oauth2ConfigService: (): OAuth2ConfigurationService => { return this.oauth2ConfigService },
+      oauth2ConfigService: (): OAuth2ConfigurationService => {
+        this.oauth2ConfigService ||= OAuth2ConfigurationService.getInstance();
+        return this.oauth2ConfigService;
+      },
       getTunnelService: (): TunnelService | null => { return this.getTunnelService() },
       getTunnelStatus: (): unknown => {
         return this.getTunnelStatus();
@@ -542,29 +547,38 @@ export const initialize = async (): Promise<AuthModule> => {
  * @throws {Error} If Auth module is not available or missing required exports.
  */
 export function getAuthModule(): IModule<IAuthModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader.js');
-  const { ModuleName } = require('@/modules/types/index.js');
-
   const moduleLoader = getModuleLoader();
-  const authModule = moduleLoader.getModule(ModuleName.AUTH);
+  const registry = moduleLoader.getRegistry();
+  const authModules = registry.getAll().filter(m => { return m.name === ModuleName.AUTH });
 
-  if (!authModule.exports?.service || typeof authModule.exports.service !== 'function') {
+  if (authModules.length === 0) {
+    throw new Error('Auth module not found in registry');
+  }
+
+  const authModule = authModules[0] as unknown as AuthModule;
+
+  if (!authModule || !authModule.exports) {
+    throw new Error('Auth module not properly initialized');
+  }
+
+  const {exports} = authModule;
+  if (!exports.service || typeof exports.service !== 'function') {
     throw new Error('Auth module missing required service export');
   }
 
-  if (!authModule.exports?.tokenService || typeof authModule.exports.tokenService !== 'function') {
+  if (!exports.tokenService || typeof exports.tokenService !== 'function') {
     throw new Error('Auth module missing required tokenService export');
   }
 
-  if (!authModule.exports?.userService || typeof authModule.exports.userService !== 'function') {
+  if (!exports.userService || typeof exports.userService !== 'function') {
     throw new Error('Auth module missing required userService export');
   }
 
-  if (!authModule.exports?.createToken || typeof authModule.exports.createToken !== 'function') {
+  if (!exports.createToken || typeof exports.createToken !== 'function') {
     throw new Error('Auth module missing required createToken export');
   }
 
-  if (!authModule.exports?.validateToken || typeof authModule.exports.validateToken !== 'function') {
+  if (!exports.validateToken || typeof exports.validateToken !== 'function') {
     throw new Error('Auth module missing required validateToken export');
   }
 

@@ -3,7 +3,7 @@
  * @module cli/utils/spinner
  */
 
-import ora, { type Color, type Ora, type Spinner, type Options } from 'ora';
+import ora, { type Color, type Options, type Ora, type Spinner } from 'ora';
 import { type SpinnerName } from 'cli-spinners';
 
 /**
@@ -58,19 +58,17 @@ export const SPINNER_PRESETS = {
 export class SystemPromptSpinner {
   private readonly spinner: Ora;
   private readonly startTime: number;
-  
+
   constructor(config: ISpinnerConfig = {}) {
-    // Build options object satisfying exactOptionalPropertyTypes
-    // Filter out undefined values and create a clean options object
-    const definedEntries = Object.entries(config)
-      .filter(([_, value]) => value !== undefined);
-    
-    const oraOptions = Object.fromEntries(definedEntries) as Options;
-    
-    this.spinner = ora(oraOptions);
+    this.spinner = ora({
+      text: config.text,
+      color: config.color,
+      spinner: config.spinner,
+      interval: config.interval
+    } as Options);
     this.startTime = Date.now();
   }
-  
+
   get isSpinning(): boolean {
     return this.spinner.isSpinning;
   }

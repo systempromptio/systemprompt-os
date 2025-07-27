@@ -60,6 +60,7 @@ export class RefreshService {
   /**
    * Scan and build module map.
    * @param cliService - The CLI service.
+   * @param _cliService
    * @returns Module scan result.
    */
   private async scanModules(_cliService: ICliService): Promise<{

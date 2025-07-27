@@ -4,7 +4,7 @@ import type {
 
 /**
  *
- * GoogleProvider class implementing Google OAuth2/OpenID Connect authentication.
+ * GoogleProvider class implementing Google OAuth2 authentication.
  * Provides methods for authorization, token exchange, user info retrieval,
  * token refresh, and token revocation.
  *
@@ -28,7 +28,7 @@ export class GoogleProvider implements IIdentityProvider {
   constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope ?? "openid email profile",
+      scope: config.scope ?? "email profile",
     };
   }
 
@@ -36,11 +36,11 @@ export class GoogleProvider implements IIdentityProvider {
    *
    *Generates the Google OAuth2 authorization URL.
    * @param state - The state parameter for CSRF protection.
-   * @param nonce - Optional nonce for OpenID Connect.
+   * @param nonce - Optional nonce for OAuth2.
    * @returns The authorization URL.
    */
   getAuthorizationUrl(state: string, nonce?: string): string {
-    const scope = this.config.scope ?? "openid email profile";
+    const scope = this.config.scope ?? "email profile";
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,

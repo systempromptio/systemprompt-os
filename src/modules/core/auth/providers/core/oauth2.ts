@@ -1,6 +1,6 @@
 /**
- * OAuth2 provider implementation for generic OAuth2/OIDC flows.
- * Supports both standard OAuth2 and OpenID Connect authentication flows.
+ * OAuth2 provider implementation for generic OAuth2 flows.
+ * Supports standard OAuth2 authentication flows.
  */
 
 import type {
@@ -10,7 +10,7 @@ import type { IGenericOAuth2Config, IOIDCDiscoveryConfig } from '@/modules/core/
 
 /**
  * Generic OAuth2 Provider implementation.
- * Supports both OAuth2 and OIDC (OpenID Connect) flows.
+ * Supports OAuth2 flows.
  */
 export class GenericOAuth2Provider implements IIdentityProvider {
   public readonly id: string;
@@ -31,7 +31,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     this.type = issuer !== undefined && issuer !== null ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
-      scope: scope ?? 'openid email profile',
+      scope: scope ?? 'email profile',
       userinfoMapping: userinfoMapping ?? {},
     };
   }
@@ -47,7 +47,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       response_type: 'code',
-      scope: this.config.scope ?? 'openid email profile',
+      scope: this.config.scope ?? 'email profile',
       state,
     });
 

@@ -54,11 +54,11 @@ const initSchemas = async (context: ICLIContext): Promise<void> => {
   const initParams: ISchemaInitParams = {
     force: forceInit
   };
-  
+
   if (moduleName) {
     initParams.module = moduleName;
   }
-  
+
   const initResult = await schemaService.initializeSchemas(initParams);
 
   if (!initResult.success) {
@@ -101,11 +101,11 @@ const validateSchemas = async (context: ICLIContext): Promise<void> => {
   logger.info(LogSource.DATABASE, 'Validating database schemas...\n');
 
   const validateParams: ISchemaValidateParams = {};
-  
+
   if (moduleName) {
     validateParams.module = moduleName;
   }
-  
+
   const validationResult = await schemaService.validateSchemas(validateParams);
 
   if (!validationResult.success) {

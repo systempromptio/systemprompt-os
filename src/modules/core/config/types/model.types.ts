@@ -1,4 +1,4 @@
-import type { HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import type { HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 
 /**
  * Tool configuration interface.

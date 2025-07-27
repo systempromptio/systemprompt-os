@@ -14,25 +14,25 @@ const command: ICLICommand = {
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();
-    
+
     try {
       const moduleManager = ModuleManagerService.getInstance();
       const modules = await moduleManager.getAllModules();
-      
+
       const typeFilter = args.type || 'all';
       const format = args.format || 'text';
-      
+
       let filteredModules = modules;
       if (typeFilter !== 'all') {
-        filteredModules = modules.filter(m => m.type === typeFilter);
+        filteredModules = modules.filter(m => { return m.type === typeFilter });
       }
-      
+
       if (format === 'json') {
         console.log(JSON.stringify(filteredModules, null, 2));
       } else {
         console.log('\nInstalled Modules:');
         console.log('═════════════════\n');
-        
+
         if (filteredModules.length === 0) {
           console.log('No modules found.');
         } else {
@@ -45,10 +45,10 @@ const command: ICLICommand = {
             console.log(`─────────────────`);
           });
         }
-        
+
         console.log(`\nTotal: ${filteredModules.length} modules`);
       }
-      
+
       process.exit(0);
     } catch (error) {
       logger.error(LogSource.MODULES, 'Error listing modules', {

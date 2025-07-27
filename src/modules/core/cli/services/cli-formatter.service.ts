@@ -435,7 +435,8 @@ optionsSection };
       successText,
       errorText
     } = config;
-    const spinnerConfig = { ...SPINNER_PRESETS[preset], text };
+    const spinnerConfig = { ...SPINNER_PRESETS[preset],
+text };
     const options: { successText?: string; errorText?: string } = {};
     if (successText !== undefined) {
       options.successText = successText;

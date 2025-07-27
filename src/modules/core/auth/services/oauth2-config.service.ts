@@ -18,7 +18,7 @@ import type {
  * OAuth2 Configuration Service.
  * Manages OAuth2 endpoints and metadata configuration following RFC standards.
  * Provides singleton access to OAuth2 server metadata, protected resource metadata,
- * and OpenID Connect configuration. Handles dynamic base URL resolution through
+ * Handles dynamic base URL resolution through
  * tunnel status integration.
  */
 export class OAuth2ConfigurationService {
@@ -77,19 +77,6 @@ export class OAuth2ConfigurationService {
   }
 
   /**
-   * Gets OpenID Configuration for .well-known endpoint.
-   * This method provides OpenID Connect Discovery metadata that follows
-   * the specific OpenID Connect Discovery specification. While similar
-   * to Authorization Server Metadata, it includes only the fields
-   * required for OpenID Connect discovery.
-   * @returns The OpenID Connect configuration object.
-   */
-  getOpenIDConfiguration(): Record<string, unknown> {
-    const metadata = this.getAuthorizationServerMetadata();
-    return this.buildOpenIDConfiguration(metadata);
-  }
-
-  /**
    * Gets the provider callback URL for OAuth2 provider redirects.
    * Constructs the callback URL that OAuth2 providers should redirect
    * to after successful authentication. This URL follows the pattern
@@ -109,7 +96,7 @@ export class OAuth2ConfigurationService {
    * @returns Server metadata with snake_case properties as required by RFC.
    */
   private buildServerMetadata(baseUrl: string): IOAuth2ServerMetadataInternal {
-    const scopes = ['openid', 'profile', 'email', 'offline_access', 'agent'];
+    const scopes = ['profile', 'email', 'offline_access', 'agent'];
     const responseTypes = ['code', 'code id_token'];
     const responseModes = ['query', 'fragment'];
     const grantTypes = ['authorization_code', 'refresh_token'];
@@ -154,7 +141,7 @@ export class OAuth2ConfigurationService {
   ): IOAuth2ProtectedResourceMetadataInternal {
     const authServers = [baseUrl];
     const bearerMethods = ['header'];
-    const scopes = ['openid', 'profile', 'email', 'offline_access', 'agent'];
+    const scopes = ['profile', 'email', 'offline_access', 'agent'];
 
     const result: IOAuth2ProtectedResourceMetadataInternal = {
       resource: `${baseUrl}/mcp`,
@@ -165,37 +152,6 @@ export class OAuth2ConfigurationService {
     };
 
     return result;
-  }
-
-  /**
-   * Builds OpenID configuration from server metadata.
-   * @param metadata - The server metadata to extract from.
-   * @returns OpenID configuration object.
-   */
-  private buildOpenIDConfiguration(
-    metadata: IOAuth2ServerMetadataInternal,
-  ): Record<string, unknown> {
-    const subjectTypes = metadata.subject_types_supported ?? ['public'];
-    const signingAlgs = metadata.id_token_signing_alg_values_supported
-      ?? ['RS256'];
-
-    return {
-      issuer: metadata.issuer,
-      authorization_endpoint: metadata.authorization_endpoint,
-      token_endpoint: metadata.token_endpoint,
-      userinfo_endpoint: metadata.userinfo_endpoint,
-      jwks_uri: metadata.jwks_uri,
-      response_types_supported: metadata.response_types_supported,
-      subject_types_supported: subjectTypes,
-      id_token_signing_alg_values_supported: signingAlgs,
-      scopes_supported: metadata.scopes_supported,
-      token_endpoint_auth_methods_supported:
-        metadata.token_endpoint_auth_methods_supported,
-      claims_supported: metadata.claims_supported,
-      code_challenge_methods_supported:
-        metadata.code_challenge_methods_supported,
-      grant_types_supported: metadata.grant_types_supported,
-    };
   }
 }
 

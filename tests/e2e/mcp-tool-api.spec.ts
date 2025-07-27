@@ -8,12 +8,19 @@ import type { MCPToolContext } from '@/server/mcp/core/types/request-context';
 import type { ListToolsRequest, CallToolRequest } from '@modelcontextprotocol/sdk/types.js';
 
 // Mock the logger to suppress output during tests
-vi.mock('@/utils/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn()
+vi.mock('@/modules/core/logger/index', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => ({
+      info: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn()
+    }))
+  },
+  LogSource: {
+    MCP: 'MCP',
+    ACCESS: 'ACCESS',
+    LOGGER: 'LOGGER'
   }
 }));
 
@@ -129,7 +136,8 @@ describe('MCP Tool API E2E Tests', () => {
 
   describe('Audit Trail', () => {
     it('should create comprehensive audit logs', async () => {
-      const { logger } = await import('@/utils/logger');
+      const { LoggerService } = await import('@/modules/core/logger/index');
+      const logger = LoggerService.getInstance();
       
       // Test successful execution
       const adminContext: MCPToolContext = {
@@ -258,7 +266,8 @@ describe('MCP Tool API E2E Tests', () => {
 
   describe('Error Recovery', () => {
     it('should handle and log various error conditions', async () => {
-      const { logger } = await import('@/utils/logger');
+      const { LoggerService } = await import('@/modules/core/logger/index');
+      const logger = LoggerService.getInstance();
       
       // Test various error conditions
       const errorCases = [

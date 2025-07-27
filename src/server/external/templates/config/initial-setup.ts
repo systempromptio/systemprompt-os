@@ -20,7 +20,7 @@ const renderProviderButton = (provider: IIdentityProvider): string => {
     response_type: 'code',
     client_id: 'systemprompt-os',
     redirect_uri: baseUrl,
-    scope: 'openid profile email',
+    scope: 'profile email',
     provider: providerName,
   }).toString()}`;
 

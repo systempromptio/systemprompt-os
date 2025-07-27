@@ -45,13 +45,27 @@ export class DockerTestEnvironment {
       if (!imageId.trim()) {
         console.log('📦 Building Docker image...');
         const buildCmd = `docker build -t systemprompt-test:latest .`;
-        const { stderr: buildError } = await execAsync(buildCmd);
         
-        if (buildError && !buildError.includes('WARNING') && !buildError.includes('warning')) {
-          throw new Error(`Docker build failed: ${buildError}`);
+        try {
+          // Docker outputs build progress to stderr even on success, so we check exit code
+          const { stdout: buildOutput, stderr: buildStderr } = await execAsync(buildCmd);
+          console.log('✅ Docker image built successfully');
+          
+          // Log build output for debugging if needed
+          if (buildOutput) {
+            console.log('Build output:', buildOutput);
+          }
+        } catch (buildError: any) {
+          // Only fail if the command actually failed (non-zero exit code)
+          console.error('❌ Docker build failed:', buildError.message);
+          throw new Error(`Docker build failed: ${buildError.message}`);
         }
       } else {
-        console.log('✅ Using existing Docker image');
+        console.log('✅ Using existing Docker image - rebuilding to ensure latest changes');
+        // Always rebuild in e2e tests to ensure we have latest code
+        const buildCmd = `docker build -t systemprompt-test:latest .`;
+        const { stdout: buildOutput, stderr: buildStderr } = await execAsync(buildCmd);
+        console.log('✅ Docker image rebuilt successfully');
       }
     } catch (error) {
       console.error('Failed to check/build image:', error);
@@ -92,6 +106,13 @@ ${envVarsList.map(env => `      - ${env}`).join('\n')}
       - ${this.projectName}-state:/data/state
       - ${this.config.envVars?.HOST_FILE_ROOT || '/var/www/html/systemprompt-os'}:/workspace:rw
     restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${this.config.envVars?.PORT || 3001}/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    command: ["npx", "tsx", "src/index.ts"]
 
 volumes:
   ${this.projectName}-state:
@@ -107,12 +128,19 @@ volumes:
     // Start the containers with the temporary compose file
     console.log('🚀 Starting containers...');
     const upCmd = `docker-compose -p ${this.projectName} -f ${tempComposeFile} up -d`;
-    const { stderr: upError } = await execAsync(upCmd, {
-      env: { ...process.env, ...this.config.envVars }
-    });
     
-    if (upError && !upError.includes('WARNING') && !upError.includes('warning')) {
-      throw new Error(`Failed to start containers: ${upError}`);
+    try {
+      const { stdout: upOutput, stderr: upStderr } = await execAsync(upCmd, {
+        env: { ...process.env, ...this.config.envVars }
+      });
+      
+      console.log('✅ Containers started successfully');
+      
+      // Wait a bit for container to fully start
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (upError: any) {
+      console.error('❌ Failed to start containers:', upError.message);
+      throw new Error(`Failed to start containers: ${upError.message}`);
     }
     
     this.isRunning = true;
@@ -121,6 +149,10 @@ volumes:
     if (this.config.healthEndpoint) {
       await this.waitForHealthCheck();
     }
+    
+    // Initialize the application by ensuring modules are loaded
+    console.log('📚 Initializing application modules...');
+    await this.initializeApplication();
     
     console.log('✅ Docker environment ready!');
   }
@@ -186,6 +218,19 @@ volumes:
     return execAsync(execCmd, {
       env: { ...process.env, ...this.config.envVars }
     });
+  }
+
+  private async initializeApplication(): Promise<void> {
+    // Wait a bit more for the application to fully initialize
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Check if the CLI is accessible
+    try {
+      const { stdout } = await this.exec('/app/bin/systemprompt --version');
+      console.log('✅ CLI is accessible:', stdout.trim());
+    } catch (error) {
+      console.warn('⚠️  CLI check failed, continuing anyway:', error);
+    }
   }
 
   private async waitForHealthCheck(): Promise<void> {

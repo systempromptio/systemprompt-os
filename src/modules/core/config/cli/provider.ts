@@ -4,8 +4,7 @@
    max-statements,
    @typescript-eslint/require-await,
    prefer-destructuring,
-   systemprompt-os/enforce-type-exports,
-   @typescript-eslint/no-unused-vars */
+   systemprompt-os/enforce-type-exports */
 
 /**
  * Provider CLI command implementation for managing AI providers.

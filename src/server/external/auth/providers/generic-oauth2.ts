@@ -1,7 +1,7 @@
 /**
- * Generic OAuth2/OIDC Provider.
- * Provides a generic OAuth2/OIDC implementation for authentication providers.
- * @file Generic OAuth2/OIDC Provider.
+ * Generic OAuth2 Provider.
+ * Provides a generic OAuth2 implementation for authentication providers.
+ * @file Generic OAuth2 Provider.
  * @module server/external/auth/providers/generic-oauth2
  */
 
@@ -11,7 +11,7 @@ import type {
 import type { IGenericOAuth2Config } from '@/server/external/auth/providers/interface';
 
 /**
- * Generic OAuth2/OIDC Provider implementation.
+ * Generic OAuth2 Provider implementation.
  * @class GenericOAuth2Provider
  * @implements IdentityProvider
  */
@@ -34,7 +34,7 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
     this.type = issuer !== null && issuer !== '' ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
-      scope: scope ?? 'openid email profile',
+      scope: scope ?? 'email profile',
       userinfoMapping: userinfoMapping ?? {},
     };
   }
@@ -53,7 +53,7 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: scope ?? 'openid email profile',
+      scope: scope ?? 'email profile',
       state,
     });
 

@@ -1,5 +1,5 @@
 /**
- * Google OAuth2/OpenID Connect Identity Provider implementation.
+ * Google OAuth2 Identity Provider implementation.
  * @file Google Identity Provider.
  * @module server/external/auth/providers/google
  */
@@ -40,7 +40,7 @@ const hasSubProperty = (value: unknown): value is {
 };
 
 /**
- * Google OAuth2/OpenID Connect provider implementation.
+ * Google OAuth2 provider implementation.
  * @class GoogleProvider
  * @implements {IdentityProvider}
  */
@@ -58,7 +58,7 @@ export class GoogleProvider implements IIdentityProvider {
   constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope ?? "openid email profile",
+      scope: config.scope ?? "email profile",
     };
   }
 
@@ -72,7 +72,7 @@ export class GoogleProvider implements IIdentityProvider {
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       response_type: "code",
-      scope: this.config.scope ?? "openid email profile",
+      scope: this.config.scope ?? "email profile",
       state,
       access_type: "offline",
       prompt: "consent",

@@ -169,7 +169,7 @@ export class SchemaImportService {
       ...categorized.tables,
       ...categorized.indexes,
       ...categorized.triggers,
-      ...categorized.dataStatements,
+      ...categorized.dataStatements || [],
       ...categorized.other
     ].filter((stmt): boolean => { return stmt.isValid && stmt.statement.trim() !== '' });
 

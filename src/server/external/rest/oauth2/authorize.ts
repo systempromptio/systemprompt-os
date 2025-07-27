@@ -29,10 +29,21 @@ const oauth2Error = {
   invalidRequest: (message: string): IOAuth2Error => {
     return {
       code: 400,
-      toJSON(): { error: string; message: string } {
+      toJSON(): { error: string; error_description: string } {
         return {
           error: 'invalid_request',
-          message
+          error_description: message
+        };
+      }
+    };
+  },
+  unsupportedResponseType: (message: string): IOAuth2Error => {
+    return {
+      code: 400,
+      toJSON(): { error: string; error_description: string } {
+        return {
+          error: 'unsupported_response_type',
+          error_description: message
         };
       }
     };
@@ -40,10 +51,10 @@ const oauth2Error = {
   serverError: (message: string): IOAuth2Error => {
     return {
       code: 500,
-      toJSON(): { error: string; message: string } {
+      toJSON(): { error: string; error_description: string } {
         return {
           error: 'server_error',
-          message
+          error_description: message
         };
       }
     };
@@ -140,17 +151,28 @@ const logger = LoggerService.getInstance();
  * Schema for authorization request validation.
  */
 const authorizeRequestSchema = z.object({
-  responseType: z.enum(['code', 'code id_token']),
-  clientId: z.string(),
-  redirectUri: z.string().url(),
+  response_type: z.enum(['code', 'code id_token']),
+  client_id: z.string(),
+  redirect_uri: z.string().url(),
   scope: z.string(),
   state: z.string().optional(),
   nonce: z.string().optional(),
-  codeChallenge: z.string().optional(),
-  codeChallengeMethod: z.enum(['S256', 'plain']).optional(),
+  code_challenge: z.string().optional(),
+  code_challenge_method: z.enum(['S256', 'plain']).optional(),
   provider: z.string().optional(),
-  providerCode: z.string().optional()
-});
+  provider_code: z.string().optional()
+}).transform((input) => ({
+  responseType: input.response_type,
+  clientId: input.client_id,
+  redirectUri: input.redirect_uri,
+  scope: input.scope,
+  state: input.state,
+  nonce: input.nonce,
+  codeChallenge: input.code_challenge,
+  codeChallengeMethod: input.code_challenge_method,
+  provider: input.provider,
+  providerCode: input.provider_code
+}));
 
 /**
  * Build URL search params for OAuth provider redirect.
@@ -509,8 +531,21 @@ export class AuthorizeEndpoint {
       });
 
       if (error instanceof z.ZodError) {
-        const oauthError = oauth2Error.invalidRequest(error.message);
-        res.status(oauthError.code).json(oauthError.toJSON());
+        const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
+
+        if (missingFields.some(e => { return e.path[0] === 'clientId' })) {
+          const oauthError = oauth2Error.invalidRequest('client_id is required');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else if (missingFields.some(e => { return e.path[0] === 'responseType' })) {
+          const oauthError = oauth2Error.invalidRequest('response_type is required');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else if (error.errors.some(e => { return e.path[0] === 'responseType' && e.code === 'invalid_enum_value' })) {
+          const oauthError = oauth2Error.unsupportedResponseType('Unsupported response_type');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else {
+          const oauthError = oauth2Error.invalidRequest(error.errors[0]?.message || 'Invalid request');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        }
       } else {
         const oauthError = oauth2Error.serverError(
           errorInstance.message
@@ -568,8 +603,21 @@ export class AuthorizeEndpoint {
       res.redirect(`${params.redirectUri}?${responseParams.toString()}`);
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
-        const oauthError = oauth2Error.invalidRequest(error.message);
-        res.status(oauthError.code).json(oauthError.toJSON());
+        const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
+
+        if (missingFields.some(e => { return e.path[0] === 'clientId' })) {
+          const oauthError = oauth2Error.invalidRequest('client_id is required');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else if (missingFields.some(e => { return e.path[0] === 'responseType' })) {
+          const oauthError = oauth2Error.invalidRequest('response_type is required');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else if (error.errors.some(e => { return e.path[0] === 'responseType' && e.code === 'invalid_enum_value' })) {
+          const oauthError = oauth2Error.unsupportedResponseType('Unsupported response_type');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        } else {
+          const oauthError = oauth2Error.invalidRequest(error.errors[0]?.message || 'Invalid request');
+          res.status(oauthError.code).json(oauthError.toJSON());
+        }
       } else {
         const oauthError = oauth2Error.serverError('Internal server error');
         res.status(oauthError.code).json(oauthError.toJSON());

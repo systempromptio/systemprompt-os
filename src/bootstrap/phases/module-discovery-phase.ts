@@ -45,22 +45,20 @@ export async function executeModuleDiscoveryPhase(context: ModuleDiscoveryPhaseC
     }
 
     const { exports: moduleExports } = modulesModule;
-    
-    // Validate that we have the specific modules module exports
+
     if (!moduleExports || typeof moduleExports !== 'object') {
       throw new Error('Modules module exports are invalid');
     }
-    
-    // Type check for IModulesModuleExports properties
+
     const modulesExports = moduleExports as any;
     if (
-      typeof modulesExports.scanForModules !== 'function' ||
-      typeof modulesExports.getEnabledModules !== 'function' ||
-      typeof modulesExports.service !== 'function' ||
-      typeof modulesExports.getModule !== 'function' ||
-      typeof modulesExports.enableModule !== 'function' ||
-      typeof modulesExports.disableModule !== 'function' ||
-      typeof modulesExports.registerCoreModule !== 'function'
+      typeof modulesExports.scanForModules !== 'function'
+      || typeof modulesExports.getEnabledModules !== 'function'
+      || typeof modulesExports.service !== 'function'
+      || typeof modulesExports.getModule !== 'function'
+      || typeof modulesExports.enableModule !== 'function'
+      || typeof modulesExports.disableModule !== 'function'
+      || typeof modulesExports.registerCoreModule !== 'function'
     ) {
       throw new Error(
         'Invalid modules exports: missing required methods for IModulesModuleExports'

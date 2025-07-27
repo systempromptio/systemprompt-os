@@ -27,11 +27,19 @@ export class AuthorizationServerEndpoint {
     req: ExpressRequest,
     res: ExpressResponse
   ): ExpressResponse => {
-    if (req.method !== 'GET') {
-      return res.status(405).json({ error: 'Method not allowed' });
+    try {
+      if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      const metadata = this.getMetadata();
+      return res.json(metadata);
+    } catch (error) {
+      console.error('OAuth2 authorization server metadata error:', error);
+      return res.status(500).json({
+        error: 'internal_server_error',
+        error_description: error instanceof Error ? error.message : 'Failed to get authorization server metadata'
+      });
     }
-    const metadata = this.getMetadata();
-    return res.json(metadata);
   };
 
   /**

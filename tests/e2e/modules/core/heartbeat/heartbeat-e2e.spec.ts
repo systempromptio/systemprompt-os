@@ -4,10 +4,10 @@ import { readFileSync, existsSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import request from 'supertest';
 
-describe.skip('Heartbeat Module - E2E Tests (requires running server)', () => {
+describe('Heartbeat Module - E2E Tests', () => {
   let serverProcess: ChildProcess;
   let serverUrl: string;
-  const heartbeatPath = './state/heartbeat.json';
+  const heartbeatPath = join(process.cwd(), 'state', 'data', 'heartbeat.json');
 
   beforeAll(async () => {
     // Clean up any existing heartbeat file
@@ -166,8 +166,9 @@ describe.skip('Heartbeat Module - E2E Tests (requires running server)', () => {
       }
       
       // Create directory as file to cause write error
-      rmSync('./state', { recursive: true, force: true });
-      writeFileSync('./state', 'not a directory');
+      const stateDataPath = join(process.cwd(), 'state', 'data');
+      rmSync(stateDataPath, { recursive: true, force: true });
+      writeFileSync(stateDataPath, 'not a directory');
       
       // Wait for heartbeat attempt
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -180,7 +181,11 @@ describe.skip('Heartbeat Module - E2E Tests (requires running server)', () => {
       expect(response.body.status).toBe('ok');
       
       // Clean up
-      rmSync('./state', { force: true });
+      const stateDataPath = join(process.cwd(), 'state', 'data');
+      rmSync(stateDataPath, { force: true });
+      // Recreate the directory
+      const { mkdirSync } = require('fs');
+      mkdirSync(stateDataPath, { recursive: true });
     });
 
     it('should handle server restart gracefully', async () => {

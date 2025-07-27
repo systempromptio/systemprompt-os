@@ -80,8 +80,12 @@ const getLoggerService = (modules: Map<string, unknown>): ILogger => {
     && 'exports' in loggerModule
     && hasLoggerService(loggerModule.exports)
   ) {
-    const {service} = loggerModule.exports;
-    return typeof service === 'function' ? service() : service;
+    try {
+      const {service} = loggerModule.exports;
+      return typeof service === 'function' ? service() : service;
+    } catch (error) {
+      return consoleFallback;
+    }
   }
 
   return consoleFallback;

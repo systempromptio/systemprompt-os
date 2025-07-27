@@ -19,9 +19,20 @@ export class UserInfoEndpoint {
    * @param res - Express response object.
    */
   getUserInfo = async (req: ExpressRequest, res: ExpressResponse): Promise<void> => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        error: 'invalid_token',
+        error_description: 'No access token provided'
+      });
+      return;
+    }
+
     if (req.user == null) {
-      const error = OAuth2Error.unauthorizedClient('Unauthorized');
-      res.status(error.code).json(error.toJSON());
+      res.status(401).json({
+        error: 'invalid_token',
+        error_description: 'Invalid or expired token'
+      });
       return;
     }
 

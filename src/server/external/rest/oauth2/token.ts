@@ -104,8 +104,17 @@ export class TokenEndpoint {
       });
 
       if (error instanceof z.ZodError) {
-        const invalidRequestError = OAuth2Error.invalidRequest(error.message);
-        return res.status(invalidRequestError.code).json(invalidRequestError.toJSON());
+        const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
+
+        if (missingFields.some(e => { return e.path[0] === 'grantType' })) {
+          const invalidRequestError = OAuth2Error.invalidRequest('grant_type is required');
+          return res.status(invalidRequestError.code).json(invalidRequestError.toJSON());
+        } if (error.errors.some(e => { return e.path[0] === 'grantType' && e.code === 'invalid_enum_value' })) {
+          const unsupportedGrantError = OAuth2Error.unsupportedGrantType('Unsupported grant_type');
+          return res.status(unsupportedGrantError.code).json(unsupportedGrantError.toJSON());
+        }
+          const invalidRequestError = OAuth2Error.invalidRequest(error.errors[0]?.message || 'Invalid request');
+          return res.status(invalidRequestError.code).json(invalidRequestError.toJSON());
       }
         const serverError = OAuth2Error.serverError('Internal server error');
         return res.status(serverError.code).json(serverError.toJSON());
@@ -409,45 +418,6 @@ export class TokenEndpoint {
       refresh_token: refreshToken,
       scope,
     };
-
-    if (scope.includes('openid')) {
-      const idTokenPayload: IJWTTokenPayload = {
-        sub: userId,
-        aud: clientId,
-        iss: CONFIG.JWTISSUER,
-        iat: now,
-        exp: now + 3600,
-        auth_time: now,
-        nonce: randomBytes(16).toString('hex'),
-        jti: randomBytes(16).toString('hex'),
-      };
-
-      if (userData !== null) {
-        idTokenPayload.email = userData.email ?? undefined;
-        idTokenPayload.name = userData.name ?? undefined;
-        idTokenPayload.picture = userData.avatar ?? undefined;
-      }
-
-      const idJwtPayload: Record<string, unknown> = {
-        sub: idTokenPayload.sub,
-        aud: idTokenPayload.aud,
-        iss: idTokenPayload.iss,
-        iat: idTokenPayload.iat,
-        exp: idTokenPayload.exp,
-        auth_time: idTokenPayload.auth_time,
-        nonce: idTokenPayload.nonce,
-        jti: idTokenPayload.jti,
-        email: idTokenPayload.email,
-        name: idTokenPayload.name,
-        picture: idTokenPayload.picture,
-      };
-
-      response.id_token = await jwtSign(idJwtPayload, {
-        issuer: CONFIG.JWTISSUER,
-        audience: clientId,
-        expiresIn: 3600,
-      });
-    }
 
     return response;
   }

@@ -45,7 +45,7 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     ],
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
-    scope: 'openid profile email',
+    scope: 'profile email',
     token_endpoint_auth_method: 'none'
   };
 

@@ -336,10 +336,10 @@ const extractViewArgs = (context: ICLIContext): IViewArgs => {
     throw new Error('Invalid CLI arguments');
   }
 
-  const viewArgs = args as Record<string, unknown>;
+  const viewArgs = args;
 
   const result: IViewArgs = {};
-  
+
   if (typeof viewArgs.table === 'string') {
     result.table = viewArgs.table;
   }
@@ -364,7 +364,7 @@ const extractViewArgs = (context: ICLIContext): IViewArgs => {
   if (typeof viewArgs.schemaOnly === 'boolean') {
     result.schemaOnly = viewArgs.schemaOnly;
   }
-  
+
   return result;
 };
 
@@ -481,7 +481,7 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
       limit,
       offset,
     };
-    
+
     if (columns !== undefined) {
       viewParamsArgs.columns = columns;
     }

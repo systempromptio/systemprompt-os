@@ -235,7 +235,7 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = match[ZERO];
               handleTunnelReady();
-              resolve(this.tunnelUrl as string);
+              resolve(this.tunnelUrl);
             }
           }
           else {
@@ -255,7 +255,7 @@ export class TunnelService extends EventEmitter {
                   this.logger?.error("Please set CLOUDFLARE_TUNNEL_URL in your .env file");
                 }
                 handleTunnelReady();
-                resolve(this.tunnelUrl as string);
+                resolve(this.tunnelUrl);
               }
             }
             const urlMatch = output.match(namedTunnelUrlRegex);
@@ -263,7 +263,7 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = urlMatch[ZERO];
               handleTunnelReady();
-              resolve(this.tunnelUrl as string);
+              resolve(this.tunnelUrl);
             }
           }
         }

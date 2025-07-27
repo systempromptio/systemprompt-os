@@ -348,7 +348,7 @@ export class ModuleScannerService implements IModuleScannerService {
 
       const isCore = modulePath.includes('/modules/core/');
       let moduleType: ModuleTypeEnum;
-      
+
       if (isCore) {
         moduleType = ModuleTypeEnum.CORE;
         this.logger?.debug(

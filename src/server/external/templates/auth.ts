@@ -181,7 +181,7 @@ function renderProviderButton(provider: IdentityProvider): string {
     response_type: 'code',
     client_id: 'auth-client',
     redirect_uri: `${baseUrl}/auth/callback`,
-    scope: 'openid profile email',
+    scope: 'profile email',
     state: 'auth-flow',
     provider: providerName,
   });

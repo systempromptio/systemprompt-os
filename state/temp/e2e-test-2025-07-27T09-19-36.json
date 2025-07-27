@@ -1,0 +1,1054 @@
+{
+  "timestamp": "2025-07-27T09:19:24.651Z",
+  "totalDuration": 0,
+  "success": false,
+  "domains": [
+    {
+      "domain": "tools-cli",
+      "tests": [
+        {
+          "name": "should show help information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show version information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should get configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should list all configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should generate a new JWT key",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show service status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show module status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show help for specific commands",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid commands gracefully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle missing required arguments",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 10,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 10,
+      "duration": 0
+    },
+    {
+      "domain": "server-external",
+      "tests": [
+        {
+          "name": "should return 200 for basic health check",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include proper health check metadata",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return detailed status information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include server status details",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include system information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include MCP server status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle CORS preflight requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include CORS headers in responses",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should support credentials in CORS",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return 404 for unknown routes",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle malformed JSON requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return proper error format",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include security headers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include proper content-type headers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have healthy container logs",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should log startup messages",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 16,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 16,
+      "duration": 0
+    },
+    {
+      "domain": "server-auth",
+      "tests": [
+        {
+          "name": "should provide OAuth 2.1 authorization server metadata",
+          "status": "failed",
+          "duration": 18.638631999492645,
+          "error": "expected 500 to be 200 // Object.is equality"
+        },
+        {
+          "name": "should include supported OAuth2 features",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide JWKS endpoint",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject authorization request without client_id",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject authorization request without response_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject unsupported response_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show IDP selection for valid authorization request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle IDP selection and redirect",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject token request without grant_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject unsupported grant_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate authorization_code grant requirements",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject invalid authorization code",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle refresh_token grant type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request without token",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request with invalid bearer token",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request with malformed authorization header",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle OAuth callback with error",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate state parameter in callback",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include security headers on auth endpoints",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 19,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 18,
+      "duration": 18.638631999492645
+    },
+    {
+      "domain": "server-mcp",
+      "tests": [
+        {
+          "name": "should initialize MCP server successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load core MCP handlers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register core tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include task management tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include system tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide tool descriptions",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register core resources",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include task resources",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide resource templates",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have prompt templates available",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include core prompt templates",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have valid prompt schemas",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle MCP initialize request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle tools/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle resources/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle prompts/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid MCP requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load custom MCP server configurations",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should support custom MCP server registration",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 19,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 19,
+      "duration": 0
+    },
+    {
+      "domain": "modules-core",
+      "tests": [
+        {
+          "name": "should load core modules successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register heartbeat module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register logger module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register system module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have active heartbeat",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show heartbeat interval",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show last heartbeat time",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reset heartbeat successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should emit heartbeat events",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should initialize logger with correct configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should create log files",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should log to appropriate levels",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should format logs correctly",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide system information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track memory usage",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track CPU usage",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide uptime information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should maintain module registry",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track module versions",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track module status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should list available module commands",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should execute module commands with proper output",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid module commands gracefully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should continue running if a module fails",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 24,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 24,
+      "duration": 0
+    },
+    {
+      "domain": "google-live-api",
+      "tests": [
+        {
+          "name": "should load config module successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should retrieve Google configuration from config module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have default model configurations",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should create a Live API session and exchange messages",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should test streaming with config values from module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate Google configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should use environment variables for sensitive data",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have coder preset configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have creative preset configuration",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 9,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 9,
+      "duration": 0
+    },
+    {
+      "domain": "unknown",
+      "tests": [
+        {
+          "name": "should show help information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show version information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should get configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should list all configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should generate a new JWT key",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show service status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show module status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show help for specific commands",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid commands gracefully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle missing required arguments",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return 200 for basic health check",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include proper health check metadata",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return detailed status information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include server status details",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include system information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include MCP server status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle CORS preflight requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include CORS headers in responses",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should support credentials in CORS",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return 404 for unknown routes",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle malformed JSON requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should return proper error format",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include security headers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include proper content-type headers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have healthy container logs",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should log startup messages",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide OAuth 2.1 authorization server metadata",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include supported OAuth2 features",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide JWKS endpoint",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject authorization request without client_id",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject authorization request without response_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject unsupported response_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show IDP selection for valid authorization request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle IDP selection and redirect",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject token request without grant_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject unsupported grant_type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate authorization_code grant requirements",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject invalid authorization code",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle refresh_token grant type",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request without token",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request with invalid bearer token",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reject userinfo request with malformed authorization header",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle OAuth callback with error",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate state parameter in callback",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include security headers on auth endpoints",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should initialize MCP server successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load core MCP handlers",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register core tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include task management tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include system tools",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide tool descriptions",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register core resources",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include task resources",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide resource templates",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have prompt templates available",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should include core prompt templates",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have valid prompt schemas",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle MCP initialize request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle tools/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle resources/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle prompts/list request",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid MCP requests",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load custom MCP server configurations",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should support custom MCP server registration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load core modules successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register heartbeat module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register logger module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should register system module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have active heartbeat",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show heartbeat interval",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show last heartbeat time",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should reset heartbeat successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should emit heartbeat events",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should initialize logger with correct configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should create log files",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should log to appropriate levels",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should format logs correctly",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide system information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track memory usage",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track CPU usage",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should provide uptime information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should maintain module registry",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track module versions",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should track module status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should list available module commands",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should execute module commands with proper output",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid module commands gracefully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should continue running if a module fails",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should load config module successfully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should retrieve Google configuration from config module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have default model configurations",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should create a Live API session and exchange messages",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should test streaming with config values from module",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should validate Google configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should use environment variables for sensitive data",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have coder preset configuration",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should have creative preset configuration",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 97,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 97,
+      "duration": 0
+    }
+  ],
+  "summary": {
+    "totalTests": 194,
+    "totalPassed": 0,
+    "totalFailed": 1,
+    "totalSkipped": 193
+  }
+}

@@ -9,14 +9,14 @@ import type { WebhookRepository } from '@/modules/core/webhooks/repositories/web
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type {
   CreateWebhookDto,
+  IWebhookDeliveryService,
   UpdateWebhookDto,
   Webhook,
   WebhookDelivery,
   WebhookDeliveryResult,
   WebhookEvent,
   WebhookPayload,
-  WebhookStats,
-  IWebhookDeliveryService
+  WebhookStats
 } from '@/modules/core/webhooks/types/webhook.types';
 
 /**

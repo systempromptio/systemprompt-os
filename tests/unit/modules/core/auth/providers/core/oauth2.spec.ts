@@ -19,12 +19,12 @@ describe('GenericOAuth2Provider', () => {
     mockConfig = {
       id: 'test-oauth2',
       name: 'Test OAuth2 Provider',
-      client_id: 'test-client-id',
-      client_secret: 'test-client-secret',
-      redirect_uri: 'http://localhost:3000/callback',
-      authorization_endpoint: 'https://provider.com/authorize',
-      token_endpoint: 'https://provider.com/token',
-      userinfo_endpoint: 'https://provider.com/userinfo',
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+      authorizationEndpoint: 'https://provider.com/authorize',
+      tokenEndpoint: 'https://provider.com/token',
+      userinfoEndpoint: 'https://provider.com/userinfo',
       scope: 'openid email profile'
     };
   });
@@ -50,7 +50,7 @@ describe('GenericOAuth2Provider', () => {
       provider = new GenericOAuth2Provider(mockConfig);
       
       const authUrl = provider.getAuthorizationUrl('test-state');
-      expect(authUrl).toContain('scope=openid+email+profile');
+      expect(authUrl).toContain('scope=email+profile');
     });
   });
   
@@ -82,7 +82,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('includes custom parameters', () => {
-      mockConfig.authorization_params = {
+      mockConfig.authorizationParams = {
         prompt: 'consent',
         access_type: 'offline'
       };
@@ -179,7 +179,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('applies custom user info mapping', async () => {
-      mockConfig.userinfo_mapping = {
+      mockConfig.userinfoMapping = {
         id: 'user_id',
         email: 'user_email',
         name: 'display_name'
@@ -203,7 +203,7 @@ describe('GenericOAuth2Provider', () => {
     });
     
     it('throws error when endpoint not configured', async () => {
-      delete mockConfig.userinfo_endpoint;
+      delete mockConfig.userinfoEndpoint;
       provider = new GenericOAuth2Provider(mockConfig);
       
       await expect(provider.getUserInfo('token'))
@@ -265,7 +265,7 @@ describe('GenericOAuth2Provider', () => {
       };
       
       // This would typically be done in a factory method
-      const response = await fetch(config.discoveryurl);
+      const response = await fetch(config.discovery_url);
       const discovery = await response.json();
       
       expect(discovery.issuer).toBe('https://provider.com');

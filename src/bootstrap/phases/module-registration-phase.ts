@@ -105,11 +105,9 @@ export async function registerCliCommands(context: ModuleRegistrationPhaseContex
 
   try {
     const moduleMap = new Map<string, { path: string }>();
-    
-    // Use coreModules from context which have the path property
+
     for (const coreModule of context.coreModules) {
       if (modules.has(coreModule.name)) {
-        // Convert file path to directory path by removing /index.ts
         const dirPath = coreModule.path.replace(/\/index\.(ts|js)$/, '');
         moduleMap.set(coreModule.name, { path: dirPath });
       }

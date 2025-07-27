@@ -9,9 +9,9 @@
 import {
   type IModule,
   type IModuleInfo,
+  type IModuleScannerService,
   type IModulesModuleExports,
   type IScannedModule,
-  type IModuleScannerService,
   ModuleStatusEnum
 } from '@/modules/core/modules/types/index';
 
@@ -41,15 +41,12 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
       service: (): IModuleScannerService | undefined => {
         try {
           const svc = this.getService();
-          // Return a wrapper that implements IModuleScannerService
           return {
             scan: async (_options) => {
-              // ModuleManagerService doesn't have scan method, use scanForModules instead
               return await svc.scanForModules();
             },
-            getEnabledModules: async () => await svc.getEnabledModules(),
+            getEnabledModules: async () => { return await svc.getEnabledModules() },
             updateModuleStatus: async (_name, _status, _error) => {
-              // ModuleManagerService doesn't have this method
               throw new Error('updateModuleStatus not implemented');
             },
             setModuleEnabled: async (name, enabled) => {
@@ -60,12 +57,10 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
               }
             },
             updateModuleHealth: async (_name, _healthy, _message) => {
-              // ModuleManagerService doesn't have this method
               throw new Error('updateModuleHealth not implemented');
             },
-            getModule: async (name) => await svc.getModule(name),
+            getModule: async (name) => { return await svc.getModule(name) },
             getRegisteredModules: async () => {
-              // ModuleManagerService doesn't have this method, use getEnabledModules
               return await svc.getEnabledModules();
             }
           };

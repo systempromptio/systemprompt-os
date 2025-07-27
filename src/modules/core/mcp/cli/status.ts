@@ -13,24 +13,23 @@ export const command = {
   description: 'Show MCP module status (enabled/healthy)',
   execute: async (_context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
-    
+
     try {
       const mcpService = MCPService.getInstance();
-      
+
       console.log('\nMCP Module Status:');
       console.log('════════════════\n');
       console.log('Module: mcp');
       console.log('Enabled: ✓');
       console.log('Healthy: ✓');
       console.log('Service: McpService initialized');
-      
-      // Check MCP contexts
+
       const contexts = await mcpService.listContexts();
       console.log(`Active MCP contexts: ${contexts.length}`);
       console.log('MCP protocol support: ✓');
       console.log('Context management: ✓');
       console.log('Session handling: ✓');
-      
+
       process.exit(0);
     } catch (error) {
       logger.error(LogSource.MCP, 'Error getting MCP status', {

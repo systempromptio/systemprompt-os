@@ -12,7 +12,7 @@ export const command: ICLICommand = {
   description: 'Show agents module status (enabled/healthy)',
   execute: async (_context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
-    
+
     try {
       console.log('\nAgents Module Status:');
       console.log('═══════════════════\n');
@@ -20,12 +20,11 @@ export const command: ICLICommand = {
       console.log('Enabled: ✓');
       console.log('Healthy: ✓');
       console.log('Service: AgentService initialized');
-      
-      // Display static status information
+
       console.log('Agent management: ✓');
       console.log('Task execution: ✓');
       console.log('State persistence: ✓');
-      
+
       process.exit(0);
     } catch (error) {
       logger.error(LogSource.AGENT, 'Error getting agents status', {

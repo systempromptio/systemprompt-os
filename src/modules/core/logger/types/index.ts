@@ -37,7 +37,8 @@ export enum LogSource {
   EXECUTORS = 'executors',
   MONITOR = 'monitor',
   PERMISSIONS = 'permissions',
-  USERS = 'users'
+  USERS = 'users',
+  TASKS = 'tasks'
 }
 
 /**

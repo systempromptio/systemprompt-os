@@ -53,8 +53,6 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
    * @throws Error if getConnection is not available.
    */
   async prepare(sql: string): Promise<IPreparedStatement> {
-    // Since DatabaseService doesn't expose prepared statement functionality,
-    // we create an adapter that uses regular queries
     const preparedStatement: IPreparedStatement = {
       execute: async (params?: unknown[]): Promise<IQueryResult> => {
         return await this.query(sql, params);
@@ -69,12 +67,12 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
       },
       run: async (params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | string }> => {
         await this.execute(sql, params);
-        // Since we don't have access to changes/lastInsertRowid through DatabaseService,
-        // return default values. This is a limitation of the adapter pattern.
-        return { changes: 0, lastInsertRowid: 0 };
+        return {
+ changes: 0,
+lastInsertRowid: 0
+};
       },
       finalize: async (): Promise<void> => {
-        // No-op for this adapter implementation
       }
     };
     return preparedStatement;

@@ -19,7 +19,7 @@ services:
       
       # URLs and domains
       - BASE_URL=${BASE_URL:-http://localhost:3000}
-      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-https://democontainer.systemprompt.io}
+      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-http://localhost:3000}
       
       # File system settings
       - FILE_ROOT=/workspace
