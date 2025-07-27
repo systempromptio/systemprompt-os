@@ -57,7 +57,6 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       state,
     });
 
-    // Add nonce for OIDC providers
     if (this.type === 'oidc' && nonce) {
       params.append('nonce', nonce);
     }
@@ -114,7 +113,7 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       throw new Error(`Failed to exchange code: ${error}`);
     }
 
-    const rawData = await response.json() as any;
+    const rawData = await response.json();
     const data: IOAuth2TokenResponse = {
       accessToken: rawData.access_token ?? rawData.accessToken,
       tokenType: rawData.token_type || rawData.tokenType || 'Bearer',
@@ -153,7 +152,7 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
     const getStringValue = (value: unknown): string | undefined => {
       return typeof value === 'string' ? value : undefined;
     };
-    
+
     const convertToString = (value: unknown): string => {
       if (value === null || value === undefined) {
         return '';
@@ -161,16 +160,12 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       return String(value);
     };
 
-    // Try to get ID from custom mapping first, then fallback to standard fields
     let idValue: unknown;
     if (mapping.id) {
       idValue = this.getNestedValue(data, mapping.id);
     }
-    if (!idValue) {
-      idValue = this.getNestedValue(data, 'sub') ?? this.getNestedValue(data, 'id');
-    }
+    idValue ||= this.getNestedValue(data, 'sub') ?? this.getNestedValue(data, 'id');
 
-    // For ID, we need to convert any value to string since it's required
     const id = convertToString(idValue);
     if (!id) {
       throw new Error('Unable to extract user ID from userinfo response');
@@ -180,63 +175,49 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       id,
     };
 
-    // Track which top-level fields we've already mapped to avoid duplicates
     const mappedTopLevelFields = new Set<string>();
-    
-    // Add all top-level fields from the mapping to the set
+
     Object.values(mapping).forEach(path => {
       if (typeof path === 'string' && !path.includes('.')) {
         mappedTopLevelFields.add(path);
       }
     });
-    
-    // Try to get email from custom mapping first, then fallback
+
     let emailValue: unknown;
     if (mapping.email) {
       emailValue = this.getNestedValue(data, mapping.email);
     }
-    if (!emailValue) {
-      emailValue = this.getNestedValue(data, 'email');
-    }
+    emailValue ||= this.getNestedValue(data, 'email');
     const email = getStringValue(emailValue);
     if (email !== undefined) {
       userInfo.email = email;
     }
 
-    // Try to get name from custom mapping first, then fallback
     let nameValue: unknown;
     if (mapping.name) {
       nameValue = this.getNestedValue(data, mapping.name);
     }
-    if (!nameValue) {
-      nameValue = this.getNestedValue(data, 'name');
-    }
+    nameValue ||= this.getNestedValue(data, 'name');
     const name = getStringValue(nameValue);
     if (name !== undefined) {
       userInfo.name = name;
     }
 
-    // Try to get picture/avatar from custom mapping first, then fallback
     let pictureValue: unknown;
     if (mapping.picture) {
       pictureValue = this.getNestedValue(data, mapping.picture);
     }
-    if (!pictureValue) {
-      pictureValue = this.getNestedValue(data, 'picture') ?? this.getNestedValue(data, 'avatar');
-    }
+    pictureValue ||= this.getNestedValue(data, 'picture') ?? this.getNestedValue(data, 'avatar');
     const picture = getStringValue(pictureValue);
     if (picture !== undefined) {
       userInfo.avatar = picture;
     }
 
-    // Add remaining top-level fields that weren't mapped
     Object.entries(data).forEach(([key, value]) => {
-      // Skip if this field was used for mapping or is one of the standard output fields
       if (!mappedTopLevelFields.has(key) && !['id', 'email', 'name', 'avatar', 'picture'].includes(key)) {
-        // Also skip the fields that were used for ID mapping
-        if (mapping.id && key === mapping.id) return;
-        if (!mapping.id && (key === 'sub' || key === 'id')) return;
-        
+        if (mapping.id && key === mapping.id) { return; }
+        if (!mapping.id && (key === 'sub' || key === 'id')) { return; }
+
         userInfo[key] = value;
       }
     });
@@ -282,7 +263,7 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    return await response.json() as any;
+    return await response.json();
   }
 
   /**
@@ -296,18 +277,16 @@ export class GenericOAuth2Provider implements IOAuth2Provider {
       if (current == null) {
         return undefined;
       }
-      
-      // Handle array access with numeric indices
-      if (Array.isArray(current) && /^\d+$/.test(key)) {
+
+      if (Array.isArray(current) && (/^\d+$/).test(key)) {
         const index = parseInt(key, 10);
         return current[index];
       }
-      
-      // Handle object property access
+
       if (typeof current === 'object' && key in current) {
         return (current as Record<string, unknown>)[key];
       }
-      
+
       return undefined;
     }, obj);
   }

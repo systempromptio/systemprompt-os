@@ -1,5 +1,5 @@
 /**
- * Users repository implementation - placeholder for database operations.
+ * Users repository implementation - database operations.
  */
 
 import {
@@ -9,23 +9,21 @@ import {
   type IUserUpdateData,
   UserStatusEnum
 } from '@/modules/core/users/types/index';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { Database } from 'better-sqlite3';
 
 /**
  * Repository for users data operations.
  */
 export class UsersRepository {
   private static instance: UsersRepository;
-  private readonly users: Map<string, IUser> = new Map();
-  private readonly sessions: Map<string, IUserSession> = new Map();
-  private readonly apiKeys: Map<string, IUserApiKey> = new Map();
+  private database?: Database;
 
   /**
    * Private constructor for singleton.
    */
   private constructor() {
-    this.users.clear();
-    this.sessions.clear();
-    this.apiKeys.clear();
+    // Database will be set during initialization
   }
 
   /**
@@ -41,10 +39,12 @@ export class UsersRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  initialize(): void {
-    this.users.clear();
-    this.sessions.clear();
-    this.apiKeys.clear();
+  async initialize(): Promise<void> {
+    const dbService = DatabaseService.getInstance();
+    this.database = dbService.getDatabase();
+    
+    // Ensure tables are created
+    await dbService.ensureSchemaInitialized('users');
   }
 
   /**
@@ -56,15 +56,38 @@ export class UsersRepository {
    * @param options.passwordHash
    * @returns The created user.
    */
-  createUser(options: {
+  async createUser(options: {
     id: string;
     username: string;
     email: string;
     passwordHash?: string;
-  }): IUser {
+  }): Promise<IUser> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
     const {
- id, username, email, passwordHash
-} = options;
+      id, username, email, passwordHash
+    } = options;
+    
+    const now = new Date().toISOString();
+    const stmt = this.database.prepare(`
+      INSERT INTO users (id, username, email, password_hash, status, email_verified, login_attempts, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      id,
+      username,
+      email,
+      passwordHash || null,
+      UserStatusEnum.ACTIVE,
+      0,
+      0,
+      now,
+      now
+    );
+
     const user: IUser = {
       id,
       username,
@@ -73,11 +96,10 @@ export class UsersRepository {
       status: UserStatusEnum.ACTIVE,
       emailVerified: false,
       loginAttempts: 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date(now),
+      updatedAt: new Date(now)
     };
 
-    this.users.set(id, user);
     return user;
   }
 
@@ -86,8 +108,19 @@ export class UsersRepository {
    * @param id - The user ID.
    * @returns The user or null.
    */
-  findById(id: string): IUser | null {
-    return this.users.get(id) ?? null;
+  async findById(id: string): Promise<IUser | null> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const stmt = this.database.prepare('SELECT * FROM users WHERE id = ?');
+    const row = stmt.get(id) as any;
+    
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRowToUser(row);
   }
 
   /**
@@ -95,13 +128,19 @@ export class UsersRepository {
    * @param username - The username.
    * @returns The user or null.
    */
-  findByUsername(username: string): IUser | null {
-    for (const user of Array.from(this.users.values())) {
-      if (user.username === username) {
-        return user;
-      }
+  async findByUsername(username: string): Promise<IUser | null> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
     }
-    return null;
+
+    const stmt = this.database.prepare('SELECT * FROM users WHERE username = ?');
+    const row = stmt.get(username) as any;
+    
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRowToUser(row);
   }
 
   /**
@@ -109,21 +148,34 @@ export class UsersRepository {
    * @param email - The email address.
    * @returns The user or null.
    */
-  findByEmail(email: string): IUser | null {
-    for (const user of Array.from(this.users.values())) {
-      if (user.email === email) {
-        return user;
-      }
+  async findByEmail(email: string): Promise<IUser | null> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
     }
-    return null;
+
+    const stmt = this.database.prepare('SELECT * FROM users WHERE email = ?');
+    const row = stmt.get(email) as any;
+    
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRowToUser(row);
   }
 
   /**
    * Find all users.
    * @returns Array of users.
    */
-  findAll(): IUser[] {
-    return Array.from(this.users.values());
+  async findAll(): Promise<IUser[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const stmt = this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
+    const rows = stmt.all() as any[];
+    
+    return rows.map(row => this.mapRowToUser(row));
   }
 
   /**
@@ -132,27 +184,48 @@ export class UsersRepository {
    * @param updateData - The update data.
    * @returns The updated user.
    */
-  updateUser(id: string, updateData: IUserUpdateData): IUser {
-    const user = this.users.get(id);
-    if (!user) {
+  async updateUser(id: string, updateData: IUserUpdateData): Promise<IUser> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (updateData.email !== undefined) {
+      updates.push('email = ?');
+      values.push(updateData.email);
+    }
+    if (updateData.status !== undefined) {
+      updates.push('status = ?');
+      values.push(updateData.status);
+    }
+    if (updateData.emailVerified !== undefined) {
+      updates.push('email_verified = ?');
+      values.push(updateData.emailVerified ? 1 : 0);
+    }
+
+    updates.push('updated_at = ?');
+    values.push(new Date().toISOString());
+    values.push(id);
+
+    const stmt = this.database.prepare(`
+      UPDATE users 
+      SET ${updates.join(', ')} 
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(...values);
+    
+    if (result.changes === 0) {
       throw new Error(`User not found: ${id}`);
     }
 
-    const {
- email, status, emailVerified
-} = updateData;
-
-    if (email !== undefined) {
-      user.email = email;
+    const user = await this.findById(id);
+    if (!user) {
+      throw new Error(`User not found after update: ${id}`);
     }
-    if (status !== undefined) {
-      user.status = status;
-    }
-    if (emailVerified !== undefined) {
-      user.emailVerified = emailVerified;
-    }
-
-    user.updatedAt = new Date();
+    
     return user;
   }
 
@@ -350,5 +423,26 @@ export class UsersRepository {
    */
   deleteApiKey(id: string): void {
     this.apiKeys.delete(id);
+  }
+
+  /**
+   * Map database row to user object.
+   * @param row - Database row.
+   * @returns User object.
+   */
+  private mapRowToUser(row: any): IUser {
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      passwordHash: row.password_hash || '',
+      status: row.status as UserStatusEnum,
+      emailVerified: Boolean(row.email_verified),
+      lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : undefined,
+      loginAttempts: row.login_attempts || 0,
+      lockedUntil: row.locked_until ? new Date(row.locked_until) : undefined,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at)
+    };
   }
 }

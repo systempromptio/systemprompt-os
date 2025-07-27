@@ -26,7 +26,6 @@ export class StatusEndpoint {
       const uptime = Math.floor((Date.now() - this.startTime.getTime()) / 1000);
       const version = process.env.npm_package_version || '0.1.0';
 
-
       const status = {
         server: {
           status: 'running',

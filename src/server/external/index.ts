@@ -26,8 +26,7 @@ export async function setupExternalEndpoints(app: Express): Promise<void> {
 
   app.use(securityHeaders);
   app.use(cookieParser());
-  
-  // JSON parse error handler must be added after body parser
+
   app.use((err: any, _req: any, res: any, next: any) => {
     if (err instanceof SyntaxError && 'body' in err) {
       return res.status(400).json({

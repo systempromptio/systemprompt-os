@@ -44,7 +44,7 @@ export const TEST_CONFIG = {
   testTimeout: 180000, // 3 minutes for Docker operations
   projectName: 'systemprompt-e2e-test',
   envVars: {
-    PORT: '3001',
+    PORT: process.env.CLOUDFLARE_TUNNEL_TOKEN ? '3000' : '3001',
     BASE_URL: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : 'http://localhost:3001',
     TUNNEL_URL: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : '',
     OAUTH_DOMAIN: process.env.CLOUDFLARE_TUNNEL_TOKEN ? 'https://democontainer.systemprompt.io' : 'http://localhost:3001',

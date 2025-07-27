@@ -14,7 +14,7 @@ cli:
   commands:
     - name: status
       description: Show users module status (enabled/healthy)
-    - name: users:list
+    - name: list
       description: List all users
       options:
         - name: format
@@ -23,7 +23,7 @@ cli:
           description: Output format (table, json)
           default: table
           choices: [table, json]
-    - name: users:create
+    - name: create
       description: Create a new user
       options:
         - name: username
@@ -36,12 +36,37 @@ cli:
           type: string
           description: Email address
           required: true
+        - name: password
+          alias: p
+          type: string
+          description: User password
         - name: role
           alias: r
           type: string
           description: User role
           default: user
-    - name: users:delete
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+    - name: get
+      description: Get user information by ID or username
+      options:
+        - name: id
+          alias: i
+          type: string
+          description: User ID
+        - name: username
+          alias: u
+          type: string
+          description: Username
+        - name: format
+          alias: f
+          type: string
+          description: Output format (table, json)
+          default: table
+    - name: delete
       description: Delete a user
       options:
         - name: id
@@ -49,7 +74,7 @@ cli:
           type: string
           description: User ID
           required: true
-    - name: users:update
+    - name: update
       description: Update user information
       options:
         - name: id

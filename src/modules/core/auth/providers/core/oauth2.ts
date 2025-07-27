@@ -155,13 +155,19 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     };
 
     const getUserEmail = (userInfo: Record<string, unknown>): string => {
-      // Try custom mapping first, then fall back to default
       const customMappingPath = mapping.email;
-      const emailValue = customMappingPath
-        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.email
-        : userInfo.email;
-      // Convert null/undefined to empty string, but convert other values to string representation
-      return emailValue === null || emailValue === undefined ? '' : String(emailValue);
+      let emailValue: unknown;
+
+      if (customMappingPath) {
+        emailValue = this.getNestedValue(userInfo, customMappingPath);
+        if (emailValue === undefined) {
+          emailValue = userInfo.email;
+        }
+      } else {
+        emailValue = userInfo.email;
+      }
+
+      return String(emailValue);
     };
 
     const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
@@ -174,20 +180,34 @@ export class GenericOAuth2Provider implements IIdentityProvider {
 
     const getUserName = (userInfo: Record<string, unknown>): string => {
       const customMappingPath = mapping.name;
-      const nameValue = customMappingPath
-        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.name
-        : userInfo.name;
-      // Convert null/undefined to empty string, but convert other values to string representation
-      return nameValue === null || nameValue === undefined ? '' : String(nameValue);
+      let nameValue: unknown;
+
+      if (customMappingPath) {
+        nameValue = this.getNestedValue(userInfo, customMappingPath);
+        if (nameValue === undefined) {
+          nameValue = userInfo.name;
+        }
+      } else {
+        nameValue = userInfo.name;
+      }
+
+      return String(nameValue);
     };
 
     const getUserPicture = (userInfo: Record<string, unknown>): string => {
       const customMappingPath = mapping.picture;
-      const pictureValue = customMappingPath
-        ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.picture
-        : userInfo.picture;
-      // Convert null/undefined to empty string, but convert other values to string representation
-      return pictureValue === null || pictureValue === undefined ? '' : String(pictureValue);
+      let pictureValue: unknown;
+
+      if (customMappingPath) {
+        pictureValue = this.getNestedValue(userInfo, customMappingPath);
+        if (pictureValue === undefined) {
+          pictureValue = userInfo.picture;
+        }
+      } else {
+        pictureValue = userInfo.picture;
+      }
+
+      return String(pictureValue);
     };
 
     return {
@@ -265,21 +285,20 @@ export class GenericOAuth2Provider implements IIdentityProvider {
   private getNestedValue(object: unknown, path: string): unknown {
     const parts = path.split('.');
     let current: unknown = object;
-    
+
     for (const property of parts) {
       if (current === null || current === undefined || typeof current !== 'object') {
         return undefined;
       }
-      
+
       const obj = current as Record<string, unknown>;
-      // Check if property exists to distinguish between undefined value and missing property
       if (!(property in obj)) {
         return undefined;
       }
-      
+
       current = obj[property];
     }
-    
+
     return current;
   }
 }
