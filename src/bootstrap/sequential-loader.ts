@@ -7,8 +7,6 @@
 
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
 import type { IModule, IModuleInfo } from '@/modules/core/modules/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Sequentially processes an array of items using a simple for-loop.
@@ -70,24 +68,14 @@ export const startModulesInOrder = async (
 };
 
 /**
- * Load extension modules conditionally and sequentially.
- * @param {IModuleInfo[]} modules - Module information array.
- * @param {Set<string>} enabledNames - Set of enabled module names.
+ * Load extension modules sequentially.
+ * @param {IModuleInfo[]} modules - Module information array (already filtered for enabled).
  * @param {Function} loader - Function to load each module.
- * @param {ILogger} logger - Logger instance for debug messages.
- * @returns {Promise<void>} Promise that resolves when all enabled modules are loaded.
+ * @returns {Promise<void>} Promise that resolves when all modules are loaded.
  */
 export const loadEnabledExtensionModules = async (
   modules: IModuleInfo[],
-  enabledNames: Set<string>,
   loader: (moduleInfo: IModuleInfo) => Promise<void>,
-  logger: ILogger,
 ): Promise<void> => {
-  await processSequentially(modules, async (moduleInfo) => {
-    if (enabledNames.has(moduleInfo.name)) {
-      await loader(moduleInfo);
-    } else {
-      logger.debug(LogSource.BOOTSTRAP, `Skipping disabled module: ${moduleInfo.name}`);
-    }
-  });
+  await processSequentially(modules, loader);
 };

@@ -12,6 +12,8 @@ singleton: true
 
 cli:
   commands:
+    - name: status
+      description: Show MCP module status (enabled/healthy)
     - name: mcp:list
       description: List all configured MCP contexts
       options:

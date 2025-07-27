@@ -11,26 +11,14 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
- Prompt, Resource, Tool
+  Prompt, Resource, Tool
 } from '@modelcontextprotocol/sdk/types.js';
-import type {
- IPromptModuleExports, IResourceModuleExports, IToolModuleExports
-} from '@/modules/types/index';
-
-/**
- * Strongly typed exports interface for MCP module.
- */
-export interface IMCPModuleExports {
-  readonly service: () => MCPService;
-  readonly resources: IResourceModuleExports;
-  readonly prompts: IPromptModuleExports;
-  readonly tools: IToolModuleExports;
-}
+import type { IMCPModuleExports as IMCPModuleExportsType } from '@/modules/core/mcp/types/index';
 
 /**
  * MCP module implementation.
  */
-export class MCPModule implements IModule<IMCPModuleExports> {
+export class MCPModule implements IModule<IMCPModuleExportsType> {
   public readonly name = 'mcp';
   public readonly type = 'service' as const;
   public readonly version = '1.0.0';
@@ -41,21 +29,22 @@ export class MCPModule implements IModule<IMCPModuleExports> {
   private logger!: ILogger;
   private initialized = false;
   private started = false;
-  get exports(): IMCPModuleExports {
+  get exports(): IMCPModuleExportsType {
     return {
-      service: () => { return this.getService(); },
+      service: (): MCPService => { return this.getService() },
       resources: {
-        listResources: async () => { return await this.listResources(); },
-        getResource: async (uri: string) => { return await this.getResource(uri); },
+        listResources: async (): Promise<Resource[]> => { return this.listResources() },
+        getResource: async (uri: string): Promise<Resource | null> => { return this.getResource(uri) },
       },
       prompts: {
-        listPrompts: async () => { return await this.listPrompts(); },
-        getPrompt: async (name: string) => { return await this.getPrompt(name); },
+        listPrompts: async (): Promise<Prompt[]> => { return this.listPrompts() },
+        getPrompt: async (name: string): Promise<Prompt | null> => { return this.getPrompt(name) },
       },
       tools: {
-        listTools: async () => { return await this.listTools(); },
-        getTool: async (name: string) => { return await this.getTool(name); },
-        executeTool: async (name: string, args: unknown) => { return await this.executeTool(name, args); },
+        listTools: async (): Promise<Tool[]> => { return this.listTools() },
+        getTool: async (name: string): Promise<Tool | null> => { return this.getTool(name) },
+        executeTool: async (name: string, args: unknown): Promise<unknown> =>
+          { return await this.executeTool(name, args) },
       },
     };
   }
@@ -111,28 +100,31 @@ export class MCPModule implements IModule<IMCPModuleExports> {
 
   /**
    * Health check for the MCP module.
+   * @returns Health status object.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
       return {
- healthy: false,
-message: 'MCP module not initialized'
-};
+        healthy: false,
+        message: 'MCP module not initialized'
+      };
     }
     if (!this.started) {
       return {
- healthy: false,
-message: 'MCP module not started'
-};
+        healthy: false,
+        message: 'MCP module not started'
+      };
     }
     return {
- healthy: true,
-message: 'MCP module is healthy'
-};
+      healthy: true,
+      message: 'MCP module is healthy'
+    };
   }
 
   /**
    * Get the MCP service.
+   * @returns The MCP service instance.
+   * @throws Error if module not initialized.
    */
   getService(): MCPService {
     if (!this.initialized) {
@@ -143,8 +135,9 @@ message: 'MCP module is healthy'
 
   /**
    * List available resources.
+   * @returns Array of available resources.
    */
-  private async listResources(): Promise<Resource[]> {
+  private listResources(): Resource[] {
     return [
       {
         uri: 'agent://status',
@@ -163,58 +156,66 @@ message: 'MCP module is healthy'
 
   /**
    * Get a specific resource.
-   * @param uri
+   * @param uri - The URI of the resource to retrieve.
+   * @returns The resource if found, null otherwise.
    */
-  private async getResource(uri: string): Promise<Resource | null> {
-    const resources = await this.listResources();
-    return resources.find(r => { return r.uri === uri }) || null;
+  private getResource(uri: string): Resource | null {
+    const resources = this.listResources();
+    return resources.find((resource): boolean => { return resource.uri === uri }) ?? null;
   }
 
   /**
    * List available prompts.
+   * @returns Array of available prompts.
    */
-  private async listPrompts(): Promise<Prompt[]> {
+  private listPrompts(): Prompt[] {
     return [];
   }
 
   /**
    * Get a specific prompt.
-   * @param name
+   * @param name - The name of the prompt to retrieve.
+   * @returns The prompt if found, null otherwise.
    */
-  private async getPrompt(name: string): Promise<Prompt | null> {
-    const prompts = await this.listPrompts();
-    return prompts.find(p => { return p.name === name }) || null;
+  private getPrompt(name: string): Prompt | null {
+    const prompts = this.listPrompts();
+    return prompts.find((prompt): boolean => { return prompt.name === name }) ?? null;
   }
 
   /**
    * List available tools.
+   * @returns Array of available tools.
    */
-  private async listTools(): Promise<Tool[]> {
+  private listTools(): Tool[] {
     return [];
   }
 
   /**
    * Get a specific tool.
-   * @param name
+   * @param name - The name of the tool to retrieve.
+   * @returns The tool if found, null otherwise.
    */
-  private async getTool(name: string): Promise<Tool | null> {
-    const tools = await this.listTools();
-    return tools.find(t => { return t.name === name }) || null;
+  private getTool(name: string): Tool | null {
+    const tools = this.listTools();
+    return tools.find((tool): boolean => { return tool.name === name }) ?? null;
   }
 
   /**
    * Execute a tool.
-   * @param name
-   * @param args
-   * @param _args
+   * @param name - The name of the tool to execute.
+   * @param args - Arguments for the tool execution.
+   * @returns The result of tool execution.
+   * @throws Error when tool execution is not implemented.
    */
-  private async executeTool(name: string, _args: unknown): Promise<unknown> {
+  private executeTool(name: string, args: unknown): unknown {
+    void args
     throw new Error(`Tool execution not implemented for: ${name}`);
   }
 }
 
 /**
  * Factory function for creating the module.
+ * @returns A new MCP module instance.
  */
 export const createModule = (): MCPModule => {
   return new MCPModule();
@@ -222,6 +223,7 @@ export const createModule = (): MCPModule => {
 
 /**
  * Initialize function for core module pattern.
+ * @returns An initialized MCP module instance.
  */
 export const initialize = async (): Promise<MCPModule> => {
   const mcpModule = new MCPModule();
@@ -234,7 +236,7 @@ export const initialize = async (): Promise<MCPModule> => {
  * @returns The MCP module with guaranteed typed exports.
  * @throws {Error} If MCP module is not available or missing required exports.
  */
-export function getMCPModule(): IModule<IMCPModuleExports> {
+export function getMCPModule(): IModule<IMCPModuleExportsType> {
   const { getModuleLoader } = require('@/modules/loader');
   const { ModuleName } = require('@/modules/types/index');
 
@@ -257,8 +259,13 @@ export function getMCPModule(): IModule<IMCPModuleExports> {
     throw new Error('MCP module missing required tools export');
   }
 
-  return mcpModule as IModule<IMCPModuleExports>;
+  return mcpModule as IModule<IMCPModuleExportsType>;
 }
+
+/**
+ * Export the IMCPModuleExports type for use in other modules.
+ */
+export type { IMCPModuleExportsType as IMCPModuleExports };
 
 /**
  * Re-export enums for convenience.

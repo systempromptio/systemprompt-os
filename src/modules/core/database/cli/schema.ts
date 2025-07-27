@@ -1,209 +1,161 @@
-/**
- * Database schema CLI command.
- * This module provides functionality to manage database schemas including
- * listing, initializing, and validating schemas across modules.
- * @file Database schema CLI command.
- * @module modules/core/database/cli/schema
- */
-
 import type { ICLIContext } from '@/modules/core/cli/types/index';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
-
-/**
- * Valid actions for the schema command.
- */
-type SchemaAction = 'list' | 'init' | 'validate';
+import { DatabaseSchemaService } from '@/modules/core/cli/services/database-schema.service';
+import type { ISchemaInitParams, ISchemaValidateParams } from '@/modules/core/cli/services/database-schema.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { createFooter, createHeader } from '@/modules/core/cli/utils/cli-formatter';
 
 /**
  * List installed schemas.
- * @param context - CLI context.
- * @param _context
  * @returns Promise that resolves when complete.
  */
-async function listSchemas(_context: ICLIContext): Promise<void> {
-  const dbService = DatabaseService.getInstance();
-  const schemaService = SchemaService.getInstance();
+const listSchemas = async (): Promise<void> => {
+  const logger = LoggerService.getInstance();
+  const schemaService = DatabaseSchemaService.getInstance();
 
-  const isInitialized = await dbService.isInitialized();
-  if (!isInitialized) {
-    console.log('Database is not initialized. No schemas installed.');
+  const result = await schemaService.listSchemas();
+
+  if (!result.success) {
+    logger.error(LogSource.DATABASE, result.message ?? 'Failed to list schemas');
     return;
   }
 
-  const schemas = await schemaService.getInstalledSchemas();
-  if (schemas.length === 0) {
-    console.log('No schemas found.');
+  if (!result.data || result.data.schemas.length === 0) {
+    logger.info(LogSource.DATABASE, 'No schemas found.');
     return;
   }
 
-  console.log('\nInstalled Schemas:\n');
-  console.log('Module Name           Version    Installed At');
-  console.log('-'.repeat(60));
+  logger.info(LogSource.DATABASE, createHeader('Installed Schemas', undefined, false));
+  logger.info(LogSource.DATABASE, '\nModule Name           Version    Installed At');
+  logger.info(LogSource.DATABASE, '-'.repeat(60));
 
-  schemas.forEach((schema: IInstalledSchema) => {
+  result.data.schemas.forEach((schema): void => {
     const moduleName = schema.moduleName.padEnd(20);
     const version = schema.version.padEnd(10);
-    const installedAt = schema.installedAt.split('T')[0];
-    console.log(`${moduleName} ${version} ${installedAt}`);
+    const [installedDate] = schema.installedAt.split('T');
+    logger.info(LogSource.DATABASE, `${moduleName} ${version} ${installedDate ?? ''}`);
   });
-}
+};
 
 /**
  * Initialize database schemas.
  * @param context - CLI context.
  * @returns Promise that resolves when complete.
  */
-async function initSchemas(context: ICLIContext): Promise<void> {
-  const dbService = DatabaseService.getInstance();
-  const schemaService = SchemaService.getInstance();
+const initSchemas = async (context: ICLIContext): Promise<void> => {
+  const logger = LoggerService.getInstance();
+  const schemaService = DatabaseSchemaService.getInstance();
 
-  const isInitialized = await dbService.isInitialized();
-  if (isInitialized && !context.args.force) {
-    console.error('Database is already initialized. Use --force to reinitialize.');
+  const {args} = context;
+  const {module: moduleNameArg, force: forceArg} = args;
+  const moduleName = typeof moduleNameArg === 'string' ? moduleNameArg : undefined;
+  const forceInit = Boolean(forceArg);
+
+  const initParams: ISchemaInitParams = {
+    force: forceInit
+  };
+  
+  if (moduleName) {
+    initParams.module = moduleName;
+  }
+  
+  const initResult = await schemaService.initializeSchemas(initParams);
+
+  if (!initResult.success) {
+    logger.error(LogSource.DATABASE, initResult.message ?? 'Failed to initialize schemas');
     process.exit(1);
   }
 
-  if (isInitialized && context.args.force) {
-    console.log('⚠️  WARNING: Force initializing will reset the database!');
-    console.log('This action cannot be undone.\n');
+  if (initResult.warnings) {
+    initResult.warnings.forEach((warning): void => {
+      logger.warn(LogSource.DATABASE, warning);
+    });
   }
 
-  console.log('Initializing database schema...\n');
-
-  try {
-    await schemaService.initializeBaseSchema();
-    console.log('✓ Base schema initialized');
-
-    if (context.args.module && context.args.module !== '') {
-      const moduleName: string = context.args.module as string;
-      console.log(`\nInitializing schema for module: ${moduleName}`);
-
-      const discoveredSchemas = await schemaService.discoverSchemasArray();
-      const moduleSchema = discoveredSchemas.find((schema: IModuleSchema) => { return schema.moduleName === moduleName });
-
-      if (!moduleSchema) {
-        console.error(`Module '${moduleName}' not found or has no schema.`);
-        process.exit(1);
+  if (initResult.results) {
+    initResult.results.forEach((result): void => {
+      if (result.success) {
+        logger.info(LogSource.DATABASE, `✓ ${result.module}: ${result.message ?? 'Success'}`);
+      } else {
+        logger.error(LogSource.DATABASE, `✗ ${result.module}: ${result.message ?? 'Failed'}`);
       }
-
-      await schemaService.installModuleSchema(moduleSchema);
-      console.log(`✓ Schema for ${moduleName} initialized`);
-    } else {
-      const discoveredSchemas = await schemaService.discoverSchemasArray();
-
-      if (discoveredSchemas.length > 0) {
-        console.log(`\nFound ${discoveredSchemas.length} module schema(s) to install:\n`);
-
-        for (const schema of discoveredSchemas) {
-          console.log(`Installing schema for ${schema.moduleName}...`);
-          try {
-            await schemaService.installModuleSchema(schema);
-            console.log('  ✓ Success');
-          } catch (error) {
-            console.log(`  ✗ Failed: ${error instanceof Error ? error.message : String(error)}`);
-          }
-        }
-      }
-    }
-
-    console.log('\nDatabase initialization complete.');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Failed to initialize schema:', errorMessage);
-    process.exit(1);
+    });
   }
-}
+
+  logger.info(LogSource.DATABASE, createFooter(['Database initialization complete']));
+};
 
 /**
  * Validate database schemas.
  * @param context - CLI context.
  * @returns Promise that resolves when complete.
  */
-async function validateSchemas(context: ICLIContext): Promise<void> {
-  const dbService = DatabaseService.getInstance();
-  const schemaService = SchemaService.getInstance();
+const validateSchemas = async (context: ICLIContext): Promise<void> => {
+  const logger = LoggerService.getInstance();
+  const schemaService = DatabaseSchemaService.getInstance();
 
-  const isInitialized = await dbService.isInitialized();
-  if (!isInitialized) {
-    console.error('Database is not initialized. Nothing to validate.');
+  const {args} = context;
+  const {module: moduleNameArg} = args;
+  const moduleName = typeof moduleNameArg === 'string' ? moduleNameArg : undefined;
+
+  logger.info(LogSource.DATABASE, 'Validating database schemas...\n');
+
+  const validateParams: ISchemaValidateParams = {};
+  
+  if (moduleName) {
+    validateParams.module = moduleName;
+  }
+  
+  const validationResult = await schemaService.validateSchemas(validateParams);
+
+  if (!validationResult.success) {
+    logger.error(LogSource.DATABASE, validationResult.message ?? 'Validation failed');
     process.exit(1);
   }
 
-  console.log('Validating database schemas...\n');
-
-  try {
-    const [installedSchemas, discoveredSchemas] = await Promise.all([
-      schemaService.getInstalledSchemas(),
-      schemaService.discoverSchemasArray()
-    ]);
-
-    let hasIssues = false;
-
-    if (context.args.module && context.args.module !== '') {
-      const moduleName: string = context.args.module as string;
-      const installedSchema = installedSchemas.find((schema: IInstalledSchema) => { return schema.moduleName === moduleName });
-
-      if (installedSchema) {
-        console.log(`✓ Schema for '${moduleName}' is installed (v${installedSchema.version})`);
+  if (validationResult.issues
+      && validationResult.issues.length > 0) {
+    validationResult.issues.forEach((issue): void => {
+      const icon = issue.severity === 'error' ? '✗' : '⚠️';
+      if (issue.severity === 'error') {
+        logger.error(LogSource.DATABASE, `${icon} ${issue.module}: ${issue.message}`);
       } else {
-        console.log(`⚠️  Schema for '${moduleName}' is not installed`);
-        hasIssues = true;
+        logger.warn(LogSource.DATABASE, `${icon} ${issue.module}: ${issue.message}`);
       }
-    } else {
-      for (const discoveredSchema of discoveredSchemas) {
-        const installedSchema = installedSchemas.find((schema: IInstalledSchema) => { return schema.moduleName === discoveredSchema.moduleName });
+    });
 
-        if (installedSchema) {
-          console.log(`✓ Schema for '${discoveredSchema.moduleName}' is installed (v${installedSchema.version})`);
-        } else {
-          console.log(`⚠️  Schema for '${discoveredSchema.moduleName}' is not installed`);
-          hasIssues = true;
-        }
-      }
-
-      for (const installedSchema of installedSchemas) {
-        const discoveredSchema = discoveredSchemas.find((schema: IModuleSchema) => { return schema.moduleName === installedSchema.moduleName });
-
-        if (!discoveredSchema) {
-          console.log(`⚠️  Installed schema for '${installedSchema.moduleName}' has no corresponding module`);
-          hasIssues = true;
-        }
-      }
-    }
-
-    if (hasIssues) {
-      console.log("\n⚠️  Schema validation found issues. Run 'systemprompt database:schema --action=init' to fix.");
-      process.exit(1);
-    } else {
-      console.log('\n✓ All schemas are valid.');
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Validation failed:', errorMessage);
+    logger.warn(
+      LogSource.DATABASE,
+      '\n⚠️  Schema validation found issues. '
+      + "Run 'systemprompt database:schema --action=init' to fix."
+    );
     process.exit(1);
+  } else {
+    logger.info(LogSource.DATABASE, '\n✓ All schemas are valid.');
   }
-}
+};
 
 /**
  * Execute the schema command based on the action.
  * @param context - CLI context.
  * @returns Promise that resolves when complete.
  */
-async function executeSchemaCommand(context: ICLIContext): Promise<void> {
-  const action: SchemaAction | undefined = context.args.action as SchemaAction | undefined;
+const executeSchemaCommand = async (context: ICLIContext): Promise<void> => {
+  const logger = LoggerService.getInstance();
+  const {args} = context;
+  const {action: actionArg} = args;
+  const action = typeof actionArg === 'string' ? actionArg : undefined;
 
   if (!action) {
-    console.error('Unknown action: undefined');
-    console.error('Valid actions are: list, init, validate');
+    logger.error(LogSource.DATABASE, 'Unknown action: undefined');
+    logger.error(LogSource.DATABASE, 'Valid actions are: list, init, validate');
     process.exit(1);
   }
 
   try {
     switch (action) {
       case 'list':
-        await listSchemas(context);
+        await listSchemas();
         break;
       case 'init':
         await initSchemas(context);
@@ -212,16 +164,16 @@ async function executeSchemaCommand(context: ICLIContext): Promise<void> {
         await validateSchemas(context);
         break;
       default:
-        console.error(`Unknown action: ${action}`);
-        console.error('Valid actions are: list, init, validate');
+        logger.error(LogSource.DATABASE, `Unknown action: ${action}`);
+        logger.error(LogSource.DATABASE, 'Valid actions are: list, init, validate');
         process.exit(1);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('Error managing schema:', errorMessage);
+    logger.error(LogSource.DATABASE, 'Error managing schema:', { error: errorMessage });
     process.exit(1);
   }
-}
+};
 
 /**
  * Schema command definition.

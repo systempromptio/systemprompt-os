@@ -1,19 +1,29 @@
 /**
- * @file Type definitions for the Agents module.
- * @module src/modules/core/agents/types
+ * Represents the current operational status of an agent.
  */
-
 export type AgentStatus = 'idle' | 'active' | 'stopped' | 'error';
+/**
+ * Defines the type or role of an agent within the system.
+ */
 export type AgentType = 'worker' | 'monitor' | 'coordinator';
+/**
+ * Represents the current state of a task in its lifecycle.
+ */
 export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
+/**
+ * Defines the priority level for task execution ordering.
+ */
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 
-export interface Agent {
+/**
+ * Represents an agent in the system with its configuration and metrics.
+ */
+export interface IAgent {
   id: string;
   name: string;
   type: AgentType;
   status: AgentStatus;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   capabilities: string[];
   created_at: Date;
   updated_at: Date;
@@ -23,27 +33,36 @@ export interface Agent {
   last_heartbeat?: Date;
 }
 
-export interface CreateAgentDto {
+/**
+ * Data transfer object for creating a new agent.
+ */
+export interface ICreateAgentDto {
   name: string;
   type: AgentType;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   capabilities?: string[];
 }
 
-export interface UpdateAgentDto {
+/**
+ * Data transfer object for updating an existing agent.
+ */
+export interface IUpdateAgentDto {
   name?: string;
   status?: AgentStatus;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   capabilities?: string[];
 }
 
-export interface AgentTask {
+/**
+ * Represents a task assigned to an agent for execution.
+ */
+export interface IAgentTask {
   id: string;
   agent_id: string;
   name: string;
   priority: TaskPriority;
   status: TaskStatus;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   created_at: Date;
   assigned_at?: Date;
   started_at?: Date;
@@ -53,24 +72,33 @@ export interface AgentTask {
   error_message?: string;
 }
 
-export interface CreateTaskDto {
+/**
+ * Data transfer object for creating a new task.
+ */
+export interface ICreateTaskDto {
   agent_id: string;
   name: string;
   priority?: TaskPriority;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   max_retries?: number;
 }
 
-export interface AgentLog {
+/**
+ * Represents a log entry for agent activity and debugging.
+ */
+export interface IAgentLog {
   id: string;
   agent_id: string;
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-export interface AgentMetrics {
+/**
+ * Represents performance metrics for an agent.
+ */
+export interface IAgentMetrics {
   agent_id: string;
   cpu_usage: number;
   memory_usage: number;

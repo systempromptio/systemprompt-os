@@ -9,7 +9,7 @@
  */
 
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import type {
   IOAuth2ProtectedResourceMetadataInternal
 } from '@/modules/core/auth/types/oauth2.types';

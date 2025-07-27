@@ -57,3 +57,54 @@ export interface IConfigService {
 
     validate(): Promise<{ valid: boolean; errors?: string[] }>;
 }
+
+/**
+ * System defaults configuration interface.
+ */
+export interface ISystemDefaults {
+  port?: number;
+  host?: string;
+  environment?: string;
+  logLevel?: string;
+}
+
+/**
+ * Defaults configuration interface.
+ */
+export interface IDefaultsConfig {
+  system?: ISystemDefaults;
+}
+
+/**
+ * Providers configuration interface.
+ */
+export interface IProvidersConfig {
+  available?: string[];
+  enabled?: string[];
+  default?: string;
+}
+
+/**
+ * Main configuration structure interface.
+ */
+export interface IConfigStructure {
+  defaults?: IDefaultsConfig;
+  providers?: IProvidersConfig;
+  [key: string]: unknown;
+}
+
+/**
+ * Validate command context interface.
+ */
+export interface IValidateCommandContext {
+  file?: string;
+}
+
+/**
+ * Strongly typed exports interface for Config module.
+ */
+export interface IConfigModuleExports {
+  readonly service: () => IConfigService;
+  readonly get: (key?: string) => Promise<ConfigValue | IConfigEntry[]>;
+  readonly set: (key: string, value: ConfigValue) => Promise<void>;
+}

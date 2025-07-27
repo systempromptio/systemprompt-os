@@ -12,6 +12,8 @@ singleton: true
 
 cli:
   commands:
+    - name: status
+      description: Show users module status (enabled/healthy)
     - name: users:list
       description: List all users
       options:

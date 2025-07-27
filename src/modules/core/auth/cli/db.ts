@@ -7,14 +7,14 @@ import type { IUserListRow } from '@/modules/core/auth/types/index';
 import readline from 'readline';
 import {
  ONE, ZERO
-} from '@/const/numbers';
+} from '@/constants/numbers';
 
 const EIGHTY = 80;
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import type { AuthModule } from '@/modules/core/auth/index';
 
 interface AuthDatabase {

@@ -439,3 +439,20 @@ export interface IContentScanner {
   scanModule(moduleName: string, modulePath: string): Promise<void>;
   removeModuleContent(moduleName: string): Promise<void>;
 }
+
+/**
+ * Strongly typed exports interface for Modules module.
+ */
+export interface IModulesModuleExports {
+  readonly service: () => IModuleScannerService | undefined;
+  readonly scanForModules: () => Promise<IScannedModule[]>;
+  readonly getEnabledModules: () => Promise<IModuleInfo[]>;
+  readonly getModule: (name: string) => Promise<IModuleInfo | undefined>;
+  readonly enableModule: (name: string) => Promise<void>;
+  readonly disableModule: (name: string) => Promise<void>;
+  readonly registerCoreModule: (
+    name: string,
+    path: string,
+    dependencies?: string[],
+  ) => Promise<void>;
+}

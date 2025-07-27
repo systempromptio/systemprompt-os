@@ -4,15 +4,13 @@
  * @module modules/core/config
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { ConfigService } from '@/modules/core/config/services/config.service';
 import type {
  ConfigValue, IConfigEntry, IConfigService
 } from '@/modules/core/config/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Strongly typed exports interface for Config module.

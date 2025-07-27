@@ -1,79 +1,60 @@
 /**
- *  *  * @file Tunnel Service for OAuth Development.
+ * @file Tunnel Service for OAuth Development.
  * @module modules/core/auth/services/tunnel-service
  */
 
-import type { ChildProcess } from "child_process";
-import { spawn, spawnSync } from "child_process";
-import { EventEmitter } from "events";
+import type { ChildProcess } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
+import { EventEmitter } from 'events';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
-import {
- ONE, ZERO
-} from '@/const/numbers';
+import { ONE, ZERO } from '@/constants/numbers';
+import type {
+  IOAuthUpdateEvent,
+  ITunnelConfig,
+  ITunnelLogger,
+  ITunnelStatus
+} from '@/modules/core/auth/types/tunnel.types';
 
 /**
- *  *  * TunnelConfig interface.
- */
-export interface ITunnelConfig {
-    port: number;
-
-    permanentDomain?: string;
-
-    tunnelToken?: string;
-
-    tunnelUrl?: string;
-
-    enableInDevelopment?: boolean;
-}
-
-/**
- *  *  * TunnelStatus interface.
- */
-export interface ITunnelStatus {
-  active: boolean;
-  url?: string | undefined;
-  type: "cloudflared" | "permanent" | "none";
-  error?: string | undefined;
-}
-
-/**
- *  *  * Logger interface.
- */
-export interface ILogger {
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-}
-
-/**
- *  *  * TunnelService class.
+ * TunnelService class.
  */
 export class TunnelService extends EventEmitter {
-  private static _instance: TunnelService;
+  private static instance: TunnelService;
   private readonly config: ITunnelConfig;
-  private readonly logger: ILogger | undefined;
+  private readonly logger: ITunnelLogger | undefined;
   private tunnelProcess?: ChildProcess;
   private tunnelUrl?: string;
   private status: ITunnelStatus = {
     active: false,
-    type: "none"
+    type: 'none'
   };
 
-  public static getInstance(config?: ITunnelConfig, logger?: ILogger): TunnelService {
-    if (!TunnelService._instance && config) {
-      TunnelService._instance = new TunnelService(config, logger);
-    }
-    return TunnelService._instance;
-  }
-
-  constructor(config: ITunnelConfig, logger?: ILogger) {
+  /**
+   * Constructor for TunnelService.
+   * @param config - Tunnel configuration.
+   * @param logger - Optional logger instance.
+   */
+  constructor(config: ITunnelConfig, logger?: ITunnelLogger) {
     super();
     this.config = config;
     this.logger = logger;
   }
 
   /**
-   *  *    * Starts the tunnel service.
+   * Gets or creates a singleton instance of TunnelService.
+   * @param config - Optional tunnel configuration.
+   * @param logger - Optional logger instance.
+   * @returns The TunnelService instance.
+   */
+  public static getInstance(config?: ITunnelConfig, logger?: ITunnelLogger): TunnelService {
+    if (!TunnelService.instance && config != null) {
+      TunnelService.instance = new TunnelService(config, logger);
+    }
+    return TunnelService.instance;
+  }
+
+  /**
+   * Starts the tunnel service.
    * @returns Promise resolving to the public URL.
    */
   async start(): Promise<string> {
@@ -84,47 +65,49 @@ export class TunnelService extends EventEmitter {
         type: "permanent"
       };
       this.tunnelUrl = this.config.permanentDomain;
-      this.logger?.info(`Using permanent OAuth domain: ${this.config.permanentDomain}`);
-      this.emit("ready", this.tunnelUrl);
+      const { permanentDomain } = this.config;
+      this.logger?.info(`Using permanent OAuth domain: ${permanentDomain}`);
+      this.emit('ready', this.tunnelUrl);
       await this.updateOAuthProviders(this.tunnelUrl);
       return this.tunnelUrl;
     }
 
     if (!this.shouldEnableTunnel()) {
-      const localUrl = `http://localhost:${this.config.port}`;
+      const { port } = this.config;
+      const localUrl = `http://localhost:${String(port)}`;
       this.status = {
         active: false,
         url: localUrl,
-        type: "none"
+        type: 'none'
       };
-      this.logger?.info("OAuth tunnel disabled, using localhost");
-      this.logger?.info("Note: Google/GitHub OAuth may not work with localhost");
+      this.logger?.info('OAuth tunnel disabled, using localhost');
+      this.logger?.info('Note: Google/GitHub OAuth may not work with localhost');
       return localUrl;
     }
 
-    this.logger?.info("No permanent domain configured, creating temporary tunnel...");
+    this.logger?.info('No permanent domain configured, creating temporary tunnel...');
     return await this.startCloudflaredTunnel();
   }
 
   /**
-   *  *    * Stops the tunnel service.
+   * Stops the tunnel service.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     if (this.tunnelProcess !== undefined) {
-      this.logger?.info("Stopping tunnel...");
+      this.logger?.info('Stopping tunnel...');
       this.tunnelProcess.kill();
       delete this.tunnelProcess;
       delete this.tunnelUrl;
       this.status = {
         active: false,
-        type: "none"
+        type: 'none'
       };
-      this.emit("stopped");
+      this.emit('stopped');
     }
   }
 
   /**
-   *  *    * Gets the current tunnel status.
+   * Gets the current tunnel status.
    * @returns Current tunnel status.
    */
   getStatus(): ITunnelStatus {
@@ -132,41 +115,59 @@ export class TunnelService extends EventEmitter {
   }
 
   /**
-   *  *    * Gets the public URL for OAuth callbacks.
+   * Gets the public URL for OAuth callbacks.
    * @returns Public URL or localhost URL.
    */
   getPublicUrl(): string {
-    return this.tunnelUrl ?? `http://localhost:${this.config.port}`;
+    const { port } = this.config;
+    return this.tunnelUrl ?? `http://localhost:${String(port)}`;
   }
 
   /**
-   *  *    * Checks if tunnel should be enabled.
+   * Checks if tunnel should be enabled.
    * @returns True if tunnel should be started.
    */
   private shouldEnableTunnel(): boolean {
-    const enableTunnel = process.env.ENABLE_OAUTH_TUNNEL === "true";
-    const isDevelopment = process.env.NODE_ENV !== "production";
+    const enableTunnel = process.env.ENABLE_OAUTH_TUNNEL === 'true';
+    const isDevelopment = process.env.NODE_ENV !== 'production';
 
     return enableTunnel
       || isDevelopment
       && this.config.enableInDevelopment !== false
       && this.hasOAuthProviders();
-}
+  }
 
   /**
-   *  *    * Checks if OAuth providers are configured.
+   * Checks if OAuth providers are configured.
    * @returns True if any OAuth provider has credentials.
    */
   private hasOAuthProviders(): boolean {
     return Boolean(
       process.env.GOOGLE_CLIENT_ID !== undefined
       || process.env.GITHUB_CLIENT_ID !== undefined
-      || process.env.OAUTH_TUNNEL_REQUIRED === "true"
+      || process.env.OAUTH_TUNNEL_REQUIRED === 'true'
     );
   }
 
   /**
-   *  *    * Starts a cloudflared tunnel.
+   * Updates OAuth provider configurations with tunnel URL.
+   * @param url - The public tunnel URL.
+   */
+  private async updateOAuthProviders(url: string): Promise<void> {
+    process.env.BASE_URL = url;
+    process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
+
+    tunnelStatus.setBaseUrl(url);
+
+    this.logger?.info(`Updated OAuth configuration with tunnel URL: ${url}`);
+    this.emit('oauth-updated', {
+      baseUrl: url,
+      redirectUri: `${url}/oauth2/callback`
+    } as IOAuthUpdateEvent);
+  }
+
+  /**
+   * Starts a cloudflared tunnel.
    * @returns Promise resolving to the tunnel URL.
    */
   private async startCloudflaredTunnel(): Promise<string> {
@@ -220,7 +221,7 @@ export class TunnelService extends EventEmitter {
           this.logger?.info("✅ OAuth providers updated with tunnel URL");
           this.emit("ready", this.tunnelUrl);
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           this.logger?.error("Failed to update OAuth providers:", err);
           this.emit("ready", this.tunnelUrl);
         });
@@ -234,7 +235,7 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = match[ZERO];
               handleTunnelReady();
-              resolve(this.tunnelUrl);
+              resolve(this.tunnelUrl as string);
             }
           }
           else {
@@ -254,7 +255,7 @@ export class TunnelService extends EventEmitter {
                   this.logger?.error("Please set CLOUDFLARE_TUNNEL_URL in your .env file");
                 }
                 handleTunnelReady();
-                resolve(this.tunnelUrl);
+                resolve(this.tunnelUrl as string);
               }
             }
             const urlMatch = output.match(namedTunnelUrlRegex);
@@ -262,7 +263,7 @@ export class TunnelService extends EventEmitter {
               urlFound = true;
               this.tunnelUrl = urlMatch[ZERO];
               handleTunnelReady();
-              resolve(this.tunnelUrl);
+              resolve(this.tunnelUrl as string);
             }
           }
         }
@@ -350,22 +351,5 @@ export class TunnelService extends EventEmitter {
     } catch {
       return false;
     }
-  }
-
-  /**
-   *  *    * Updates OAuth provider configurations with tunnel URL.
-   * @param url - The public tunnel URL.
-   */
-  async updateOAuthProviders(url: string): Promise<void> {
-    process.env.BASE_URL = url;
-    process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
-
-    tunnelStatus.setBaseUrl(url);
-
-    this.logger?.info(`Updated OAuth configuration with tunnel URL: ${url}`);
-    this.emit("oauth-updated", {
-      baseUrl: url,
-      redirectUri: `${url}/oauth2/callback`
-    });
   }
 }

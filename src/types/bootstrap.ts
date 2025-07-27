@@ -5,16 +5,17 @@
  */
 
 import type { ILogger } from '@/modules/core/logger/types/index';
-import type { IModulesModuleExports } from '@/modules/core/modules/index';
+import type { IModulesModuleExports } from '@/modules/core/modules/types/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule } from '@/modules/core/modules/types/index';
-import type { IDatabaseModuleExports } from '@/modules/core/database/index';
-import type { ILoggerModuleExports } from '@/modules/core/logger/index';
+import type { IDatabaseModuleExports } from '@/modules/core/database/types/database-module.types';
+import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger-module.types';
 
 /**
  * Bootstrap phase enumeration.
  */
 export enum BootstrapPhaseEnum {
+  INIT = 'init',
   CORE_MODULES = 'core_modules',
   MCP_SERVERS = 'mcp_servers',
   MODULE_DISCOVERY = 'module_discovery',

@@ -6,7 +6,7 @@
  */
 
 import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 
 export class AuthModuleProviderRegistry {
   /**

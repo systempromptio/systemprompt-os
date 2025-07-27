@@ -10,12 +10,14 @@ import type { ICliService } from '@/modules/core/cli/types/index';
  * Service for refreshing and rescanning CLI commands.
  */
 export class RefreshService {
-  private static instance: RefreshService;
+  private static instance: RefreshService | undefined;
 
   /**
    * Private constructor to enforce singleton pattern.
    */
-  private constructor() {}
+  private constructor() {
+    // Singleton pattern enforcement
+  }
 
   /**
    * Get the singleton instance of RefreshService.
@@ -37,87 +39,125 @@ export class RefreshService {
     modulesScanned: number;
     errors: string[];
   }> {
-    const errors: string[] = [];
-    let commandsFound = 0;
-    let modulesScanned = 0;
-
-    try {
-      /*
-       * Build module map for core modules (we'll hardcode this for now)
-       * In a real implementation, this would come from a module registry
-       */
-      const coreModules = ['logger', 'database', 'auth', 'cli', 'modules'];
-      const moduleMap = new Map<string, { path: string }>();
-      
-      for (const moduleName of coreModules) {
-        try {
-          const basePath = process.cwd();
-          const modulePath = `${basePath}/src/modules/core/${moduleName}`;
-          
-          moduleMap.set(moduleName, { path: modulePath });
-          modulesScanned++;
-        } catch (error) {
-          errors.push(`Failed to get path for module ${moduleName}: ${error}`);
-        }
-      }
-
-      // Clear existing commands and rescan
-      try {
-        /*
-         * Note: This assumes the CLI service has a method to clear commands
-         * If not, we'd need to implement this in the database directly
-         */
-        await this.clearExistingCommands(cliService);
-        
-        // Rescan modules for commands
-        await cliService.scanAndRegisterModuleCommands(moduleMap);
-        
-        // Count newly registered commands
-        const commands = await cliService.getAllCommands();
-        commandsFound = commands.size;
-      } catch (error) {
-        errors.push(`Failed to rescan commands: ${error}`);
-        return {
-          success: false,
-          commandsFound: 0,
-          modulesScanned,
-          errors
-        };
-      }
-
-      return {
-        success: true,
-        commandsFound,
-        modulesScanned,
-        errors
-      };
-    } catch (error) {
-      errors.push(`Refresh operation failed: ${error}`);
+    const result = await this.scanModules(cliService);
+    
+    if (!result.success) {
       return {
         success: false,
         commandsFound: 0,
-        modulesScanned: 0,
-        errors
+        modulesScanned: result.modulesScanned,
+        errors: result.errors
       };
     }
+
+    const commandResult = await this.rescanCommands(cliService, result.moduleMap);
+    return {
+      ...commandResult,
+      modulesScanned: result.modulesScanned
+    };
+  }
+
+  /**
+   * Scan and build module map.
+   * @param cliService - The CLI service.
+   * @returns Module scan result.
+   */
+  private async scanModules(_cliService: ICliService): Promise<{
+    success: boolean;
+    moduleMap: Map<string, { path: string }>;
+    modulesScanned: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let modulesScanned = 0;
+
+    /*
+     * Build module map for core modules (we'll hardcode this for now)
+     * In a real implementation, this would come from a module registry.
+     */
+    const coreModules: readonly string[] = ['logger', 'database', 'auth', 'cli', 'modules'] as const;
+    const moduleMap = new Map<string, { path: string }>();
+    
+    for (const moduleName of coreModules) {
+      try {
+        const basePath = process.cwd();
+        const modulePath = `${basePath}/src/modules/core/${moduleName}`;
+        
+        moduleMap.set(moduleName, { path: modulePath });
+        modulesScanned += 1;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to get path for module ${moduleName}: ${errorMessage}`);
+      }
+    }
+
+    return {
+      success: true,
+      moduleMap,
+      modulesScanned,
+      errors
+    };
+  }
+
+  /**
+   * Rescan and register commands.
+   * @param cliService - The CLI service.
+   * @param moduleMap - Map of modules to scan.
+   * @returns Command scan result.
+   */
+  private async rescanCommands(
+    cliService: ICliService,
+    moduleMap: Map<string, { path: string }>
+  ): Promise<{
+    success: boolean;
+    commandsFound: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let commandsFound = 0;
+
+    try {
+      /*
+       * Note: This assumes the CLI service has a method to clear commands
+       * If not, we'd need to implement this in the database directly.
+       */
+      await this.clearExistingCommands(cliService);
+      
+      // Rescan modules for commands
+      await cliService.scanAndRegisterModuleCommands(moduleMap);
+      
+      // Count newly registered commands
+      const commands = await cliService.getAllCommands();
+      commandsFound = commands.size;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(`Failed to rescan commands: ${errorMessage}`);
+      return {
+        success: false,
+        commandsFound: 0,
+        errors
+      } as const;
+    }
+
+    return {
+      success: true,
+      commandsFound,
+      errors
+    };
   }
 
   /**
    * Clear existing commands from the database.
    * @param cliService - The CLI service.
-   * @param _cliService
    */
-  private async clearExistingCommands(_cliService: ICliService): Promise<void> {
-    /*
-     * This would require access to the database service
-     * For now, we'll assume commands are replaced via INSERT OR REPLACE
-     * which is already implemented in the registerCommand method
-     */
-    
+  private async clearExistingCommands(cliService: ICliService): Promise<void> {
     /*
      * If we need explicit clearing, we could add a method to CLI service
-     * or access the database directly here
+     * or access the database directly here.
+     * For now, this is a no-op to satisfy the interface
      */
+    void cliService; // Mark as intentionally unused
+    await Promise.resolve();
   }
 
   /**
@@ -127,7 +167,7 @@ export class RefreshService {
    */
   public async performRefresh(
     cliService: ICliService, 
-    verbose = false
+    verbose: boolean = false
   ): Promise<void> {
     if (verbose) {
       console.log('🔄 Refreshing CLI commands...');
@@ -142,7 +182,7 @@ export class RefreshService {
       
       if (result.errors.length > 0) {
         console.log(`⚠️  ${result.errors.length} warnings:`);
-        result.errors.forEach(error => { console.log(`   • ${error}`); });
+        result.errors.forEach((error: string): void => { console.log(`   • ${error}`); });
       }
     } else {
       console.log('❌ CLI command refresh failed');
@@ -150,7 +190,7 @@ export class RefreshService {
       
       if (result.errors.length > 0) {
         console.log('Errors:');
-        result.errors.forEach(error => { console.log(`   • ${error}`); });
+        result.errors.forEach((error: string): void => { console.log(`   • ${error}`); });
       }
     }
 

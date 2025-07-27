@@ -3,7 +3,7 @@
  * All properties use snake_case as per OAuth2 specification requirements.
  * This cannot be changed to camelCase as it would violate RFC standards.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export interface IOAuth2ServerMetadata {
     issuer: string;
     authorizationEndpoint: string;
@@ -37,7 +37,7 @@ export interface IOAuth2ServerMetadata {
  * All properties use snake_case as per OAuth2 specification requirements.
  * This cannot be changed to camelCase as it would violate RFC standards.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export interface IOAuth2ProtectedResourceMetadata {
     resource: string;
     authorizationServers: string[];
@@ -54,57 +54,33 @@ export interface IOAuth2ProtectedResourceMetadata {
  * This is used to maintain RFC compliance while satisfying TypeScript requirements.
  * @internal
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export interface IOAuth2ServerMetadataInternal {
 
   issuer: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   authorization_endpoint: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   jwks_uri: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_endpoint?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   scopes_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   response_types_supported: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   response_modes_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   grant_types_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint_auth_methods_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_endpoint_auth_signing_alg_values_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   service_documentation?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ui_locales_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   op_policy_uri?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   op_tos_uri?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   revocation_endpoint?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   revocation_endpoint_auth_methods_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   introspection_endpoint?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   introspection_endpoint_auth_methods_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   code_challenge_methods_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   userinfo_endpoint?: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   acr_values_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   subject_types_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   id_token_signing_alg_values_supported?: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   claims_supported?: string[];
 }
 
@@ -125,3 +101,50 @@ export interface IOAuth2ProtectedResourceMetadataInternal {
   scopes_supported?: string[];
 }
 // eslint-enable @typescript-eslint/naming-convention
+
+/**
+ * Configuration interface for Generic OAuth2 providers.
+ * Extends the base IDPConfig with OAuth2-specific settings.
+ */
+export interface IGenericOAuth2Config {
+    id: string;
+    name: string;
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+    scope?: string;
+    authorizationEndpoint: string;
+    tokenEndpoint: string;
+    userinfoEndpoint?: string;
+    issuer?: string;
+    jwksUri?: string;
+    scopesSupported?: string[];
+    responseTypesSupported?: string[];
+    grantTypesSupported?: string[];
+    tokenEndpointAuthMethods?: string[];
+    authorizationParams?: Record<string, string | number | boolean>;
+    userinfoMapping?: {
+        id?: string;
+        email?: string;
+        emailVerified?: string;
+        name?: string;
+        picture?: string;
+    };
+}
+
+/**
+ * Interface for OIDC Discovery Configuration (preserves OAuth2 spec naming).
+ * Uses snake_case as per OAuth2 specification requirements.
+ */
+
+export interface IOIDCDiscoveryConfig {
+    issuer: string;
+      authorization_endpoint: string;
+      token_endpoint: string;
+      userinfo_endpoint: string;
+      jwks_uri: string;
+      scopes_supported: string[];
+      response_types_supported: string[];
+      grant_types_supported: string[];
+      token_endpoint_auth_methods_supported: string[];
+}

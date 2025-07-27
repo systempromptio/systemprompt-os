@@ -12,7 +12,8 @@ import {
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
 import type { 
-  SystemPromptSpinner} from '@/modules/core/cli/utils/spinner';
+  SystemPromptSpinner
+} from '@/modules/core/cli/utils/spinner';
 import { 
   SPINNER_PRESETS, 
   createProgressSpinner, 
@@ -23,7 +24,7 @@ import {
 /**
  * CLI command metadata interface.
  */
-export interface CLICommandMeta {
+export interface ICLICommandMeta {
   icon?: string;
   category?: string;
   priority?: number;
@@ -32,8 +33,8 @@ export interface CLICommandMeta {
 /**
  * Extended command interface with metadata.
  */
-export interface EnhancedCommand extends Command {
-  meta?: CLICommandMeta;
+export interface IEnhancedCommand extends Command {
+  meta?: ICLICommandMeta;
 }
 
 /**
@@ -55,7 +56,11 @@ export class CliFormatterService {
   /**
    * Private constructor for singleton.
    */
-  private constructor() {}
+  private constructor() {
+    /**
+     * Singleton pattern requires empty constructor.
+     */
+  }
 
   /**
    * Get icon for a command based on its name and metadata.
@@ -63,15 +68,21 @@ export class CliFormatterService {
    * @param meta - Optional command metadata.
    * @returns Icon string.
    */
-  public getCommandIcon(commandName: string, meta?: CLICommandMeta): string {
-    // Use metadata icon if provided
+  public getCommandIcon(commandName: string, meta?: ICLICommandMeta): string {
+    /**
+     * Use metadata icon if provided.
+     */
     if (meta?.icon) {
       return meta.icon;
     }
 
-    // Default icon mapping
+    /**
+     * Default icon mapping.
+     */
     const icons: Record<string, string> = {
-      // Main commands
+      /**
+       * Main commands.
+       */
       auth: '🔐',
       database: '🗄️',
       logger: '📋',
@@ -81,9 +92,11 @@ export class CliFormatterService {
       tasks: '📋',
       system: '⚙️',
       config: '🔧',
-      // Database subcommands
+      /**
+       * Database subcommands.
+       */
       clear: '🧹',
-      data: '📊',
+      information: '📊',
       migrate: '🔄',
       query: '🔍',
       rebuild: '🏗️',
@@ -92,24 +105,32 @@ export class CliFormatterService {
       status: '📈',
       summary: '📄',
       view: '👀',
-      // Auth subcommands
+      /**
+       * Auth subcommands.
+       */
       login: '🚪',
       logout: '🚶',
       token: '🎫',
       providers: '🔌',
       mfa: '🔒',
       audit: '📊',
-      // Logger subcommands
+      /**
+       * Logger subcommands.
+       */
       show: '📖',
       logs: '📜',
-      // Module subcommands
+      /**
+       * Module subcommands.
+       */
       list: '📋',
       install: '📦',
       remove: '🗑️',
       enable: '✅',
       disable: '❌',
       info: 'ℹ️',
-      // Task subcommands
+      /**
+       * Task subcommands.
+       */
       add: '➕',
       cancel: '❌',
       pause: '⏸️',
@@ -117,7 +138,16 @@ export class CliFormatterService {
       history: '📚'
     };
 
-    return icons[commandName] || '🔧';
+    return icons[commandName] ?? '🔧';
+  }
+
+  /**
+   * Check if a command is hidden.
+   * @param cmd - The command to check.
+   * @returns True if the command is hidden.
+   */
+  private isHiddenCommand(cmd: Command): boolean {
+    return Boolean((cmd as unknown as { hidden?: boolean }).hidden);
   }
 
   /**
@@ -127,49 +157,8 @@ export class CliFormatterService {
    * @returns Formatted help string.
    */
   public formatHelp(cmd: Command, isMainCommand = false): string {
-    const commandName = cmd.name();
-    const title = isMainCommand ? 'SystemPrompt' : commandName;
-    const subtitle = isMainCommand 
-      ? 'An operating system for autonomous agents' 
-      : cmd.description() || '';
-
-    const header = createHeader(title, subtitle, isMainCommand);
-    
-    // Group commands by category if metadata is available
-    const commandGroups = this.groupCommandsByCategory(cmd.commands);
-    
-    // Calculate the maximum command name length for consistent alignment
-    const allCommands = cmd.commands.filter((subCmd: Command) => !(subCmd as any).hidden);
-    const maxCommandLength = Math.max(...allCommands.map(subCmd => subCmd.name().length));
-    const maxOptionLength = Math.max(...cmd.options.map(opt => opt.flags.length));
-    const paddingLength = Math.max(maxCommandLength + 2, maxOptionLength + 2, 15); // At least 15, or longest + 2
-    
-    let commandsSection = '';
-    for (const [category, commands] of commandGroups.entries()) {
-      const categoryTitle = category === 'default' ? '🚀 Commands' : `🔧 ${category}`;
-      const formattedCommands = commands
-        .filter((subCmd: Command) => !(subCmd as any).hidden)
-        .map((subCmd: Command) => {
-          const meta = (subCmd as EnhancedCommand).meta;
-          const icon = this.getCommandIcon(subCmd.name(), meta);
-          return this.formatCommandWithPadding(icon, subCmd.name(), subCmd.description() || '', paddingLength);
-        })
-        .join('\n');
-      
-      commandsSection += `${createSection(categoryTitle)}\n${formattedCommands}\n`;
-    }
-
-    const options = cmd.options
-      .map(opt => this.formatOptionWithPadding(opt.flags, opt.description || '', paddingLength))
-      .join('\n');
-
-    const optionsSection = options ? `${createSection('⚙️  Options')}\n${options}` : '';
-
-    const footer = createFooter([
-      `Run "${commandName} <command> --help" for detailed help on any command`,
-      'Visit https://systemprompt.io for documentation and examples',
-      'Report issues at https://github.com/systemprompt/os/issues'
-    ]);
+    const { header, commandsSection, optionsSection } = this.buildHelpSections(cmd, isMainCommand);
+    const footer = this.buildFooter(cmd.name());
 
     return [
       header,
@@ -180,14 +169,122 @@ export class CliFormatterService {
   }
 
   /**
-   * Format a command with consistent padding.
-   * @param icon - Command icon.
-   * @param name - Command name.
-   * @param description - Command description.
+   * Build help sections for a command.
+   * @param cmd - The commander command.
+   * @param isMainCommand - Whether this is the main command.
+   * @returns Object containing header, commands section, and options section.
+   */
+  private buildHelpSections(cmd: Command, isMainCommand: boolean): {
+    header: string;
+    commandsSection: string;
+    optionsSection: string;
+  } {
+    const title = isMainCommand ? 'SystemPrompt' : cmd.name();
+    const subtitle = isMainCommand 
+      ? 'An operating system for autonomous agents' 
+      : cmd.description() || '';
+
+    const header = createHeader(title, subtitle, isMainCommand);
+    const paddingLength = this.calculatePaddingLength(cmd);
+    const commandsSection = this.buildCommandsSection(cmd, paddingLength);
+    const optionsSection = this.buildOptionsSection(cmd, paddingLength);
+
+    return { header,
+commandsSection,
+optionsSection };
+  }
+
+  /**
+   * Calculate padding length for alignment.
+   * @param cmd - The command to calculate padding for.
+   * @returns Padding length.
+   */
+  private calculatePaddingLength(cmd: Command): number {
+    const allCommands = cmd.commands.filter((subCmd: Command): boolean => !this.isHiddenCommand(subCmd));
+    const maxCommandLength = allCommands.length > 0 
+      ? Math.max(...allCommands.map((subCmd): number => subCmd.name().length))
+      : 0;
+    const maxOptionLength = cmd.options.length > 0
+      ? Math.max(...cmd.options.map((opt): number => opt.flags.length))
+      : 0;
+    return Math.max(maxCommandLength + 2, maxOptionLength + 2, 15);
+  }
+
+  /**
+   * Build commands section for help output.
+   * @param cmd - The commander command.
    * @param paddingLength - Padding length for alignment.
+   * @returns Formatted commands section.
+   */
+  private buildCommandsSection(cmd: Command, paddingLength: number): string {
+    const commandGroups = this.groupCommandsByCategory(cmd.commands);
+    let commandsSection = '';
+    
+    for (const [category, commands] of Array.from(commandGroups.entries())) {
+      const categoryTitle = category === 'default' ? '🚀 Commands' : `🔧 ${category}`;
+      const formattedCommands = commands
+        .filter((subCmd: Command): boolean => !this.isHiddenCommand(subCmd))
+        .map((subCmd: Command): string => {
+          const meta = (subCmd as IEnhancedCommand).meta;
+          const icon = this.getCommandIcon(subCmd.name(), meta);
+          return this.formatCommandWithPadding({
+            icon,
+            name: subCmd.name(),
+            description: subCmd.description() || '',
+            paddingLength
+          });
+        })
+        .join('\n');
+      
+      commandsSection += `${createSection(categoryTitle)}\n${formattedCommands}\n`;
+    }
+    
+    return commandsSection;
+  }
+
+  /**
+   * Build options section for help output.
+   * @param cmd - The commander command.
+   * @param paddingLength - Padding length for alignment.
+   * @returns Formatted options section or empty string.
+   */
+  private buildOptionsSection(cmd: Command, paddingLength: number): string {
+    const options = cmd.options
+      .map((opt): string => this.formatOptionWithPadding(opt.flags, opt.description || '', paddingLength))
+      .join('\n');
+
+    return options ? `${createSection('⚙️  Options')}\n${options}` : '';
+  }
+
+  /**
+   * Build footer for help output.
+   * @param commandName - Name of the command.
+   * @returns Formatted footer.
+   */
+  private buildFooter(commandName: string): string {
+    return createFooter([
+      `Run "${commandName} <command> --help" for detailed help on any command`,
+      'Visit https://systemprompt.io for documentation and examples',
+      'Report issues at https://github.com/systemprompt/os/issues'
+    ]);
+  }
+
+  /**
+   * Format command with padding configuration.
+   * @param config - Configuration object for command formatting.
+   * @param config.icon
+   * @param config.name
+   * @param config.description
+   * @param config.paddingLength
    * @returns Formatted command string.
    */
-  private formatCommandWithPadding(icon: string, name: string, description: string, paddingLength: number): string {
+  private formatCommandWithPadding(config: {
+    icon: string;
+    name: string;
+    description: string;
+    paddingLength: number;
+  }): string {
+    const { icon, name, description, paddingLength } = config;
     const commandName = chalk.hex('#FF8C00').bold(name.padEnd(paddingLength));
     const commandDesc = chalk.gray(description);
     return `  ${icon} ${commandName} ${commandDesc}`;
@@ -215,23 +312,28 @@ export class CliFormatterService {
     const groups = new Map<string, Command[]>();
     
     for (const cmd of commands) {
-      const meta = (cmd as EnhancedCommand).meta;
-      const category = meta?.category || 'default';
+      const meta = (cmd as IEnhancedCommand).meta;
+      const category = meta?.category ?? 'default';
       
       if (!groups.has(category)) {
         groups.set(category, []);
       }
-      groups.get(category)!.push(cmd);
+      const categoryCommands = groups.get(category);
+      if (categoryCommands) {
+        categoryCommands.push(cmd);
+      }
     }
 
-    // Sort commands within each category by priority, then name
-    for (const [, cmds] of groups.entries()) {
-      cmds.sort((a: Command, b: Command) => {
-        const aMeta = (a as EnhancedCommand).meta;
-        const bMeta = (b as EnhancedCommand).meta;
+    /**
+     * Sort commands within each category by priority, then name.
+     */
+    for (const [, cmds] of Array.from(groups.entries())) {
+      cmds.sort((a: Command, b: Command): number => {
+        const aMeta = (a as IEnhancedCommand).meta;
+        const bMeta = (b as IEnhancedCommand).meta;
         
-        const aPriority = aMeta?.priority || 100;
-        const bPriority = bMeta?.priority || 100;
+        const aPriority = aMeta?.priority ?? 100;
+        const bPriority = bMeta?.priority ?? 100;
         
         if (aPriority !== bPriority) {
           return aPriority - bPriority;
@@ -249,8 +351,9 @@ export class CliFormatterService {
    * @param cmd - The command to enhance.
    * @param meta - The metadata to attach.
    */
-  public enhanceCommand(cmd: Command, meta: CLICommandMeta): void {
-    (cmd as EnhancedCommand).meta = meta;
+  public enhanceCommand(cmd: Command, meta: ICLICommandMeta): void {
+    const enhancedCmd = cmd as IEnhancedCommand;
+    enhancedCmd.meta = meta;
   }
 
   /**
@@ -310,23 +413,37 @@ export class CliFormatterService {
 
   /**
    * Execute a function with a spinner.
-   * @param fn - The async function to execute.
-   * @param text - Spinner text.
-   * @param preset - Spinner preset.
-   * @param successText - Success message.
-   * @param errorText - Error message.
+   * @param config - Spinner configuration.
+   * @param config.fn
+   * @param config.text
+   * @param config.preset
+   * @param config.successText
+   * @param config.errorText
    * @returns Promise with the function result.
    */
-  public async withSpinner<T>(
-    fn: () => Promise<T>,
-    text: string = 'Loading...',
-    preset: keyof typeof SPINNER_PRESETS = 'loading',
-    successText?: string,
-    errorText?: string
-  ): Promise<T> {
-    const config = { ...SPINNER_PRESETS[preset],
-text };
-    return await withSpinner(fn, config, successText, errorText);
+  public async withSpinner<T>(config: {
+    fn: () => Promise<T>;
+    text?: string;
+    preset?: keyof typeof SPINNER_PRESETS;
+    successText?: string;
+    errorText?: string;
+  }): Promise<T> {
+    const {
+      fn,
+      text = 'Loading...',
+      preset = 'loading',
+      successText,
+      errorText
+    } = config;
+    const spinnerConfig = { ...SPINNER_PRESETS[preset], text };
+    const options: { successText?: string; errorText?: string } = {};
+    if (successText !== undefined) {
+      options.successText = successText;
+    }
+    if (errorText !== undefined) {
+      options.errorText = errorText;
+    }
+    return await withSpinner(fn, spinnerConfig, options);
   }
 
   /**
@@ -335,7 +452,7 @@ text };
    * @param preset - Spinner preset.
    * @returns New ProgressSpinner instance.
    */
-  public createProgressSpinner(steps: string[], preset: keyof typeof SPINNER_PRESETS = 'loading') {
+  public createProgressSpinner(steps: string[], preset: keyof typeof SPINNER_PRESETS = 'loading'): ReturnType<typeof createProgressSpinner> {
     const config = SPINNER_PRESETS[preset];
     return createProgressSpinner(steps, config);
   }

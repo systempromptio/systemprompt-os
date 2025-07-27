@@ -4,30 +4,71 @@
  */
 
 import type {
-  Agent,
-  AgentLog,
-  AgentMetrics,
-  AgentTask,
-  CreateAgentDto,
-  CreateTaskDto,
-  TaskStatus,
-  UpdateAgentDto
+  IAgent,
+  IAgentLog,
+  IAgentMetrics,
+  IAgentTask,
+  ICreateAgentDto,
+  ICreateTaskDto,
+  IUpdateAgentDto,
+  TaskStatus
 } from '@/modules/core/agents/types/agent.types';
-import type { DatabaseConnection } from '@/modules/core/database/interfaces/database.interface';
+import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+
+// Database row types
+interface AgentRow {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  config: string;
+  capabilities: string;
+  created_at: string;
+  updated_at: string;
+  assigned_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+  last_heartbeat?: string;
+}
+
+interface TaskRow {
+  id: string;
+  agent_id: string;
+  name: string;
+  priority: string;
+  status: string;
+  payload: string;
+  created_at: string;
+  assigned_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  retry_count: number;
+  max_retries: number;
+  error_message?: string;
+}
+
+interface LogRow {
+  id: string;
+  agent_id: string;
+  level: string;
+  message: string;
+  timestamp: string;
+  metadata?: string;
+}
 
 export class AgentRepository {
-  private readonly database: DatabaseConnection;
+  private readonly database: IDatabaseConnection;
 
-  constructor(database: DatabaseConnection) {
+  constructor(database: IDatabaseConnection) {
     this.database = database;
   }
 
-  async createAgent(data: CreateAgentDto): Promise<Agent> {
+  async createAgent(data: ICreateAgentDto): Promise<IAgent> {
     const id = `agent-${Date.now()}-${Math.random().toString(36)
 .substr(2, 9)}`;
     const now = new Date();
 
-    const agent: Agent = {
+    const agent: IAgent = {
       id,
       name: data.name,
       type: data.type,
@@ -62,8 +103,8 @@ export class AgentRepository {
     return agent;
   }
 
-  async getAgentById(id: string): Promise<Agent | null> {
-    const result = await this.database.query(
+  async getAgentById(id: string): Promise<IAgent | null> {
+    const result = await this.database.query<AgentRow>(
       'SELECT * FROM agents WHERE id = ?',
       [id]
     );
@@ -72,12 +113,12 @@ export class AgentRepository {
       return null;
     }
 
-    const row = result.rows[0];
-    const agent: Agent = {
+    const row = result.rows[0] as AgentRow;
+    const agent: IAgent = {
       id: row.id,
       name: row.name,
-      type: row.type,
-      status: row.status,
+      type: row.type as IAgent['type'],
+      status: row.status as IAgent['status'],
       config: JSON.parse(row.config || '{}'),
       capabilities: JSON.parse(row.capabilities || '[]'),
       created_at: new Date(row.created_at),
@@ -94,7 +135,7 @@ export class AgentRepository {
     return agent;
   }
 
-  async listAgents(status?: string): Promise<Agent[]> {
+  async listAgents(status?: string): Promise<IAgent[]> {
     let query = 'SELECT * FROM agents';
     const params: string[] = [];
 
@@ -105,14 +146,14 @@ export class AgentRepository {
 
     query += ' ORDER BY created_at DESC';
 
-    const result = await this.database.query(query, params);
+    const result = await this.database.query<AgentRow>(query, params);
 
-    return result.rows.map((row: any) => {
-      const agent: Agent = {
+    return result.rows.map((row: AgentRow) => {
+      const agent: IAgent = {
         id: row.id,
         name: row.name,
-        type: row.type,
-        status: row.status,
+        type: row.type as IAgent['type'],
+        status: row.status as IAgent['status'],
         config: JSON.parse(row.config || '{}'),
         capabilities: JSON.parse(row.capabilities || '[]'),
         created_at: new Date(row.created_at),
@@ -130,7 +171,7 @@ export class AgentRepository {
     });
   }
 
-  async updateAgent(id: string, data: UpdateAgentDto): Promise<Agent | null> {
+  async updateAgent(id: string, data: IUpdateAgentDto): Promise<IAgent | null> {
     const updates: string[] = [];
     const params: (string | Record<string, any>)[] = [];
 
@@ -184,12 +225,12 @@ export class AgentRepository {
     );
   }
 
-  async createTask(data: CreateTaskDto): Promise<AgentTask> {
+  async createTask(data: ICreateTaskDto): Promise<IAgentTask> {
     const id = `task-${Date.now()}-${Math.random().toString(36)
 .substr(2, 9)}`;
     const now = new Date();
 
-    const task: AgentTask = {
+    const task: IAgentTask = {
       id,
       agent_id: data.agent_id,
       name: data.name,
@@ -248,7 +289,7 @@ export class AgentRepository {
     );
   }
 
-  async getAgentTasks(agentId: string, status?: TaskStatus): Promise<AgentTask[]> {
+  async getAgentTasks(agentId: string, status?: TaskStatus): Promise<IAgentTask[]> {
     let query = 'SELECT * FROM agent_tasks WHERE agent_id = ?';
     const params = [agentId];
 
@@ -259,15 +300,15 @@ export class AgentRepository {
 
     query += ' ORDER BY created_at DESC';
 
-    const result = await this.database.query(query, params);
+    const result = await this.database.query<TaskRow>(query, params);
 
-    return result.rows.map((row: any) => {
-      const task: AgentTask = {
+    return result.rows.map((row: TaskRow) => {
+      const task: IAgentTask = {
         id: row.id,
         agent_id: row.agent_id,
         name: row.name,
-        priority: row.priority,
-        status: row.status,
+        priority: row.priority as IAgentTask['priority'],
+        status: row.status as IAgentTask['status'],
         payload: JSON.parse(row.payload || '{}'),
         created_at: new Date(row.created_at),
         retry_count: row.retry_count,
@@ -291,7 +332,7 @@ export class AgentRepository {
     });
   }
 
-  async getAgentLogs(agentId: string, limit?: number): Promise<AgentLog[]> {
+  async getAgentLogs(agentId: string, limit?: number): Promise<IAgentLog[]> {
     let query = 'SELECT * FROM agent_logs WHERE agent_id = ? ORDER BY timestamp DESC';
     const params: (string | number)[] = [agentId];
 
@@ -300,13 +341,13 @@ export class AgentRepository {
       params.push(limit);
     }
 
-    const result = await this.database.query(query, params);
+    const result = await this.database.query<LogRow>(query, params);
 
-    return result.rows.map((row: any) => {
-      const log: AgentLog = {
+    return result.rows.map((row: LogRow) => {
+      const log: IAgentLog = {
         id: row.id,
         agent_id: row.agent_id,
-        level: row.level,
+        level: row.level as IAgentLog['level'],
         message: row.message,
         timestamp: new Date(row.timestamp)
       };
@@ -336,7 +377,7 @@ export class AgentRepository {
     );
   }
 
-  async recordMetrics(metrics: AgentMetrics): Promise<void> {
+  async recordMetrics(metrics: IAgentMetrics): Promise<void> {
     await this.database.execute(
       'INSERT INTO agent_metrics (agent_id, cpu_usage, memory_usage, active_tasks, timestamp) VALUES (?, ?, ?, ?, ?)',
       [

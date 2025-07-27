@@ -7,7 +7,7 @@
  */
 
 import { getDatabase } from '@/modules/core/database/index';
-import { ONE, ZERO } from '@/const/numbers';
+import { ONE, ZERO } from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
 export const command = {

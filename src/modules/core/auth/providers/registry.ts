@@ -6,16 +6,14 @@ import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index";
 import { LogSource } from "@/modules/core/logger/types/index";
 import type { IdpConfig as IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
-import {
- GenericOAuth2Provider,
- type IGenericOAuth2Config
-} from '@/modules/core/auth/providers/core/oauth2';
+import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
+import type { IGenericOAuth2Config } from '@/modules/core/auth/types/oauth2.types';
 import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
 import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
 import type {
- OIDCDiscoveryResponse,
  ProviderConfig,
 } from '@/modules/core/auth/providers/types';
+import type { IOIDCDiscoveryConfig } from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * ProviderRegistry manages OAuth2/OIDC identity provider configurations.
@@ -120,7 +118,9 @@ export class ProviderRegistry {
         this.logger?.error(
           LogSource.AUTH,
           `Failed to load provider config ${filePath}`,
-          { error: error as Error }
+          {
+            error: error instanceof Error ? error : new Error(String(error))
+          }
         );
       }
     });
@@ -136,7 +136,7 @@ export class ProviderRegistry {
   private async loadProviderConfig(filePath: string): Promise<ProviderConfig | null> {
     const content = readFileSync(filePath, "utf8");
     const rawConfig: unknown = parseYaml(content);
-    const config = this.substituteEnvVars(rawConfig) as Partial<ProviderConfig>;
+    const config = this.substituteEnvVars(rawConfig);
 
     if (!this.isValidProviderConfig(config)) {
       this.logger?.warn(LogSource.AUTH, `Skipping provider config ${filePath}: missing required fields`);
@@ -160,14 +160,15 @@ export class ProviderRegistry {
    * @param config - Configuration to validate.
    * @returns True if configuration has all required fields.
    */
-  private isValidProviderConfig(config: Partial<ProviderConfig>): config is ProviderConfig {
+  private isValidProviderConfig(config: unknown): config is ProviderConfig {
+    const c = config as Partial<ProviderConfig>;
     return Boolean(
-      config.id
-      && config.id.trim() !== ''
-      && config.credentials?.clientId
-      && config.credentials.clientId.trim() !== ''
-      && config.credentials.clientSecret
-      && config.credentials.clientSecret.trim() !== ''
+      c.id
+      && c.id.trim() !== ''
+      && c.credentials?.clientId
+      && c.credentials.clientId.trim() !== ''
+      && c.credentials.clientSecret
+      && c.credentials.clientSecret.trim() !== ''
     );
   }
 
@@ -220,7 +221,9 @@ export class ProviderRegistry {
           this.logger?.error(
             LogSource.AUTH,
             `Failed to instantiate provider ${id}`,
-            { error: error as Error }
+            {
+              error: error instanceof Error ? error : new Error(String(error))
+            }
           );
         }
       }
@@ -272,18 +275,22 @@ export class ProviderRegistry {
       return null;
     }
 
-    const genericConfig: Record<string, unknown> = {
-      ...idpConfig,
+    const genericConfig: IGenericOAuth2Config = {
       id: config.id,
       name: config.name,
+      clientId: idpConfig.clientId,
+      clientSecret: idpConfig.clientSecret,
+      redirectUri: idpConfig.redirectUri,
       authorizationEndpoint: config.endpoints.authorization,
       tokenEndpoint: config.endpoints.token,
+      ...idpConfig.scope ? { scope: idpConfig.scope } : {},
       ...config.endpoints.userinfo && config.endpoints.userinfo.trim() !== '' ? {
         userinfoEndpoint: config.endpoints.userinfo
       } : {},
-      ...this.extractIssuer(config) ? {
-        issuer: this.extractIssuer(config)
-      } : {},
+      ...(() => {
+        const issuer = this.extractIssuer(config);
+        return issuer ? { issuer } : {};
+      })(),
       ...config.endpoints.jwks && config.endpoints.jwks.trim() !== '' ? {
         jwksUri: config.endpoints.jwks
       } : {},
@@ -304,7 +311,7 @@ export class ProviderRegistry {
       );
     }
 
-    return new GenericOAuth2Provider(genericConfig as unknown as IGenericOAuth2Config);
+    return new GenericOAuth2Provider(genericConfig);
   }
 
   /**
@@ -333,7 +340,7 @@ export class ProviderRegistry {
    * @param providerId - Provider identifier for logging.
    */
   private async enrichWithDiscovery(
-    genericConfig: Record<string, unknown>,
+    genericConfig: IGenericOAuth2Config,
     discoveryUrl: string,
     providerId: string
   ): Promise<void> {
@@ -344,7 +351,7 @@ export class ProviderRegistry {
       this.logger?.warn(
         LogSource.AUTH,
         `Failed to discover OIDC config for ${providerId}`,
-        { error: error as Error }
+        { error: error instanceof Error ? error : new Error(String(error)) }
       );
     }
   }
@@ -357,21 +364,25 @@ export class ProviderRegistry {
    */
   private async discoverOidcConfiguration(
     discoveryUrl: string
-  ): Promise<Record<string, string>> {
+  ): Promise<Partial<IGenericOAuth2Config>> {
     const response = await fetch(discoveryUrl);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch OIDC discovery: ${response.statusText}`);
     }
 
-    const config = (await response.json()) as OIDCDiscoveryResponse;
+    const config = (await response.json()) as IOIDCDiscoveryConfig;
 
     return {
-      authorizationEndpoint: config.authorizationEndpoint,
-      tokenEndpoint: config.tokenEndpoint,
-      userinfoEndpoint: config.userinfoEndpoint ?? "",
-      jwksUri: config.jwksUri ?? "",
+      authorizationEndpoint: config.authorization_endpoint,
+      tokenEndpoint: config.token_endpoint,
+      userinfoEndpoint: config.userinfo_endpoint,
+      jwksUri: config.jwks_uri,
       issuer: config.issuer,
+      scopesSupported: config.scopes_supported,
+      responseTypesSupported: config.response_types_supported,
+      grantTypesSupported: config.grant_types_supported,
+      tokenEndpointAuthMethods: config.token_endpoint_auth_methods_supported,
     };
   }
 

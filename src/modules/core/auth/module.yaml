@@ -36,6 +36,8 @@ apis:
     description: Reload provider configurations from disk
 cli:
   commands:
+    - name: status
+      description: Show auth module status (enabled/healthy)
     - name: generatekey
       description: Generate cryptographic keys for JWT signing
       options:

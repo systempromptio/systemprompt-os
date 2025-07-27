@@ -22,7 +22,7 @@ import { ConfigurationError } from '@/modules/core/auth/utils/errors';
 import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
 import {
   FIVE, TEN
-} from '@/const/numbers';
+} from '@/constants/numbers';
 import type {
   AuthConfig,
   AuthToken,
@@ -53,6 +53,10 @@ export interface IAuthModuleExports {
   readonly reloadProviders: () => Promise<void>;
   readonly getTunnelService: () => TunnelService | null;
   readonly getTunnelStatus: () => unknown;
+  readonly listUserTokens: (userId: string) => Promise<AuthToken[]>;
+  readonly revokeToken: (tokenId: string) => Promise<void>;
+  readonly revokeUserTokens: (userId: string, type?: string) => Promise<void>;
+  readonly cleanupExpiredTokens: () => Promise<number>;
 }
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 
@@ -109,6 +113,18 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       getTunnelService: (): TunnelService | null => { return this.getTunnelService() },
       getTunnelStatus: (): unknown => {
         return this.getTunnelStatus();
+      },
+      listUserTokens: async (userId: string): Promise<AuthToken[]> => {
+        return await this.listUserTokens(userId);
+      },
+      revokeToken: async (tokenId: string): Promise<void> => {
+        await this.revokeToken(tokenId);
+      },
+      revokeUserTokens: async (userId: string, type?: string): Promise<void> => {
+        await this.revokeUserTokens(userId, type);
+      },
+      cleanupExpiredTokens: async (): Promise<number> => {
+        return await this.cleanupExpiredTokens();
       }
     };
   }
@@ -168,13 +184,13 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       this.mfaService = MFAService.initialize(mfaConfig, this.logger);
 
       const loggerAdapter = {
-        debug: (message: string, ...args: any[]) => { this.logger.debug(LogSource.AUTH, message, args[0]); },
-        info: (message: string, ...args: any[]) => { this.logger.info(LogSource.AUTH, message, args[0]); },
-        warn: (message: string, ...args: any[]) => { this.logger.warn(LogSource.AUTH, message, args[0]); },
+        debug: (message: string, ...args: unknown[]) => { this.logger.debug(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
+        info: (message: string, ...args: unknown[]) => { this.logger.info(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
+        warn: (message: string, ...args: unknown[]) => { this.logger.warn(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
         error: (message: string, error?: Error) => { this.logger.error(LogSource.AUTH, message, error ? { error } : undefined); }
       };
 
-      this.auditService = new AuthAuditService(
+      this.auditService = AuthAuditService.getInstance(
         this.config.audit ?? {
           enabled: true,
           retentionDays: 90
@@ -526,8 +542,8 @@ export const initialize = async (): Promise<AuthModule> => {
  * @throws {Error} If Auth module is not available or missing required exports.
  */
 export function getAuthModule(): IModule<IAuthModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
+  const { getModuleLoader } = require('@/modules/loader.js');
+  const { ModuleName } = require('@/modules/types/index.js');
 
   const moduleLoader = getModuleLoader();
   const authModule = moduleLoader.getModule(ModuleName.AUTH);

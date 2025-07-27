@@ -116,3 +116,10 @@ export interface IUsersService {
   validateApiKey(key: string): Promise<IUser | null>;
   revokeApiKey(keyId: string): Promise<void>;
 }
+
+/**
+ * Strongly typed exports interface for Users module.
+ */
+export interface IUsersModuleExports {
+  readonly service: () => IUsersService;
+}

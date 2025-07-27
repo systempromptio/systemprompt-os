@@ -69,7 +69,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
   async initialize(): Promise<void> {
     this.logger = LoggerService.getInstance();
     const database = DatabaseService.getInstance();
-    this.cliService = CliService.getInstance();
+    this.cliService ||= CliService.getInstance();
     this.cliService.initialize(this.logger, database);
     this.status = ModuleStatusEnum.INITIALIZING;
     this.logger.info(LogSource.CLI, 'CLI module initialized');
@@ -123,7 +123,15 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    */
   getService(): CliService {
     if (this.cliService === undefined || this.cliService === null) {
-      throw new Error('CLI service not initialized');
+      // Lazy initialization for CLI bootstrap scenario
+      try {
+        this.logger = LoggerService.getInstance();
+        const database = DatabaseService.getInstance();
+        this.cliService = CliService.getInstance();
+        this.cliService.initialize(this.logger, database);
+      } catch (error) {
+        throw new Error('CLI service not initialized - required services not available');
+      }
     }
     return this.cliService;
   }

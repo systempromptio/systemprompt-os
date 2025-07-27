@@ -1,58 +1,12 @@
 /**
- * @file OAuth2 provider implementation for generic OAuth2/OIDC flows.
- * @eslint-disable @typescript-eslint/naming-convention - OAuth2 spec uses snake_case
- * @eslint-disable camelcase - OAuth2 spec requires snake_case for parameters
- * @eslint-disable systemprompt-os/enforce-type-exports - Legacy compatibility
+ * OAuth2 provider implementation for generic OAuth2/OIDC flows.
+ * Supports both standard OAuth2 and OpenID Connect authentication flows.
  */
 
 import type {
-  IIdentityProvider, IIdpUserInfo, IdpConfig, IdpTokens
+  IIdentityProvider, IIdpUserInfo, IdpTokens
 } from '@/modules/core/auth/types/provider-interface';
-
-/**
- * Configuration interface for Generic OAuth2 providers.
- * Extends the base IDPConfig with OAuth2-specific settings.
- */
-export interface IGenericOAuth2Config extends IdpConfig {
-    id: string;
-    name: string;
-    authorizationEndpoint: string;
-    tokenEndpoint: string;
-    userinfoEndpoint?: string;
-    issuer?: string;
-    jwksUri?: string;
-    scopesSupported?: string[];
-    responseTypesSupported?: string[];
-    grantTypesSupported?: string[];
-    tokenEndpointAuthMethods?: string[];
-    userinfoMapping?: {
-        id?: string;
-        email?: string;
-        emailVerified?: string;
-        name?: string;
-        picture?: string;
-  };
-}
-
-/**
- * Type alias for Generic OAuth2 configuration.
- */
-export type GenericOAuth2Config = IGenericOAuth2Config;
-
-/**
- * Interface for OIDC Discovery Configuration (preserves OAuth2 spec naming).
- */
-interface OIDCDiscoveryConfig {
-    issuer: string;
-    authorization_endpoint: string;
-    token_endpoint: string;
-    userinfo_endpoint: string;
-    jwks_uri: string;
-    scopes_supported: string[];
-    response_types_supported: string[];
-    grant_types_supported: string[];
-    token_endpoint_auth_methods_supported: string[];
-}
+import type { IGenericOAuth2Config, IOIDCDiscoveryConfig } from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * Generic OAuth2 Provider implementation.
@@ -62,19 +16,19 @@ export class GenericOAuth2Provider implements IIdentityProvider {
   public readonly id: string;
   public readonly name: string;
   public readonly type: 'oauth2' | 'oidc';
-  private readonly config: GenericOAuth2Config;
+  private readonly config: IGenericOAuth2Config;
 
   /**
    * Creates a new GenericOAuth2Provider instance.
    * @param config - The OAuth2 configuration.
    */
-  constructor(config: GenericOAuth2Config) {
+  constructor(config: IGenericOAuth2Config) {
     const {
- id, name, issuer, scope, userinfoMapping
-} = config;
+      id, name, issuer, scope, userinfoMapping
+    } = config;
     this.id = id;
     this.name = name;
-    this.type = issuer ? 'oidc' : 'oauth2';
+    this.type = issuer !== undefined && issuer !== null ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
       scope: scope ?? 'openid email profile',
@@ -97,11 +51,11 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       state,
     });
 
-    if (nonce && this.type === 'oidc') {
+    if (nonce !== undefined && nonce !== null && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorizationParams' in this.config && this.config.authorizationParams) {
+    if ('authorizationParams' in this.config && this.config.authorizationParams !== undefined) {
       Object.entries(this.config.authorizationParams).forEach(
         ([key, value]): void => {
           params.append(key, String(value));
@@ -123,7 +77,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       code: authCode,
       redirect_uri: this.config.redirectUri,
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret ?? '',
+      client_secret: this.config.clientSecret,
     });
 
     const response = await fetch(this.config.tokenEndpoint, {
@@ -140,7 +94,33 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenData = await response.json() as IdpTokens;
+    const rawTokenData = await response.json() as {
+      access_token: string;
+      token_type: string;
+      expires_in?: number;
+      refresh_token?: string;
+      scope?: string;
+      id_token?: string;
+    };
+
+    const tokenData: IdpTokens = {
+      accessToken: rawTokenData.access_token,
+      tokenType: rawTokenData.token_type,
+    };
+
+    if (rawTokenData.expires_in !== undefined) {
+      tokenData.expiresIn = rawTokenData.expires_in;
+    }
+    if (rawTokenData.refresh_token !== undefined) {
+      tokenData.refreshToken = rawTokenData.refresh_token;
+    }
+    if (rawTokenData.scope !== undefined) {
+      tokenData.scope = rawTokenData.scope;
+    }
+    if (rawTokenData.id_token !== undefined) {
+      tokenData.idToken = rawTokenData.id_token;
+    }
+
     return tokenData;
   }
 
@@ -150,7 +130,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @returns Promise resolving to the user information.
    */
   public async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
-    if (!this.config.userinfoEndpoint) {
+    if (this.config.userinfoEndpoint === undefined || this.config.userinfoEndpoint === null) {
       throw new Error('UserInfo endpoint not configured');
     }
 
@@ -169,23 +149,32 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     const mapping = this.config.userinfoMapping ?? {};
 
     const getUserId = (userInfo: Record<string, unknown>): string => {
-      return String(this.getNestedValue(userInfo, mapping.id ?? 'sub') ?? userInfo.sub ?? userInfo.id ?? '');
+      const nestedValue = this.getNestedValue(userInfo, mapping.id ?? 'sub');
+      const idValue = nestedValue ?? userInfo.sub ?? userInfo.id ?? '';
+      return String(idValue);
     };
 
     const getUserEmail = (userInfo: Record<string, unknown>): string => {
-      return String(this.getNestedValue(userInfo, mapping.email ?? 'email') ?? '');
+      const emailValue = this.getNestedValue(userInfo, mapping.email ?? 'email') ?? '';
+      return String(emailValue);
     };
 
     const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
-      return Boolean(this.getNestedValue(userInfo, mapping.emailVerified ?? 'email_verified'));
+      const verifiedValue = this.getNestedValue(
+        userInfo,
+        mapping.emailVerified ?? 'email_verified'
+      );
+      return Boolean(verifiedValue);
     };
 
     const getUserName = (userInfo: Record<string, unknown>): string => {
-      return String(this.getNestedValue(userInfo, mapping.name ?? 'name') ?? '');
+      const nameValue = this.getNestedValue(userInfo, mapping.name ?? 'name') ?? '';
+      return String(nameValue);
     };
 
     const getUserPicture = (userInfo: Record<string, unknown>): string => {
-      return String(this.getNestedValue(userInfo, mapping.picture ?? 'picture') ?? '');
+      const pictureValue = this.getNestedValue(userInfo, mapping.picture ?? 'picture') ?? '';
+      return String(pictureValue);
     };
 
     return {
@@ -208,7 +197,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret ?? '',
+      client_secret: this.config.clientSecret,
     });
 
     const response = await fetch(this.config.tokenEndpoint, {
@@ -224,7 +213,33 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    const tokenData = await response.json() as IdpTokens;
+    const rawTokenData = await response.json() as {
+      access_token: string;
+      token_type: string;
+      expires_in?: number;
+      refresh_token?: string;
+      scope?: string;
+      id_token?: string;
+    };
+
+    const tokenData: IdpTokens = {
+      accessToken: rawTokenData.access_token,
+      tokenType: rawTokenData.token_type,
+    };
+
+    if (rawTokenData.expires_in !== undefined) {
+      tokenData.expiresIn = rawTokenData.expires_in;
+    }
+    if (rawTokenData.refresh_token !== undefined) {
+      tokenData.refreshToken = rawTokenData.refresh_token;
+    }
+    if (rawTokenData.scope !== undefined) {
+      tokenData.scope = rawTokenData.scope;
+    }
+    if (rawTokenData.id_token !== undefined) {
+      tokenData.idToken = rawTokenData.id_token;
+    }
+
     return tokenData;
   }
 
@@ -236,7 +251,10 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    */
   private getNestedValue(object: unknown, path: string): unknown {
     return path.split('.').reduce((current: unknown, property: string): unknown => {
-      return (current as Record<string, unknown>)?.[property];
+      if (current !== null && current !== undefined && typeof current === 'object') {
+        return (current as Record<string, unknown>)[property];
+      }
+      return undefined;
     }, object);
   }
 }
@@ -246,7 +264,9 @@ export class GenericOAuth2Provider implements IIdentityProvider {
  * @param issuer - The OIDC issuer URL.
  * @returns Promise resolving to partial OAuth2 configuration.
  */
-export const discoverOidcConfiguration = async (issuer: string): Promise<Partial<GenericOAuth2Config>> => {
+export const discoverOidcConfiguration = async (
+  issuer: string
+): Promise<Partial<IGenericOAuth2Config>> => {
   const discoveryUrl = `${issuer.replace(/\/$/u, '')}/.well-known/openid-configuration`;
 
   const response = await fetch(discoveryUrl);
@@ -254,7 +274,7 @@ export const discoverOidcConfiguration = async (issuer: string): Promise<Partial
     throw new Error(`Failed to discover OIDC configuration: ${response.statusText}`);
   }
 
-  const configData = await response.json() as OIDCDiscoveryConfig;
+  const configData = await response.json() as IOIDCDiscoveryConfig;
 
   return {
     issuer: configData.issuer,

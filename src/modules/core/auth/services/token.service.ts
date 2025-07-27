@@ -19,7 +19,7 @@ import {
   THREE,
   TWO,
   ZERO,
-} from '@/const/numbers';
+} from '@/constants/numbers';
 
 /**
  * Database row interface for auth_tokens table.

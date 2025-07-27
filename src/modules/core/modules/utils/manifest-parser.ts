@@ -1,17 +1,23 @@
 /**
  * @file Type-safe manifest parser utilities.
  * @module modules/core/modules/utils/manifest-parser
- * @description Utilities for parsing and validating module manifests.
+ * Utilities for parsing and validating module manifests.
  */
 
 import { parse as parseYaml } from 'yaml';
-import type { ICliCommand, IModuleManifest } from '@/modules/core/modules/types/index';
-import { ModuleTypeEnum } from '@/modules/core/modules/types/index';
+import {
+ type ICliCommand, type IModuleManifest, ModuleTypeEnum
+} from '@/modules/core/modules/types/index';
 
 /**
  * Parse error for manifest validation failures.
  */
 export class ManifestParseError extends Error {
+  /**
+   * Create a new ManifestParseError.
+   * @param message - Error message.
+   * @param errors - Array of validation errors.
+   */
   constructor(
     message: string,
     public readonly errors: string[],
@@ -23,9 +29,10 @@ export class ManifestParseError extends Error {
 
 /**
  * Type guard to check if a value is a valid ModuleType.
- * @param value
+ * @param value - Value to check.
+ * @returns True if value is a valid ModuleType.
  */
-function isModuleType(value: unknown): value is ModuleTypeEnum {
+const isModuleType = (value: unknown): value is ModuleTypeEnum => {
   const validTypes: string[] = [
     ModuleTypeEnum.CORE,
     ModuleTypeEnum.SERVICE,
@@ -34,7 +41,7 @@ function isModuleType(value: unknown): value is ModuleTypeEnum {
     ModuleTypeEnum.EXTENSION
   ];
   return typeof value === 'string' && validTypes.includes(value);
-}
+};
 
 /**
  * Validate and parse a raw manifest object.
@@ -42,7 +49,7 @@ function isModuleType(value: unknown): value is ModuleTypeEnum {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if validation fails.
  */
-function validateManifest(raw: unknown): IModuleManifest {
+const validateManifest = (raw: unknown): IModuleManifest => {
   const errors: string[] = [];
 
   if (!raw || typeof raw !== 'object') {

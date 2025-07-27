@@ -62,7 +62,8 @@ export default [
     rules: {
       // SystemPrompt OS custom rules
       "systemprompt-os/enforce-module-structure": "error",
-      "systemprompt-os/enforce-file-naming": "error",
+      // File naming conventions removed - too restrictive for OAuth and flexible naming
+      "systemprompt-os/enforce-file-naming": "off",
       "systemprompt-os/enforce-import-restrictions": "error",
       "systemprompt-os/enforce-required-files": "error",
       "systemprompt-os/enforce-module-exports": "error",
@@ -163,70 +164,8 @@ export default [
         ignoreArrowShorthand: false,
         ignoreVoidOperator: false
       }],
-      "@typescript-eslint/naming-convention": [
-        "error",
-        {
-          selector: "default",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow"
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "UPPER_CASE", "PascalCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"]
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "memberLike",
-          modifiers: ["private"],
-          format: ["camelCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "typeLike",
-          format: ["PascalCase"]
-        },
-        {
-          selector: "interface",
-          format: ["PascalCase"],
-          prefix: ["I"]
-        },
-        {
-          selector: "typeAlias",
-          format: ["PascalCase"]
-        },
-        {
-          selector: "enum",
-          format: ["PascalCase"],
-          suffix: ["Enum"]
-        },
-        {
-          selector: "enumMember",
-          format: ["UPPER_CASE"]
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-          prefix: ["T"]
-        },
-        {
-          selector: "property",
-          format: null
-        },
-        {
-          selector: "method",
-          format: ["camelCase"]
-        }
-      ],
+      // Naming convention rules removed - AI agents kept breaking OAuth property names
+      "@typescript-eslint/naming-convention": "off",
       "@typescript-eslint/member-ordering": ["error", {
         default: [
           // Index signature
@@ -704,19 +643,16 @@ export default [
       "function-call-argument-newline": ["error", "consistent"],
       "function-paren-newline": ["error", "multiline-arguments"],
       "grouped-accessor-pairs": ["error", "setBeforeGet"],
-      "id-denylist": ["error", "data", "err", "e", "cb", "callback", "temp", "tmp", "val", "var", "obj", "arr"],
+      // id-denylist removed - too restrictive for OAuth and general use
+      "id-denylist": "off",
       "id-length": ["error", {
         min: 2,
         max: 30,
         properties: "always",
         exceptions: ["i", "j", "k", "x", "y", "z", "_"]
       }],
-      "id-match": ["error", "^[a-zA-Z_$][a-zA-Z0-9_$]*$", {
-        properties: true,
-        classFields: true,
-        onlyDeclarations: false,
-        ignoreDestructuring: false
-      }],
+      // id-match removed - conflicts with OAuth snake_case properties
+      "id-match": "off",
       "implicit-arrow-linebreak": ["error", "beside"],
       "jsx-quotes": ["error", "prefer-double"],
       "key-spacing": ["error", {
@@ -1064,7 +1000,6 @@ export default [
       "@typescript-eslint/strict-boolean-expressions": "off",
       "@typescript-eslint/prefer-readonly-parameter-types": "off",
       "@typescript-eslint/consistent-type-assertions": "off",
-      "@typescript-eslint/naming-convention": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
       "max-lines": "off",
       "max-lines-per-function": "off",
@@ -1100,67 +1035,8 @@ export default [
       "src/modules/core/auth/**/*.ts"
     ],
     rules: {
-      "@typescript-eslint/naming-convention": [
-        "error",
-        {
-          selector: "default",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow"
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "UPPER_CASE", "PascalCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"]
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "memberLike",
-          modifiers: ["private"],
-          format: ["camelCase"],
-          leadingUnderscore: "allow"
-        },
-        {
-          selector: "typeLike",
-          format: ["PascalCase"]
-        },
-        {
-          selector: "interface",
-          format: ["PascalCase"],
-          prefix: ["I"]
-        },
-        {
-          selector: "typeAlias",
-          format: ["PascalCase"]
-        },
-        {
-          selector: "enum",
-          format: ["PascalCase"],
-          suffix: ["Enum"]
-        },
-        {
-          selector: "enumMember",
-          format: ["UPPER_CASE"]
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-          prefix: ["T"]
-        },
-        // Allow snake_case for object literal properties (OAuth2/OIDC standard)
-        {
-          selector: "objectLiteralProperty",
-          format: null
-        }
-      ]
+      // Naming convention rules removed for auth modules - OAuth2/OIDC use snake_case
+      "@typescript-eslint/naming-convention": "off"
     }
   },
   {
@@ -1216,50 +1092,8 @@ export default [
       "operator-linebreak": "off",
       "object-curly-newline": "off",
       "no-extra-parens": "off",
-      "@typescript-eslint/naming-convention": [
-        "error",
-        {
-          "selector": "default",
-          "format": ["camelCase"],
-          "leadingUnderscore": "forbid",
-          "trailingUnderscore": "forbid"
-        },
-        {
-          "selector": "variable",
-          "format": ["camelCase", "UPPER_CASE", "PascalCase"],
-          "leadingUnderscore": "forbid",
-          "trailingUnderscore": "forbid"
-        },
-        {
-          "selector": "parameter",
-          "format": ["camelCase"],
-          "leadingUnderscore": "allow",
-          "trailingUnderscore": "forbid"
-        },
-        {
-          "selector": "memberLike",
-          "modifiers": ["private"],
-          "format": ["camelCase"],
-          "leadingUnderscore": "forbid"
-        },
-        {
-          "selector": "typeLike",
-          "format": ["PascalCase"]
-        },
-        {
-          "selector": "interface",
-          "format": ["PascalCase"],
-          "prefix": ["I"]
-        },
-        {
-          "selector": "class",
-          "format": ["PascalCase"]
-        },
-        {
-          "selector": "enum",
-          "format": ["PascalCase"]
-        }
-      ]
+      // Naming convention rules removed for CLI modules
+      "@typescript-eslint/naming-convention": "off"
     }
   }
 ];

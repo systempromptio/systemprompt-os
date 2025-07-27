@@ -20,7 +20,8 @@ export class SQLParserService {
   /**
    * Creates a new SQL parser service instance.
    */
-  private constructor() {}
+  private constructor() {
+  }
 
   /**
    * Initialize the SQL parser service.
@@ -42,7 +43,7 @@ export class SQLParserService {
    * @throws {Error} If service not initialized.
    */
   public static getInstance(): SQLParserService {
-    if (!SQLParserService.instance || !SQLParserService.instance.initialized) {
+    if (!SQLParserService.instance?.initialized) {
       throw new Error('SQLParserService not initialized. Call initialize() first.');
     }
     return SQLParserService.instance;

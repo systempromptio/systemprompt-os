@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs';
 import { join } from 'path';
 import {
   TWO
-} from '@/const/numbers';
+} from '@/constants/numbers';
 import type { IGenerateKeyOptions } from '@/modules/core/auth/types';
 
 /**

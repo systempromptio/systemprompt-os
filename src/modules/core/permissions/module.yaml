@@ -12,6 +12,8 @@ singleton: true
 
 cli:
   commands:
+    - name: status
+      description: Show permissions module status (enabled/healthy)
     - name: permissions:list
       description: List all permissions
       options:

@@ -25,7 +25,7 @@ export async function setupExternalEndpoints(app: Express): Promise<void> {
 
   app.use(cookieParser());
 
-  const { configureRoutes } = await import('./routes.js');
+  const { configureRoutes } = await import('./routes');
   configureRoutes(app);
 
   if (process.env.NODE_ENV !== 'production') {

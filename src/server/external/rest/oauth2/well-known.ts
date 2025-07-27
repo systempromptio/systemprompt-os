@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 
 /*
  * Import { exportJWK, generateKeyPair } from 'jose';

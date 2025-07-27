@@ -6,26 +6,26 @@
  */
 
 import type {
-  IDPTokens, IdentityProvider, OAuth2UserInfo
+  IOAuth2Provider, IOAuth2TokenResponse, IOAuth2UserInfo
 } from '@/server/external/auth/providers/interface';
-import type { GenericOAuth2Config } from '@/server/external/auth/providers/types/generic-oauth2';
+import type { IGenericOAuth2Config } from '@/server/external/auth/providers/interface';
 
 /**
  * Generic OAuth2/OIDC Provider implementation.
  * @class GenericOAuth2Provider
  * @implements IdentityProvider
  */
-export class GenericOAuth2Provider implements IdentityProvider {
+export class GenericOAuth2Provider implements IOAuth2Provider {
   public readonly id: string;
   public readonly name: string;
   public readonly type: 'oauth2' | 'oidc';
-  private readonly config: GenericOAuth2Config;
+  private readonly config: IGenericOAuth2Config;
 
   /**
    * Constructs a new GenericOAuth2Provider instance.
    * @param config - The OAuth2 configuration.
    */
-  constructor(config: GenericOAuth2Config) {
+  constructor(config: IGenericOAuth2Config) {
     const {
  id, name, issuer, scope, userinfoMapping
 } = config;
@@ -45,10 +45,10 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param nonce - Optional nonce for OIDC.
    * @returns The authorization URL.
    */
-  public getAuthorizationUrl(state: string, nonce?: string): string {
+  public getAuthorizationUrl(state: string): string {
     const {
- client_id: clientId, redirect_uri: redirectUri, scope, authorizationEndpoint
-} = this.config;
+      clientId, redirectUri, scope, authorizationEndpoint
+    } = this.config;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -56,10 +56,6 @@ export class GenericOAuth2Provider implements IdentityProvider {
       scope: scope ?? 'openid email profile',
       state,
     });
-
-    if (nonce && nonce !== '' && this.type === 'oidc') {
-      params.append('nonce', nonce);
-    }
 
     const additionalParams = (this.config as any).authorizationParams;
     if (additionalParams && typeof additionalParams === 'object') {
@@ -78,7 +74,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param code - The authorization code.
    * @returns Promise resolving to tokens.
    */
-  public async exchangeCodeForToken(code: string): Promise<IDPTokens> {
+  public async exchangeCodeForToken(code: string): Promise<IOAuth2TokenResponse> {
     return await this.exchangeCodeForTokens(code);
   }
 
@@ -87,10 +83,10 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param code - The authorization code.
    * @returns Promise resolving to tokens.
    */
-  private async exchangeCodeForTokens(code: string): Promise<IDPTokens> {
+  private async exchangeCodeForTokens(code: string): Promise<IOAuth2TokenResponse> {
     const {
- client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, tokenEndpoint
-} = this.config;
+      clientId, clientSecret, redirectUri, tokenEndpoint
+    } = this.config;
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -113,7 +109,14 @@ export class GenericOAuth2Provider implements IdentityProvider {
       throw new Error(`Failed to exchange code: ${error}`);
     }
 
-    const data = await response.json() as IDPTokens;
+    const rawData = await response.json() as any;
+    const data: IOAuth2TokenResponse = {
+      accessToken: rawData.access_token || rawData.accessToken,
+      tokenType: rawData.token_type || rawData.tokenType || 'Bearer',
+      expiresIn: rawData.expires_in || rawData.expiresIn,
+      refreshToken: rawData.refresh_token || rawData.refreshToken,
+      scope: rawData.scope
+    };
     return data;
   }
 
@@ -122,7 +125,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param accessToken - The access token.
    * @returns Promise resolving to user info.
    */
-  public async getUserInfo(accessToken: string): Promise<OAuth2UserInfo> {
+  public async getUserInfo(accessToken: string): Promise<IOAuth2UserInfo> {
     const { userinfoEndpoint } = this.config;
     if (!userinfoEndpoint || userinfoEndpoint === '') {
       throw new Error('UserInfo endpoint not configured');
@@ -155,7 +158,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
       throw new Error('Unable to extract user ID from userinfo response');
     }
 
-    const userInfo: OAuth2UserInfo = {
+    const userInfo: IOAuth2UserInfo = {
       id,
     };
 
@@ -188,7 +191,7 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param refreshToken - The refresh token.
    * @returns Promise resolving to new tokens.
    */
-  public async refreshToken(refreshToken: string): Promise<IDPTokens> {
+  public async refreshToken(refreshToken: string): Promise<IOAuth2TokenResponse> {
     return await this.refreshTokens(refreshToken);
   }
 
@@ -197,10 +200,10 @@ export class GenericOAuth2Provider implements IdentityProvider {
    * @param refreshToken - The refresh token.
    * @returns Promise resolving to new tokens.
    */
-  private async refreshTokens(refreshToken: string): Promise<IDPTokens> {
+  private async refreshTokens(refreshToken: string): Promise<IOAuth2TokenResponse> {
     const {
- client_id: clientId, client_secret: clientSecret, tokenEndpoint
-} = this.config;
+      clientId, clientSecret, tokenEndpoint
+    } = this.config;
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
@@ -221,7 +224,14 @@ export class GenericOAuth2Provider implements IdentityProvider {
       throw new Error(`Failed to refresh tokens: ${response.statusText}`);
     }
 
-    const data = await response.json() as IDPTokens;
+    const rawData = await response.json() as any;
+    const data: IOAuth2TokenResponse = {
+      accessToken: rawData.access_token || rawData.accessToken,
+      tokenType: rawData.token_type || rawData.tokenType || 'Bearer',
+      expiresIn: rawData.expires_in || rawData.expiresIn,
+      refreshToken: rawData.refresh_token || rawData.refreshToken,
+      scope: rawData.scope
+    };
     return data;
   }
 

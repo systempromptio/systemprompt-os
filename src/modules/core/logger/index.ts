@@ -6,41 +6,32 @@
 
 import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
-import type {
-  ILogFiles,
-  ILogger,
-  ILoggerConfig,
-  LogLevelName,
-} from '@/modules/core/logger/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import {
+  type ILogFiles,
+  type ILogger,
+  type ILoggerConfig,
+  type LogLevelName,
   LogOutput,
   LogSource,
   LoggerMode
 } from '@/modules/core/logger/types/index';
-
-/**
- * Strongly typed exports interface for Logger module.
- */
-export interface ILoggerModuleExports {
-  readonly service: () => ILogger;
-  readonly logger: () => ILogger;
-  readonly getInstance: () => LoggerServiceClass;
-}
+import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger-module.types';
 
 /**
  * Type guard to check if a module is a Logger module.
  * @param module - Module to check.
+ * @param mod
  * @returns True if module is a Logger module.
  */
-export function isLoggerModule(module: any): module is IModule<ILoggerModuleExports> {
-  return module?.name === 'logger'
-         && Boolean(module.exports)
-         && typeof module.exports === 'object'
-         && 'service' in module.exports
-         && typeof module.exports.service === 'function';
-}
+export const isLoggerModule = (mod: unknown): mod is IModule<ILoggerModuleExports> => {
+  const m = mod as IModule<ILoggerModuleExports>;
+  return m?.name === 'logger'
+         && Boolean(m.exports)
+         && typeof m.exports === 'object'
+         && 'service' in m.exports
+         && typeof m.exports.service === 'function';
+};
 
 /**
  * Logger module implementation - self-contained.
@@ -58,9 +49,9 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
   private started = false;
   get exports(): ILoggerModuleExports {
     return {
-      service: () => { return this.getService() },
-      logger: () => { return this.getService() },
-      getInstance: () => { return LoggerServiceClass.getInstance() },
+      service: (): ILogger => { return this.getService() },
+      logger: (): ILogger => { return this.getService() },
+      getInstance: (): LoggerServiceClass => { return LoggerServiceClass.getInstance() },
     };
   }
 

@@ -1,7 +1,7 @@
 /**
+ * MCP Roots handlers for filesystem access boundaries.
  * @file MCP Roots handlers for filesystem access boundaries.
  * @module handlers/roots-handlers
- * @remarks
  * This module implements the roots functionality from the MCP specification.
  * Roots define filesystem boundaries that the daemon has access to on the host machine.
  * The daemon runs on the host machine (not in Docker) and has access to:
@@ -33,26 +33,25 @@ import * as os from 'os';
 /**
  * Gets the server roots dynamically based on environment configuration.
  * @returns Array of root directories accessible to the daemon.
- * @remarks
  * These represent the actual host directories that the daemon has access to.
  * The roots are calculated dynamically based on environment variables.
  */
-const getServerRoots = function (): Root[] {
+function getServerRoots(): Root[] {
   const roots: Root[] = [];
 
-  const hostFileRoot = process.env.HOSTFILE_ROOT || '/var/www/html/systemprompt-coding-agent';
+  const hostFileRoot = process.env.HOSTFILE_ROOT ?? '/var/www/html/systemprompt-coding-agent';
   roots.push({
     uri: `file://${hostFileRoot}`,
     name: 'Main Project Root (Working Directory)',
   });
 
-  const projectsPath = process.env.PROJECTSPATH;
-  if (projectsPath && !projectsPath.startsWith('./')) {
+  const { PROJECTSPATH: projectsPath } = process.env;
+  if (projectsPath != null && projectsPath !== '' && !projectsPath.startsWith('./')) {
     roots.push({
       uri: `file://${projectsPath}`,
       name: 'Additional Projects Directory',
     });
-  } else if (projectsPath) {
+  } else if (projectsPath != null && projectsPath !== '') {
     const absoluteProjectsPath = path.resolve(hostFileRoot, projectsPath);
     roots.push({
       uri: `file://${absoluteProjectsPath}`,
@@ -60,7 +59,7 @@ const getServerRoots = function (): Root[] {
     });
   }
 
-  const homeDir = process.env.HOME || os.homedir();
+  const homeDir = process.env.HOME ?? os.homedir();
   roots.push({
     uri: `file://${homeDir}`,
     name: 'User Home Directory',
@@ -81,10 +80,9 @@ const getServerRoots = function (): Root[] {
 
 /**
  * Handles MCP roots/list requests.
- * @param request - The list roots request ( unused).
+ * @param request - The list roots request (unused).
  * @param _request
  * @returns List of available filesystem roots.
- * @remarks
  * Returns the list of filesystem roots that the daemon has access to on the host.
  * These are the actual host filesystem paths, not Docker container paths.
  * The daemon runs on the host and can access these directories directly.
@@ -94,14 +92,14 @@ const getServerRoots = function (): Root[] {
  * console.log(`Available roots: ${result.roots.length}`);
  * ```
  */
-export const handleListRoots = async function (_request: ListRootsRequest): Promise<ListRootsResult> {
+export async function handleListRoots(_request: ListRootsRequest): Promise<ListRootsResult> {
   const roots = getServerRoots();
 
   logger.debug(LogSource.MCP, '📁 Listing roots (host filesystem paths)', {
     rootCount: roots.length,
-    roots: roots.map((r) => { return {
-      uri: r.uri,
-      name: r.name
+    roots: roots.map((root): { uri: string; name: string | undefined } => { return {
+      uri: root.uri,
+      name: root.name
     } }),
   });
 
@@ -114,13 +112,12 @@ export const handleListRoots = async function (_request: ListRootsRequest): Prom
  * Gets current roots for notifications.
  * @returns The dynamically calculated roots based on current environment.
  */
-export const getCurrentRoots = function (): Root[] {
+export function getCurrentRoots(): Root[] {
   return getServerRoots();
 }
 
 /**
  * Notifies clients about roots changes.
- * @remarks
  * Since roots are calculated dynamically from environment variables,
  * this function just sends a notification that roots may have changed.
  * Clients will re-fetch the roots list to get the updated values.
@@ -130,13 +127,15 @@ export const getCurrentRoots = function (): Root[] {
  * await notifyRootsChanged();
  * ```
  */
-export const notifyRootsChanged = async function (): Promise<void> {
+export async function notifyRootsChanged(): Promise<void> {
   logger.info(LogSource.MCP, '🔄 Notifying clients about roots change');
 
   try {
     await sendRootsListChangedNotification();
     logger.debug(LogSource.MCP, '📡 Sent roots/listchanged notification');
   } catch (error) {
-    logger.error(LogSource.MCP, 'Failed to send roots changed notification', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error(LogSource.MCP, 'Failed to send roots changed notification', {
+      error: error instanceof Error ? error : new Error(String(error))
+    });
   }
 }

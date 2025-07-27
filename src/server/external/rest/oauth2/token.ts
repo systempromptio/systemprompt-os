@@ -8,11 +8,10 @@ import type { Request as ExpressRequest, Response as ExpressResponse } from 'exp
 import { createHash, randomBytes } from 'crypto';
 import { z } from 'zod';
 import { CONFIG } from '@/server/config';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
 import { jwtSign, jwtVerify } from '@/server/external/auth/jwt';
 import { AuthRepository } from '@/modules/core/auth/database/repository';
-import type { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
@@ -24,7 +23,6 @@ import type {
   IUserData,
   IUserSessionData,
 } from '@/server/external/rest/oauth2/types/index';
-import type { IdentityProvider } from '@/modules/core/auth/types/index';
 
 /**
  * Schema for OAuth2 token request validation.
@@ -40,15 +38,17 @@ const tokenRequestSchema = z.object({
   clientSecret: z.string().optional(),
   refreshToken: z.string().optional(),
   codeVerifier: z.string().optional(),
-}).transform((data) => { return {
-  grant_type: data.grantType,
-  code: data.code,
-  redirect_uri: data.redirectUri,
-  client_id: data.clientId,
-  client_secret: data.clientSecret,
-  refresh_token: data.refreshToken,
-  code_verifier: data.codeVerifier,
-} });
+}).transform((input): ITokenRequestParams => {
+  return {
+    grant_type: input.grantType,
+    code: input.code,
+    redirect_uri: input.redirectUri,
+    client_id: input.clientId,
+    client_secret: input.clientSecret,
+    refresh_token: input.refreshToken,
+    code_verifier: input.codeVerifier,
+  };
+});
 
 /**
  * In-memory storage for refresh tokens
@@ -63,25 +63,7 @@ const refreshTokens = new Map<string, IRefreshTokenData>();
 const userSessions = new Map<string, IUserSessionData>();
 
 /**
- * Get auth code service instance.
- */
-let authCodeService: AuthCodeService | null = null;
-
-/**
- * Gets the authentication code service instance.
- * @returns The auth code service instance.
- */
-const getAuthCodeService = (): AuthCodeService => {
-  if (authCodeService === null) {
-    const authModule = getAuthModule();
-    authCodeService = authModule.exports.authCodeService() as AuthCodeService;
-  }
-  return authCodeService;
-};
-
-/**
- * OAuth2 Token Endpoint implementation
- * Handles authorization code and refresh token grants.
+ * OAuth2 Token Endpoint handler class.
  */
 export class TokenEndpoint {
   /**
@@ -156,7 +138,9 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
 
-    const authCodeSvc = getAuthCodeService();
+    const authModule = getAuthModule();
+    const authCodeSvc = authModule.exports.authCodeService();
+
     const codeData = await authCodeSvc.getAuthorizationCode(params.code);
     logger.info(LogSource.AUTH, 'Authorization code lookup completed', {
       category: 'oauth2',
@@ -214,7 +198,7 @@ export class TokenEndpoint {
     ) {
       try {
         const authModule = getAuthModule();
-        const provider = authModule.exports.getProvider(codeData.provider) as IdentityProvider | undefined;
+        const provider = authModule.exports.getProvider(codeData.provider);
         const tokenData = codeData.providerTokens as IProviderTokens;
         if (provider && typeof tokenData.code === 'string') {
           const {code} = tokenData;
@@ -341,7 +325,7 @@ export class TokenEndpoint {
           roles: []
         };
         const roles = await authRepo.getIUserIRoles(userId);
-        userRoles = roles.map((r: { name: string }) => { return r.name });
+        userRoles = roles.map((role: { name: string }): string => { return role.name });
         if (userData !== null) {
           userData.roles = userRoles;
         }

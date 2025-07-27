@@ -14,67 +14,67 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/index';
 import type {
- IModuleInfo, IScannedModule
+  IModuleInfo,
+  IScannedModule
 } from '@/modules/core/modules/types/index';
-import {
- ModuleHealthStatusEnum, ModuleStatusEnum, ModuleTypeEnum
-} from '@/modules/core/modules/types/index';
-
-interface ModuleManagerConfig {
-  modulesPath: string;
-  injectablePath: string;
-  extensionsPath: string;
-}
-
-interface DatabaseModuleRow {
-  id: number;
-  name: string;
-  version: string;
-  type: string;
-  path: string;
-  enabled: number;
-  dependencies: string;
-  config: string;
-  metadata: string;
-  created_at: string;
-  updated_at: string;
-}
+import { ModuleTypeEnum } from '@/modules/core/modules/types/index';
+import type {
+  IModuleManagerConfig
+} from '@/modules/core/modules/types/module-manager.types';
+import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
 
 /**
  * Service for managing injectable modules with database persistence.
  */
 export class ModuleManagerService {
   private static instance: ModuleManagerService;
-  private readonly config: ModuleManagerConfig;
+  private readonly config: IModuleManagerConfig;
+  private readonly repository: ModuleManagerRepository;
 
+  /**
+   * Private constructor for singleton pattern.
+   * @param config - Module manager configuration.
+   * @param logger - Logger instance.
+   * @param repository - Module manager repository.
+   */
   private constructor(
-    config: ModuleManagerConfig,
+    config: IModuleManagerConfig,
     private readonly logger: ILogger,
-    private readonly database: DatabaseService
+    repository: ModuleManagerRepository
   ) {
     this.config = config;
+    this.repository = repository;
   }
 
   /**
    * Get singleton instance.
-   * @param config
-   * @param logger
-   * @param database
+   * @param config - Module manager configuration.
+   * @param logger - Logger instance.
+   * @param database - Database service instance.
+   * @returns ModuleManagerService instance.
    */
-  static getInstance(config: ModuleManagerConfig, logger: ILogger, database: DatabaseService): ModuleManagerService {
-    ModuleManagerService.instance ||= new ModuleManagerService(config, logger, database);
+  static getInstance(config?: IModuleManagerConfig, logger?: ILogger, database?: DatabaseService): ModuleManagerService {
+    if (!ModuleManagerService.instance) {
+      if (!config || !logger || !database) {
+        throw new Error('ModuleManagerService not initialized - required parameters missing');
+      }
+      const repository = ModuleManagerRepository.getInstance(database);
+      ModuleManagerService.instance = new ModuleManagerService(config, logger, repository);
+    }
     return ModuleManagerService.instance;
   }
 
   /**
    * Initialize the service and create database tables if needed.
+   * @returns Promise that resolves when initialization is complete.
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     this.logger.info(LogSource.MODULES, 'Module manager service initialized');
   }
 
   /**
    * Scan for injectable modules.
+   * @returns Promise that resolves to array of scanned modules.
    */
   async scanForModules(): Promise<IScannedModule[]> {
     const modules: IScannedModule[] = [];
@@ -100,27 +100,40 @@ export class ModuleManagerService {
 
               if (manifestData && manifestData.name) {
                 const scannedModule: IScannedModule = {
-                  name: manifestData.name,
-                  version: manifestData.version || '1.0.0',
+                  name: manifestData.name as string,
+                  version: (manifestData.version as string | undefined) ?? '1.0.0',
                   type: ModuleTypeEnum.SERVICE,
-                  path: modulePath,
-                  dependencies: manifestData.dependencies,
-                  config: manifestData.config,
-                  metadata: manifestData.metadata
+                  path: modulePath
                 };
+
+                if (manifestData.dependencies) {
+                  scannedModule.dependencies = manifestData.dependencies as string[];
+                }
+                if (manifestData.config) {
+                  scannedModule.config = manifestData.config as Record<string, unknown>;
+                }
+                if (manifestData.metadata) {
+                  scannedModule.metadata = manifestData.metadata as Record<string, unknown>;
+                }
 
                 modules.push(scannedModule);
 
-                await this.upsertModule(scannedModule);
+                await this.repository.upsertModule(scannedModule);
               }
             } catch (error) {
-              this.logger.error(LogSource.MODULES, `Failed to parse module.yaml in ${modulePath}:`, { error: error instanceof Error ? error : new Error(String(error)) });
+              const errorObject = error instanceof Error ? error : new Error(String(error));
+              this.logger.error(LogSource.MODULES, `Failed to parse module.yaml in ${modulePath}:`, {
+                error: errorObject
+              });
             }
           }
         }
       }
     } catch (error) {
-      this.logger.error(LogSource.MODULES, 'Failed to scan for modules:', { error: error instanceof Error ? error : new Error(String(error)) });
+      const errorObject = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(LogSource.MODULES, 'Failed to scan for modules:', {
+        error: errorObject
+      });
     }
 
     this.logger.info(LogSource.MODULES, `Discovered ${modules.length} injectable modules`);
@@ -139,71 +152,33 @@ export class ModuleManagerService {
       name,
       version: '1.0.0',
       type: ModuleTypeEnum.SERVICE,
-      path,
-      dependencies,
-      config: {},
-      metadata: { core: true }
+      path
     };
 
-    await this.upsertModule(moduleData);
+    if (dependencies.length > 0) {
+      moduleData.dependencies = dependencies;
+    }
+    moduleData.config = {};
+    moduleData.metadata = { core: true };
+
+    await this.repository.upsertModule(moduleData);
     this.logger.info(LogSource.MODULES, `Registered core module '${name}' in database`);
   }
 
   /**
-   * Upsert a module into the database.
-   * @param module - Module data to upsert.
-   * @returns Promise that resolves when upsert is complete.
+   * Get all modules.
+   * @returns Promise that resolves to array of all modules.
    */
-  private async upsertModule(module: IScannedModule): Promise<void> {
-    const existingModule = await this.database.query<{ id: number }>(
-      'SELECT id FROM modules WHERE name = ?',
-      [module.name]
-    );
-
-    if (existingModule.length > 0) {
-      await this.database.execute(
-        `UPDATE modules SET 
-         version = ?, type = ?, path = ?, 
-         dependencies = ?, config = ?, metadata = ?,
-         updated_at = CURRENT_TIMESTAMP
-         WHERE name = ?`,
-        [
-          module.version,
-          module.type,
-          module.path,
-          JSON.stringify(module.dependencies || []),
-          JSON.stringify(module.config || {}),
-          JSON.stringify(module.metadata || {}),
-          module.name
-        ]
-      );
-    } else {
-      await this.database.execute(
-        `INSERT INTO modules 
-         (name, version, type, path, enabled, dependencies, config, metadata)
-         VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
-        [
-          module.name,
-          module.version,
-          module.type,
-          module.path,
-          JSON.stringify(module.dependencies || []),
-          JSON.stringify(module.config || {}),
-          JSON.stringify(module.metadata || {})
-        ]
-      );
-    }
+  async getAllModules(): Promise<IModuleInfo[]> {
+    return await this.repository.getAllModules();
   }
 
   /**
    * Get all enabled modules.
+   * @returns Promise that resolves to array of enabled modules.
    */
   async getEnabledModules(): Promise<IModuleInfo[]> {
-    const rows = await this.database.query<DatabaseModuleRow>(
-      'SELECT * FROM modules WHERE enabled = 1 ORDER BY name'
-    );
-
-    return rows.map(this.rowToModuleInfo);
+    return await this.repository.getEnabledModules();
   }
 
   /**
@@ -212,16 +187,7 @@ export class ModuleManagerService {
    * @returns Promise that resolves to module info or undefined.
    */
   async getModule(name: string): Promise<IModuleInfo | undefined> {
-    const rows = await this.database.query<DatabaseModuleRow>(
-      'SELECT * FROM modules WHERE name = ?',
-      [name]
-    );
-
-    if (rows.length === 0) {
-      return undefined;
-    }
-
-    return this.rowToModuleInfo(rows[0]!);
+    return await this.repository.getModule(name);
   }
 
   /**
@@ -230,10 +196,7 @@ export class ModuleManagerService {
    * @returns Promise that resolves when module is enabled.
    */
   async enableModule(name: string): Promise<void> {
-    await this.database.execute(
-      'UPDATE modules SET enabled = 1, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-      [name]
-    );
+    await this.repository.enableModule(name);
     this.logger.info(LogSource.MODULES, `Module '${name}' enabled`);
   }
 
@@ -243,34 +206,7 @@ export class ModuleManagerService {
    * @returns Promise that resolves when module is disabled.
    */
   async disableModule(name: string): Promise<void> {
-    await this.database.execute(
-      'UPDATE modules SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
-      [name]
-    );
+    await this.repository.disableModule(name);
     this.logger.info(LogSource.MODULES, `Module '${name}' disabled`);
-  }
-
-  /**
-   * Convert database row to ModuleInfo.
-   * @param row - Database row data.
-   * @returns ModuleInfo object.
-   */
-  private rowToModuleInfo(row: DatabaseModuleRow): IModuleInfo {
-    return {
-      id: row.id,
-      name: row.name,
-      version: row.version,
-      type: row.type as ModuleTypeEnum,
-      path: row.path,
-      enabled: Boolean(row.enabled),
-      autoStart: true,
-      status: ModuleStatusEnum.INSTALLED,
-      healthStatus: ModuleHealthStatusEnum.UNKNOWN,
-      dependencies: JSON.parse(row.dependencies || '[]'),
-      config: JSON.parse(row.config || '{}'),
-      metadata: JSON.parse(row.metadata || '{}'),
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    };
   }
 }

@@ -89,3 +89,10 @@ export interface IPermissionsService {
   getUserRoles(userId: string): Promise<IRole[]>;
   getRolePermissions(roleId: string): Promise<IPermission[]>;
 }
+
+/**
+ * Strongly typed exports interface for Permissions module.
+ */
+export interface IPermissionsModuleExports {
+  readonly service: () => IPermissionsService;
+}

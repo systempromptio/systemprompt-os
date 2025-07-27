@@ -11,3 +11,8 @@ export interface ITableInfo {
 export interface IRowCount {
   count: number;
 }
+
+/**
+ * Valid actions for the schema command.
+ */
+export type SchemaAction = 'list' | 'init' | 'validate';

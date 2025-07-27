@@ -1,10 +1,6 @@
-/* eslint-disable
-  @typescript-eslint/no-unnecessary-condition,
-  @typescript-eslint/strict-boolean-expressions,
-  systemprompt-os/no-block-comments
-*/
 /**
  * Permissions repository implementation - placeholder for database operations.
+ * Manages permissions, roles, and user-role assignments in memory.
  */
 
 import {
@@ -15,6 +11,7 @@ import {
 
 /**
  * Repository for permissions data operations.
+ * Implements singleton pattern for consistent data access.
  */
 export class PermissionsRepository {
   private static instance: PermissionsRepository;
@@ -26,13 +23,18 @@ export class PermissionsRepository {
   /**
    * Private constructor for singleton.
    */
-  private constructor() {}
+  private constructor() {
+    this.permissions = new Map();
+    this.roles = new Map();
+    this.rolePermissions = new Map();
+    this.userRoles = new Map();
+  }
 
   /**
    * Get singleton instance.
    * @returns The repository instance.
    */
-  static getInstance(): PermissionsRepository {
+  public static getInstance(): PermissionsRepository {
     PermissionsRepository.instance ||= new PermissionsRepository();
     return PermissionsRepository.instance;
   }
@@ -41,36 +43,38 @@ export class PermissionsRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
+    await Promise.resolve();
   }
 
   /**
    * Create a new permission.
-   * @param id - The permission ID.
-   * @param name - The permission name.
-   * @param resource - The resource identifier.
-   * @param action - The action identifier.
-   * @param description - Optional description.
+   * @param data - The permission data.
+   * @param data.id
+   * @param data.name
+   * @param data.resource
+   * @param data.action
+   * @param data.description
    * @returns Promise that resolves to the created permission.
    */
-  async createPermission(
-    id: string,
-    name: string,
-    resource: string,
-    action: string,
-    description?: string
-  ): Promise<IPermission> {
+  public async createPermission(data: {
+    id: string;
+    name: string;
+    resource: string;
+    action: string;
+    description?: string;
+  }): Promise<IPermission> {
     const permission: IPermission = {
-      id,
-      name,
-      resource,
-      action,
-      description: description || '',
+      id: data.id,
+      name: data.name,
+      resource: data.resource,
+      action: data.action,
+      description: data.description ?? '',
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    this.permissions.set(id, permission);
+    this.permissions.set(data.id, permission);
     return permission;
   }
 
@@ -79,7 +83,8 @@ export class PermissionsRepository {
    * @param id - The permission ID.
    * @returns Promise that resolves to the permission or null.
    */
-  async findPermissionById(id: string): Promise<IPermission | null> {
+  public async findPermissionById(id: string): Promise<IPermission | null> {
+    await Promise.resolve();
     return this.permissions.get(id) ?? null;
   }
 
@@ -87,34 +92,36 @@ export class PermissionsRepository {
    * Find all permissions.
    * @returns Promise that resolves to array of permissions.
    */
-  async findAllPermissions(): Promise<IPermission[]> {
+  public async findAllPermissions(): Promise<IPermission[]> {
+    await Promise.resolve();
     return Array.from(this.permissions.values());
   }
 
   /**
    * Create a new role.
-   * @param id - The role ID.
-   * @param name - The role name.
-   * @param description - Optional description.
-   * @param isSystem - Whether this is a system role.
+   * @param data - The role data.
+   * @param data.id
+   * @param data.name
+   * @param data.description
+   * @param data.isSystem
    * @returns Promise that resolves to the created role.
    */
-  async createRole(
-    id: string,
-    name: string,
-    description?: string,
-    isSystem = false
-  ): Promise<IRole> {
+  public async createRole(data: {
+    id: string;
+    name: string;
+    description?: string;
+    isSystem?: boolean;
+  }): Promise<IRole> {
     const role: IRole = {
-      id,
-      name,
-      description: description || '',
-      isSystem,
+      id: data.id,
+      name: data.name,
+      description: data.description ?? '',
+      isSystem: data.isSystem ?? false,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    this.roles.set(id, role);
+    this.roles.set(data.id, role);
     return role;
   }
 
@@ -123,7 +130,8 @@ export class PermissionsRepository {
    * @param id - The role ID.
    * @returns Promise that resolves to the role or null.
    */
-  async findRoleById(id: string): Promise<IRole | null> {
+  public async findRoleById(id: string): Promise<IRole | null> {
+    await Promise.resolve();
     return this.roles.get(id) ?? null;
   }
 
@@ -132,8 +140,10 @@ export class PermissionsRepository {
    * @param name - The role name.
    * @returns Promise that resolves to the role or null.
    */
-  async findRoleByName(name: string): Promise<IRole | null> {
-    for (const role of this.roles.values()) {
+  public async findRoleByName(name: string): Promise<IRole | null> {
+    await Promise.resolve();
+    const rolesArray = Array.from(this.roles.values());
+    for (const role of rolesArray) {
       if (role.name === name) {
         return role;
       }
@@ -145,7 +155,8 @@ export class PermissionsRepository {
    * Find all roles.
    * @returns Promise that resolves to array of roles.
    */
-  async findAllRoles(): Promise<IRole[]> {
+  public async findAllRoles(): Promise<IRole[]> {
+    await Promise.resolve();
     return Array.from(this.roles.values());
   }
 
@@ -155,7 +166,11 @@ export class PermissionsRepository {
    * @param permissionId - The permission ID.
    * @returns Promise that resolves when granted.
    */
-  async grantPermissionToRole(roleId: string, permissionId: string): Promise<void> {
+  public async grantPermissionToRole(
+    roleId: string,
+    permissionId: string
+  ): Promise<void> {
+    await Promise.resolve();
     let permissions = this.rolePermissions.get(roleId);
     if (!permissions) {
       permissions = new Set<string>();
@@ -170,7 +185,11 @@ export class PermissionsRepository {
    * @param permissionId - The permission ID.
    * @returns Promise that resolves when revoked.
    */
-  async revokePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
+  public async revokePermissionFromRole(
+    roleId: string,
+    permissionId: string
+  ): Promise<void> {
+    await Promise.resolve();
     const permissions = this.rolePermissions.get(roleId);
     if (permissions) {
       permissions.delete(permissionId);
@@ -182,14 +201,16 @@ export class PermissionsRepository {
    * @param roleId - The role ID.
    * @returns Promise that resolves to array of permissions.
    */
-  async findRolePermissions(roleId: string): Promise<IPermission[]> {
+  public async findRolePermissions(roleId: string): Promise<IPermission[]> {
+    await Promise.resolve();
     const permissionIds = this.rolePermissions.get(roleId);
     if (!permissionIds) {
       return [];
     }
 
     const permissions: IPermission[] = [];
-    for (const permissionId of permissionIds) {
+    const permissionIdsArray = Array.from(permissionIds);
+    for (const permissionId of permissionIdsArray) {
       const permission = this.permissions.get(permissionId);
       if (permission) {
         permissions.push(permission);
@@ -200,32 +221,43 @@ export class PermissionsRepository {
 
   /**
    * Assign role to user.
-   * @param userId - The user ID.
-   * @param roleId - The role ID.
-   * @param expiresAt - Optional expiration date.
+   * @param data - The assignment data.
+   * @param data.userId
+   * @param data.roleId
+   * @param data.expiresAt
    * @returns Promise that resolves when assigned.
    */
-  async assignRoleToUser(userId: string, roleId: string, expiresAt?: Date): Promise<void> {
-    let userRoles = this.userRoles.get(userId);
+  public async assignRoleToUser(data: {
+    userId: string;
+    roleId: string;
+    expiresAt?: Date;
+  }): Promise<void> {
+    await Promise.resolve();
+    let userRoles = this.userRoles.get(data.userId);
     if (!userRoles) {
       userRoles = [];
-      this.userRoles.set(userId, userRoles);
+      this.userRoles.set(data.userId, userRoles);
     }
 
-    const existingIndex = userRoles.findIndex(ur => { return ur.roleId === roleId });
+    const existingIndex = userRoles.findIndex(
+      (ur): boolean => { return ur.roleId === data.roleId }
+    );
+    const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+    const defaultExpiry = new Date(Date.now() + oneYearInMs);
+
     if (existingIndex >= 0) {
       userRoles[existingIndex] = {
-        userId,
-        roleId,
+        userId: data.userId,
+        roleId: data.roleId,
         assignedAt: new Date(),
-        expiresAt: expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        expiresAt: data.expiresAt ?? defaultExpiry
       };
     } else {
       userRoles.push({
-        userId,
-        roleId,
+        userId: data.userId,
+        roleId: data.roleId,
         assignedAt: new Date(),
-        expiresAt: expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        expiresAt: data.expiresAt ?? defaultExpiry
       });
     }
   }
@@ -236,10 +268,16 @@ export class PermissionsRepository {
    * @param roleId - The role ID.
    * @returns Promise that resolves when removed.
    */
-  async removeRoleFromUser(userId: string, roleId: string): Promise<void> {
+  public async removeRoleFromUser(
+    userId: string,
+    roleId: string
+  ): Promise<void> {
+    await Promise.resolve();
     const userRoles = this.userRoles.get(userId);
     if (userRoles) {
-      const index = userRoles.findIndex(ur => { return ur.roleId === roleId });
+      const index = userRoles.findIndex(
+        (ur): boolean => { return ur.roleId === roleId }
+      );
       if (index >= 0) {
         userRoles.splice(index, 1);
       }
@@ -251,7 +289,8 @@ export class PermissionsRepository {
    * @param userId - The user ID.
    * @returns Promise that resolves to array of user roles.
    */
-  async findUserRoles(userId: string): Promise<IUserRole[]> {
+  public async findUserRoles(userId: string): Promise<IUserRole[]> {
+    await Promise.resolve();
     return this.userRoles.get(userId) ?? [];
   }
 }

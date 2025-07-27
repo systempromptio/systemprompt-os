@@ -11,8 +11,7 @@ import { type Server } from 'http';
 import { startServer } from './server/index';
 import { tunnelStatus } from './modules/core/auth/tunnel-status';
 import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants';
-import { LogSource } from './modules/core/logger/types/index';
-import type { ILogger } from './modules/core/logger/types/index';
+import { type ILogger, LogSource } from './modules/core/logger/types/index';
 
 /**
  * Bootstrap instance for shutdown handling.
@@ -24,7 +23,9 @@ let bootstrapInstance: Bootstrap | null = null;
  * @param moduleExports - Module exports to check.
  * @returns True if exports contains service property.
  */
-const hasLoggerService = (moduleExports: unknown): moduleExports is { service: ILogger | (() => ILogger) } => {
+const hasLoggerService = (
+  moduleExports: unknown
+): moduleExports is { service: ILogger | (() => ILogger) } => {
   return typeof moduleExports === 'object' && moduleExports !== null && 'service' in moduleExports;
 };
 
@@ -32,14 +33,37 @@ const hasLoggerService = (moduleExports: unknown): moduleExports is { service: I
  * Console fallback logger that implements ILogger interface.
  */
 const consoleFallback: ILogger = {
-  debug: (_source: LogSource, message: string, _args?: unknown): void => { console.debug(message); },
-  info: (_source: LogSource, message: string, _args?: unknown): void => { console.info(message); },
-  warn: (_source: LogSource, message: string, _args?: unknown): void => { console.warn(message); },
-  error: (_source: LogSource, message: string, _args?: unknown): void => { console.error(message); },
-  log: (_level: string, _source: LogSource, message: string, _args?: unknown): void => { console.log(message); },
+  debug: (source: LogSource, message: string, args?: unknown): void => {
+    void source;
+    void args;
+    console.debug(message);
+  },
+  info: (source: LogSource, message: string, args?: unknown): void => {
+    void source;
+    void args;
+    console.info(message);
+  },
+  warn: (source: LogSource, message: string, args?: unknown): void => {
+    void source;
+    void args;
+    console.warn(message);
+  },
+  error: (source: LogSource, message: string, args?: unknown): void => {
+    void source;
+    void args;
+    console.error(message);
+  },
+  log: (level: string, source: LogSource, message: string): void => {
+    void level;
+    void source;
+    console.log(message);
+  },
   access: (message: string): void => { console.log(message); },
-  clearLogs: async (): Promise<void> => {},
-  getLogs: async (): Promise<string[]> => { return [] }
+  clearLogs: async (): Promise<void> => {
+  },
+  getLogs: async (): Promise<string[]> => {
+    return await Promise.resolve([]);
+  }
 };
 
 /**
@@ -110,7 +134,8 @@ const logStartupSummary = (logger: ILogger, bootstrap: Bootstrap): void => {
   logger.info(LogSource.BOOTSTRAP, '');
   logger.info(LogSource.BOOTSTRAP, '🎉 SystemPrompt OS Ready!');
   logger.info(LogSource.BOOTSTRAP, '📊 System Status:');
-  logger.info(LogSource.BOOTSTRAP, `  • Core Modules: ${String(bootstrap.getModules().size)} loaded`);
+  const moduleCount = String(bootstrap.getModules().size);
+  logger.info(LogSource.BOOTSTRAP, `  • Core Modules: ${moduleCount} loaded`);
   logger.info(LogSource.BOOTSTRAP, `  • Bootstrap Phase: ${bootstrap.getCurrentPhase()}`);
   logger.info(LogSource.BOOTSTRAP, '');
 };
@@ -130,6 +155,30 @@ const createShutdownHandler = (server: Server, logger: ILogger): (() => void) =>
       process.exit(EXIT_FAILURE);
     });
   };
+};
+
+/**
+ * Handles startup errors.
+ * @param error - The error that occurred.
+ */
+const handleStartupError = (error: unknown): void => {
+  if (bootstrapInstance === null) {
+    console.error('💥 Failed to start SystemPrompt OS:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack trace:', error.stack);
+    }
+  } else {
+    const logger = getLoggerService(bootstrapInstance.getModules());
+    logger.error(LogSource.BOOTSTRAP, '💥 Failed to start SystemPrompt OS:', {
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack trace:', error.stack);
+    }
+  }
+  process.exit(EXIT_FAILURE);
 };
 
 /**
@@ -154,15 +203,7 @@ const main = async (): Promise<void> => {
 
     logStartupSummary(logger, bootstrapInstance);
   } catch (error) {
-    if (bootstrapInstance === null) {
-      console.error('💥 Failed to start SystemPrompt OS:', error);
-    } else {
-      const logger = getLoggerService(bootstrapInstance.getModules());
-      logger.error(LogSource.BOOTSTRAP, '💥 Failed to start SystemPrompt OS:', {
-        error: error instanceof Error ? error : new Error(String(error))
-      });
-    }
-    process.exit(EXIT_FAILURE);
+    handleStartupError(error);
   }
 };
 

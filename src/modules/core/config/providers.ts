@@ -1,17 +1,17 @@
 /**
  * Provider configuration types.
  */
-export interface Provider {
+export interface IProvider {
   name: string;
   displayName: string;
   enabled: boolean;
-  config?: any;
+  config?: unknown;
 }
 
 /**
  * Global providers configuration object.
  */
-export const providers: Record<string, Provider> = {};
+export const providers: Record<string, IProvider> = {};
 
 /**
  * Provider registry for tracking default and enabled providers.
@@ -23,29 +23,29 @@ export const providerRegistry = {
 
 /**
  * Get all enabled providers.
- * @returns {Array} Array of enabled provider objects.
+ * @returns Array of enabled provider objects.
  */
-export function getEnabledProviders(): Provider[] {
-  return Object.values(providers).filter(provider => { return provider && provider.enabled });
-}
+export const getEnabledProviders = (): IProvider[] => {
+  return Object.values(providers).filter((provider): boolean => { return provider.enabled });
+};
 
 /**
  * Get a specific provider by name.
- * @param {string} name - Provider name.
- * @returns {Object|null} Provider object or null if not found.
+ * @param name - Provider name.
+ * @returns Provider object or null if not found.
  */
-export function getProvider(name: string): Provider | null {
-  return providers[name] || null;
-}
+export const getProvider = (name: string): IProvider | null => {
+  return providers[name] ?? null;
+};
 
 /**
  * Enable a provider.
- * @param {string} name - Provider name.
- * @returns {boolean} True if successful, false otherwise.
+ * @param name - Provider name.
+ * @returns True if successful, false otherwise.
  */
-export function enableProvider(name: string): boolean {
-  const provider = providers[name];
-  if (!provider) {
+export const enableProvider = (name: string): boolean => {
+  const { [name]: provider } = providers;
+  if (provider === null || provider === undefined) {
     return false;
   }
 
@@ -56,16 +56,16 @@ export function enableProvider(name: string): boolean {
   }
 
   return true;
-}
+};
 
 /**
  * Disable a provider.
- * @param {string} name - Provider name.
- * @returns {boolean} True if successful, false otherwise.
+ * @param name - Provider name.
+ * @returns True if successful, false otherwise.
  */
-export function disableProvider(name: string): boolean {
-  const provider = providers[name];
-  if (!provider) {
+export const disableProvider = (name: string): boolean => {
+  const { [name]: provider } = providers;
+  if (provider === null || provider === undefined) {
     return false;
   }
 
@@ -77,19 +77,19 @@ export function disableProvider(name: string): boolean {
   }
 
   return true;
-}
+};
 
 /**
  * Set default provider.
- * @param {string} name - Provider name.
- * @returns {boolean} True if successful, false otherwise.
+ * @param name - Provider name.
+ * @returns True if successful, false otherwise.
  */
-export function setDefaultProvider(name: string): boolean {
-  const provider = providers[name];
-  if (!provider || !provider.enabled) {
+export const setDefaultProvider = (name: string): boolean => {
+  const { [name]: provider } = providers;
+  if (provider === null || provider === undefined || !provider.enabled) {
     return false;
   }
 
   providerRegistry.defaultProvider = name;
   return true;
-}
+};

@@ -1,97 +1,133 @@
-/**
- * OAuth2 error types following RFC 6749.
- * @see https://tools.ietf.org/html/rfc6749#section-5.2
- */
-export enum OAuth2ErrorType {
-  InvalidRequest = 'invalid_request',
-  InvalidClient = 'invalid_client',
-  InvalidGrant = 'invalid_grant',
-  UnauthorizedClient = 'unauthorized_client',
-  UnsupportedGrantType = 'unsupported_grant_type',
-  UnsupportedResponseType = 'unsupported_response_type',
-  InvalidScope = 'invalid_scope',
-  AccessDenied = 'access_denied',
-  ServerError = 'servererror',
-}
-
-/**
- * OAuth2 error response interface.
- */
-export interface OAuth2ErrorResponse {
-  error: OAuth2ErrorType;
-  error_description?: string;
-  error_uri?: string;
-}
+import type { IOAuth2ErrorResponse } from '@/server/external/rest/oauth2/types';
+import { OAuth2ErrorTypeEnum } from '@/server/external/rest/oauth2/types';
 
 /**
  * OAuth2 error class.
  */
 export class OAuth2Error extends Error {
   public readonly code: number;
-  public readonly errorType: OAuth2ErrorType;
+  public readonly errorType: OAuth2ErrorTypeEnum;
   public readonly errorDescription?: string;
   public readonly errorUri?: string;
 
+  /**
+   * Creates an OAuth2 error.
+   * @param errorType - The OAuth2 error type.
+   * @param errorDescription - Optional error description.
+   * @param code - HTTP status code (default: 400).
+   */
   constructor(
-    errorType: OAuth2ErrorType,
+    errorType: OAuth2ErrorTypeEnum,
     errorDescription?: string,
     code: number = 400,
-    errorUri?: string,
   ) {
-    super(errorDescription || errorType);
+    super(errorDescription ?? errorType);
     this.name = 'OAuth2Error';
     this.code = code;
     this.errorType = errorType;
     if (errorDescription !== undefined) {
       this.errorDescription = errorDescription;
     }
-    if (errorUri !== undefined) {
-      this.errorUri = errorUri;
-    }
   }
 
-  toJSON(): OAuth2ErrorResponse {
-    return {
+  /**
+   * Converts the error to a JSON representation.
+   * @returns The OAuth2 error response.
+   */
+  toJSON(): IOAuth2ErrorResponse {
+    const response: IOAuth2ErrorResponse = {
       error: this.errorType,
-      ...this.errorDescription && { error_description: this.errorDescription },
-      ...this.errorUri && { error_uri: this.errorUri },
     };
+
+    if (this.errorDescription !== undefined) {
+      response.error_description = this.errorDescription;
+    }
+
+    if (this.errorUri !== undefined) {
+      response.error_uri = this.errorUri;
+    }
+
+    return response;
   }
 
-  // Static factory methods for common errors
+  /**
+   * Creates an invalid request error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static invalidRequest(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.InvalidRequest, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.INVALID_REQUEST, description);
   }
 
+  /**
+   * Creates an invalid client error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static invalidClient(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.InvalidClient, description, 401);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.INVALID_CLIENT, description, 401);
   }
 
+  /**
+   * Creates an invalid grant error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static invalidGrant(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.InvalidGrant, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.INVALID_GRANT, description);
   }
 
+  /**
+   * Creates an unauthorized client error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static unauthorizedClient(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.UnauthorizedClient, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.UNAUTHORIZED_CLIENT, description);
   }
 
+  /**
+   * Creates an unsupported grant type error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static unsupportedGrantType(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.UnsupportedGrantType, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.UNSUPPORTED_GRANT_TYPE, description);
   }
 
+  /**
+   * Creates an unsupported response type error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static unsupportedResponseType(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.UnsupportedResponseType, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.UNSUPPORTED_RESPONSE_TYPE, description);
   }
 
+  /**
+   * Creates an invalid scope error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static invalidScope(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.InvalidScope, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.INVALID_SCOPE, description);
   }
 
+  /**
+   * Creates an access denied error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static accessDenied(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.AccessDenied, description);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.ACCESS_DENIED, description);
   }
 
+  /**
+   * Creates a server error.
+   * @param description - Optional error description.
+   * @returns OAuth2Error instance.
+   */
   static serverError(description?: string): OAuth2Error {
-    return new OAuth2Error(OAuth2ErrorType.ServerError, description, 500);
+    return new OAuth2Error(OAuth2ErrorTypeEnum.SERVER_ERROR, description, 500);
   }
 }

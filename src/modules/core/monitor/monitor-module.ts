@@ -6,8 +6,12 @@
 import { EventEmitter } from 'events';
 import type { IModule } from '@/modules/core/modules/types/index';
 import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
-import { MetricService } from '@/modules/core/monitor/services/metric-service';
-import type { MonitorRepository } from '@/modules/core/monitor/repositories/monitor-repository';
+import { MetricService } from '@/modules/core/monitor/services/metric.service';
+import type {
+  IMetricData,
+  IMetricQuery,
+  MonitorRepository
+} from '@/modules/core/monitor/repositories/monitor-repository';
 
 interface MonitorModuleConfig {
   name: string;
@@ -38,12 +42,12 @@ interface MonitorModuleConfig {
 interface MonitorModuleDependencies {
   logger: {
     info: (message: string) => void;
-    error: (message: string, data?: any) => void;
+    error: (message: string, data?: unknown) => void;
     warn: (message: string) => void;
     debug: (message: string) => void;
   };
   database: {
-    getAdapter: (name: string) => any;
+    getAdapter: (name: string) => unknown;
   };
 }
 
@@ -61,17 +65,17 @@ interface HealthCheckResult {
  * Mock repository implementation for monitor data.
  */
 class MockMonitorRepository implements MonitorRepository {
-  constructor(private readonly db: any) {
-    void this.db
+  constructor(private readonly db: unknown) {
+    void this.db;
   }
 
-  async recordMetric(data: any): Promise<void> {
-    void data
+  async recordMetric(data: IMetricData): Promise<void> {
+    void data;
     await Promise.resolve();
   }
 
-  async getMetrics(query: any): Promise<any[]> {
-    void query
+  async getMetrics(query: IMetricQuery): Promise<IMetricData[]> {
+    void query;
     return await Promise.resolve([]);
   }
 
@@ -80,7 +84,7 @@ class MockMonitorRepository implements MonitorRepository {
   }
 
   async deleteOldMetrics(retentionDays: number): Promise<void> {
-    void retentionDays
+    void retentionDays;
     await Promise.resolve();
   }
 }
@@ -97,10 +101,16 @@ export interface IMonitorModuleExports {
  * @param module - Module to check.
  * @returns True if module is a Monitor module.
  */
-export function isMonitorModule(module: any): module is IModule<IMonitorModuleExports> {
-  return module?.name === 'monitor'
+export function isMonitorModule(module: unknown): module is IModule<IMonitorModuleExports> {
+  return module !== null
+         && module !== undefined
+         && typeof module === 'object'
+         && 'name' in module
+         && module.name === 'monitor'
+         && 'exports' in module
          && Boolean(module.exports)
          && typeof module.exports === 'object'
+         && module.exports !== null
          && 'MonitorService' in module.exports;
 }
 
@@ -113,7 +123,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
   private deps?: MonitorModuleDependencies;
   private repository?: MonitorRepository;
   private metricService?: MetricService;
-  private cleanupInterval?: NodeJS.Timeout;
+  private cleanupInterval?: NodeJS.Timeout | undefined;
   public exports!: IMonitorModuleExports;
 
   constructor() {
@@ -156,7 +166,11 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
       deps.logger.info('Monitor module initialized');
     } catch (error) {
       this.status = ModuleStatusEnum.ERROR;
-      this.deps?.logger.error('Failed to initialize Monitor module', error);
+      const errorInfo = error instanceof Error ? {
+ message: error.message,
+stack: error.stack
+} : { error };
+      this.deps?.logger.error('Failed to initialize Monitor module', errorInfo);
       throw error;
     }
   }
@@ -183,7 +197,11 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
       this.deps?.logger.info('Monitor module started');
     } catch (error) {
       this.status = ModuleStatusEnum.ERROR;
-      this.deps?.logger.error('Failed to start Monitor module', error);
+      const errorInfo = error instanceof Error ? {
+ message: error.message,
+stack: error.stack
+} : { error };
+      this.deps?.logger.error('Failed to start Monitor module', errorInfo);
       throw error;
     }
   }
@@ -194,7 +212,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
 
       if (this.cleanupInterval) {
         clearInterval(this.cleanupInterval);
-        this.cleanupInterval = undefined as any;
+        this.cleanupInterval = undefined;
       }
 
       if (this.metricService) {
@@ -205,7 +223,11 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
       this.deps?.logger.info('Monitor module stopped');
     } catch (error) {
       this.status = ModuleStatusEnum.ERROR;
-      this.deps?.logger.error('Failed to stop Monitor module', error);
+      const errorInfo = error instanceof Error ? {
+ message: error.message,
+stack: error.stack
+} : { error };
+      this.deps?.logger.error('Failed to stop Monitor module', errorInfo);
       throw error;
     }
   }
@@ -229,7 +251,9 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
 
       try {
         const adapter = this.deps.database.getAdapter('monitor');
-        await adapter.query('SELECT 1');
+        if (adapter && typeof adapter === 'object' && 'query' in adapter && typeof adapter.query === 'function') {
+          await adapter.query('SELECT 1');
+        }
       } catch (error) {
         databaseHealthy = false;
         serviceHealthy = false;
@@ -284,7 +308,11 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     try {
       await this.metricService.cleanupOldMetrics(this.config.config.cleanup.retentionDays);
     } catch (error) {
-      this.deps?.logger.error('Failed to perform cleanup', error);
+      const errorInfo = error instanceof Error ? {
+ message: error.message,
+stack: error.stack
+} : { error };
+      this.deps?.logger.error('Failed to perform cleanup', errorInfo);
     }
   }
 }

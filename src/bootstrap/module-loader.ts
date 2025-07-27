@@ -9,7 +9,7 @@ import type {
   ICoreModuleDefinition,
 } from '@/types/bootstrap';
 import type { ModuleConstructor } from '@/types/bootstrap-module';
-import { MIN_MODULE_NAME_LENGTH } from '@/const/bootstrap';
+import { MIN_MODULE_NAME_LENGTH } from '@/constants/bootstrap';
 
 /**
  * Find module class in exports.
@@ -52,7 +52,7 @@ export const createModuleInstance = (
   name: string,
   type: string,
 ): IModule => {
-  if (type === 'self-contained') {
+  if (type === 'self-contained' || type === 'service') {
     if (typeof moduleExports.createModule === 'function') {
       const createFn = moduleExports.createModule as () => IModule;
       return createFn();
@@ -62,7 +62,7 @@ export const createModuleInstance = (
       const ModuleConstructorFn = moduleExports.default as ModuleConstructor;
       return new ModuleConstructorFn();
     }
-    throw new Error(`Self-contained module ${name} must export createModule function`);
+    throw new Error(`Module ${name} must export createModule function or default constructor`);
   }
   throw new Error(`Unknown module type: ${type}`);
 };

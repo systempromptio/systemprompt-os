@@ -1,0 +1,1 @@
+run ./bin/systemprompt cli, check core modules, run dev, compile and in docker. Ensure that the project runs cleanly, and fix any errors

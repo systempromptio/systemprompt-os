@@ -24,6 +24,8 @@ config:
     access: access.log
 cli:
   commands:
+    - name: status
+      description: Show logger module status (enabled/healthy)
     - name: show
       description: Show recent logs from database
       options:

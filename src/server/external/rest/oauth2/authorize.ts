@@ -170,16 +170,16 @@ const buildProviderParams = (
   providerParams.set('scope', params.scope);
   providerParams.set('provider', providerName);
 
-  if (params.state) {
+  if (params.state !== undefined) {
     providerParams.set('state', params.state);
   }
-  if (params.nonce) {
+  if (params.nonce !== undefined) {
     providerParams.set('nonce', params.nonce);
   }
-  if (params.codeChallenge) {
+  if (params.codeChallenge !== undefined) {
     providerParams.set('codeChallenge', params.codeChallenge);
   }
-  if (params.codeChallengeMethod) {
+  if (params.codeChallengeMethod !== undefined) {
     providerParams.set('codeChallengeMethod', params.codeChallengeMethod);
   }
 
@@ -258,15 +258,15 @@ const generateConsentPageHtml = (
 ): string => {
   const scopeItems = params.scope
     .split(' ')
-    .map((scope) => { return `<li class="scope-item">${scope}</li>` })
+    .map((scope): string => { return `<li class="scope-item">${scope}</li>` })
     .join('');
 
   const providerButtons = availableProviders
-    .map((provider) => { return generateProviderButton(provider, params) })
+    .map((provider): string => { return generateProviderButton(provider, params) })
     .join('');
 
-  const cancelUrl = `${params.redirectUri ?? ''}?error=access_denied${
-    params.state ? `&state=${params.state}` : ''
+  const cancelUrl = `${params.redirectUri}?error=access_denied${
+    params.state !== undefined ? `&state=${params.state}` : ''
   }`;
 
   return `
@@ -319,7 +319,7 @@ const generateErrorPageHtml = (title: string, message: string, description?: str
     <body>
       <h1>${title}</h1>
       <p>${message}</p>
-      ${description ? `<p>${description}</p>` : ''}
+      ${description !== undefined ? `<p>${description}</p>` : ''}
     </body>
     </html>
   `;
@@ -328,16 +328,17 @@ const generateErrorPageHtml = (title: string, message: string, description?: str
 /**
  * Extract avatar URL from user info.
  * @param userInfo - User information from OAuth provider.
- * @param userInfo.picture
- * @param userInfo.raw
+ * @param userInfo.picture - Optional picture URL.
+ * @param userInfo.raw - Raw user data that may contain avatar URL.
  * @returns Avatar URL or undefined.
  */
 const extractAvatarUrl = (userInfo: { picture?: string; raw?: unknown }): string | undefined => {
-  if (userInfo.picture) {
+  if (userInfo.picture !== undefined) {
     return userInfo.picture;
   }
 
-  if (userInfo.raw
+  if (userInfo.raw !== undefined
+      && userInfo.raw !== null
       && typeof userInfo.raw === 'object'
       && 'avatarUrl' in userInfo.raw
       && typeof userInfo.raw.avatarUrl === 'string') {
@@ -353,13 +354,17 @@ const extractAvatarUrl = (userInfo: { picture?: string; raw?: unknown }): string
  * @param redirectUri - Redirect URI.
  * @param state - State parameter.
  */
-const handleAuthorizationDenial = (res: ExpressResponse, redirectUri: string, state?: string): void => {
+const handleAuthorizationDenial = (
+  res: ExpressResponse,
+  redirectUri: string,
+  state?: string
+): void => {
   const params = new URLSearchParams({
     error: 'access_denied',
     errorDescription: 'User denied the authorization request'
   });
 
-  if (state) {
+  if (state !== undefined) {
     params.append('state', state);
   }
 
@@ -369,17 +374,20 @@ const handleAuthorizationDenial = (res: ExpressResponse, redirectUri: string, st
 /**
  * Create authorization code parameters.
  * @param params - Authorization request parameters.
- * @param params.clientId
+ * @param params.clientId - OAuth client ID.
+ * @param params.redirectUri - Redirect URI for authorization response.
+ * @param params.scope - Requested OAuth scopes.
+ * @param params.provider - OAuth provider name.
+ * @param params.providerCode - Authorization code from provider.
+ * @param params.codeChallenge - PKCE code challenge.
+ * @param params.codeChallengeMethod - PKCE challenge method.
  * @param user - Authenticated user.
- * @param params.redirectUri
- * @param params.scope
- * @param params.provider
- * @param params.providerCode
- * @param params.codeChallenge
- * @param params.codeChallengeMethod
  * @returns Authorization code parameters.
  */
-const createAuthCodeParams = (params: IAuthorizeRequestParams, user: IAuthenticatedUser): IAuthCodeParams => {
+const createAuthCodeParams = (
+  params: IAuthorizeRequestParams,
+  user: IAuthenticatedUser
+): IAuthCodeParams => {
   const authCodeParams: IAuthCodeParams = {
     clientId: params.clientId,
     redirectUri: params.redirectUri,
@@ -389,16 +397,16 @@ const createAuthCodeParams = (params: IAuthorizeRequestParams, user: IAuthentica
     expiresAt: new Date(Date.now() + 10 * 60 * 1000)
   };
 
-  if (params.provider) {
+  if (params.provider !== undefined) {
     authCodeParams.provider = params.provider;
   }
-  if (params.providerCode) {
+  if (params.providerCode !== undefined) {
     authCodeParams.providerTokens = { code: params.providerCode };
   }
-  if (params.codeChallenge) {
+  if (params.codeChallenge !== undefined) {
     authCodeParams.codeChallenge = params.codeChallenge;
   }
-  if (params.codeChallengeMethod) {
+  if (params.codeChallengeMethod !== undefined) {
     authCodeParams.codeChallengeMethod = params.codeChallengeMethod;
   }
 
@@ -431,23 +439,23 @@ export class AuthorizeEndpoint {
    * Display authorization consent screen.
    * @param req - Express request object.
    * @param res - Express response object.
-   * @returns Promise resolving to response or void.
+   * @returns Response or void.
    */
-  public getAuthorize = async (
+  public getAuthorize = (
     req: ExpressRequest,
     res: ExpressResponse
-  ): Promise<ExpressResponse | void> => {
+  ): ExpressResponse | void => {
     try {
       const params = authorizeRequestSchema.parse(req.query);
 
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
 
-      if (!providerRegistry) {
+      if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');
       }
 
-      if (params.provider) {
+      if (params.provider !== undefined) {
         logger.info(LogSource.AUTH, 'Redirecting to OAuth provider', {
           category: 'oauth2',
           action: 'redirect',
@@ -457,7 +465,7 @@ export class AuthorizeEndpoint {
         const provider = providerRegistry.getProvider(
           params.provider.toLowerCase()
         );
-        if (!provider) {
+        if (provider === undefined) {
           throw new Error(`Unknown provider: ${params.provider}`);
         }
 
@@ -467,13 +475,13 @@ export class AuthorizeEndpoint {
           scope: params.scope
         };
 
-        if (params.state) {
+        if (params.state !== undefined) {
           stateData.originalState = params.state;
         }
-        if (params.codeChallenge) {
+        if (params.codeChallenge !== undefined) {
           stateData.codeChallenge = params.codeChallenge;
         }
-        if (params.codeChallengeMethod) {
+        if (params.codeChallengeMethod !== undefined) {
           stateData.codeChallengeMethod = params.codeChallengeMethod;
         }
 
@@ -528,7 +536,7 @@ export class AuthorizeEndpoint {
       const state = typeof bodyObj.state === 'string' ? bodyObj.state : undefined;
 
       if (action === 'deny') {
-        if (!redirectUri) {
+        if (redirectUri === undefined) {
           throw new Error('Redirect URI is required');
         }
         handleAuthorizationDenial(res, redirectUri, state);
@@ -539,7 +547,7 @@ export class AuthorizeEndpoint {
 
       const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
       const { user } = extendedReq;
-      if (!user) {
+      if (user === undefined) {
         throw new Error('User not authenticated');
       }
 
@@ -553,7 +561,7 @@ export class AuthorizeEndpoint {
       await authCodeServiceInstance.cleanupExpiredCodes();
 
       const responseParams = new URLSearchParams({ code });
-      if (params.state) {
+      if (params.state !== undefined) {
         responseParams.append('state', params.state);
       }
 
@@ -628,13 +636,13 @@ export class AuthorizeEndpoint {
       const authModule = getAuthModule();
       const providerRegistry = authModule.exports.getProviderRegistry();
 
-      if (!providerRegistry) {
+      if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');
       }
 
       const providerInstance = providerRegistry.getProvider(providerName);
 
-      if (!providerInstance) {
+      if (providerInstance === undefined) {
         throw new Error(`Unknown provider: ${provider}`);
       }
 
@@ -658,10 +666,10 @@ export class AuthorizeEndpoint {
       };
 
       const { name } = userInfo;
-      if (name) {
+      if (name !== undefined) {
         userData.name = name;
       }
-      if (avatarUrl) {
+      if (avatarUrl !== undefined) {
         userData.avatar = avatarUrl;
       }
 
@@ -690,10 +698,10 @@ export class AuthorizeEndpoint {
       };
 
       const { codeChallenge, codeChallengeMethod } = stateData;
-      if (codeChallenge) {
+      if (codeChallenge !== undefined) {
         authCodeParams.codeChallenge = codeChallenge;
       }
-      if (codeChallengeMethod) {
+      if (codeChallengeMethod !== undefined) {
         authCodeParams.codeChallengeMethod = codeChallengeMethod;
       }
 
@@ -705,7 +713,7 @@ export class AuthorizeEndpoint {
 
       const responseParams = new URLSearchParams({ code: authCode });
       const { originalState } = stateData;
-      if (originalState) {
+      if (originalState !== undefined) {
         responseParams.append('state', originalState);
       }
 

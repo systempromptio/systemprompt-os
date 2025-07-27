@@ -16,6 +16,8 @@ config:
     debug: false
 cli:
   commands:
+    - name: status
+      description: Show config module status (enabled/healthy)
     - name: get
       description: Get configuration value
       options:

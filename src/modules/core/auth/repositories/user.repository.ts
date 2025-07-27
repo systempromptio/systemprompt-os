@@ -11,7 +11,7 @@ import type {
   IDatabaseUser,
   IUserWithRoles,
 } from '@/modules/core/auth/types/user-service.types';
-import { ZERO } from '@/const/numbers';
+import { ZERO } from '@/constants/numbers';
 
 /**
  * UserRepository class for handling user data operations.

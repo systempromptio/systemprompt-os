@@ -9,7 +9,7 @@ import type {
   Response as ExpressResponse,
   Router
 } from 'express';
-import { type IAuthModuleWithExports, getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IdentityProvider } from '@/modules/core/auth/types/index';
@@ -37,8 +37,8 @@ export class AuthEndpoint {
     try {
       const error = typeof req.query.error === 'string' ? req.query.error : undefined;
 
-      const authModule: IAuthModuleWithExports = getAuthModule();
-      const providerRegistry: ProviderRegistry | null = authModule.getProviderRegistry();
+      const authModule = getAuthModule();
+      const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry();
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');

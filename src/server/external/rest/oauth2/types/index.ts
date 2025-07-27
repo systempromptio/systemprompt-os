@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+export * from '@/server/external/rest/oauth2/types/errors.types';
 
 /**
  * Client registration request as per RFC 7591.
@@ -155,4 +155,19 @@ export interface IUserSessionData {
   userId: string;
   provider?: string;
   providerTokens?: Record<string, unknown>;
+}
+
+/**
+ * OAuth2 UserInfo response structure.
+ * @see {@link https://openid.net/specs/openid-connect-core-1_0.html#UserInfo}
+ */
+export interface IUserInfo {
+  sub: string;
+  name?: string;
+  preferred_username?: string;
+  email?: string;
+  email_verified?: boolean;
+  agent_id?: string;
+  agent_type?: string;
+  picture?: string;
 }

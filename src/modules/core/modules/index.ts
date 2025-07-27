@@ -7,29 +7,20 @@
  */
 
 import {
- type IModule, type IModuleInfo, ModuleStatusEnum
+  type IModule,
+  type IModuleInfo,
+  type IModulesModuleExports,
+  type IScannedModule,
+  type IModuleScannerService,
+  ModuleStatusEnum
 } from '@/modules/core/modules/types/index';
+
+// Re-export the IModulesModuleExports type
+export type { IModulesModuleExports } from '@/modules/core/modules/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
-
-/**
- * Strongly typed exports interface for Modules module.
- */
-export interface IModulesModuleExports {
-  readonly service: () => ModuleManagerService | undefined;
-  readonly scanForModules: () => Promise<any>;
-  readonly getEnabledModules: () => Promise<IModuleInfo[]>;
-  readonly getModule: (name: string) => Promise<IModuleInfo | undefined>;
-  readonly enableModule: (name: string) => Promise<void>;
-  readonly disableModule: (name: string) => Promise<void>;
-  readonly registerCoreModule: (
-    name: string,
-    path: string,
-    dependencies?: string[],
-  ) => Promise<void>;
-}
 
 /**
  * Self-contained modules module for managing SystemPrompt OS modules.
@@ -43,36 +34,89 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
   public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private service!: ModuleManagerService;
   private logger!: ILogger;
-  private database!: DatabaseService;
   private initialized = false;
   private started = false;
   get exports(): IModulesModuleExports {
     return {
-      service: () => {
-        return this.getService();
+      service: (): IModuleScannerService | undefined => {
+        try {
+          const svc = this.getService();
+          // Return a wrapper that implements IModuleScannerService
+          return {
+            scan: async (_options) => {
+              // ModuleManagerService doesn't have scan method, use scanForModules instead
+              return await svc.scanForModules();
+            },
+            getEnabledModules: async () => await svc.getEnabledModules(),
+            updateModuleStatus: async (_name, _status, _error) => {
+              // ModuleManagerService doesn't have this method
+              throw new Error('updateModuleStatus not implemented');
+            },
+            setModuleEnabled: async (name, enabled) => {
+              if (enabled) {
+                await svc.enableModule(name);
+              } else {
+                await svc.disableModule(name);
+              }
+            },
+            updateModuleHealth: async (_name, _healthy, _message) => {
+              // ModuleManagerService doesn't have this method
+              throw new Error('updateModuleHealth not implemented');
+            },
+            getModule: async (name) => await svc.getModule(name),
+            getRegisteredModules: async () => {
+              // ModuleManagerService doesn't have this method, use getEnabledModules
+              return await svc.getEnabledModules();
+            }
+          };
+        } catch {
+          return undefined;
+        }
       },
-      scanForModules: async () => {
+      scanForModules: async (): Promise<IScannedModule[]> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         return await svc.scanForModules();
       },
-      getEnabledModules: async () => {
+      getEnabledModules: async (): Promise<IModuleInfo[]> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         return await svc.getEnabledModules();
       },
-      getModule: async (name: string) => {
+      getModule: async (name: string): Promise<IModuleInfo | undefined> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         return await svc.getModule(name);
       },
-      enableModule: async (name: string) => {
+      enableModule: async (name: string): Promise<void> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         await svc.enableModule(name);
       },
-      disableModule: async (name: string) => {
+      disableModule: async (name: string): Promise<void> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         await svc.disableModule(name);
       },
-      registerCoreModule: async (name: string, path: string, dependencies: string[] = []) => {
+      registerCoreModule: async (
+        name: string,
+        path: string,
+        dependencies: string[] = []
+      ): Promise<void> => {
         const svc = this.getService();
+        if (!svc) {
+          throw new Error('Module manager service not available');
+        }
         await svc.registerCoreModule(name, path, dependencies);
       },
     };
@@ -82,7 +126,6 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
    * Initialize the modules module.
    */
   async initialize(): Promise<void> {
-    this.database = DatabaseService.getInstance();
     this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new Error('Modules module already initialized');
@@ -90,7 +133,7 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
 
     try {
       this.logger = LoggerService.getInstance();
-      this.database = DatabaseService.getInstance();
+      const database = DatabaseService.getInstance();
 
       const config = {
         modulesPath: './src/modules',
@@ -98,8 +141,8 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
         extensionsPath: './extensions',
       };
 
-      this.service = ModuleManagerService.getInstance(config, this.logger, this.database);
-      await this.service.initialize();
+      this.service = ModuleManagerService.getInstance(config, this.logger, database);
+      this.service.initialize();
 
       this.initialized = true;
       this.logger.info(LogSource.MODULES, 'Modules module initialized');
@@ -163,11 +206,24 @@ export class ModulesModule implements IModule<IModulesModuleExports> {
   /**
    * Get the module manager service instance.
    * @returns The module manager service instance.
-   * @throws {Error} If module not initialized.
+   * @throws {Error} If service not available.
    */
   getService(): ModuleManagerService {
-    if (!this.initialized) {
-      throw new Error('Modules module not initialized');
+    if (!this.service) {
+      const config = {
+        modulesPath: './src/modules',
+        injectablePath: './src/modules/extension',
+        extensionsPath: './extensions',
+      };
+
+      try {
+        const logger = LoggerService.getInstance();
+        const database = DatabaseService.getInstance();
+        this.service = ModuleManagerService.getInstance(config, logger, database);
+        this.service.initialize();
+      } catch {
+        throw new Error('Modules service not available - required services not initialized');
+      }
     }
     return this.service;
   }
@@ -196,26 +252,39 @@ export const initialize = async (): Promise<ModulesModule> => {
  * @returns The Modules module with guaranteed typed exports.
  * @throws {Error} If Modules module is not available or missing required exports.
  */
-export function getModulesModule(): IModule<IModulesModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
+export const getModulesModule = async (): Promise<IModule<IModulesModuleExports>> => {
+  const { getModuleLoader } = await import('@/modules/loader');
+  const { ModuleName } = await import('@/modules/types/index');
 
   const moduleLoader = getModuleLoader();
-  const modulesModule = moduleLoader.getModule(ModuleName.MODULES);
+  const modulesModule = moduleLoader.getModule(ModuleName.MODULES) as unknown as IModule<IModulesModuleExports>;
 
-  if (!modulesModule.exports?.service || typeof modulesModule.exports.service !== 'function') {
+  if (!modulesModule) {
+    throw new Error('Modules module not found in module loader');
+  }
+
+  if (
+    !modulesModule.exports?.service
+    || typeof modulesModule.exports.service !== 'function'
+  ) {
     throw new Error('Modules module missing required service export');
   }
 
-  if (!modulesModule.exports?.scanForModules || typeof modulesModule.exports.scanForModules !== 'function') {
+  if (
+    !modulesModule.exports.scanForModules
+    || typeof modulesModule.exports.scanForModules !== 'function'
+  ) {
     throw new Error('Modules module missing required scanForModules export');
   }
 
-  if (!modulesModule.exports?.getEnabledModules || typeof modulesModule.exports.getEnabledModules !== 'function') {
+  if (
+    !modulesModule.exports.getEnabledModules
+    || typeof modulesModule.exports.getEnabledModules !== 'function'
+  ) {
     throw new Error('Modules module missing required getEnabledModules export');
   }
 
-  return modulesModule as IModule<IModulesModuleExports>;
-}
+  return modulesModule;
+};
 
 export default ModulesModule;

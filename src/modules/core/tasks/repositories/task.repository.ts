@@ -11,9 +11,9 @@ import type {
   ITaskStatistics
 } from '@/modules/core/tasks/types/index';
 import {
-  TaskExecutionStatus,
-  TaskPriority,
-  TaskStatus
+  TaskExecutionStatusEnum,
+  TaskPriorityEnum,
+  TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
 
 /**
@@ -62,8 +62,8 @@ export class TaskRepository {
       type: task.type,
       moduleId: task.moduleId,
       payload: task.payload != null ? JSON.stringify(task.payload) : null,
-      priority: task.priority ?? TaskPriority.NORMAL,
-      status: TaskStatus.PENDING,
+      priority: task.priority ?? TaskPriorityEnum.NORMAL,
+      status: TaskStatusEnum.PENDING,
       retryCount: 0,
       maxRetries: task.maxRetries ?? 3,
       scheduledAt: task.scheduledAt?.toISOString(),
@@ -126,7 +126,7 @@ export class TaskRepository {
       WHERE status = ? 
       AND (scheduled_at IS NULL OR scheduled_at <= ?)
     `;
-    const params: unknown[] = [TaskStatus.PENDING, now];
+    const params: unknown[] = [TaskStatusEnum.PENDING, now];
 
     if (types != null && types.length > 0) {
       const placeholders = types.map((): string => { return '?' }).join(',');
@@ -156,7 +156,7 @@ export class TaskRepository {
    * @param status - New status.
    * @returns Promise that resolves when update is complete.
    */
-  async updateStatus(taskId: number, status: TaskStatus): Promise<void> {
+  async updateStatus(taskId: number, status: TaskStatusEnum): Promise<void> {
     await this.database.execute(
       'UPDATE tasks_queue SET status = ? WHERE id = ?',
       [status, taskId]
@@ -232,7 +232,7 @@ export class TaskRepository {
    * @param status - Execution status.
    * @returns Promise that resolves when record is created.
    */
-  async createExecution(taskId: number, status: TaskExecutionStatus): Promise<void> {
+  async createExecution(taskId: number, status: TaskExecutionStatusEnum): Promise<void> {
     await this.database.execute(
       'INSERT INTO tasks_executions (task_id, status) VALUES (?, ?)',
       [taskId, status]
@@ -245,7 +245,7 @@ export class TaskRepository {
    * @param status - New execution status.
    * @returns Promise that resolves when update is complete.
    */
-  async updateExecution(taskId: number, status: TaskExecutionStatus): Promise<void> {
+  async updateExecution(taskId: number, status: TaskExecutionStatusEnum): Promise<void> {
     await this.database.execute(
       `UPDATE tasks_executions 
        SET status = ?, completed_at = CURRENT_TIMESTAMP,
@@ -282,7 +282,7 @@ export class TaskRepository {
 
     const avgTimeResult = await this.database.query<{ avg_time: number | null }>(
       'SELECT AVG(duration_ms) as avg_time FROM tasks_executions WHERE status = ?',
-      [TaskExecutionStatus.SUCCESS]
+      [TaskExecutionStatusEnum.SUCCESS]
     );
 
     const avgTime = avgTimeResult[0]?.avg_time;
@@ -290,11 +290,11 @@ export class TaskRepository {
 
     return {
       total,
-      pending: statusCounts[TaskStatus.PENDING] ?? 0,
-      inProgress: statusCounts[TaskStatus.IN_PROGRESS] ?? 0,
-      completed: statusCounts[TaskStatus.COMPLETED] ?? 0,
-      failed: statusCounts[TaskStatus.FAILED] ?? 0,
-      cancelled: statusCounts[TaskStatus.CANCELLED] ?? 0,
+      pending: statusCounts[TaskStatusEnum.PENDING] ?? 0,
+      inProgress: statusCounts[TaskStatusEnum.IN_PROGRESS] ?? 0,
+      completed: statusCounts[TaskStatusEnum.COMPLETED] ?? 0,
+      failed: statusCounts[TaskStatusEnum.FAILED] ?? 0,
+      cancelled: statusCounts[TaskStatusEnum.CANCELLED] ?? 0,
       ...avgTime != null && { averageExecutionTime: avgTime },
       tasksByType
     };
@@ -337,7 +337,7 @@ export class TaskRepository {
    * @returns Mapped task object.
    */
   private mapRowToTask(row: ITaskRow): ITask {
-    if (!Object.values(TaskStatus).includes(row.status as TaskStatus)) {
+    if (!Object.values(TaskStatusEnum).includes(row.status as TaskStatusEnum)) {
       throw new Error(`Invalid task status: ${row.status}`);
     }
 
@@ -346,7 +346,7 @@ export class TaskRepository {
       type: row.type,
       moduleId: row.module_id,
       priority: row.priority,
-      status: row.status as TaskStatus,
+      status: row.status as TaskStatusEnum,
       retryCount: row.retry_count,
       maxRetries: row.max_retries,
       createdAt: new Date(row.created_at),

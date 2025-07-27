@@ -6,14 +6,12 @@
  */
 
 import { Command } from 'commander';
-import type { CLIContext } from '@/modules/core/cli/types/index';
-import { bootstrapCli } from '@/modules/core/cli/services/bootstrap-cli.service';
+import type { CLIContext, CLIOption } from '@/modules/core/cli/types/index';
 import type { CliService } from '@/modules/core/cli/services/cli.service';
 import type { Bootstrap } from '@/bootstrap';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
-import type { CLIOption } from '@/modules/core/cli/types/index';
 
 /**
  * Global bootstrap instance for cleanup.
@@ -23,18 +21,24 @@ let globalBootstrap: { shutdown: () => Promise<void> } | null = null;
 /**
  * Ensure clean exit on process termination.
  */
-process.on('SIGINT', async (): Promise<void> => {
+process.on('SIGINT', (): void => {
   if (globalBootstrap) {
-    await globalBootstrap.shutdown();
+    void globalBootstrap.shutdown().finally((): void => {
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
   }
-  process.exit(0);
 });
 
-process.on('SIGTERM', async (): Promise<void> => {
+process.on('SIGTERM', (): void => {
   if (globalBootstrap) {
-    await globalBootstrap.shutdown();
+    void globalBootstrap.shutdown().finally((): void => {
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
   }
-  process.exit(0);
 });
 
 const program = new Command();
@@ -46,7 +50,7 @@ program
   )
   .version('0.1.0')
   .configureHelp({
-    formatHelp: (cmd, helper): string => {
+    formatHelp: (cmd, _helper): string => {
       try {
         const formatter = CliFormatterService.getInstance();
         return formatter.formatHelp(cmd, true);
@@ -55,18 +59,22 @@ program
          * Fallback to default help if formatting fails.
          */
         console.error('CLI formatting error:', error);
-        // Generate a simple fallback help
+        /**
+         * Generate a simple fallback help.
+         */
         const name = cmd.name();
         const description = cmd.description();
         const usage = cmd.usage() || '';
         let helpText = `\n  ${name}`;
-        if (description) helpText += ` - ${description}`;
+        if (description) {
+          helpText += ` - ${description}`;
+        }
         helpText += `\n\n  Usage: ${name} ${usage}\n`;
         
         const options = cmd.options;
         if (options.length > 0) {
           helpText += '\n  Options:\n';
-          options.forEach(opt => {
+          options.forEach((opt): void => {
             helpText += `    ${opt.flags.padEnd(20)} ${opt.description || ''}\n`;
           });
         }
@@ -79,6 +87,11 @@ program
 interface ICommandModule {
   command?: { execute?: (context: CLIContext) => Promise<void> };
   default?: { execute?: (context: CLIContext) => Promise<void> } | ((context: CLIContext) => Promise<void>);
+}
+
+interface IBootstrapCliResult {
+  cliService: CliService;
+  bootstrap: Bootstrap;
 }
 
 /**
@@ -148,8 +161,7 @@ const createCommandAction = (cmd: IParsedDatabaseCommand):
     /**
      * Dynamic import needed for loading command modules at runtime.
      */
-    // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
-    const module = await import(cmd.executor_path);
+    const module = await import(cmd.executor_path) as ICommandModule;
     const executor = findExecutor(module);
 
     if (executor !== undefined) {
@@ -181,7 +193,10 @@ const createCommandAction = (cmd: IParsedDatabaseCommand):
 const registerCommand = (cmd: IParsedDatabaseCommand): void => {
   if (!cmd.command_path || typeof cmd.command_path !== 'string') {
     const logger = LoggerService.getInstance();
-    logger.debug(LogSource.CLI, `Skipping command with invalid command_path: ${typeof cmd.command_path} "${String(cmd.command_path)}"`);
+    logger.debug(
+      LogSource.CLI, 
+      `Skipping command with invalid command_path: ${typeof cmd.command_path} "${String(cmd.command_path)}"`
+    );
     return;
   }
   const commandParts = cmd.command_path.split(':');
@@ -190,6 +205,9 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
 
   for (let i = 0; i < commandParts.length; i += 1) {
     const part = commandParts[i];
+    if (part === undefined) {
+      continue;
+    }
     const isLastPart = i === commandParts.length - 1;
     const foundCommand = command.commands.find(
       (commandItem): boolean => { return commandItem.name() === part; });
@@ -197,7 +215,7 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
     if (foundCommand !== undefined) {
       command = foundCommand;
     } else if (isLastPart) {
-      const newCommand = command.command(part!);
+      const newCommand = command.command(part);
       if (cmd.description !== undefined && cmd.description !== '') {
         newCommand.description(cmd.description);
       }
@@ -215,7 +233,9 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
         }
       }
 
-      // Apply consistent formatting to subcommands
+      /**
+       * Apply consistent formatting to subcommands.
+       */
       newCommand.configureHelp({
         formatHelp: (subCmd): string => {
           return formatter.formatHelp(subCmd, false);
@@ -244,11 +264,13 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
  * @returns The CLI service instance and bootstrap instance.
  * @throws {Error} If CLI bootstrap fails.
  */
-const registerModuleCommands = async (): Promise<{ cliService: CliService; bootstrap: Bootstrap }> => {
-  const { cliService, bootstrap } = await bootstrapCli();
+const registerModuleCommands = async (): Promise<IBootstrapCliResult> => {
+  const { BootstrapCliService } = await import('@/modules/core/cli/services/bootstrap-cli.service');
+  const bootstrapService = BootstrapCliService.getInstance();
+  const { cliService, bootstrap } = await bootstrapService.bootstrapCli();
   
   try {
-    const commands = await cliService.getCommandsFromDatabase() as IParsedDatabaseCommand[];
+    const commands = await cliService.getCommandsFromDatabase();
     if (commands.length === 0) {
       const logger = LoggerService.getInstance();
       logger.warn(
@@ -273,10 +295,43 @@ bootstrap };
 };
 
 /**
- * Main CLI entry point.
+ * Split main function into smaller parts to comply with max-lines-per-function rule.
+ * @param program - The Commander program instance.
+ * @param formatter - The CLI formatter service instance.
  */
+const setupHelpCommand = (program: Command, formatter: CliFormatterService): void => {
+  program
+    .command('help [command]')
+    .description('Display help for a command')
+    .action((commandName?: string): void => {
+      if (commandName !== undefined) {
+        const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
+        if (cmd !== undefined) {
+          cmd.outputHelp();
+          /**
+           * Ensure output is flushed before exit.
+           */
+          process.stdout.write('', (): void => {
+            process.exit(0);
+          });
+        } else {
+          console.log(formatter.formatError(`Unknown command: ${commandName}`));
+          console.log(`\nUse ${formatter.highlight('systemprompt help')} to see all available commands.`);
+        }
+      } else {
+        program.outputHelp();
+        /**
+         * Ensure output is flushed before exit.
+         */
+        process.stdout.write('', (): void => {
+          process.exit(0);
+        });
+      }
+    });
+};
+
 const main = async (): Promise<void> => {
-  let bootstrap: { shutdown: () => Promise<void> } | null = null;
+  let bootstrap: Bootstrap | null = null;
   
   try {
     const result = await registerModuleCommands();
@@ -290,35 +345,8 @@ const main = async (): Promise<void> => {
     /**
      * Add built-in commands.
      */
-    program
-      .command('help [command]')
-      .description('Display help for a command')
-      .action((commandName?: string): void => {
-        const formatter = CliFormatterService.getInstance();
-        if (commandName !== undefined) {
-          const cmd = program.commands.find((c): boolean => { return c.name() === commandName; });
-          if (cmd !== undefined) {
-            cmd.outputHelp();
-            /**
-             * Ensure output is flushed before exit.
-             */
-            process.stdout.write('', (): void => {
-              process.exit(0);
-            });
-          } else {
-            console.log(formatter.formatError(`Unknown command: ${commandName}`));
-            console.log(`\nUse ${formatter.highlight('systemprompt help')} to see all available commands.`);
-          }
-        } else {
-          program.outputHelp();
-          /**
-           * Ensure output is flushed before exit.
-           */
-          process.stdout.write('', (): void => {
-            process.exit(0);
-          });
-        }
-      });
+    const formatter = CliFormatterService.getInstance();
+    setupHelpCommand(program, formatter);
 
     /**
      * Configure error handling for unknown commands.
@@ -340,24 +368,27 @@ const main = async (): Promise<void> => {
       /**
        * Commander throws an error with exitCode property for built-in commands like --version, --help.
        */
-      if (error && typeof error === 'object' && 'exitCode' in error && typeof (error as { exitCode?: number }).exitCode === 'number') {
-        const errorWithCode = error as { exitCode: number };
-        process.exitCode = errorWithCode.exitCode;
-        
-        /**
-         * If exitCode is 0, it's a successful operation (like --version or --help).
-         */
-        if (errorWithCode.exitCode === 0) {
+      if (error && typeof error === 'object' && 'exitCode' in error) {
+        const errorWithCode = error as { exitCode?: number };
+        if (typeof errorWithCode.exitCode === 'number') {
+          const exitCode = errorWithCode.exitCode;
+          
           /**
-           * Clean shutdown and exit successfully.
+           * If exitCode is 0, it's a successful operation (like --version or --help).
            */
-          if (bootstrap) {
-            await bootstrap.shutdown();
+          if (exitCode === 0) {
+            /**
+             * Clean shutdown and exit successfully.
+             */
+            if (bootstrap) {
+              await bootstrap.shutdown();
+            }
+            setTimeout((): void => {
+              process.exit(0);
+            }, 100);
+            return;
           }
-          setTimeout((): void => {
-            process.exit(0);
-          }, 100);
-          return;
+          process.exitCode = exitCode;
         }
       }
       throw error;
@@ -388,7 +419,7 @@ const main = async (): Promise<void> => {
     if (bootstrap) {
       try {
         await bootstrap.shutdown();
-      } catch (cleanupError: unknown) {
+      } catch (_cleanupError: unknown) {
         /**
          * Ignore cleanup errors during error handling.
          */
@@ -401,15 +432,13 @@ const main = async (): Promise<void> => {
 
 /**
  * Only run if this is the main module.
+ * Use import.meta.url for ES modules.
  */
-if (import.meta.url.startsWith('file:')) {
-  const modulePath = new URL(import.meta.url).pathname;
-  if (process.argv[1] === modulePath) {
-    main().catch((error: unknown) => {
-      console.error('Unhandled error in main:', error);
-      process.exit(1);
-    });
-  }
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  void main().catch((error: unknown): void => {
+    console.error('Unhandled error in main:', error);
+    process.exit(1);
+  });
 }
 
 export { main };

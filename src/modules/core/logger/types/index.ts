@@ -195,3 +195,5 @@ export const enum LoggerErrorCodeEnum {
    */
   DIRECTORY_CREATE_FAILED = 'LOGGER_DIR_CREATE_FAILED',
 }
+
+export type { ILogEntry as ILogEntryDatabase, IShowLogsOptions } from '@/modules/core/logger/types/log-entry.types';

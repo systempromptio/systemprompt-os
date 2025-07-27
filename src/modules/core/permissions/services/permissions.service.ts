@@ -92,11 +92,20 @@ export class PermissionsService implements IPermissionsService {
     this.logger?.info(LogSource.PERMISSIONS, `Creating permission: ${name} (${resource}:${action})`);
 
     const permission = await this.repository.createPermission(
-      id,
-      name,
-      resource,
-      action,
-      description
+      description !== undefined
+        ? {
+ id,
+name,
+resource,
+action,
+description
+}
+        : {
+ id,
+name,
+resource,
+action
+}
     );
     this.logger?.info(LogSource.PERMISSIONS, `Created permission: ${id}`);
 
@@ -134,7 +143,20 @@ export class PermissionsService implements IPermissionsService {
     const id = randomUUID();
     this.logger?.info(LogSource.PERMISSIONS, `Creating role: ${name}`);
 
-    const role = await this.repository.createRole(id, name, description, false);
+    const role = await this.repository.createRole(
+      description !== undefined
+        ? {
+ id,
+name,
+description,
+isSystem: false
+}
+        : {
+ id,
+name,
+isSystem: false
+}
+    );
     this.logger?.info(LogSource.PERMISSIONS, `Created role: ${id}`);
 
     return role;
@@ -211,7 +233,18 @@ export class PermissionsService implements IPermissionsService {
     }
 
     this.logger?.info(LogSource.PERMISSIONS, `Assigning role ${roleId} to user ${userId}`);
-    await this.repository.assignRoleToUser(userId, roleId, expiresAt);
+    await this.repository.assignRoleToUser(
+      expiresAt !== undefined
+        ? {
+ userId,
+roleId,
+expiresAt
+}
+        : {
+ userId,
+roleId
+}
+    );
   }
 
   /**
@@ -301,22 +334,22 @@ export class PermissionsService implements IPermissionsService {
   private async initializeDefaultRoles(): Promise<void> {
     const adminRole = await this.repository.findRoleByName('admin');
     if (adminRole === null) {
-      await this.repository.createRole(
-        randomUUID(),
-        'admin',
-        'System administrator role',
-        true
-      );
+      await this.repository.createRole({
+        id: randomUUID(),
+        name: 'admin',
+        description: 'System administrator role',
+        isSystem: true
+      });
     }
 
     const userRole = await this.repository.findRoleByName('user');
     if (userRole === null) {
-      await this.repository.createRole(
-        randomUUID(),
-        'user',
-        'Default user role',
-        true
-      );
+      await this.repository.createRole({
+        id: randomUUID(),
+        name: 'user',
+        description: 'Default user role',
+        isSystem: true
+      });
     }
   }
 

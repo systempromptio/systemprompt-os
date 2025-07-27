@@ -1,18 +1,18 @@
-/**
- * CLI Handler Service for database commands.
- * Provides service methods that can be called by CLI without direct imports.
- * @file CLI handler service.
- * @module database/services/cli-handler
- */
-
 import { createHash } from 'crypto';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { MigrationService } from '@/modules/core/database/services/migration.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import { DatabaseService } from './database.service';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import { MigrationService } from './migration.service';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import { SchemaService } from './schema.service';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import { SchemaImportService } from './schema-import.service';
+// eslint-disable-next-line systemprompt-os/enforce-path-alias
+import { type ILogger, LogSource } from '../../logger/types/index';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import type { IDatabaseConnection } from '../types/database.types';
+// eslint-disable-next-line systemprompt-os/enforce-import-restrictions, systemprompt-os/enforce-path-alias
+import type { IInstalledSchema, IModuleSchema } from '../types/schema.types';
 
 /**
  * CLI handler service for database commands.
@@ -23,8 +23,10 @@ export class DatabaseCLIHandlerService {
 
   /**
    * Private constructor.
+   * Private constructor for singleton pattern is intentionally empty.
    */
-  private constructor() {}
+  private constructor() {
+  }
 
   /**
    * Get the CLI handler service instance.
@@ -43,10 +45,10 @@ export class DatabaseCLIHandlerService {
    * Handle status command.
    * @returns Status information.
    */
-  public async handleStatus(): Promise<{ connected: boolean; type: string; message: string }> {
+  public handleStatus(): { connected: boolean; type: string; message: string } {
     try {
       const db = DatabaseService.getInstance();
-      const isConnected = await db.isConnected();
+      const isConnected = db.isConnected();
       const dbType = db.getDatabaseType();
 
       return {
@@ -60,7 +62,9 @@ export class DatabaseCLIHandlerService {
       return {
         connected: false,
         type: 'unknown',
-        message: `Error checking status: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Error checking status: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       };
     }
   }
@@ -104,24 +108,120 @@ export class DatabaseCLIHandlerService {
     } catch (error) {
       return {
         success: false,
-        message: `Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Initialization failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       };
     }
   }
 
   /**
-   * Handle view command.
-   * @param params - View parameters.
-   * @param params.tableName
-   * @param params.format
-   * @param params.limit
-   * @param params.offset
-   * @param params.columns
-   * @param params.where
-   * @param params.orderBy
-   * @param params.schemaOnly
-   * @returns View result.
+   * Get table schema information.
+   * @param tableName - Name of the table.
+   * @returns Column information.
    */
+  private async getTableSchema(tableName: string): Promise<Array<{
+    name: string;
+    type: string;
+    nullable: boolean;
+    primaryKey: boolean;
+    defaultValue: string | null;
+  }>> {
+    const dbService = DatabaseService.getInstance();
+    const schema = await dbService.query<{
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+      pk: number;
+    }>(`PRAGMA table_info(\`${tableName}\`)`);
+
+    return schema.map((col: {
+      cid: number;
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+      pk: number;
+    }): {
+      name: string;
+      type: string;
+      nullable: boolean;
+      primaryKey: boolean;
+      defaultValue: string | null;
+    } => { return {
+      name: col.name,
+      type: col.type,
+      nullable: col.notnull === 0,
+      primaryKey: col.pk > 0,
+      defaultValue: col.dflt_value,
+    }; });
+  }
+
+  /**
+   * Build select query for view command.
+   * @param params - View parameters.
+   * @param params.tableName - Name of the table.
+   * @param params.columns - Comma-separated column names.
+   * @param params.where - SQL WHERE clause.
+   * @param params.orderBy - SQL ORDER BY clause.
+   * @param params.limit - Maximum rows to return.
+   * @param params.offset - Number of rows to skip.
+   * @param columnInfo - Column information.
+   * @returns Query and parameters.
+   */
+  private buildViewQuery(params: {
+    tableName: string;
+    columns?: string;
+    where?: string;
+    orderBy?: string;
+    limit?: number;
+    offset?: number;
+  }, columnInfo: Array<{ name: string }>): {
+    query: string;
+    queryParams: unknown[];
+    selectColumns: string;
+  } {
+    let selectColumns = '*';
+
+    if (params.columns !== undefined) {
+      const requestedColumns = params.columns.split(',').map((col: string): string => { return col.trim(); });
+      const validColumns = columnInfo.map((col: { name: string }): string => { return col.name; });
+      const invalidColumns = requestedColumns.filter(
+        (col: string): boolean => { return !validColumns.includes(col); }
+      );
+
+      if (invalidColumns.length > 0) {
+        throw new Error(`Invalid columns: ${invalidColumns.join(', ')}`);
+      }
+
+      selectColumns = requestedColumns.map((col: string): string => { return `\`${col}\``; }).join(', ');
+    }
+
+    let query = `SELECT ${selectColumns} FROM \`${params.tableName}\``;
+    const queryParams: unknown[] = [];
+
+    if (params.where !== undefined) {
+      query += ` WHERE ${params.where}`;
+    }
+
+    if (params.orderBy !== undefined) {
+      query += ` ORDER BY ${params.orderBy}`;
+    }
+
+    const limit = params.limit ?? 50;
+    const offset = params.offset ?? 0;
+    query += ` LIMIT ? OFFSET ?`;
+    queryParams.push(limit, offset);
+
+    return {
+      query,
+      queryParams,
+      selectColumns
+    };
+  }
+
   public async handleView(params: {
     tableName: string;
     format?: 'table' | 'json' | 'csv';
@@ -164,7 +264,8 @@ export class DatabaseCLIHandlerService {
     try {
       const dbService = DatabaseService.getInstance();
 
-      if (!await dbService.isConnected()) {
+      const connected = dbService.isConnected();
+      if (!connected) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -183,29 +284,7 @@ export class DatabaseCLIHandlerService {
         };
       }
 
-      const schema = await dbService.query<{
-        cid: number;
-        name: string;
-        type: string;
-        notnull: number;
-        dflt_value: string | null;
-        pk: number;
-      }>(`PRAGMA table_info(\`${params.tableName}\`)`);
-
-      const columnInfo = schema.map((col: {
-        cid: number;
-        name: string;
-        type: string;
-        notnull: number;
-        dflt_value: string | null;
-        pk: number;
-      }) => { return {
-        name: col.name,
-        type: col.type,
-        nullable: col.notnull === 0,
-        primaryKey: col.pk > 0,
-        defaultValue: col.dflt_value,
-      } });
+      const columnInfo = await this.getTableSchema(params.tableName);
 
       if (params.schemaOnly === true) {
         return {
@@ -217,39 +296,20 @@ export class DatabaseCLIHandlerService {
         };
       }
 
-      let selectColumns = '*';
-      if (params.columns !== undefined) {
-        const requestedColumns = params.columns.split(',').map((c: string) => { return c.trim() });
-        const validColumns = columnInfo.map((c: { name: string; type: string; nullable: boolean; primaryKey: boolean; defaultValue: string | null }) => { return c.name });
-        const invalidColumns = requestedColumns.filter((c: string) => { return !validColumns.includes(c) });
-
-        if (invalidColumns.length > 0) {
-          return {
-            success: false,
-            message: `Invalid columns: ${invalidColumns.join(', ')}`
-          };
-        }
-
-        selectColumns = requestedColumns.map((c: string) => { return `\`${c}\`` }).join(', ');
+      let queryResult;
+      try {
+        queryResult = this.buildViewQuery(params, columnInfo);
+      } catch (error) {
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Invalid query parameters'
+        };
       }
 
-      let query = `SELECT ${selectColumns} FROM \`${params.tableName}\``;
-      const queryParams: unknown[] = [];
-
-      if (params.where !== undefined) {
-        query += ` WHERE ${params.where}`;
-      }
-
-      if (params.orderBy !== undefined) {
-        query += ` ORDER BY ${params.orderBy}`;
-      }
-
+      const { query, queryParams } = queryResult;
+      const rows = await dbService.query(query, queryParams);
       const limit = params.limit ?? 50;
       const offset = params.offset ?? 0;
-      query += ` LIMIT ? OFFSET ?`;
-      queryParams.push(limit, offset);
-
-      const rows = await dbService.query(query, queryParams);
 
       let countQuery = `SELECT COUNT(*) as count FROM \`${params.tableName}\``;
       if (params.where !== undefined) {
@@ -274,7 +334,9 @@ export class DatabaseCLIHandlerService {
     } catch (error) {
       return {
         success: false,
-        message: `Error viewing table: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Error viewing table: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       };
     }
   }
@@ -305,7 +367,8 @@ export class DatabaseCLIHandlerService {
     try {
       const dbService = DatabaseService.getInstance();
 
-      if (!await dbService.isConnected()) {
+      const connected = dbService.isConnected();
+      if (!connected) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -319,7 +382,7 @@ export class DatabaseCLIHandlerService {
          ORDER BY name`
       );
 
-      this.logWarning('🚨 DANGER: Database Rebuild Operation');
+      this.logWarning('DANGER: Database Rebuild Operation');
       this.logWarning('=====================================');
       this.logWarning('This will COMPLETELY DESTROY AND RECREATE the entire database:');
       this.logWarning('');
@@ -336,9 +399,9 @@ export class DatabaseCLIHandlerService {
         this.logWarning('');
       }
 
-      this.logWarning('⚠️  ALL DATA WILL BE PERMANENTLY LOST');
-      this.logWarning('⚠️  THIS OPERATION CANNOT BE UNDONE');
-      this.logWarning('⚠️  MAKE SURE YOU HAVE BACKUPS');
+      this.logWarning('ALL DATA WILL BE PERMANENTLY LOST');
+      this.logWarning('THIS OPERATION CANNOT BE UNDONE');
+      this.logWarning('MAKE SURE YOU HAVE BACKUPS');
       this.logWarning('');
 
       if (!force && !confirm) {
@@ -358,13 +421,15 @@ export class DatabaseCLIHandlerService {
       if (!dropResult.success) {
         return {
           success: false,
-          message: dropResult.message || 'Failed to drop tables',
+          message: dropResult.message ?? 'Failed to drop tables',
           details: {
             tablesDropped: dropResult.tablesDropped,
             schemasFound: 0,
             filesImported: 0,
             filesSkipped: 0,
-            errors: dropResult.message ? [dropResult.message] : ['Failed to drop tables']
+            errors: dropResult.message !== undefined
+              ? [dropResult.message]
+              : ['Failed to drop tables']
           }
         };
       }
@@ -373,13 +438,15 @@ export class DatabaseCLIHandlerService {
       if (!schemaResult.success) {
         return {
           success: false,
-          message: schemaResult.message || 'Failed to discover schemas',
+          message: schemaResult.message ?? 'Failed to discover schemas',
           details: {
             tablesDropped: dropResult.tablesDropped,
             schemasFound: schemaResult.schemasFound,
             filesImported: 0,
             filesSkipped: 0,
-            errors: schemaResult.message ? [schemaResult.message] : ['Failed to discover schemas']
+            errors: schemaResult.message !== undefined
+              ? [schemaResult.message]
+              : ['Failed to discover schemas']
           }
         };
       }
@@ -388,13 +455,15 @@ export class DatabaseCLIHandlerService {
       if (!importResult.success) {
         return {
           success: false,
-          message: importResult.message || 'Failed to import schemas',
+          message: importResult.message ?? 'Failed to import schemas',
           details: {
             tablesDropped: dropResult.tablesDropped,
             schemasFound: schemaResult.schemasFound,
             filesImported: importResult.filesImported,
             filesSkipped: importResult.filesSkipped,
-            errors: importResult.message ? [importResult.message] : ['Failed to import schemas']
+            errors: importResult.message !== undefined
+              ? [importResult.message]
+              : ['Failed to import schemas']
           }
         };
       }
@@ -408,7 +477,7 @@ export class DatabaseCLIHandlerService {
          ORDER BY name`
       );
 
-      this.logInfo('🎉 Database Rebuild Complete!');
+      this.logInfo('Database Rebuild Complete!');
       this.logInfo('=============================');
       this.logInfo(`Database now contains ${finalTables.length.toString()} tables:`);
       for (const table of finalTables) {
@@ -417,7 +486,7 @@ export class DatabaseCLIHandlerService {
 
       if (!importResult.importSuccess) {
         this.logWarning('');
-        this.logWarning('⚠️  Some schema imports failed. Database may be incomplete.');
+        this.logWarning('Some schema imports failed. Database may be incomplete.');
         this.logWarning('Check the error messages above and fix any schema issues.');
         return {
           success: false,
@@ -448,7 +517,7 @@ export class DatabaseCLIHandlerService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logError('Error rebuilding database:', error);
+      this.logError(`Error rebuilding database: ${error instanceof Error ? error.message : String(error)}`);
       this.logError('');
       this.logError('Database may be in an inconsistent state.');
       this.logError('You may need to manually fix issues or restore from backup.');
@@ -477,7 +546,7 @@ export class DatabaseCLIHandlerService {
     message?: string;
     tablesDropped: number;
   }> {
-    this.logInfo('🗑️  Phase 1: Dropping all tables...');
+    this.logInfo('Phase 1: Dropping all tables...');
     this.logInfo('');
 
     let droppedCount = 0;
@@ -490,11 +559,11 @@ export class DatabaseCLIHandlerService {
       for (const table of tables) {
         try {
           await conn.execute(`DROP TABLE IF EXISTS \`${table.name}\``);
-          this.logInfo(`✓ Dropped table: ${table.name}`);
+          this.logInfo(`Dropped table: ${table.name}`);
           droppedCount += 1;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          this.logError(`✗ Failed to drop ${table.name}: ${errorMessage}`);
+          this.logError(`Failed to drop ${table.name}: ${errorMessage}`);
           failedDrops.push(table.name);
         }
       }
@@ -542,7 +611,7 @@ export class DatabaseCLIHandlerService {
     }>;
   }> {
     this.logInfo('');
-    this.logInfo('🔍 Phase 2: Discovering schema files...');
+    this.logInfo('Phase 2: Discovering schema files...');
     this.logInfo('');
 
     const schemaService = SchemaService.getInstance();
@@ -558,7 +627,7 @@ export class DatabaseCLIHandlerService {
       content: string;
     }> = [];
 
-    for (const [moduleKey, schema] of schemas) {
+    for (const [moduleKey, schema] of Array.from(schemas)) {
       this.logInfo(`  - ${moduleKey}`);
 
       const checksum = createHash('sha256').update(schema.sql)
@@ -613,7 +682,7 @@ export class DatabaseCLIHandlerService {
     errors: string[];
   }> {
     this.logInfo('');
-    this.logInfo('🔨 Phase 3: Importing schemas...');
+    this.logInfo('Phase 3: Importing schemas...');
     this.logInfo('');
 
     const importService = SchemaImportService.getInstance();
@@ -622,15 +691,15 @@ export class DatabaseCLIHandlerService {
     const importResult = await importService.importSchemas(schemaFiles);
 
     this.logInfo('Schema Import Results:');
-    this.logInfo(`  ✓ Imported: ${importResult.imported.length.toString()} files`);
-    this.logInfo(`  ⏭️  Skipped: ${importResult.skipped.length.toString()} files`);
-    this.logInfo(`  ✗ Errors: ${importResult.errors.length.toString()} files`);
+    this.logInfo(`  Imported: ${importResult.imported.length.toString()} files`);
+    this.logInfo(`  Skipped: ${importResult.skipped.length.toString()} files`);
+    this.logInfo(`  Errors: ${importResult.errors.length.toString()} files`);
 
     if (importResult.imported.length > 0) {
       this.logInfo('');
       this.logInfo('Successfully imported:');
       for (const file of importResult.imported) {
-        this.logInfo(`  ✓ ${file}`);
+        this.logInfo(`  ${file}`);
       }
     }
 
@@ -638,7 +707,7 @@ export class DatabaseCLIHandlerService {
       this.logInfo('');
       this.logInfo('Skipped (already up-to-date):');
       for (const file of importResult.skipped) {
-        this.logInfo(`  ⏭️  ${file}`);
+        this.logInfo(`  ${file}`);
       }
     }
 
@@ -646,7 +715,7 @@ export class DatabaseCLIHandlerService {
       this.logInfo('');
       this.logError('Import errors:');
       for (const errorInfo of importResult.errors) {
-        this.logError(`  ✗ ${errorInfo.file}: ${errorInfo.error}`);
+        this.logError(`  ${errorInfo.file}: ${errorInfo.error}`);
       }
     }
 
@@ -655,7 +724,9 @@ export class DatabaseCLIHandlerService {
       importSuccess: importResult.success,
       filesImported: importResult.imported.length,
       filesSkipped: importResult.skipped.length,
-      errors: importResult.errors.map((e: { file: string; error: string }): string => { return `${e.file}: ${e.error}` })
+      errors: importResult.errors.map(
+        (e: { file: string; error: string }): string => { return `${e.file}: ${e.error}`; }
+      )
     };
   }
 
@@ -665,11 +736,11 @@ export class DatabaseCLIHandlerService {
    */
   private async optimizeDatabase(): Promise<void> {
     this.logInfo('');
-    this.logInfo('🗜️  Phase 4: Optimizing database...');
+    this.logInfo('Phase 4: Optimizing database...');
     try {
       const dbService = DatabaseService.getInstance();
       await dbService.execute('VACUUM');
-      this.logInfo('✓ Database optimized');
+      this.logInfo('Database optimized');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logWarning(`Warning: VACUUM failed: ${errorMessage}`);
@@ -679,35 +750,29 @@ export class DatabaseCLIHandlerService {
   /**
    * Log info message.
    * @param message - Message to log.
-   * @param args - Additional arguments.
    */
-  private logInfo(message: string, ...args: unknown[]): void {
+  private logInfo(message: string): void {
     if (this.logger !== undefined) {
       this.logger.info(LogSource.DATABASE, message);
-    } else {
-      console.log(message, ...args);
     }
   }
 
   /**
    * Log warning message.
    * @param message - Message to log.
-   * @param args - Additional arguments.
    */
-  private logWarning(message: string, ...args: unknown[]): void {
+  private logWarning(message: string): void {
     if (this.logger !== undefined) {
       this.logger.warn(LogSource.DATABASE, message);
-    } else {
-      console.warn(message, ...args);
     }
   }
 
   /**
    * Handle summary command.
    * @param params - Summary parameters.
-   * @param params.format - Output format.
-   * @param params.includeSystem - Include system tables.
-   * @param params.sortBy - Sort criteria.
+   * @param params.format - Output format (text, json, or table).
+   * @param params.includeSystem - Include system tables in summary.
+   * @param params.sortBy - Sort criteria (name, rows, or columns).
    * @returns Summary result.
    */
   public async handleSummary(params: {
@@ -738,16 +803,15 @@ export class DatabaseCLIHandlerService {
     try {
       const dbService = DatabaseService.getInstance();
 
-      if (!await dbService.isConnected()) {
+      const connected = dbService.isConnected();
+      if (!connected) {
         return {
           success: false,
           message: 'Database is not connected'
         };
       }
 
-      const {
- includeSystem = false, sortBy = 'name'
-} = params;
+      const { includeSystem = false, sortBy = 'name' } = params;
 
       let tableQuery = "SELECT name FROM sqlite_master WHERE type='table'";
       if (!includeSystem) {
@@ -792,14 +856,12 @@ export class DatabaseCLIHandlerService {
             type: string;
             nullable: boolean;
             primaryKey: boolean;
-          } => {
-            return {
-              name: col.name,
-              type: col.type,
-              nullable: col.notnull === 0,
-              primaryKey: col.pk > 0,
-            };
-          });
+          } => { return {
+            name: col.name,
+            type: col.type,
+            nullable: col.notnull === 0,
+            primaryKey: col.pk > 0,
+          }; });
 
           tableInfos.push({
             name: table.name,
@@ -823,9 +885,10 @@ export class DatabaseCLIHandlerService {
         }
       });
 
-      const totalRows = tableInfos.reduce((sum, table): number => {
-        return sum + table.rowCount;
-      }, 0);
+      const totalRows = tableInfos.reduce(
+        (sum, table): number => { return sum + table.rowCount },
+        0
+      );
 
       const summary = {
         totalTables: tableInfos.length,
@@ -872,7 +935,8 @@ export class DatabaseCLIHandlerService {
     try {
       const dbService = DatabaseService.getInstance();
 
-      if (!await dbService.isConnected()) {
+      const connected = dbService.isConnected();
+      if (!connected) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -899,7 +963,7 @@ export class DatabaseCLIHandlerService {
         };
       }
 
-      this.logWarning('⚠️  WARNING: Database Clear Operation');
+      this.logWarning('WARNING: Database Clear Operation');
       this.logWarning('=====================================');
       this.logWarning('This will DELETE ALL DATA from the following tables:');
       this.logWarning('');
@@ -940,12 +1004,12 @@ export class DatabaseCLIHandlerService {
 
             await conn.execute(`DELETE FROM \`${table.name}\``);
 
-            this.logInfo(`✓ Cleared ${table.name} (${rowsBefore.toLocaleString()} rows deleted)`);
+            this.logInfo(`Cleared ${table.name} (${rowsBefore.toLocaleString()} rows deleted)`);
             clearedCount += 1;
             totalRowsCleared += rowsBefore;
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.logError(`✗ Failed to clear ${table.name}: ${errorMessage}`);
+            this.logError(`Failed to clear ${table.name}: ${errorMessage}`);
             failedTables.push(table.name);
           }
         }
@@ -969,7 +1033,7 @@ export class DatabaseCLIHandlerService {
         this.logInfo('');
         this.logInfo('Running VACUUM to reclaim disk space...');
         await dbService.execute('VACUUM');
-        this.logInfo('✓ Database optimized');
+        this.logInfo('Database optimized');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         this.logWarning(`Warning: VACUUM failed: ${errorMessage}`);
@@ -989,7 +1053,7 @@ export class DatabaseCLIHandlerService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logError('Error clearing database:', error);
+      this.logError(`Error clearing database: ${error instanceof Error ? error.message : String(error)}`);
 
       return {
         success: false,
@@ -1001,13 +1065,243 @@ export class DatabaseCLIHandlerService {
   /**
    * Log error message.
    * @param message - Message to log.
-   * @param args - Additional arguments.
    */
-  private logError(message: string, ...args: unknown[]): void {
+  private logError(message: string): void {
     if (this.logger !== undefined) {
       this.logger.error(LogSource.DATABASE, message);
-    } else {
-      console.error(message, ...args);
+    }
+  }
+
+  /**
+   * List installed schemas.
+   * @returns Schema list result.
+   */
+  public async listSchemas(): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      schemas: IInstalledSchema[];
+    };
+  }> {
+    try {
+      const dbService = DatabaseService.getInstance();
+      const schemaService = SchemaService.getInstance();
+
+      const isInitialized = Boolean(dbService.isInitialized());
+      if (!isInitialized) {
+        return {
+          success: true,
+          message: 'Database is not initialized. No schemas installed.',
+          data: { schemas: [] }
+        };
+      }
+
+      const schemas = await schemaService.getInstalledSchemas();
+      return {
+        success: true,
+        data: { schemas }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Initialize database schemas.
+   * @param params - Initialization parameters.
+   * @param params.force - Force reinitialize even if already initialized.
+   * @param params.module - Specific module to initialize (optional).
+   * @returns Initialization result.
+   */
+  public async initializeSchemas(params: {
+    force?: boolean;
+    module?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    warnings?: string[];
+    results?: Array<{
+      module: string;
+      success: boolean;
+      message?: string;
+    }>;
+  }> {
+    try {
+      const dbService = DatabaseService.getInstance();
+      const schemaService = SchemaService.getInstance();
+      const warnings: string[] = [];
+      const results: Array<{
+        module: string;
+        success: boolean;
+        message?: string;
+      }> = [];
+
+      const isInitialized = Boolean(dbService.isInitialized());
+      if (isInitialized && params.force !== true) {
+        return {
+          success: false,
+          message: 'Database is already initialized. Use --force to reinitialize.'
+        };
+      }
+
+      if (isInitialized && params.force === true) {
+        warnings.push('WARNING: Force initializing will reset the database!');
+        warnings.push('This action cannot be undone.');
+      }
+
+      await schemaService.initializeBaseSchema();
+      results.push({
+        module: 'base',
+        success: true,
+        message: 'Base schema initialized'
+      });
+
+      if (params.module !== undefined) {
+        const discoveredSchemas = await schemaService.discoverSchemasArray();
+        const moduleSchema = discoveredSchemas.find(
+          (schema: IModuleSchema): boolean => { return (schema.moduleName ?? schema.module) === params.module }
+        );
+
+        if (moduleSchema === undefined) {
+          return {
+            success: false,
+            message: `Module '${params.module}' not found or has no schema.`
+          };
+        }
+
+        await schemaService.installModuleSchema(moduleSchema);
+        results.push({
+          module: params.module,
+          success: true,
+          message: `Schema for ${params.module} initialized`
+        });
+      } else {
+        const discoveredSchemas = await schemaService.discoverSchemasArray();
+
+        for (const schema of discoveredSchemas) {
+          try {
+            await schemaService.installModuleSchema(schema);
+            results.push({
+              module: schema.moduleName ?? schema.module,
+              success: true,
+              message: 'Success'
+            });
+          } catch (error) {
+            results.push({
+              module: schema.moduleName ?? schema.module,
+              success: false,
+              message: error instanceof Error ? error.message : String(error)
+            });
+          }
+        }
+      }
+
+      return {
+        success: true,
+        warnings,
+        results
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Validate database schemas.
+   * @param params - Validation parameters.
+   * @param params.module - Specific module to validate (optional).
+   * @returns Validation result.
+   */
+  public async validateSchemas(params: {
+    module?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    issues?: Array<{
+      module: string;
+      message: string;
+      severity: 'error' | 'warning';
+    }>;
+  }> {
+    try {
+      const dbService = DatabaseService.getInstance();
+      const schemaService = SchemaService.getInstance();
+      const issues: Array<{
+        module: string;
+        message: string;
+        severity: 'error' | 'warning';
+      }> = [];
+
+      const isInitialized = Boolean(dbService.isInitialized());
+      if (!isInitialized) {
+        return {
+          success: false,
+          message: 'Database is not initialized. Nothing to validate.'
+        };
+      }
+
+      const [installedSchemas, discoveredSchemas] = await Promise.all([
+        schemaService.getInstalledSchemas(),
+        schemaService.discoverSchemasArray()
+      ]);
+
+      if (params.module !== undefined) {
+        const installedSchema = installedSchemas.find(
+          (schema: IInstalledSchema): boolean => { return schema.moduleName === params.module }
+        );
+
+        if (installedSchema === undefined) {
+          issues.push({
+            module: params.module,
+            message: 'Schema is not installed',
+            severity: 'error'
+          });
+        }
+      } else {
+        for (const discoveredSchema of discoveredSchemas) {
+          const installedSchema = installedSchemas.find(
+            (schema: IInstalledSchema): boolean => { return schema.moduleName === (discoveredSchema.moduleName ?? discoveredSchema.module) }
+          );
+
+          if (installedSchema === undefined) {
+            issues.push({
+              module: discoveredSchema.moduleName ?? discoveredSchema.module,
+              message: 'Schema is not installed',
+              severity: 'error'
+            });
+          }
+        }
+
+        for (const installedSchema of installedSchemas) {
+          const discoveredSchema = discoveredSchemas.find(
+            (schema: IModuleSchema): boolean => { return (schema.moduleName ?? schema.module) === installedSchema.moduleName }
+          );
+
+          if (discoveredSchema === undefined) {
+            issues.push({
+              module: installedSchema.moduleName,
+              message: 'Installed schema has no corresponding module',
+              severity: 'warning'
+            });
+          }
+        }
+      }
+
+      return {
+        success: true,
+        issues
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
     }
   }
 }

@@ -1,8 +1,8 @@
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { ITunnelStatus } from '@/modules/core/auth/services/tunnel-service';
-import { ONE, TWO } from '@/const/numbers';
+import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
+import { ONE, TWO } from '@/constants/numbers';
 
 /**
  * Type guard to check if unknown value is ITunnelStatus.
@@ -90,14 +90,15 @@ const displayTips = (logger: LoggerService): void => {
 export const tunnelStatus = (): void => {
   const logger = LoggerService.getInstance();
   const authModule = getAuthModule();
-  const tunnelStatusData = authModule.getTunnelStatus();
+  const tunnelStatusData = authModule.exports.getTunnelStatus();
 
   if (!isTunnelStatus(tunnelStatusData)) {
     logger.error(LogSource.AUTH, 'Invalid tunnel status data received');
     return;
   }
 
-  const publicUrl = authModule.getPublicUrl() ?? 'http://localhost:3000';
+  const tunnelService = authModule.exports.getTunnelService();
+  const publicUrl = tunnelService?.getPublicUrl() ?? 'http://localhost:3000';
 
   displayTunnelStatus(logger, tunnelStatusData);
   displayOAuthConfig(logger, publicUrl);
@@ -145,8 +146,7 @@ export const startTunnel = async (): Promise<void> => {
 
   try {
     const authModule = getAuthModule();
-    await authModule.start();
-    const tunnelStatusData = authModule.getTunnelStatus();
+    const tunnelStatusData = authModule.exports.getTunnelStatus();
 
     if (!isTunnelStatus(tunnelStatusData)) {
       logger.error(LogSource.AUTH, 'Invalid tunnel status data received');
@@ -230,14 +230,16 @@ const commands: Record<string, () => Promise<void> | void> = {
  */
 if (process.argv[TWO] !== undefined && process.argv[TWO] !== '') {
   const { [TWO]: commandArg } = process.argv;
-  const { [commandArg]: command } = commands;
-  if (command !== undefined) {
-    const result = command();
-    if (result instanceof Promise) {
-      result.catch((error: unknown): void => {
-        const logger = LoggerService.getInstance();
-        logger.error(LogSource.AUTH, 'Command failed:', { error: error instanceof Error ? error : new Error(String(error)) });
-      });
+  if (commandArg && commandArg in commands) {
+    const command = commands[commandArg as keyof typeof commands];
+    if (command !== undefined) {
+      const result = command();
+      if (result instanceof Promise) {
+        result.catch((error: unknown): void => {
+          const logger = LoggerService.getInstance();
+          logger.error(LogSource.AUTH, 'Command failed:', { error: error instanceof Error ? error : new Error(String(error)) });
+        });
+      }
     }
   }
 }

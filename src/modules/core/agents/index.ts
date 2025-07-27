@@ -1,11 +1,11 @@
 /**
  * @file Agents Module for managing agents and tasks.
+ * @description Provides agent management and task execution functionality through a modular interface.
  * @module src/modules/core/agents
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent-service';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { AgentService } from '@/modules/core/agents/services/agent.service';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent-repository';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
@@ -14,8 +14,9 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Strongly typed exports interface for Agents module.
+ * Note: Types should typically be defined in types/ folder.
  */
-export interface IAgentsModuleExports {
+interface IAgentsModuleExports {
   readonly service: () => AgentService;
   readonly repository: () => AgentRepository;
 }
@@ -32,14 +33,14 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
   public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private agentService!: AgentService;
   private agentRepository!: AgentRepository;
-  private database!: DatabaseService;
   private logger!: ILogger;
+  private database!: DatabaseService;
   private initialized = false;
   private started = false;
   get exports(): IAgentsModuleExports {
     return {
-      service: () => { return this.agentService; },
-      repository: () => { return this.agentRepository; }
+      service: (): AgentService => { return this.agentService },
+      repository: (): AgentRepository => { return this.agentRepository }
     };
   }
 
@@ -47,8 +48,8 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
    * Initialize the Agents module.
    */
   async initialize(): Promise<void> {
-    this.logger = LoggerService.getInstance();
     this.database = DatabaseService.getInstance();
+    this.logger = LoggerService.getInstance();
     if (this.initialized) {
       throw new Error('Agents module already initialized');
     }
@@ -184,7 +185,7 @@ export function getAgentsModule(): IModule<IAgentsModuleExports> {
 }
 
 // Export the service and repository classes for direct use
-export { AgentService } from '@/modules/core/agents/services/agent-service';
+export { AgentService } from '@/modules/core/agents/services/agent.service';
 export { AgentRepository } from '@/modules/core/agents/repositories/agent-repository';
 export type * from '@/modules/core/agents/types/agent.types';
 

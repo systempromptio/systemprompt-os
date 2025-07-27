@@ -12,6 +12,8 @@ singleton: true
 
 cli:
   commands:
+    - name: status
+      description: Show system module status (enabled/healthy)
     - name: system:info
       description: Display system information
       options:

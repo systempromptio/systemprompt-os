@@ -7,24 +7,19 @@
 import type { IModule } from '@/modules/core/modules/types/index';
 import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Basic webhook service interface.
- */
-interface IWebhookService {
-  initialize(): Promise<void>;
-}
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import type { IWebhookService, IWebhooksModuleExports } from '@/modules/core/webhooks/types/index';
 
 /**
  * Basic webhook service implementation.
  */
 export class WebhookService implements IWebhookService {
-  private static instance: WebhookService;
+  private static instance: WebhookService | undefined;
 
   /**
    * Get singleton instance.
+   * @returns The WebhookService singleton instance.
    */
   static getInstance(): WebhookService {
     this.instance ||= new WebhookService();
@@ -37,13 +32,6 @@ export class WebhookService implements IWebhookService {
   async initialize(): Promise<void> {
     await Promise.resolve();
   }
-}
-
-/**
- * Strongly typed exports interface for Webhooks module.
- */
-export interface IWebhooksModuleExports {
-  readonly service: () => WebhookService;
 }
 
 /**
@@ -62,7 +50,7 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
   private started = false;
   get exports(): IWebhooksModuleExports {
     return {
-      service: () => { return this.getService(); },
+      service: (): WebhookService => { return this.getService() },
     };
   }
 
@@ -117,28 +105,31 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
 
   /**
    * Health check for the webhooks module.
+   * @returns Health check result with status and optional message.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
       return {
- healthy: false,
-message: 'Webhooks module not initialized'
-};
+        healthy: false,
+        message: 'Webhooks module not initialized'
+      };
     }
     if (!this.started) {
       return {
- healthy: false,
-message: 'Webhooks module not started'
-};
+        healthy: false,
+        message: 'Webhooks module not started'
+      };
     }
     return {
- healthy: true,
-message: 'Webhooks module is healthy'
-};
+      healthy: true,
+      message: 'Webhooks module is healthy'
+    };
   }
 
   /**
    * Get the webhooks service.
+   * @returns The WebhookService instance.
+   * @throws {Error} If module is not initialized.
    */
   getService(): WebhookService {
     if (!this.initialized) {
@@ -150,6 +141,7 @@ message: 'Webhooks module is healthy'
 
 /**
  * Factory function for creating the module.
+ * @returns A new WebhooksModule instance.
  */
 export const createModule = (): WebhooksModule => {
   return new WebhooksModule();
@@ -157,6 +149,7 @@ export const createModule = (): WebhooksModule => {
 
 /**
  * Initialize function for core module pattern.
+ * @returns An initialized WebhooksModule instance.
  */
 export const initialize = async (): Promise<WebhooksModule> => {
   const webhooksModule = new WebhooksModule();
@@ -169,18 +162,24 @@ export const initialize = async (): Promise<WebhooksModule> => {
  * @returns The Webhooks module with guaranteed typed exports.
  * @throws {Error} If Webhooks module is not available or missing required exports.
  */
-export function getWebhooksModule(): IModule<IWebhooksModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+export const getWebhooksModule = async (): Promise<IModule<IWebhooksModuleExports>> => {
+  const { getModuleLoader } = await import('@/modules/loader');
+  const { ModuleName } = await import('@/modules/types/module-names.types');
 
   const moduleLoader = getModuleLoader();
   const webhooksModule = moduleLoader.getModule(ModuleName.WEBHOOKS);
 
-  if (!webhooksModule.exports?.service || typeof webhooksModule.exports.service !== 'function') {
+  if (!webhooksModule) {
+    throw new Error('Webhooks module not found');
+  }
+
+  const typedModule = webhooksModule as unknown as IModule<IWebhooksModuleExports>;
+
+  if (!typedModule.exports?.service || typeof typedModule.exports.service !== 'function') {
     throw new Error('Webhooks module missing required service export');
   }
 
-  return webhooksModule as IModule<IWebhooksModuleExports>;
-}
+  return typedModule;
+};
 
 export default WebhooksModule;

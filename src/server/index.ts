@@ -12,7 +12,10 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getModuleLoader } from '@/modules/loader';
 import { ModuleName } from '@/modules/types/module-names.types';
-import type { ITunnelStatus } from '@/modules/core/auth/services/tunnel-service';
+import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
+import type { IModuleInstance } from '@/modules/types/loader.types';
+import type { Server } from 'http';
+import type { ModuleLoader } from '@/modules/loader';
 
 const logger = LoggerService.getInstance();
 
@@ -72,9 +75,9 @@ const logInactiveTunnelWarning = function logInactiveTunnelWarning(): void {
 export const createApp = async function createApp(): Promise<express.Application> {
   const app = express();
 
-  const moduleLoader = getModuleLoader();
+  const moduleLoader: ModuleLoader = getModuleLoader();
 
-  const authModule = moduleLoader.getModule(ModuleName.AUTH);
+  const authModule: IModuleInstance = moduleLoader.getModule(ModuleName.AUTH);
   if ('start' in authModule && 'initialized' in authModule
       && authModule.start !== null && authModule.start !== undefined && authModule.initialized !== true
   ) {
@@ -112,7 +115,7 @@ export const createApp = async function createApp(): Promise<express.Application
  */
 export const startServer = async function startServer(
   port?: number,
-): Promise<ReturnType<express.Application['listen']>> {
+): Promise<Server> {
   const app = await createApp();
   const serverPort = port ?? parseInt(CONFIG.PORT, 10);
 
@@ -127,15 +130,15 @@ export const startServer = async function startServer(
 
     const AUTH_STATUS_DELAY = 2000;
     setTimeout((): void => {
-      const moduleLoaderDelayed = getModuleLoader();
-      const authModuleDelayed = moduleLoaderDelayed.getModule(ModuleName.AUTH);
+      const moduleLoaderDelayed: ModuleLoader = getModuleLoader();
+      const authModuleDelayed: IModuleInstance = moduleLoaderDelayed.getModule(ModuleName.AUTH);
 
       if (hasGetTunnelStatus(authModuleDelayed)) {
         const tunnelStatus = authModuleDelayed.getTunnelStatus();
 
         if (tunnelStatus.active && tunnelStatus.url !== null && tunnelStatus.url !== undefined) {
           logActiveTunnelStatus(tunnelStatus.url);
-        } else if ((process.env.GOOGLE_CLIENT_ID ?? process.env.GITHUB_CLIENT_ID) !== null) {
+        } else if ((process.env.GOOGLE_CLIENT_ID ?? process.env.GITHUB_CLIENT_ID) !== undefined) {
           logInactiveTunnelWarning();
         }
       }
@@ -154,9 +157,9 @@ export const getServerModule = function getServerModule(): {
   createApp: typeof createApp;
   startServer: typeof startServer;
 } {
-  const moduleLoader = getModuleLoader();
+  const moduleLoader: ModuleLoader = getModuleLoader();
 
-  if (typeof moduleLoader !== 'function') {
+  if (!moduleLoader) {
     throw new Error('Module loader not available');
   }
 

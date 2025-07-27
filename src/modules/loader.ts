@@ -25,8 +25,9 @@ import type {
   IModuleScannerService,
   IModuleWithService,
   IModulesConfig,
+  ModuleName,
 } from '@/modules/types/index';
-import type { ModuleName } from '@/modules/types/index';
+import type { IModuleInterface } from '@/types/modules';
 
 const logger = LoggerService.getInstance();
 
@@ -46,14 +47,14 @@ const hasModuleService = (
     return false;
   }
 
-  const candidate = moduleInstance as Record<string, unknown>;
+  const candidate = moduleInstance as { [key: string]: unknown };
 
   return (
     'service' in candidate
     && candidate.service !== null
     && typeof candidate.service === 'object'
-    && 'getScannerService' in (candidate.service as Record<string, unknown>)
-    && typeof (candidate.service as Record<string, unknown>).getScannerService === 'function'
+    && 'getScannerService' in candidate.service
+    && typeof (candidate.service as { getScannerService?: unknown }).getScannerService === 'function'
   );
 };
 
@@ -92,37 +93,8 @@ export class ModuleLoader {
    * @static
    */
   static getInstance(configPath?: string): ModuleLoader {
-    if (ModuleLoader.instance === undefined) {
-      ModuleLoader.instance = new ModuleLoader(configPath);
-    }
+    ModuleLoader.instance ??= new ModuleLoader(configPath);
     return ModuleLoader.instance;
-  }
-
-  /**
-   * Loads module configuration from disk.
-   * @returns The parsed modules configuration or default empty configuration.
-   * @private
-   */
-  private loadConfig(): IModulesConfig {
-    if (!existsSync(this.configPath)) {
-      logger.warn(
-        LogSource.MODULES,
-        `Module config not found at ${this.configPath}, using defaults`,
-      );
-      return { modules: {} };
-    }
-
-    try {
-      const configData = readFileSync(this.configPath, 'utf-8');
-      return JSON.parse(configData) as IModulesConfig;
-    } catch (error) {
-      logger.error(
-        LogSource.MODULES,
-        `Failed to load module config from ${this.configPath}:`,
-        { error: error instanceof Error ? error : new Error(String(error)) },
-      );
-      return { modules: {} };
-    }
   }
 
   /**
@@ -152,7 +124,7 @@ export class ModuleLoader {
 
     for (const moduleInstance of modules.reverse()) {
       try {
-        if (moduleInstance.stop !== undefined) {
+        if (typeof moduleInstance.stop === 'function') {
           await moduleInstance.stop();
         }
 
@@ -190,17 +162,45 @@ export class ModuleLoader {
    * @throws {Error} If module is not found or not properly initialized.
    * @public
    */
-  getModule(name: ModuleName): IModuleInstance {
-    const module = this.registry.get(name);
-    if (module === undefined) {
+  getModule(name: ModuleName | string): IModuleInstance {
+    const moduleInstance = this.registry.get(name);
+    if (moduleInstance === undefined) {
       throw new Error(`Module '${name}' not found in registry`);
     }
 
-    if ('exports' in module && module.exports) {
-      return module as unknown as IModuleInstance;
+    if ('exports' in moduleInstance && moduleInstance.exports) {
+      return moduleInstance as unknown as IModuleInstance;
     }
 
-    return module as unknown as IModuleInstance;
+    return moduleInstance as unknown as IModuleInstance;
+  }
+
+  /**
+   * Loads module configuration from disk.
+   * @returns The parsed modules configuration or default empty configuration.
+   * @private
+   */
+  private loadConfig(): IModulesConfig {
+    if (!existsSync(this.configPath)) {
+      logger.warn(
+        LogSource.MODULES,
+        `Module config not found at ${this.configPath}, using defaults`,
+      );
+      return { modules: {} };
+    }
+
+    try {
+      const configData = readFileSync(this.configPath, 'utf-8');
+      const parsed: unknown = JSON.parse(configData);
+      return parsed as IModulesConfig;
+    } catch (error) {
+      logger.error(
+        LogSource.MODULES,
+        `Failed to load module config from ${this.configPath}:`,
+        { error: error instanceof Error ? error : new Error(String(error)) },
+      );
+      return { modules: {} };
+    }
   }
 
   /**
@@ -212,7 +212,8 @@ export class ModuleLoader {
   private async loadCoreModules(config: IModulesConfig): Promise<void> {
     logger.debug(LogSource.MODULES, 'Core modules already loaded by bootstrap');
 
-    if (!this.registry.get('modules')) {
+    const modulesModule = this.registry.get('modules');
+    if (modulesModule === undefined) {
       await this.loadModule('modules', './core/modules/index.js', config);
     }
   }
@@ -226,7 +227,7 @@ export class ModuleLoader {
   private async scanAndLoadModules(config: IModulesConfig): Promise<void> {
     try {
       const modulesModule = this.registry.get('modules');
-      if (!modulesModule || !hasModuleService(modulesModule)) {
+      if (modulesModule === undefined || !hasModuleService(modulesModule)) {
         logger.error(
           LogSource.MODULES,
           'Modules module not properly initialized or missing service',
@@ -259,7 +260,7 @@ export class ModuleLoader {
           continue;
         }
 
-        const moduleConfig = config.modules[moduleInfo.name];
+        const { [moduleInfo.name]: moduleConfig } = config.modules;
         if (moduleConfig?.enabled === false) {
           logger.debug(LogSource.MODULES, `Module ${moduleInfo.name} disabled in config`);
           continue;
@@ -283,7 +284,10 @@ export class ModuleLoader {
    * @returns Promise that resolves when module is loaded.
    * @private
    */
-  private async loadModuleFromInfo(moduleInfo: IModuleInfo, config: IModulesConfig): Promise<void> {
+  private async loadModuleFromInfo(
+    moduleInfo: IModuleInfo,
+    config: IModulesConfig,
+  ): Promise<void> {
     try {
       if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatusEnum.LOADING);
@@ -319,6 +323,7 @@ export class ModuleLoader {
    * @param importPath - Path to import the module from.
    * @param config - Modules configuration.
    * @returns Promise that resolves when module is loaded and initialized.
+   * @throws {Error} If module cannot be loaded or initialized.
    * @private
    */
   private async loadModule(
@@ -329,9 +334,10 @@ export class ModuleLoader {
     try {
       logger.debug(LogSource.MODULES, `Loading module: ${name} from ${importPath}`);
 
-      const moduleExports = await import(importPath) as IModuleExports;
-      const moduleClass = this.findModuleClass(moduleExports, name, importPath);
-      const moduleInstance = new moduleClass();
+      const moduleExports: unknown = await import(importPath);
+      const moduleClass = this.findModuleClass(moduleExports as IModuleExports, name, importPath);
+      const ModuleConstructor = moduleClass;
+      const moduleInstance = new ModuleConstructor();
 
       await this.initializeModule(moduleInstance, name, config);
       logger.debug(LogSource.MODULES, `Module ${name} loaded successfully`);
@@ -347,6 +353,7 @@ export class ModuleLoader {
    * @param name - Module name.
    * @param importPath - Import path for error messages.
    * @returns Module constructor.
+   * @throws {Error} If no module class is found in exports.
    * @private
    */
   private findModuleClass(
@@ -384,20 +391,43 @@ export class ModuleLoader {
 
     await moduleInstance.initialize(context);
 
-    const registryModule = {
-      ...moduleInstance,
+    const registryModule: IModuleInterface = {
+      name: moduleInstance.name,
       version: moduleInstance.version ?? '1.0.0',
       type: moduleInstance.type ?? 'service' as const,
-      start: moduleInstance.start?.bind(moduleInstance) ?? (async (): Promise<void> => {}),
-      stop: moduleInstance.stop?.bind(moduleInstance) ?? (async (): Promise<void> => {}),
-      healthCheck: moduleInstance.healthCheck?.bind(moduleInstance) ?? (async (): Promise<{ healthy: boolean; message?: string }> => { return { healthy: true } }),
+      initialize: async (_ctx: import('@/types/modules').IModuleContext) => {
+      },
+      start: moduleInstance.start?.bind(moduleInstance) ?? this.createNoOpAsyncFunction(),
+      stop: moduleInstance.stop?.bind(moduleInstance) ?? this.createNoOpAsyncFunction(),
+      healthCheck: moduleInstance.healthCheck?.bind(moduleInstance) ?? this.createHealthCheckFunction(),
     };
 
     this.registry.register(registryModule);
 
-    if (config.modules[name]?.autoStart === true) {
-      await moduleInstance.start?.();
+    if (config.modules[name]?.autoStart === true && typeof moduleInstance.start === 'function') {
+      await moduleInstance.start();
     }
+  }
+
+  /**
+   * Creates a no-op async function.
+   * @returns An async function that does nothing.
+   * @private
+   */
+  private createNoOpAsyncFunction(): () => Promise<void> {
+    return async (): Promise<void> => {
+    };
+  }
+
+  /**
+   * Creates a default health check function.
+   * @returns An async function that returns healthy status.
+   * @private
+   */
+  private createHealthCheckFunction(): () => Promise<{ healthy: boolean; message?: string }> {
+    return async (): Promise<{ healthy: boolean; message?: string }> => {
+      return { healthy: true };
+    };
   }
 
   /**

@@ -4,7 +4,7 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { TaskStatus } from '@/modules/core/tasks/types/index';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -47,8 +47,9 @@ export const list: CLICommand = {
     }
   ],
 
-  execute: async (options: any): Promise<void> => {
-    const { limit = 10, errors: showErrors } = options.args || options;
+  execute: async (context: CLIContext): Promise<void> => {
+    const limit = (context.args?.limit as number | undefined) ?? 10;
+    const showErrors = (context.args?.errors as boolean | undefined) ?? false;
 
     if (showErrors) {
       const reportsFile = join(process.cwd(), 'error-reports.json');
@@ -79,7 +80,8 @@ export const list: CLICommand = {
           process.stdout.write(`   Time: ${date}\n\n`);
         });
       } catch (error) {
-        process.stderr.write(`Error reading reports: ${error}\n`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        process.stderr.write(`Error reading reports: ${errorMessage}\n`);
         process.exit(1);
       }
     } else {

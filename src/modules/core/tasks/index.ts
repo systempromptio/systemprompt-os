@@ -4,15 +4,16 @@
  * @module modules/core/tasks
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { TaskService } from '@/modules/core/tasks/services/task.service';
-import type { ITaskService, ITasksModuleExports } from '@/modules/core/tasks/types/index';
 import {
- TaskExecutionStatus, TaskPriority, TaskStatus
+  type ITaskService,
+  type ITasksModuleExports,
+  TaskExecutionStatusEnum,
+  TaskPriorityEnum,
+  TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 
@@ -35,9 +36,9 @@ export class TasksModule implements IModule<ITasksModuleExports> {
   get exports(): ITasksModuleExports {
     return {
       service: () => { return this.taskService },
-      TaskStatus,
-      TaskExecutionStatus,
-      TaskPriority
+      TaskStatus: TaskStatusEnum,
+      TaskExecutionStatus: TaskExecutionStatusEnum,
+      TaskPriority: TaskPriorityEnum
     };
   }
 
@@ -169,13 +170,13 @@ export const initialize = async (): Promise<TasksModule> => {
  * @throws {Error} If Tasks module is not available or missing required exports.
  */
 export function getTasksModule(): IModule<ITasksModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+  const { getModuleLoader } = require('@/modules/loader') as { getModuleLoader: () => { getModule: (name: string) => unknown } };
+  const { ModuleName } = require('@/modules/types/module-names.types') as { ModuleName: { TASKS: string } };
 
   const moduleLoader = getModuleLoader();
   const moduleInstance = moduleLoader.getModule(ModuleName.TASKS);
 
-  const tasksModule = moduleInstance as unknown as TasksModule;
+  const tasksModule = moduleInstance as TasksModule;
 
   if (!tasksModule.exports?.service || typeof tasksModule.exports.service !== 'function') {
     throw new Error('Tasks module missing required service export');

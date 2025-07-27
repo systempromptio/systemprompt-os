@@ -11,7 +11,7 @@ import type {
   IAuthCodeRow,
   IAuthorizationCodeData,
 } from '@/modules/core/auth/types/auth-code.types';
-import { ZERO } from '@/const/numbers';
+import { ZERO } from '@/constants/numbers';
 
 /**
  * Repository class for authorization code persistence operations.

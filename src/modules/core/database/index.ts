@@ -15,43 +15,41 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
 import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
-import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 import type { IModule } from '@/modules/core/modules/types/index';
 import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-
-/**
- * Strongly typed exports interface for Database module.
- */
-export interface IDatabaseModuleExports {
-  readonly service: () => IDatabaseService;
-  readonly schemaService: () => SchemaService;
-  readonly migrationService: () => MigrationService;
-  readonly schemaImportService: () => SchemaImportService;
-  readonly sqlParserService: () => SQLParserService;
-  readonly cliHandlerService: () => DatabaseCLIHandlerService;
-  readonly createModuleAdapter: (moduleName: string) => Promise<IModuleDatabaseAdapter>;
-}
+import type {
+  IDatabaseAdapter,
+  IDatabaseModuleExports
+} from '@/modules/core/database/types/database-module.types';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 
 /**
  * Type guard to check if a module is a Database module.
  * @param module - Module to check.
+ * @param moduleToCheck
  * @returns True if module is a Database module.
  */
-export function isDatabaseModule(module: unknown): module is IModule<IDatabaseModuleExports> {
-  return (
-    typeof module === 'object'
-    && module !== null
-    && 'name' in module
-    && (module as { name: unknown }).name === 'database'
-    && 'exports' in module
-    && typeof (module as { exports: unknown }).exports === 'object'
-    && (module as { exports: unknown }).exports !== null
-    && 'service' in (module as { exports: Record<string, unknown> }).exports
-    && typeof (module as { exports: { service: unknown } }).exports.service === 'function'
-  );
-}
+export const isDatabaseModule = (moduleToCheck: unknown): moduleToCheck is IModule<IDatabaseModuleExports> => {
+  if (typeof moduleToCheck !== 'object' || moduleToCheck === null) {
+    return false;
+  }
+
+  const obj = moduleToCheck as Record<string, unknown>;
+
+  if (!('name' in obj) || obj.name !== 'database') {
+    return false;
+  }
+
+  if (!('exports' in obj) || typeof obj.exports !== 'object' || obj.exports === null) {
+    return false;
+  }
+
+  const exports = obj.exports as Record<string, unknown>;
+
+  return 'service' in exports && typeof exports.service === 'function';
+};
 
 /**
  * Export services.
@@ -86,27 +84,83 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   private logger!: ILogger;
   get exports(): IDatabaseModuleExports {
     return {
-      service: () => {
-        return this.getService();
+      service: (): IDatabaseService => { return this.getService() as IDatabaseService },
+      schemaService: (): SchemaService => { return SchemaService.getInstance() },
+      migrationService: (): MigrationService => { return MigrationService.getInstance() },
+      schemaImportService: (): SchemaImportService => { return SchemaImportService.getInstance() },
+      sqlParserService: (): SQLParserService => { return SQLParserService.getInstance() },
+      cliHandlerService: (): DatabaseCLIHandlerService => { return DatabaseCLIHandlerService.getInstance() },
+      createModuleAdapter: async (moduleName: string): Promise<IModuleDatabaseAdapter> => { return await createModuleAdapter(moduleName) },
+    };
+  }
+
+  /**
+   * Build database configuration.
+   * @returns {IDatabaseConfig} Database configuration.
+   */
+  private buildConfig(): IDatabaseConfig {
+    const DEFAULT_POOL_MIN = '1';
+    const DEFAULT_POOL_MAX = '10';
+    const DEFAULT_IDLE_TIMEOUT = '30000';
+    const RADIX_BASE = 10;
+
+    const config: IDatabaseConfig = {
+      type: process.env.DATABASE_TYPE === 'postgres' ? 'postgres' : 'sqlite',
+      pool: {
+        min: parseInt(process.env.DB_POOL_MIN ?? DEFAULT_POOL_MIN, RADIX_BASE),
+        max: parseInt(process.env.DB_POOL_MAX ?? DEFAULT_POOL_MAX, RADIX_BASE),
+        idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
       },
-      schemaService: () => {
-        return SchemaService.getInstance();
+    };
+
+    if (config.type === 'sqlite') {
+      config.sqlite = {
+        filename: process.env.SQLITE_FILENAME ?? './state/database.db',
+      };
+    }
+
+    if (config.type === 'postgres') {
+      config.postgres = {
+        host: process.env.POSTGRES_HOST ?? 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT ?? '5432', RADIX_BASE),
+        database: process.env.POSTGRES_DB ?? 'systemprompt',
+        user: process.env.POSTGRES_USER ?? 'systemprompt',
+        password: process.env.POSTGRES_PASSWORD ?? '',
+      };
+    }
+
+    return config;
+  }
+
+  /**
+   * Create database adapter.
+   * @param {DatabaseService} dbService - Database service instance.
+   * @returns {IDatabaseAdapter} Database adapter.
+   */
+  private createDatabaseAdapter(dbService: DatabaseService): IDatabaseAdapter {
+    return {
+      execute: async (sql: string, params?: unknown[]): Promise<void> => {
+        await dbService.execute(sql, params);
       },
-      migrationService: () => {
-        return MigrationService.getInstance();
+      query: async <T>(sql: string, params?: unknown[]): Promise<T[]> => {
+        return await dbService.query<T>(sql, params);
       },
-      schemaImportService: () => {
-        return SchemaImportService.getInstance();
-      },
-      sqlParserService: () => {
-        return SQLParserService.getInstance();
-      },
-      cliHandlerService: () => {
-        return DatabaseCLIHandlerService.getInstance();
-      },
-      createModuleAdapter: async (moduleName: string) => {
-        return await createModuleAdapter(moduleName);
-      },
+      transaction: async <T>(fn: (conn: {
+        execute(sql: string, params?: unknown[]): Promise<void>;
+        query<T>(sql: string, params?: unknown[]): Promise<T[]>;
+      }) => Promise<T>): Promise<T> => {
+        return await dbService.transaction(async (conn) => {
+          return await fn({
+            execute: async (sql: string, params?: unknown[]): Promise<void> => {
+              await conn.execute(sql, params);
+            },
+            query: async <T>(sql: string, params?: unknown[]): Promise<T[]> => {
+              const result = await conn.query<T>(sql, params);
+              return result.rows;
+            }
+          });
+        });
+      }
     };
   }
 
@@ -121,29 +175,14 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
     }
 
     try {
-      const config = buildConfig();
+      const config = this.buildConfig();
 
       const dbService = DatabaseService.initialize(config, this.logger);
       const sqlParser = SQLParserService.initialize(this.logger);
 
-      const dbAdapter = {
-        execute: async (sql: string, params?: unknown[]) => { await dbService.execute(sql, params); },
-        query: async <T>(sql: string, params?: unknown[]) => { return await dbService.query<T>(sql, params) },
-        transaction: async <T>(fn: (conn: {
-          execute(sql: string, params?: unknown[]): Promise<void>;
-          query<T>(sql: string, params?: unknown[]): Promise<T[]>;
-        }) => Promise<T>) => { return await dbService.transaction(async (conn) => {
-          return await fn({
-            execute: async (sql: string, params?: unknown[]) => { await conn.execute(sql, params); },
-            query: async <T>(sql: string, params?: unknown[]) => {
-              const result = await conn.query<T>(sql, params);
-              return result.rows;
-            }
-          });
-        }) }
-      };
+      const dbAdapter = this.createDatabaseAdapter(dbService);
 
-      const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser, this.logger);
+      const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser as any, this.logger);
       const schemaService = SchemaService.initialize(dbAdapter, schemaImport, this.logger);
       MigrationService.initialize(dbService, this.logger);
 
@@ -303,10 +342,11 @@ export function getDatabaseModule(): IModule<IDatabaseModuleExports> {
 }
 
 /**
- * Build database configuration from environment.
- * @returns Database configuration.
+ * Initialize the database module.
+ * @param logger - Logger instance.
+ * @returns Promise that resolves when initialization is complete.
  */
-const buildConfig = (): IDatabaseConfig => {
+export const initialize = async (logger?: ILogger): Promise<void> => {
   const DEFAULT_POOL_MIN = '1';
   const DEFAULT_POOL_MAX = '10';
   const DEFAULT_IDLE_TIMEOUT = '30000';
@@ -327,27 +367,19 @@ const buildConfig = (): IDatabaseConfig => {
     };
   }
 
-  return config;
-};
-
-/**
- * Initialize the database module.
- * @param logger - Logger instance.
- * @returns Promise that resolves when initialization is complete.
- */
-export const initialize = async (logger?: ILogger): Promise<void> => {
-  const config = buildConfig();
-
   const dbService = DatabaseService.initialize(config, logger);
   const sqlParser = SQLParserService.initialize(logger);
 
   const dbAdapter = {
-    execute: async (sql: string, params?: unknown[]) => { await dbService.execute(sql, params); },
-    query: async <T>(sql: string, params?: unknown[]) => { return await dbService.query<T>(sql, params) },
+    execute: async (sql: string, params?: unknown[]): Promise<void> => { await dbService.execute(sql, params); },
+    query: async <T>(sql: string, params?: unknown[]): Promise<T[]> => { return await dbService.query<T>(sql, params); },
     transaction: async <T>(fn: (conn: {
       execute(sql: string, params?: unknown[]): Promise<void>;
       query<T>(sql: string, params?: unknown[]): Promise<T[]>;
-    }) => Promise<T>) => { return await dbService.transaction(async (conn) => {
+    }) => Promise<T>) => { return await dbService.transaction(async (conn: {
+      execute(sql: string, params?: unknown[]): Promise<void>;
+      query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+    }) => {
       return await fn({
         execute: async (sql: string, params?: unknown[]) => { await conn.execute(sql, params); },
         query: async <T>(sql: string, params?: unknown[]) => {
@@ -358,7 +390,7 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
     }) }
   };
 
-  const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser, logger);
+  const schemaImport = SchemaImportService.initialize(dbAdapter, sqlParser as any, logger);
   const schemaService = SchemaService.initialize(dbAdapter, schemaImport, logger);
   MigrationService.initialize(dbService, logger);
 

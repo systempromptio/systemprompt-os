@@ -10,13 +10,7 @@ import { SystemService } from '@/modules/core/system/services/system.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Strongly typed exports interface for System module.
- */
-export interface ISystemModuleExports {
-  readonly service: () => SystemService;
-}
+import type { ISystemModuleExports } from '@/modules/core/system/types/index';
 
 /**
  * System module implementation.
@@ -34,7 +28,7 @@ export class SystemModule implements IModule<ISystemModuleExports> {
   private started = false;
   get exports(): ISystemModuleExports {
     return {
-      service: () => { return this.getService(); },
+      service: (): SystemService => { return this.getService() },
     };
   }
 
@@ -89,28 +83,31 @@ export class SystemModule implements IModule<ISystemModuleExports> {
 
   /**
    * Health check for the system module.
+   * @returns The health check result.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
       return {
- healthy: false,
-message: 'System module not initialized'
-};
+        healthy: false,
+        message: 'System module not initialized'
+      };
     }
     if (!this.started) {
       return {
- healthy: false,
-message: 'System module not started'
-};
+        healthy: false,
+        message: 'System module not started'
+      };
     }
     return {
- healthy: true,
-message: 'System module is healthy'
-};
+      healthy: true,
+      message: 'System module is healthy'
+    };
   }
 
   /**
    * Get the system service.
+   * @returns The system service instance.
+   * @throws {Error} If the module is not initialized.
    */
   getService(): SystemService {
     if (!this.initialized) {
@@ -122,6 +119,7 @@ message: 'System module is healthy'
 
 /**
  * Factory function for creating the module.
+ * @returns A new system module instance.
  */
 export const createModule = (): SystemModule => {
   return new SystemModule();
@@ -129,6 +127,7 @@ export const createModule = (): SystemModule => {
 
 /**
  * Initialize function for core module pattern.
+ * @returns A promise that resolves to an initialized system module.
  */
 export const initialize = async (): Promise<SystemModule> => {
   const systemModule = new SystemModule();
@@ -141,30 +140,34 @@ export const initialize = async (): Promise<SystemModule> => {
  * @returns The System module with guaranteed typed exports.
  * @throws {Error} If System module is not available or missing required exports.
  */
-export function getSystemModule(): IModule<ISystemModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
+export const getSystemModule = (): IModule<ISystemModuleExports> => {
+  const { getModuleLoader } = require('@/modules/loader') as { getModuleLoader: () => any };
+  const { ModuleName } = require('@/modules/types/index') as { ModuleName: any };
 
   const moduleLoader = getModuleLoader();
-  const systemModule = moduleLoader.getModule(ModuleName.SYSTEM);
+  const systemModule = moduleLoader.getModule(ModuleName.SYSTEM) as IModule<ISystemModuleExports>;
 
-  if (!systemModule.exports?.service || typeof systemModule.exports.service !== 'function') {
+  if (systemModule.exports?.service === undefined || typeof systemModule.exports.service !== 'function') {
     throw new Error('System module missing required service export');
   }
 
-  return systemModule as IModule<ISystemModuleExports>;
-}
+  return systemModule;
+};
 
 /**
- * Re-export enums for convenience.
+ * Re-export types for convenience.
+ * Note: Direct re-export of const enums is not supported with isolatedModules.
+ * Users should import these directly from '@/modules/core/system/types/index'.
  */
-export {
+export type {
   ConfigTypeEnum,
   EventSeverityEnum,
   MaintenanceTypeEnum
 } from '@/modules/core/system/types/index';
 
-// Re-export ModuleStatusEnum from modules/types to avoid conflicts
+/**
+ * Re-export ModuleStatusEnum from modules/types to avoid conflicts.
+ */
 export { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 
 export default SystemModule;

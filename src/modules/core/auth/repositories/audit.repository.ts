@@ -5,8 +5,8 @@
 
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { IAuditRow } from '@/modules/core/auth/types/index';
-import { ONE_HUNDRED } from '@/const/numbers';
+import type { IAuditRow } from '@/modules/core/auth/types/audit-service.types';
+import { ONE_HUNDRED } from '@/constants/numbers';
 
 /**
  * AuditRepository class for handling audit data operations.
@@ -33,7 +33,10 @@ export class AuditRepository {
    * Insert an audit event into the database.
    * @param userId - Optional user ID.
    * @param action - Action that was performed.
-   * @param details - Optional event details.
+   * @param resource - Optional resource identifier.
+   * @param success - Whether the action was successful.
+   * @param errorMessage - Optional error message if failed.
+   * @param metadata - Optional metadata JSON string.
    * @param ipAddress - Optional IP address.
    * @param userAgent - Optional user agent.
    * @returns Promise that resolves when inserted.
@@ -41,15 +44,18 @@ export class AuditRepository {
   async insertAuditEvent(
     userId: string | null,
     action: string,
-    details: string | null,
+    resource: string | null,
+    success: boolean,
+    errorMessage: string | null,
+    metadata: string | null,
     ipAddress: string | null,
     userAgent: string | null,
   ): Promise<void> {
     const id = randomUUID();
     await this.db.execute(
-      `INSERT INTO auth_audit_log (id, userId, action, details, ip_address, user_agent, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [id, userId, action, details, ipAddress, userAgent],
+      `INSERT INTO auth_audit_log (id, user_id, action, resource, success, error_message, metadata, ip_address, user_agent, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [id, userId, action, resource, success ? 1 : 0, errorMessage, metadata, ipAddress, userAgent],
     );
   }
 
@@ -64,11 +70,11 @@ export class AuditRepository {
     const params: string[] = [];
 
     if (userId !== undefined) {
-      query += ' WHERE userId = ?';
+      query += ' WHERE user_id = ?';
       params.push(userId);
     }
 
-    query += ' ORDER BY createdAt DESC LIMIT ?';
+    query += ' ORDER BY timestamp DESC LIMIT ?';
     params.push(String(limit));
 
     return await this.db.query<IAuditRow>(query, params);

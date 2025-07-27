@@ -4,19 +4,12 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import type { IErrorReport } from '@/modules/core/tasks/types/index';
 import {
  existsSync, readFileSync, writeFileSync
 } from 'fs';
 import { join } from 'path';
-
-interface ErrorReport {
-  id: string;
-  path: string;
-  errors: number;
-  type: 'lint' | 'typecheck';
-  timestamp: string;
-}
 
 /**
  * Tasks add command.
@@ -47,33 +40,37 @@ export const add: CLICommand = {
     }
   ],
 
-  execute: async (options: any): Promise<void> => {
-    const { type, payload } = options.args || options;
+  execute: async (options: CLIContext): Promise<void> => {
+    await Promise.resolve().then(() => {
+    const type = options.args.type as string | undefined;
+    const payload = options.args.payload as string | undefined;
 
     if (type === 'lint' || type === 'typecheck') {
       try {
-        const data = JSON.parse(payload || '{}');
-        const report: ErrorReport = {
+        const parsedPayload = JSON.parse(payload ?? '{}') as Record<string, unknown>;
+        const report: IErrorReport = {
           id: Date.now().toString(),
-          path: data.path || process.cwd(),
-          errors: data.errors || 0,
-          type: data.type || type,
+          path: (parsedPayload.path as string | undefined) ?? process.cwd(),
+          errors: (parsedPayload.errors as number | undefined) ?? 0,
+          type: (parsedPayload.type as 'lint' | 'typecheck' | undefined) ?? type,
           timestamp: new Date().toISOString()
         };
 
         const reportsFile = join(process.cwd(), 'error-reports.json');
-        let reports: ErrorReport[] = [];
+        let reports: IErrorReport[] = [];
 
         if (existsSync(reportsFile)) {
-          reports = JSON.parse(readFileSync(reportsFile, 'utf8'));
+          reports = JSON.parse(readFileSync(reportsFile, 'utf8')) as IErrorReport[];
         }
 
         reports.push(report);
         writeFileSync(reportsFile, JSON.stringify(reports, null, 2));
 
-        process.stdout.write(`Added ${type} report: ${report.errors} errors found in ${report.path}\n`);
+        process.stdout.write(
+          `Added ${type} report: ${String(report.errors)} errors found in ${report.path}\n`
+        );
       } catch (error) {
-        process.stderr.write(`Error processing report: ${error}\n`);
+        process.stderr.write(`Error processing report: ${String(error)}\n`);
         process.exit(1);
       }
     } else {
@@ -81,6 +78,7 @@ export const add: CLICommand = {
       process.stdout.write('Tasks add command - placeholder implementation\n');
       process.stdout.write('The actual implementation would add a task to the queue\n');
     }
+    });
   }
 };
 

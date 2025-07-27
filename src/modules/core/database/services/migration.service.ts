@@ -11,7 +11,20 @@ import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
+import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
+import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 import { ZERO } from '@/modules/core/database/constants/index';
+
+/**
+ * Database row type for migration records.
+ */
+interface IMigrationRow {
+  module: string;
+  version: string;
+  filename: string;
+  checksum: string;
+  applied_at: string;
+}
 
 /**
  * Service for managing database migrations across modules.
@@ -21,12 +34,14 @@ export class MigrationService {
   private migrations: IMigration[] = [];
   private logger?: ILogger;
   private initialized = false;
-  private databaseService: any;
+  private databaseService: IDatabaseService;
 
   /**
    * Creates a new migration service instance.
    */
-  private constructor() {}
+  private constructor() {
+    this.databaseService = {} as IDatabaseService;
+  }
 
   /**
    * Initialize the migration service.
@@ -34,7 +49,7 @@ export class MigrationService {
    * @param logger - Optional logger instance.
    * @returns The initialized migration service instance.
    */
-  public static initialize(databaseService: any, logger?: ILogger): MigrationService {
+  public static initialize(databaseService: IDatabaseService, logger?: ILogger): MigrationService {
     MigrationService.instance ||= new MigrationService();
     MigrationService.instance.databaseService = databaseService;
     if (logger !== undefined) {
@@ -50,7 +65,7 @@ export class MigrationService {
    * @throws {Error} If service not initialized.
    */
   public static getInstance(): MigrationService {
-    if (!MigrationService.instance || !MigrationService.instance.initialized) {
+    if (!MigrationService.instance?.initialized) {
       throw new Error('MigrationService not initialized. Call initialize() first.');
     }
     return MigrationService.instance;
@@ -64,9 +79,9 @@ export class MigrationService {
   public async discoverMigrations(baseDir: string = '/app/src/modules'): Promise<void> {
     try {
       this.logger?.info(LogSource.DATABASE, 'Discovering migrations', {
- category: 'migration',
-baseDir
-});
+        category: 'migration',
+        baseDir
+      });
 
       const migrationFiles = await glob('**/database/migrations/*.sql', {
         cwd: baseDir,
@@ -75,7 +90,7 @@ baseDir
 
       this.migrations = [];
 
-      const migrationPromises = migrationFiles.map(async (filepath) => {
+      const migrationPromises = migrationFiles.map(async (filepath): Promise<IMigration> => {
         const moduleNameResult = this.extractModuleName(filepath, baseDir);
         const filename = basename(filepath);
         const version = this.extractVersion(filename);
@@ -103,7 +118,7 @@ baseDir
     } catch (error) {
       this.logger?.error(LogSource.DATABASE, 'Migration discovery failed', {
         category: 'migration',
-        error: error as Error
+        error: error instanceof Error ? error : new Error(String(error))
       });
       throw error;
     }
@@ -150,7 +165,7 @@ pending: pending.length
         version: migration.version,
       });
 
-      await this.databaseService.transaction(async (conn: any): Promise<void> => {
+      await this.databaseService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
         await conn.execute(migration.sql);
 
         await conn.execute(
@@ -170,7 +185,7 @@ pending: pending.length
         category: 'migration',
         module: migration.module,
         version: migration.version,
-        error: error as Error,
+        error: error instanceof Error ? error : new Error(String(error)),
       });
       throw error;
     }
@@ -200,10 +215,9 @@ pending: pending.length
    * @returns Set of applied migration keys.
    */
   private async getAppliedMigrations(): Promise<Set<string>> {
-    const rows = await this.databaseService.query('SELECT module, version FROM _migrations') as Array<{
-      module: string;
-      version: string;
-    }>;
+    const rows = await this.databaseService.query<Pick<IMigrationRow, 'module' | 'version'>>(
+      'SELECT module, version FROM _migrations'
+    );
 
     return new Set(rows.map((row): string => { return this.getMigrationKey(row) }));
   }
@@ -236,7 +250,7 @@ pending: pending.length
       return `core/${secondPart}`;
     }
 
-    return firstPart ?? '';
+    return firstPart || '';
   }
 
   /**
@@ -247,10 +261,10 @@ pending: pending.length
    */
   private extractVersion(filename: string): string {
     const match = filename.match(/^([\d]+|v[\d.]+)_/);
-    if (!match) {
+    if (!match || !match[1]) {
       throw new Error(`Invalid migration filename: ${filename}`);
     }
-    return match[1] ?? '';
+    return match[1];
   }
 
   /**
@@ -273,7 +287,7 @@ pending: pending.length
   private compareVersions(versionA: string, versionB: string): number {
     const NUMERIC_PATTERN = /^\d+$/;
     if (NUMERIC_PATTERN.test(versionA) && NUMERIC_PATTERN.test(versionB)) {
-      return (parseInt(versionA) ?? ZERO) - (parseInt(versionB) ?? ZERO);
+      return (parseInt(versionA, 10) || ZERO) - (parseInt(versionB, 10) || ZERO);
     }
 
     return versionA.localeCompare(versionB);
@@ -302,13 +316,9 @@ pending: pending.length
    */
   public async getExecutedMigrations(): Promise<IExecutedMigration[]> {
     try {
-      const rows = await this.databaseService.query('SELECT * FROM _migrations ORDER BY applied_at DESC') as Array<{
-        module: string;
-        version: string;
-        filename: string;
-        checksum: string;
-        applied_at: string;
-      }>;
+      const rows = await this.databaseService.query<IMigrationRow>(
+        'SELECT * FROM _migrations ORDER BY applied_at DESC'
+      );
 
       return rows.map((row): IExecutedMigration => { return {
         module: row.module,
@@ -323,7 +333,7 @@ pending: pending.length
       this.logger?.debug(LogSource.DATABASE, 'No migrations table found', {
         category: 'migration',
         persistToDb: false,
-        error: error as Error
+        error: error instanceof Error ? error : new Error(String(error))
       });
       return [];
     }
@@ -351,7 +361,7 @@ pending: pending.length
         version: migration.version,
       });
 
-      await this.databaseService.transaction(async (conn: any): Promise<void> => {
+      await this.databaseService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
         const rollbackPath = migration.filename.replace('.sql', '.rollback.sql');
 
         try {
@@ -381,7 +391,7 @@ pending: pending.length
         category: 'migration',
         module: migration.module,
         version: migration.version,
-        error: error as Error,
+        error: error instanceof Error ? error : new Error(String(error)),
       });
       throw error;
     }

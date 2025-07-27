@@ -1,12 +1,12 @@
 /**
  * @file Webhook service for managing webhooks and triggering events.
  * @module src/modules/core/webhooks/services
+ * @description Provides comprehensive webhook management including creation, updates, deletion,
+ * event triggering, and delivery tracking.
  */
 
 import type { WebhookRepository } from '@/modules/core/webhooks/repositories/webhook-repository';
-import type { IWebhookDeliveryService } from '@/modules/core/webhooks/services/webhook-delivery-service';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type {
   CreateWebhookDto,
   UpdateWebhookDto,
@@ -14,14 +14,21 @@ import type {
   WebhookDelivery,
   WebhookDeliveryResult,
   WebhookEvent,
-  WebhookEventPayload,
-  WebhookStats
+  WebhookPayload,
+  WebhookStats,
+  IWebhookDeliveryService
 } from '@/modules/core/webhooks/types/webhook.types';
 
 /**
  * Webhook service for managing webhooks and triggering webhook events.
  */
 export class WebhookService {
+  /**
+   * Creates an instance of WebhookService.
+   * @param repository - The webhook repository for data access.
+   * @param deliveryService - The service for delivering webhooks.
+   * @param logger - The logger instance for logging operations.
+   */
   constructor(
     private readonly repository: WebhookRepository,
     private readonly deliveryService: IWebhookDeliveryService,
@@ -39,14 +46,14 @@ export class WebhookService {
         throw new Error('Invalid webhook URL');
       }
 
-      if (!dto.events || dto.events.length === 0) {
+      if (dto.events === undefined || dto.events === null || dto.events.length === 0) {
         throw new Error('At least one event must be specified');
       }
 
       const webhook = await this.repository.createWebhook(dto);
 
       this.logger.info(LogSource.WEBHOOK, 'Webhook created', {
-        data: {
+        metadata: {
           webhookId: webhook.id,
           name: webhook.name,
           url: webhook.url,
@@ -161,7 +168,7 @@ export class WebhookService {
         return;
       }
 
-      const payload: WebhookEventPayload = {
+      const payload: WebhookPayload = {
         webhook_id: '',
         event,
         data,
@@ -215,7 +222,7 @@ export class WebhookService {
       throw new Error('Webhook not found');
     }
 
-    const testPayload: WebhookEventPayload = {
+    const testPayload: WebhookPayload = {
       webhook_id: id,
       event: 'custom',
       data: {

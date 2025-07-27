@@ -1,10 +1,11 @@
 /**
+ * Health check endpoint.
  * @file Health check endpoint.
  * @module server/external/rest/health
  */
 
-import type { Request, Response } from 'express';
-import os from 'os';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
+import * as os from 'os';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { CONFIG } from '@/server/config';
@@ -13,60 +14,17 @@ import { LogSource } from '@/modules/core/logger/types/index';
 
 const logger = LoggerService.getInstance();
 
-/*
- * Import { HeartbeatStatus } from '../../../modules/core/heartbeat/types.js';
- * Heartbeat functionality has been absorbed into the system module
+import type { IHealthResponse, IHeartbeatStatus } from '@/server/external/rest/types/health.types';
+
+/**
+ * Health endpoint handler class.
  */
-
-interface HeartbeatStatus {
-  pid: number;
-  status: 'healthy' | 'unhealthy';
-  timestamp: string;
-  memory: {
-    used: number;
-    total: number;
-  };
-  uptime: number;
-}
-
-export interface HealthResponse {
-  status: 'ok' | 'degraded' | 'error';
-  timestamp: string;
-  service: string;
-  version: string;
-  heartbeat?: HeartbeatStatus | null;
-  warnings?: string[];
-  system: {
-    platform: string;
-    arch: string;
-    nodeVersion: string;
-    uptime: number;
-    loadAverage: number[];
-    memory: {
-      total: number;
-      free: number;
-      used: number;
-      percentUsed: number;
-    };
-    cpu: {
-      model: string;
-      cores: number;
-      speed: number;
-    };
-    disk?: {
-      total: number;
-      free: number;
-      used: number;
-      percentUsed: number;
-    };
-  };
-}
-
 export class HealthEndpoint {
   /**
    * Read heartbeat data from file.
+   * @returns Heartbeat status or null if not available.
    */
-  private readHeartbeat(): HeartbeatStatus | null {
+  private readHeartbeat(): IHeartbeatStatus | null {
     try {
       const heartbeatPath = join(CONFIG.STATEDIR, 'data', 'heartbeat.json');
       if (!existsSync(heartbeatPath)) {
@@ -74,35 +32,77 @@ export class HealthEndpoint {
       }
 
       const content = readFileSync(heartbeatPath, 'utf-8');
-      return JSON.parse(content);
+      const data: unknown = JSON.parse(content);
+
+      if (this.isHeartbeatStatus(data)) {
+        return data;
+      }
+
+      logger.error(LogSource.SERVER, 'Invalid heartbeat data structure', {
+        category: 'health',
+        persistToDb: false
+      });
+      return null;
     } catch (error) {
       logger.error(LogSource.SERVER, 'Failed to read heartbeat data', {
- error: error instanceof Error ? error : new Error(String(error)),
-category: 'health',
-persistToDb: false
-});
+        error: error instanceof Error ? error : new Error(String(error)),
+        category: 'health',
+        persistToDb: false
+      });
       return null;
     }
   }
 
   /**
-   * Check if heartbeat is stale (older than 2 minutes).
-   * @param heartbeat
+   * Type guard to validate heartbeat status structure.
+   * @param data - Unknown data to validate.
+   * @returns True if data is a valid IHeartbeatStatus.
    */
-  private isHeartbeatStale(heartbeat: HeartbeatStatus): boolean {
+  private isHeartbeatStatus(data: unknown): data is IHeartbeatStatus {
+    if (typeof data !== 'object' || data === null) {
+      return false;
+    }
+
+    const obj = data as Record<string, unknown>;
+
+    if (
+      typeof obj.pid !== 'number'
+      || typeof obj.timestamp !== 'string'
+      || typeof obj.uptime !== 'number'
+      || obj.status !== 'healthy' && obj.status !== 'unhealthy'
+      || typeof obj.memory !== 'object'
+      || obj.memory === null
+    ) {
+      return false;
+    }
+
+    const memory = obj.memory as Record<string, unknown>;
+    return (
+      typeof memory.used === 'number'
+      && typeof memory.total === 'number'
+    );
+  }
+
+  /**
+   * Check if heartbeat is stale (older than 2 minutes).
+   * @param heartbeat - The heartbeat status to check.
+   * @returns True if heartbeat is stale.
+   */
+  private isHeartbeatStale(heartbeat: IHeartbeatStatus): boolean {
     const heartbeatTime = new Date(heartbeat.timestamp).getTime();
     const now = Date.now();
-    const staleThreshold = 2 * 60 * 1000
+    const staleThreshold = 2 * 60 * 1000;
     return now - heartbeatTime > staleThreshold;
   }
 
   /**
    * GET /health
    * Returns system health information.
-   * @param _req
-   * @param res
+   * @param _req - Express request object (unused).
+   * @param res - Express response object.
+   * @returns Response with health information.
    */
-  getHealth = async (_req: Request, res: Response): Promise<Response> => {
+  public getHealth = (_req: ExpressRequest, res: ExpressResponse): ExpressResponse => {
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
@@ -111,7 +111,7 @@ persistToDb: false
     let status: 'ok' | 'degraded' | 'error' = 'ok';
 
     const heartbeat = this.readHeartbeat();
-    if (heartbeat) {
+    if (heartbeat !== null) {
       if (this.isHeartbeatStale(heartbeat)) {
         warnings.push('Heartbeat is stale');
         status = 'degraded';
@@ -128,7 +128,7 @@ persistToDb: false
 });
     }
 
-    const health: HealthResponse = {
+    const health: IHealthResponse = {
       status,
       timestamp: new Date().toISOString(),
       service: 'systemprompt-os',
@@ -148,9 +148,9 @@ persistToDb: false
           percentUsed: Math.round(usedMem / totalMem * 100),
         },
         cpu: {
-          model: cpus[0]?.model || 'Unknown',
+          model: cpus[0]?.model ?? 'Unknown',
           cores: cpus.length,
-          speed: cpus[0]?.speed || 0,
+          speed: cpus[0]?.speed ?? 0,
         },
       },
     };

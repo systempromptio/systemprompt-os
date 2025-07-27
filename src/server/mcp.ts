@@ -298,7 +298,7 @@ request,
 persistToDb: false
 }
         );
-        return await handleListResourceTemplates(request);
+        return handleListResourceTemplates(request);
       },
     );
   }

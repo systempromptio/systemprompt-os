@@ -4,34 +4,44 @@
  */
 
 import { ConfigModule } from '@/modules/core/config/index';
+import { LogSource, LoggerModule } from '@/modules/core/logger/index';
 
-// Export functions for testing
-export { formatTree, formatYaml };
+/**
+ * Options for the list command.
+ */
+interface IListCommandOptions {
+  format?: 'tree' | 'json' | 'yaml';
+}
 
 /**
  * Format configuration data in tree structure.
- * @param {any} data - Configuration data to format.
+ * @param {unknown} configData - Configuration data to format.
  * @param {string} prefix - Current line prefix for tree structure.
  * @returns {string} Formatted tree string.
  */
-function formatTree(data: any, prefix = ''): string {
-  if (data === null || data === undefined) {
+const formatTree = (configData: unknown, prefix = ''): string => {
+  if (configData === null || configData === undefined) {
+    return '';
+  }
+
+  if (typeof configData !== 'object' || Array.isArray(configData)) {
     return '';
   }
 
   const lines: string[] = [];
-  const keys = Object.keys(data);
+  const dataObject = configData as Record<string, unknown>;
+  const keys = Object.keys(dataObject);
 
-  keys.forEach((key, index) => {
+  keys.forEach((key, index): void => {
     const isLastKey = index === keys.length - 1;
-    const value = data[key];
+    const { [key]: value } = dataObject;
     const currentPrefix = isLastKey ? '└── ' : '├── ';
     const nextPrefix = isLastKey ? '    ' : '│   ';
 
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       lines.push(`${prefix}${currentPrefix}${key}/`);
       const childLines = formatTree(value, prefix + nextPrefix);
-      if (childLines) {
+      if (childLines.length > 0) {
         lines.push(childLines);
       }
     } else {
@@ -48,32 +58,33 @@ function formatTree(data: any, prefix = ''): string {
   });
 
   return lines.join('\n');
-}
+};
 
 /**
  * Format configuration data in YAML format.
- * @param {any} data - Configuration data to format.
+ * @param {unknown} configData - Configuration data to format.
  * @param {number} indent - Current indentation level.
  * @returns {string} Formatted YAML string.
  */
-function formatYaml(data: any, indent = 0): string {
-  if (data === null) {
+const formatYaml = (configData: unknown, indent = 0): string => {
+  if (configData === null) {
     return 'null';
   }
 
-  if (typeof data !== 'object' || Array.isArray(data)) {
-    if (typeof data === 'string') {
-      return `"${data}"`;
+  if (typeof configData !== 'object' || Array.isArray(configData)) {
+    if (typeof configData === 'string') {
+      return `"${configData}"`;
     }
-    return JSON.stringify(data);
+    return JSON.stringify(configData);
   }
 
   const lines: string[] = [];
   const indentStr = '  '.repeat(indent);
-  const keys = Object.keys(data);
+  const dataObject = configData as Record<string, unknown>;
+  const keys = Object.keys(dataObject);
 
-  keys.forEach(key => {
-    const value = data[key];
+  keys.forEach((key): void => {
+    const { [key]: value } = dataObject;
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       lines.push(`${indentStr}${key}:`);
       const childYaml = formatYaml(value, indent + 1);
@@ -90,11 +101,12 @@ function formatYaml(data: any, indent = 0): string {
   });
 
   return lines.join('\n');
-}
+};
 
-interface ListCommandOptions {
-  format?: 'tree' | 'json' | 'yaml';
-}
+/**
+ * Export functions for testing.
+ */
+export { formatTree, formatYaml };
 
 /**
  * CLI command for listing configuration values.
@@ -106,33 +118,37 @@ export const command = {
    * @param {string} [options.format] - Output format (tree, json, yaml).
    * @returns {Promise<void>} Promise that resolves when command completes.
    */
-  async execute(options: ListCommandOptions = {}): Promise<void> {
+  async execute(options: IListCommandOptions = {}): Promise<void> {
     const configModule = new ConfigModule();
     await configModule.initialize();
 
     const configData = await configModule.get();
 
-    if (!configData || typeof configData === 'object' && Object.keys(configData as any).length === 0) {
-      console.log('No configuration values found.');
+    const loggerModule = new LoggerModule();
+    await loggerModule.initialize();
+    const logger = loggerModule.exports.logger();
+
+    if (!configData || typeof configData === 'object'
+        && Object.keys(configData as Record<string, unknown>).length === 0) {
+      logger.info(LogSource.CLI, 'No configuration values found.');
       return;
     }
 
-    const format = options.format || 'tree';
+    const format = options.format ?? 'tree';
 
     switch (format) {
       case 'json':
-        console.log(JSON.stringify(configData, null, 2));
+        logger.info(LogSource.CLI, JSON.stringify(configData, null, 2));
         break;
 
       case 'yaml':
-        console.log(formatYaml(configData));
+        logger.info(LogSource.CLI, formatYaml(configData));
         break;
 
       case 'tree':
-      default:
-        console.log('\nConfiguration Values:');
-        console.log('====================\n');
-        console.log(formatTree(configData));
+        logger.info(LogSource.CLI, '\nConfiguration Values:');
+        logger.info(LogSource.CLI, '====================\n');
+        logger.info(LogSource.CLI, formatTree(configData));
         break;
     }
   }

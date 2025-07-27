@@ -42,3 +42,10 @@ export interface IDevService {
   startSession(type: DevSessionType, profileId?: number): Promise<IDevSession>;
   endSession(sessionId: number, status: DevSessionStatus): Promise<void>;
 }
+
+/**
+ * Strongly typed exports interface for Dev module.
+ */
+export interface IDevModuleExports {
+  readonly service: () => import('@/modules/core/dev/services/dev.service').DevService;
+}

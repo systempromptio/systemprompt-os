@@ -1,6 +1,8 @@
 /**
  * @file Metric service for collecting, buffering, and managing application metrics.
  * @module modules/core/monitor/services
+ * @description This service provides functionality for recording various metric types, querying historical data,
+ * and managing system metrics collection.
  */
 
 import { EventEmitter } from 'events';
@@ -12,56 +14,12 @@ import {
   type MonitorRepository
 } from '@/modules/core/monitor/repositories/monitor-repository';
 
-/**
- * Configuration for metric service.
- */
-export interface IMetricConfig {
-  metrics: {
-    flushInterval: number;
-    bufferSize: number;
-    collectSystem: boolean;
-  };
-}
-
-/**
- * Logger interface.
- */
-export interface ILogger {
-  info(message: string, meta?: any): void;
-  error(message: string, meta?: any): void;
-  warn(message: string, meta?: any): void;
-  debug(message: string, meta?: any): void;
-}
-
-/**
- * Metric types.
- */
-export type MetricType = 'counter' | 'gauge' | 'histogram';
-
-/**
- * System metrics structure.
- */
-export interface ISystemMetrics {
-  cpu: {
-    cores: number;
-    usage?: number;
-  };
-  memory: {
-    total: number;
-    free: number;
-    used: number;
-  };
-  disk: {
-    total?: number;
-    free?: number;
-    used?: number;
-  };
-  network: {
-    bytesIn?: number;
-    bytesOut?: number;
-  };
-  uptime: number;
-}
+import type {
+  ILogger,
+  IMetricConfig,
+  ISystemMetrics,
+  MetricType
+} from '@/modules/core/monitor/types';
 
 /**
  * Metric service for collecting, buffering, and managing application metrics.
@@ -75,6 +33,12 @@ export class MetricService extends EventEmitter {
   private buffer: IMetricData[] = [];
   private flushTimer?: NodeJS.Timeout;
 
+  /**
+   * Creates a new instance of MetricService.
+   * @param repository - The repository for storing metrics.
+   * @param logger - The logger instance.
+   * @param config - The configuration for the metric service.
+   */
   constructor(repository: MonitorRepository, logger: ILogger, config: IMetricConfig) {
     super();
     this.repository = repository;
@@ -85,22 +49,24 @@ export class MetricService extends EventEmitter {
   /**
    * Initialize the metric service and start periodic flushing.
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     this.logger.info('Metric service initialized');
 
     this.flushTimer = setInterval(
-      async () => { await this.flushMetrics(); },
+      () => {
+        void this.flushMetrics();
+      },
       this.config.metrics.flushInterval
     );
   }
 
   /**
    * Record a metric with optional labels and unit.
-   * @param name
-   * @param value
-   * @param type
-   * @param labels
-   * @param unit
+   * @param name - The name of the metric.
+   * @param value - The numeric value to record.
+   * @param type - The type of metric (counter, gauge, or histogram).
+   * @param labels - Optional key-value pairs for metric labels.
+   * @param unit - Optional unit of measurement.
    */
   recordMetric(
     name: string,
@@ -133,9 +99,9 @@ export class MetricService extends EventEmitter {
 
   /**
    * Increment a counter metric.
-   * @param name
-   * @param labels
-   * @param value
+   * @param name - The name of the counter metric.
+   * @param labels - Optional key-value pairs for metric labels.
+   * @param value - The amount to increment by (default: 1).
    */
   incrementCounter(name: string, labels: Record<string, string> = {}, value: number = 1): void {
     this.recordMetric(name, value, 'counter', labels);
@@ -143,10 +109,10 @@ export class MetricService extends EventEmitter {
 
   /**
    * Set a gauge metric value.
-   * @param name
-   * @param value
-   * @param labels
-   * @param unit
+   * @param name - The name of the gauge metric.
+   * @param value - The numeric value to set.
+   * @param labels - Optional key-value pairs for metric labels.
+   * @param unit - Optional unit of measurement.
    */
   setGauge(name: string, value: number, labels: Record<string, string> = {}, unit?: string): void {
     this.recordMetric(name, value, 'gauge', labels, unit);
@@ -154,10 +120,10 @@ export class MetricService extends EventEmitter {
 
   /**
    * Record a histogram metric.
-   * @param name
-   * @param value
-   * @param labels
-   * @param unit
+   * @param name - The name of the histogram metric.
+   * @param value - The numeric value to record.
+   * @param labels - Optional key-value pairs for metric labels.
+   * @param unit - Optional unit of measurement.
    */
   recordHistogram(name: string, value: number, labels: Record<string, string> = {}, unit?: string): void {
     this.recordMetric(name, value, 'histogram', labels, unit);
@@ -165,7 +131,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Query metrics from the repository.
-   * @param query
+   * @param query - The query parameters for retrieving metrics.
    */
   async queryMetrics(query: IMetricQuery): Promise<IMetricQueryResult> {
     const data = await this.repository.getMetrics(query);
@@ -178,6 +144,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Get all available metric names.
+   * @returns A promise that resolves to an array of metric names.
    */
   async getMetricNames(): Promise<string[]> {
     return await this.repository.getMetricNames();
@@ -185,6 +152,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Get current system metrics.
+   * @returns A promise that resolves to the current system metrics.
    */
   async getSystemMetrics(): Promise<ISystemMetrics> {
     const totalMemory = os.totalmem();
@@ -207,7 +175,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Clean up old metrics beyond retention period.
-   * @param retentionDays
+   * @param retentionDays - The number of days to retain metrics.
    */
   async cleanupOldMetrics(retentionDays: number): Promise<void> {
     try {
@@ -225,6 +193,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Shutdown the metric service, flush remaining metrics and clear timers.
+   * @returns A promise that resolves when shutdown is complete.
    */
   async shutdown(): Promise<void> {
     if (this.flushTimer) {
@@ -237,6 +206,7 @@ export class MetricService extends EventEmitter {
 
   /**
    * Flush buffered metrics to the repository.
+   * @returns A promise that resolves when all metrics are flushed.
    */
   private async flushMetrics(): Promise<void> {
     if (this.buffer.length === 0) {

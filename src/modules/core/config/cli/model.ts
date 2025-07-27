@@ -1,371 +1,433 @@
 /**
+ * Model CLI command implementation.
  * @file Model CLI command implementation.
  * @module modules/core/config/cli/model
  */
 
 import {
-  getEnabledProviders, getProvider, providers
+  getEnabledProviders,
+  getProvider,
+  providers
 } from '@/modules/core/config/providers';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getLoggerService } from '@/modules/core/logger';
+import { LogSource } from '@/modules/core/logger/types';
+import type {
+  IModelCommandOptions,
+  IProviderConfig
+} from '@/modules/core/config/types/model.types';
+import type { IProvider } from '@/modules/core/config/types/provider.types';
+import { executeModelTest } from '@/modules/core/config/cli/model-commands';
+import {
+  formatTools,
+  logModelConfigDetails
+} from '@/modules/core/config/cli/model-helpers';
 
-interface Tool {
-  codeExecution?: boolean;
-}
+const logger = getLoggerService();
 
-interface SafetySetting {
-  category: string;
-  threshold: string;
-}
-
-interface GenerationConfig {
-  temperature?: number;
-  topK?: number;
-  topP?: number;
-  maxOutputTokens?: number;
-  candidateCount?: number;
-  responseMimeType?: string;
-  stopSequences?: string[];
-}
-
-interface ModelConfig {
-  model: string;
-  displayName: string;
-  description?: string;
-  generationConfig?: GenerationConfig;
-  tools?: Tool[];
-  safetySettings?: SafetySetting[];
-  systemInstruction?: string;
-}
-
-interface ProviderConfig {
-  models?: Record<string, ModelConfig>;
-  defaultModel?: string;
-  client?: {
-    apiKey?: string;
-  };
-}
-
-interface Provider {
+/**
+ * Type guard to check if object is a valid provider.
+ * @param obj - Object to check.
+ * @returns True if valid provider.
+ */
+const isValidProvider = (obj: unknown): obj is {
   name: string;
   displayName: string;
   enabled: boolean;
-  config?: ProviderConfig;
-}
-
-interface ModelCommandOptions {
-  provider?: string;
-  model?: string;
-  prompt?: string;
-}
+  config?: unknown;
+} => {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return false;
+  }
+  const record = obj as Record<string, unknown>;
+  return 'name' in record
+    && 'displayName' in record
+    && 'enabled' in record
+    && typeof record.name === 'string'
+    && typeof record.displayName === 'string'
+    && typeof record.enabled === 'boolean';
+};
 
 /**
- * Format tools array for display.
- * @param {Array} tools - Array of tool objects.
- * @returns {string} Formatted tools string.
+ * Create typed provider from base provider.
+ * @param provider - Base provider.
+ * @returns Typed provider.
+ * @throws {Error} If provider is invalid.
  */
-function formatTools(tools?: Tool[]): string {
-  if (!tools || !Array.isArray(tools)) {
-    return 'None';
+const createTypedProvider = (provider: unknown): IProvider => {
+  if (!isValidProvider(provider)) {
+    throw new Error('Invalid provider structure');
   }
 
-  const toolNames = tools.map(tool => {
-    if (tool.codeExecution !== undefined) {
-      return 'Code Execution';
+  const typedProvider: IProvider = {
+    name: provider.name,
+    displayName: provider.displayName,
+    enabled: provider.enabled
+  };
+
+  if (provider.config !== undefined
+      && typeof provider.config === 'object'
+      && provider.config !== null) {
+    const {config} = provider;
+    if ('client' in config || 'models' in config || 'defaultModel' in config) {
+      const providerConfig = config;
+      Object.defineProperty(typedProvider, 'config', {
+        value: providerConfig,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      });
     }
-    return 'Unknown Tool';
-  });
-
-  return toolNames.join(', ') || 'None';
-}
-
-/**
- * Format safety settings for display.
- * @param {Array} safetySettings - Array of safety setting objects.
- * @returns {string} Formatted safety settings string.
- */
-function formatSafetySettings(safetySettings?: SafetySetting[]): string {
-  if (!safetySettings || !Array.isArray(safetySettings) || safetySettings.length === 0) {
-    return 'None configured';
   }
 
-  return safetySettings.map(setting => { return `${setting.category}: ${setting.threshold}` }).join('\n    ');
-}
+  return typedProvider;
+};
+
+/**
+ * Validates provider for the given provider name.
+ * @param providerName - The provider name to validate.
+ * @returns The validated provider or exits the process.
+ */
+const validateProvider = (providerName: string): IProvider => {
+  const provider = getProvider(providerName);
+
+  if (provider === null) {
+    logger.error(LogSource.CLI, `Provider '${providerName}' not found.`);
+    process.exit(1);
+  }
+
+  if (!provider.enabled) {
+    logger.error(LogSource.CLI, `Provider '${providerName}' is not enabled.`);
+    process.exit(1);
+  }
+
+  return createTypedProvider(provider);
+};
+
+/**
+ * Validates provider config and models.
+ * @param provider - The provider to validate.
+ * @param operation - The operation being performed.
+ * @returns The validated provider config.
+ */
+const validateProviderConfig = (
+  provider: IProvider,
+  operation: string
+): IProviderConfig => {
+  if (provider.name !== 'google-liveapi') {
+    logger.error(
+      LogSource.CLI,
+      `${operation} is only available for google-liveapi provider.`
+    );
+    process.exit(1);
+  }
+
+  const { config: providerConfig } = provider;
+  if (providerConfig === undefined || providerConfig.models === undefined) {
+    logger.error(LogSource.CLI, 'No models configured for this provider.');
+    process.exit(1);
+  }
+
+  return providerConfig;
+};
+
+/**
+ * Log model details for a single model.
+ * @param modelKey - The model key.
+ * @param modelConfig - The model configuration.
+ * @param defaultModel - The default model key.
+ */
+const logModelDetails = (
+  modelKey: string,
+  modelConfig: NonNullable<IProviderConfig['models']>[string],
+  defaultModel?: string
+): void => {
+  const isDefault = modelKey === defaultModel;
+  logger.info(LogSource.CLI, `  ${modelKey}${isDefault ? ' [DEFAULT]' : ''}:`);
+  logger.info(LogSource.CLI, `    Model: ${modelConfig.model}`);
+  logger.info(LogSource.CLI, `    Display: ${modelConfig.displayName}`);
+
+  if (modelConfig.description !== undefined) {
+    logger.info(LogSource.CLI, `    Description: ${modelConfig.description}`);
+  }
+
+  if (modelConfig.generationConfig?.temperature !== undefined) {
+    const { generationConfig } = modelConfig;
+    const temp = String(generationConfig.temperature);
+    logger.info(LogSource.CLI, `    Temperature: ${temp}`);
+  }
+
+  if (modelConfig.tools !== undefined) {
+    logger.info(LogSource.CLI, `    Tools: ${formatTools(modelConfig.tools)}`);
+  }
+
+  logger.info(LogSource.CLI, '');
+};
+
+/**
+ * Process provider models.
+ * @param provider - The provider to process.
+ * @returns Number of models found.
+ */
+const processProviderModels = (provider: IProvider): number => {
+  let modelCount = 0;
+
+  if (provider.name === 'google-liveapi'
+      && provider.config?.models !== undefined) {
+    const { config: providerConfig } = provider;
+    const { models, defaultModel } = providerConfig;
+
+    if (models !== undefined) {
+      Object.entries(models).forEach(([modelKey, modelConfig]): void => {
+        logModelDetails(modelKey, modelConfig, defaultModel);
+        modelCount += 1;
+      });
+    }
+  } else {
+    logger.info(
+      LogSource.CLI,
+      '  Model information not available for this provider.'
+    );
+    logger.info(LogSource.CLI, '');
+  }
+
+  return modelCount;
+};
+
+/**
+ * Get providers to check.
+ * @param providerName - Optional provider name.
+ * @returns Array of providers to check.
+ */
+const getProvidersToCheck = (providerName?: string): IProvider[] => {
+  if (providerName === undefined) {
+    const enabledProviders = getEnabledProviders().map((prov: unknown): IProvider => {
+      return createTypedProvider(prov);
+    });
+    if (enabledProviders.length === 0) {
+      logger.error(LogSource.CLI, 'No enabled providers found.');
+      process.exit(1);
+    }
+    return enabledProviders;
+  }
+
+  const { [providerName]: providerData } = providers;
+  if (providerData === undefined || !providerData.enabled) {
+    logger.error(
+      LogSource.CLI,
+      `Provider '${providerName}' not found or not enabled.`
+    );
+    process.exit(1);
+  }
+  return [createTypedProvider(providerData)];
+};
 
 /**
  * List models subcommand implementation.
- * @param {Object} options - Command options.
- * @param {string} [options.provider] - Specific provider to list models for.
+ * @param options - Command options.
  */
-async function listModels(options: ModelCommandOptions): Promise<void> {
-  let providersToCheck: Provider[];
+const listModels = (options: IModelCommandOptions): void => {
+  const providersToCheck = getProvidersToCheck(options.provider);
 
-  if (options.provider) {
-    const provider = providers[options.provider] as Provider;
-    if (!provider || !provider.enabled) {
-      console.error(`Error: Provider '${options.provider}' not found or not enabled.`);
-      process.exit(1);
-    }
-    providersToCheck = [provider];
-  } else {
-    providersToCheck = getEnabledProviders() as Provider[];
-    if (providersToCheck.length === 0) {
-      console.error('No enabled providers found.');
-      process.exit(1);
-    }
-  }
-
-  console.log('Available AI Models:');
-  console.log('==================\n');
+  logger.info(LogSource.CLI, 'Available AI Models:');
+  logger.info(LogSource.CLI, '==================\n');
 
   let totalModels = 0;
 
-  for (const provider of providersToCheck) {
-    console.log(`Provider: ${provider.displayName} (${provider.name})`);
-    console.log('-'.repeat(50));
+  providersToCheck.forEach((provider): void => {
+    logger.info(LogSource.CLI, `Provider: ${provider.displayName} (${provider.name})`);
+    logger.info(LogSource.CLI, '-'.repeat(50));
+    totalModels += processProviderModels(provider);
+  });
 
-    if (provider.name === 'google-liveapi' && provider.config?.models) {
-      const { models } = provider.config;
-      const { defaultModel } = provider.config;
+  logger.info(LogSource.CLI, `Total models available: ${String(totalModels)}`);
+};
 
-      for (const [modelKey, modelConfig] of Object.entries(models)) {
-        const isDefault = modelKey === defaultModel;
-        console.log(`  ${modelKey}${isDefault ? ' [DEFAULT]' : ''}:`);
-        console.log(`    Model: ${modelConfig.model}`);
-        console.log(`    Display: ${modelConfig.displayName}`);
-        if (modelConfig.description) {
-          console.log(`    Description: ${modelConfig.description}`);
-        }
-        if (modelConfig.generationConfig?.temperature !== undefined) {
-          console.log(`    Temperature: ${modelConfig.generationConfig.temperature}`);
-        }
-        if (modelConfig.tools) {
-          console.log(`    Tools: ${formatTools(modelConfig.tools)}`);
-        }
-        console.log('');
-        totalModels++;
-      }
-    } else {
-      console.log('  Model information not available for this provider.');
-      console.log('');
-    }
+/**
+ * Validate and get model config.
+ * @param provider - The provider.
+ * @param modelName - The model name.
+ * @param providerName - The provider name.
+ * @returns The model configuration.
+ */
+const getModelConfig = (
+  provider: IProvider,
+  modelName: string,
+  providerName: string
+): NonNullable<IProviderConfig['models']>[string] => {
+  const providerConfig = validateProviderConfig(provider, 'Model operation');
+  const { models } = providerConfig;
+
+  if (!models || !(modelName in models) || models[modelName] === undefined) {
+    const availableModels = models ? Object.keys(models) : [];
+    logger.error(
+      LogSource.CLI,
+      `Model '${modelName}' not found in provider '${providerName}'.`
+    );
+    logger.error(LogSource.CLI, `Available models: ${availableModels.join(', ')}`);
+    process.exit(1);
   }
 
-  console.log(`Total models available: ${totalModels}`);
-}
+  return models[modelName];
+};
+
+/**
+ * Log model header info.
+ * @param provider - The provider.
+ * @param modelKey - The model key.
+ * @param modelConfig - The model configuration.
+ */
+const logModelHeader = (
+  provider: IProvider,
+  modelKey: string,
+  modelConfig: NonNullable<IProviderConfig['models']>[string]
+): void => {
+  const { config: providerConfig } = provider;
+  const isDefault = providerConfig !== undefined
+                    && modelKey === providerConfig.defaultModel;
+
+  logger.info(LogSource.CLI, 'Model Configuration:');
+  logger.info(LogSource.CLI, '===================');
+  logger.info(LogSource.CLI, '');
+  logger.info(LogSource.CLI, `Provider: ${provider.displayName}`);
+  logger.info(LogSource.CLI, `Model Key: ${modelKey}`);
+  logger.info(LogSource.CLI, `Status: ${isDefault ? 'DEFAULT MODEL' : 'AVAILABLE'}`);
+  logger.info(LogSource.CLI, `Model ID: ${modelConfig.model}`);
+  logger.info(LogSource.CLI, `Display Name: ${modelConfig.displayName}`);
+};
 
 /**
  * Show model details subcommand implementation.
- * @param {Object} options - Command options.
- * @param {string} options.provider - Provider name.
- * @param {string} options.model - Model key.
+ * @param options - Command options.
  */
-async function showModel(options: ModelCommandOptions): Promise<void> {
-  if (!options.provider || !options.model) {
-    console.error('Error: Both provider and model must be specified.');
+const showModel = (options: IModelCommandOptions): void => {
+  if (options.provider === undefined || options.model === undefined) {
+    logger.error(LogSource.CLI, 'Both provider and model must be specified.');
     process.exit(1);
   }
 
-  const provider = getProvider(options.provider) as Provider;
+  const provider = validateProvider(options.provider);
+  validateProviderConfig(provider, 'Model details');
+  const modelConfig = getModelConfig(provider, options.model, options.provider);
 
-  if (!provider) {
-    console.error(`Error: Provider '${options.provider}' not found.`);
+  logModelHeader(provider, options.model, modelConfig);
+  logModelConfigDetails(modelConfig);
+};
+
+/**
+ * Validate API key.
+ * @param providerConfig - The provider configuration.
+ */
+const validateApiKey = (providerConfig: IProviderConfig): void => {
+  if (providerConfig.client?.apiKey === undefined
+      || providerConfig.client.apiKey === '') {
+    logger.error(LogSource.CLI, 'API key not configured for this provider.');
+    logger.error(
+      LogSource.CLI,
+      'Please set the API key in the provider configuration.'
+    );
     process.exit(1);
   }
+};
 
-  if (!provider.enabled) {
-    console.error(`Error: Provider '${options.provider}' is not enabled.`);
-    process.exit(1);
-  }
+/**
+ * Log test header.
+ * @param provider - The provider.
+ * @param modelConfig - The model configuration.
+ * @param prompt - The test prompt.
+ */
+const logTestHeader = (
+  provider: IProvider,
+  modelConfig: NonNullable<IProviderConfig['models']>[string],
+  prompt: string
+): void => {
+  logger.info(LogSource.CLI, 'Testing Model Configuration:');
+  logger.info(LogSource.CLI, '===========================');
+  logger.info(LogSource.CLI, '');
+  logger.info(LogSource.CLI, `Provider: ${provider.displayName}`);
+  logger.info(LogSource.CLI, `Model: ${modelConfig.displayName} (${modelConfig.model})`);
+  logger.info(LogSource.CLI, `Prompt: ${prompt}`);
+  logger.info(LogSource.CLI, '');
+  logger.info(LogSource.CLI, 'Sending test request...');
+};
 
-  if (provider.name !== 'google-liveapi') {
-    console.error('Model details are only available for google-liveapi provider.');
-    process.exit(1);
-  }
+/**
+ * Handle test error.
+ * @param error - The error.
+ */
+const handleTestError = (error: unknown): void => {
+  logger.error(LogSource.CLI, 'Error testing model:');
+  if (error instanceof Error) {
+    logger.error(LogSource.CLI, error.message);
 
-  if (!provider.config || !provider.config.models) {
-    console.error('No models configured for this provider.');
-    process.exit(1);
-  }
-
-  const modelConfig = provider.config.models[options.model];
-  if (!modelConfig) {
-    const availableModels = Object.keys(provider.config.models);
-    console.error(`Error: Model '${options.model}' not found in provider '${options.provider}'.`);
-    console.error(`Available models: ${availableModels.join(', ')}`);
-    process.exit(1);
-  }
-
-  const isDefault = options.model === provider.config.defaultModel;
-
-  console.log('Model Configuration:');
-  console.log('===================');
-  console.log('');
-  console.log(`Provider: ${provider.displayName}`);
-  console.log(`Model Key: ${options.model}`);
-  console.log(`Status: ${isDefault ? 'DEFAULT MODEL' : 'AVAILABLE'}`);
-  console.log(`Model ID: ${modelConfig.model}`);
-  console.log(`Display Name: ${modelConfig.displayName}`);
-
-  if (modelConfig.description) {
-    console.log(`Description: ${modelConfig.description}`);
-  }
-
-  console.log('');
-  console.log('Generation Configuration:');
-  console.log('------------------------');
-
-  if (modelConfig.generationConfig) {
-    const config = modelConfig.generationConfig;
-    if (config.temperature !== undefined) { console.log(`  Temperature: ${config.temperature}`); }
-    if (config.topK !== undefined) { console.log(`  Top K: ${config.topK}`); }
-    if (config.topP !== undefined) { console.log(`  Top P: ${config.topP}`); }
-    if (config.maxOutputTokens !== undefined) { console.log(`  Max Output Tokens: ${config.maxOutputTokens}`); }
-    if (config.candidateCount !== undefined) { console.log(`  Candidate Count: ${config.candidateCount}`); }
-    if (config.responseMimeType) { console.log(`  Response MIME Type: ${config.responseMimeType}`); }
-    if (config.stopSequences && config.stopSequences.length > 0) {
-      console.log(`  Stop Sequences: ${config.stopSequences.join(', ')}`);
+    if (process.env.DEBUG === 'true' && error.stack !== undefined) {
+      logger.error(LogSource.CLI, '');
+      logger.error(LogSource.CLI, 'Stack trace:');
+      logger.error(LogSource.CLI, error.stack);
     }
+  } else {
+    logger.error(LogSource.CLI, String(error));
   }
 
-  console.log('');
-  console.log('Safety Settings:');
-  console.log('---------------');
-  console.log(`  ${formatSafetySettings(modelConfig.safetySettings)}`);
+  process.exit(1);
+};
 
-  if (modelConfig.systemInstruction) {
-    console.log('');
-    console.log('System Instruction:');
-    console.log('------------------');
-    console.log(`  ${modelConfig.systemInstruction}`);
+/**
+ * Prepare model test parameters.
+ * @param options - Command options.
+ * @returns Test parameters.
+ * @throws {Error} If API key is missing.
+ */
+const prepareModelTest = (options: IModelCommandOptions): {
+  provider: IProvider;
+  modelConfig: NonNullable<IProviderConfig['models']>[string];
+  apiKey: string;
+  prompt: string;
+} => {
+  if (options.provider === undefined || options.model === undefined) {
+    logger.error(LogSource.CLI, 'Both provider and model must be specified.');
+    process.exit(1);
   }
 
-  console.log('');
-  console.log('Available Tools:');
-  console.log('---------------');
-  console.log(`  - ${formatTools(modelConfig.tools)}`);
+  const provider = validateProvider(options.provider);
+  const providerConfig = validateProviderConfig(provider, 'Model testing');
+  const modelConfig = getModelConfig(provider, options.model, options.provider);
 
-  console.log('');
-  console.log('Full Configuration (JSON):');
-  console.log('--------------------------');
-  console.log(JSON.stringify(modelConfig, null, 2));
-}
+  validateApiKey(providerConfig);
+
+  const apiKey = providerConfig.client?.apiKey;
+  if (apiKey === undefined || apiKey === '') {
+    throw new Error('API key is missing');
+  }
+
+  const prompt = options.prompt ?? "Hello, please respond with 'Test successful!'";
+
+  return {
+ provider,
+modelConfig,
+apiKey,
+prompt
+};
+};
 
 /**
  * Test model subcommand implementation.
- * @param {Object} options - Command options.
- * @param {string} options.provider - Provider name.
- * @param {string} options.model - Model key.
- * @param {string} [options.prompt] - Custom test prompt.
+ * @param options - Command options.
  */
-async function testModel(options: ModelCommandOptions): Promise<void> {
-  if (!options.provider || !options.model) {
-    console.error('Error: Both provider and model must be specified.');
-    process.exit(1);
-  }
+const testModel = async (options: IModelCommandOptions): Promise<void> => {
+  const {
+ provider, modelConfig, apiKey, prompt
+} = prepareModelTest(options);
 
-  const provider = getProvider(options.provider) as Provider;
-
-  if (!provider) {
-    console.error(`Error: Provider '${options.provider}' not found.`);
-    process.exit(1);
-  }
-
-  if (!provider.enabled) {
-    console.error(`Error: Provider '${options.provider}' is not enabled.`);
-    process.exit(1);
-  }
-
-  if (provider.name !== 'google-liveapi') {
-    console.error('Model testing is only available for google-liveapi provider.');
-    process.exit(1);
-  }
-
-  if (!provider.config || !provider.config.models) {
-    console.error('No models configured for this provider.');
-    process.exit(1);
-  }
-
-  const modelConfig = provider.config.models[options.model];
-  if (!modelConfig) {
-    const availableModels = Object.keys(provider.config.models);
-    console.error(`Error: Model '${options.model}' not found in provider '${options.provider}'.`);
-    console.error(`Available models: ${availableModels.join(', ')}`);
-    process.exit(1);
-  }
-
-  if (!provider.config.client || !provider.config.client.apiKey) {
-    console.error('Error: API key not configured for this provider.');
-    console.error('Please set the API key in the provider configuration.');
-    process.exit(1);
-  }
-
-  const prompt = options.prompt || "Hello, please respond with 'Test successful!'";
-
-  console.log('Testing Model Configuration:');
-  console.log('===========================');
-  console.log('');
-  console.log(`Provider: ${provider.displayName}`);
-  console.log(`Model: ${modelConfig.displayName} (${modelConfig.model})`);
-  console.log(`Prompt: ${prompt}`);
-  console.log('');
-  console.log('Sending test request...');
+  logTestHeader(provider, modelConfig, prompt);
 
   try {
-    const genAI = new GoogleGenerativeAI(provider.config.client.apiKey);
-
-    const modelParams: any = {
-      model: modelConfig.model
-    };
-
-    if (modelConfig.generationConfig) {
-      modelParams.generationConfig = modelConfig.generationConfig;
-    }
-    if (modelConfig.safetySettings) {
-      modelParams.safetySettings = modelConfig.safetySettings;
-    }
-    if (modelConfig.systemInstruction) {
-      modelParams.systemInstruction = modelConfig.systemInstruction;
-    }
-    if (modelConfig.tools) {
-      modelParams.tools = modelConfig.tools;
-    }
-
-    const model = genAI.getGenerativeModel(modelParams);
-
-    const result = await model.generateContent(prompt);
-
-    console.log('Response received!');
-    console.log('');
-
-    if (result.response.usageMetadata) {
-      console.log('Usage Statistics:');
-      console.log('----------------');
-      console.log(`Prompt Tokens: ${result.response.usageMetadata.promptTokenCount || 'N/A'}`);
-      console.log(`Response Tokens: ${result.response.usageMetadata.candidatesTokenCount || 'N/A'}`);
-      console.log(`Total Tokens: ${result.response.usageMetadata.totalTokenCount || 'N/A'}`);
-      console.log('');
-    }
-
-    console.log('Response:');
-    console.log('--------');
-    const {response} = result;
-    const text = response.text();
-    console.log(text || 'No text response received');
-    console.log('');
-    console.log('✓ Model test completed successfully!');
+    const genAI = new GoogleGenerativeAI(apiKey);
+    await executeModelTest(genAI, modelConfig, prompt);
   } catch (error) {
-    console.error('Error testing model:');
-    console.error((error as Error).message);
-
-    if (process.env.DEBUG === 'true' && (error as Error).stack) {
-      console.error('');
-      console.error('Stack trace:');
-      console.error((error as Error).stack);
-    }
-
-    process.exit(1);
+    handleTestError(error);
   }
-}
+};
 
 /**
  * Model CLI command object.
@@ -375,17 +437,17 @@ export const command = {
 
   /**
    * Execute the model command.
-   * @param {string} subcommand - The subcommand to execute.
-   * @param {Object} options - Command options.
+   * @param subcommand - The subcommand to execute.
+   * @param options - Command options.
    */
-  async execute(subcommand: string, options: ModelCommandOptions = {}): Promise<void> {
+  execute: async (subcommand: string, options: IModelCommandOptions = {}): Promise<void> => {
     switch (subcommand) {
       case 'list':
-        await listModels(options);
+        listModels(options);
         break;
 
       case 'show':
-        await showModel(options);
+        showModel(options);
         break;
 
       case 'test':
@@ -393,8 +455,8 @@ export const command = {
         break;
 
       default:
-        console.error(`Unknown model subcommand: ${subcommand}`);
-        console.error('Available subcommands: list, show, test');
+        logger.error(LogSource.CLI, `Unknown model subcommand: ${subcommand}`);
+        logger.error(LogSource.CLI, 'Available subcommands: list, show, test');
         process.exit(1);
     }
   }

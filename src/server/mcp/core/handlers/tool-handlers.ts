@@ -79,13 +79,13 @@ const TOOL_METADATA_SCHEMA = z
 const getUserPermissionContext = function getUserPermissionContext(
   context: IMCPToolContext,
 ): IUserPermissionContext {
-  if (!context.sessionId) {
+  if (context.sessionId == null || context.sessionId === '') {
     throw new Error('Session ID is required');
   }
 
   const adminUserIds = ['113783121475955670750'];
   const isAdmin = Boolean(
-    context.userId && adminUserIds.includes(context.userId),
+    context.userId != null && context.userId !== '' && adminUserIds.includes(context.userId),
   );
   const role: UserRole = isAdmin ? 'admin' : 'basic';
 
@@ -125,18 +125,18 @@ const hasToolPermission = function hasToolPermission(
 ): boolean {
   const validatedMeta = TOOL_METADATA_SCHEMA.parse(metadata);
 
-  if (!validatedMeta) {
+  if (validatedMeta == null) {
     return true;
   }
 
   if (
-    validatedMeta.requiredRole
+    validatedMeta.requiredRole != null
         && userContext.role !== validatedMeta.requiredRole
   ) {
     return false;
   }
 
-  if (validatedMeta.requiredPermissions) {
+  if (validatedMeta.requiredPermissions != null) {
     return validatedMeta.requiredPermissions.every(
       (permission): boolean => {
         return hasPermission(userContext, permission);
@@ -147,9 +147,15 @@ const hasToolPermission = function hasToolPermission(
   return true;
 }
 
+/*
+ * Note: Helper functions loadToolsModule and filterToolsByPermission
+ * have been inlined into their usage sites to avoid unused function warnings
+ */
+
 /**
  * Handles MCP tool listing requests with permission-based filtering.
- * @param _request - Tool listing request (currently unused but kept for API compatibility).
+ * @param request - Tool listing request (currently unused but kept for API compatibility).
+ * @param _request
  * @param context - Optional MCP context containing session information.
  * @returns Promise resolving to list of tools the user can access.
  * - Returns empty array if no context is provided
@@ -167,7 +173,7 @@ export const handleListTools = async function handleListTools(
       requestId: randomUUID(),
     });
 
-    if (!context) {
+    if (context == null) {
       logger.debug(LogSource.MCP, 'No context provided, returning empty tool list');
       return { tools: [] };
     }
@@ -184,18 +190,18 @@ export const handleListTools = async function handleListTools(
     await moduleLoader.loadModules();
     const toolsModule = moduleLoader.getModule(ModuleName.MCP);
 
-    if (!toolsModule?.exports) {
+    if (toolsModule == null || toolsModule.exports == null) {
       logger.error(LogSource.MCP, 'Tools module not available');
       return { tools: [] };
     }
 
-    const moduleExports = toolsModule.exports as IToolsListModuleExports;
-    const enabledTools = await moduleExports.getEnabledToolsByScope('remote');
+    const moduleExports = toolsModule.exports;
+    const toolsListExports = moduleExports as IToolsListModuleExports;
+    const enabledTools = await toolsListExports.getEnabledToolsByScope('remote');
 
     const availableTools = enabledTools.filter((tool: unknown): boolean => {
-      const toolWithMetadata = tool as IToolWithMetadata;
-      const {metadata} = toolWithMetadata;
-      return hasToolPermission(userContext, metadata);
+      const toolWithMeta = tool as IToolWithMetadata;
+      return hasToolPermission(userContext, toolWithMeta.metadata);
     });
 
     logger.info(LogSource.MCP, 'Tool filtering completed', {
@@ -204,12 +210,13 @@ export const handleListTools = async function handleListTools(
       totalTools: enabledTools.length,
       availableTools: availableTools.length,
       toolNames: availableTools.map((toolItem: unknown): string => {
-        const namedTool = toolItem as IToolWithMetadata;
-        return namedTool.name;
+        const toolTyped = toolItem as IToolWithMetadata;
+        return toolTyped.name;
       }),
     });
 
-    return { tools: availableTools as Tool[] };
+    const tools = availableTools as Tool[];
+    return { tools };
   } catch (error) {
     logger.error(LogSource.MCP, 'Tool listing failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -238,8 +245,7 @@ export const handleToolCall = async function handleToolCall(
   const requestId = randomUUID();
 
   try {
-    const toolName = request.params.name;
-    const toolArgs = request.params.arguments;
+    const { name: toolName, arguments: toolArgs } = request.params;
 
     logger.info(LogSource.MCP, 'Tool call initiated', {
       toolName,
@@ -252,16 +258,17 @@ export const handleToolCall = async function handleToolCall(
     await moduleLoader.loadModules();
     const toolsModule = moduleLoader.getModule(ModuleName.MCP);
 
-    if (!toolsModule?.exports) {
+    if (toolsModule == null || toolsModule.exports == null) {
       const error = new Error('Tools module not available');
       logger.error(LogSource.MCP, 'Tools module not loaded', { requestId });
       throw error;
     }
 
-    const moduleExports = toolsModule.exports as IToolsExecuteModuleExports;
+    const moduleExports = toolsModule.exports;
+    const toolsExecuteExports = moduleExports as IToolsExecuteModuleExports;
 
-    const tool = await moduleExports.getTool(toolName);
-    if (!tool) {
+    const tool = await toolsExecuteExports.getTool(toolName);
+    if (tool == null) {
       const error = new Error(`Unknown tool: ${toolName}`);
       logger.error(LogSource.MCP, 'Tool not found in registry', {
         toolName,
@@ -300,7 +307,7 @@ export const handleToolCall = async function handleToolCall(
       requestId,
     });
 
-    const result = await moduleExports.executeTool(toolName, toolArgs, {
+    const result = await toolsExecuteExports.executeTool(toolName, toolArgs, {
       userId: userContext.userId,
       userEmail: userContext.email,
       sessionId: context.sessionId ?? '',

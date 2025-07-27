@@ -4,7 +4,9 @@
  * @module server/external/routes
  */
 
-import { type Express, Router } from 'express';
+import {
+ type Express, type Request, type Response, Router
+} from 'express';
 import { HTTP_STATUS } from '@/server/external/constants/http.constants';
 import { createAuthMiddleware } from '@/server/external/middleware/auth';
 import { setupOAuth2Routes } from '@/server/external/rest/oauth2/index';
@@ -36,20 +38,22 @@ const logger = LoggerService.getInstance();
  */
 const setupPublicRoutes = (publicRouter: Router): void => {
   const healthEndpoint = new HealthEndpoint();
-  publicRouter.get('/health', (req, res): void => {
-    healthEndpoint.getHealth(req, res).catch((error: unknown): void => {
+  publicRouter.get('/health', (req: Request, res: Response): void => {
+    try {
+      healthEndpoint.getHealth(req, res);
+    } catch (error: unknown) {
       logger.error(LogSource.SERVER, 'Health endpoint error', {
         error: error instanceof Error ? error : new Error(String(error)),
         category: 'health',
         persistToDb: false
       });
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
-    });
+    }
   });
 
   splashSetup(publicRouter);
 
-  void setupOAuth2Routes(publicRouter);
+  setupOAuth2Routes(publicRouter);
 
   callbackSetup(publicRouter);
   authSetup(publicRouter);
@@ -146,7 +150,7 @@ const processLayer = (
     });
   } else if (layer.name === 'router' && layer.handle.stack !== undefined) {
     const regexMatch = layer.regexp.source.match(/\\\/(?<route>[^\\]+)/u);
-    const routePrefix = regexMatch === null || regexMatch.groups === undefined ? '' : regexMatch.groups.route ?? '';
+    const routePrefix = regexMatch?.groups?.route ?? '';
     extractFn(layer.handle.stack, {
       routes: context.routes,
       prefix: context.prefix + routePrefix,
@@ -174,23 +178,15 @@ const extractRoutes = (stack: IExpressLayer[], context: IRouteContext): void => 
  */
 export const getRouteSummary = (app: Express): IRouteInfo[] => {
   const routes: IRouteInfo[] = [];
-  const expressApp = app;
-  const routerProp = '_router';
-  const appWithRouter = expressApp;
+  const expressApp = app as Express & { _router?: { stack: unknown[] } };
 
-  if (routerProp in appWithRouter) {
-    const routerObj = appWithRouter[routerProp];
-    if (routerObj !== null && typeof routerObj === 'object' && 'stack' in routerObj) {
-      const { stack: routerStack } = routerObj as { stack: unknown };
-      if (Array.isArray(routerStack)) {
-        const context: IRouteContext = {
-          routes,
-          prefix: '',
-          authType: 'public',
-        };
-        extractRoutes(routerStack as IExpressLayer[], context);
-      }
-    }
+  if (expressApp._router && Array.isArray(expressApp._router.stack)) {
+    const context: IRouteContext = {
+      routes,
+      prefix: '',
+      authType: 'public',
+    };
+    extractRoutes(expressApp._router.stack as IExpressLayer[], context);
   }
 
   return routes;

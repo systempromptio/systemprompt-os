@@ -6,10 +6,10 @@
  * @module modules/core/auth/cli/providers
  */
 
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import {
  ONE, ZERO
-} from '@/const/numbers';
+} from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 import type { IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
 

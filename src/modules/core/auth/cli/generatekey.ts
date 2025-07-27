@@ -6,7 +6,7 @@
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
-import { ONE } from '@/const/numbers';
+import { ONE } from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
 export const command = {

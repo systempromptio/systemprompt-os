@@ -29,21 +29,21 @@ import { parse } from 'yaml';
  
 interface IDatabaseCommand {
   id: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   command_path: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   command_name: string;
   description: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   module_name: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   executor_path: string;
   options: string;
   aliases: string;
   active: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   created_at: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   updated_at: string;
 }
 
@@ -54,21 +54,21 @@ interface IDatabaseCommand {
  
 interface IParsedDatabaseCommand {
   id: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   command_path: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   command_name: string;
   description: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   module_name: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   executor_path: string;
   options: CLIOption[];
   aliases: string[];
   active: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   created_at: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   updated_at: string;
 }
 

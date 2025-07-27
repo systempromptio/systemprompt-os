@@ -113,12 +113,18 @@ const displayDataCsv = (rows: unknown[], logger: LoggerService): void => {
     return;
   }
 
-  const firstRow = rows[0] as Record<string, unknown>;
+  const firstRow = rows[0];
+  if (!firstRow || typeof firstRow !== 'object') {
+    return;
+  }
   const columnNames = Object.keys(firstRow);
   logger.info(LogSource.CLI, columnNames.join(','));
 
   rows.forEach((row): void => {
     const values = columnNames.map((columnName): string => {
+      if (!row || typeof row !== 'object') {
+        return '';
+      }
       const rowRecord = row as Record<string, unknown>;
       const { [columnName]: value } = rowRecord;
       if (
@@ -127,22 +133,79 @@ const displayDataCsv = (rows: unknown[], logger: LoggerService): void => {
       ) {
         return `"${value.replace(/"/g, '""')}"`;
       }
-      return value !== null && value !== undefined ? String(value) : '';
+      if (value === null || value === undefined) {
+        return '';
+      }
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      return String(value);
     });
     logger.info(LogSource.CLI, values.join(','));
   });
 };
 
 /**
+ * Calculate column widths for table display.
+ * @param rows - Data rows.
+ * @param columnNames - Column names.
+ * @returns Array of column widths.
+ */
+const calculateColumnWidths = (
+  rows: unknown[],
+  columnNames: string[],
+): number[] => {
+  return columnNames.map((name): number => {
+    const maxValueLength = Math.max(
+      ...rows.map((row): number => {
+        if (!row || typeof row !== 'object') {
+          return 0;
+        }
+        const rowRecord = row as Record<string, unknown>;
+        const { [name]: value } = rowRecord;
+        if (value === null || value === undefined) {
+          return 0;
+        }
+        if (typeof value === 'object') {
+          return JSON.stringify(value).length;
+        }
+        return String(value).length;
+      }),
+    );
+    return Math.max(name.length, maxValueLength, 4);
+  });
+};
+
+/**
+ * Display table header.
+ * @param columnNames - Column names.
+ * @param columnWidths - Column widths.
+ * @param logger - Logger instance.
+ */
+const displayTableHeader = (
+  columnNames: string[],
+  columnWidths: number[],
+  logger: LoggerService,
+): void => {
+  const headerLine = columnNames
+    .map((name, index): string => {
+      return name.padEnd(columnWidths[index] ?? 0);
+    })
+    .join(' | ');
+  logger.info(LogSource.CLI, headerLine);
+  logger.info(LogSource.CLI, '-'.repeat(headerLine.length));
+};
+
+/**
  * Display data in table format.
  * @param params - Table display parameters.
- * @param params.tableName
+ * @param params.tableName - Name of the table being displayed.
+ * @param params.rows - Array of data rows to display.
+ * @param params.totalRows - Total number of rows in the table.
+ * @param params.offset - Current offset in pagination.
+ * @param params.limit - Maximum number of rows to display.
+ * @param params.hasMore - Whether more rows are available.
  * @param logger - Logger instance.
- * @param params.rows
- * @param params.totalRows
- * @param params.offset
- * @param params.limit
- * @param params.hasMore
  */
 const displayDataTable = (
   params: {
@@ -173,36 +236,26 @@ const displayDataTable = (
 
   logger.info(LogSource.CLI, '');
 
-  const firstRow = rows[0] as Record<string, unknown>;
+  const firstRow = rows[0];
+  if (!firstRow || typeof firstRow !== 'object') {
+    return;
+  }
   const columnNames = Object.keys(firstRow);
-  const columnWidths = columnNames.map((name): number => {
-    const maxValueLength = Math.max(
-      ...rows.map((row): number => {
-        const rowRecord = row as Record<string, unknown>;
-        const value = rowRecord[name];
-        return value !== null && value !== undefined
-          ? String(value).length
-          : 0;
-      }),
-    );
-    return Math.max(name.length, maxValueLength, 4);
-  });
-
-  const headerLine = columnNames
-    .map((name, index): string => {
-      return name.padEnd(columnWidths[index] ?? 0);
-    })
-    .join(' | ');
-  logger.info(LogSource.CLI, headerLine);
-  logger.info(LogSource.CLI, '-'.repeat(headerLine.length));
+  const columnWidths = calculateColumnWidths(rows, columnNames);
+  displayTableHeader(columnNames, columnWidths, logger);
 
   rows.forEach((row): void => {
     const line = columnNames
       .map((name, index): string => {
+        if (!row || typeof row !== 'object') {
+          return ''.padEnd(columnWidths[index] ?? 0);
+        }
         const rowRecord = row as Record<string, unknown>;
         const { [name]: value } = rowRecord;
-        const stringValue
-          = value !== null && value !== undefined ? String(value) : '';
+        let stringValue = '';
+        if (value !== null && value !== undefined) {
+          stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        }
         return stringValue.padEnd(columnWidths[index] ?? 0);
       })
       .join(' | ');
@@ -273,12 +326,119 @@ const processViewResult = (
 };
 
 /**
+ * Extract and validate view arguments from context.
+ * @param context - CLI context.
+ * @returns Validated view arguments.
+ */
+const extractViewArgs = (context: ICLIContext): IViewArgs => {
+  const { args } = context;
+  if (!args || typeof args !== 'object') {
+    throw new Error('Invalid CLI arguments');
+  }
+
+  const viewArgs = args as Record<string, unknown>;
+
+  const result: IViewArgs = {};
+  
+  if (typeof viewArgs.table === 'string') {
+    result.table = viewArgs.table;
+  }
+  if (viewArgs.format === 'table' || viewArgs.format === 'json' || viewArgs.format === 'csv') {
+    result.format = viewArgs.format;
+  }
+  if (typeof viewArgs.limit === 'number' || typeof viewArgs.limit === 'string') {
+    result.limit = viewArgs.limit;
+  }
+  if (typeof viewArgs.offset === 'number' || typeof viewArgs.offset === 'string') {
+    result.offset = viewArgs.offset;
+  }
+  if (typeof viewArgs.columns === 'string') {
+    result.columns = viewArgs.columns;
+  }
+  if (typeof viewArgs.where === 'string') {
+    result.where = viewArgs.where;
+  }
+  if (typeof viewArgs.orderBy === 'string') {
+    result.orderBy = viewArgs.orderBy;
+  }
+  if (typeof viewArgs.schemaOnly === 'boolean') {
+    result.schemaOnly = viewArgs.schemaOnly;
+  }
+  
+  return result;
+};
+
+/**
+ * Build view parameters for database service.
+ * @param args - View arguments.
+ * @param args.tableName
+ * @param args.format
+ * @param args.limit
+ * @param args.offset
+ * @param args.columns
+ * @param args.where
+ * @param args.orderBy
+ * @param args.schemaOnly
+ * @returns Database view parameters.
+ */
+const buildViewParams = (args: {
+  tableName: string;
+  format: ViewFormat;
+  limit: number;
+  offset: number;
+  columns?: string;
+  where?: string;
+  orderBy?: string;
+  schemaOnly?: boolean;
+}): {
+  tableName: string;
+  format?: 'table' | 'json' | 'csv';
+  limit?: number;
+  offset?: number;
+  columns?: string;
+  where?: string;
+  orderBy?: string;
+  schemaOnly?: boolean;
+} => {
+  const viewParams: {
+    tableName: string;
+    format?: 'table' | 'json' | 'csv';
+    limit?: number;
+    offset?: number;
+    columns?: string;
+    where?: string;
+    orderBy?: string;
+    schemaOnly?: boolean;
+  } = {
+    tableName: args.tableName,
+    format: args.format,
+    limit: args.limit,
+    offset: args.offset,
+  };
+
+  if (args.columns !== undefined) {
+    viewParams.columns = args.columns;
+  }
+  if (args.where !== undefined) {
+    viewParams.where = args.where;
+  }
+  if (args.orderBy !== undefined) {
+    viewParams.orderBy = args.orderBy;
+  }
+  if (args.schemaOnly !== undefined) {
+    viewParams.schemaOnly = args.schemaOnly;
+  }
+
+  return viewParams;
+};
+
+/**
  * Main execute function for the view command.
  * @param context - CLI context containing arguments and configuration.
  */
 const executeViewCommand = async (context: ICLIContext): Promise<void> => {
   const logger = LoggerService.getInstance();
-  const { args } = context;
+
   const {
     table: tableName,
     format,
@@ -288,7 +448,7 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
     where,
     orderBy,
     schemaOnly,
-  } = args as IViewArgs;
+  } = extractViewArgs(context);
 
   const viewFormat = format ?? 'table';
   const limit = parseNumericParam(limitParam, 50);
@@ -306,25 +466,36 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
   try {
     const databaseViewService = DatabaseViewService.getInstance();
 
-    const viewParams: Parameters<typeof databaseViewService.handleView>[0] = {
+    const viewParamsArgs: {
+      tableName: string;
+      format: ViewFormat;
+      limit: number;
+      offset: number;
+      columns?: string;
+      where?: string;
+      orderBy?: string;
+      schemaOnly?: boolean;
+    } = {
       tableName,
       format: viewFormat,
       limit,
       offset,
     };
-
+    
     if (columns !== undefined) {
-      viewParams.columns = columns;
+      viewParamsArgs.columns = columns;
     }
     if (where !== undefined) {
-      viewParams.where = where;
+      viewParamsArgs.where = where;
     }
     if (orderBy !== undefined) {
-      viewParams.orderBy = orderBy;
+      viewParamsArgs.orderBy = orderBy;
     }
     if (schemaOnly !== undefined) {
-      viewParams.schemaOnly = schemaOnly;
+      viewParamsArgs.schemaOnly = schemaOnly;
     }
+
+    const viewParams = buildViewParams(viewParamsArgs);
 
     const result = await databaseViewService.handleView(viewParams);
 

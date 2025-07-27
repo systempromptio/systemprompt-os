@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-07-27T08:33:25.909Z",
+  "totalDuration": 0,
+  "success": true,
+  "domains": [
+    {
+      "domain": "tools-cli",
+      "tests": [
+        {
+          "name": "should show help information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show version information",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should get configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should list all configuration values",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should generate a new JWT key",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should generate keys of specified length",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show service status",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show detailed status with --verbose flag",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should show test command options",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle invalid commands gracefully",
+          "status": "skipped",
+          "duration": 0
+        },
+        {
+          "name": "should handle missing required arguments",
+          "status": "skipped",
+          "duration": 0
+        }
+      ],
+      "totalTests": 11,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 11,
+      "duration": 0
+    }
+  ],
+  "summary": {
+    "totalTests": 11,
+    "totalPassed": 0,
+    "totalFailed": 0,
+    "totalSkipped": 11
+  }
+}

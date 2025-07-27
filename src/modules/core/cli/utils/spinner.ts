@@ -3,16 +3,16 @@
  * @module cli/utils/spinner
  */
 
-import ora, { type Color, type Ora } from 'ora';
+import ora, { type Color, type Ora, type Spinner, type Options } from 'ora';
 import { type SpinnerName } from 'cli-spinners';
 
 /**
  * Spinner configuration interface.
  */
-export interface SpinnerConfig {
+export interface ISpinnerConfig {
   text?: string;
   color?: Color;
-  spinner?: SpinnerName;
+  spinner?: SpinnerName | Spinner;
   interval?: number;
 }
 
@@ -21,36 +21,36 @@ export interface SpinnerConfig {
  */
 export const SPINNER_PRESETS = {
   loading: {
-    spinner: 'dots' as const,
-    color: 'yellow' as const,
+    spinner: 'dots' as SpinnerName,
+    color: 'yellow' as Color,
     text: 'Loading...'
   },
   processing: {
-    spinner: 'arc' as const,
-    color: 'yellow' as const,
+    spinner: 'arc' as SpinnerName,
+    color: 'yellow' as Color,
     text: 'Processing...'
   },
   connecting: {
-    spinner: 'circle' as const,
-    color: 'blue' as const,
+    spinner: 'circle' as SpinnerName,
+    color: 'blue' as Color,
     text: 'Connecting...'
   },
   saving: {
-    spinner: 'squareCorners' as const,
-    color: 'green' as const,
+    spinner: 'squareCorners' as SpinnerName,
+    color: 'green' as Color,
     text: 'Saving...'
   },
   analyzing: {
-    spinner: 'triangle' as const,
-    color: 'cyan' as const,
+    spinner: 'triangle' as SpinnerName,
+    color: 'cyan' as Color,
     text: 'Analyzing...'
   },
   building: {
-    spinner: 'growHorizontal' as const,
-    color: 'magenta' as const,
+    spinner: 'growHorizontal' as SpinnerName,
+    color: 'magenta' as Color,
     text: 'Building...'
   }
-};
+} satisfies Record<string, ISpinnerConfig & { text: string }>;
 
 /**
  * Enhanced spinner class with SystemPrompt theming.
@@ -59,18 +59,15 @@ export class SystemPromptSpinner {
   private readonly spinner: Ora;
   private readonly startTime: number;
   
-  constructor(config: SpinnerConfig = {}) {
-    const baseOptions: any = {
-      text: config.text || '',
-      color: config.color || 'yellow',
-      interval: config.interval || 80
-    };
+  constructor(config: ISpinnerConfig = {}) {
+    // Build options object satisfying exactOptionalPropertyTypes
+    // Filter out undefined values and create a clean options object
+    const definedEntries = Object.entries(config)
+      .filter(([_, value]) => value !== undefined);
     
-    if (config.spinner !== undefined) {
-      baseOptions.spinner = config.spinner;
-    }
+    const oraOptions = Object.fromEntries(definedEntries) as Options;
     
-    this.spinner = ora(baseOptions);
+    this.spinner = ora(oraOptions);
     this.startTime = Date.now();
   }
   
@@ -177,8 +174,9 @@ export class SystemPromptSpinner {
 
 /**
  * Quick spinner factory functions.
- * @param preset
- * @param text
+ * @param preset - The spinner preset to use.
+ * @param text - Optional text to override preset text.
+ * @returns New SystemPromptSpinner instance.
  */
 export const createSpinner = (preset: keyof typeof SPINNER_PRESETS = 'loading', text?: string): SystemPromptSpinner => {
   const config = { ...SPINNER_PRESETS[preset] };
@@ -190,25 +188,27 @@ export const createSpinner = (preset: keyof typeof SPINNER_PRESETS = 'loading', 
  * Execute a function with a spinner.
  * @param fn - The async function to execute.
  * @param spinnerConfig - Spinner configuration.
+ * @param options
  * @param successText - Success message.
  * @param errorText - Error message.
+ * @param options.successText
+ * @param options.errorText
  * @returns Promise with the function result.
  */
 export const withSpinner = async <T>(
   fn: () => Promise<T>,
-  spinnerConfig: SpinnerConfig = {},
-  successText?: string,
-  errorText?: string
+  spinnerConfig: ISpinnerConfig = {},
+  options?: { successText?: string; errorText?: string }
 ): Promise<T> => {
   const spinner = new SystemPromptSpinner(spinnerConfig);
   
   try {
     spinner.start();
     const result = await fn();
-    spinner.succeed(successText);
+    spinner.succeed(options?.successText);
     return result;
   } catch (error) {
-    spinner.fail(errorText || 'Operation failed');
+    spinner.fail(options?.errorText ?? 'Operation failed');
     throw error;
   }
 };
@@ -221,7 +221,7 @@ export class ProgressSpinner {
   private readonly steps: string[];
   private currentStep: number = 0;
 
-  constructor(steps: string[], config: SpinnerConfig = {}) {
+  constructor(steps: string[], config: ISpinnerConfig = {}) {
     this.steps = steps;
     this.spinner = new SystemPromptSpinner(config);
   }
@@ -232,7 +232,7 @@ export class ProgressSpinner {
    */
   start(): this {
     if (this.steps.length > 0) {
-      this.spinner.start(`[1/${this.steps.length}] ${this.steps[0]}`);
+      this.spinner.start(`[1/${String(this.steps.length)}] ${this.steps[0] ?? ''}`);
     }
     return this;
   }
@@ -243,20 +243,22 @@ export class ProgressSpinner {
    * @returns This progress spinner instance.
    */
   nextStep(successText?: string): this {
-    this.currentStep++;
+    this.currentStep += 1;
     
     if (this.currentStep < this.steps.length) {
       if (successText) {
         this.spinner.updateText(`✓ ${successText}`);
-        // Brief pause to show success
-        setTimeout(() => {
-          this.spinner.updateText(`[${this.currentStep + 1}/${this.steps.length}] ${this.steps[this.currentStep]}`);
+        /**
+         * Brief pause to show success.
+         */
+        setTimeout((): void => {
+          this.spinner.updateText(`[${String(this.currentStep + 1)}/${String(this.steps.length)}] ${this.steps[this.currentStep] ?? ''}`);
         }, 500);
       } else {
-        this.spinner.updateText(`[${this.currentStep + 1}/${this.steps.length}] ${this.steps[this.currentStep]}`);
+        this.spinner.updateText(`[${String(this.currentStep + 1)}/${String(this.steps.length)}] ${this.steps[this.currentStep] ?? ''}`);
       }
     } else {
-      this.spinner.succeed(successText || 'All steps completed');
+      this.spinner.succeed(successText ?? 'All steps completed');
     }
     
     return this;
@@ -268,7 +270,7 @@ export class ProgressSpinner {
    * @returns This progress spinner instance.
    */
   complete(successText?: string): this {
-    this.spinner.succeed(successText || 'All steps completed');
+    this.spinner.succeed(successText ?? 'All steps completed');
     return this;
   }
 
@@ -278,7 +280,7 @@ export class ProgressSpinner {
    * @returns This progress spinner instance.
    */
   fail(errorText?: string): this {
-    this.spinner.fail(errorText || 'Operation failed');
+    this.spinner.fail(errorText ?? 'Operation failed');
     return this;
   }
 }
@@ -289,6 +291,6 @@ export class ProgressSpinner {
  * @param config - Spinner configuration.
  * @returns New progress spinner instance.
  */
-export const createProgressSpinner = (steps: string[], config: SpinnerConfig = {}): ProgressSpinner => {
+export const createProgressSpinner = (steps: string[], config: ISpinnerConfig = {}): ProgressSpinner => {
   return new ProgressSpinner(steps, config);
 };

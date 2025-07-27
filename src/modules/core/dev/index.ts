@@ -4,19 +4,12 @@
  * @module modules/core/dev
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { DevService } from '@/modules/core/dev/services/dev.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
 
-/**
- * Strongly typed exports interface for Dev module.
- */
-export interface IDevModuleExports {
-  readonly service: () => DevService;
-}
+import type { IDevModuleExports } from '@/modules/core/dev/types/index';
 
 /**
  * Dev module implementation.
@@ -34,7 +27,7 @@ export class DevModule implements IModule<IDevModuleExports> {
   private started = false;
   get exports(): IDevModuleExports {
     return {
-      service: () => { return this.getService(); },
+      service: (): DevService => { return this.getService() },
     };
   }
 
@@ -89,28 +82,31 @@ export class DevModule implements IModule<IDevModuleExports> {
 
   /**
    * Health check for the dev module.
+   * @returns Health check result with status and message.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
       return {
- healthy: false,
-message: 'Dev module not initialized'
-};
+        healthy: false,
+        message: 'Dev module not initialized'
+      };
     }
     if (!this.started) {
       return {
- healthy: false,
-message: 'Dev module not started'
-};
+        healthy: false,
+        message: 'Dev module not started'
+      };
     }
     return {
- healthy: true,
-message: 'Dev module is healthy'
-};
+      healthy: true,
+      message: 'Dev module is healthy'
+    };
   }
 
   /**
    * Get the dev service.
+   * @returns The dev service instance.
+   * @throws {Error} If module is not initialized.
    */
   getService(): DevService {
     if (!this.initialized) {
@@ -122,6 +118,7 @@ message: 'Dev module is healthy'
 
 /**
  * Factory function for creating the module.
+ * @returns New instance of DevModule.
  */
 export const createModule = (): DevModule => {
   return new DevModule();
@@ -129,6 +126,7 @@ export const createModule = (): DevModule => {
 
 /**
  * Initialize function for core module pattern.
+ * @returns Initialized DevModule instance.
  */
 export const initialize = async (): Promise<DevModule> => {
   const devModule = new DevModule();
@@ -141,18 +139,23 @@ export const initialize = async (): Promise<DevModule> => {
  * @returns The Dev module with guaranteed typed exports.
  * @throws {Error} If Dev module is not available or missing required exports.
  */
-export function getDevModule(): IModule<IDevModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+export const getDevModule = (): IModule<IDevModuleExports> => {
+  const { getModuleLoader } = require('@/modules/loader') as typeof import('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types') as typeof import('@/modules/types/module-names.types');
 
   const moduleLoader = getModuleLoader();
   const devModule = moduleLoader.getModule(ModuleName.DEV);
 
-  if (!devModule.exports?.service || typeof devModule.exports.service !== 'function') {
+  if (!('exports' in devModule) || typeof devModule.exports !== 'object' || devModule.exports === null) {
+    throw new Error('Dev module missing exports property');
+  }
+
+  const exports = devModule.exports as Record<string, unknown>;
+  if (!('service' in exports) || typeof exports.service !== 'function') {
     throw new Error('Dev module missing required service export');
   }
 
-  return devModule as IModule<IDevModuleExports>;
-}
+  return devModule as unknown as IModule<IDevModuleExports>;
+};
 
 export default DevModule;

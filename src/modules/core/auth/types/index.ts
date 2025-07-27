@@ -96,23 +96,6 @@ export interface IAuthSession {
 }
 
 /**
- * Authentication audit entry interface.
- * Represents a single audit log entry for authentication events.
- */
-export interface IAuthAuditEntry {
-  id: string;
-  userId?: string;
-  action: AuthAuditAction;
-  resource?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  success: boolean;
-  errorMessage?: string;
-  metadata?: Record<string, unknown>;
-  timestamp: Date;
-}
-
-/**
  * Authentication audit action enumeration.
  * Defines all possible audit actions that can be logged in the system.
  */
@@ -133,6 +116,23 @@ export type AuthAuditAction =
   | 'session.create'
   | 'session.refresh'
   | 'session.revoke';
+
+/**
+ * Authentication audit entry interface.
+ * Represents a single audit log entry for authentication events.
+ */
+export interface IAuthAuditEntry {
+  id: string;
+  userId?: string;
+  action: AuthAuditAction;
+  resource?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  success: boolean;
+  errorMessage?: string;
+  metadata?: Record<string, unknown>;
+  timestamp: Date;
+}
 
 /**
  * Login input interface.
@@ -378,6 +378,8 @@ export type * from '@/modules/core/auth/types/auth-code.types';
 export type * from '@/modules/core/auth/types/repository.types';
 export type * from '@/modules/core/auth/types/generate-key.types';
 export type * from '@/modules/core/auth/types/user-service.types';
+export type * from '@/modules/core/auth/types/tunnel.types';
+export type * from '@/modules/core/auth/types/tool.types';
 export type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 
 /**
@@ -491,6 +493,27 @@ export type MfaSetupResult = IMfaSetupResult;
 export type MfaVerifyInput = IMfaVerifyInput;
 
 /**
+ * MFA configuration interface.
+ * Configuration settings for multi-factor authentication.
+ */
+export interface IMFAConfig {
+  appName: string;
+  backupCodeCount: number;
+  windowSize: number;
+}
+
+/**
+ * User MFA data interface.
+ * Database representation of user MFA settings.
+ */
+export interface IUserMFAData {
+  id: string;
+  mfa_secret?: string | null;
+  mfa_enabled?: number;
+  mfa_backup_codes?: string | null;
+}
+
+/**
  * Database row interface for auth_tokens table.
  * Raw database representation of a token record.
  */
@@ -520,23 +543,6 @@ export interface IJwtParams {
 }
 
 /**
- * User entity interface with complete information.
- * Complete user model including roles and permissions.
- */
-export interface IUser {
-  id: string;
-  email: string;
-  name?: string;
-  avatarUrl?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt?: string;
-  roles: IRole[];
-  permissions: IPermission[];
-}
-
-/**
  * Role entity interface.
  * Represents a user role with metadata.
  */
@@ -557,6 +563,23 @@ export interface IPermission {
   resource: string;
   action: string;
   description?: string;
+}
+
+/**
+ * User entity interface with complete information.
+ * Complete user model including roles and permissions.
+ */
+export interface IUser {
+  id: string;
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
+  roles: IRole[];
+  permissions: IPermission[];
 }
 
 /**

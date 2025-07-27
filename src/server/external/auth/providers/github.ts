@@ -51,8 +51,8 @@ export class GitHubProvider implements IIdentityProvider {
    */
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams();
-    params.append('client_id', this.config.client_id);
-    params.append('redirect_uri', this.config.redirect_uri);
+    params.append('client_id', this.config.clientId);
+    params.append('redirect_uri', this.config.redirectUri);
     params.append('scope', this.config.scope ?? 'read:user user:email');
     params.append('state', state);
 
@@ -66,14 +66,14 @@ export class GitHubProvider implements IIdentityProvider {
    * @throws {Error} When token exchange fails.
    */
   async exchangeCodeForTokens(code: string): Promise<{ accessToken: string }> {
-    const clientSecret = this.config.client_secret;
+    const {clientSecret} = this.config;
     const secretValue = clientSecret === '' ? '' : clientSecret;
 
     const params = new URLSearchParams();
-    params.append('client_id', this.config.client_id);
+    params.append('client_id', this.config.clientId);
     params.append('client_secret', secretValue);
     params.append('code', code);
-    params.append('redirect_uri', this.config.redirect_uri);
+    params.append('redirect_uri', this.config.redirectUri);
 
     const response = await fetch(this.tokenEndpoint, {
       method: 'POST',

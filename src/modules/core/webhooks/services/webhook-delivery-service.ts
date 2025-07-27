@@ -1,12 +1,14 @@
 /**
  * @file Webhook delivery service implementation.
+ * @description Service for delivering webhooks with retry logic and delivery tracking.
  * @module modules/core/webhooks/services
  */
 
 import type { WebhookRepository } from '@/modules/core/webhooks/repositories/webhook-repository';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types';
 import type {
+  IWebhookDeliveryService,
   Webhook,
   WebhookAuth,
   WebhookDeliveryRecord,
@@ -15,21 +17,16 @@ import type {
 } from '@/modules/core/webhooks/types/webhook.types';
 
 /**
- * Interface for webhook delivery service.
- */
-export interface IWebhookDeliveryService {
-  deliver(webhook: Webhook, payload: WebhookPayload): Promise<void>;
-  deliverOnce(webhook: Webhook, payload: WebhookPayload): Promise<WebhookDeliveryResult>;
-  cancelDelivery(webhookId: string): Promise<void>;
-  cancelAllDeliveries(): Promise<void>;
-}
-
-/**
  * Service for delivering webhooks with retry logic and delivery tracking.
  */
 export class WebhookDeliveryService implements IWebhookDeliveryService {
   private readonly activeDeliveries = new Map<string, AbortController>();
 
+  /**
+   * Creates an instance of WebhookDeliveryService.
+   * @param repository - The webhook repository.
+   * @param logger - The logger instance.
+   */
   constructor(
     private readonly repository: WebhookRepository,
     private readonly logger: ILogger

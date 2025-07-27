@@ -13,7 +13,7 @@ import type { IIdentityProvider } from '@/server/external/rest/oauth2/types/auth
  * @returns {boolean} True if value has access_token property.
  */
 const hasAccessToken = (value: unknown): value is {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   'access_token': unknown;
   [key: string]: unknown
 } => {
@@ -69,8 +69,8 @@ export class GoogleProvider implements IIdentityProvider {
    */
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
-      client_id: this.config.client_id,
-      redirect_uri: this.config.redirect_uri,
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
       response_type: "code",
       scope: this.config.scope ?? "openid email profile",
       state,
@@ -90,9 +90,9 @@ export class GoogleProvider implements IIdentityProvider {
   async exchangeCodeForTokens(code: string): Promise<{ accessToken: string }> {
     const params = new URLSearchParams({
       code,
-      client_id: this.config.client_id,
-      client_secret: this.config.client_secret,
-      redirect_uri: this.config.redirect_uri,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      redirect_uri: this.config.redirectUri,
       grant_type: "authorization_code",
     });
 

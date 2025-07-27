@@ -96,17 +96,17 @@ LogSource.MCP,
    * @description Sets up individual routes for each registered server and creates
    * a global status endpoint at `/mcp/status` for monitoring all servers.
    */
-  public async setupRoutes(app: Express): Promise<void> {
-    Array.from(this.servers.entries()).forEach(([id, server]) => {
+  public setupRoutes(app: Express): void {
+    Array.from(this.servers.entries()).forEach(([id, server]): void => {
       this.setupServerRoute(app, id, server);
     });
 
     app.get('/mcp/status', this.createStatusHandler());
 
     logger.debug(
-LogSource.MCP,
+      LogSource.MCP,
       `Configured routes for ${String(this.servers.size)} MCP servers`
-);
+    );
   }
 
   /**
@@ -152,7 +152,7 @@ LogSource.MCP,
         `Remote server '${server.name}' proxied at ${endpoint} -> `
         + `${remoteServer.config.url} (auth enabled)`,
         {
-          data: {
+          context: {
             serverName: server.name,
             endpoint,
             targetUrl: remoteServer.config.url
@@ -245,7 +245,7 @@ LogSource.MCP,
       ...customHeaders,
     };
 
-    if (auth !== null && auth !== undefined) {
+    if (auth != null) {
       headers.Authorization = this.buildAuthorizationHeader(auth);
     }
 
@@ -258,17 +258,17 @@ LogSource.MCP,
    * @returns {string} Authorization header value.
    */
   private buildAuthorizationHeader(auth: IRemoteMcpConfig['auth']): string {
-    if (auth === null || auth === undefined) {
+    if (auth == null) {
       return '';
     }
 
-    if (auth.type === 'bearer' && auth.token !== null && auth.token !== undefined && auth.token !== '') {
+    if (auth.type === 'bearer' && auth.token != null && auth.token !== '') {
       return `Bearer ${auth.token}`;
     }
 
     if (auth.type === 'basic'
-        && auth.username !== null && auth.username !== undefined && auth.username !== ''
-        && auth.password !== null && auth.password !== undefined && auth.password !== '') {
+        && auth.username != null && auth.username !== ''
+        && auth.password != null && auth.password !== '') {
       const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString('base64');
       return `Basic ${credentials}`;
     }
@@ -280,7 +280,7 @@ LogSource.MCP,
    * Forwards the remote server response back to the client.
    * @param {globalThis.Response} response - Response from remote server.
    * @param {Response} res - Express response object.
-   * @param _req - Express request object (unused but kept for potential future use).
+   * @param {Request} _req - Express request object (unused but kept for potential future use).
    * @returns {Promise<void>}
    */
   private async forwardResponse(
@@ -288,7 +288,7 @@ LogSource.MCP,
     res: ExpressResponse,
     _req: ExpressRequest,
   ): Promise<void> {
-    response.headers.forEach((value, key) => {
+    response.headers.forEach((value, key): void => {
       if (!NON_FORWARDABLE_HEADERS.has(key.toLowerCase())) {
         res.setHeader(key, value);
       }

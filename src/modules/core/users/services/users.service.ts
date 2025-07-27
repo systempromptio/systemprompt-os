@@ -16,7 +16,7 @@ import {
 } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { UsersRepository } from '@/modules/core/users/repositories/users-repository';
+import { UsersRepository } from '@/modules/core/users/repositories/users.repository';
 import {
   type IAuthResult,
   type IUser,
@@ -103,14 +103,22 @@ export class UsersService implements IUsersService {
     this.logger?.info(LogSource.USERS, `Creating user: ${data.username}`);
 
     const passwordHash = data.password ? this.hashPassword(data.password) : undefined;
-    const user = await this.repository.createUser(id, data.username, data.email, passwordHash);
+    const createUserOptions: Parameters<typeof this.repository.createUser>[0] = {
+      id,
+      username: data.username,
+      email: data.email
+    };
+    if (passwordHash !== undefined) {
+      createUserOptions.passwordHash = passwordHash;
+    }
+    const user = await this.repository.createUser(createUserOptions);
 
     if (data.role) {
       try {
-        const { PermissionsService } = await import('@/modules/core/permissions/services/permissions.service.js');
+        const { PermissionsService } = await import('@/modules/core/permissions/services/permissions.service');
         const permissionsService = PermissionsService.getInstance();
         const roles = await permissionsService.listRoles();
-        const role = roles.find(r => { return r.name === data.role });
+        const role = roles.find((r) => { return r.name === data.role });
         if (role) {
           await permissionsService.assignRole(id, role.id);
         }
@@ -130,7 +138,7 @@ export class UsersService implements IUsersService {
    */
   async getUser(id: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return await this.repository.findById(id);
+    return this.repository.findById(id);
   }
 
   /**
@@ -140,7 +148,7 @@ export class UsersService implements IUsersService {
    */
   async getUserByUsername(username: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return await this.repository.findByUsername(username);
+    return this.repository.findByUsername(username);
   }
 
   /**
@@ -150,7 +158,7 @@ export class UsersService implements IUsersService {
    */
   async getUserByEmail(email: string): Promise<IUser | null> {
     await this.ensureInitialized();
-    return await this.repository.findByEmail(email);
+    return this.repository.findByEmail(email);
   }
 
   /**
@@ -159,7 +167,7 @@ export class UsersService implements IUsersService {
    */
   async listUsers(): Promise<IUser[]> {
     await this.ensureInitialized();
-    return await this.repository.findAll();
+    return this.repository.findAll();
   }
 
   /**
@@ -229,7 +237,7 @@ export class UsersService implements IUsersService {
       };
     }
 
-    if (user.lockedUntil && user.lockedUntil > new Date()) {
+    if (user.lockedUntil !== null && user.lockedUntil !== undefined && user.lockedUntil > new Date()) {
       return {
         success: false,
         reason: 'Account is locked'
@@ -280,14 +288,19 @@ export class UsersService implements IUsersService {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS);
 
-    const session = await this.repository.createSession(
-      randomUUID(),
+    const createSessionOptions: Parameters<typeof this.repository.createSession>[0] = {
+      id: randomUUID(),
       userId,
       tokenHash,
-      expiresAt,
-      ipAddress,
-      userAgent
-    );
+      expiresAt
+    };
+    if (ipAddress !== undefined) {
+      createSessionOptions.ipAddress = ipAddress;
+    }
+    if (userAgent !== undefined) {
+      createSessionOptions.userAgent = userAgent;
+    }
+    const session = await this.repository.createSession(createSessionOptions);
 
     return {
       ...session,
@@ -314,13 +327,13 @@ export class UsersService implements IUsersService {
       return null;
     }
 
-    if (session.revokedAt !== undefined) {
+    if (session.revokedAt !== null && session.revokedAt !== undefined) {
       return null;
     }
 
     await this.repository.updateSessionActivity(session.id);
 
-    return await this.repository.findById(session.userId);
+    return this.repository.findById(session.userId);
   }
 
   /**
@@ -355,13 +368,16 @@ export class UsersService implements IUsersService {
     const key = this.generateApiKey();
     const keyHash = this.hashToken(key);
 
-    const apiKey = await this.repository.createApiKey(
-      randomUUID(),
+    const createApiKeyOptions: Parameters<typeof this.repository.createApiKey>[0] = {
+      id: randomUUID(),
       userId,
       name,
-      keyHash,
-      permissions
-    );
+      keyHash
+    };
+    if (permissions !== undefined) {
+      createApiKeyOptions.permissions = permissions;
+    }
+    const apiKey = await this.repository.createApiKey(createApiKeyOptions);
 
     return {
       key,
@@ -384,13 +400,13 @@ export class UsersService implements IUsersService {
       return null;
     }
 
-    if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
+    if (apiKey.expiresAt !== null && apiKey.expiresAt !== undefined && apiKey.expiresAt < new Date()) {
       return null;
     }
 
     await this.repository.updateApiKeyUsage(apiKey.id);
 
-    return await this.repository.findById(apiKey.userId);
+    return this.repository.findById(apiKey.userId);
   }
 
   /**

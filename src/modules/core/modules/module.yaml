@@ -13,6 +13,8 @@ dependencies:
   - config
 cli:
   commands:
+    - name: status
+      description: Show module status (enabled/healthy)
     - name: list
       description: List installed extensions and modules
       options:

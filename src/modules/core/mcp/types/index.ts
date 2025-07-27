@@ -88,3 +88,13 @@ export interface IMCPService {
   ): Promise<IMCPMessage>;
   getSessionMessages(sessionId: string): Promise<IMCPMessage[]>;
 }
+
+/**
+ * Strongly typed exports interface for MCP module.
+ */
+export interface IMCPModuleExports {
+  readonly service: () => import('../services/mcp.service').MCPService;
+  readonly resources: import('@/modules/types/index').IResourceModuleExports;
+  readonly prompts: import('@/modules/types/index').IPromptModuleExports;
+  readonly tools: import('@/modules/types/index').IToolModuleExports;
+}

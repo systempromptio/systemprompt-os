@@ -1,38 +1,19 @@
 /**
  * @file CLI Command Discovery.
+ * @description Utility for discovering and loading CLI commands from modules across the system.
  * @module src/cli/src/discovery
  */
 
 import {
- existsSync, readFileSync, readdirSync
+  type Dirent,
+  existsSync,
+  readFileSync,
+  readdirSync
 } from 'fs';
 import { join } from 'path';
 import { parse } from 'yaml';
 import type { CLICommand } from '@/modules/core/cli/types/index';
-
-/**
- * Interface for module configuration.
- */
-interface ModuleConfig {
-  name?: string;
-  version?: string;
-  cli?: {
-    commands?: Array<{
-      name: string;
-      description: string;
-      executor?: string;
-      options?: Array<{
-        name: string;
-        type: 'string' | 'boolean' | 'number' | 'array';
-        description: string;
-        alias?: string;
-        default?: unknown;
-        required?: boolean;
-        choices?: string[];
-      }>;
-    }>;
-  };
-}
+import type { IModuleConfig } from '@/cli/src/types/discovery.types';
 
 /**
  * Command discovery utility for CLI commands across modules.
@@ -61,16 +42,22 @@ export class CommandDiscovery {
       join(this.modulesPath, '..', '..', 'extensions', 'modules')
     ];
 
-    for (const directory of directories) {
-      try {
-        if (existsSync(directory)) {
-          const discovered = await this.discoverInDirectory(directory);
-          for (const [name, command] of discovered) {
-            commands.set(name, command);
-          }
+    const directoryResults = await Promise.all(
+      directories.map(async (directory) => {
+        if (!existsSync(directory)) {
+          return new Map<string, CLICommand>();
         }
-      } catch (error) {
-        continue;
+        try {
+          return await this.discoverInDirectory(directory);
+        } catch {
+          return new Map<string, CLICommand>();
+        }
+      })
+    );
+
+    for (const discovered of directoryResults) {
+      for (const [name, command] of discovered) {
+        commands.set(name, command);
       }
     }
 
@@ -84,71 +71,146 @@ export class CommandDiscovery {
    */
   private async discoverInDirectory(directory: string): Promise<Map<string, CLICommand>> {
     const commands = new Map<string, CLICommand>();
+    const entries = readdirSync(directory, { withFileTypes: true });
 
-    try {
-      const entries = readdirSync(directory, { withFileTypes: true });
+    const moduleDirectories = entries.filter((entry) => { return entry.isDirectory() });
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) {
-          continue;
-        }
-
+    const moduleResults = await Promise.all(
+      moduleDirectories.map(async (entry) => {
         const modulePath = join(directory, entry.name);
-        const moduleYamlPath = join(modulePath, 'module.yaml');
+        return await this.processModule(modulePath, entry.name);
+      })
+    );
 
-        if (!existsSync(moduleYamlPath)) {
-          continue;
-        }
-
-        try {
-          const yamlContent = readFileSync(moduleYamlPath, 'utf-8');
-          const moduleConfig = parse(yamlContent) as ModuleConfig;
-
-          if (!moduleConfig.cli?.commands) {
-            continue;
-          }
-
-          for (const commandConfig of moduleConfig.cli.commands) {
-            const commandName = `${entry.name}:${commandConfig.name}`;
-
-            const cliDir = join(modulePath, 'cli');
-            if (existsSync(cliDir)) {
-              const cliFiles = readdirSync(cliDir, { withFileTypes: true });
-
-              for (const file of cliFiles) {
-                if (file.isFile() && (file.name.endsWith('.ts') || file.name.endsWith('.js'))) {
-                  const baseName = file.name.replace(/\.(ts|js)$/, '');
-
-                  if (baseName === commandConfig.name || commandConfig.name.includes(baseName)) {
-                    try {
-                      const commandPath = join(cliDir, file.name);
-                      const commandModule = await import(commandPath);
-
-                      const command: CLICommand = {
-                        name: commandConfig.name,
-                        description: commandConfig.description,
-                        options: commandConfig.options || [],
-                        executorPath: commandPath,
-                        ...commandModule.default || {}
-                      };
-
-                      commands.set(commandName, command);
-                    } catch (importError) {
-                      continue;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (yamlError) {
-          continue;
-        }
+    for (const moduleCommands of moduleResults) {
+      for (const [name, command] of moduleCommands) {
+        commands.set(name, command);
       }
-    } catch (readError) {
-      throw readError;
     }
 
     return commands;
+  }
+
+  /**
+   * Process a single module directory for CLI commands.
+   * @param modulePath - Path to the module directory.
+   * @param moduleName - Name of the module.
+   * @returns Map of commands from this module.
+   */
+  private async processModule(modulePath: string, moduleName: string): Promise<Map<string, CLICommand>> {
+    const commands = new Map<string, CLICommand>();
+    const moduleYamlPath = join(modulePath, 'module.yaml');
+
+    if (!existsSync(moduleYamlPath)) {
+      return commands;
+    }
+
+    try {
+      const moduleConfig = this.loadModuleConfig(moduleYamlPath);
+      const cliCommands = moduleConfig.cli?.commands;
+
+      if (cliCommands == null || cliCommands.length === 0) {
+        return commands;
+      }
+
+      const commandResults = await Promise.all(
+        cliCommands.map(async (commandConfig) => {
+          const commandName = `${moduleName}:${commandConfig.name}`;
+          const command = await this.loadCommand(modulePath, commandConfig);
+          return command != null ? {
+ name: commandName,
+command
+} : null;
+        })
+      );
+
+      for (const result of commandResults) {
+        if (result != null) {
+          commands.set(result.name, result.command);
+        }
+      }
+    } catch {
+    }
+
+    return commands;
+  }
+
+  /**
+   * Load module configuration from YAML file.
+   * @param yamlPath - Path to the module.yaml file.
+   * @returns Parsed module configuration.
+   */
+  private loadModuleConfig(yamlPath: string): IModuleConfig {
+    const yamlContent = readFileSync(yamlPath, 'utf-8');
+    return parse(yamlContent) as IModuleConfig;
+  }
+
+  /**
+   * Load a command implementation from a module.
+   * @param modulePath - Path to the module.
+   * @param commandConfig - Command configuration from module.yaml.
+   * @returns Loaded command or null if not found.
+   */
+  private async loadCommand(
+    modulePath: string,
+    commandConfig: NonNullable<NonNullable<IModuleConfig['cli']>['commands']>[number]
+  ): Promise<CLICommand | null> {
+    const cliDir = join(modulePath, 'cli');
+
+    if (!existsSync(cliDir)) {
+      return null;
+    }
+
+    const cliFiles = readdirSync(cliDir, { withFileTypes: true });
+    const commandFile = this.findCommandFile(cliFiles, commandConfig.name);
+
+    if (commandFile == null) {
+      return null;
+    }
+
+    try {
+      const commandPath = join(cliDir, commandFile.name);
+
+      const commandModule = await import(commandPath) as { default?: Partial<CLICommand> };
+
+      return {
+        name: commandConfig.name,
+        description: commandConfig.description,
+        options: commandConfig.options ?? [],
+        executorPath: commandPath,
+        ...commandModule.default ?? {}
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Find the command file matching the command name.
+   * @param files - Directory entries to search.
+   * @param commandName - Name of the command to find.
+   * @returns Matching file entry or null.
+   */
+  private findCommandFile(
+    files: Dirent[],
+    commandName: string
+  ): Dirent | null {
+    for (const file of files) {
+      if (!file.isFile()) {
+        continue;
+      }
+
+      const isScriptFile = (/\.(ts|js)$/u).test(file.name);
+      if (!isScriptFile) {
+        continue;
+      }
+
+      const baseName = file.name.replace(/\.(ts|js)$/u, '');
+      if (baseName === commandName || commandName.includes(baseName)) {
+        return file;
+      }
+    }
+
+    return null;
   }
 }

@@ -7,16 +7,13 @@
 import type { IModule } from '@/modules/core/modules/types/index';
 import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
+import type { IPermissionsService } from '@/modules/core/permissions/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Strongly typed exports interface for Permissions module.
- */
-export interface IPermissionsModuleExports {
-  readonly service: () => PermissionsService;
-}
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { getModuleLoader } from '@/modules/loader';
+import { ModuleName } from '@/modules/types/module-names.types';
+import type { IPermissionsModuleExports } from '@/modules/core/permissions/types/index';
 
 /**
  * Permissions module implementation.
@@ -34,7 +31,7 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
   private started = false;
   get exports(): IPermissionsModuleExports {
     return {
-      service: () => { return this.getService(); },
+      service: (): IPermissionsService => { return this.getService() },
     };
   }
 
@@ -89,30 +86,33 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
 
   /**
    * Health check for the permissions module.
+   * @returns Health status of the module.
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
       return {
- healthy: false,
-message: 'Permissions module not initialized'
-};
+        healthy: false,
+        message: 'Permissions module not initialized',
+      };
     }
     if (!this.started) {
       return {
- healthy: false,
-message: 'Permissions module not started'
-};
+        healthy: false,
+        message: 'Permissions module not started',
+      };
     }
     return {
- healthy: true,
-message: 'Permissions module is healthy'
-};
+      healthy: true,
+      message: 'Permissions module is healthy',
+    };
   }
 
   /**
    * Get the permissions service.
+   * @returns The permissions service instance.
+   * @throws Error if module is not initialized.
    */
-  getService(): PermissionsService {
+  getService(): IPermissionsService {
     if (!this.initialized) {
       throw new Error('Permissions module not initialized');
     }
@@ -122,6 +122,7 @@ message: 'Permissions module is healthy'
 
 /**
  * Factory function for creating the module.
+ * @returns A new PermissionsModule instance.
  */
 export const createModule = (): PermissionsModule => {
   return new PermissionsModule();
@@ -129,6 +130,7 @@ export const createModule = (): PermissionsModule => {
 
 /**
  * Initialize function for core module pattern.
+ * @returns An initialized PermissionsModule instance.
  */
 export const initialize = async (): Promise<PermissionsModule> => {
   const permissionsModule = new PermissionsModule();
@@ -141,19 +143,21 @@ export const initialize = async (): Promise<PermissionsModule> => {
  * @returns The Permissions module with guaranteed typed exports.
  * @throws {Error} If Permissions module is not available or missing required exports.
  */
-export function getPermissionsModule(): IModule<IPermissionsModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
-
+export const getPermissionsModule = (): IModule<IPermissionsModuleExports> => {
   const moduleLoader = getModuleLoader();
-  const permissionsModule = moduleLoader.getModule(ModuleName.PERMISSIONS);
+  const permissionsModule = moduleLoader.getModule(ModuleName.PERMISSIONS) as unknown as IModule<IPermissionsModuleExports>;
 
-  if (!permissionsModule.exports?.service || typeof permissionsModule.exports.service !== 'function') {
+  if (
+    !permissionsModule
+    || !permissionsModule.exports
+    || !permissionsModule.exports.service
+    || typeof permissionsModule.exports.service !== 'function'
+  ) {
     throw new Error('Permissions module missing required service export');
   }
 
-  return permissionsModule as IModule<IPermissionsModuleExports>;
-}
+  return permissionsModule;
+};
 
 /**
  * Re-export enums for convenience.

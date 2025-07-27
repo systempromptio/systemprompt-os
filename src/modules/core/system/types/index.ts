@@ -1,5 +1,14 @@
 import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import type { SystemService } from '@/modules/core/system/services/system.service';
+
 export { ModuleStatusEnum };
+
+/**
+ * Strongly typed exports interface for System module.
+ */
+export interface ISystemModuleExports {
+  readonly service: () => SystemService;
+}
 
 /**
  * Configuration type enumeration.

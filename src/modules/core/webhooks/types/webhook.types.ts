@@ -182,3 +182,13 @@ export interface WebhookStats {
   failed_deliveries: number;
   average_response_time: number;
 }
+
+/**
+ * Interface for webhook delivery service.
+ */
+export interface IWebhookDeliveryService {
+  deliver(webhook: Webhook, payload: WebhookPayload): Promise<void>;
+  deliverOnce(webhook: Webhook, payload: WebhookPayload): Promise<WebhookDeliveryResult>;
+  cancelDelivery(webhookId: string): Promise<void>;
+  cancelAllDeliveries(): Promise<void>;
+}

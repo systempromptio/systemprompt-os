@@ -1,214 +1,242 @@
-/**
- * Configuration data for admin page rendering.
- */
-export interface AdminConfigData {
-  cloudflareUrl: string;
-  tunnelStatus: string;
-  version: string;
-  environment: string;
-  googleConfigured: boolean;
-  githubConfigured: boolean;
-}
+import type { IAdminConfigData } from '@/server/external/templates/types/admin-config.types';
+
+// Re-export the type for external use
+export type { IAdminConfigData };
 
 /**
- * Renders the admin configuration page with terminal interface.
- * @param data
+ * Renders the system status card component.
+ * @param config - The admin configuration data.
+ * @returns HTML string for the system status card.
  */
-export function renderAdminConfig(data: AdminConfigData): string {
+const renderSystemStatus = (config: IAdminConfigData): string => {
+  const statusClass = config.tunnelStatus === 'Active' ? 'active' : 'inactive';
+
   return `
-    <div class="config-container">
-      <div class="config-header">
-        <h1>System Configuration</h1>
-        <p class="subtitle">SystemPrompt OS Control Center</p>
+    <div class="status-card">
+      <div class="card-header">
+        <h3>System Status</h3>
+        <div class="status-indicator ${statusClass}"></div>
       </div>
-
-      <!-- Top Section: Status & Actions -->
-      <div class="top-section">
-        <!-- System Status -->
-        <div class="status-card">
-          <div class="card-header">
-            <h3>System Status</h3>
-            <div class="status-indicator ${data.tunnelStatus === 'Active' ? 'active' : 'inactive'}"></div>
-          </div>
-          <div class="status-grid">
-            <div class="status-item">
-              <span class="status-label">Base URL</span>
-              <span class="status-value">${data.cloudflareUrl}</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Tunnel Status</span>
-              <span class="status-value ${data.tunnelStatus === 'Active' ? 'active' : 'inactive'}">
-                ${data.tunnelStatus}
-              </span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Version</span>
-              <span class="status-value">${data.version}</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Environment</span>
-              <span class="status-value env-${data.environment}">${data.environment}</span>
-            </div>
-          </div>
+      <div class="status-grid">
+        <div class="status-item">
+          <span class="status-label">Base URL</span>
+          <span class="status-value">${config.cloudflareUrl}</span>
         </div>
-
-        <!-- OAuth Status -->
-        <div class="oauth-card">
-          <div class="card-header">
-            <h3>OAuth Providers</h3>
-          </div>
-          <div class="provider-list">
-            <div class="provider-item ${data.googleConfigured ? 'configured' : ''}">
-              <svg class="provider-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              <span class="provider-name">Google</span>
-              <span class="provider-status">
-                ${data.googleConfigured ? '✓' : '×'}
-              </span>
-            </div>
-            <div class="provider-item ${data.githubConfigured ? 'configured' : ''}">
-              <svg class="provider-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-              </svg>
-              <span class="provider-name">GitHub</span>
-              <span class="provider-status">
-                ${data.githubConfigured ? '✓' : '×'}
-              </span>
-            </div>
-          </div>
+        <div class="status-item">
+          <span class="status-label">Tunnel Status</span>
+          <span class="status-value ${statusClass}">
+            ${config.tunnelStatus}
+          </span>
         </div>
-
-        <!-- System Summary -->
-        <div class="summary-card">
-          <div class="card-header">
-            <h3>System Summary</h3>
-          </div>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-icon users">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
-                </svg>
-              </div>
-              <div class="summary-content">
-                <div class="summary-value" id="user-count">-</div>
-                <div class="summary-label">Registered Users</div>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-icon modules">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
-                </svg>
-              </div>
-              <div class="summary-content">
-                <div class="summary-value" id="module-count">-</div>
-                <div class="summary-label">Active Modules</div>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-icon database">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
-                  <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
-                  <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
-                </svg>
-              </div>
-              <div class="summary-content">
-                <div class="summary-value" id="db-status">Active</div>
-                <div class="summary-label">Database Status</div>
-              </div>
-            </div>
-            <div class="summary-item">
-              <div class="summary-icon tools">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
-                </svg>
-              </div>
-              <div class="summary-content">
-                <div class="summary-value" id="tool-count">-</div>
-                <div class="summary-label">MCP Tools</div>
-              </div>
-            </div>
-          </div>
+        <div class="status-item">
+          <span class="status-label">Version</span>
+          <span class="status-value">${config.version}</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Environment</span>
+          <span class="status-value env-${config.environment}">${config.environment}</span>
         </div>
       </div>
+    </div>
+  `;
+};
 
-      <!-- Terminal Section -->
-      <div class="terminal-wrapper">
-        <div class="terminal-container">
-          <div class="terminal-header">
-            <div class="terminal-tabs">
-              <div class="terminal-tab active">
-                <svg class="tab-icon" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
-                </svg>
-                <span>Terminal</span>
-              </div>
-            </div>
-            <div class="terminal-controls">
-              <button class="terminal-ctrl" onclick="clearTerminal()" title="Clear">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-              </button>
-              <button class="terminal-ctrl" onclick="toggleFullscreen()" title="Fullscreen">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m7-1V4m0 0h-4m4 0l-5 5M4 12v4m0 0h4m-4 0l5-5m7 5l-5-5m5 5v-4m0 4h-4"/>
-                </svg>
-              </button>
-            </div>
+/**
+ * Renders the OAuth providers card component.
+ * @param config - The admin configuration data.
+ * @returns HTML string for the OAuth providers card.
+ */
+const renderOAuthProviders = (config: IAdminConfigData): string => {
+  return `
+    <div class="oauth-card">
+      <div class="card-header">
+        <h3>OAuth Providers</h3>
+      </div>
+      <div class="provider-list">
+        <div class="provider-item ${config.googleConfigured ? 'configured' : ''}">
+          <svg class="provider-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span class="provider-name">Google</span>
+          <span class="provider-status">
+            ${config.googleConfigured ? '✓' : '×'}
+          </span>
+        </div>
+        <div class="provider-item ${config.githubConfigured ? 'configured' : ''}">
+          <svg class="provider-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+          </svg>
+          <span class="provider-name">GitHub</span>
+          <span class="provider-status">
+            ${config.githubConfigured ? '✓' : '×'}
+          </span>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+/**
+ * Renders the system summary card component.
+ * @returns HTML string for the system summary card.
+ */
+const renderSystemSummary = (): string => {
+  return `
+    <div class="summary-card">
+      <div class="card-header">
+        <h3>System Summary</h3>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-icon users">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+            </svg>
           </div>
-          <div id="terminal" class="terminal">
-            <div id="terminal-output" class="terminal-output">
-              <div class="terminal-welcome">
-                <pre class="welcome-art">
+          <div class="summary-content">
+            <div class="summary-value" id="user-count">-</div>
+            <div class="summary-label">Registered Users</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-icon modules">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
+            </svg>
+          </div>
+          <div class="summary-content">
+            <div class="summary-value" id="module-count">-</div>
+            <div class="summary-label">Active Modules</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-icon database">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z"/>
+              <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z"/>
+              <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z"/>
+            </svg>
+          </div>
+          <div class="summary-content">
+            <div class="summary-value" id="db-status">Active</div>
+            <div class="summary-label">Database Status</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-icon tools">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="summary-content">
+            <div class="summary-value" id="tool-count">-</div>
+            <div class="summary-label">MCP Tools</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+/**
+ * Renders the terminal header component.
+ * @returns HTML string for the terminal header.
+ */
+const renderTerminalHeader = (): string => {
+  return `
+    <div class="terminal-header">
+      <div class="terminal-tabs">
+        <div class="terminal-tab active">
+          <svg class="tab-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+          </svg>
+          <span>Terminal</span>
+        </div>
+      </div>
+      <div class="terminal-controls">
+        <button class="terminal-ctrl" onclick="clearTerminal()" title="Clear">
+          <svg fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+        <button class="terminal-ctrl" onclick="toggleFullscreen()" title="Fullscreen">
+          <svg fill="currentColor" viewBox="0 0 20 20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m7-1V4m0 0h-4m4 0l-5 5M4 12v4m0 0h4m-4 0l5-5m7 5l-5-5m5 5v-4m0 4h-4"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `;
+};
+
+/**
+ * Renders the terminal content component.
+ * @param version - The system version string.
+ * @returns HTML string for the terminal content.
+ */
+const renderTerminalContent = (version: string): string => {
+  return `
+    <div id="terminal" class="terminal">
+      <div id="terminal-output" class="terminal-output">
+        <div class="terminal-welcome">
+          <pre class="welcome-art">
    ____            _                  ____                            _    
   / ___| _   _ ___| |_ ___ _ __ ___ |  _ \\ _ __ ___  _ __ ___  _ __ | |_  
   \\___ \\| | | / __| __/ _ \\ '_ \` _ \\| |_) | '__/ _ \\| '_ \` _ \\| '_ \\| __| 
    ___) | |_| \\__ \\ ||  __/ | | | | |  __/| | | (_) | | | | | | |_) | |_  
   |____/ \\__, |___/\\__\\___|_| |_| |_|_|   |_|  \\___/|_| |_| |_| .__/ \\__| 
          |___/                                                 |_|         
-                </pre>
-                <div class="welcome-text">
-                  Welcome to SystemPrompt OS Terminal v${data.version}
-                  Type 'systemprompt help' to see available commands
-                </div>
-              </div>
-            </div>
-            <div class="terminal-input-line">
-              <span class="terminal-prompt">
-                <span class="prompt-user">admin</span>@<span class="prompt-host">systemprompt</span>:<span class="prompt-path">~</span>$
-              </span>
-              <input 
-                type="text" 
-                id="terminal-input" 
-                class="terminal-input" 
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </div>
+          </pre>
+          <div class="welcome-text">
+            Welcome to SystemPrompt OS Terminal v${version}
+            Type 'systemprompt help' to see available commands
           </div>
         </div>
       </div>
+      <div class="terminal-input-line">
+        <span class="terminal-prompt">
+          <span class="prompt-user">admin</span>@<span class="prompt-host">systemprompt</span>:<span class="prompt-path">~</span>$
+        </span>
+        <input 
+          type="text" 
+          id="terminal-input" 
+          class="terminal-input" 
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+    </div>
+  `;
+};
 
-      <!-- Command Reference -->
-      <div class="command-reference">
-        <h3>Command Reference</h3>
-        <div id="command-grid" class="command-grid">
-          <!-- Commands will be loaded dynamically -->
-          <div class="loading-commands">
-            <span class="loading-spinner"></span>
-            <span>Loading available commands...</span>
-          </div>
+/**
+ * Renders the command reference section.
+ * @returns HTML string for the command reference.
+ */
+const renderCommandReference = (): string => {
+  return `
+    <div class="command-reference">
+      <h3>Command Reference</h3>
+      <div id="command-grid" class="command-grid">
+        <!-- Commands will be loaded dynamically -->
+        <div class="loading-commands">
+          <span class="loading-spinner"></span>
+          <span>Loading available commands...</span>
         </div>
       </div>
     </div>
+  `;
+};
 
+/**
+ * Generates the terminal JavaScript functionality.
+ * @returns JavaScript code string for terminal functionality.
+ */
+const generateTerminalScript = (): string => {
+  return `
     <script>
       // Terminal functionality
       const terminal = document.getElementById('terminal');
@@ -527,12 +555,48 @@ export function renderAdminConfig(data: AdminConfigData): string {
       }
     </script>
   `;
-}
+};
 
 /**
- * Returns CSS styles for the admin configuration page with terminal.
+ * Renders the admin configuration page with terminal interface.
+ * @param config - The admin configuration data containing system status and settings.
+ * @returns Complete HTML string for the admin configuration page.
  */
-export function getAdminConfigStyles(): string {
+export const renderAdminConfig = (config: IAdminConfigData): string => {
+  return `
+    <div class="config-container">
+      <div class="config-header">
+        <h1>System Configuration</h1>
+        <p class="subtitle">SystemPrompt OS Control Center</p>
+      </div>
+
+      <!-- Top Section: Status & Actions -->
+      <div class="top-section">
+        ${renderSystemStatus(config)}
+        ${renderOAuthProviders(config)}
+        ${renderSystemSummary()}
+      </div>
+
+      <!-- Terminal Section -->
+      <div class="terminal-wrapper">
+        <div class="terminal-container">
+          ${renderTerminalHeader()}
+          ${renderTerminalContent(config.version)}
+        </div>
+      </div>
+
+      ${renderCommandReference()}
+    </div>
+
+    ${generateTerminalScript()}
+  `;
+};
+
+/**
+ * Generates base CSS styles for the admin configuration page.
+ * @returns CSS string for base styles.
+ */
+const getBaseStyles = (): string => {
   return `
     /* Reset and base styles */
     * {
@@ -554,7 +618,15 @@ export function getAdminConfigStyles(): string {
       display: flex;
       flex-direction: column;
     }
-    
+  `;
+};
+
+/**
+ * Generates header styles for the admin configuration page.
+ * @returns CSS string for header styles.
+ */
+const getHeaderStyles = (): string => {
+  return `
     /* Header */
     .config-header {
       text-align: center;
@@ -578,7 +650,15 @@ export function getAdminConfigStyles(): string {
       font-size: 18px;
       margin: 0;
     }
-    
+  `;
+};
+
+/**
+ * Generates card styles for the admin configuration page.
+ * @returns CSS string for card styles.
+ */
+const getCardStyles = (): string => {
+  return `
     /* Top Section */
     .top-section {
       display: grid;
@@ -640,7 +720,15 @@ export function getAdminConfigStyles(): string {
       50% { opacity: 0.6; }
       100% { opacity: 1; }
     }
-    
+  `;
+};
+
+/**
+ * Generates status grid styles for the admin configuration page.
+ * @returns CSS string for status grid styles.
+ */
+const getStatusGridStyles = (): string => {
+  return `
     /* Status Grid */
     .status-grid {
       padding: 24px;
@@ -689,7 +777,15 @@ export function getAdminConfigStyles(): string {
     .status-value.env-development {
       color: #fbbf24;
     }
-    
+  `;
+};
+
+/**
+ * Generates OAuth provider styles for the admin configuration page.
+ * @returns CSS string for OAuth provider styles.
+ */
+const getOAuthStyles = (): string => {
+  return `
     /* OAuth Providers */
     .provider-list {
       padding: 24px;
@@ -698,6 +794,59 @@ export function getAdminConfigStyles(): string {
       gap: 12px;
     }
     
+    .provider-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    
+    .provider-item.configured {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.05);
+    }
+    
+    .provider-icon {
+      width: 24px;
+      height: 24px;
+      color: #64748b;
+    }
+    
+    .provider-item.configured .provider-icon {
+      color: #e2e8f0;
+    }
+    
+    .provider-name {
+      flex: 1;
+      font-weight: 500;
+      color: #e2e8f0;
+    }
+    
+    .provider-status {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .provider-item.configured .provider-status {
+      color: #10b981;
+    }
+    
+    .provider-item:not(.configured) .provider-status {
+      color: #ef4444;
+    }
+  `;
+};
+
+/**
+ * Generates summary card styles for the admin configuration page.
+ * @returns CSS string for summary card styles.
+ */
+const getSummaryStyles = (): string => {
+  return `
     /* Summary card specific */
     .summary-grid {
       display: grid;
@@ -771,53 +920,15 @@ export function getAdminConfigStyles(): string {
       font-size: 14px;
       color: #94a3b8;
     }
-    
-    .provider-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-    
-    .provider-item.configured {
-      border-color: #10b981;
-      background: rgba(16, 185, 129, 0.05);
-    }
-    
-    .provider-icon {
-      width: 24px;
-      height: 24px;
-      color: #64748b;
-    }
-    
-    .provider-item.configured .provider-icon {
-      color: #e2e8f0;
-    }
-    
-    .provider-name {
-      flex: 1;
-      font-weight: 500;
-      color: #e2e8f0;
-    }
-    
-    .provider-status {
-      font-size: 20px;
-      font-weight: 700;
-    }
-    
-    .provider-item.configured .provider-status {
-      color: #10b981;
-    }
-    
-    .provider-item:not(.configured) .provider-status {
-      color: #ef4444;
-    }
-    
-    
+  `;
+};
+
+/**
+ * Generates terminal styles for the admin configuration page.
+ * @returns CSS string for terminal styles.
+ */
+const getTerminalStyles = (): string => {
+  return `
     /* Terminal Section */
     .terminal-wrapper {
       flex: 1;
@@ -918,7 +1029,15 @@ export function getAdminConfigStyles(): string {
       width: 16px;
       height: 16px;
     }
-    
+  `;
+};
+
+/**
+ * Generates terminal content styles for the admin configuration page.
+ * @returns CSS string for terminal content styles.
+ */
+const getTerminalContentStyles = (): string => {
+  return `
     /* Terminal Content */
     .terminal {
       flex: 1;
@@ -1086,7 +1205,15 @@ export function getAdminConfigStyles(): string {
       color: #ef4444;
       font-weight: 600;
     }
-    
+  `;
+};
+
+/**
+ * Generates command reference styles for the admin configuration page.
+ * @returns CSS string for command reference styles.
+ */
+const getCommandReferenceStyles = (): string => {
+  return `
     /* Command Reference */
     .command-reference {
       padding: 24px;
@@ -1150,7 +1277,15 @@ export function getAdminConfigStyles(): string {
       color: #667eea;
       transform: translateX(4px);
     }
-    
+  `;
+};
+
+/**
+ * Generates responsive styles for the admin configuration page.
+ * @returns CSS string for responsive styles.
+ */
+const getResponsiveStyles = (): string => {
+  return `
     /* Responsive */
     @media (max-width: 768px) {
       .config-header h1 {
@@ -1179,4 +1314,23 @@ export function getAdminConfigStyles(): string {
       }
     }
   `;
-}
+};
+
+/**
+ * Returns CSS styles for the admin configuration page with terminal.
+ * @returns Complete CSS string for the admin configuration page.
+ */
+export const getAdminConfigStyles = (): string => {
+  return `
+    ${getBaseStyles()}
+    ${getHeaderStyles()}
+    ${getCardStyles()}
+    ${getStatusGridStyles()}
+    ${getOAuthStyles()}
+    ${getSummaryStyles()}
+    ${getTerminalStyles()}
+    ${getTerminalContentStyles()}
+    ${getCommandReferenceStyles()}
+    ${getResponsiveStyles()}
+  `;
+};

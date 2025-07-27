@@ -13,8 +13,8 @@ import {
   type ITaskHandler,
   type ITaskService,
   type ITaskStatistics,
-  TaskExecutionStatus,
-  TaskStatus
+  TaskExecutionStatusEnum,
+  TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
 
 /**
@@ -101,7 +101,7 @@ export class TaskService implements ITaskService {
     await this.markTaskInProgress(taskId);
     const updatedTask = {
       ...task,
-      status: TaskStatus.IN_PROGRESS
+      status: TaskStatusEnum.IN_PROGRESS
     };
 
     this.logger.info(
@@ -117,7 +117,7 @@ export class TaskService implements ITaskService {
    * @param status - New status for the task.
    * @throws {Error} If service not initialized.
    */
-  public async updateTaskStatus(taskId: number, status: TaskStatus): Promise<void> {
+  public async updateTaskStatus(taskId: number, status: TaskStatusEnum): Promise<void> {
     this.ensureInitialized();
 
     await this.taskRepository.updateStatus(taskId, status);
@@ -160,7 +160,7 @@ export class TaskService implements ITaskService {
    * @param taskId - ID of the task to cancel.
    */
   public async cancelTask(taskId: number): Promise<void> {
-    await this.updateTaskStatus(taskId, TaskStatus.CANCELLED);
+    await this.updateTaskStatus(taskId, TaskStatusEnum.CANCELLED);
   }
 
   /**
@@ -245,8 +245,8 @@ export class TaskService implements ITaskService {
    * @returns Promise that resolves when marking is complete.
    */
   private async markTaskInProgress(taskId: number): Promise<void> {
-    await this.taskRepository.updateStatus(taskId, TaskStatus.IN_PROGRESS);
-    await this.taskRepository.createExecution(taskId, TaskExecutionStatus.RUNNING);
+    await this.taskRepository.updateStatus(taskId, TaskStatusEnum.IN_PROGRESS);
+    await this.taskRepository.createExecution(taskId, TaskExecutionStatusEnum.RUNNING);
   }
 
   /**
@@ -254,8 +254,8 @@ export class TaskService implements ITaskService {
    * @param status - Task status to check.
    * @returns True if status is terminal.
    */
-  private isTerminalStatus(status: TaskStatus): boolean {
-    return [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED].includes(status);
+  private isTerminalStatus(status: TaskStatusEnum): boolean {
+    return [TaskStatusEnum.COMPLETED, TaskStatusEnum.FAILED, TaskStatusEnum.CANCELLED].includes(status);
   }
 
   /**
@@ -264,16 +264,16 @@ export class TaskService implements ITaskService {
    * @returns Corresponding execution status.
    * @throws {Error} If status cannot be mapped to execution status.
    */
-  private mapTaskStatusToExecutionStatus(status: TaskStatus): TaskExecutionStatus {
+  private mapTaskStatusToExecutionStatus(status: TaskStatusEnum): TaskExecutionStatusEnum {
     switch (status) {
-      case TaskStatus.COMPLETED:
-        return TaskExecutionStatus.SUCCESS;
-      case TaskStatus.FAILED:
-        return TaskExecutionStatus.FAILED;
-      case TaskStatus.CANCELLED:
-        return TaskExecutionStatus.CANCELLED;
-      case TaskStatus.PENDING:
-      case TaskStatus.IN_PROGRESS:
+      case TaskStatusEnum.COMPLETED:
+        return TaskExecutionStatusEnum.SUCCESS;
+      case TaskStatusEnum.FAILED:
+        return TaskExecutionStatusEnum.FAILED;
+      case TaskStatusEnum.CANCELLED:
+        return TaskExecutionStatusEnum.CANCELLED;
+      case TaskStatusEnum.PENDING:
+      case TaskStatusEnum.IN_PROGRESS:
         throw new Error(`Cannot map non-terminal status: ${status}`);
     }
   }

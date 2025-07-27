@@ -69,21 +69,21 @@ const outputTextFormat = (
   statusData: IStatusData,
   logger: LoggerService,
 ): void => {
-  logger.info(LogSource.DATABASE, 'Database Status:');
-  logger.info(LogSource.DATABASE, `  Connected: ${statusData.connected ? '✓' : '✗'}`);
-  logger.info(LogSource.DATABASE, `  Initialized: ${statusData.initialized ? '✓' : '✗'}`);
-  logger.info(LogSource.DATABASE, `  Type: ${statusData.type}`);
-  logger.info(LogSource.DATABASE, `  Timestamp: ${statusData.timestamp}`);
+  console.log('Database Status:');
+  console.log(`  Connected: ${statusData.connected ? '✓' : '✗'}`);
+  console.log(`  Initialized: ${statusData.initialized ? '✓' : '✗'}`);
+  console.log(`  Type: ${statusData.type}`);
+  console.log(`  Timestamp: ${statusData.timestamp}`);
 
   const hasDetailedInfo = statusData.tableCount !== undefined || statusData.error !== undefined;
   if (hasDetailedInfo) {
-    logger.info(LogSource.DATABASE, '');
-    logger.info(LogSource.DATABASE, 'Detailed Information:');
+    console.log('');
+    console.log('Detailed Information:');
 
     if (statusData.error === undefined) {
       outputDetailedInfo(statusData, logger);
     } else {
-      logger.info(LogSource.DATABASE, `  Error: ${statusData.error}`);
+      console.log(`  Error: ${statusData.error}`);
     }
   }
 };
@@ -126,6 +126,8 @@ export const command = {
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();
+    
+    console.log('Database status command executing...');
 
     const formatValue = args.format ?? 'text';
     const format: StatusFormat = formatValue === 'json' ? 'json' : 'text';
@@ -139,6 +141,7 @@ export const command = {
     try {
       await handleStatusExecution(params, logger);
     } catch (error) {
+      console.error('Status command error:', error);
       logger.error(LogSource.DATABASE, 'Error getting database status', {
         error: error instanceof Error ? error : new Error(String(error)),
       });

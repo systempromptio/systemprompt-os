@@ -6,7 +6,7 @@
 
 import type { Response as ExpressResponse, Router } from 'express';
 import { DatabaseService } from '@/modules/core/database/index';
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IAuthenticatedRequest } from '@/server/external/rest/types/config.types';
@@ -18,7 +18,7 @@ import {
   renderInitialSetup,
 } from '@/server/external/templates/config/initial-setup';
 import {
-  type AdminConfigData,
+  type IAdminConfigData,
   getAdminConfigStyles,
   renderAdminConfig,
 } from '@/server/external/templates/config/admin-config';
@@ -126,7 +126,7 @@ category: 'config'
       throw new Error('Provider registry not initialized');
     }
 
-    const providers = authModule.getAllProviders();
+    const providers = authModule.exports.getAllProviders();
     const content = renderInitialSetup(providers);
     const html = renderLayout({
       title: 'Setup',
@@ -149,7 +149,7 @@ category: 'config'
     res: ExpressResponse,
     systemStatus: { cloudflareUrl: string; tunnelStatus: string },
   ): Promise<void> {
-    const configData: AdminConfigData = {
+    const configData: IAdminConfigData = {
       ...systemStatus,
       version: '0.1.0',
       environment: process.env.NODE_ENV ?? 'development',

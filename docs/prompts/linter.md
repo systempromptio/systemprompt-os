@@ -1,1 +1,1 @@
-Here is a list of 20 files, create 20 agents, one per file, to enforce the linting standards. 
+Here is a list of 10 files, create 10 lint standards enforcer agents, one per file, to enforce the linting standards. Create the agents at the same time to work asyncronously.  
