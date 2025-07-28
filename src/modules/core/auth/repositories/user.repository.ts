@@ -8,9 +8,9 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import type {
   ICreateUserOptions,
   IDatabaseConnection,
-  IDatabaseUser,
   IUserWithRoles,
 } from '@/modules/core/auth/types/user-service.types';
+import type { IAuthUsersRow } from '@/modules/core/auth/types/database.generated';
 import { ZERO } from '@/constants/numbers';
 
 /**
@@ -150,7 +150,7 @@ export class UserRepository {
     userId: string,
     connection: IDatabaseConnection,
   ): Promise<IUserWithRoles | null> {
-    const userResult = await connection.query<IDatabaseUser>(
+    const userResult = await connection.query<IAuthUsersRow>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId],
     );
@@ -173,8 +173,8 @@ export class UserRepository {
       name: userRow.name,
       avatarurl: userRow.avatar_url,
       roles: rolesResult.rows.map((role): string => { return role.name }),
-      createdAt: userRow.created_at,
-      updatedAt: userRow.updated_at,
+      createdAt: userRow.created_at ?? new Date().toISOString(),
+      updatedAt: userRow.updated_at ?? new Date().toISOString(),
     };
   }
 
@@ -184,7 +184,7 @@ export class UserRepository {
    * @returns Promise resolving to user with roles or null.
    */
   async getUserById(userId: string): Promise<IUserWithRoles | null> {
-    const userRows = await this.db.query<IDatabaseUser>(
+    const userRows = await this.db.query<IAuthUsersRow>(
       'SELECT * FROM auth_users WHERE id = ?',
       [userId],
     );
@@ -207,8 +207,8 @@ export class UserRepository {
       name: userRow.name,
       avatarurl: userRow.avatar_url,
       roles: roles.map((role): string => { return role.name }),
-      createdAt: userRow.created_at,
-      updatedAt: userRow.updated_at,
+      createdAt: userRow.created_at ?? new Date().toISOString(),
+      updatedAt: userRow.updated_at ?? new Date().toISOString(),
     };
   }
 
@@ -218,7 +218,7 @@ export class UserRepository {
    * @returns Promise resolving to user with roles or null.
    */
   async getUserByEmail(email: string): Promise<IUserWithRoles | null> {
-    const userRows = await this.db.query<IDatabaseUser>(
+    const userRows = await this.db.query<IAuthUsersRow>(
       'SELECT * FROM auth_users WHERE email = ?',
       [email],
     );

@@ -322,18 +322,6 @@ export interface IAuditRow {
   timestamp: string;
 }
 
-/**
- * Database user list row interface.
- * User data with aggregated role information for list views.
- */
-export interface IUserListRow {
-  id: string;
-  email: string;
-  name?: string | null;
-  roles?: string | null;
-  created_at: string;
-  last_login_at?: string | null;
-}
 
 /*
  * Type-only imports to avoid circular dependencies and module resolution issues
@@ -479,7 +467,6 @@ export type AuditRow = IAuditRow;
 /**
  * Type alias for UserListRow interface for compatibility.
  */
-export type UserListRow = IUserListRow;
 
 /**
  * Type alias for AuthModuleExports interface for compatibility.

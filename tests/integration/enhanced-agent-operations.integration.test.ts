@@ -117,10 +117,9 @@ describe('Enhanced Agent Operations Integration Test', () => {
     const agentRepository = new AgentRepository(dbService);
     
     agentService = AgentService.getInstance();
-    agentService.initialize(agentRepository, logger);
     
     taskService = TaskService.getInstance();
-    await taskService.initialize(taskRepository, logger);
+    await taskService.initialize(logger, taskRepository);
     
     console.log('✅ Enhanced agent operations test ready!');
   });
@@ -175,7 +174,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
         }
       };
       
-      const createdAgent = await agentService.create(complexAgent);
+      const createdAgent = await agentService.createAgent(complexAgent);
       
       expect(createdAgent.id).toBe(complexAgent.id);
       expect(createdAgent.capabilities).toEqual(complexAgent.capabilities);
@@ -207,7 +206,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       
       for (const config of invalidConfigs) {
         try {
-          await agentService.create(config as any);
+          await agentService.createAgent(config as any);
           expect.fail(`Should have thrown error for invalid config: ${JSON.stringify(config)}`);
         } catch (error) {
           expect(error).toBeInstanceOf(Error);
@@ -216,7 +215,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should handle agent updates and configuration changes', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `update-agent-${createTestId()}`,
         name: 'Updatable Agent',
         type: 'processor',
@@ -225,7 +224,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       });
       
       // Update agent configuration
-      const updatedAgent = await agentService.update(agent.id, {
+      const updatedAgent = await agentService.updateAgent(agent.id, {
         name: 'Updated Agent Name',
         capabilities: ['basic-processing', 'advanced-processing'],
         config: { 
@@ -241,7 +240,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should manage agent lifecycle states correctly', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `lifecycle-agent-${createTestId()}`,
         name: 'Lifecycle Test Agent',
         type: 'processor'
@@ -251,25 +250,25 @@ describe('Enhanced Agent Operations Integration Test', () => {
       expect(agent.status).toBe('stopped');
       
       // Start agent
-      await agentService.start(agent.id);
-      let updatedAgent = await agentService.getById(agent.id);
+      await agentService.startAgent(agent.id);
+      let updatedAgent = await agentService.getAgent(agent.id);
       expect(updatedAgent?.status).toBe('active');
       
       // Stop agent
-      await agentService.stop(agent.id);
-      updatedAgent = await agentService.getById(agent.id);
+      await agentService.stopAgent(agent.id);
+      updatedAgent = await agentService.getAgent(agent.id);
       expect(updatedAgent?.status).toBe('stopped');
       
       // Force stop (should work even if already stopped)
-      await agentService.stop(agent.id, true);
-      updatedAgent = await agentService.getById(agent.id);
+      await agentService.stopAgent(agent.id, true);
+      updatedAgent = await agentService.getAgent(agent.id);
       expect(updatedAgent?.status).toBe('stopped');
     });
   });
 
   describe('Agent Performance Monitoring', () => {
     it('should track agent performance metrics', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `perf-agent-${createTestId()}`,
         name: 'Performance Tracked Agent',
         type: 'processor'
@@ -305,7 +304,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should calculate agent performance scores', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `score-agent-${createTestId()}`,
         name: 'Score Calculation Agent',
         type: 'processor'
@@ -338,13 +337,13 @@ describe('Enhanced Agent Operations Integration Test', () => {
       const performanceScore = (completionRate * 0.6) + ((3000 - avgExecutionTime) / 3000 * 0.4);
       
       // Update agent performance score
-      await agentService.update(agent.id, { 
+      await agentService.updateAgent(agent.id, { 
         performanceScore: performanceScore,
         completedTasks: completedTasks.length,
         failedTasks: tasks.length - completedTasks.length
       });
       
-      const updatedAgent = await agentService.getById(agent.id);
+      const updatedAgent = await agentService.getAgent(agent.id);
       expect(updatedAgent?.performanceScore).toBeCloseTo(performanceScore, 2);
     });
 
@@ -447,14 +446,14 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should handle agent overload scenarios', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `overload-agent-${createTestId()}`,
         name: 'Overload Test Agent',
         type: 'worker',
         config: { maxConcurrentTasks: 2 }
       });
       
-      await agentService.start(agent.id);
+      await agentService.startAgent(agent.id);
       
       // Create multiple tasks for the same agent
       const tasks = [];
@@ -480,23 +479,23 @@ describe('Enhanced Agent Operations Integration Test', () => {
       // Mark agent as overloaded if too many running tasks
       const isOverloaded = runningTasks.length > (agent.config?.maxConcurrentTasks || 3);
       if (isOverloaded) {
-        await agentService.update(agent.id, { status: 'overloaded' });
+        await agentService.updateAgent(agent.id, { status: 'overloaded' });
       }
       
-      const updatedAgent = await agentService.getById(agent.id);
+      const updatedAgent = await agentService.getAgent(agent.id);
       if (runningTasks.length > 2) {
         expect(updatedAgent?.status).toBe('overloaded');
       }
     });
 
     it('should implement task priority queuing', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `priority-agent-${createTestId()}`,
         name: 'Priority Queue Agent',
         type: 'processor'
       });
       
-      await agentService.start(agent.id);
+      await agentService.startAgent(agent.id);
       
       // Create tasks with different priorities
       const taskPriorities = [3, 8, 1, 10, 5, 7];
@@ -530,13 +529,13 @@ describe('Enhanced Agent Operations Integration Test', () => {
 
   describe('Agent Error Handling and Recovery', () => {
     it('should handle agent failures gracefully', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `failure-agent-${createTestId()}`,
         name: 'Failure Prone Agent',
         type: 'unreliable'
       });
       
-      await agentService.start(agent.id);
+      await agentService.startAgent(agent.id);
       
       // Create task that will fail
       const task = await taskService.addTask({
@@ -550,14 +549,14 @@ describe('Enhanced Agent Operations Integration Test', () => {
       
       // Simulate agent failure
       await taskService.failTask(task.id!, 'Agent encountered unexpected error');
-      await agentService.update(agent.id, { 
+      await agentService.updateAgent(agent.id, { 
         status: 'error',
         failedTasks: 1
       });
       
       // Verify failure state
       const failedTask = await taskService.getTaskById(task.id!);
-      const failedAgent = await agentService.getById(agent.id);
+      const failedAgent = await agentService.getAgent(agent.id);
       
       expect(failedTask?.status).toBe('failed');
       expect(failedTask?.error).toContain('unexpected error');
@@ -566,7 +565,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should implement agent recovery mechanisms', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `recovery-agent-${createTestId()}`,
         name: 'Recovery Test Agent',
         type: 'resilient',
@@ -577,7 +576,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       });
       
       // Simulate agent failure
-      await agentService.update(agent.id, { 
+      await agentService.updateAgent(agent.id, { 
         status: 'error',
         failedTasks: 2
       });
@@ -587,16 +586,16 @@ describe('Enhanced Agent Operations Integration Test', () => {
                         (agent.failedTasks || 0) < (agent.config.maxFailures || 3);
       
       if (canRecover) {
-        await agentService.update(agent.id, { status: 'stopped' });
-        await agentService.start(agent.id);
+        await agentService.updateAgent(agent.id, { status: 'stopped' });
+        await agentService.startAgent(agent.id);
       }
       
-      const recoveredAgent = await agentService.getById(agent.id);
+      const recoveredAgent = await agentService.getAgent(agent.id);
       expect(recoveredAgent?.status).toBe('active');
     });
 
     it('should handle resource exhaustion scenarios', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `resource-agent-${createTestId()}`,
         name: 'Resource Limited Agent',
         type: 'limited',
@@ -607,20 +606,20 @@ describe('Enhanced Agent Operations Integration Test', () => {
       });
       
       // Simulate high resource usage
-      await agentService.update(agent.id, {
+      await agentService.updateAgent(agent.id, {
         memoryUsage: 1200,  // Exceeds limit
         cpuUsage: 85.0      // Exceeds threshold
       });
       
-      const agent_data = await agentService.getById(agent.id);
+      const agent_data = await agentService.getAgent(agent.id);
       const memoryExceeded = (agent_data?.memoryUsage || 0) > (agent_data?.config?.memoryLimit || Infinity);
       const cpuExceeded = (agent_data?.cpuUsage || 0) > (agent_data?.config?.cpuThreshold || 100);
       
       if (memoryExceeded || cpuExceeded) {
-        await agentService.update(agent.id, { status: 'resource_limited' });
+        await agentService.updateAgent(agent.id, { status: 'resource_limited' });
       }
       
-      const limitedAgent = await agentService.getById(agent.id);
+      const limitedAgent = await agentService.getAgent(agent.id);
       expect(limitedAgent?.status).toBe('resource_limited');
     });
   });
@@ -628,7 +627,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
   describe('Agent Communication and Coordination', () => {
     it('should coordinate multiple agents for complex tasks', async () => {
       // Create a team of coordinated agents
-      const coordinatorAgent = await agentService.create({
+      const coordinatorAgent = await agentService.createAgent({
         id: `coordinator-${createTestId()}`,
         name: 'Task Coordinator',
         type: 'coordinator',
@@ -651,7 +650,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       ]);
       
       // Start all agents
-      await agentService.start(coordinatorAgent.id);
+      await agentService.startAgent(coordinatorAgent.id);
       await Promise.all(workerAgents.map(agent => agentService.start(agent.id)));
       
       // Create complex task requiring coordination
@@ -701,7 +700,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       await Promise.all(agents.map(agent => agentService.start(agent.id)));
       
       // Simulate communication failure
-      await agentService.update(agents[1].id, { 
+      await agentService.updateAgent(agents[1].id, { 
         status: 'communication_error',
         lastActivity: new Date(Date.now() - 300000) // 5 minutes ago
       });
@@ -718,12 +717,12 @@ describe('Enhanced Agent Operations Integration Test', () => {
       // Attempt to recover communication
       for (const staleAgent of staleAgents) {
         if (staleAgent.status === 'communication_error') {
-          await agentService.update(staleAgent.id, { status: 'stopped' });
-          await agentService.start(staleAgent.id);
+          await agentService.updateAgent(staleAgent.id, { status: 'stopped' });
+          await agentService.startAgent(staleAgent.id);
         }
       }
       
-      const recoveredAgent = await agentService.getById(agents[1].id);
+      const recoveredAgent = await agentService.getAgent(agents[1].id);
       expect(recoveredAgent?.status).toBe('active');
     });
   });
@@ -779,7 +778,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
     });
 
     it('should track agent utilization patterns over time', async () => {
-      const agent = await agentService.create({
+      const agent = await agentService.createAgent({
         id: `utilization-agent-${createTestId()}`,
         name: 'Utilization Tracking Agent',
         type: 'monitored'

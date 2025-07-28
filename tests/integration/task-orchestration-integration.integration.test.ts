@@ -113,7 +113,7 @@ describe('Task Orchestration Integration Test', () => {
     eventBus = EventBusService.getInstance();
     
     taskService = TaskService.getInstance();
-    await taskService.initialize(taskRepository, logger);
+    await taskService.initialize(logger, taskRepository);
     
     agentService = AgentService.getInstance();
     agentService.initialize(agentRepository, logger);

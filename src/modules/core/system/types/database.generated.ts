@@ -1,5 +1,5 @@
 // Auto-generated database types for system module
-// Generated on: 2025-07-28T19:59:56.310Z
+// Generated on: 2025-07-28T20:02:59.640Z
 // Do not modify this file manually - it will be overwritten
 
 /**

@@ -102,14 +102,14 @@ export abstract class AgentBaseRepository {
       instructions: row.instructions,
       type: this.validateAgentType(row.type),
       status: this.validateAgentStatus(row.status),
-      config: JSON.parse(row.config),
-      capabilities: JSON.parse(row.capabilities),
-      tools: JSON.parse(row.tools),
-      created_at: new Date(row.created_at),
-      updated_at: new Date(row.updated_at),
-      assigned_tasks: row.assigned_tasks,
-      completed_tasks: row.completed_tasks,
-      failed_tasks: row.failed_tasks
+      config: row.config !== null ? JSON.parse(row.config) : {},
+      capabilities: row.capabilities !== null ? JSON.parse(row.capabilities) : [],
+      tools: row.tools !== null ? JSON.parse(row.tools) : [],
+      created_at: new Date(row.created_at ?? new Date().toISOString()),
+      updated_at: new Date(row.updated_at ?? new Date().toISOString()),
+      assigned_tasks: row.assigned_tasks ?? 0,
+      completed_tasks: row.completed_tasks ?? 0,
+      failed_tasks: row.failed_tasks ?? 0
     };
 
     return agent;

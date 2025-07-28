@@ -132,7 +132,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     const agentRepository = new AgentRepository(dbService);
     
     taskService = TaskService.getInstance();
-    await taskService.initialize(taskRepository, logger);
+    await taskService.initialize(logger, taskRepository);
     
     agentService = AgentService.getInstance();
     agentService.initialize(agentRepository, logger);

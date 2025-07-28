@@ -467,18 +467,18 @@ params
    * @throws Error if task status is invalid.
    */
   private mapRowToTask(row: ITaskRow): ITask {
-    this.validateTaskStatus(row.status);
+    this.validateTaskStatus(row.status ?? 'pending');
 
     const task: ITask = {
       id: row.id,
       type: row.type,
       moduleId: row.module_id,
-      priority: row.priority,
-      status: row.status as TaskStatusEnum,
-      retryCount: row.retry_count,
-      maxExecutions: row.max_executions,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
+      priority: row.priority ?? 0,
+      status: (row.status ?? 'pending') as TaskStatusEnum,
+      retryCount: row.retry_count ?? 0,
+      maxExecutions: row.max_executions ?? 3,
+      createdAt: new Date(row.created_at ?? new Date().toISOString()),
+      updatedAt: new Date(row.updated_at ?? new Date().toISOString())
     };
 
     return this.addOptionalRowFieldsToTask(task, row);

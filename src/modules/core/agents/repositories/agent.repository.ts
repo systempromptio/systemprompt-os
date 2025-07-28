@@ -15,10 +15,7 @@ import type {
   TaskStatus
 } from '@/modules/core/agents/types/agent.types';
 import type { 
-  IAgentsRow, 
-  IAgentTasksRow, 
-  IAgentLogsRow, 
-  IAgentMetricsRow 
+  IAgentsRow
 } from '@/modules/core/agents/types/database.generated';
 import { AgentBaseRepository } from '@/modules/core/agents/repositories/agent-base.repository';
 

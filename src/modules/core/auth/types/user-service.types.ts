@@ -22,19 +22,8 @@ export interface IUserWithRoles {
   updatedAt: string;
 }
 
-/**
- * Raw database user entity as stored in auth_users table.
- */
-export interface IDatabaseUser {
-  id: string;
-  email: string;
-  name: string | null;
-  avatarurl: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt: string | null;
-  isactive: number;
-}
+// Database user types are now auto-generated in database.generated.ts
+// Use IAuthUsersRow instead of IDatabaseUser
 
 /**
  * Database connection interface for transaction operations.
