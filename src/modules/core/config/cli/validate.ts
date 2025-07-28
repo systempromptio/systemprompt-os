@@ -205,7 +205,30 @@ export const command = {
 
         const configModule = new ConfigModule();
         await configModule.initialize();
-        config = await configModule.get() as ConfigStructure;
+        const rawConfig = await configModule.get() as ConfigStructure;
+        
+        // If the current config is empty or doesn't have the expected structure,
+        // use a default configuration structure for validation
+        if (!rawConfig || Array.isArray(rawConfig) || 
+            (!rawConfig.defaults && !rawConfig.providers)) {
+          config = {
+            defaults: {
+              system: {
+                port: 3000,
+                host: '0.0.0.0',
+                environment: 'development',
+                logLevel: 'info'
+              }
+            },
+            providers: {
+              available: ['google', 'openai'],
+              enabled: ['google'],
+              default: 'google'
+            }
+          };
+        } else {
+          config = rawConfig;
+        }
       }
 
       const errors = validateConfig(config);

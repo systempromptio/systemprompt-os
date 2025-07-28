@@ -77,9 +77,17 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     type: 'self-contained',
   },
   {
+    name: 'events',
+    path: './src/modules/core/events/index.ts',
+    dependencies: ['logger'],
+    critical: false,
+    description: 'Event bus for inter-module communication',
+    type: 'self-contained',
+  },
+  {
     name: 'agents',
     path: './src/modules/core/agents/index.ts',
-    dependencies: ['logger', 'database', 'auth'],
+    dependencies: ['logger', 'database', 'auth', 'events'],
     critical: false,
     description: 'Agent management and task execution system',
     type: 'self-contained',

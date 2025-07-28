@@ -14,6 +14,8 @@ import {
   type ITaskStatistics,
   TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventNames } from '@/modules/core/events/types/index';
 
 /**
  * Task service implementation providing task management capabilities.
@@ -24,6 +26,7 @@ export class TaskService implements ITaskService {
   private readonly handlers: Map<string, ITaskHandler> = new Map();
   private logger!: ILogger;
   private taskRepository!: TaskRepository;
+  private eventBus!: EventBusService;
   private initialized = false;
 
   /**
@@ -58,6 +61,7 @@ export class TaskService implements ITaskService {
 
     this.logger = logger;
     this.taskRepository = taskRepository;
+    this.eventBus = EventBusService.getInstance();
     this.initialized = true;
 
     this.logger.info(LogSource.MODULES, 'TaskService initialized');
@@ -78,6 +82,15 @@ export class TaskService implements ITaskService {
       LogSource.MODULES,
       `Task added: ${String(newTask.id)} (${newTask.type})`
     );
+    
+    // Emit task created event
+    this.eventBus.emit(EventNames.TASK_CREATED, {
+      taskId: newTask.id!,
+      type: newTask.type,
+      moduleId: newTask.moduleId,
+      priority: newTask.priority
+    });
+    
     return newTask;
   }
 
@@ -254,6 +267,177 @@ export class TaskService implements ITaskService {
    */
   private async markTaskInProgress(taskId: number): Promise<void> {
     await this.taskRepository.updateStatus(taskId, TaskStatusEnum.IN_PROGRESS);
+  }
+
+  /**
+   * Assigns a task to an agent.
+   * @param taskId - ID of the task to assign.
+   * @param agentId - ID of the agent to assign to.
+   * @returns Promise that resolves when assignment is complete.
+   * @throws {Error} If task not found or already assigned.
+   */
+  public async assignTaskToAgent(taskId: number, agentId: string): Promise<void> {
+    this.ensureInitialized();
+    
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+    
+    if (task.assignedAgentId) {
+      throw new Error(`Task ${taskId} already assigned to agent ${task.assignedAgentId}`);
+    }
+    
+    await this.taskRepository.update(taskId, { 
+      assignedAgentId: agentId,
+      status: TaskStatusEnum.ASSIGNED 
+    });
+    
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${taskId} assigned to agent ${agentId}`
+    );
+    
+    // Emit task assigned event
+    this.eventBus.emit(EventNames.TASK_ASSIGNED, {
+      taskId,
+      agentId,
+      assignedAt: new Date()
+    });
+  }
+
+  /**
+   * Unassigns a task from an agent.
+   * @param taskId - ID of the task to unassign.
+   * @returns Promise that resolves when unassignment is complete.
+   */
+  public async unassignTask(taskId: number): Promise<void> {
+    this.ensureInitialized();
+    
+    await this.taskRepository.update(taskId, { 
+      status: TaskStatusEnum.PENDING 
+    });
+    
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${taskId} unassigned`
+    );
+  }
+
+  /**
+   * Gets all tasks assigned to a specific agent.
+   * @param agentId - ID of the agent.
+   * @returns Promise resolving to array of tasks.
+   */
+  public async getTasksByAgent(agentId: string): Promise<ITask[]> {
+    this.ensureInitialized();
+    return await this.taskRepository.findByAgent(agentId);
+  }
+
+  /**
+   * Gets all tasks with a specific status.
+   * @param status - Task status to filter by.
+   * @returns Promise resolving to array of tasks.
+   */
+  public async getTasksByStatus(status: TaskStatusEnum): Promise<ITask[]> {
+    this.ensureInitialized();
+    return await this.taskRepository.findByStatus(status);
+  }
+
+  /**
+   * Updates task progress.
+   * @param taskId - ID of the task.
+   * @param progress - Progress percentage (0-100).
+   * @returns Promise that resolves when update is complete.
+   */
+  public async updateTaskProgress(taskId: number, progress: number): Promise<void> {
+    this.ensureInitialized();
+    
+    if (progress < 0 || progress > 100) {
+      throw new Error('Progress must be between 0 and 100');
+    }
+    
+    await this.taskRepository.update(taskId, { progress });
+    
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${taskId} progress updated to ${progress}%`
+    );
+  }
+
+  /**
+   * Get task by ID (alias for getTaskById for consistency).
+   * @param taskId - Task ID to retrieve.
+   * @returns Promise resolving to the task or null.
+   */
+  public async getTask(taskId: number): Promise<ITask | null> {
+    return await this.getTaskById(taskId);
+  }
+
+  /**
+   * Complete a task with result.
+   * @param taskId - ID of the task to complete.
+   * @param result - Result data.
+   * @returns Promise that resolves when task is completed.
+   */
+  public async completeTask(taskId: number, result: any): Promise<void> {
+    this.ensureInitialized();
+    
+    const task = await this.getTask(taskId);
+    if (!task) throw new Error('Task not found');
+    
+    await this.taskRepository.update(taskId, {
+      status: TaskStatusEnum.COMPLETED,
+      result: typeof result === 'string' ? result : JSON.stringify(result),
+      completedAt: new Date(),
+      progress: 100
+    });
+    
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${taskId} completed successfully`
+    );
+    
+    // Emit task completed event
+    this.eventBus.emit(EventNames.TASK_COMPLETED, {
+      taskId,
+      agentId: task.assignedAgentId!,
+      result,
+      completedAt: new Date()
+    });
+  }
+
+  /**
+   * Fail a task with error.
+   * @param taskId - ID of the task to fail.
+   * @param error - Error message.
+   * @returns Promise that resolves when task is failed.
+   */
+  public async failTask(taskId: number, error: string): Promise<void> {
+    this.ensureInitialized();
+    
+    const task = await this.getTask(taskId);
+    if (!task) throw new Error('Task not found');
+    
+    await this.taskRepository.update(taskId, {
+      status: TaskStatusEnum.FAILED,
+      error,
+      completedAt: new Date()
+    });
+    
+    this.logger.error(
+      LogSource.MODULES,
+      `Task ${taskId} failed`,
+      { error }
+    );
+    
+    // Emit task failed event
+    this.eventBus.emit(EventNames.TASK_FAILED, {
+      taskId,
+      agentId: task.assignedAgentId!,
+      error,
+      failedAt: new Date()
+    });
   }
 
 }

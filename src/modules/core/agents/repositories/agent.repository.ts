@@ -55,7 +55,7 @@ export class AgentRepository extends AgentBaseRepository {
       description: data.description,
       instructions: data.instructions,
       type: data.type,
-      status: 'idle',
+      status: 'stopped',
       config: data.config ?? {},
       capabilities: data.capabilities ?? [],
       tools: data.tools ?? [],

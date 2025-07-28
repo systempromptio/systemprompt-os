@@ -50,7 +50,7 @@ export class AuthCodeRepository {
   ): Promise<void> {
     await this.db.execute(
       `INSERT INTO auth_authorization_codes
-       (code, client_id, redirect_uri, scope, userId, user_email,
+       (code, client_id, redirect_uri, scope, user_id, user_email,
         provider, provider_tokens, code_challenge, code_challenge_method, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [

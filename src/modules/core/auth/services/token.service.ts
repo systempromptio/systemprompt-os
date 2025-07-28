@@ -88,8 +88,8 @@ export class TokenService {
 
     await this.getDb().execute(
       `INSERT INTO auth_tokens
-       (id, userId, token_hash, type, scope, expires_at, metadata, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+       (id, user_id, token_hash, type, scope, expires_at, metadata, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [
         id,
         input.userId,
@@ -188,7 +188,7 @@ export class TokenService {
    * @returns Promise that resolves when tokens are revoked.
    */
   public async revokeUserTokens(userId: string, type?: string): Promise<void> {
-    let sql = 'UPDATE auth_tokens SET is_revoked = true WHERE userId = ?';
+    let sql = 'UPDATE auth_tokens SET is_revoked = true WHERE user_id = ?';
     const params: unknown[] = [userId];
 
     if (type) {
@@ -212,8 +212,8 @@ export class TokenService {
   public async listUserTokens(userId: string): Promise<AuthToken[]> {
     const result = await this.getDb().query<ITokenRow>(
       `SELECT * FROM auth_tokens
-       WHERE userId = ? AND is_revoked = false
-       ORDER BY createdAt DESC`,
+       WHERE user_id = ? AND is_revoked = false
+       ORDER BY created_at DESC`,
       [userId],
     );
 
@@ -387,7 +387,7 @@ reason: 'Token expired'
    */
   private async updateTokenUsage(tokenId: string): Promise<void> {
     await this.getDb().execute(
-      'UPDATE auth_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE auth_tokens SET last_used_at = datetime(\'now\') WHERE id = ?',
       [tokenId],
     );
   }

@@ -3,7 +3,8 @@
  * @module modules/core/auth/services/user.service
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { LogSource, getLoggerService } from '@/modules/core/logger/index';
+import { type ILogger } from '@/modules/core/logger/types/index';
 import { UserRepository } from '@/modules/core/auth/repositories/user.repository';
 import type {
   ICreateUserOptions,
@@ -16,7 +17,7 @@ import type {
  */
 export class UserService {
   private static instance: UserService | undefined;
-  private readonly logger!: ILogger;
+  private readonly logger: ILogger;
   private readonly userRepository: UserRepository;
 
   /**
@@ -24,6 +25,7 @@ export class UserService {
    */
   private constructor() {
     this.userRepository = UserRepository.getInstance();
+    this.logger = getLoggerService();
   }
 
   /**

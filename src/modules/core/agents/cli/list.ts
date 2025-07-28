@@ -127,6 +127,21 @@ const executeList = async (
 
 export const command: ICLICommand = {
   description: 'List all agents',
+  options: [
+    {
+      name: 'status',
+      alias: 's',
+      type: 'string',
+      description: 'Filter by agent status (idle, active, stopped, error)'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (table or json)',
+      default: 'table'
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();

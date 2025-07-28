@@ -44,8 +44,9 @@ export class RebuildHelperService {
           droppedCount += 1;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          // Only log as warning since we use IF EXISTS and this is expected behavior
           if (logger) {
-            logger.error(LogSource.DATABASE, `Failed to drop ${table.name}: ${errorMessage}`);
+            logger.debug(LogSource.DATABASE, `Could not drop ${table.name}: ${errorMessage}`);
           }
           failedDrops.push(table.name);
         }

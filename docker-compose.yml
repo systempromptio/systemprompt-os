@@ -57,8 +57,7 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      cloudflared:
-        condition: service_started
+      - cloudflared
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -66,10 +65,8 @@ services:
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    network_mode: host
+    network_mode: "host"
     restart: unless-stopped
-    profiles:
-      - tunnel
 
 volumes:
   systemprompt-data:

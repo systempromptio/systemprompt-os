@@ -34,7 +34,8 @@ const extractListArgs = (context: CLIContext): {
 } => {
   const { args } = context;
 
-  const limit = typeof args.limit === 'number' ? args.limit : 10;
+  const limit = typeof args.limit === 'number' ? args.limit : 
+                typeof args.limit === 'string' ? parseInt(args.limit, 10) : 10;
   const status = typeof args.status === 'string' ? args.status : undefined;
   const format = typeof args.format === 'string' ? args.format : 'table';
 

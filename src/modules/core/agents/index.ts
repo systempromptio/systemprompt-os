@@ -22,7 +22,7 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
   public readonly version = '1.0.0';
   public readonly type = ModuleTypeEnum.CORE;
   public readonly description = 'Agent management and task execution system';
-  public readonly dependencies = ['database', 'logger', 'auth'] as const;
+  public readonly dependencies = ['database', 'logger', 'auth', 'events'] as const;
   public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private agentService!: AgentService;
   private agentRepository!: AgentRepository;
@@ -158,10 +158,30 @@ export const initialize = (): AgentsModule => {
 /**
  * Gets the Agents module with type safety and validation.
  * @returns The Agents module with guaranteed typed exports.
- * @throws {Error} If Agents module is not available or missing required exports.
  */
 export const getAgentsModule = (): IModule<IAgentsModuleExports> => {
-  throw new Error('getAgentsModule not implemented - circular dependency');
+  return {
+    name: 'agents',
+    type: 'core',
+    version: '1.0.0',
+    dependencies: ['logger', 'database'],
+    status: ModuleStatusEnum.RUNNING,
+    exports: {
+      service: () => AgentService.getInstance(),
+      repository: () => AgentRepository.getInstance()
+    },
+    initialize: async () => { await Promise.resolve(); },
+    start: async () => { await Promise.resolve(); },
+    stop: async () => { await Promise.resolve(); },
+    healthCheck: async () => {
+      try {
+        await AgentService.getInstance().listAgents();
+        return { healthy: true, message: 'Agents module is healthy' };
+      } catch (error) {
+        return { healthy: false, message: `Unhealthy: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      }
+    }
+  };
 };
 
 export default AgentsModule;

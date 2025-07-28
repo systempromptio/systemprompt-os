@@ -115,9 +115,9 @@ const buildProviderParams = (
 ): URLSearchParams => {
   const providerParams = new URLSearchParams();
 
-  providerParams.set('responseType', params.responseType);
-  providerParams.set('clientId', params.clientId);
-  providerParams.set('redirectUri', params.redirectUri);
+  providerParams.set('response_type', params.responseType);
+  providerParams.set('client_id', params.clientId);
+  providerParams.set('redirect_uri', params.redirectUri);
   providerParams.set('scope', params.scope);
   providerParams.set('provider', providerName);
 
@@ -128,10 +128,10 @@ const buildProviderParams = (
     providerParams.set('nonce', params.nonce);
   }
   if (params.codeChallenge !== undefined) {
-    providerParams.set('codeChallenge', params.codeChallenge);
+    providerParams.set('code_challenge', params.codeChallenge);
   }
   if (params.codeChallengeMethod !== undefined) {
-    providerParams.set('codeChallengeMethod', params.codeChallengeMethod);
+    providerParams.set('code_challenge_method', params.codeChallengeMethod);
   }
 
   return providerParams;

@@ -28,7 +28,7 @@ export class GoogleProvider implements IIdentityProvider {
   constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope ?? "email profile",
+      scope: config.scope ?? "openid email profile",
     };
   }
 
@@ -40,7 +40,7 @@ export class GoogleProvider implements IIdentityProvider {
    * @returns The authorization URL.
    */
   getAuthorizationUrl(state: string, nonce?: string): string {
-    const scope = this.config.scope ?? "email profile";
+    const scope = this.config.scope ?? "openid email profile";
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
@@ -91,7 +91,36 @@ export class GoogleProvider implements IIdentityProvider {
       throw new Error(`Failed to exchange code: ${errorText}`);
     }
 
-    const tokenResponse: IdpTokens = await response.json() as IdpTokens;
+    const rawTokenData = await response.json() as {
+      access_token: string;
+      token_type: string;
+      expires_in?: number;
+      refresh_token?: string;
+      scope?: string;
+      id_token?: string;
+    };
+
+    const tokenResponse: IdpTokens = {
+      accessToken: rawTokenData.access_token,
+      tokenType: rawTokenData.token_type,
+    };
+
+    if (rawTokenData.expires_in !== undefined) {
+      tokenResponse.expiresIn = rawTokenData.expires_in;
+    }
+
+    if (rawTokenData.refresh_token !== undefined) {
+      tokenResponse.refreshToken = rawTokenData.refresh_token;
+    }
+
+    if (rawTokenData.scope !== undefined) {
+      tokenResponse.scope = rawTokenData.scope;
+    }
+
+    if (rawTokenData.id_token !== undefined) {
+      tokenResponse.idToken = rawTokenData.id_token;
+    }
+
     return tokenResponse;
   }
 
@@ -109,7 +138,8 @@ export class GoogleProvider implements IIdentityProvider {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get user info: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to get user info: ${response.statusText} - ${errorText}`);
     }
 
     const googleUserInfo: IGoogleUserInfo = await response.json() as IGoogleUserInfo;

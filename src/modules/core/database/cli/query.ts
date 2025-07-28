@@ -9,6 +9,7 @@ import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { DatabaseQueryService, type OutputFormat } from '@/modules/core/cli/services/database-query.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import * as readline from 'readline';
 import { readFile } from 'fs/promises';
 
@@ -25,9 +26,10 @@ import { readFile } from 'fs/promises';
 const logQueryResults = (
   output: string[],
   executionTime: number,
-  context: { format: OutputFormat; logger: LoggerService }
+  context: { format: OutputFormat; logger: LoggerService; cliOutput: CliOutputService }
 ): void => {
   output.forEach((line): void => {
+    context.cliOutput.info(line);
     context.logger.info(LogSource.CLI, line);
   });
 
@@ -39,9 +41,13 @@ const logQueryResults = (
 
   if (isTableWithRows && isValidOutput) {
     const rowCount = output.length - 2;
-    context.logger.info(LogSource.CLI, `(${String(rowCount)} rows in ${String(executionTime)}ms)`);
+    const message = `(${String(rowCount)} rows in ${String(executionTime)}ms)`;
+    context.cliOutput.info(message);
+    context.logger.info(LogSource.CLI, message);
   } else if (context.format !== 'table' && isValidOutput) {
-    context.logger.info(LogSource.CLI, `Query executed successfully (${String(executionTime)}ms)`);
+    const message = `Query executed successfully (${String(executionTime)}ms)`;
+    context.cliOutput.info(message);
+    context.logger.info(LogSource.CLI, message);
   }
 };
 
@@ -59,9 +65,11 @@ const logQueryResults = (
  */
 const canExecuteQuery = (
   query: string,
-  context: { queryService: DatabaseQueryService; readonly: boolean; logger: LoggerService }
+  context: { queryService: DatabaseQueryService; readonly: boolean; logger: LoggerService; cliOutput: CliOutputService }
 ): boolean => {
   if (context.readonly && !context.queryService.isReadOnlyQuery(query)) {
+    context.cliOutput.error('Error: Only SELECT queries are allowed in readonly mode.');
+    context.cliOutput.error('Use --readonly=false to execute write queries.');
     context.logger.error(LogSource.CLI, 'Error: Only SELECT queries are allowed in readonly mode.');
     context.logger.error(LogSource.CLI, 'Use --readonly=false to execute write queries.');
     return false;
@@ -84,6 +92,7 @@ const executeAndLogQuery = async (
   context: {
     queryService: DatabaseQueryService;
     logger: LoggerService;
+    cliOutput: CliOutputService;
     format: OutputFormat;
     readonly: boolean;
   }
@@ -91,12 +100,14 @@ const executeAndLogQuery = async (
   const {
     queryService,
     logger,
+    cliOutput,
     format
   } = context;
   const { output, executionTime } = await queryService.executeQuery(query, format);
   logQueryResults(output, executionTime, {
  format,
-logger
+logger,
+cliOutput
 });
 };
 
@@ -116,6 +127,7 @@ const handleInteractiveLine = async (
   context: {
     queryService: DatabaseQueryService;
     logger: LoggerService;
+    cliOutput: CliOutputService;
     format: OutputFormat;
     readonly: boolean;
   }
@@ -141,6 +153,7 @@ const handleInteractiveLine = async (
     await executeAndLogQuery(trimmedInput, context);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    context.cliOutput.error(`Query failed: ${errorMessage}`);
     context.logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
   }
 
@@ -160,6 +173,7 @@ const handleInteractiveMode = async (
   context: {
     queryService: DatabaseQueryService;
     logger: LoggerService;
+    cliOutput: CliOutputService;
     format: OutputFormat;
     readonly: boolean;
   }
@@ -170,17 +184,20 @@ const handleInteractiveMode = async (
     prompt: 'query> '
   });
 
+  context.cliOutput.info('Interactive SQL query mode. Type ".exit" to quit.');
   context.logger.info(LogSource.CLI, 'Interactive SQL query mode. Type ".exit" to quit.');
   rl.prompt();
 
   rl.on('line', (input: string): void => {
     handleInteractiveLine(input, rl, context).catch((error): void => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      context.cliOutput.error(`Interactive mode error: ${errorMessage}`);
       context.logger.error(LogSource.CLI, `Interactive mode error: ${errorMessage}`);
     });
   });
 
   rl.on('close', (): void => {
+    context.cliOutput.info('\nExiting interactive mode.');
     context.logger.info(LogSource.CLI, '\nExiting interactive mode.');
     process.exit(0);
   });
@@ -204,6 +221,7 @@ const executeFileQueries = async (
   context: {
     queryService: DatabaseQueryService;
     logger: LoggerService;
+    cliOutput: CliOutputService;
     format: OutputFormat;
     readonly: boolean;
   }
@@ -212,11 +230,13 @@ const executeFileQueries = async (
   const queries = context.queryService.parseQueries(content);
 
   if (queries.length === 0) {
+    context.cliOutput.info('No queries found in file.');
     context.logger.info(LogSource.CLI, 'No queries found in file.');
     return;
   }
 
-  context.logger.info(LogSource.CLI, `Executing ${String(queries.length)} queries from ${String(file)}...\n`);
+  context.cliOutput.info(`Executing ${String(queries.length)} queries from ${String(file)}...\n`);
+  context.logger.info(LogSource.CLI, `Executing ${String(queries.length)} queries from ${String(file)}...`);
 
   for (const query of queries) {
     if (!canExecuteQuery(query, context)) {
@@ -225,6 +245,7 @@ const executeFileQueries = async (
     }
 
     await executeAndLogQuery(query, context);
+    context.cliOutput.info('');
     context.logger.info(LogSource.CLI, '');
   }
 };
@@ -244,6 +265,7 @@ const executeSingleQuery = async (
   context: {
     queryService: DatabaseQueryService;
     logger: LoggerService;
+    cliOutput: CliOutputService;
     format: OutputFormat;
     readonly: boolean;
   }
@@ -324,10 +346,12 @@ export const command = {
     const { args } = context;
     const queryService = DatabaseQueryService.getInstance();
     const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
 
     try {
       const isInitialized = await queryService.isInitialized();
       if (!isInitialized) {
+        cliOutput.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
         logger.error(LogSource.CLI, "Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
         process.exit(1);
         return;
@@ -338,6 +362,7 @@ export const command = {
 } = parseArguments(args);
 
       if (sql === undefined && file === undefined && !interactive) {
+        cliOutput.error('Please provide --sql, --file, or --interactive option.');
         logger.error(LogSource.CLI, 'Please provide --sql, --file, or --interactive option.');
         process.exit(1);
         return;
@@ -346,6 +371,7 @@ export const command = {
       const queryContext = {
         queryService,
         logger,
+        cliOutput,
         format,
         readonly
       };
@@ -360,6 +386,7 @@ export const command = {
           await executeFileQueries(file, queryContext);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          cliOutput.error(`Query failed: ${errorMessage}`);
           logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
           process.exit(1);
           return;
@@ -372,12 +399,14 @@ export const command = {
           await executeSingleQuery(sql, queryContext);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          cliOutput.error(`Query failed: ${errorMessage}`);
           logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
           process.exit(1);
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      cliOutput.error(`Query failed: ${errorMessage}`);
       logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
       process.exit(1);
     }

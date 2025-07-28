@@ -8,7 +8,7 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { getAgentsModule } from '@/modules/core/agents/index';
+import { AgentService } from '@/modules/core/agents/services/agent.service';
 
 export const command: ICLICommand = {
   description: 'Show agents module status (enabled/healthy)',
@@ -19,22 +19,19 @@ export const command: ICLICommand = {
     logger.debug(LogSource.AGENT, 'Executing agents status command', { context });
 
     try {
-      const agentsModule = getAgentsModule();
-      const healthStatus = typeof agentsModule.healthCheck === 'function'
-        ? await agentsModule.healthCheck()
-        : {
-            healthy: false,
-            message: 'Health check not available'
-          };
-
+      const agentService = AgentService.getInstance();
+      
+      // Test service health by attempting to list agents
+      await agentService.listAgents();
+      
       cliOutput.section('Agents Module Status');
 
       cliOutput.keyValue({
         Module: 'agents',
         Enabled: '✓',
-        Healthy: healthStatus.healthy ? '✓' : '✗',
+        Healthy: '✓',
         Service: 'AgentService initialized',
-        Message: healthStatus.message ?? 'Module is operational',
+        Message: 'Module is operational',
       });
 
       cliOutput.section('Capabilities');
@@ -46,7 +43,7 @@ export const command: ICLICommand = {
 
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error getting agents status');
+      cliOutput.error(`Error getting agents status: ${error instanceof Error ? error.message : String(error)}`);
       logger.error(LogSource.AGENT, 'Error getting agents status', {
         error: error instanceof Error ? error : new Error(String(error)),
       });

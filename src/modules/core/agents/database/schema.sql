@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS agents (
   description TEXT NOT NULL,
   instructions TEXT NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('worker', 'monitor', 'coordinator')),
-  status TEXT NOT NULL DEFAULT 'idle' CHECK(status IN ('idle', 'active', 'stopped', 'error')),
+  status TEXT NOT NULL DEFAULT 'stopped' CHECK(status IN ('idle', 'active', 'stopped', 'error')),
   config TEXT DEFAULT '{}', -- JSON configuration
   capabilities TEXT DEFAULT '[]', -- JSON array of capabilities
   tools TEXT DEFAULT '[]', -- JSON array of tools the agent can use

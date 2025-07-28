@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { command } from '../../../../../../src/modules/core/config/cli/model.js';
 import { providers, getEnabledProviders, getProvider } from '../../../../../../src/modules/core/config/providers.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { getLoggerService } from '../../../../../../src/modules/core/logger/index.js';
 import { formatTools, logModelConfigDetails } from '../../../../../../src/modules/core/config/cli/model-helpers.js';
 import { executeModelTest } from '../../../../../../src/modules/core/config/cli/model-commands.js';
@@ -18,7 +18,7 @@ vi.mock('../../../../../../src/modules/core/config/providers', () => ({
   getProvider: vi.fn()
 }));
 
-vi.mock('@google/generative-ai', () => ({
+vi.mock('@google/genai', () => ({
   GoogleGenerativeAI: vi.fn()
 }));
 

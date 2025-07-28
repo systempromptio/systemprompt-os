@@ -57,19 +57,20 @@ export class UsersRepository {
     username: string;
     email: string;
     passwordHash?: string;
+    role?: string;
   }): Promise<IUser> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
     const {
-      id, username, email, passwordHash
+      id, username, email, passwordHash, role = 'user'
     } = options;
 
     const now = new Date().toISOString();
     const stmt = await this.database.prepare(`
-      INSERT INTO users (id, username, email, password_hash, status, email_verified, login_attempts, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, username, email, password_hash, role, status, email_verified, login_attempts, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     await stmt.run([
@@ -77,6 +78,7 @@ export class UsersRepository {
       username,
       email,
       passwordHash || null,
+      role,
       UserStatusEnum.ACTIVE,
       0,
       0,
@@ -89,6 +91,7 @@ export class UsersRepository {
       username,
       email,
       passwordHash: passwordHash ?? '',
+      role,
       status: UserStatusEnum.ACTIVE,
       emailVerified: false,
       loginAttempts: 0,
@@ -532,6 +535,7 @@ export class UsersRepository {
       id: row.id,
       username: row.username,
       email: row.email,
+      role: row.role,
       status: row.status as UserStatusEnum,
       emailVerified: Boolean(row.email_verified),
       loginAttempts: row.login_attempts || 0,

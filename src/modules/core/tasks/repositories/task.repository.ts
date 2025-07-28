@@ -229,7 +229,7 @@ export class TaskRepository {
       moduleId: String(taskData.moduleId),
       instructions: originalTask.instructions,
       priority: Number(taskData.priority),
-      status: TaskStatusEnum[String(taskData.status) as keyof typeof TaskStatusEnum],
+      status: String(taskData.status) as TaskStatusEnum,
       retryCount: Number(taskData.retryCount),
       maxExecutions: Number(taskData.maxExecutions)
     };
@@ -330,6 +330,12 @@ params
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
       updateValues.push(updates.status);
+      
+      // Automatically set completedAt when task is completed or failed
+      if (updates.status === TaskStatusEnum.COMPLETED || updates.status === TaskStatusEnum.FAILED) {
+        updateFields.push('completed_at = ?');
+        updateValues.push(new Date().toISOString());
+      }
     }
 
     if (updates.instructions !== undefined) {
@@ -358,6 +364,26 @@ params
       updateValues.push(updates.result);
     }
 
+    if (updates.error !== undefined) {
+      updateFields.push('error = ?');
+      updateValues.push(updates.error);
+    }
+
+    if (updates.progress !== undefined) {
+      updateFields.push('progress = ?');
+      updateValues.push(updates.progress);
+    }
+
+    if (updates.assignedAgentId !== undefined) {
+      updateFields.push('assigned_agent_id = ?');
+      updateValues.push(updates.assignedAgentId);
+    }
+
+    if (updates.completedAt !== undefined) {
+      updateFields.push('completed_at = ?');
+      updateValues.push(updates.completedAt ? updates.completedAt.toISOString() : null);
+    }
+
     if (updates.metadata !== undefined) {
       updateFields.push('metadata = ?');
       const value = updates.metadata === null ? null : JSON.stringify(updates.metadata);
@@ -365,9 +391,9 @@ params
     }
 
     return {
- updateFields,
-updateValues
-};
+      updateFields,
+      updateValues
+    };
   }
 
   /**
@@ -492,8 +518,27 @@ updateValues
       task.result = result;
     }
 
+    if (row.error !== null) {
+      const { error } = row;
+      task.error = error;
+    }
+
+    if (row.progress !== null) {
+      const { progress } = row;
+      task.progress = progress;
+    }
+
+    if (row.assigned_agent_id !== null) {
+      const { assigned_agent_id: assignedAgentId } = row;
+      task.assignedAgentId = assignedAgentId;
+    }
+
     if (row.scheduled_at !== null) {
       task.scheduledAt = new Date(row.scheduled_at);
+    }
+
+    if (row.completed_at !== null) {
+      task.completedAt = new Date(row.completed_at);
     }
 
     if (row.created_by !== null) {
@@ -522,5 +567,27 @@ updateValues
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Find tasks by assigned agent.
+   * @param agentId - ID of the agent.
+   * @returns Promise resolving to array of tasks.
+   */
+  async findByAgent(agentId: string): Promise<ITask[]> {
+    const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? ORDER BY priority DESC, created_at ASC';
+    const result = await this.database.query<ITaskRow>(sql, [agentId]);
+    return result.map(row => this.mapRowToTask(row));
+  }
+
+  /**
+   * Find tasks by status.
+   * @param status - Task status to filter by.
+   * @returns Promise resolving to array of tasks.
+   */
+  async findByStatus(status: TaskStatusEnum): Promise<ITask[]> {
+    const sql = 'SELECT * FROM task WHERE status = ? ORDER BY priority DESC, created_at ASC';
+    const result = await this.database.query<ITaskRow>(sql, [status]);
+    return result.map(row => this.mapRowToTask(row));
   }
 }

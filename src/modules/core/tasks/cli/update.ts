@@ -173,6 +173,57 @@ const addResultUpdate = (args: Record<string, unknown>): Record<string, unknown>
 };
 
 /**
+ * Add error update if provided.
+ * @param args - CLI arguments.
+ * @returns Error update object or empty object.
+ */
+const addErrorUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
+  const { error } = args;
+  if (error !== null && error !== undefined) {
+    return { error };
+  }
+  return {};
+};
+
+/**
+ * Add progress update if provided.
+ * @param args - CLI arguments.
+ * @returns Progress update object or empty object.
+ */
+const addProgressUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
+  const { progress } = args;
+  if (progress !== null && progress !== undefined) {
+    const progressNum = Number(progress);
+    if (Number.isNaN(progressNum) || progressNum < 0 || progressNum > 100) {
+      process.stderr.write('Error: Progress must be a number between 0 and 100\n');
+      process.exit(1);
+    }
+    return { progress: progressNum };
+  }
+  return {};
+};
+
+/**
+ * Add assigned agent ID update if provided.
+ * @param args - CLI arguments.
+ * @returns Assigned agent ID update object or empty object.
+ */
+const addAssignedAgentIdUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
+  const {
+    'assigned-agent-id': assignedAgentIdKebab,
+    assignedAgentId
+  } = args;
+  
+  if (assignedAgentIdKebab !== null && assignedAgentIdKebab !== undefined) {
+    return { assignedAgentId: assignedAgentIdKebab };
+  }
+  if (assignedAgentId !== null && assignedAgentId !== undefined) {
+    return { assignedAgentId };
+  }
+  return {};
+};
+
+/**
  * Build updates object from CLI arguments.
  * @param args - CLI arguments.
  * @returns Updates object.
@@ -184,7 +235,10 @@ const buildUpdates = (args: Record<string, unknown>): Record<string, unknown> =>
     ...addPriorityUpdate(args),
     ...addMaxExecutionsUpdate(args),
     ...addMaxTimeUpdate(args),
-    ...addResultUpdate(args)
+    ...addResultUpdate(args),
+    ...addErrorUpdate(args),
+    ...addProgressUpdate(args),
+    ...addAssignedAgentIdUpdate(args)
   };
 };
 
@@ -313,6 +367,24 @@ export const update: CLICommand = {
       alias: 'r',
       type: 'string',
       description: 'Task result'
+    },
+    {
+      name: 'error',
+      alias: 'e',
+      type: 'string',
+      description: 'Task error message'
+    },
+    {
+      name: 'progress',
+      alias: 'g',
+      type: 'number',
+      description: 'Task progress (0-100)'
+    },
+    {
+      name: 'assigned-agent-id',
+      alias: 'a',
+      type: 'string',
+      description: 'Assigned agent ID'
     },
     {
       name: 'format',

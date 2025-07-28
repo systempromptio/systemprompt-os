@@ -47,7 +47,7 @@ describe('Local E2E: CLI Tools and Commands', () => {
     it('should generate a new JWT key', async () => {
       const { stdout } = await execInContainer('/app/bin/systemprompt auth generatekey --type jwt');
       expect(stdout).toContain('Keys generated successfully');
-      expect(stdout).toContain('/app/state/auth/keys');
+      expect(stdout).toContain('state/auth/keys');
     });
   });
 

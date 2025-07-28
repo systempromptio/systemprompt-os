@@ -1,3 +1,5 @@
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+
 /**
  * Supported output formats for query results.
  */
@@ -39,8 +41,13 @@ export class DatabaseQueryService {
    * @returns Promise resolving to initialization status.
    */
   public async isInitialized(): Promise<boolean> {
-    // Mock implementation - would check actual database initialization
-    return true;
+    try {
+      const dbService = DatabaseService.getInstance();
+      await dbService.query('SELECT 1');
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   /**
@@ -77,12 +84,14 @@ export class DatabaseQueryService {
     const startTime = Date.now();
     
     try {
-      // Mock implementation - would execute actual query against database
-      const mockResults = this.getMockQueryResults(query, format);
+      const dbService = DatabaseService.getInstance();
+      const results = await dbService.query<Record<string, any>>(query);
       const executionTime = Date.now() - startTime;
 
+      const formattedOutput = this.formatResults(results, format);
+
       return {
-        output: mockResults,
+        output: formattedOutput,
         executionTime
       };
     } catch (error) {
@@ -97,38 +106,71 @@ export class DatabaseQueryService {
   }
 
   /**
-   * Generate mock query results for testing purposes.
-   * @param query - SQL query.
+   * Format query results based on the specified format.
+   * @param results - Query results from database.
    * @param format - Output format.
-   * @returns Mock results array.
+   * @returns Formatted results array.
    */
-  private getMockQueryResults(query: string, format: OutputFormat): string[] {
-    const trimmedQuery = query.trim().toLowerCase();
-    
-    if (trimmedQuery.startsWith('select')) {
-      switch (format) {
-        case 'json':
-          return ['[{"id": 1, "name": "example"}]'];
-        case 'csv':
-          return ['id,name', '1,example'];
-        default:
-          return [
-            'id | name',
-            '---|-------',
-            '1  | example',
-            '(1 row)'
-          ];
-      }
+  private formatResults(results: Record<string, any>[], format: OutputFormat): string[] {
+    if (results.length === 0) {
+      return ['(0 rows)'];
     }
-    
-    if (trimmedQuery.startsWith('insert') || trimmedQuery.startsWith('update') || trimmedQuery.startsWith('delete')) {
-      return ['Query executed successfully'];
+
+    switch (format) {
+      case 'json':
+        return [JSON.stringify(results, null, 2)];
+      
+      case 'csv':
+        const csvOutput: string[] = [];
+        const headers = Object.keys(results[0] || {});
+        csvOutput.push(headers.join(','));
+        
+        for (const row of results) {
+          const values = headers.map(header => {
+            const value = row[header];
+            return value == null ? '' : String(value);
+          });
+          csvOutput.push(values.join(','));
+        }
+        return csvOutput;
+      
+      default: // table format
+        if (results.length === 0) {
+          return ['(0 rows)'];
+        }
+        
+        const tableOutput: string[] = [];
+        const tableHeaders = Object.keys(results[0] || {});
+        
+        // Calculate column widths
+        const colWidths = tableHeaders.map(header => {
+          const headerWidth = header.length;
+          const maxValueWidth = Math.max(...results.map(row => {
+            const value = row[header];
+            return value == null ? 0 : String(value).length;
+          }));
+          return Math.max(headerWidth, maxValueWidth);
+        });
+        
+        // Create header row
+        const headerRow = tableHeaders.map((header, i) => header.padEnd(colWidths[i] || 0)).join(' | ');
+        tableOutput.push(headerRow);
+        
+        // Create separator row
+        const separatorRow = colWidths.map(width => '-'.repeat(width || 0)).join('|');
+        tableOutput.push(separatorRow);
+        
+        // Create data rows
+        for (const row of results) {
+          const dataRow = tableHeaders.map((header, i) => {
+            const value = row[header];
+            const stringValue = value == null ? '' : String(value);
+            return stringValue.padEnd(colWidths[i] || 0);
+          }).join(' | ');
+          tableOutput.push(dataRow);
+        }
+        
+        return tableOutput;
     }
-    
-    if (trimmedQuery.startsWith('create') || trimmedQuery.startsWith('alter') || trimmedQuery.startsWith('drop')) {
-      return ['Schema modified successfully'];
-    }
-    
-    return ['Query executed successfully'];
   }
 }

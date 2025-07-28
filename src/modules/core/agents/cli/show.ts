@@ -16,11 +16,16 @@ import type { IAgent } from '@/modules/core/agents/types/agent.types';
 /**
  * Handles success case for agent display.
  * @param agent - Agent to display.
+ * @param format - Output format.
  * @param cliOutput - CLI output service.
  */
-const handleShowSuccess = (agent: IAgent, cliOutput: CliOutputService): void => {
-  cliOutput.section('Agent Details');
-  displayAgentDetails(agent);
+const handleShowSuccess = (agent: IAgent, format: string, cliOutput: CliOutputService): void => {
+  if (format === 'json') {
+    process.stdout.write(JSON.stringify(agent, null, 2) + '\n');
+  } else {
+    cliOutput.section('Agent Details');
+    displayAgentDetails(agent);
+  }
   process.exit(0);
 };
 
@@ -64,7 +69,8 @@ const executeShow = async (context: ICLIContext): Promise<void> => {
       process.exit(1);
     }
 
-    handleShowSuccess(agent, cliOutput);
+    const format = typeof context.args.format === 'string' ? context.args.format : 'text';
+    handleShowSuccess(agent, format, cliOutput);
   } catch (error) {
     handleShowError(error, logger, cliOutput);
   }
@@ -72,5 +78,29 @@ const executeShow = async (context: ICLIContext): Promise<void> => {
 
 export const command: ICLICommand = {
   description: 'Show agent details',
+  options: [
+    {
+      name: 'name',
+      alias: 'n',
+      type: 'string',
+      description: 'Agent name',
+      required: false
+    },
+    {
+      name: 'id',
+      alias: 'i',
+      type: 'string',
+      description: 'Agent ID',
+      required: false
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (text or json)',
+      default: 'text',
+      choices: ['text', 'json']
+    }
+  ],
   execute: executeShow,
 };

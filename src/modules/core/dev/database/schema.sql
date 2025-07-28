@@ -20,6 +20,6 @@ CREATE TABLE IF NOT EXISTS dev_sessions (
     FOREIGN KEY (profile_id) REFERENCES dev_profiles(id)
 );
 
-CREATE INDEX idx_dev_sessions_profile ON dev_sessions(profile_id);
-CREATE INDEX idx_dev_sessions_type ON dev_sessions(type);
-CREATE INDEX idx_dev_sessions_status ON dev_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_dev_sessions_profile ON dev_sessions(profile_id);
+CREATE INDEX IF NOT EXISTS idx_dev_sessions_type ON dev_sessions(type);
+CREATE INDEX IF NOT EXISTS idx_dev_sessions_status ON dev_sessions(status);

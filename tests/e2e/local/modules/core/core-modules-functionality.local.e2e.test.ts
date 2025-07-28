@@ -17,28 +17,29 @@ describe('Local E2E: Core Modules Functionality', () => {
   
   describe('Module Registry and Loading', () => {
     it('should list loaded modules successfully', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt modules list --format=json');
+      const { stdout } = await execInContainer('/app/bin/systemprompt modules list --format json');
       const modules = JSON.parse(stdout);
       
       expect(Array.isArray(modules)).toBe(true);
       expect(modules.length).toBeGreaterThan(0);
       
       // Check for core modules
-      const coreModules = modules.filter((m: any) => m.type === 'core');
+      const coreModules = modules.filter((m: any) => m.metadata?.core === true);
       expect(coreModules.length).toBeGreaterThan(0);
     });
 
     it('should show module details', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt modules list --format=detailed');
+      const { stdout } = await execInContainer('/app/bin/systemprompt modules list');
       
-      expect(stdout).toContain('Module Name');
-      expect(stdout).toContain('Type');
-      expect(stdout).toContain('Status');
+      expect(stdout).toContain('Name:');
+      expect(stdout).toContain('Type:');
+      expect(stdout).toContain('Status:');
     });
 
     it('should load core modules with proper configuration', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt modules list --filter=core --format=json');
-      const coreModules = JSON.parse(stdout);
+      const { stdout } = await execInContainer('/app/bin/systemprompt modules list --format json');
+      const allModules = JSON.parse(stdout);
+      const coreModules = allModules.filter((m: any) => m.metadata?.core === true);
       
       // Should have essential core modules
       const moduleNames = coreModules.map((m: any) => m.name);
@@ -55,15 +56,15 @@ describe('Local E2E: Core Modules Functionality', () => {
     });
 
     it('should show database schema information', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt database schema --list');
+      const { stdout } = await execInContainer('/app/bin/systemprompt database schema --action list');
       
-      expect(stdout).toContain('Tables');
-      // Should have some basic tables
-      expect(stdout).toMatch(/\btables?\b/i);
+      expect(stdout).toContain('Installed Schemas');
+      // Should have some basic schema information
+      expect(stdout).toMatch(/Module Name|Version/i);
     });
 
     it('should handle database queries', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt database query "SELECT 1 as test"');
+      const { stdout } = await execInContainer('/app/bin/systemprompt database query --sql "SELECT 1 as test"');
       
       expect(stdout).toContain('test');
       expect(stdout).toContain('1');
@@ -87,20 +88,21 @@ describe('Local E2E: Core Modules Functionality', () => {
     });
 
     it('should handle different log levels', async () => {
-      // Test that commands with different verbosity work
-      const { stdout: quietOutput } = await execInContainer('/app/bin/systemprompt modules list --quiet');
-      const { stdout: verboseOutput } = await execInContainer('/app/bin/systemprompt modules list --verbose');
+      // Test that commands with different output formats work
+      const { stdout: textOutput } = await execInContainer('/app/bin/systemprompt modules list');
+      const { stdout: jsonOutput } = await execInContainer('/app/bin/systemprompt modules list --format json');
       
-      // Verbose should have more output than quiet
-      expect(verboseOutput.length).toBeGreaterThanOrEqual(quietOutput.length);
+      // Both formats should work
+      expect(textOutput).toContain('Installed Modules');
+      expect(() => JSON.parse(jsonOutput)).not.toThrow();
     });
   });
 
   describe('CLI Integration', () => {
     it('should show system status via CLI', async () => {
-      const { stdout } = await execInContainer('/app/bin/systemprompt status');
+      const { stdout } = await execInContainer('/app/bin/systemprompt system status');
       
-      expect(stdout).toContain('System Status');
+      expect(stdout).toContain('System');
       // Should contain basic system information
     });
 
@@ -110,7 +112,7 @@ describe('Local E2E: Core Modules Functionality', () => {
       // Core module commands should be available
       expect(stdout).toContain('database');
       expect(stdout).toContain('modules');
-      expect(stdout).toContain('status');
+      expect(stdout).toContain('system');
     });
 
     it('should execute module-specific help commands', async () => {

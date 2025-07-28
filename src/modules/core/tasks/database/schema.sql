@@ -8,14 +8,18 @@ CREATE TABLE IF NOT EXISTS task (
   module_id VARCHAR(100) NOT NULL,
   instructions JSON,
   priority INTEGER DEFAULT 0,
-  status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'cancelled', 'stopped')),
+  status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'completed', 'failed', 'cancelled', 'stopped')),
   retry_count INTEGER DEFAULT 0,
   max_executions INTEGER DEFAULT 3,
   max_time INTEGER, -- Max execution time in seconds (optional)
   result TEXT, -- Task execution result (optional)
+  error TEXT, -- Task error message (optional)
+  progress INTEGER, -- Task progress 0-100 (optional)
+  assigned_agent_id VARCHAR(255), -- ID of assigned agent (optional)
   scheduled_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP, -- Task completion timestamp (optional)
   created_by VARCHAR(255),
   metadata JSON
 );

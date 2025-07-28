@@ -90,7 +90,7 @@ const validateAgentId = (
 ): string => {
   if (typeof args.id !== 'string' || args.id.length === 0) {
     cliOutput.error('Agent ID is required (--id)');
-    cliOutput.info('Usage: systemprompt agent update --id <id> [options]');
+    cliOutput.info('Usage: systemprompt agents update --id <id> [options]');
     process.exit(1);
   }
   return args.id;
@@ -277,7 +277,13 @@ const executeUpdate = async (
     process.exit(1);
   }
 
-  cliOutput.section('Updating Agent');
+  const format = args.format;
+  
+  // Only show section header for non-JSON formats
+  if (format !== 'json') {
+    cliOutput.section('Updating Agent');
+  }
+  
   const agent = await agentService.updateAgent(identifier, updateData);
 
   if (agent === null) {
@@ -285,13 +291,77 @@ const executeUpdate = async (
     process.exit(1);
   }
 
-  cliOutput.success(`Agent '${agent.name}' updated successfully`);
+  // Only show success message for non-JSON formats
+  if (format !== 'json') {
+    cliOutput.success(`Agent '${agent.name}' updated successfully`);
+  }
+  
   displayUpdatedAgent(agent, args.format, cliOutput);
   process.exit(0);
 };
 
 export const command: ICLICommand = {
   description: 'Update an existing agent',
+  options: [
+    {
+      name: 'id',
+      alias: 'i', 
+      type: 'string',
+      description: 'Agent ID to update',
+      required: true
+    },
+    {
+      name: 'name',
+      type: 'string',
+      description: 'New agent name',
+      required: false
+    },
+    {
+      name: 'description',
+      type: 'string',
+      description: 'New agent description',
+      required: false
+    },
+    {
+      name: 'instructions',
+      type: 'string',
+      description: 'New agent instructions',
+      required: false
+    },
+    {
+      name: 'status',
+      type: 'string',
+      description: 'New agent status (idle, active, stopped, error)',
+      required: false,
+      choices: ['idle', 'active', 'stopped', 'error']
+    },
+    {
+      name: 'capabilities',
+      type: 'string',
+      description: 'Comma-separated list of capabilities',
+      required: false
+    },
+    {
+      name: 'tools',
+      type: 'string',
+      description: 'Comma-separated list of tools',
+      required: false
+    },
+    {
+      name: 'config',
+      type: 'string',
+      description: 'JSON configuration object',
+      required: false
+    },
+    {
+      name: 'format',
+      type: 'string',
+      description: 'Output format (text, json)',
+      required: false,
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();

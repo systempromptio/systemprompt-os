@@ -4,11 +4,12 @@
  * @module modules/core/config/cli/model-commands
  */
 
-import type { GoogleGenerativeAI, ModelParams } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { getLoggerService } from '@/modules/core/logger';
 import { LogSource } from '@/modules/core/logger/types';
 import type {
-  IProviderConfig
+  IProviderConfig,
+  IModelParams
 } from '@/modules/core/config/types/model.types';
 
 const logger = getLoggerService();
@@ -55,8 +56,8 @@ export const logUsageStatistics = (
  */
 export const buildModelParams = (
   modelConfig: NonNullable<IProviderConfig['models']>[string]
-): ModelParams => {
-  const modelParams: ModelParams = {
+): IModelParams => {
+  const modelParams: IModelParams = {
     model: modelConfig.model
   };
 
@@ -70,12 +71,7 @@ export const buildModelParams = (
     modelParams.systemInstruction = modelConfig.systemInstruction;
   }
   if (modelConfig.tools !== undefined) {
-    modelParams.tools = modelConfig.tools.map(tool => {
-      if (tool.codeExecution === true) {
-        return { codeExecution: {} };
-      }
-      return { codeExecution: {} };
-    });
+    modelParams.tools = modelConfig.tools;
   }
 
   return modelParams;
@@ -88,23 +84,23 @@ export const buildModelParams = (
  * @param prompt - Test prompt.
  */
 export const executeModelTest = async (
-  genAI: GoogleGenerativeAI,
+  genAI: GoogleGenAI,
   modelConfig: NonNullable<IProviderConfig['models']>[string],
   prompt: string
 ): Promise<void> => {
-  const modelParams = buildModelParams(modelConfig);
-  const model = genAI.getGenerativeModel(modelParams);
-  const result = await model.generateContent(prompt);
+  const result = await genAI.models.generateContent({
+    model: modelConfig.model,
+    contents: prompt
+  });
 
   logger.info(LogSource.CLI, 'Response received!');
   logger.info(LogSource.CLI, '');
 
-  logUsageStatistics(result.response.usageMetadata);
+  logUsageStatistics(result.usageMetadata);
 
   logger.info(LogSource.CLI, 'Response:');
   logger.info(LogSource.CLI, '--------');
-  const { response } = result;
-  const text = response.text();
+  const text = result.text || '';
   logger.info(LogSource.CLI, text === '' ? 'No text response received' : text);
   logger.info(LogSource.CLI, '');
   logger.info(LogSource.CLI, '✓ Model test completed successfully!');

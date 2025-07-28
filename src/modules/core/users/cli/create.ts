@@ -59,7 +59,8 @@ export const command: ICLICommand = {
 
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error creating user');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      cliOutput.error(`Error creating user: ${errorMessage}`);
       logger.error(LogSource.USERS, 'Error creating user', {
         error: error instanceof Error ? error : new Error(String(error)),
       });

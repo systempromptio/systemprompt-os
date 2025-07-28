@@ -156,8 +156,8 @@ export class AuthRepository {
   async getIUserIRoles(userId: string): Promise<IRole[]> {
     const rows = await this.db.query<any>(
       `SELECT r.* FROM auth_roles r
-       JOIN auth_user_roles ur ON r.id = ur.roleId
-       WHERE ur.userId = ?`,
+       JOIN auth_user_roles ur ON r.id = ur.role_id
+       WHERE ur.user_id = ?`,
       [userId],
     );
 
@@ -180,8 +180,8 @@ export class AuthRepository {
     const rows = await this.db.query<any>(
       `SELECT DISTINCT p.* FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
-       JOIN auth_user_roles ur ON rp.roleId = ur.roleId
-       WHERE ur.userId = ?`,
+       JOIN auth_user_roles ur ON rp.role_id = ur.role_id
+       WHERE ur.user_id = ?`,
       [userId],
     );
 
@@ -206,8 +206,8 @@ export class AuthRepository {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
-       JOIN auth_user_roles ur ON rp.roleId = ur.roleId
-       WHERE ur.userId = ? AND p.resource = ? AND p.action = ?`,
+       JOIN auth_user_roles ur ON rp.role_id = ur.role_id
+       WHERE ur.user_id = ? AND p.resource = ? AND p.action = ?`,
       [userId, resource, action],
     );
 
@@ -223,8 +223,8 @@ export class AuthRepository {
   async hasIRole(userId: string, roleName: string): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_user_roles ur
-       JOIN auth_roles r ON ur.roleId = r.id
-       WHERE ur.userId = ? AND r.name = ?`,
+       JOIN auth_roles r ON ur.role_id = r.id
+       WHERE ur.user_id = ? AND r.name = ?`,
       [userId, roleName],
     );
 
@@ -250,7 +250,7 @@ export class AuthRepository {
 
     await this.db.execute(
       `INSERT INTO auth_sessions
-       (id, userId, token_hash, expires_at, ip_address, user_agent)
+       (id, user_id, token_hash, expires_at, ip_address, user_agent)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         sessionId,

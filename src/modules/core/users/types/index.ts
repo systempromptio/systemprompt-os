@@ -15,6 +15,7 @@ export interface IUser {
   username: string;
   email: string;
   passwordHash?: string;
+  role: string;
   status: UserStatusEnum;
   emailVerified: boolean;
   lastLoginAt?: Date;

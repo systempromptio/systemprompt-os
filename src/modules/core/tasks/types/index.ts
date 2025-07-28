@@ -3,6 +3,7 @@
  */
 export enum TaskStatusEnum {
   PENDING = 'pending',
+  ASSIGNED = 'assigned',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   FAILED = 'failed',
@@ -46,9 +47,13 @@ export interface ITask {
   maxExecutions: number;
   maxTime?: number;
   result?: string;
+  error?: string;
+  progress?: number;
+  assignedAgentId?: string;
   scheduledAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
+  completedAt?: Date;
   createdBy?: string;
   metadata?: Record<string, unknown>;
 }
@@ -90,6 +95,11 @@ export interface ITaskService {
   registerHandler(handler: ITaskHandler): Promise<void>;
   unregisterHandler(type: string): Promise<void>;
   getStatistics(): Promise<ITaskStatistics>;
+  assignTaskToAgent(taskId: number, agentId: string): Promise<void>;
+  unassignTask(taskId: number): Promise<void>;
+  getTasksByAgent(agentId: string): Promise<ITask[]>;
+  getTasksByStatus(status: TaskStatusEnum): Promise<ITask[]>;
+  updateTaskProgress(taskId: number, progress: number): Promise<void>;
 }
 
 /**
@@ -141,9 +151,13 @@ export interface ITaskRow {
   max_executions: number;
   max_time: number | null;
   result: string | null;
+  error: string | null;
+  progress: number | null;
+  assigned_agent_id: string | null;
   scheduled_at: string | null;
   created_at: string;
   updated_at: string;
+  completed_at: string | null;
   created_by: string | null;
   metadata: string | null;
 }

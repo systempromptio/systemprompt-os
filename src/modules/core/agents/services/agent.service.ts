@@ -1,28 +1,28 @@
 /**
- * Agent Service for managing agents and tasks.
- * @file Agent Service for managing agents and tasks.
- * @module src/modules/core/agents/services
+ * Agent Service for managing agents.
+ * Clean version without direct task management.
  */
 
 import type {
   IAgent,
   IAgentLog,
-  IAgentTask,
   ICreateAgentDto,
-  ICreateTaskDto,
   IUpdateAgentDto
 } from '@/modules/core/agents/types/agent.types';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventNames } from '@/modules/core/events/types/index';
 
 /**
- * Service for managing agents and their tasks.
+ * Service for managing agents.
  */
 export class AgentService {
   private static instance: AgentService | null = null;
   private readonly repository: AgentRepository;
   private readonly logger: ILogger;
+  private _eventBus: EventBusService | null = null;
   private monitoringInterval: NodeJS.Timeout | undefined;
   private isMonitoring = false;
 
@@ -32,6 +32,18 @@ export class AgentService {
   private constructor() {
     this.repository = AgentRepository.getInstance();
     this.logger = LoggerService.getInstance();
+    // EventBus will be initialized lazily when first accessed
+  }
+
+  /**
+   * Get EventBus instance lazily.
+   * @returns The EventBusService instance.
+   */
+  private get eventBus(): EventBusService {
+    if (!this._eventBus) {
+      this._eventBus = EventBusService.getInstance();
+    }
+    return this._eventBus;
   }
 
   /**
@@ -57,6 +69,14 @@ export class AgentService {
           agentId: agent.id,
           name: agent.name
         }
+      });
+
+      // Emit agent created event
+      this.eventBus.emit(EventNames.AGENT_CREATED, {
+        agentId: agent.id,
+        name: agent.name,
+        type: agent.type,
+        capabilities: agent.capabilities
       });
 
       return agent;
@@ -88,6 +108,18 @@ export class AgentService {
     await this.repository.updateAgent(agentId, { status: 'active' });
 
     this.logger.info(LogSource.AGENT, 'Agent started', { metadata: { agentId } });
+
+    // Emit agent started event
+    this.eventBus.emit(EventNames.AGENT_STARTED, {
+      agentId,
+      startedAt: new Date()
+    });
+
+    // Emit agent available event
+    this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
+      agentId,
+      capabilities: agent.capabilities
+    });
   }
 
   /**
@@ -115,36 +147,60 @@ export class AgentService {
         force
       }
     });
+
+    // Emit agent stopped event
+    this.eventBus.emit(EventNames.AGENT_STOPPED, {
+      agentId,
+      stoppedAt: new Date()
+    });
   }
 
   /**
-   * Assigns a task to an agent.
-   * @param taskData - Task creation data.
-   * @returns Promise resolving to the created task.
+   * Reports that an agent is working on a task.
+   * @param agentId - ID of the agent.
+   * @param taskId - ID of the task.
+   * @returns Promise.
    */
-  async assignTask(taskData: ICreateTaskDto): Promise<IAgentTask> {
-    const agent = await this.repository.getAgentById(taskData.agent_id);
-
-    if (agent === null) {
-      throw new Error('Agent not found');
-    }
-
-    if (agent.status !== 'active') {
-      throw new Error('Agent not available');
-    }
-
-    const task = await this.repository.createTask(taskData);
-    await this.repository.updateTaskStatus(task.id, 'assigned');
-
-    this.logger.info(LogSource.AGENT, 'Task assigned to agent', {
-      metadata: {
-        agentId: taskData.agent_id,
-        taskId: task.id,
-        taskName: task.name
-      }
+  async reportAgentBusy(agentId: string, taskId: number): Promise<void> {
+    await this.repository.updateAgent(agentId, { 
+      status: 'active',
+      config: { currentTaskId: taskId }
     });
 
-    return task;
+    this.eventBus.emit(EventNames.AGENT_BUSY, {
+      agentId,
+      taskId
+    });
+  }
+
+  /**
+   * Reports that an agent has finished a task.
+   * @param agentId - ID of the agent.
+   * @param success - Whether the task was successful.
+   * @returns Promise.
+   */
+  async reportAgentIdle(agentId: string, success: boolean): Promise<void> {
+    const agent = await this.repository.getAgentById(agentId);
+    if (!agent) return;
+
+    await this.repository.incrementTaskCount(
+      agentId, 
+      success ? 'completed' : 'failed'
+    );
+
+    await this.repository.updateAgent(agentId, {
+      config: { ...agent.config, currentTaskId: null }
+    });
+
+    this.eventBus.emit(EventNames.AGENT_IDLE, { agentId });
+
+    // If still active, emit available event
+    if (agent.status === 'active') {
+      this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
+        agentId,
+        capabilities: agent.capabilities
+      });
+    }
   }
 
   /**
@@ -215,9 +271,7 @@ export class AgentService {
    */
   async getAgent(identifier: string): Promise<IAgent | null> {
     let agent = await this.repository.getAgentById(identifier);
-
     agent ??= await this.repository.getAgentByName(identifier);
-
     return agent;
   }
 
@@ -244,13 +298,18 @@ export class AgentService {
     }
 
     const updated = await this.repository.updateAgent(agent.id, data);
-    return updated ? agent : null;
+    if (!updated) {
+      return null;
+    }
+
+    // Return the updated agent data
+    return await this.getAgent(agent.id);
   }
 
   /**
-   * Deletes an agent.
-   * @param identifier - Agent ID or name.
-   * @returns Promise resolving to true if deleted, false if not found.
+   * Deletes an agent by identifier.
+   * @param identifier - Agent ID or name to delete.
+   * @returns Promise resolving to success status.
    */
   async deleteAgent(identifier: string): Promise<boolean> {
     const agent = await this.getAgent(identifier);
@@ -259,7 +318,32 @@ export class AgentService {
       return false;
     }
 
-    return await this.repository.deleteAgent(agent.id);
+    const success = await this.repository.deleteAgent(agent.id);
+    
+    if (success) {
+      this.eventBus.emit(EventNames.AGENT_DELETED, { agentId: agent.id });
+      this.logger.info(LogSource.AGENT, `Agent deleted: ${agent.name}`, { agentId: agent.id });
+    }
+
+    return success;
+  }
+
+  /**
+   * Gets available agents for a specific capability.
+   * @param capability - Optional capability filter.
+   * @returns Promise resolving to array of available agents.
+   */
+  async getAvailableAgents(capability?: string): Promise<IAgent[]> {
+    const agents = await this.repository.listAgents('active');
+    
+    if (!capability) {
+      return agents.filter(a => !a.config?.currentTaskId);
+    }
+
+    return agents.filter(a => 
+      !a.config?.currentTaskId && 
+      a.capabilities.includes(capability)
+    );
   }
 
   /**
@@ -272,12 +356,15 @@ export class AgentService {
     await Promise.all(
       activeAgents.map(async (agent): Promise<void> => {
         try {
-          await this.repository.getAgentTasks(agent.id);
+          // Update agent status (acts as heartbeat)
+          await this.repository.updateAgent(agent.id, { status: 'active' });
+          
+          // Record metrics
           await this.repository.recordMetrics({
             agent_id: agent.id,
             cpu_usage: Math.random() * 100,
             memory_usage: Math.random() * 100,
-            active_tasks: agent.assigned_tasks - agent.completed_tasks - agent.failed_tasks,
+            active_tasks: agent.config?.currentTaskId ? 1 : 0,
             timestamp: new Date()
           });
         } catch (error) {

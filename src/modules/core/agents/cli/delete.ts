@@ -54,6 +54,23 @@ const performDeletion = async (
 
 export const command: ICLICommand = {
   description: 'Delete an agent',
+  options: [
+    {
+      name: 'id',
+      alias: 'i',
+      type: 'string',
+      description: 'Agent ID to delete',
+      required: true
+    },
+    {
+      name: 'force',
+      alias: 'f',
+      type: 'boolean',
+      description: 'Force deletion without confirmation',
+      required: false,
+      default: false
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();

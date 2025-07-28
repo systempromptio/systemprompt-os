@@ -40,7 +40,7 @@ else
 fi
 
 # Start Cloudflare tunnel if configured
-if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ "$ENABLE_OAUTH_TUNNEL" = "true" ]; then
+if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
     echo "🌐 Starting Cloudflare tunnel..."
     
     # Create log directory
@@ -55,15 +55,7 @@ if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ "$ENABLE_OAUTH_TUNNEL" = "true" ]; the
     
     if kill -0 $TUNNEL_PID 2>/dev/null; then
         echo "✓ Cloudflare tunnel started (PID: $TUNNEL_PID)"
-        
-        # Extract tunnel URL from logs
-        if [ -f "$STATE_PATH/logs/cloudflared.log" ]; then
-            TUNNEL_URL=$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' "$STATE_PATH/logs/cloudflared.log" 2>/dev/null | head -n1)
-            if [ -n "$TUNNEL_URL" ]; then
-                echo "✓ Tunnel URL: $TUNNEL_URL"
-                export BASE_URL="$TUNNEL_URL"
-            fi
-        fi
+        echo "✓ Tunnel URL: ${BASE_URL}"
     else
         echo "⚠️  Failed to start Cloudflare tunnel"
     fi

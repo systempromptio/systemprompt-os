@@ -100,12 +100,76 @@ async function executeSchemaFile(schemaPath: string, database: DatabaseService, 
 }
 
 /**
+ * Drop all existing database objects (tables, indexes, views, triggers).
+ */
+async function dropAllTables(): Promise<void> {
+  const logger = LoggerService.getInstance();
+  const database = DatabaseService.getInstance();
+  const cliOutput = CliOutputService.getInstance();
+
+  cliOutput.info('Dropping all existing database objects...');
+  logger.debug(LogSource.CLI, 'Dropping all existing database objects...');
+
+  try {
+    // Get all database objects (tables, indexes, views, triggers)
+    const objects = await database.query<{ type: string; name: string }>(
+      "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type DESC"
+    );
+
+    let dropped = 0;
+
+    // Drop each object in order (views first, then triggers, then indexes, then tables)
+    for (const obj of objects) {
+      try {
+        let dropStatement = '';
+        switch (obj.type) {
+          case 'table':
+            dropStatement = `DROP TABLE IF EXISTS "${obj.name}"`;
+            break;
+          case 'index':
+            dropStatement = `DROP INDEX IF EXISTS "${obj.name}"`;
+            break;
+          case 'view':
+            dropStatement = `DROP VIEW IF EXISTS "${obj.name}"`;
+            break;
+          case 'trigger':
+            dropStatement = `DROP TRIGGER IF EXISTS "${obj.name}"`;
+            break;
+          default:
+            continue;
+        }
+
+        await database.execute(dropStatement);
+        cliOutput.info(`Dropped ${obj.type}: ${obj.name}`);
+        logger.debug(LogSource.CLI, `Dropped ${obj.type}: ${obj.name}`);
+        dropped++;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // Use debug instead of warning since IF EXISTS makes this expected behavior
+        logger.debug(LogSource.CLI, `Could not drop ${obj.type} ${obj.name}: ${errorMessage}`);
+      }
+    }
+
+    cliOutput.success(`Dropped ${dropped} database objects`);
+    logger.debug(LogSource.CLI, `Dropped ${dropped} database objects`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    cliOutput.error(`Failed to drop database objects: ${errorMessage}`);
+    logger.error(LogSource.CLI, `Failed to drop database objects: ${errorMessage}`);
+    throw error;
+  }
+}
+
+/**
  * Initialize module schemas from discovered schema files.
  */
 async function initializeModuleSchemas(): Promise<void> {
   const logger = LoggerService.getInstance();
   const database = DatabaseService.getInstance();
   const cliOutput = CliOutputService.getInstance();
+
+  // First drop all existing tables
+  await dropAllTables();
 
   cliOutput.info('Discovering module schemas...');
   logger.debug(LogSource.CLI, 'Discovering module schemas...');
@@ -125,6 +189,20 @@ async function initializeModuleSchemas(): Promise<void> {
  */
 export const command = {
   description: 'Rebuild database - drop all tables and recreate from schema files',
+  options: [
+    {
+      name: 'force',
+      alias: 'f',
+      type: 'boolean',
+      description: 'Force rebuild without confirmation'
+    },
+    {
+      name: 'confirm',
+      alias: 'c',
+      type: 'boolean',
+      description: 'Confirm rebuild operation'
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const force = args.force === true;

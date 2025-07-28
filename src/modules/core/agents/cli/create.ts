@@ -24,8 +24,14 @@ const handleSuccess = (
   args: Record<string, unknown>,
   cliOutput: CliOutputService
 ): void => {
-  cliOutput.success(`Agent '${agent.name}' created successfully`);
-  displayCreatedAgent(agent, typeof args.format === 'string' ? args.format : undefined);
+  const format = typeof args.format === 'string' ? args.format : undefined;
+  
+  // Only show success message for non-JSON formats
+  if (format !== 'json') {
+    cliOutput.success(`Agent '${agent.name}' created successfully`);
+  }
+  
+  displayCreatedAgent(agent, format);
   process.exit(0);
 };
 
@@ -40,7 +46,8 @@ const handleError = (
   logger: LoggerService,
   cliOutput: CliOutputService
 ): void => {
-  cliOutput.error('Failed to create agent');
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  cliOutput.error(`Failed to create agent: ${errorMessage}`);
   logger.error(LogSource.AGENT, 'Error creating agent', {
     error: error instanceof Error ? error : new Error(String(error)),
   });
@@ -63,7 +70,13 @@ const executeCreation = async (context: ICLIContext): Promise<void> => {
 
     const agentService = AgentService.getInstance();
     const agentData = buildAgentData(context);
-    cliOutput.section('Creating Agent');
+    
+    // Only show section header for non-JSON formats
+    const format = typeof args.format === 'string' ? args.format : undefined;
+    if (format !== 'json') {
+      cliOutput.section('Creating Agent');
+    }
+    
     const agent = await agentService.createAgent(agentData);
     handleSuccess(agent, args, cliOutput);
   } catch (error) {
@@ -73,5 +86,59 @@ const executeCreation = async (context: ICLIContext): Promise<void> => {
 
 export const command: ICLICommand = {
   description: 'Create a new agent',
+  options: [
+    {
+      name: 'name',
+      alias: 'n',
+      type: 'string',
+      description: 'Agent name',
+      required: true
+    },
+    {
+      name: 'description',
+      alias: 'd',
+      type: 'string',
+      description: 'Agent description',
+      required: true
+    },
+    {
+      name: 'instructions',
+      alias: 'i',
+      type: 'string',
+      description: 'Agent instructions',
+      required: true
+    },
+    {
+      name: 'type',
+      alias: 't',
+      type: 'string',
+      description: 'Agent type (worker, monitor, coordinator)',
+      required: true,
+      choices: ['worker', 'monitor', 'coordinator']
+    },
+    {
+      name: 'capabilities',
+      alias: 'c',
+      type: 'string',
+      description: 'Agent capabilities (comma-separated)'
+    },
+    {
+      name: 'tools',
+      type: 'string',
+      description: 'Agent tools (comma-separated)'
+    },
+    {
+      name: 'config',
+      type: 'string',
+      description: 'Agent configuration (JSON format)'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (table or json)',
+      default: 'table'
+    }
+  ],
   execute: executeCreation,
 };

@@ -9,7 +9,7 @@ import {
   getProvider,
   providers
 } from '@/modules/core/config/providers';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { getLoggerService } from '@/modules/core/logger';
 import { LogSource } from '@/modules/core/logger/types';
 import type {
@@ -422,7 +422,7 @@ const testModel = async (options: IModelCommandOptions): Promise<void> => {
   logTestHeader(provider, modelConfig, prompt);
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenAI({ apiKey });
     await executeModelTest(genAI, modelConfig, prompt);
   } catch (error) {
     handleTestError(error);

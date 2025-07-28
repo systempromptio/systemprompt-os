@@ -119,7 +119,7 @@ const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Prom
   await Promise.all(
     defaultRoles.map(async (role) =>
       { await db.execute(
-        `INSERT INTO auth_roles (id, name, description, isSystem)
+        `INSERT INTO auth_roles (id, name, description, is_system)
          VALUES (?, ?, ?, ?)`,
         [role.id, role.name, role.description, role.isSystem],
       ); })
@@ -191,12 +191,12 @@ const listUsers = async (_context: ICliContext): Promise<void> => {
         u.id,
         u.email,
         u.name,
-        u.createdAt,
-        u.lastLoginAt,
+        u.created_at,
+        u.last_login_at,
         GROUP_CONCAT(r.name) as roles
       FROM auth_users u
-      LEFT JOIN auth_user_roles ur ON u.id = ur.userId
-      LEFT JOIN auth_roles r ON ur.roleId = r.id
+      LEFT JOIN auth_user_roles ur ON u.id = ur.user_id
+      LEFT JOIN auth_roles r ON ur.role_id = r.id
       GROUP BY u.id
       ORDER BY u.createdAt DESC
     `);

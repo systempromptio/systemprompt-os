@@ -214,6 +214,10 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
     }
 
     if (this.getLoggerMode() === LoggerMode.CLI) {
+      // Include console output when debug logging is requested in CLI mode
+      if (this.getLogLevel() === 'debug') {
+        return [LogOutput.CONSOLE, LogOutput.DATABASE];
+      }
       return [LogOutput.DATABASE];
     }
 

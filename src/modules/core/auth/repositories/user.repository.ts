@@ -41,8 +41,8 @@ export class UserRepository {
   async hasAdminUsers(): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_users u
-       JOIN auth_user_roles ur ON u.id = ur.userId
-       JOIN auth_roles r ON ur.roleId = r.id
+       JOIN auth_user_roles ur ON u.id = ur.user_id
+       JOIN auth_roles r ON ur.role_id = r.id
        WHERE r.name = 'admin'`,
     );
     return (result[ZERO]?.count ?? ZERO) > ZERO;
@@ -66,14 +66,14 @@ export class UserRepository {
     const userId = randomUUID();
 
     await connection.execute(
-      `INSERT INTO auth_users (id, email, name, avatar_url, lastLoginAt)
+      `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at)
        VALUES (?, ?, ?, ?, datetime('now'))`,
       [userId, email, name ?? null, avatar ?? null],
     );
 
     await connection.execute(
       `INSERT INTO auth_oauth_identities
-       (id, userId, provider, provider_userId, providerData)
+       (id, user_id, provider, provider_user_id, provider_data)
        VALUES (?, ?, ?, ?, ?)`,
       [
         randomUUID(),
@@ -90,7 +90,7 @@ export class UserRepository {
 
     const roleId = hasAdmins ? 'role_user' : 'role_admin';
     await connection.execute(
-      `INSERT INTO auth_user_roles (userId, roleId) VALUES (?, ?)`,
+      `INSERT INTO auth_user_roles (user_id, role_id) VALUES (?, ?)`,
       [userId, roleId],
     );
 
@@ -113,7 +113,7 @@ export class UserRepository {
   ): Promise<void> {
     await connection.execute(
       `UPDATE auth_users
-       SET name = ?, avatar_url = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now')
+       SET name = ?, avatar_url = ?, last_login_at = datetime('now'), updated_at = datetime('now')
        WHERE id = ?`,
       [name ?? null, avatar ?? null, userId],
     );
@@ -131,13 +131,13 @@ export class UserRepository {
     providerId: string,
     connection: IDatabaseConnection,
   ): Promise<string | null> {
-    const identityResult = await connection.query<{ userId: string }>(
-      `SELECT userId FROM auth_oauth_identities
-       WHERE provider = ? AND provider_userId = ?`,
+    const identityResult = await connection.query<{ user_id: string }>(
+      `SELECT user_id FROM auth_oauth_identities
+       WHERE provider = ? AND provider_user_id = ?`,
       [provider, providerId],
     );
     const identity = identityResult.rows[ZERO];
-    return identity?.userId ?? null;
+    return identity?.user_id ?? null;
   }
 
   /**
@@ -162,8 +162,8 @@ export class UserRepository {
 
     const rolesResult = await connection.query<{ name: string }>(
       `SELECT r.name FROM auth_roles r
-       JOIN auth_user_roles ur ON r.id = ur.roleId
-       WHERE ur.userId = ?`,
+       JOIN auth_user_roles ur ON r.id = ur.role_id
+       WHERE ur.user_id = ?`,
       [userId],
     );
 
@@ -196,8 +196,8 @@ export class UserRepository {
 
     const roles = await this.db.query<{ name: string }>(
       `SELECT r.name FROM auth_roles r
-       JOIN auth_user_roles ur ON r.id = ur.roleId
-       WHERE ur.userId = ?`,
+       JOIN auth_user_roles ur ON r.id = ur.role_id
+       WHERE ur.user_id = ?`,
       [userId],
     );
 

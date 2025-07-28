@@ -27,7 +27,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
   public readonly type = 'core' as const;
   public readonly version = '1.0.0';
   public readonly description = 'Task queue and execution system for SystemPrompt OS';
-  public readonly dependencies = ['logger', 'database'] as const;
+  public readonly dependencies = ['logger', 'database', 'events'] as const;
   public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   private taskService!: TaskService;
   private logger!: ILogger;

@@ -89,6 +89,12 @@ export class UsersService implements IUsersService {
   async createUser(data: IUserCreateData): Promise<IUser> {
     await this.ensureInitialized();
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      throw new Error(`Invalid email format: ${data.email}`);
+    }
+
     const existingUsername = await this.repository.findByUsername(data.username);
     if (existingUsername !== null) {
       throw new Error(`Username already exists: ${data.username}`);
@@ -106,7 +112,8 @@ export class UsersService implements IUsersService {
     const createUserOptions: Parameters<typeof this.repository.createUser>[0] = {
       id,
       username: data.username,
-      email: data.email
+      email: data.email,
+      role: data.role || 'user'
     };
     if (passwordHash !== undefined) {
       createUserOptions.passwordHash = passwordHash;

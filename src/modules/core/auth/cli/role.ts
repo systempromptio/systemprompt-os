@@ -55,7 +55,7 @@ export const command = {
           }
 
           const existing = await db
-            .query('SELECT ONE FROM auth_user_roles WHERE userId = ? AND roleId = ?', [
+            .query('SELECT ONE FROM auth_user_roles WHERE user_id = ? AND role_id = ?', [
               user.id,
               role.id,
             ])
@@ -66,7 +66,7 @@ export const command = {
             return;
           }
 
-          await db.query('INSERT INTO auth_user_roles (userId, roleId) VALUES (?, ?)', [
+          await db.query('INSERT INTO auth_user_roles (user_id, role_id) VALUES (?, ?)', [
             user.id,
             role.id,
           ]);
@@ -75,8 +75,8 @@ export const command = {
 
           const currentRoles = await db.query<{ name: string }>(
             `SELECT r.name FROM auth_roles r
-             JOIN auth_user_roles ur ON r.id = ur.roleId
-             WHERE ur.userId = ?`,
+             JOIN auth_user_roles ur ON r.id = ur.role_id
+             WHERE ur.user_id = ?`,
             [user.id],
           );
 
@@ -134,9 +134,9 @@ export const command = {
           if (args.role === 'admin') {
             const adminCount = await db
               .query<{ count: number }>(
-                `SELECT COUNT(DISTINCT ur.userId) as count
+                `SELECT COUNT(DISTINCT ur.user_id) as count
                FROM auth_user_roles ur
-               JOIN auth_roles r ON ur.roleId = r.id
+               JOIN auth_roles r ON ur.role_id = r.id
                WHERE r.name = 'admin'`,
               )
               .then((rows: { count: number }[]) => { return rows[ZERO]?.count || ZERO });
@@ -148,7 +148,7 @@ export const command = {
           }
 
           const hasRole = await db
-            .query('SELECT ONE FROM auth_user_roles WHERE userId = ? AND roleId = ?', [
+            .query('SELECT ONE FROM auth_user_roles WHERE user_id = ? AND role_id = ?', [
               user.id,
               role.id,
             ])
@@ -159,7 +159,7 @@ export const command = {
             return;
           }
 
-          await db.query('DELETE FROM auth_user_roles WHERE userId = ? AND roleId = ?', [
+          await db.query('DELETE FROM auth_user_roles WHERE user_id = ? AND role_id = ?', [
             user.id,
             role.id,
           ]);
@@ -168,8 +168,8 @@ export const command = {
 
           const currentRoles = await db.query<{ name: string }>(
             `SELECT r.name FROM auth_roles r
-             JOIN auth_user_roles ur ON r.id = ur.roleId
-             WHERE ur.userId = ?`,
+             JOIN auth_user_roles ur ON r.id = ur.role_id
+             WHERE ur.user_id = ?`,
             [user.id],
           );
 

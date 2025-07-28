@@ -17,6 +17,7 @@ export const LOCAL_TEST_CONFIG = {
   envVars: {
     NODE_ENV: 'test',
     DATABASE_FILE: join(process.cwd(), '.test-temp', TEST_SESSION_ID, 'local-test.db'),
+    SQLITE_FILENAME: join(process.cwd(), '.test-temp', TEST_SESSION_ID, 'local-test.db'),
     STATE_PATH: join(process.cwd(), '.test-temp', TEST_SESSION_ID, 'state'),
     PROJECTS_PATH: join(process.cwd(), '.test-temp', TEST_SESSION_ID, 'projects'),
     CONFIG_PATH: join(process.cwd(), '.test-temp', TEST_SESSION_ID, 'config'),
@@ -360,4 +361,13 @@ export async function expectCLIFailure(args: string[], expectedError?: string): 
     }
     return error.stderr || error.stdout || error.message;
   }
+}
+
+/**
+ * Get agent ID by name
+ */
+export async function getAgentIdByName(name: string): Promise<string> {
+  const result = await execInContainer(`/app/bin/systemprompt agents show -n "${name}" --format json`);
+  const agent = JSON.parse(result.stdout);
+  return agent.id;
 }

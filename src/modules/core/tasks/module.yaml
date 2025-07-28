@@ -89,6 +89,15 @@ cli:
         - name: result
           type: string
           description: Task result
+        - name: error
+          type: string
+          description: Task error message
+        - name: progress
+          type: number
+          description: Task progress (0-100)
+        - name: assigned-agent-id
+          type: string
+          description: Assigned agent ID
         - name: format
           type: string
           description: Output format (table or json)
