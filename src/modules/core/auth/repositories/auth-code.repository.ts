@@ -8,9 +8,9 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
-  IAuthCodeRow,
   IAuthorizationCodeData,
 } from '@/modules/core/auth/types/auth-code.types';
+import type { IAuthAuthorizationCodesRow } from '@/modules/core/auth/types/database.generated';
 import { ZERO } from '@/constants/numbers';
 
 /**
@@ -80,7 +80,7 @@ export class AuthCodeRepository {
    * @returns Promise that resolves to the authorization code data or null if not found/expired.
    */
   public async getAuthorizationCode(authCode: string): Promise<IAuthorizationCodeData | null> {
-    const rows = await this.db.query<IAuthCodeRow>(
+    const rows = await this.db.query<IAuthAuthorizationCodesRow>(
       `SELECT * FROM auth_authorization_codes
        WHERE code = ? AND datetime(expires_at) > datetime('now')`,
       [authCode],

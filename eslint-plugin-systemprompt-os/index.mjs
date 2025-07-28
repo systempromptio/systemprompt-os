@@ -28,6 +28,7 @@ import warnInlineEslintComments from './rules/warn-inline-eslint-comments.mjs';
 import noJsExtensionsInImports from './rules/no-js-extensions-in-imports.mjs';
 import enforceLogsourceEnum from './rules/enforce-logsource-enum.mjs';
 import enforceModuleIndexPattern from './rules/enforce-module-index-pattern.mjs';
+import enforceDatabaseSchemaTypes from './rules/enforce-database-schema-types.mjs';
 
 const plugin = {
   meta: {
@@ -70,7 +71,8 @@ const plugin = {
     'warn-inline-eslint-comments': warnInlineEslintComments,
     'no-js-extensions-in-imports': noJsExtensionsInImports,
     'enforce-logsource-enum': enforceLogsourceEnum,
-    'enforce-module-index-pattern': enforceModuleIndexPattern
+    'enforce-module-index-pattern': enforceModuleIndexPattern,
+    'enforce-database-schema-types': enforceDatabaseSchemaTypes
   }
 };
 

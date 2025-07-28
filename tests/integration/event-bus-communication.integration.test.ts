@@ -39,8 +39,13 @@ describe('Event Bus Communication Integration Test', () => {
       fs.mkdirSync(testDir, { recursive: true });
     }
     
-    // Initialize logger first 
+    // Initialize logger first with proper config
     logger = LoggerService.getInstance();
+    logger.initialize({
+      stateDir: testDir,
+      logLevel: 'error',
+      outputs: []
+    });
     
     // Initialize event bus
     eventBus = EventBusService.getInstance();

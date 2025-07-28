@@ -8,11 +8,11 @@ import type { DatabaseService } from '@/modules/core/database/services/database.
 import {
   type ITask,
   type ITaskFilter,
-  type ITaskRow,
   type ITaskStatistics,
   TaskPriorityEnum,
   TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
+import type { ITaskRow } from '@/modules/core/tasks/types/database.generated';
 
 /**
  * Task repository for database operations.

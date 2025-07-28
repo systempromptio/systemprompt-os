@@ -1,21 +1,4 @@
-/**
- * Database row interface for tasks.
- */
-export interface ITaskRow {
-  id: number;
-  type: string;
-  module_id: string;
-  payload: string | null;
-  priority: number;
-  status: string;
-  retry_count: number;
-  max_retries: number;
-  scheduled_at: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-  metadata: string | null;
-}
+// Database row types are now auto-generated in database.generated.ts
 
 /**
  * Task status count result from database query.

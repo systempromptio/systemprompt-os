@@ -3,8 +3,15 @@
  * @module modules/core/auth/cli/db
  */
 
-import type { IUserListRow } from '@/modules/core/auth/types/index';
+import type { IAuthUsersRow } from '@/modules/core/auth/types/database.generated';
 import readline from 'readline';
+
+/**
+ * User list row interface extending database type with aggregated roles.
+ */
+interface IUserListQueryResult extends IAuthUsersRow {
+  roles: string | null;
+}
 import {
  ONE, ZERO
 } from '@/constants/numbers';
@@ -55,7 +62,7 @@ const askConfirmation = async (question: string): Promise<string> => {
  * @param index - User index in the list.
  * @param logger - Logger instance.
  */
-const displayUserInfo = (user: IUserListRow, index: number, logger: ILogger): void => {
+const displayUserInfo = (user: IUserListQueryResult, index: number, logger: ILogger): void => {
   const userNumber = index + ONE;
   logger.info(LogSource.AUTH, `${String(userNumber)}. ${user.email}`);
   logger.info(LogSource.AUTH, `   ID: ${user.id}`);
@@ -63,9 +70,9 @@ const displayUserInfo = (user: IUserListRow, index: number, logger: ILogger): vo
     logger.info(LogSource.AUTH, `   Name: ${user.name}`);
   }
   logger.info(LogSource.AUTH, `   Roles: ${user.roles ?? 'none'}`);
-  logger.info(LogSource.AUTH, `   Created: ${new Date(user.createdAt).toLocaleString()}`);
-  if (user.lastLoginAt !== null && user.lastLoginAt !== undefined) {
-    logger.info(LogSource.AUTH, `   Last login: ${new Date(user.lastLoginAt).toLocaleString()}`);
+  logger.info(LogSource.AUTH, `   Created: ${new Date(user.created_at).toLocaleString()}`);
+  if (user.last_login_at !== null && user.last_login_at !== undefined) {
+    logger.info(LogSource.AUTH, `   Last login: ${new Date(user.last_login_at).toLocaleString()}`);
   }
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
@@ -161,12 +168,12 @@ const resetDatabase = async (_context: ICliContext): Promise<void> => {
  * @param users - List of users to display.
  * @param logger - Logger instance.
  */
-const displayAllUsers = (users: IUserListRow[], logger: ILogger): void => {
+const displayAllUsers = (users: IUserListQueryResult[], logger: ILogger): void => {
   logger.info(LogSource.AUTH, '\n📋 Users in database:\n');
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
 
-  users.forEach((user: IUserListRow, index: number): void => {
+  users.forEach((user: IUserListQueryResult, index: number): void => {
     displayUserInfo(user, index, logger);
   });
 
@@ -186,7 +193,7 @@ const listUsers = async (_context: ICliContext): Promise<void> => {
     const authModule = getAuthModule();
     const db = (authModule as any).getDatabase() as AuthDatabase;
 
-    const users = await db.query<IUserListRow>(`
+    const users = await db.query<IUserListQueryResult>(`
       SELECT
         u.id,
         u.email,
@@ -198,7 +205,7 @@ const listUsers = async (_context: ICliContext): Promise<void> => {
       LEFT JOIN auth_user_roles ur ON u.id = ur.user_id
       LEFT JOIN auth_roles r ON ur.role_id = r.id
       GROUP BY u.id
-      ORDER BY u.createdAt DESC
+      ORDER BY u.created_at DESC
     `);
 
     if (users.length === ZERO) {

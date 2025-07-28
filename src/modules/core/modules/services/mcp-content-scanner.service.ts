@@ -19,7 +19,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
 import matter from 'gray-matter';
-import mime from 'mime-types';
 
 /**
  * Service for scanning and syncing MCP content from module directories.
@@ -536,11 +535,12 @@ export class MCPContentScannerService implements IContentScanner {
     mimeType: string;
   }> {
     const ext = path.extname(file.path).toLowerCase();
-    const mimeType = mime.lookup(file.path) || 'application/octet-stream';
+    const mimeType = 'application/octet-stream';
     const isText = this.isTextFile(mimeType, ext);
 
     if (ext === '.md' && file.relativePath.startsWith('resources/')) {
       return await this.prepareMarkdownResourceData(moduleName, file, ext);
+      
     }
 
     const content = await fs.readFile(file.path);

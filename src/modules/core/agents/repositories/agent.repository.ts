@@ -9,12 +9,17 @@ import type {
   IAgentLog,
   IAgentMetrics,
   IAgentTask,
-  IAgentRow,
   ICreateAgentDto,
   ICreateTaskDto,
   IUpdateAgentDto,
   TaskStatus
 } from '@/modules/core/agents/types/agent.types';
+import type { 
+  IAgentsRow, 
+  IAgentTasksRow, 
+  IAgentLogsRow, 
+  IAgentMetricsRow 
+} from '@/modules/core/agents/types/database.generated';
 import { AgentBaseRepository } from '@/modules/core/agents/repositories/agent-base.repository';
 
 /**
@@ -108,7 +113,7 @@ export class AgentRepository extends AgentBaseRepository {
       return null;
     }
 
-    return this.rowToAgent(row as IAgentRow);
+    return this.rowToAgent(row as IAgentsRow);
   }
 
   /**
@@ -128,7 +133,7 @@ export class AgentRepository extends AgentBaseRepository {
       return null;
     }
 
-    return this.rowToAgent(row as IAgentRow);
+    return this.rowToAgent(row as IAgentsRow);
   }
 
   /**
@@ -150,7 +155,7 @@ export class AgentRepository extends AgentBaseRepository {
     const result = await this.database.query(query, params);
 
     return result.rows.map((row: any): IAgent => {
-      return this.rowToAgent(row as IAgentRow);
+      return this.rowToAgent(row as IAgentsRow);
     });
   }
 

@@ -35,8 +35,6 @@ const getConfig = (): IServerConfig => {
     REFRESHTOKEN_EXPIRY: process.env.REFRESHTOKEN_EXPIRY ?? "30d",
     AUTHORIZATIONCODE_EXPIRY: process.env.AUTHORIZATIONCODE_EXPIRY ?? "10m",
 
-    BCRYPTROUNDS: parseInt(process.env.BCRYPTROUNDS ?? "10", 10),
-
     CONFIGPATH: process.env.CONFIGPATH ?? join(process.cwd(), "config"),
     STATEDIR: process.env.STATEDIR ?? join(process.cwd(), "state"),
 

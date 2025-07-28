@@ -137,30 +137,7 @@ export interface ITasksModuleExports {
   TaskPriority: typeof TaskPriorityEnum;
 }
 
-/**
- * Database row interface for tasks.
- */
-export interface ITaskRow {
-  id: number;
-  type: string;
-  module_id: string;
-  instructions: string | null;
-  priority: number;
-  status: string;
-  retry_count: number;
-  max_executions: number;
-  max_time: number | null;
-  result: string | null;
-  error: string | null;
-  progress: number | null;
-  assigned_agent_id: string | null;
-  scheduled_at: string | null;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-  created_by: string | null;
-  metadata: string | null;
-}
+// Database row types are now auto-generated in database.generated.ts
 
 /**
  * Represents an error report for lint or typecheck tasks.

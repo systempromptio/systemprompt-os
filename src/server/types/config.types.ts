@@ -14,8 +14,6 @@ export interface IServerConfig {
   REFRESHTOKEN_EXPIRY: string;
   AUTHORIZATIONCODE_EXPIRY: string;
 
-    BCRYPTROUNDS: number;
-
     CONFIGPATH: string;
   STATEDIR: string;
 

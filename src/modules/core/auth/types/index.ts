@@ -331,8 +331,8 @@ export interface IUserListRow {
   email: string;
   name?: string | null;
   roles?: string | null;
-  createdAt: string;
-  lastLoginAt?: string | null;
+  created_at: string;
+  last_login_at?: string | null;
 }
 
 /*

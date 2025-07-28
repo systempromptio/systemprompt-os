@@ -8,10 +8,10 @@ import type {
   AgentStatus,
   AgentType,
   IAgent,
-  IAgentRow,
   TaskPriority,
   TaskStatus
 } from '@/modules/core/agents/types/agent.types';
+import type { IAgentsRow } from '@/modules/core/agents/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
@@ -94,7 +94,7 @@ export abstract class AgentBaseRepository {
    * @param row - Database row data.
    * @returns Agent object.
    */
-  protected rowToAgent(row: IAgentRow): IAgent {
+  protected rowToAgent(row: IAgentsRow): IAgent {
     const agent: IAgent = {
       id: row.id,
       name: row.name,

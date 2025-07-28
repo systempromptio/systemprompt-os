@@ -8,6 +8,7 @@ import { AgentService } from '@/modules/core/agents/services/agent.service';
 import { TaskService } from '@/modules/core/tasks/services/task.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerMode, LogOutput } from '@/modules/core/logger/types';
 import { createTestId, waitForEvent } from './setup';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';
@@ -29,19 +30,28 @@ describe('Enhanced Agent Operations Integration Test', () => {
       mkdirSync(testDir, { recursive: true });
     }
     
-    // Initialize logger first
+    // Initialize logger first with proper config
     logger = LoggerService.getInstance();
-    await logger.initialize({
-      level: 'error',
-      outputs: []
+    logger.initialize({
+      stateDir: testDir,
+      logLevel: 'error',
+      mode: LoggerMode.CLI,
+      maxSize: '10MB',
+      maxFiles: 3,
+      outputs: [LogOutput.CONSOLE],
+      files: {
+        system: 'system.log',
+        error: 'error.log',
+        access: 'access.log'
+      }
     });
     
     // Initialize database
-    dbService = DatabaseService.getInstance();
-    await dbService.initialize({
+    await DatabaseService.initialize({
       type: 'sqlite',
       sqlite: { filename: testDbPath }
     }, logger);
+    dbService = DatabaseService.getInstance();
     
     // Create comprehensive schema
     await dbService.execute(`
@@ -99,9 +109,18 @@ describe('Enhanced Agent Operations Integration Test', () => {
       )
     `);
     
-    // Initialize services
+    // Initialize services with required dependencies
+    const { TaskRepository } = await import('@/modules/core/tasks/repositories/task.repository');
+    const { AgentRepository } = await import('@/modules/core/agents/repositories/agent.repository');
+    
+    const taskRepository = new TaskRepository(dbService);
+    const agentRepository = new AgentRepository(dbService);
+    
     agentService = AgentService.getInstance();
+    agentService.initialize(agentRepository, logger);
+    
     taskService = TaskService.getInstance();
+    await taskService.initialize(taskRepository, logger);
     
     console.log('✅ Enhanced agent operations test ready!');
   });
@@ -302,7 +321,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       ];
       
       for (const task of tasks) {
-        await taskService.createTask({
+        await taskService.addTask({
           type: 'performance-test',
           moduleId: 'test',
           assignedAgentId: agent.id,
@@ -395,17 +414,17 @@ describe('Enhanced Agent Operations Integration Test', () => {
       
       // Create tasks requiring different capabilities
       const tasks = await Promise.all([
-        taskService.createTask({
+        taskService.addTask({
           type: 'data-analysis',
           moduleId: 'analytics',
           instructions: { dataset: 'sales_data.csv', operation: 'correlation_analysis' }
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'web-scraping',
           moduleId: 'scraper',
           instructions: { url: 'https://example.com', selector: '.data' }
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'file-processing',
           moduleId: 'files',
           instructions: { operation: 'merge', files: ['a.txt', 'b.txt'] }
@@ -440,7 +459,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       // Create multiple tasks for the same agent
       const tasks = [];
       for (let i = 0; i < 5; i++) {
-        const task = await taskService.createTask({
+        const task = await taskService.addTask({
           type: 'processing-task',
           moduleId: 'test',
           instructions: { index: i }
@@ -484,7 +503,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       const tasks = [];
       
       for (const priority of taskPriorities) {
-        const task = await taskService.createTask({
+        const task = await taskService.addTask({
           type: 'priority-task',
           moduleId: 'test',
           priority,
@@ -520,7 +539,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       await agentService.start(agent.id);
       
       // Create task that will fail
-      const task = await taskService.createTask({
+      const task = await taskService.addTask({
         type: 'failing-task',
         moduleId: 'test',
         instructions: { shouldFail: true }
@@ -636,7 +655,7 @@ describe('Enhanced Agent Operations Integration Test', () => {
       await Promise.all(workerAgents.map(agent => agentService.start(agent.id)));
       
       // Create complex task requiring coordination
-      const complexTask = await taskService.createTask({
+      const complexTask = await taskService.addTask({
         type: 'complex-coordination',
         moduleId: 'coordination',
         instructions: {

@@ -33,8 +33,13 @@ describe('Database Operations Integration Test', () => {
       mkdirSync(testDir, { recursive: true });
     }
     
-    // Initialize logger first
+    // Initialize logger first with proper config
     logger = LoggerService.getInstance();
+    logger.initialize({
+      stateDir: testDir,
+      logLevel: 'error',
+      outputs: []
+    });
     
     // Initialize database with proper config
     await DatabaseService.initialize({

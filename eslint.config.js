@@ -112,6 +112,7 @@ export default [
       "systemprompt-os/no-js-extensions-in-imports": "error",
       "systemprompt-os/enforce-logsource-enum": "error",
       "systemprompt-os/enforce-module-index-pattern": "error",
+      "systemprompt-os/enforce-database-schema-types": "error",
 
       // TypeScript strict rules - using recommended-type-checked and strict
       // These provide type-aware linting for maximum safety

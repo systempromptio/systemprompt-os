@@ -171,10 +171,10 @@ export class UserRepository {
       id: userRow.id,
       email: userRow.email,
       name: userRow.name,
-      avatarurl: userRow.avatarurl,
+      avatarurl: userRow.avatar_url,
       roles: rolesResult.rows.map((role): string => { return role.name }),
-      createdAt: userRow.createdAt,
-      updatedAt: userRow.updatedAt,
+      createdAt: userRow.created_at,
+      updatedAt: userRow.updated_at,
     };
   }
 
@@ -205,10 +205,10 @@ export class UserRepository {
       id: userRow.id,
       email: userRow.email,
       name: userRow.name,
-      avatarurl: userRow.avatarurl,
+      avatarurl: userRow.avatar_url,
       roles: roles.map((role): string => { return role.name }),
-      createdAt: userRow.createdAt,
-      updatedAt: userRow.updatedAt,
+      createdAt: userRow.created_at,
+      updatedAt: userRow.updated_at,
     };
   }
 

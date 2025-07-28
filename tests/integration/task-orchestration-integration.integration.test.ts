@@ -10,6 +10,7 @@ import { AgentService } from '@/modules/core/agents/services/agent.service';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerMode, LogOutput } from '@/modules/core/logger/types';
 import { createTestId, waitForEvent } from './setup';
 import type { ITask } from '@/modules/core/tasks/types/index';
 import type { IAgent } from '@/modules/core/agents/types/agent.types';
@@ -35,8 +36,22 @@ describe('Task Orchestration Integration Test', () => {
       fs.mkdirSync(testDir, { recursive: true });
     }
     
-    // Initialize core services
+    // Initialize logger first with proper config
     logger = LoggerService.getInstance();
+    logger.initialize({
+      stateDir: testDir,
+      logLevel: 'error',
+      mode: LoggerMode.CLI,
+      maxSize: '10MB',
+      maxFiles: 3,
+      outputs: [LogOutput.CONSOLE],
+      files: {
+        system: 'system.log',
+        error: 'error.log',
+        access: 'access.log'
+      }
+    });
+    
     eventBus = EventBusService.getInstance();
     
     // Initialize database with proper config
@@ -87,9 +102,22 @@ describe('Task Orchestration Integration Test', () => {
       )
     `);
     
-    // Initialize services
+    // Initialize services with required dependencies
+    const { TaskRepository } = await import('@/modules/core/tasks/repositories/task.repository');
+    const { AgentRepository } = await import('@/modules/core/agents/repositories/agent.repository');
+    
+    const taskRepository = new TaskRepository(dbService);
+    const agentRepository = new AgentRepository(dbService);
+    
+    // Initialize event bus before services
+    eventBus = EventBusService.getInstance();
+    
     taskService = TaskService.getInstance();
+    await taskService.initialize(taskRepository, logger);
+    
     agentService = AgentService.getInstance();
+    agentService.initialize(agentRepository, logger);
+    
     orchestrator = TaskOrchestratorService.getInstance();
     
     // Setup orchestrator with comprehensive APIs

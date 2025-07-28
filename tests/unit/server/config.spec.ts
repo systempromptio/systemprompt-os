@@ -64,12 +64,10 @@ describe('ServerConfig', () => {
     });
 
     it('should parse numeric environment variables', async () => {
-      vi.stubEnv('BCRYPTROUNDS', '12');
       vi.stubEnv('LOGMAX_FILES', '10');
       
       const { CONFIG } = await import('../../../src/server/config');
 
-      expect(CONFIG.BCRYPTROUNDS).toBe(12);
       expect(CONFIG.LOGMAX_FILES).toBe(10);
     });
 

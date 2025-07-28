@@ -8,6 +8,7 @@ import { TaskService } from '@/modules/core/tasks/services/task.service';
 import { AgentService } from '@/modules/core/agents/services/agent.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LoggerMode, LogOutput } from '@/modules/core/logger/types';
 import { createTestId, waitForEvent } from './setup';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';
@@ -29,19 +30,28 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       mkdirSync(testDir, { recursive: true });
     }
     
-    // Initialize logger first
+    // Initialize logger first with proper config
     logger = LoggerService.getInstance();
-    await logger.initialize({
-      level: 'error',
-      outputs: []
+    logger.initialize({
+      stateDir: testDir,
+      logLevel: 'error',
+      mode: LoggerMode.CLI,
+      maxSize: '10MB',
+      maxFiles: 3,
+      outputs: [LogOutput.CONSOLE],
+      files: {
+        system: 'system.log',
+        error: 'error.log',
+        access: 'access.log'
+      }
     });
     
     // Initialize database
-    dbService = DatabaseService.getInstance();
-    await dbService.initialize({
+    await DatabaseService.initialize({
       type: 'sqlite',
       sqlite: { filename: testDbPath }
     }, logger);
+    dbService = DatabaseService.getInstance();
     
     // Create enhanced schema for workflow testing
     await dbService.execute(`
@@ -114,9 +124,18 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       )
     `);
     
-    // Initialize services
+    // Initialize services with required dependencies
+    const { TaskRepository } = await import('@/modules/core/tasks/repositories/task.repository');
+    const { AgentRepository } = await import('@/modules/core/agents/repositories/agent.repository');
+    
+    const taskRepository = new TaskRepository(dbService);
+    const agentRepository = new AgentRepository(dbService);
+    
     taskService = TaskService.getInstance();
+    await taskService.initialize(taskRepository, logger);
+    
     agentService = AgentService.getInstance();
+    agentService.initialize(agentRepository, logger);
     
     console.log('✅ Task workflows integration test ready!');
   });
@@ -147,7 +166,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
 
   describe('Complex Task Creation and Management', () => {
     it('should create tasks with comprehensive metadata', async () => {
-      const complexTask = await taskService.createTask({
+      const complexTask = await taskService.addTask({
         type: 'data-pipeline',
         moduleId: 'analytics',
         instructions: {
@@ -192,7 +211,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       
       for (const invalidTask of invalidTasks) {
         try {
-          await taskService.createTask(invalidTask as any);
+          await taskService.addTask(invalidTask as any);
           expect.fail(`Should have rejected invalid task: ${JSON.stringify(invalidTask)}`);
         } catch (error) {
           expect(error).toBeInstanceOf(Error);
@@ -201,7 +220,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     });
 
     it('should support task templates and cloning', async () => {
-      const templateTask = await taskService.createTask({
+      const templateTask = await taskService.addTask({
         type: 'report-generation',
         moduleId: 'reports',
         instructions: {
@@ -214,7 +233,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       });
       
       // Clone task with modifications
-      const clonedTask = await taskService.createTask({
+      const clonedTask = await taskService.addTask({
         ...templateTask,
         id: undefined, // Let it generate new ID
         instructions: {
@@ -234,25 +253,25 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     it('should manage task queues with different strategies', async () => {
       // Create tasks with different priorities and deadlines
       const tasks = await Promise.all([
-        taskService.createTask({
+        taskService.addTask({
           type: 'urgent-task',
           moduleId: 'urgent',
           priority: 10,
           deadline: new Date(Date.now() + 3600000) // 1 hour
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'normal-task',
           moduleId: 'normal',
           priority: 5,
           deadline: new Date(Date.now() + 86400000) // 24 hours
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'low-priority-task',
           moduleId: 'batch',
           priority: 2,
           deadline: new Date(Date.now() + 604800000) // 1 week
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'critical-task',
           moduleId: 'critical',
           priority: 9,
@@ -293,21 +312,21 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       );
       
       // Create tasks in sequence
-      const extractTask = await taskService.createTask({
+      const extractTask = await taskService.addTask({
         type: 'data-extraction',
         moduleId: 'etl',
         workflowId,
         instructions: { source: 'api', endpoint: '/data' }
       });
       
-      const transformTask = await taskService.createTask({
+      const transformTask = await taskService.addTask({
         type: 'data-transformation',
         moduleId: 'etl',
         workflowId,
         instructions: { transformations: ['clean', 'normalize'] }
       });
       
-      const loadTask = await taskService.createTask({
+      const loadTask = await taskService.addTask({
         type: 'data-loading',
         moduleId: 'etl',
         workflowId,
@@ -348,7 +367,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       );
       
       // Create base task
-      const baseTask = await taskService.createTask({
+      const baseTask = await taskService.addTask({
         type: 'data-preparation',
         moduleId: 'prep',
         workflowId
@@ -356,19 +375,19 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       
       // Create parallel tasks that all depend on base task
       const parallelTasks = await Promise.all([
-        taskService.createTask({
+        taskService.addTask({
           type: 'analysis-a',
           moduleId: 'analytics',
           workflowId,
           instructions: { analysis_type: 'statistical' }
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'analysis-b',
           moduleId: 'analytics',
           workflowId,
           instructions: { analysis_type: 'ml' }
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'analysis-c',
           moduleId: 'analytics',
           workflowId,
@@ -385,7 +404,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       }
       
       // Create final aggregation task that depends on all parallel tasks
-      const aggregationTask = await taskService.createTask({
+      const aggregationTask = await taskService.addTask({
         type: 'result-aggregation',
         moduleId: 'aggregation',
         workflowId
@@ -419,17 +438,17 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     });
 
     it('should detect and prevent circular dependencies', async () => {
-      const taskA = await taskService.createTask({
+      const taskA = await taskService.addTask({
         type: 'task-a',
         moduleId: 'test'
       });
       
-      const taskB = await taskService.createTask({
+      const taskB = await taskService.addTask({
         type: 'task-b', 
         moduleId: 'test'
       });
       
-      const taskC = await taskService.createTask({
+      const taskC = await taskService.addTask({
         type: 'task-c',
         moduleId: 'test'
       });
@@ -482,7 +501,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     it('should handle conditional task execution', async () => {
       const workflowId = `conditional-workflow-${createTestId()}`;
       
-      const decisionTask = await taskService.createTask({
+      const decisionTask = await taskService.addTask({
         type: 'decision-task',
         moduleId: 'workflow',
         workflowId,
@@ -493,13 +512,13 @@ describe('Comprehensive Task Workflows Integration Test', () => {
         }
       });
       
-      const analysisTask = await taskService.createTask({
+      const analysisTask = await taskService.addTask({
         type: 'data-analysis',
         moduleId: 'analytics',
         workflowId
       });
       
-      const cleanupTask = await taskService.createTask({
+      const cleanupTask = await taskService.addTask({
         type: 'data-cleanup',
         moduleId: 'cleanup',
         workflowId
@@ -545,7 +564,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     it('should handle scheduled task execution', async () => {
       const futureTime = new Date(Date.now() + 5000); // 5 seconds from now
       
-      const scheduledTask = await taskService.createTask({
+      const scheduledTask = await taskService.addTask({
         type: 'scheduled-report',
         moduleId: 'reports',
         instructions: { 
@@ -588,7 +607,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     });
 
     it('should handle task deadlines and escalation', async () => {
-      const nearDeadlineTask = await taskService.createTask({
+      const nearDeadlineTask = await taskService.addTask({
         type: 'urgent-processing',
         moduleId: 'processing',
         priority: 5,
@@ -596,7 +615,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
         estimatedDuration: 1800 // 30 minutes estimated
       });
       
-      const overdueTask = await taskService.createTask({
+      const overdueTask = await taskService.addTask({
         type: 'overdue-task',
         moduleId: 'processing',
         priority: 6,
@@ -642,7 +661,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
     });
 
     it('should implement task retry mechanisms with backoff', async () => {
-      const retryableTask = await taskService.createTask({
+      const retryableTask = await taskService.addTask({
         type: 'unreliable-network-operation',
         moduleId: 'network',
         maxRetries: 3,
@@ -695,7 +714,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       // Create multiple similar tasks for batch processing
       const batchTasks = [];
       for (let i = 0; i < 10; i++) {
-        const task = await taskService.createTask({
+        const task = await taskService.addTask({
           type: 'file-processing',
           moduleId: 'batch',
           workflowId: batchWorkflowId,
@@ -721,7 +740,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       expect(batchGroups[0].task_count).toBe(10);
       
       // Create a batch coordinator task
-      const batchCoordinator = await taskService.createTask({
+      const batchCoordinator = await taskService.addTask({
         type: 'batch-coordinator',
         moduleId: 'batch',
         workflowId: batchWorkflowId,
@@ -749,7 +768,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
 
   describe('Task Performance and Optimization', () => {
     it('should track task execution metrics', async () => {
-      const performanceTask = await taskService.createTask({
+      const performanceTask = await taskService.addTask({
         type: 'performance-test',
         moduleId: 'performance',
         estimatedDuration: 2000,
@@ -797,7 +816,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       
       for (const taskType of taskTypes) {
         for (let i = 0; i < 5; i++) {
-          const task = await taskService.createTask({
+          const task = await taskService.addTask({
             type: taskType,
             moduleId: 'benchmark',
             estimatedDuration: 1000 + (i * 200)
@@ -863,7 +882,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       ]);
       
       // Create high-priority task
-      const urgentTask = await taskService.createTask({
+      const urgentTask = await taskService.addTask({
         type: 'optimization-test',
         moduleId: 'optimizer',
         priority: 9,
@@ -908,7 +927,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       );
       
       // Create initial workflow tasks
-      const initialTask = await taskService.createTask({
+      const initialTask = await taskService.addTask({
         type: 'data-assessment',
         moduleId: 'assessment',
         workflowId: dynamicWorkflowId,
@@ -927,7 +946,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       
       // Dynamically add tasks based on assessment results
       if (result.requiresPartitioning) {
-        await taskService.createTask({
+        await taskService.addTask({
           type: 'data-partitioning',
           moduleId: 'partitioning',
           workflowId: dynamicWorkflowId,
@@ -939,7 +958,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       }
       
       if (result.dataQuality === 'high') {
-        await taskService.createTask({
+        await taskService.addTask({
           type: 'advanced-analytics',
           moduleId: 'analytics',
           workflowId: dynamicWorkflowId,
@@ -972,7 +991,7 @@ describe('Comprehensive Task Workflows Integration Test', () => {
         [versionedWorkflowId + '_v1', 'Versioned Workflow v1', 'Initial version', 'active']
       );
       
-      const v1Task = await taskService.createTask({
+      const v1Task = await taskService.addTask({
         type: 'legacy-processing',
         moduleId: 'legacy',
         workflowId: versionedWorkflowId + '_v1'
@@ -985,12 +1004,12 @@ describe('Comprehensive Task Workflows Integration Test', () => {
       );
       
       const v2Tasks = await Promise.all([
-        taskService.createTask({
+        taskService.addTask({
           type: 'optimized-processing',
           moduleId: 'optimized',
           workflowId: versionedWorkflowId + '_v2'
         }),
-        taskService.createTask({
+        taskService.addTask({
           type: 'validation',
           moduleId: 'validation',
           workflowId: versionedWorkflowId + '_v2'
