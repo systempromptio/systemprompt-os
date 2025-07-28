@@ -96,14 +96,16 @@ const checkParameterTypes = (line: string, lineNumber: number): string[] => {
   if (paramMatch?.groups?.params !== undefined) {
     const { groups } = paramMatch;
     const { params } = groups;
-    const paramList = params.split(',');
-    paramList.forEach((param): void => {
-      const trimmedParam = param.trim();
-      if (trimmedParam.length > 0 && !trimmedParam.includes(':')
-          && (/\w+/u).test(trimmedParam) && !trimmedParam.includes('...')) {
-        issues.push(`Line ${String(lineNumber)}: Parameter is missing type annotation`);
-      }
-    });
+    if (params !== undefined) {
+      const paramList = params.split(',');
+      paramList.forEach((param): void => {
+        const trimmedParam = param.trim();
+        if (trimmedParam.length > 0 && !trimmedParam.includes(':')
+            && (/\w+/u).test(trimmedParam) && !trimmedParam.includes('...')) {
+          issues.push(`Line ${String(lineNumber)}: Parameter is missing type annotation`);
+        }
+      });
+    }
   }
   return issues;
 };

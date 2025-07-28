@@ -108,7 +108,7 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
    * Health check for the Agents module.
    * @returns Health status object with healthy boolean and optional message.
    */
-  healthCheck(): { healthy: boolean; message?: string } {
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
       if (!this.initialized) {
         return {

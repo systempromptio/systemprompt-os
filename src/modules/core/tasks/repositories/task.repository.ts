@@ -518,7 +518,7 @@ updateValues
    */
   private safeJsonParse(jsonString: string): unknown {
     try {
-      return JSON.parse(jsonString) as T;
+      return JSON.parse(jsonString) as unknown;
     } catch {
       return undefined;
     }

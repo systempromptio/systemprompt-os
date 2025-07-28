@@ -96,7 +96,9 @@ export class TaskService implements ITaskService {
     }
 
     const { id: taskId } = task;
-    await this.markTaskInProgress(taskId);
+    if (taskId !== undefined) {
+      await this.markTaskInProgress(taskId);
+    }
     const updatedTask = {
       ...task,
       status: TaskStatusEnum.IN_PROGRESS
@@ -181,7 +183,7 @@ export class TaskService implements ITaskService {
    * @param handler - Task handler to register.
    * @throws {Error} If service not initialized or handler already registered.
    */
-  public registerHandler(handler: ITaskHandler): void {
+  public async registerHandler(handler: ITaskHandler): Promise<void> {
     this.ensureInitialized();
 
     if (this.handlers.has(handler.type)) {
@@ -197,7 +199,7 @@ export class TaskService implements ITaskService {
    * @param type - Task type to unregister handler for.
    * @throws {Error} If service not initialized.
    */
-  public unregisterHandler(type: string): void {
+  public async unregisterHandler(type: string): Promise<void> {
     this.ensureInitialized();
     this.handlers.delete(type);
     this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
@@ -254,19 +256,4 @@ export class TaskService implements ITaskService {
     await this.taskRepository.updateStatus(taskId, TaskStatusEnum.IN_PROGRESS);
   }
 
-  /**
-   * Checks if a task status is terminal.
-   * @param status - Task status to check.
-   * @returns True if status is terminal.
-   * @private
-   */
-  private isTerminalStatus(status: TaskStatusEnum): boolean {
-    const terminalStatuses = [
-      TaskStatusEnum.COMPLETED,
-      TaskStatusEnum.FAILED,
-      TaskStatusEnum.CANCELLED,
-      TaskStatusEnum.STOPPED
-    ];
-    return terminalStatuses.includes(status);
-  }
 }

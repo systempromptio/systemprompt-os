@@ -11,7 +11,7 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import type { ICLIContext } from '@/modules/core/cli/types/index';
 import {
- existsSync, readFileSync, readdirSync, statSync
+ existsSync, readFileSync
 } from 'fs';
 import { join } from 'path';
 import { CORE_MODULES } from '@/constants/bootstrap';

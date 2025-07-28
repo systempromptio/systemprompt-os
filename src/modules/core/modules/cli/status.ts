@@ -9,6 +9,7 @@ import { ModuleManagerService } from '@/modules/core/modules/services/module-man
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { ModuleTypeEnum } from '@/modules/core/modules/types/index';
 
 export const command = {
   description: 'Show module status (enabled/healthy)',
@@ -36,7 +37,7 @@ export const command = {
         'Enabled modules': modules.filter(m => { return m.enabled }).length,
         'Disabled modules': modules.filter(m => { return !m.enabled }).length,
         'Core modules': modules.filter(m => { return m.type === 'core' }).length,
-        'Extension modules': modules.filter(m => { return m.type === 'extension' }).length,
+        'Extension modules': modules.filter(m => { return m.type === ModuleTypeEnum.EXTENSION }).length,
       });
 
       process.exit(0);

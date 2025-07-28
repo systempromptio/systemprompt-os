@@ -169,7 +169,7 @@ const executeAddTask = async (options: CLIContext): Promise<void> => {
       moduleId: params.moduleId,
       instructions,
       priority: params.priority,
-      status: taskStatus,
+      status: taskStatus as TaskStatusEnum,
       maxExecutions: params.maxExecutions
     });
 

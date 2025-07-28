@@ -43,7 +43,11 @@ export const enum ModuleStatusEnum {
  */
 export const enum ModuleTypeEnum {
   CORE = 'core',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
+  SERVICE = 'service',
+  DAEMON = 'daemon',
+  PLUGIN = 'plugin',
+  EXTENSION = 'extension'
 }
 
 /**

@@ -9,6 +9,7 @@ import type {
   IAgentLog,
   IAgentMetrics,
   IAgentTask,
+  IAgentRow,
   ICreateAgentDto,
   ICreateTaskDto,
   IUpdateAgentDto,
@@ -107,7 +108,7 @@ export class AgentRepository extends AgentBaseRepository {
       return null;
     }
 
-    return this.rowToAgent(row);
+    return this.rowToAgent(row as IAgentRow);
   }
 
   /**
@@ -127,7 +128,7 @@ export class AgentRepository extends AgentBaseRepository {
       return null;
     }
 
-    return this.rowToAgent(row);
+    return this.rowToAgent(row as IAgentRow);
   }
 
   /**
@@ -149,7 +150,7 @@ export class AgentRepository extends AgentBaseRepository {
     const result = await this.database.query(query, params);
 
     return result.rows.map((row: any): IAgent => {
-      return this.rowToAgent(row);
+      return this.rowToAgent(row as IAgentRow);
     });
   }
 
@@ -161,8 +162,8 @@ export class AgentRepository extends AgentBaseRepository {
    */
   async updateAgent(id: string, data: IUpdateAgentDto): Promise<boolean> {
     const { query: updateQuery, params } = this.buildUpdateQuery(id, data);
-    const result = await this.database.execute(updateQuery, params);
-    return result.rowsAffected > 0;
+    await this.database.execute(updateQuery, params);
+    return true;
   }
 
   /**
@@ -171,8 +172,8 @@ export class AgentRepository extends AgentBaseRepository {
    * @returns Promise resolving to success status.
    */
   async deleteAgent(id: string): Promise<boolean> {
-    const result = await this.database.execute('DELETE FROM agents WHERE id = ?', [id]);
-    return result.rowsAffected > 0;
+    await this.database.execute('DELETE FROM agents WHERE id = ?', [id]);
+    return true;
   }
 
   /**

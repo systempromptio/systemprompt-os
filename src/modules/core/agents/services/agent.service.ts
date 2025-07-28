@@ -243,7 +243,8 @@ export class AgentService {
       return null;
     }
 
-    return await this.repository.updateAgent(agent.id, data);
+    const updated = await this.repository.updateAgent(agent.id, data);
+    return updated ? agent : null;
   }
 
   /**

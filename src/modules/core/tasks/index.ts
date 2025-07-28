@@ -57,7 +57,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
     this.database = DatabaseService.getInstance();
     this.logger = LoggerService.getInstance();
 
-    await this.database.initialize();
+    // Database should already be initialized at this point
     if (this.initialized) {
       throw new Error('Tasks module already initialized');
     }
@@ -80,7 +80,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
    * Start the tasks module.
    * @throws {Error} If module not initialized or already started.
    */
-  start(): void {
+  async start(): Promise<void> {
     if (!this.initialized) {
       throw new Error('Tasks module not initialized');
     }
@@ -89,8 +89,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
       throw new Error('Tasks module already started');
     }
 
-    const { RUNNING } = ModuleStatusEnum;
-    this.status = RUNNING;
+    this.status = ModuleStatusEnum.RUNNING;
     this.started = true;
 
     this.logger.info(LogSource.MODULES, 'Tasks module started');
@@ -99,10 +98,9 @@ export class TasksModule implements IModule<ITasksModuleExports> {
   /**
    * Stop the tasks module.
    */
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.started) {
-      const { STOPPED } = ModuleStatusEnum;
-      this.status = STOPPED;
+      this.status = ModuleStatusEnum.STOPPED;
       this.started = false;
       this.logger.info(LogSource.MODULES, 'Tasks module stopped');
     }
