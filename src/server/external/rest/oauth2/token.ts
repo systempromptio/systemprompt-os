@@ -190,17 +190,29 @@ export class TokenEndpoint {
     }
 
     if (params.client_id !== undefined && codeData.clientId !== params.client_id) {
+      logger.error(LogSource.AUTH, 'Invalid client', {
+        category: 'oauth2',
+        action: 'token_validation'
+      });
       const error = OAuth2Error.invalidGrant('Invalid client');
       return res.status(error.code).json(error.toJSON());
     }
 
     if (codeData.redirectUri !== params.redirect_uri) {
+      logger.error(LogSource.AUTH, 'Invalid redirect URI', {
+        category: 'oauth2',
+        action: 'token_validation'
+      });
       const error = OAuth2Error.invalidGrant('Invalid redirect URI');
       return res.status(error.code).json(error.toJSON());
     }
 
     if (codeData.codeChallenge) {
       if (params.code_verifier === undefined) {
+        logger.error(LogSource.AUTH, 'Code verifier required', {
+          category: 'oauth2',
+          action: 'token_validation'
+        });
         const error = OAuth2Error.invalidRequest('Code verifier required');
         return res.status(error.code).json(error.toJSON());
       }
@@ -210,6 +222,10 @@ export class TokenEndpoint {
         .digest('base64url');
 
       if (verifierHash !== codeData.codeChallenge) {
+        logger.error(LogSource.AUTH, 'Invalid code verifier', {
+          category: 'oauth2',
+          action: 'token_validation'
+        });
         const error = OAuth2Error.invalidGrant('Invalid code verifier');
         return res.status(error.code).json(error.toJSON());
       }

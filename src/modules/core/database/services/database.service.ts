@@ -9,7 +9,8 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
-  ITransaction
+  ITransaction,
+  IPreparedStatement
 } from '@/modules/core/database/types/database.types';
 import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
 import type { ILogger } from '@/modules/core/logger/types/index';
@@ -104,6 +105,16 @@ export class DatabaseService implements IDatabaseService {
   public async execute(sql: string, params?: unknown[]): Promise<void> {
     const connection = await this.getConnection();
     await connection.execute(sql, params);
+  }
+
+  /**
+   * Prepare a SQL statement for repeated execution.
+   * @param sql - SQL statement to prepare.
+   * @returns Prepared statement.
+   */
+  public async prepare(sql: string): Promise<IPreparedStatement> {
+    const connection = await this.getConnection();
+    return await connection.prepare(sql);
   }
 
   /**

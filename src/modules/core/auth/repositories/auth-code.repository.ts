@@ -92,16 +92,16 @@ export class AuthCodeRepository {
     }
 
     return {
-      clientId: row.clientid,
-      redirectUri: row.redirecturi,
+      clientId: row.client_id,
+      redirectUri: row.redirect_uri,
       scope: row.scope,
-      ...row.userId !== null && { userId: row.userId },
-      ...row.useremail !== null && { userEmail: row.useremail },
+      ...row.user_id !== null && { userId: row.user_id },
+      ...row.user_email !== null && { userEmail: row.user_email },
       ...row.provider !== null && { provider: row.provider },
-      ...row.providertokens !== null && { providerTokens: JSON.parse(row.providertokens) },
-      ...row.codechallenge !== null && { codeChallenge: row.codechallenge },
-      ...row.codeChallengeMethod !== null && { codeChallengeMethod: row.codeChallengeMethod },
-      expiresAt: new Date(row.expiresat),
+      ...row.provider_tokens !== null && { providerTokens: JSON.parse(row.provider_tokens) },
+      ...row.code_challenge !== null && { codeChallenge: row.code_challenge },
+      ...row.code_challenge_method !== null && { codeChallengeMethod: row.code_challenge_method },
+      expiresAt: new Date(row.expires_at),
     };
   }
 
