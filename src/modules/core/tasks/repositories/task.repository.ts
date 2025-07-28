@@ -5,35 +5,14 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type {
-  ITask,
-  ITaskFilter,
-  ITaskStatistics
-} from '@/modules/core/tasks/types/index';
 import {
-  TaskExecutionStatusEnum,
+  type ITask,
+  type ITaskFilter,
+  type ITaskRow,
+  type ITaskStatistics,
   TaskPriorityEnum,
   TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
-
-/**
- * Database row interface for tasks.
- */
-interface ITaskRow {
-  id: number;
-  type: string;
-  module_id: string;
-  payload: string | null;
-  priority: number;
-  status: string;
-  retry_count: number;
-  max_retries: number;
-  scheduled_at: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-  metadata: string | null;
-}
 
 /**
  * Task repository for database operations.
@@ -51,67 +30,11 @@ export class TaskRepository {
    * @returns Promise resolving to the created task.
    */
   async create(task: Partial<ITask>): Promise<ITask> {
-    if (task.type == null || typeof task.type !== 'string') {
-      throw new Error('Task type is required and must be a string');
-    }
-    if (task.moduleId == null || typeof task.moduleId !== 'string') {
-      throw new Error('Task moduleId is required and must be a string');
-    }
-
-    const taskData = {
-      type: task.type,
-      moduleId: task.moduleId,
-      payload: task.payload != null ? JSON.stringify(task.payload) : null,
-      priority: task.priority ?? TaskPriorityEnum.NORMAL,
-      status: TaskStatusEnum.PENDING,
-      retryCount: 0,
-      maxRetries: task.maxRetries ?? 3,
-      scheduledAt: task.scheduledAt?.toISOString(),
-      createdBy: task.createdBy,
-      metadata: task.metadata != null ? JSON.stringify(task.metadata) : null
-    };
-
-    await this.database.execute(
-      `INSERT INTO tasks_queue 
-       (type, module_id, payload, priority, status, retry_count, max_retries, 
-        scheduled_at, created_by, metadata)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        taskData.type,
-        taskData.moduleId,
-        taskData.payload,
-        taskData.priority,
-        taskData.status,
-        taskData.retryCount,
-        taskData.maxRetries,
-        taskData.scheduledAt,
-        taskData.createdBy,
-        taskData.metadata
-      ]
-    );
-
-    const idResult = await this.database.query<{ id: number }>(
-      'SELECT last_insert_rowid() as id'
-    );
-    const taskId = idResult[0]?.id;
-
-    if (taskId == null) {
-      throw new Error('Failed to get task ID after insert');
-    }
-
-    return {
-      id: taskId,
-      type: taskData.type,
-      moduleId: taskData.moduleId,
-      payload: task.payload,
-      priority: taskData.priority,
-      status: taskData.status,
-      retryCount: taskData.retryCount,
-      maxRetries: taskData.maxRetries,
-      ...task.scheduledAt != null && { scheduledAt: task.scheduledAt },
-      ...taskData.createdBy != null && { createdBy: taskData.createdBy },
-      ...task.metadata != null && { metadata: task.metadata }
-    };
+    this.validateRequiredTaskFields(task);
+    const taskData = this.prepareTaskDataForInsert(task);
+    await this.insertTaskData(taskData);
+    const taskId = await this.getLastInsertedTaskId();
+    return this.buildCreatedTaskResponse(taskId, taskData, task);
   }
 
   /**
@@ -121,33 +44,24 @@ export class TaskRepository {
    */
   async findNextAvailable(types?: string[]): Promise<ITask | null> {
     const now = new Date().toISOString();
-    let sql = `
-      SELECT * FROM tasks_queue 
-      WHERE status = ? 
-      AND (scheduled_at IS NULL OR scheduled_at <= ?)
-    `;
+    let sql = `SELECT * FROM task WHERE status = ? AND (scheduled_at IS NULL OR scheduled_at <= ?)`;
     const params: unknown[] = [TaskStatusEnum.PENDING, now];
 
-    if (types != null && types.length > 0) {
-      const placeholders = types.map((): string => { return '?' }).join(',');
+    if (types !== undefined && types.length > 0) {
+      const placeholders = types.map(() => { return '?' }).join(',');
       sql += ` AND type IN (${placeholders})`;
       params.push(...types);
     }
 
     sql += ' ORDER BY priority DESC, created_at ASC LIMIT 1';
-
     const result = await this.database.query<ITaskRow>(sql, params);
 
     if (result.length === 0) {
       return null;
     }
 
-    const row = result[0];
-    if (row === undefined) {
-      return null;
-    }
-
-    return this.mapRowToTask(row);
+    const [row] = result;
+    return row === undefined ? null : this.mapRowToTask(row);
   }
 
   /**
@@ -157,10 +71,7 @@ export class TaskRepository {
    * @returns Promise that resolves when update is complete.
    */
   async updateStatus(taskId: number, status: TaskStatusEnum): Promise<void> {
-    await this.database.execute(
-      'UPDATE tasks_queue SET status = ? WHERE id = ?',
-      [status, taskId]
-    );
+    await this.database.execute('UPDATE task SET status = ? WHERE id = ?', [status, taskId]);
   }
 
   /**
@@ -169,21 +80,14 @@ export class TaskRepository {
    * @returns Promise resolving to task or null.
    */
   async findById(taskId: number): Promise<ITask | null> {
-    const result = await this.database.query<ITaskRow>(
-      'SELECT * FROM tasks_queue WHERE id = ?',
-      [taskId]
-    );
+    const result = await this.database.query<ITaskRow>('SELECT * FROM task WHERE id = ?', [taskId]);
 
     if (result.length === 0) {
       return null;
     }
 
-    const row = result[0];
-    if (row === undefined) {
-      return null;
-    }
-
-    return this.mapRowToTask(row);
+    const [row] = result;
+    return row === undefined ? null : this.mapRowToTask(row);
   }
 
   /**
@@ -192,67 +96,26 @@ export class TaskRepository {
    * @returns Promise resolving to array of tasks.
    */
   async findWithFilter(filter?: ITaskFilter): Promise<ITask[]> {
-    let sql = 'SELECT * FROM tasks_queue WHERE 1=1';
-    const params: unknown[] = [];
-
-    if (filter?.status != null) {
-      sql += ' AND status = ?';
-      params.push(filter.status);
-    }
-
-    if (filter?.type != null) {
-      sql += ' AND type = ?';
-      params.push(filter.type);
-    }
-
-    if (filter?.moduleId != null) {
-      sql += ' AND module_id = ?';
-      params.push(filter.moduleId);
-    }
-
-    sql += ' ORDER BY priority DESC, created_at ASC';
-
-    if (filter?.limit != null) {
-      sql += ' LIMIT ?';
-      params.push(filter.limit);
-    }
-
-    if (filter?.offset != null) {
-      sql += ' OFFSET ?';
-      params.push(filter.offset);
-    }
-
+    const { sql, params } = this.buildFilterQuery(filter);
     const result = await this.database.query<ITaskRow>(sql, params);
-    return result.map(row => { return this.mapRowToTask(row) });
+    return result.map((row): ITask => { return this.mapRowToTask(row) });
   }
 
   /**
-   * Create task execution record.
-   * @param taskId - Task ID.
-   * @param status - Execution status.
-   * @returns Promise that resolves when record is created.
+   * Update task with partial data.
+   * @param taskId - Task ID to update.
+   * @param updates - Partial task data to update.
+   * @returns Promise resolving to the updated task.
    */
-  async createExecution(taskId: number, status: TaskExecutionStatusEnum): Promise<void> {
-    await this.database.execute(
-      'INSERT INTO tasks_executions (task_id, status) VALUES (?, ?)',
-      [taskId, status]
-    );
-  }
+  async update(taskId: number, updates: Partial<ITask>): Promise<ITask> {
+    const { updateFields, updateValues } = this.buildUpdateQuery(updates);
 
-  /**
-   * Update task execution status.
-   * @param taskId - Task ID.
-   * @param status - New execution status.
-   * @returns Promise that resolves when update is complete.
-   */
-  async updateExecution(taskId: number, status: TaskExecutionStatusEnum): Promise<void> {
-    await this.database.execute(
-      `UPDATE tasks_executions 
-       SET status = ?, completed_at = CURRENT_TIMESTAMP,
-       duration_ms = (strftime('%s', 'now') - strftime('%s', started_at)) * 1000
-       WHERE task_id = ? AND completed_at IS NULL`,
-      [status, taskId]
-    );
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    await this.executeUpdateQuery(updateFields, updateValues, taskId);
+    return await this.getUpdatedTask(taskId);
   }
 
   /**
@@ -260,32 +123,11 @@ export class TaskRepository {
    * @returns Promise resolving to task statistics.
    */
   async getStatistics(): Promise<ITaskStatistics> {
-    const statusCountsResult = await this.database.query<{
-      status: string;
-      count: number;
-    }>('SELECT status, COUNT(*) as count FROM tasks_queue GROUP BY status');
+    const [statusCounts, tasksByType] = await Promise.all([
+      this.getStatusCounts(),
+      this.getTypeCounts()
+    ]);
 
-    const statusCounts: Record<string, number> = {};
-    statusCountsResult.forEach(row => {
-      statusCounts[row.status] = row.count;
-    });
-
-    const typeCountsResult = await this.database.query<{
-      type: string;
-      count: number;
-    }>('SELECT type, COUNT(*) as count FROM tasks_queue GROUP BY type');
-
-    const tasksByType: Record<string, number> = {};
-    typeCountsResult.forEach(row => {
-      tasksByType[row.type] = row.count;
-    });
-
-    const avgTimeResult = await this.database.query<{ avg_time: number | null }>(
-      'SELECT AVG(duration_ms) as avg_time FROM tasks_executions WHERE status = ?',
-      [TaskExecutionStatusEnum.SUCCESS]
-    );
-
-    const avgTime = avgTimeResult[0]?.avg_time;
     const total = Object.values(statusCounts).reduce((sum, count) => { return sum + count }, 0);
 
     return {
@@ -295,51 +137,311 @@ export class TaskRepository {
       completed: statusCounts[TaskStatusEnum.COMPLETED] ?? 0,
       failed: statusCounts[TaskStatusEnum.FAILED] ?? 0,
       cancelled: statusCounts[TaskStatusEnum.CANCELLED] ?? 0,
-      ...avgTime != null && { averageExecutionTime: avgTime },
       tasksByType
     };
   }
 
   /**
-   * Register or update task type.
-   * @param type - Task type name.
-   * @param moduleId - Module ID.
-   * @param description - Task description.
-   * @returns Promise that resolves when type is registered.
+   * Validate required task fields.
+   * @param task - Task data to validate.
+   * @throws Error if validation fails.
    */
-  async registerTaskType(
-    type: string,
-    moduleId: string,
-    description: string
-  ): Promise<void> {
-    await this.database.execute(
-      `INSERT OR REPLACE INTO tasks_types (type, module_id, description, enabled)
-       VALUES (?, ?, ?, ?)`,
-      [type, moduleId, description, 1]
-    );
+  private validateRequiredTaskFields(task: Partial<ITask>): void {
+    if (typeof task.type !== 'string') {
+      throw new Error('Task type is required and must be a string');
+    }
+    if (typeof task.moduleId !== 'string') {
+      throw new Error('Task moduleId is required and must be a string');
+    }
   }
 
   /**
-   * Disable task type.
-   * @param type - Task type to disable.
-   * @returns Promise that resolves when type is disabled.
+   * Prepare task data for database insert.
+   * @param task - Original task data.
+   * @returns Prepared task data.
    */
-  async disableTaskType(type: string): Promise<void> {
-    await this.database.execute(
-      'UPDATE tasks_types SET enabled = 0 WHERE type = ?',
-      [type]
+  private prepareTaskDataForInsert(task: Partial<ITask>): Record<string, unknown> {
+    return {
+      type: task.type,
+      moduleId: task.moduleId,
+      instructions: task.instructions === undefined ? null : JSON.stringify(task.instructions),
+      priority: task.priority ?? TaskPriorityEnum.NORMAL,
+      status: task.status ?? TaskStatusEnum.PENDING,
+      retryCount: 0,
+      maxExecutions: task.maxExecutions ?? 3,
+      maxTime: task.maxTime ?? null,
+      result: task.result ?? null,
+      scheduledAt: task.scheduledAt?.toISOString(),
+      createdBy: task.createdBy,
+      metadata: task.metadata === undefined ? null : JSON.stringify(task.metadata)
+    };
+  }
+
+  /**
+   * Insert task data into database.
+   * @param taskData - Prepared task data.
+   * @returns Promise that resolves when insert is complete.
+   */
+  private async insertTaskData(taskData: Record<string, unknown>): Promise<void> {
+    const sql = `INSERT INTO task 
+      (type, module_id, instructions, priority, status, retry_count, max_executions, 
+       max_time, result, scheduled_at, created_by, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    await this.database.execute(sql, [
+      taskData.type, taskData.moduleId, taskData.instructions, taskData.priority,
+      taskData.status, taskData.retryCount, taskData.maxExecutions, taskData.maxTime,
+      taskData.result, taskData.scheduledAt, taskData.createdBy, taskData.metadata
+    ]);
+  }
+
+  /**
+   * Get the ID of the last inserted task.
+   * @returns Promise resolving to the task ID.
+   * @throws Error if ID cannot be retrieved.
+   */
+  private async getLastInsertedTaskId(): Promise<number> {
+    const result = await this.database.query<{ id: number }>('SELECT last_insert_rowid() as id');
+    const taskId = result[0]?.id;
+
+    if (taskId === undefined) {
+      throw new Error('Failed to get task ID after insert');
+    }
+
+    return taskId;
+  }
+
+  /**
+   * Build the response object for a created task.
+   * @param taskId - ID of the created task.
+   * @param taskData - Prepared task data.
+   * @param originalTask - Original task input.
+   * @returns Created task object.
+   */
+  private buildCreatedTaskResponse(
+    taskId: number,
+    taskData: Record<string, unknown>,
+    originalTask: Partial<ITask>
+  ): ITask {
+    const task: ITask = {
+      id: taskId,
+      type: String(taskData.type),
+      moduleId: String(taskData.moduleId),
+      instructions: originalTask.instructions,
+      priority: Number(taskData.priority),
+      status: TaskStatusEnum[String(taskData.status) as keyof typeof TaskStatusEnum],
+      retryCount: Number(taskData.retryCount),
+      maxExecutions: Number(taskData.maxExecutions)
+    };
+
+    return this.addOptionalFieldsToTask(task, taskData, originalTask);
+  }
+
+  /**
+   * Add optional fields to task object.
+   * @param task - Base task object to modify.
+   * @param taskData - Prepared task data.
+   * @param originalTask - Original task input.
+   */
+  private addOptionalFieldsToTask(
+    baseTask: ITask,
+    taskData: Record<string, unknown>,
+    originalTask: Partial<ITask>
+  ): ITask {
+    const task = { ...baseTask };
+
+    if (taskData.maxTime !== null && taskData.maxTime !== undefined) {
+      task.maxTime = Number(taskData.maxTime);
+    }
+
+    if (taskData.result !== null && taskData.result !== undefined) {
+      task.result = String(taskData.result);
+    }
+
+    if (originalTask.scheduledAt !== undefined) {
+      const { scheduledAt } = originalTask;
+      task.scheduledAt = scheduledAt;
+    }
+
+    if (taskData.createdBy !== null && taskData.createdBy !== undefined) {
+      task.createdBy = String(taskData.createdBy);
+    }
+
+    if (originalTask.metadata !== undefined) {
+      const { metadata } = originalTask;
+      task.metadata = metadata;
+    }
+
+    return task;
+  }
+
+  /**
+   * Build SQL query with filters.
+   * @param filter - Optional filter criteria.
+   * @returns Object containing SQL query and parameters.
+   */
+  private buildFilterQuery(filter?: ITaskFilter): { sql: string; params: unknown[] } {
+    let sql = 'SELECT * FROM task WHERE 1=1';
+    const params: unknown[] = [];
+
+    if (filter?.status !== undefined) {
+      sql += ' AND status = ?';
+      params.push(filter.status);
+    }
+    if (filter?.type !== undefined) {
+      sql += ' AND type = ?';
+      params.push(filter.type);
+    }
+    if (filter?.moduleId !== undefined) {
+      sql += ' AND module_id = ?';
+      params.push(filter.moduleId);
+    }
+
+    sql += ' ORDER BY priority DESC, created_at ASC';
+
+    if (filter?.limit !== undefined) {
+      sql += ' LIMIT ?';
+      params.push(filter.limit);
+    }
+
+    if (filter?.offset !== undefined) {
+      sql += ' OFFSET ?';
+      params.push(filter.offset);
+    }
+
+    return {
+ sql,
+params
+};
+  }
+
+  /**
+   * Build update query fields and values.
+   * @param updates - Partial task data to update.
+   * @returns Object containing update fields and values.
+   */
+  private buildUpdateQuery(updates: Partial<ITask>): {
+    updateFields: string[];
+    updateValues: unknown[];
+  } {
+    const updateFields: string[] = [];
+    const updateValues: unknown[] = [];
+
+    if (updates.status !== undefined) {
+      updateFields.push('status = ?');
+      updateValues.push(updates.status);
+    }
+
+    if (updates.instructions !== undefined) {
+      updateFields.push('instructions = ?');
+      const value = updates.instructions === null ? null : JSON.stringify(updates.instructions);
+      updateValues.push(value);
+    }
+
+    if (updates.priority !== undefined) {
+      updateFields.push('priority = ?');
+      updateValues.push(updates.priority);
+    }
+
+    if (updates.maxExecutions !== undefined) {
+      updateFields.push('max_executions = ?');
+      updateValues.push(updates.maxExecutions);
+    }
+
+    if (updates.maxTime !== undefined) {
+      updateFields.push('max_time = ?');
+      updateValues.push(updates.maxTime);
+    }
+
+    if (updates.result !== undefined) {
+      updateFields.push('result = ?');
+      updateValues.push(updates.result);
+    }
+
+    if (updates.metadata !== undefined) {
+      updateFields.push('metadata = ?');
+      const value = updates.metadata === null ? null : JSON.stringify(updates.metadata);
+      updateValues.push(value);
+    }
+
+    return {
+ updateFields,
+updateValues
+};
+  }
+
+  /**
+   * Execute the update query.
+   * @param updateFields - Array of update field strings.
+   * @param updateValues - Array of update values.
+   * @param taskId - Task ID to update.
+   * @returns Promise that resolves when update is complete.
+   */
+  private async executeUpdateQuery(
+    updateFields: string[],
+    updateValues: unknown[],
+    taskId: number
+  ): Promise<void> {
+    updateValues.push(taskId);
+    await this.database.execute(`UPDATE task SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+  }
+
+  /**
+   * Get the updated task after update operation.
+   * @param taskId - Task ID to retrieve.
+   * @returns Promise resolving to the updated task.
+   * @throws Error if task not found after update.
+   */
+  private async getUpdatedTask(taskId: number): Promise<ITask> {
+    const updatedTask = await this.findById(taskId);
+    if (updatedTask === null) {
+      throw new Error('Task not found after update');
+    }
+    return updatedTask;
+  }
+
+  /**
+   * Get status counts for statistics.
+   * @returns Promise resolving to status counts.
+   */
+  private async getStatusCounts(): Promise<Record<string, number>> {
+    const result = await this.database.query<{ status: string; count: number }>(
+      'SELECT status, COUNT(*) as count FROM task GROUP BY status'
     );
+
+    const statusCounts: Record<string, number> = {};
+    result.forEach((row) => {
+      statusCounts[row.status] = row.count;
+    });
+
+    return statusCounts;
+  }
+
+  /**
+   * Get type counts for statistics.
+   * @returns Promise resolving to type counts.
+   */
+  private async getTypeCounts(): Promise<Record<string, number>> {
+    const result = await this.database.query<{ type: string; count: number }>(
+      'SELECT type, COUNT(*) as count FROM task GROUP BY type'
+    );
+
+    const tasksByType: Record<string, number> = {};
+    result.forEach((row) => {
+      tasksByType[row.type] = row.count;
+    });
+
+    return tasksByType;
   }
 
   /**
    * Map database row to task interface.
    * @param row - Database row.
    * @returns Mapped task object.
+   * @throws Error if task status is invalid.
    */
   private mapRowToTask(row: ITaskRow): ITask {
-    if (!Object.values(TaskStatusEnum).includes(row.status as TaskStatusEnum)) {
-      throw new Error(`Invalid task status: ${row.status}`);
-    }
+    this.validateTaskStatus(row.status);
 
     const task: ITask = {
       id: row.id,
@@ -348,27 +450,61 @@ export class TaskRepository {
       priority: row.priority,
       status: row.status as TaskStatusEnum,
       retryCount: row.retry_count,
-      maxRetries: row.max_retries,
+      maxExecutions: row.max_executions,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };
 
-    if (row.payload != null) {
-      task.payload = this.safeJsonParse(row.payload);
+    return this.addOptionalRowFieldsToTask(task, row);
+  }
+
+  /**
+   * Validate task status from database row.
+   * @param status - Status value to validate.
+   * @throws Error if status is invalid.
+   */
+  private validateTaskStatus(status: string): void {
+    const validStatuses: string[] = Object.values(TaskStatusEnum);
+    if (!validStatuses.includes(status)) {
+      throw new Error(`Invalid task status: ${status}`);
+    }
+  }
+
+  /**
+   * Add optional fields from database row to task object.
+   * @param task - Base task object to modify.
+   * @param row - Database row with optional fields.
+   */
+  private addOptionalRowFieldsToTask(baseTask: ITask, row: ITaskRow): ITask {
+    const task = { ...baseTask };
+
+    if (row.instructions !== null) {
+      task.instructions = this.safeJsonParse(row.instructions);
     }
 
-    if (row.scheduled_at != null) {
+    if (row.max_time !== null) {
+      const { max_time: maxTime } = row;
+      task.maxTime = maxTime;
+    }
+
+    if (row.result !== null) {
+      const { result } = row;
+      task.result = result;
+    }
+
+    if (row.scheduled_at !== null) {
       task.scheduledAt = new Date(row.scheduled_at);
     }
 
-    if (row.created_by != null) {
-      task.createdBy = row.created_by;
+    if (row.created_by !== null) {
+      const { created_by: createdBy } = row;
+      task.createdBy = createdBy;
     }
 
-    if (row.metadata != null) {
-      const parsedMetadata = this.safeJsonParse<Record<string, unknown>>(row.metadata);
-      if (parsedMetadata != null) {
-        task.metadata = parsedMetadata;
+    if (row.metadata !== null) {
+      const parsedMetadata = this.safeJsonParse(row.metadata);
+      if (parsedMetadata !== undefined) {
+        task.metadata = parsedMetadata as Record<string, unknown>;
       }
     }
 
@@ -380,7 +516,7 @@ export class TaskRepository {
    * @param jsonString - JSON string to parse.
    * @returns Parsed object or undefined if parsing fails.
    */
-  private safeJsonParse<T = unknown>(jsonString: string): T | undefined {
+  private safeJsonParse(jsonString: string): unknown {
     try {
       return JSON.parse(jsonString) as T;
     } catch {

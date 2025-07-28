@@ -4,12 +4,31 @@
  * @module types/bootstrap
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { Express } from 'express';
 import type { IModulesModuleExports } from '@/modules/core/modules/types/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule } from '@/modules/core/modules/types/index';
 import type { IDatabaseModuleExports } from '@/modules/core/database/types/database-module.types';
 import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger-module.types';
+import type { ILogger } from '@/modules/core/logger/types/index';
+
+/**
+ * Module exports interface for the modules service.
+ */
+export interface IModuleExports {
+  registerPreLoadedModule: (name: string, mod: CoreModuleType) => void;
+  loadCoreModule: (definition: ICoreModuleDefinition) => Promise<CoreModuleType>;
+  initializeCoreModule: (name: string) => Promise<void>;
+  startCoreModule: (name: string) => Promise<void>;
+}
+
+/**
+ * Module import result interface for dynamic imports.
+ */
+export interface IModuleImportResult {
+  createModule?: () => IModule;
+  default?: new () => IModule;
+}
 
 /**
  * Bootstrap phase enumeration.
@@ -48,6 +67,14 @@ export interface IBootstrapOptions {
 }
 
 /**
+ * MCP servers phase context.
+ * Context passed to the MCP servers bootstrap phase.
+ */
+export interface McpServersPhaseContext {
+  mcpApp?: Express;
+}
+
+/**
  * Global configuration interface.
  */
 export interface GlobalConfiguration {
@@ -81,3 +108,54 @@ export type LogCategory =
   | 'error'
   | 'logger'
   | 'debug';
+
+/**
+ * Context for module registration phase.
+ */
+export interface ModuleRegistrationPhaseContext {
+  modules: Map<string, CoreModuleType>;
+  coreModules: ICoreModuleDefinition[];
+}
+
+/**
+ * Context for the core modules phase.
+ */
+export interface CoreModulesPhaseContext {
+  modules: Map<string, CoreModuleType>;
+  coreModules: ICoreModuleDefinition[];
+  isCliMode: boolean;
+}
+
+/**
+ * Parameters for loading a core module.
+ */
+export type CoreModuleLoadParams = {
+  name: string;
+  definition: ICoreModuleDefinition;
+  modules: Map<string, CoreModuleType>;
+};
+
+/**
+ * Parameters for initializing a core module.
+ */
+export type CoreModuleInitParams = {
+  name: string;
+  modules: Map<string, CoreModuleType>;
+  isCliMode: boolean;
+};
+
+/**
+ * Parameters for starting a core module.
+ */
+export type CoreModuleStartParams = {
+  name: string;
+  modules: Map<string, CoreModuleType>;
+};
+
+/**
+ * Context for module discovery phase.
+ */
+export interface ModuleDiscoveryPhaseContext {
+  modules: Map<string, CoreModuleType>;
+  config: GlobalConfiguration;
+}

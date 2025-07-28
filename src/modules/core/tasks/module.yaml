@@ -30,10 +30,10 @@ cli:
           type: number
           description: Number of tasks to show
           default: 10
-        - name: errors
-          type: boolean
-          description: Show error reports instead of tasks
-          default: false
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
     - name: add
       description: Add a new task to the queue
       options:
@@ -41,13 +41,58 @@ cli:
           type: string
           description: Task type
           required: true
-        - name: payload
+        - name: module-id
           type: string
-          description: Task payload (JSON format)
+          description: Module ID
+          required: true
+        - name: instructions
+          type: string
+          description: Task instructions (JSON format)
         - name: priority
           type: number
           description: Task priority (higher = more important)
           default: 0
+        - name: status
+          type: string
+          description: Initial task status
+          default: pending
+        - name: max-executions
+          type: number
+          description: Maximum number of executions
+          default: 3
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+    - name: update
+      description: Update an existing task
+      options:
+        - name: id
+          type: number
+          description: Task ID
+          required: true
+        - name: status
+          type: string
+          description: Task status (pending, in_progress, completed, failed, cancelled, stopped)
+        - name: instructions
+          type: string
+          description: Task instructions (JSON format)
+        - name: priority
+          type: number
+          description: Task priority
+        - name: max-executions
+          type: number
+          description: Maximum number of executions
+        - name: max-time
+          type: number
+          description: Maximum execution time in seconds
+        - name: result
+          type: string
+          description: Task result
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
     - name: cancel
       description: Cancel a pending task
       options:

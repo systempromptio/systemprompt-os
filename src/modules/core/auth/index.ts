@@ -1,17 +1,17 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 import {
   existsSync, mkdirSync, readFileSync
 } from 'fs';
 import {
-  dirname, join, resolve
+  dirname, join
 } from 'path';
 import { fileURLToPath } from 'url';
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
-import { TunnelService } from '@/modules/core/auth/services/tunnel-service';
+import { TunnelService } from '@/modules/core/auth/services/tunnel.service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
 import { UserService } from '@/modules/core/auth/services/user.service';
@@ -20,14 +20,13 @@ import { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import { ConfigurationError } from '@/modules/core/auth/utils/errors';
 import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
-import {
-  FIVE, TEN
-} from '@/constants/numbers';
-import { getModuleLoader } from '@/modules/loader';
-import { ModuleName } from '@/modules/types/module-names.types';
+import { buildAuthConfig } from '@/modules/core/auth/utils/config-builder';
+import { TEN } from '@/constants/numbers';
 import type {
   AuthConfig,
   AuthToken,
+  IAuthModuleExports,
+  ITunnelStatus,
   IdentityProvider,
   LoginInput,
   LoginResult,
@@ -35,31 +34,6 @@ import type {
   TokenValidationResult
 } from '@/modules/core/auth/types/index';
 
-/**
- * Strongly typed exports interface for Auth module.
- */
-export interface IAuthModuleExports {
-  readonly service: () => AuthService;
-  readonly tokenService: () => TokenService;
-  readonly userService: () => UserService;
-  readonly authCodeService: () => AuthCodeService;
-  readonly mfaService: () => MFAService;
-  readonly auditService: () => AuthAuditService;
-  readonly oauth2ConfigService: () => OAuth2ConfigurationService;
-  readonly getProvider: (id: string) => IdentityProvider | undefined;
-  readonly getAllProviders: () => IdentityProvider[];
-  readonly createToken: (input: TokenCreateInput) => Promise<AuthToken>;
-  readonly validateToken: (token: string) => Promise<TokenValidationResult>;
-  readonly hasProvider: (id: string) => boolean;
-  readonly getProviderRegistry: () => ProviderRegistry | null;
-  readonly reloadProviders: () => Promise<void>;
-  readonly getTunnelService: () => TunnelService | null;
-  readonly getTunnelStatus: () => unknown;
-  readonly listUserTokens: (userId: string) => Promise<AuthToken[]>;
-  readonly revokeToken: (tokenId: string) => Promise<void>;
-  readonly revokeUserTokens: (userId: string, type?: string) => Promise<void>;
-  readonly cleanupExpiredTokens: () => Promise<number>;
-}
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 
 const filename = fileURLToPath(import.meta.url);
@@ -73,7 +47,7 @@ const currentDirname = dirname(filename);
 export class AuthModule implements IModule<IAuthModuleExports> {
   public readonly name = 'auth';
   public readonly version = '2.0.0';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly description = 'Authentication, authorization, and JWT management';
   public readonly dependencies = ['logger', 'database'];
   public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
@@ -116,7 +90,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
         return this.oauth2ConfigService;
       },
       getTunnelService: (): TunnelService | null => { return this.getTunnelService() },
-      getTunnelStatus: (): unknown => {
+      getTunnelStatus: (): ITunnelStatus => {
         return this.getTunnelStatus();
       },
       listUserTokens: async (userId: string): Promise<AuthToken[]> => {
@@ -146,78 +120,12 @@ export class AuthModule implements IModule<IAuthModuleExports> {
 
     try {
       this.logger = LoggerService.getInstance();
-
       this.database = DatabaseService.getInstance();
-
-      this.config = this.buildConfig();
-
-      const keyStorePath = this.config.jwt.keyStorePath !== ''
-        ? this.config.jwt.keyStorePath
-        : './state/auth/keys';
-      const absolutePath = resolve(process.cwd(), keyStorePath);
-
-      if (!existsSync(absolutePath)) {
-        mkdirSync(absolutePath, { recursive: true });
-        this.logger.info(LogSource.AUTH, `Created key store directory: ${absolutePath}`);
-      }
-
-      const privateKeyPath = join(absolutePath, 'private.key');
-      const publicKeyPath = join(absolutePath, 'public.key');
-
-      if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
-        this.logger.info(LogSource.AUTH, 'JWT keys not found, generating new keys...');
-
-        await generateJwtKeyPair({
-          type: 'jwt',
-          algorithm: 'RS256',
-          outputDir: absolutePath,
-          format: 'pem'
-        });
-
-        this.logger.info(LogSource.AUTH, 'JWT keys generated successfully');
-      }
-
-      this.tokenService = TokenService.getInstance();
-      this.userService = UserService.getInstance();
-      this.authCodeService = AuthCodeService.getInstance();
-
-      const mfaConfig = {
-        appName: this.config.mfa?.appName || 'SystemPrompt OS',
-        backupCodeCount: this.config.mfa?.backupCodeCount || 10,
-        windowSize: this.config.mfa?.windowSize || 2
-      };
-      this.mfaService = MFAService.initialize(mfaConfig, this.logger);
-
-      const loggerAdapter = {
-        debug: (message: string, ...args: unknown[]) => { this.logger.debug(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
-        info: (message: string, ...args: unknown[]) => { this.logger.info(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
-        warn: (message: string, ...args: unknown[]) => { this.logger.warn(LogSource.AUTH, message, args[0] as Record<string, unknown> | undefined); },
-        error: (message: string, error?: Error) => { this.logger.error(LogSource.AUTH, message, error ? { error } : undefined); }
-      };
-
-      this.auditService = AuthAuditService.getInstance(
-        this.config.audit ?? {
-          enabled: true,
-          retentionDays: 90
-        },
-        loggerAdapter
-      );
-      this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
-
-      this.authService = AuthService.getInstance();
-
-      const providersPath = join(currentDirname, 'providers');
-      this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
-      await this.providerRegistry.initialize();
-
-      if (process.env.NODE_ENV !== 'production') {
-        const tunnelConfig = {
-          port: parseInt(process.env.PORT ?? '3000', TEN),
-          ...process.env.TUNNEL_DOMAIN !== undefined && process.env.TUNNEL_DOMAIN !== ''
-            && { permanentDomain: process.env.TUNNEL_DOMAIN },
-        };
-        this.tunnelService = new TunnelService(tunnelConfig, this.logger);
-      }
+      this.config = buildAuthConfig();
+      this.setupJwtKeys();
+      this.initializeServices();
+      await this.initializeProviders();
+      this.initializeTunnelService();
 
       this.initialized = true;
       this.logger.info(LogSource.AUTH, 'Auth module initialized', { version: this.version });
@@ -227,6 +135,134 @@ export class AuthModule implements IModule<IAuthModuleExports> {
           error instanceof Error ? error.message : String(error)
         }`
       );
+    }
+  }
+
+  /**
+   * Setup JWT keys for token signing.
+   */
+  private setupJwtKeys(): void {
+    const keyStorePath = this.config.jwt.keyStorePath !== '' && this.config.jwt.keyStorePath
+      ? this.config.jwt.keyStorePath
+      : './state/auth/keys';
+
+    if (!existsSync(keyStorePath)) {
+      mkdirSync(keyStorePath, { recursive: true });
+      this.logger.info(LogSource.AUTH, `Created key store directory: ${keyStorePath}`);
+    }
+
+    const privateKeyPath = join(keyStorePath, 'private.key');
+    const publicKeyPath = join(keyStorePath, 'public.key');
+
+    if (!existsSync(privateKeyPath) || !existsSync(publicKeyPath)) {
+      this.logger.info(LogSource.AUTH, 'JWT keys not found, generating new keys...');
+
+      generateJwtKeyPair({
+        type: 'jwt',
+        algorithm: 'RS256',
+        outputDir: keyStorePath,
+        format: 'pem'
+      });
+
+      this.logger.info(LogSource.AUTH, 'JWT keys generated successfully');
+    }
+  }
+
+  /**
+   * Initialize all auth services.
+   */
+  private initializeServices(): void {
+    this.tokenService = TokenService.getInstance();
+    this.userService = UserService.getInstance();
+    this.authCodeService = AuthCodeService.getInstance();
+
+    const mfaConfig = {
+      appName: this.config.mfa?.appName ?? 'SystemPrompt OS',
+      backupCodeCount: this.config.mfa?.backupCodeCount ?? 10,
+      windowSize: this.config.mfa?.windowSize ?? 2
+    };
+    this.mfaService = MFAService.initialize(mfaConfig, this.logger);
+
+    const loggerAdapter = this.createLoggerAdapter();
+    this.auditService = AuthAuditService.getInstance(
+      this.config.audit ?? {
+        enabled: true,
+        retentionDays: 90
+      },
+      loggerAdapter
+    );
+    this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
+    this.authService = AuthService.getInstance();
+  }
+
+  /**
+   * Create logger adapter for audit service.
+   * @returns Logger adapter object.
+   */
+  private createLoggerAdapter(): {
+    debug: (message: string, ...args: unknown[]) => void;
+    info: (message: string, ...args: unknown[]) => void;
+    warn: (message: string, ...args: unknown[]) => void;
+    error: (message: string, error?: Error) => void;
+  } {
+    return {
+      debug: (message: string, ...args: unknown[]): void => {
+        this.logger.debug(
+          LogSource.AUTH,
+          message,
+          args.length > 0 && typeof args[0] === 'object' && args[0] !== null
+            ? args[0] as Record<string, unknown>
+            : undefined
+        );
+      },
+      info: (message: string, ...args: unknown[]): void => {
+        this.logger.info(
+          LogSource.AUTH,
+          message,
+          args.length > 0 && typeof args[0] === 'object' && args[0] !== null
+            ? args[0] as Record<string, unknown>
+            : undefined
+        );
+      },
+      warn: (message: string, ...args: unknown[]): void => {
+        this.logger.warn(
+          LogSource.AUTH,
+          message,
+          args.length > 0 && typeof args[0] === 'object' && args[0] !== null
+            ? args[0] as Record<string, unknown>
+            : undefined
+        );
+      },
+      error: (message: string, error?: Error): void => {
+        this.logger.error(
+          LogSource.AUTH,
+          message,
+          error instanceof Error ? { error } : undefined
+        );
+      }
+    };
+  }
+
+  /**
+   * Initialize auth providers.
+   */
+  private async initializeProviders(): Promise<void> {
+    const providersPath = join(currentDirname, 'providers');
+    this.providerRegistry = new ProviderRegistry(providersPath, this.logger);
+    await this.providerRegistry.initialize();
+  }
+
+  /**
+   * Initialize tunnel service for development.
+   */
+  private initializeTunnelService(): void {
+    if (process.env.NODE_ENV !== 'production') {
+      const tunnelConfig = {
+        port: parseInt(process.env.PORT ?? '3000', TEN),
+        ...process.env.TUNNEL_DOMAIN !== undefined && process.env.TUNNEL_DOMAIN !== ''
+          && { permanentDomain: process.env.TUNNEL_DOMAIN },
+      };
+      this.tunnelService = TunnelService.getInstance(tunnelConfig, this.logger);
     }
   }
 
@@ -243,42 +279,8 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     }
 
     try {
-      const schemaPath = join(currentDirname, 'database', 'schema.sql');
-      if (existsSync(schemaPath)) {
-        const schema = readFileSync(schemaPath, 'utf8');
-        const statements = schema.split(';').filter((statement) => {
-          return statement.trim() !== '';
-        });
-
-        for (const statement of statements) {
-          if (statement.trim() !== '') {
-            try {
-              await this.database.execute(statement);
-            } catch (error) {
-              if (error instanceof Error && !error.message.includes('duplicate column')) {
-                this.logger.warn(LogSource.AUTH, 'Schema statement warning', { error: error.message });
-              }
-            }
-          }
-        }
-
-        this.logger.info(LogSource.AUTH, 'Auth database schema updated');
-      }
-
-      if (process.env.LOG_MODE !== 'cli') {
-        const intervalId = setInterval(
-          () => {
-            this.tokenService
-              .cleanupExpiredTokens()
-              .catch((err) => { this.logger.error(LogSource.AUTH, 'Token cleanup failed', {
-                error: err instanceof Error ? err : new Error(String(err))
-              }); });
-          },
-          24 * 60 * 60 * 1000
-        );
-
-        this.cleanupInterval = intervalId;
-      }
+      await this.initializeDatabase();
+      this.setupTokenCleanup();
 
       this.status = ModuleStatusEnum.RUNNING;
       this.started = true;
@@ -286,6 +288,59 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     } catch (error) {
       this.status = ModuleStatusEnum.STOPPED;
       throw error;
+    }
+  }
+
+  /**
+   * Initialize database schema.
+   */
+  private async initializeDatabase(): Promise<void> {
+    const schemaPath = join(currentDirname, 'database', 'schema.sql');
+    if (!existsSync(schemaPath)) {
+      return;
+    }
+
+    const schema = readFileSync(schemaPath, 'utf8');
+    const statements = schema.split(';').filter((statement): boolean => {
+      return statement.trim() !== '';
+    });
+
+    for (const statement of statements) {
+      if (statement.trim() !== '') {
+        try {
+          await this.database.execute(statement);
+        } catch (error) {
+          if (error instanceof Error && !error.message.includes('duplicate column')) {
+            this.logger.warn(LogSource.AUTH, 'Schema statement warning', {
+              error: error.message
+            });
+          }
+        }
+      }
+    }
+
+    this.logger.info(LogSource.AUTH, 'Auth database schema updated');
+  }
+
+  /**
+   * Setup token cleanup interval.
+   */
+  private setupTokenCleanup(): void {
+    if (process.env.LOG_MODE !== 'cli') {
+      const intervalId = setInterval(
+        (): void => {
+          this.tokenService
+            .cleanupExpiredTokens()
+            .catch((err: unknown): void => {
+              this.logger.error(LogSource.AUTH, 'Token cleanup failed', {
+                error: err instanceof Error ? err : new Error(String(err))
+              });
+            });
+        },
+        24 * 60 * 60 * 1000
+      );
+
+      this.cleanupInterval = intervalId;
     }
   }
 
@@ -299,7 +354,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     }
 
     if (this.tunnelService !== null) {
-      await this.tunnelService.stop();
+      this.tunnelService.stop();
     }
     this.status = ModuleStatusEnum.STOPPED;
     this.started = false;
@@ -313,15 +368,15 @@ export class AuthModule implements IModule<IAuthModuleExports> {
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     try {
       const providers = this.providerRegistry?.getAllProviders() ?? [];
-      return {
+      return Promise.resolve({
         healthy: true,
         message: `Auth module healthy. ${String(providers.length)} provider(s) loaded.`,
-      };
+      });
     } catch (error) {
-      return {
+      return await Promise.resolve({
         healthy: false,
         message: `Auth module unhealthy: ${String(error)}`,
-      };
+      });
     }
   }
 
@@ -471,7 +526,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    * Get the current tunnel status.
    * @returns The tunnel status object.
    */
-  getTunnelStatus(): unknown {
+  getTunnelStatus(): ITunnelStatus {
     if (this.tunnelService === null) {
       return {
         active: false,
@@ -490,36 +545,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       return null;
     }
     return this.tunnelService.getPublicUrl();
-  }
-
-  /**
-   * Build configuration with defaults.
-   * @returns The complete authentication configuration.
-   */
-  private buildConfig(): AuthConfig {
-    return {
-      jwt: {
-        algorithm: 'RS256',
-        issuer: 'systemprompt-os',
-        audience: 'systemprompt-os',
-        accessTokenTTL: 900,
-        refreshTokenTTL: 2592000,
-        keyStorePath: process.env.JWT_KEY_PATH ?? './state/auth/keys',
-        privateKey: '',
-        publicKey: ''
-      },
-      session: {
-        maxConcurrent: FIVE,
-        absoluteTimeout: 86400,
-        inactivityTimeout: 3600
-      },
-      security: {
-        maxLoginAttempts: FIVE,
-        lockoutDuration: 900,
-        passwordMinLength: 8,
-        requirePasswordChange: false,
-      },
-    };
   }
 }
 
@@ -541,48 +566,6 @@ export const initialize = async (): Promise<AuthModule> => {
   return authModule;
 };
 
-/**
- * Gets the Auth module with type safety and validation.
- * @returns The Auth module with guaranteed typed exports.
- * @throws {Error} If Auth module is not available or missing required exports.
- */
-export function getAuthModule(): IModule<IAuthModuleExports> {
-  const moduleLoader = getModuleLoader();
-  const registry = moduleLoader.getRegistry();
-  const authModules = registry.getAll().filter(m => { return m.name === ModuleName.AUTH });
-
-  if (authModules.length === 0) {
-    throw new Error('Auth module not found in registry');
-  }
-
-  const authModule = authModules[0] as unknown as AuthModule;
-
-  if (!authModule || !authModule.exports) {
-    throw new Error('Auth module not properly initialized');
-  }
-
-  const {exports} = authModule;
-  if (!exports.service || typeof exports.service !== 'function') {
-    throw new Error('Auth module missing required service export');
-  }
-
-  if (!exports.tokenService || typeof exports.tokenService !== 'function') {
-    throw new Error('Auth module missing required tokenService export');
-  }
-
-  if (!exports.userService || typeof exports.userService !== 'function') {
-    throw new Error('Auth module missing required userService export');
-  }
-
-  if (!exports.createToken || typeof exports.createToken !== 'function') {
-    throw new Error('Auth module missing required createToken export');
-  }
-
-  if (!exports.validateToken || typeof exports.validateToken !== 'function') {
-    throw new Error('Auth module missing required validateToken export');
-  }
-
-  return authModule as IModule<IAuthModuleExports>;
-}
+export { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
 
 export default AuthModule;

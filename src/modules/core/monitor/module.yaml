@@ -1,0 +1,26 @@
+name: monitor
+type: daemon
+version: 1.0.0
+description: System monitoring and observability
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+config:
+  metrics:
+    enabled: true
+    flushInterval: 60000
+    bufferSize: 1000
+    collectSystem: true
+  alerts:
+    enabled: true
+    evaluationInterval: 30000
+  traces:
+    enabled: true
+    sampling: 0.1
+  cleanup:
+    interval: 3600000
+    retentionDays: 30
+dependencies:
+  - logger
+  - database
+apis:
+  - name: MonitorService
+    description: Main metric service for recording and querying metrics

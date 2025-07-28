@@ -14,7 +14,7 @@ import type {
 import {
   DatabaseSummaryService,
   type ISummaryParams,
-} from '@/modules/core/cli/services/database-summary.service';
+} from '@/modules/core/database/services/database-summary.service';
 import { CliOutputService, type ITableColumn } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -91,7 +91,7 @@ const handleSummaryExecution = async (
     cliOutput.table(result.data.tables, columns, { format: 'table' });
   } else {
     cliOutput.section('Tables');
-    result.data.tables.forEach(table => {
+    result.data.tables.forEach((table: { name: string; rowCount: number; columnCount: number }) => {
       cliOutput.info(`${table.name}:`);
       cliOutput.keyValue({
         '  Rows': table.rowCount.toLocaleString(),

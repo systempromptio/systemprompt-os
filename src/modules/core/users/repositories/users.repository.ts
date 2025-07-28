@@ -361,7 +361,7 @@ export class UsersRepository {
       createdAt: new Date(row.created_at),
       lastActivityAt: new Date(row.last_activity_at)
     };
-    
+
     if (row.ip_address) {
       session.ipAddress = row.ip_address;
     }
@@ -371,7 +371,7 @@ export class UsersRepository {
     if (row.revoked_at) {
       session.revokedAt = new Date(row.revoked_at);
     }
-    
+
     return session;
   }
 
@@ -479,7 +479,7 @@ export class UsersRepository {
       keyHash: row.key_hash,
       createdAt: new Date(row.created_at)
     };
-    
+
     const permissions = JSON.parse(row.permissions || '[]');
     if (permissions && permissions.length > 0) {
       apiKey.permissions = permissions;
@@ -490,7 +490,7 @@ export class UsersRepository {
     if (row.last_used_at) {
       apiKey.lastUsedAt = new Date(row.last_used_at);
     }
-    
+
     return apiKey;
   }
 
@@ -538,7 +538,7 @@ export class UsersRepository {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at)
     };
-    
+
     if (row.password_hash) {
       user.passwordHash = row.password_hash;
     }
@@ -548,7 +548,7 @@ export class UsersRepository {
     if (row.locked_until) {
       user.lockedUntil = new Date(row.locked_until);
     }
-    
+
     return user;
   }
 }

@@ -90,7 +90,7 @@ const mockAuthModule = {
   }
 };
 
-vi.mock('../../../../../../src/modules/core/auth/singleton.js', () => ({
+vi.mock('../../../../../../src/modules/core/auth/index.js', () => ({
   getAuthModule: vi.fn(() => mockAuthModule)
 }));
 
@@ -362,7 +362,7 @@ describe('OAuth2 Token Endpoint - 100% Coverage', () => {
 
       await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
 
-      expect(mockOAuth2Error.invalidRequest).toHaveBeenCalledWith('Missing required parameters');
+      expect(mockOAuth2Error.invalidRequest).toHaveBeenCalledWith('code is required for authorization_code grant');
     });
 
     it('should reject missing redirect_uri parameter', async () => {
@@ -375,7 +375,7 @@ describe('OAuth2 Token Endpoint - 100% Coverage', () => {
 
       await tokenEndpoint.postToken(mockReq as Request, mockRes as Response);
 
-      expect(mockOAuth2Error.invalidRequest).toHaveBeenCalledWith('Missing required parameters');
+      expect(mockOAuth2Error.invalidRequest).toHaveBeenCalledWith('redirect_uri is required for authorization_code grant');
     });
 
     it('should reject invalid authorization code', async () => {

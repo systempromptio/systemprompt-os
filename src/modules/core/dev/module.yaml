@@ -10,14 +10,58 @@ dependencies:
   - logger
   - database
 
-commands:
-  - debug
-  - format
-  - lint
-  - profile
-  - repl
-  - test
-  - watch
+cli:
+  commands:
+    - name: debug
+      description: Start a debug session (placeholder command)
+    - name: lint
+      description: Analyze code for common issues and display a formatted summary
+      options:
+        - name: max
+          alias: m
+          type: string
+          description: Maximum number of files to display
+          default: '10'
+    - name: typecheck
+      description: Analyze TypeScript code for type issues and display a formatted summary
+      options:
+        - name: max
+          alias: m
+          type: string
+          description: Maximum number of files to display
+          default: '10'
+    - name: test
+      description: Analyze test files and display test coverage summary
+      options:
+        - name: max
+          alias: m
+          type: string
+          description: Maximum number of files to display
+          default: '10'
+    - name: create-module
+      description: Create a new SystemPrompt OS module with complete boilerplate
+      options:
+        - name: name
+          alias: n
+          type: string
+          description: Module name (lowercase with hyphens)
+        - name: type
+          alias: t
+          type: string
+          description: Module type (service, utility, integration)
+        - name: description
+          alias: d
+          type: string
+          description: Module description
+        - name: no-database
+          type: boolean
+          description: Skip database setup
+        - name: no-cli
+          type: boolean
+          description: Skip CLI commands
+        - name: deps
+          type: array
+          description: Module dependencies
 
 database:
   schema: ./database/schema.sql

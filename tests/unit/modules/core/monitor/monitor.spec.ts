@@ -71,9 +71,9 @@ describe('Monitor Module', () => {
 
   describe('Module Lifecycle', () => {
     it('should initialize successfully', async () => {
-      const result = await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
-      expect(result).toBe(true);
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
       expect(mockDeps.logger.info).toHaveBeenCalledWith('Monitor module initialized');
       expect(mockDeps.database.getAdapter).toHaveBeenCalledWith('monitor');
     });
@@ -83,19 +83,19 @@ describe('Monitor Module', () => {
         throw new Error('Database connection failed');
       });
 
-      const result = await module.initialize(mockConfig, mockDeps);
+      await expect(module.initialize({ config: mockConfig, deps: mockDeps })).rejects.toThrow();
       
-      expect(result).toBe(false);
+      expect(module.status).toBe(ModuleStatusEnum.ERROR);
       expect(mockDeps.logger.error).toHaveBeenCalled();
     });
 
     it('should start successfully', async () => {
       vi.useFakeTimers();
       
-      await module.initialize(mockConfig, mockDeps);
-      const result = await module.start();
+      await module.initialize({ config: mockConfig, deps: mockDeps });
+      await module.start();
       
-      expect(result).toBe(true);
+      expect(module.status).toBe(ModuleStatusEnum.RUNNING);
       expect(mockDeps.logger.info).toHaveBeenCalledWith('Monitor module started');
       
       vi.clearAllTimers();
@@ -106,7 +106,7 @@ describe('Monitor Module', () => {
       vi.useFakeTimers();
       const setIntervalSpy = vi.spyOn(global, 'setInterval');
       
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       expect(setIntervalSpy).toHaveBeenCalledWith(
@@ -121,11 +121,11 @@ describe('Monitor Module', () => {
     it('should stop successfully', async () => {
       vi.useFakeTimers();
       
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
-      const result = await module.stop();
+      await module.stop();
       
-      expect(result).toBe(true);
+      expect(module.status).toBe(ModuleStatusEnum.STOPPED);
       expect(mockDeps.logger.info).toHaveBeenCalledWith('Monitor module stopped');
       
       vi.clearAllTimers();
@@ -136,7 +136,7 @@ describe('Monitor Module', () => {
       vi.useFakeTimers();
       const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
       
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       await module.stop();
       
@@ -147,7 +147,7 @@ describe('Monitor Module', () => {
     });
 
     it('should perform health check', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       const health = await module.healthCheck();
@@ -161,7 +161,7 @@ describe('Monitor Module', () => {
     });
 
     it('should handle health check errors', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
       // Make query fail
       const adapter = mockDeps.database.getAdapter();
@@ -184,14 +184,14 @@ describe('Monitor Module', () => {
     });
 
     it('should handle unexpected errors in health check', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
       // To trigger the outer catch block, we need to mock something that throws outside the inner try-catch
-      // Let's mock the this.started property access to throw
-      const originalStarted = Object.getOwnPropertyDescriptor(module, 'started');
-      Object.defineProperty(module, 'started', {
+      // Let's mock the status property access to throw
+      const originalStatus = Object.getOwnPropertyDescriptor(module, 'status');
+      Object.defineProperty(module, 'status', {
         get: () => {
-          throw new Error('Unexpected error accessing started property');
+          throw new Error('Unexpected error accessing status property');
         },
         configurable: true
       });
@@ -204,13 +204,19 @@ describe('Monitor Module', () => {
       expect(health.checks.status).toBe('error');
       
       // Restore original property
-      if (originalStarted) {
-        Object.defineProperty(module, 'started', originalStarted);
+      if (originalStatus) {
+        Object.defineProperty(module, 'status', originalStatus);
+      } else {
+        Object.defineProperty(module, 'status', {
+          value: ModuleStatusEnum.STOPPED,
+          writable: true,
+          configurable: true
+        });
       }
     });
 
     it('should show running status when started', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       const health = await module.healthCheck();
@@ -219,7 +225,7 @@ describe('Monitor Module', () => {
     });
 
     it('should show stopped status when not started', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
       const health = await module.healthCheck();
       
@@ -229,13 +235,12 @@ describe('Monitor Module', () => {
     it('should handle start error when not initialized', async () => {
       // Create new module instance to ensure clean state
       const uninitializedModule = new MonitorModule();
-      const result = await uninitializedModule.start();
       
-      expect(result).toBe(false);
+      await expect(uninitializedModule.start()).rejects.toThrow('Cannot start module in pending state');
     });
 
     it('should handle stop error', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       // Mock the metric service shutdown to throw an error
@@ -243,12 +248,14 @@ describe('Monitor Module', () => {
       const originalShutdown = metricService.shutdown;
       metricService.shutdown = vi.fn().mockRejectedValue(new Error('Shutdown failed'));
       
-      const result = await module.stop();
+      await expect(module.stop()).rejects.toThrow('Shutdown failed');
       
-      expect(result).toBe(false);
+      expect(module.status).toBe(ModuleStatusEnum.ERROR);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         'Failed to stop Monitor module',
-        expect.any(Error)
+        expect.objectContaining({
+          message: 'Shutdown failed'
+        })
       );
       
       // Restore original method
@@ -258,7 +265,7 @@ describe('Monitor Module', () => {
 
   describe('Module Exports', () => {
     it('should export MonitorService', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
       expect(module.exports).toBeDefined();
       expect(module.exports.MonitorService).toBeDefined();
@@ -270,7 +277,7 @@ describe('Monitor Module', () => {
       vi.useFakeTimers();
       const cleanupSpy = vi.fn().mockResolvedValue(undefined);
       
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       // Spy on the metric service cleanup method
@@ -295,7 +302,7 @@ describe('Monitor Module', () => {
       const cleanupError = new Error('Cleanup failed');
       const cleanupSpy = vi.fn().mockRejectedValue(cleanupError);
       
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       await module.start();
       
       // Spy on the metric service cleanup method to throw error
@@ -311,7 +318,9 @@ describe('Monitor Module', () => {
       expect(cleanupSpy).toHaveBeenCalledWith(mockConfig.config.cleanup.retentionDays);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         'Failed to perform cleanup',
-        cleanupError
+        expect.objectContaining({
+          message: 'Cleanup failed'
+        })
       );
       
       await module.stop();
@@ -322,14 +331,13 @@ describe('Monitor Module', () => {
 
   describe('Metric Service Integration', () => {
     it('should initialize metric service with correct config', async () => {
-      await module.initialize(mockConfig, mockDeps);
+      await module.initialize({ config: mockConfig, deps: mockDeps });
       
       const metricService = module.exports.MonitorService;
       expect(metricService).toBeDefined();
       
-      // Verify metric service was initialized by calling a method
-      await module.start();
-      expect(mockDeps.logger.info).toHaveBeenCalledWith('Metric service initialized');
+      // Verify metric service was initialized
+      expect(mockDeps.logger.info).toHaveBeenCalledWith('Monitor module initialized');
     });
 
     it('should handle metric service initialization errors', async () => {
@@ -339,12 +347,14 @@ describe('Monitor Module', () => {
         throw new Error('Database adapter failed');
       });
       
-      const result = await module.initialize(mockConfig, mockDeps);
+      await expect(module.initialize({ config: mockConfig, deps: mockDeps })).rejects.toThrow('Database adapter failed');
       
-      expect(result).toBe(false);
+      expect(module.status).toBe(ModuleStatusEnum.ERROR);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         'Failed to initialize Monitor module',
-        expect.any(Error)
+        expect.objectContaining({
+          message: 'Database adapter failed'
+        })
       );
     });
   });

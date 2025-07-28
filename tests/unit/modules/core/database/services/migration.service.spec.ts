@@ -98,7 +98,10 @@ describe('MigrationService', () => {
         absolute: true
       });
       expect(readFile).toHaveBeenCalledTimes(3);
-      expect(logger.info).toHaveBeenCalledWith('Migrations discovered', { count: 3 });
+      expect(logger.info).toHaveBeenCalledWith('database', 'Migrations discovered', {
+        category: 'migration',
+        count: 3
+      });
     });
 
     it('should sort migrations by version', async () => {
@@ -124,7 +127,10 @@ describe('MigrationService', () => {
       vi.mocked(glob).mockRejectedValue(error);
 
       await expect(migrationService.discoverMigrations()).rejects.toThrow('Glob failed');
-      expect(logger.error).toHaveBeenCalledWith('Migration discovery failed', { error });
+      expect(logger.error).toHaveBeenCalledWith('database', 'Migration discovery failed', {
+        category: 'migration',
+        error
+      });
     });
 
     it('should extract module names correctly', async () => {
@@ -191,7 +197,9 @@ describe('MigrationService', () => {
 
       // Should run both migrations
       expect(mockDatabaseService.transaction).toHaveBeenCalledTimes(2);
-      expect(logger.info).toHaveBeenCalledWith('All migrations completed');
+      expect(logger.info).toHaveBeenCalledWith('database', 'All migrations completed', {
+        category: 'migration'
+      });
     });
 
     it('should skip already applied migrations', async () => {
@@ -213,7 +221,9 @@ describe('MigrationService', () => {
       await migrationService.runMigrations();
 
       expect(mockDatabaseService.transaction).not.toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith('No pending migrations');
+      expect(logger.info).toHaveBeenCalledWith('database', 'No pending migrations', {
+        category: 'migration'
+      });
     });
 
     it('should handle migration failures', async () => {
@@ -231,7 +241,12 @@ describe('MigrationService', () => {
       mockDatabaseService.transaction.mockRejectedValue(new Error('SQL Error'));
 
       await expect(migrationService.runMigrations()).rejects.toThrow('SQL Error');
-      expect(logger.error).toHaveBeenCalledWith('Migration failed', expect.any(Object));
+      expect(logger.error).toHaveBeenCalledWith('database', 'Migration failed', {
+        category: 'migration',
+        module: 'core/auth',
+        version: '001',
+        error: expect.any(Error)
+      });
     });
   });
 
@@ -269,7 +284,7 @@ describe('MigrationService', () => {
 
       expect(pending).toHaveLength(1);
       expect(pending[0].version).toBe('002');
-      expect(pending[0]).toHaveProperty('name', '002_update.sql');
+      expect(pending[0]).toHaveProperty('filename', '002_update.sql');
     });
 
     it('should discover migrations if none loaded', async () => {
@@ -314,7 +329,7 @@ describe('MigrationService', () => {
       expect(executed[0]).toMatchObject({
         module: 'core/auth',
         version: '001',
-        executed_at: '2024-01-01 10:00:00',
+        executedAt: '2024-01-01 10:00:00',
         name: '001_init.sql'
       });
     });
@@ -325,7 +340,11 @@ describe('MigrationService', () => {
       const executed = await migrationService.getExecutedMigrations();
 
       expect(executed).toEqual([]);
-      expect(logger.debug).toHaveBeenCalledWith('No migrations table found', expect.any(Object));
+      expect(logger.debug).toHaveBeenCalledWith('database', 'No migrations table found', {
+        category: 'migration',
+        persistToDb: false,
+        error: expect.any(Error)
+      });
     });
   });
 
@@ -346,7 +365,8 @@ describe('MigrationService', () => {
       await migrationService.executeMigration(migration);
 
       expect(mockDatabaseService.transaction).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith('Migration completed', {
+      expect(logger.info).toHaveBeenCalledWith('database', 'Migration completed', {
+        category: 'migration',
         module: 'core/auth',
         version: '001'
       });
@@ -374,7 +394,8 @@ describe('MigrationService', () => {
 
       expect(readFile).toHaveBeenCalledWith('001_init.rollback.sql', 'utf-8');
       expect(mockDatabaseService.transaction).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith('Migration rolled back', {
+      expect(logger.info).toHaveBeenCalledWith('database', 'Migration rolled back', {
+        category: 'migration',
         module: 'core/auth',
         version: '001'
       });
@@ -395,8 +416,13 @@ describe('MigrationService', () => {
       await migrationService.rollbackMigration(migration);
 
       expect(logger.warn).toHaveBeenCalledWith(
+        'database',
         'No rollback file found, removing record only',
-        expect.any(Object)
+        {
+          category: 'migration',
+          module: 'core/auth',
+          version: '001'
+        }
       );
       expect(mockDatabaseService.transaction).toHaveBeenCalled();
     });
@@ -414,7 +440,12 @@ describe('MigrationService', () => {
       mockDatabaseService.transaction.mockRejectedValue(new Error('Rollback failed'));
 
       await expect(migrationService.rollbackMigration(migration)).rejects.toThrow('Rollback failed');
-      expect(logger.error).toHaveBeenCalledWith('Rollback failed', expect.any(Object));
+      expect(logger.error).toHaveBeenCalledWith('database', 'Rollback failed', {
+        category: 'migration',
+        module: 'core/auth',
+        version: '001',
+        error: expect.any(Error)
+      });
     });
   });
 

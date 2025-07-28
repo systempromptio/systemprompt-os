@@ -5,17 +5,17 @@
  * @module src/utils/json-schema-to-zod
  */
 
+import type { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
-import type { JsonSchema } from '@/utils/types';
 
-type ValidJsonSchema = NonNullable<JsonSchema> & { [key: string]: unknown };
+type ValidJSONSchema7 = NonNullable<JSONSchema7> & { [key: string]: unknown };
 
 /**
  * Type guard to check if schema is a valid object.
  * @param schema - The schema to check.
  * @returns True if schema is a valid object.
  */
-const isValidSchema = (schema: JsonSchema): schema is ValidJsonSchema => {
+const isValidSchema = (schema: JSONSchema7): schema is ValidJSONSchema7 => {
   return schema !== null && schema !== undefined && typeof schema === 'object';
 };
 
@@ -78,7 +78,7 @@ const createLiteralUnion = (
  * @param schema - The schema to process.
  * @returns Zod enum or union schema.
  */
-const handleEnumType = (schema: ValidJsonSchema): z.ZodType => {
+const handleEnumType = (schema: ValidJSONSchema7): z.ZodType => {
   const enumProperty = schema.enum;
   if (!Array.isArray(enumProperty)) {
     return z.any();
@@ -95,7 +95,7 @@ const handleEnumType = (schema: ValidJsonSchema): z.ZodType => {
  * @param schema - The JSON Schema object to convert.
  * @returns A Zod schema equivalent to the JSON Schema.
  */
-export const jsonSchemaToZod = (schema: JsonSchema): z.ZodType => {
+export const JSONSchema7ToZod = (schema: JSONSchema7): z.ZodType => {
   if (!isValidSchema(schema)) {
     return z.any();
   }
@@ -118,20 +118,20 @@ export const jsonSchemaToZod = (schema: JsonSchema): z.ZodType => {
   }
 
   if (schema.type === 'array') {
-    const itemsProperty = schema.items as JsonSchema;
+    const itemsProperty = schema.items as JSONSchema7;
     if (itemsProperty !== null && itemsProperty !== undefined) {
-      return z.array(jsonSchemaToZod(itemsProperty));
+      return z.array(JSONSchema7ToZod(itemsProperty));
     }
     return z.array(z.any());
   }
 
   if (schema.type === 'object' || schema.properties !== undefined) {
-    const propertiesObj = (schema.properties as Record<string, JsonSchema>) ?? {};
+    const propertiesObj = (schema.properties as Record<string, JSONSchema7>) ?? {};
     const requiredArray = (schema.required as string[]) ?? [];
     const zodShape: Record<string, z.ZodType> = {};
 
-    Object.entries(propertiesObj).forEach(([key, propSchema]: [string, JsonSchema]): void => {
-      let zodProp = jsonSchemaToZod(propSchema);
+    Object.entries(propertiesObj).forEach(([key, propSchema]: [string, JSONSchema7]): void => {
+      let zodProp = JSONSchema7ToZod(propSchema);
 
       if (!requiredArray.includes(key)) {
         zodProp = zodProp.optional();

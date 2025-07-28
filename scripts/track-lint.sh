@@ -40,7 +40,10 @@ grep '^/var/www/html/systemprompt-os/src/' scripts/output/lint.log | sed 's|^/va
     fi
 done
 
-# Sort by error count (descending) and take only the top 10
+# Sort by error count (descending) and save to tracking file
+sort -rn "$temp_file" > scripts/output/lint-tracking.txt
+
+# Take only the top 10 for task reporting
 sort -rn "$temp_file" | head -10 | while read -r error_count filepath; do
     # Add report for this file
     npm run cli -- tasks add --type lint --payload "{\"path\":\"$filepath\",\"errors\":$error_count,\"type\":\"lint\"}" 2>/dev/null

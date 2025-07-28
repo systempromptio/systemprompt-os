@@ -1,5 +1,5 @@
 name: modules
-type: service
+type: core
 version: 1.0.0
 description: Module lifecycle management for SystemPrompt OS
 author: SystemPrompt OS Team <team@systemprompt-os.com>

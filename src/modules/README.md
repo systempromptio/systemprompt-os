@@ -2,6 +2,111 @@
 
 This document defines the standard pattern that ALL modules in SystemPrompt OS must follow to ensure consistency, type safety, and maintainability.
 
+## CLI Output Requirements
+
+**IMPORTANT**: All modules that provide CLI commands MUST use the `CliFormatterService` for all output to ensure consistency across the system. This includes:
+
+- Success messages
+- Error messages
+- Warning messages
+- Info messages
+- Progress indicators
+- Tables and structured data
+- Help text
+
+### Using the CLI Formatter
+
+```typescript
+import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
+
+// Get the formatter instance
+const formatter = CliFormatterService.getInstance();
+
+// Format different types of messages
+console.log(formatter.formatSuccess('Operation completed successfully'));
+console.log(formatter.formatError('An error occurred'));
+console.log(formatter.formatWarning('This action is irreversible'));
+console.log(formatter.formatInfo('Processing your request...'));
+
+// Use progress indicators
+await formatter.withProgress({
+  fn: async () => await someAsyncOperation(),
+  text: 'Loading data...',
+  preset: 'loading',
+  successText: 'Data loaded successfully',
+  errorText: 'Failed to load data'
+});
+
+// Multi-step progress
+const progress = formatter.createMultiStepProgress([
+  'Connecting to database',
+  'Running migrations',
+  'Verifying schema'
+], 'building');
+
+await progress.startStep(0);
+// ... do work
+await progress.completeStep(0);
+// ... continue with other steps
+```
+
+### CLI Command Implementation
+
+When implementing CLI commands in your module:
+
+```typescript
+import { Command } from 'commander';
+import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
+
+export function createDatabaseCommand(): Command {
+  const formatter = CliFormatterService.getInstance();
+  const command = new Command('database')
+    .description('Database management commands');
+
+  // Enhance the command with metadata for better formatting
+  formatter.enhanceCommand(command, {
+    icon: '🗄️',
+    category: 'Core Services',
+    priority: 1
+  });
+
+  // Add subcommands
+  command
+    .command('status')
+    .description('Show database status')
+    .action(async () => {
+      try {
+        const progress = formatter.createProgressLogger('analyzing', 'Checking database status...');
+        progress.start();
+        
+        // ... perform operations
+        
+        progress.succeed('Database is healthy');
+        console.log(formatter.formatSuccess('All systems operational'));
+      } catch (error) {
+        progress.fail('Database check failed');
+        console.error(formatter.formatError(error.message));
+        process.exit(1);
+      }
+    });
+
+  // Override help to use formatter
+  command.configureHelp({
+    formatHelp: (cmd, helper) => formatter.formatHelp(cmd)
+  });
+
+  return command;
+}
+```
+
+### Output Guidelines
+
+1. **Never use raw console.log()** - Always use the formatter methods
+2. **Be consistent with message types** - Use the appropriate formatter method for the message type
+3. **Use progress indicators** - For any operation that takes more than a second
+4. **Format structured data** - Use tables (via cli-table3) for tabular data
+5. **Handle errors gracefully** - Always format error messages before displaying
+
 ## Module Structure
 
 Every module's `index.ts` file must follow this exact pattern:

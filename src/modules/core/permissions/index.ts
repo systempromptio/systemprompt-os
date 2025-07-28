@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Permissions module - Role-based access control and permissions management.
  * @file Permissions module entry point.
@@ -20,7 +21,7 @@ import type { IPermissionsModuleExports } from '@/modules/core/permissions/types
  */
 export class PermissionsModule implements IModule<IPermissionsModuleExports> {
   public readonly name = 'permissions';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Role-based access control and permissions management';
   public readonly dependencies = ['logger', 'database', 'auth'] as const;

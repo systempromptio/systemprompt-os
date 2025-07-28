@@ -4,8 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SQLiteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
-import type { DatabaseConfig } from '@/modules/core/database/interfaces/database.interface.js';
+import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter.js';
 import type { IDatabaseConfig } from '@/modules/core/database/types/database.types.js';
 
 // Mock better-sqlite3
@@ -39,10 +38,10 @@ vi.mock('@utils/logger.js', () => ({
 }));
 
 describe('SQLiteAdapter', () => {
-  let adapter: SQLiteAdapter;
+  let adapter: SqliteAdapter;
   
   beforeEach(() => {
-    adapter = new SQLiteAdapter();
+    adapter = new SqliteAdapter();
     vi.clearAllMocks();
     mockDatabase.prepare.mockReturnValue(mockStatement);
     mockDatabase.open = true;
@@ -54,7 +53,8 @@ describe('SQLiteAdapter', () => {
 
   describe('connect', () => {
     it('should connect to database successfully', async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite',
           mode: 'wal'
@@ -73,14 +73,17 @@ describe('SQLiteAdapter', () => {
     });
 
     it('should throw error if sqlite config is missing', async () => {
-      const config: DatabaseConfig = {};
+      const config: IDatabaseConfig = {
+        type: 'sqlite'
+      };
       
       await expect(adapter.connect(config)).rejects.toThrow('SQLite configuration is required');
     });
 
     it('should create directory if it does not exist', async () => {
       const { mkdir } = await import('node:fs/promises');
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/nested/db.sqlite'
         }
@@ -98,7 +101,8 @@ describe('SQLiteAdapter', () => {
         throw error;
       });
 
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }
@@ -112,7 +116,8 @@ describe('SQLiteAdapter', () => {
 
   describe('disconnect', () => {
     it('should close database connection', async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }
@@ -136,7 +141,8 @@ describe('SQLiteAdapter', () => {
     });
 
     it('should return true when connected', async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }
@@ -147,7 +153,8 @@ describe('SQLiteAdapter', () => {
     });
 
     it('should return false when database is closed', async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }
@@ -163,7 +170,8 @@ describe('SQLiteAdapter', () => {
     let connection: any;
     
     beforeEach(async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }
@@ -263,7 +271,8 @@ describe('SQLiteAdapter', () => {
     let stmt: any;
     
     beforeEach(async () => {
-      const config: DatabaseConfig = {
+      const config: IDatabaseConfig = {
+        type: 'sqlite',
         sqlite: {
           filename: '/path/to/db.sqlite'
         }

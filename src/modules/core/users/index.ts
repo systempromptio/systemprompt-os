@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Users module - User management system.
  * @file Users module entry point.
@@ -23,7 +24,7 @@ export interface IUsersModuleExports {
  */
 export class UsersModule implements IModule<IUsersModuleExports> {
   public readonly name = 'users' as const;
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'User management system';
   public readonly dependencies = ['logger', 'database', 'auth'] as const;

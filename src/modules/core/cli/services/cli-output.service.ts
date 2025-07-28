@@ -191,6 +191,15 @@ export class CliOutputService {
   }
 
   /**
+   * Output data in JSON format.
+   * @param data - Data to output as JSON.
+   * @param indent - Number of spaces for indentation (default: 2).
+   */
+  public json(data: unknown, indent = 2): void {
+    this.outputJson(data, { indent });
+  }
+
+  /**
    * Output JSON formatted data.
    * @param data - Data to output.
    * @param options - Output options.

@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * MCP module - Model Context Protocol integration for managing AI model contexts.
  * @file MCP module entry point.
@@ -20,7 +21,7 @@ import type { IMCPModuleExports as IMCPModuleExportsType } from '@/modules/core/
  */
 export class MCPModule implements IModule<IMCPModuleExportsType> {
   public readonly name = 'mcp';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Model Context Protocol integration for managing AI model contexts';
   public readonly dependencies = ['logger', 'database', 'modules'];

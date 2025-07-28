@@ -7,16 +7,22 @@ import { AuthRepository } from '../../../../../../src/modules/core/auth/database
 import { DatabaseService } from '../../../../../../src/modules/core/database/index';
 import { UserService } from '../../../../../../src/modules/core/auth/services/user.service';
 import { randomUUID } from 'node:crypto';
+import { getModuleLoader } from '../../../../../../src/modules/loader';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/index';
 
 // Mock dependencies
 vi.mock('node:crypto');
 vi.mock('../../../../../../src/modules/core/auth/services/user.service');
+vi.mock('../../../../../../src/modules/loader');
+vi.mock('../../../../../../src/modules/core/auth/index');
 
 describe('AuthRepository', () => {
   let mockDatabaseService: any;
   let mockUserService: any;
   let authRepository: AuthRepository;
   let mockUuid: string;
+  let mockAuthModule: any;
+  let mockModuleLoader: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -32,11 +38,36 @@ describe('AuthRepository', () => {
 
     // Mock user service
     mockUserService = {
-      createOrUpdateUserFromOAuth: vi.fn()
+      createOrUpdateUserFromOauth: vi.fn()
     };
-    vi.mocked(UserService).mockImplementation(() => mockUserService);
-
-    authRepository = new AuthRepository(mockDatabaseService);
+    
+    // Mock auth module
+    mockAuthModule = {
+      exports: {
+        userService: vi.fn().mockReturnValue(mockUserService)
+      }
+    };
+    
+    // Mock getAuthModule to return the mock auth module
+    vi.mocked(getAuthModule).mockReturnValue(mockAuthModule);
+    
+    // Mock module loader
+    mockModuleLoader = {
+      getRegistry: vi.fn().mockReturnValue({
+        getAll: vi.fn().mockReturnValue([{ name: 'auth', ...mockAuthModule }])
+      })
+    };
+    vi.mocked(getModuleLoader).mockReturnValue(mockModuleLoader);
+    
+    // Create a test class that doesn't use singleton
+    class TestAuthRepository extends AuthRepository {
+      constructor(db: any) {
+        // @ts-ignore - accessing private constructor
+        super(db);
+      }
+    }
+    
+    authRepository = new TestAuthRepository(mockDatabaseService);
   });
 
   afterEach(() => {
@@ -45,23 +76,25 @@ describe('AuthRepository', () => {
 
   describe('constructor', () => {
     it('should create UserService instance', () => {
-      expect(UserService).toHaveBeenCalledWith(mockDatabaseService);
+      expect(getAuthModule).toHaveBeenCalled();
+      expect(mockAuthModule.exports.userService).toHaveBeenCalled();
     });
   });
 
-  describe('upsertUserFromOAuth', () => {
+  describe('upsertIUserFromOAuth', () => {
     it('should create or update user and return with roles and permissions', async () => {
       const mockUser = {
         id: 'user-123',
         email: 'test@example.com',
         name: 'Test User',
-        avatar_url: 'https://example.com/avatar.jpg',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
+        avatarurl: 'https://example.com/avatar.jpg',
+        roles: ['user'],
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z'
       };
 
       const mockRoles = [
-        { id: 'role_admin', name: 'admin', description: 'Administrator', is_system: 1 }
+        { id: 'role_admin', name: 'admin', description: 'Administrator', isSystem: 1 }
       ];
 
       const mockPermissions = [
@@ -74,7 +107,7 @@ describe('AuthRepository', () => {
         }
       ];
 
-      mockUserService.createOrUpdateUserFromOAuth.mockResolvedValue(mockUser);
+      mockUserService.createOrUpdateUserFromOauth.mockResolvedValue(mockUser);
       
       mockDatabaseService.query.mockImplementation((sql: string) => {
         if (sql.includes('auth_roles')) {
@@ -92,9 +125,9 @@ describe('AuthRepository', () => {
         avatar: 'https://example.com/avatar.jpg'
       };
 
-      const result = await authRepository.upsertUserFromOAuth('google', 'google-123', profile);
+      const result = await authRepository.upsertIUserFromOAuth('google', 'google-123', profile);
 
-      expect(mockUserService.createOrUpdateUserFromOAuth).toHaveBeenCalledWith({
+      expect(mockUserService.createOrUpdateUserFromOauth).toHaveBeenCalledWith({
         provider: 'google',
         providerId: 'google-123',
         email: 'test@example.com',
@@ -137,12 +170,12 @@ describe('AuthRepository', () => {
         updated_at: '2024-01-01T00:00:00Z'
       };
 
-      mockUserService.createOrUpdateUserFromOAuth.mockResolvedValue(mockUser);
+      mockUserService.createOrUpdateUserFromOauth.mockResolvedValue(mockUser);
       mockDatabaseService.query.mockResolvedValue([]);
 
       const profile = { email: 'test@example.com' };
 
-      const result = await authRepository.upsertUserFromOAuth('github', 'github-456', profile);
+      const result = await authRepository.upsertIUserFromOAuth('github', 'github-456', profile);
 
       expect(result.name).toBeUndefined();
       expect(result.avatarUrl).toBeUndefined();
@@ -151,21 +184,21 @@ describe('AuthRepository', () => {
     });
   });
 
-  describe('getUserById', () => {
+  describe('getIUserById', () => {
     it('should return user with roles and permissions', async () => {
       const mockUserRow = {
         id: 'user-123',
         email: 'test@example.com',
         name: 'Test User',
-        avatar_url: 'https://example.com/avatar.jpg',
-        is_active: 1,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        last_login_at: '2024-01-02T00:00:00Z'
+        avatarUrl: 'https://example.com/avatar.jpg',
+        isActive: 1,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        lastLoginAt: '2024-01-02T00:00:00Z'
       };
 
       const mockRoles = [
-        { id: 'role_user', name: 'user', description: 'Regular user', is_system: 1 }
+        { id: 'role_user', name: 'user', description: 'Regular user', isSystem: 1 }
       ];
 
       const mockPermissions = [
@@ -191,7 +224,7 @@ describe('AuthRepository', () => {
         return Promise.resolve([]);
       });
 
-      const result = await authRepository.getUserById('user-123');
+      const result = await authRepository.getIUserById('user-123');
 
       expect(result).toEqual({
         id: 'user-123',
@@ -221,7 +254,7 @@ describe('AuthRepository', () => {
     it('should return null for non-existent user', async () => {
       mockDatabaseService.query.mockResolvedValue([]);
 
-      const result = await authRepository.getUserById('non-existent');
+      const result = await authRepository.getIUserById('non-existent');
 
       expect(result).toBeNull();
     });
@@ -231,11 +264,11 @@ describe('AuthRepository', () => {
         id: 'user-123',
         email: 'test@example.com',
         name: 'Test User',
-        avatar_url: null,
-        is_active: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        last_login_at: null
+        avatarUrl: null,
+        isActive: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        lastLoginAt: null
       };
 
       mockDatabaseService.query.mockImplementation((sql: string) => {
@@ -245,25 +278,25 @@ describe('AuthRepository', () => {
         return Promise.resolve([]);
       });
 
-      const result = await authRepository.getUserById('user-123');
+      const result = await authRepository.getIUserById('user-123');
 
       expect(result).toBeDefined();
       expect(result?.isActive).toBe(false);
     });
   });
 
-  describe('getUserByEmail', () => {
+  describe('getIUserByEmail', () => {
     it('should return user by email', async () => {
       const mockUserIdRow = { id: 'user-123' };
       const mockUserRow = {
         id: 'user-123',
         email: 'test@example.com',
         name: 'Test User',
-        avatar_url: null,
-        is_active: 1,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        last_login_at: null
+        avatarUrl: null,
+        isActive: 1,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        lastLoginAt: null
       };
 
       mockDatabaseService.query.mockImplementation((sql: string, params: any[]) => {
@@ -276,7 +309,7 @@ describe('AuthRepository', () => {
         return Promise.resolve([]);
       });
 
-      const result = await authRepository.getUserByEmail('test@example.com');
+      const result = await authRepository.getIUserByEmail('test@example.com');
 
       expect(result).toBeDefined();
       expect(result?.email).toBe('test@example.com');
@@ -285,22 +318,22 @@ describe('AuthRepository', () => {
     it('should return null for non-existent email', async () => {
       mockDatabaseService.query.mockResolvedValue([]);
 
-      const result = await authRepository.getUserByEmail('nonexistent@example.com');
+      const result = await authRepository.getIUserByEmail('nonexistent@example.com');
 
       expect(result).toBeNull();
     });
   });
 
-  describe('getUserRoles', () => {
+  describe('getIUserIRoles', () => {
     it('should return user roles', async () => {
       const mockRoles = [
-        { id: 'role_admin', name: 'admin', description: 'Administrator', is_system: 1 },
-        { id: 'role_user', name: 'user', description: 'Regular user', is_system: 1 }
+        { id: 'role_admin', name: 'admin', description: 'Administrator', isSystem: 1 },
+        { id: 'role_user', name: 'user', description: 'Regular user', isSystem: 1 }
       ];
 
       mockDatabaseService.query.mockResolvedValue(mockRoles);
 
-      const result = await authRepository.getUserRoles('user-123');
+      const result = await authRepository.getIUserIRoles('user-123');
 
       expect(mockDatabaseService.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT r.* FROM auth_roles r'),
@@ -318,13 +351,13 @@ describe('AuthRepository', () => {
     it('should return empty array for user with no roles', async () => {
       mockDatabaseService.query.mockResolvedValue([]);
 
-      const result = await authRepository.getUserRoles('user-123');
+      const result = await authRepository.getIUserIRoles('user-123');
 
       expect(result).toEqual([]);
     });
   });
 
-  describe('getUserPermissions', () => {
+  describe('getIUserIPermissions', () => {
     it('should return unique user permissions', async () => {
       const mockPermissions = [
         { 
@@ -345,7 +378,7 @@ describe('AuthRepository', () => {
 
       mockDatabaseService.query.mockResolvedValue(mockPermissions);
 
-      const result = await authRepository.getUserPermissions('user-123');
+      const result = await authRepository.getIUserIPermissions('user-123');
 
       expect(mockDatabaseService.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT DISTINCT p.* FROM auth_permissions p'),
@@ -364,17 +397,17 @@ describe('AuthRepository', () => {
     it('should return empty array for user with no permissions', async () => {
       mockDatabaseService.query.mockResolvedValue([]);
 
-      const result = await authRepository.getUserPermissions('user-123');
+      const result = await authRepository.getIUserIPermissions('user-123');
 
       expect(result).toEqual([]);
     });
   });
 
-  describe('hasPermission', () => {
+  describe('hasIPermission', () => {
     it('should return true when user has permission', async () => {
       mockDatabaseService.query.mockResolvedValue([{ count: 1 }]);
 
-      const result = await authRepository.hasPermission('user-123', 'users', 'manage');
+      const result = await authRepository.hasIPermission('user-123', 'users', 'manage');
 
       expect(mockDatabaseService.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT COUNT(*) as count FROM auth_permissions p'),
@@ -386,17 +419,17 @@ describe('AuthRepository', () => {
     it('should return false when user lacks permission', async () => {
       mockDatabaseService.query.mockResolvedValue([{ count: 0 }]);
 
-      const result = await authRepository.hasPermission('user-123', 'users', 'delete');
+      const result = await authRepository.hasIPermission('user-123', 'users', 'delete');
 
       expect(result).toBe(false);
     });
   });
 
-  describe('hasRole', () => {
+  describe('hasIRole', () => {
     it('should return true when user has role', async () => {
       mockDatabaseService.query.mockResolvedValue([{ count: 1 }]);
 
-      const result = await authRepository.hasRole('user-123', 'admin');
+      const result = await authRepository.hasIRole('user-123', 'admin');
 
       expect(mockDatabaseService.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT COUNT(*) as count FROM auth_user_roles ur'),
@@ -408,7 +441,7 @@ describe('AuthRepository', () => {
     it('should return false when user lacks role', async () => {
       mockDatabaseService.query.mockResolvedValue([{ count: 0 }]);
 
-      const result = await authRepository.hasRole('user-123', 'superadmin');
+      const result = await authRepository.hasIRole('user-123', 'superadmin');
 
       expect(result).toBe(false);
     });

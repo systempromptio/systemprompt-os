@@ -1,5 +1,5 @@
 name: mcp
-type: service
+type: core
 version: 1.0.0
 description: Model Context Protocol integration for managing AI model contexts and interactions
 author: SystemPrompt OS

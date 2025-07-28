@@ -18,6 +18,7 @@ import type {
   IIdentityProvider,
   IOAuth2Error,
   IOAuthUserData,
+  IProviderRegistry,
   IStateData
 } from '@/server/external/rest/oauth2/types/authorize.types';
 
@@ -375,7 +376,7 @@ let authCodeService: IAuthCodeService | null = null;
 const getAuthCodeService = (): IAuthCodeService => {
   if (authCodeService === null) {
     const authModule = getAuthModule();
-    authCodeService = authModule.exports.authCodeService();
+    authCodeService = authModule.exports.authCodeService() as IAuthCodeService;
   }
   return authCodeService;
 };
@@ -399,7 +400,7 @@ export class AuthorizeEndpoint {
       const params = authorizeRequestSchema.parse(req.query);
 
       const authModule = getAuthModule();
-      const providerRegistry = authModule.exports.getProviderRegistry();
+      const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');
@@ -510,7 +511,7 @@ export class AuthorizeEndpoint {
 
       if (params.provider !== undefined) {
         const authModule = getAuthModule();
-        const providerRegistry = authModule.exports.getProviderRegistry();
+        const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
 
         if (providerRegistry === null) {
           throw new Error('Provider registry not initialized');
@@ -680,7 +681,7 @@ export class AuthorizeEndpoint {
       }
 
       const authModule = getAuthModule();
-      const providerRegistry = authModule.exports.getProviderRegistry();
+      const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');

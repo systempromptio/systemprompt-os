@@ -1,5 +1,5 @@
 name: cli
-type: service
+type: core
 version: 1.0.0
 description: CLI utilities and help system for SystemPrompt OS
 author: SystemPrompt OS Team <team@systemprompt-os.com>

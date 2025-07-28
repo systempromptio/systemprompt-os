@@ -25,6 +25,21 @@ import type {
 } from '@/server/external/rest/oauth2/types/index';
 
 /**
+ * Authorization code data structure.
+ */
+interface IAuthorizationCodeData {
+  userId: string | null;
+  clientId: string;
+  scope: string;
+  redirectUri: string;
+  expiresAt: Date;
+  codeChallenge?: string;
+  provider?: string;
+  providerTokens?: Record<string, unknown> | null;
+  userEmail?: string;
+}
+
+/**
  * Schema for OAuth2 token request validation.
  */
 const logger = LoggerService.getInstance();
@@ -147,7 +162,10 @@ export class TokenEndpoint {
     }
 
     const authModule = getAuthModule();
-    const authCodeSvc = authModule.exports.authCodeService();
+    const authCodeSvc = authModule.exports.authCodeService() as {
+      getAuthorizationCode: (code: string) => Promise<IAuthorizationCodeData | null>;
+      deleteAuthorizationCode: (code: string) => Promise<void>;
+    };
 
     const codeData = await authCodeSvc.getAuthorizationCode(params.code);
     logger.info(LogSource.AUTH, 'Authorization code lookup completed', {
@@ -206,13 +224,15 @@ export class TokenEndpoint {
     ) {
       try {
         const authModule = getAuthModule();
-        const provider = authModule.exports.getProvider(codeData.provider);
+        const provider = authModule.exports.getProvider(codeData.provider) as {
+          exchangeCodeForTokens?: (code: string) => Promise<unknown>;
+        } | undefined;
         const tokenData = codeData.providerTokens as IProviderTokens;
         if (provider && typeof tokenData.code === 'string') {
           const {code} = tokenData;
-          if (code.length > 0 && typeof provider.exchangeCodeForTokens === 'function') {
+          if (code.length > 0 && provider.exchangeCodeForTokens && typeof provider.exchangeCodeForTokens === 'function') {
             const providerTokens = await provider.exchangeCodeForTokens(code);
-            codeData.providerTokens = providerTokens as unknown as Record<string, unknown>;
+            codeData.providerTokens = providerTokens as Record<string, unknown>;
           }
         }
       } catch (error) {

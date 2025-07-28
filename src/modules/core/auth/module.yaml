@@ -1,5 +1,5 @@
 name: auth
-type: service
+type: core
 version: 2.0.0
 description: Enhanced authentication with MFA, tokens, and audit logging
 author: SystemPrompt OS Team <team@systemprompt-os.com>

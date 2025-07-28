@@ -1,17 +1,8 @@
-Here is a list of files, create a typescript standards enforcers, one per file simulanesouly, to enforce fix the typescript errors
-
-Errors  Files
-     1  src/bootstrap/phases/core-modules-phase.ts:134
-     1  src/bootstrap/phases/module-discovery-phase.ts:55
-     2  src/bootstrap/phases/module-registration-phase.ts:109
-     2  src/modules/core/auth/providers/core/oauth2.ts:106
-     2  src/modules/core/auth/providers/registry.ts:11
-     1  src/modules/core/cli/services/cli-formatter.service.ts:440
-     1  src/modules/core/cli/services/database-schema.service.ts:7
-     2  src/modules/core/cli/services/refresh.service.ts:45
-     6  src/modules/core/cli/utils/spinner.ts:7
-     1  src/modules/core/config/cli/model-commands.ts:67
-     1  src/modules/core/config/cli/provider.ts:305
-     1  src/modules/core/database/adapters/database-service-adapter.ts:55
-     2  src/modules/core/database/cli/schema.ts:53
-     2  src/modules/core/database/cli/view.ts:341
+1. Run the tracking script at `/var/www/html/systemprompt-os/scripts/track-typecheck.sh` to identify and report files with TypeScript errors
+2. Get the list of files with errors from npm run typecheck output
+3. Process files in batches of 5:
+   - Spawn 5 typescript-standards-enforcer agents simultaneously (one per file)
+   - Each agent should fix ALL TypeScript errors in their assigned file
+   - Each agent must verify their file has 0 TypeScript errors before completing
+4. After each batch of 5 files is complete, check for linting errors
+5. Repeat the process with the next batch of 5 files until every file in the project conforms to TypeScript standards

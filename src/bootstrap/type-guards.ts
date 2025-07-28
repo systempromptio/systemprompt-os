@@ -20,14 +20,13 @@ export const isModuleExports = (obj: unknown): obj is IModuleExports => {
     return false;
   }
 
-  const candidate = obj as Record<string, unknown>;
+  const hasValidScanForModules = 'scanForModules' in obj
+    && typeof obj.scanForModules === 'function';
 
-  return (
-    'scanForModules' in candidate
-    && typeof candidate.scanForModules === 'function'
-    && 'getEnabledModules' in candidate
-    && typeof candidate.getEnabledModules === 'function'
-  );
+  const hasValidGetEnabledModules = 'getEnabledModules' in obj
+    && typeof obj.getEnabledModules === 'function';
+
+  return hasValidScanForModules && hasValidGetEnabledModules;
 };
 
 /**

@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * System module - Core system management and configuration functionality.
  * @file System module entry point.
@@ -17,7 +18,7 @@ import type { ISystemModuleExports } from '@/modules/core/system/types/index';
  */
 export class SystemModule implements IModule<ISystemModuleExports> {
   public readonly name = 'system';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Core system management and configuration functionality';
   public readonly dependencies = ['logger', 'database'] as const;

@@ -289,14 +289,14 @@ export class SQLParserService {
     tables: IParsedStatement[];
     indexes: IParsedStatement[];
     triggers: IParsedStatement[];
-    data: IParsedStatement[];
+    dataStatements: IParsedStatement[];
     other: IParsedStatement[];
   } {
     const categorized = {
       tables: [] as IParsedStatement[],
       indexes: [] as IParsedStatement[],
       triggers: [] as IParsedStatement[],
-      data: [] as IParsedStatement[],
+      dataStatements: [] as IParsedStatement[],
       other: [] as IParsedStatement[]
     };
 
@@ -310,7 +310,7 @@ export class SQLParserService {
       } else if (upper.startsWith('CREATE TRIGGER')) {
         categorized.triggers.push(stmt);
       } else if (stmt.type === 'DML') {
-        categorized.data.push(stmt);
+        categorized.dataStatements.push(stmt);
       } else {
         categorized.other.push(stmt);
       }

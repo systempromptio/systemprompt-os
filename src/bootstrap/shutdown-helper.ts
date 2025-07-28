@@ -5,8 +5,7 @@
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Check if module has a specific method.
@@ -15,8 +14,10 @@ import { LogSource } from '@/modules/core/logger/types/index';
  * @returns {boolean} True if module has method.
  */
 export const moduleHasMethod = (moduleInstance: IModule, method: string): boolean => {
-  const key = method as keyof IModule;
-  return key in moduleInstance && moduleInstance[key] !== undefined;
+  if (method === 'stop') {
+    return 'stop' in moduleInstance && typeof moduleInstance.stop === 'function';
+  }
+  return Object.hasOwn(moduleInstance, method);
 };
 
 /**
@@ -37,10 +38,7 @@ export const shutdownModule = async (
 
   try {
     logger.debug(LogSource.BOOTSTRAP, `Stopping module: ${name}`);
-    const stopMethod = moduleInstance.stop;
-    if (stopMethod !== undefined) {
-      await stopMethod.call(moduleInstance);
-    }
+    await moduleInstance.stop();
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Error stopping module ${name}:`, {
       error: error instanceof Error ? error : new Error(String(error))
@@ -49,7 +47,48 @@ export const shutdownModule = async (
 };
 
 /**
+ * Recursively shutdown modules in sequence.
+ * @param {object} options - Shutdown options.
+ * @param {string[]} options.moduleNames - Array of module names to shutdown.
+ * @param {Map<string, IModule>} options.modules - Map of loaded modules.
+ * @param {ILogger} options.logger - Logger instance.
+ * @param {number} options.index - Current index in the module names array.
+ * @returns {Promise<void>} Promise that resolves when all modules are shut down.
+ */
+const shutdownModulesSequentially = async ({
+  moduleNames,
+  modules,
+  logger,
+  index = 0
+}: {
+  moduleNames: string[];
+  modules: Map<string, IModule>;
+  logger: ILogger;
+  index?: number;
+}): Promise<void> => {
+  if (index >= moduleNames.length) {
+    return;
+  }
+
+  const name = moduleNames[index];
+  if (name !== undefined) {
+    const moduleInstance = modules.get(name);
+    if (moduleInstance !== undefined) {
+      await shutdownModule(name, moduleInstance, logger);
+    }
+  }
+
+  await shutdownModulesSequentially({
+    moduleNames,
+    modules,
+    logger,
+    index: index + 1
+  });
+};
+
+/**
  * Shutdown all modules in reverse order.
+ * Sequential shutdown is required to ensure proper cleanup order.
  * @param {Map<string, IModule>} modules - Map of loaded modules.
  * @param {ILogger} logger - Logger instance.
  * @returns {Promise<void>} Promise that resolves when all modules are shut down.
@@ -59,11 +98,9 @@ export const shutdownAllModules = async (
   logger: ILogger,
 ): Promise<void> => {
   const moduleNames = Array.from(modules.keys()).reverse();
-
-  for (const name of moduleNames) {
-    const moduleInstance = modules.get(name);
-    if (moduleInstance !== undefined) {
-      await shutdownModule(name, moduleInstance, logger);
-    }
-  }
+  await shutdownModulesSequentially({
+    moduleNames,
+    modules,
+    logger
+  });
 };

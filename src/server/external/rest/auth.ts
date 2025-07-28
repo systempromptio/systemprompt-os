@@ -38,7 +38,7 @@ export class AuthEndpoint {
       const error = typeof req.query.error === 'string' ? req.query.error : undefined;
 
       const authModule = getAuthModule();
-      const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry();
+      const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry() as ProviderRegistry | null;
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');

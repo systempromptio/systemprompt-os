@@ -1,9 +1,4 @@
 /**
- * @file Simple progress logger for CLI operations.
- * @module cli/utils/progress-logger
- */
-
-/**
  * Progress logger configuration.
  */
 export interface IProgressConfig {
@@ -15,7 +10,7 @@ export interface IProgressConfig {
  */
 export class ProgressLogger {
   private text: string;
-  private startTime: number;
+  private readonly startTime: number;
 
   constructor(config: IProgressConfig = {}) {
     this.text = config.text || 'Processing...';
@@ -139,6 +134,8 @@ export const createProgressLogger = (preset: keyof typeof PROGRESS_PRESETS = 'lo
  * @param fn - The async function to execute.
  * @param config - Progress configuration.
  * @param options - Success and error text options.
+ * @param options.successText
+ * @param options.errorText
  * @returns Promise with the function result.
  */
 export const withProgress = async <T>(

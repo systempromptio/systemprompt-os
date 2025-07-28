@@ -5,15 +5,13 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
+import type { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import {
   type ITask,
   type ITaskFilter,
   type ITaskHandler,
   type ITaskService,
   type ITaskStatistics,
-  TaskExecutionStatusEnum,
   TaskStatusEnum
 } from '@/modules/core/tasks/types/index';
 
@@ -33,7 +31,10 @@ export class TaskService implements ITaskService {
    * Singleton pattern requires empty constructor.
    * All initialization is done in the initialize method.
    */
-  private constructor() {}
+  private constructor() {
+    this.handlers = new Map();
+    this.initialized = false;
+  }
 
   /**
    * Gets the singleton instance of TaskService.
@@ -47,16 +48,16 @@ export class TaskService implements ITaskService {
   /**
    * Initializes the TaskService with required dependencies.
    * @param logger - Logger instance for service logging.
-   * @param database - Database service for data persistence.
+   * @param taskRepository - Task repository for data persistence.
    * @throws {Error} If already initialized.
    */
-  public initialize(logger: ILogger, database: DatabaseService): void {
+  public initialize(logger: ILogger, taskRepository: TaskRepository): void {
     if (this.initialized) {
       throw new Error('TaskService already initialized');
     }
 
     this.logger = logger;
-    this.taskRepository = new TaskRepository(database);
+    this.taskRepository = taskRepository;
     this.initialized = true;
 
     this.logger.info(LogSource.MODULES, 'TaskService initialized');
@@ -95,9 +96,6 @@ export class TaskService implements ITaskService {
     }
 
     const { id: taskId } = task;
-    if (taskId == null) {
-      throw new Error('Task ID is required for marking in progress');
-    }
     await this.markTaskInProgress(taskId);
     const updatedTask = {
       ...task,
@@ -122,15 +120,30 @@ export class TaskService implements ITaskService {
 
     await this.taskRepository.updateStatus(taskId, status);
 
-    if (this.isTerminalStatus(status)) {
-      const executionStatus = this.mapTaskStatusToExecutionStatus(status);
-      await this.taskRepository.updateExecution(taskId, executionStatus);
-    }
-
     this.logger.info(
       LogSource.MODULES,
       `Task ${String(taskId)} status updated to ${status}`
     );
+  }
+
+  /**
+   * Updates a task with partial data.
+   * @param taskId - ID of the task to update.
+   * @param updates - Partial task data to update.
+   * @returns Promise resolving to the updated task.
+   * @throws {Error} If service not initialized.
+   */
+  public async updateTask(taskId: number, updates: Partial<ITask>): Promise<ITask> {
+    this.ensureInitialized();
+
+    const updatedTask = await this.taskRepository.update(taskId, updates);
+
+    this.logger.info(
+      LogSource.MODULES,
+      `Task ${String(taskId)} updated`
+    );
+
+    return updatedTask;
   }
 
   /**
@@ -168,7 +181,7 @@ export class TaskService implements ITaskService {
    * @param handler - Task handler to register.
    * @throws {Error} If service not initialized or handler already registered.
    */
-  public async registerHandler(handler: ITaskHandler): Promise<void> {
+  public registerHandler(handler: ITaskHandler): void {
     this.ensureInitialized();
 
     if (this.handlers.has(handler.type)) {
@@ -176,12 +189,6 @@ export class TaskService implements ITaskService {
     }
 
     this.handlers.set(handler.type, handler);
-    await this.taskRepository.registerTaskType(
-      handler.type,
-      'unknown',
-      `Handler for ${handler.type}`
-    );
-
     this.logger.info(LogSource.MODULES, `Task handler registered: ${handler.type}`);
   }
 
@@ -190,10 +197,9 @@ export class TaskService implements ITaskService {
    * @param type - Task type to unregister handler for.
    * @throws {Error} If service not initialized.
    */
-  public async unregisterHandler(type: string): Promise<void> {
+  public unregisterHandler(type: string): void {
     this.ensureInitialized();
     this.handlers.delete(type);
-    await this.taskRepository.disableTaskType(type);
     this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
   }
 
@@ -231,50 +237,36 @@ export class TaskService implements ITaskService {
    * @throws {Error} If validation fails.
    */
   private validateTaskInput(task: Partial<ITask>): void {
-    if (task.type === null || task.type === undefined) {
+    if (task.type === undefined) {
       throw new Error('Task type is required');
     }
-    if (task.moduleId === null || task.moduleId === undefined) {
+    if (task.moduleId === undefined) {
       throw new Error('Task moduleId is required');
     }
   }
 
   /**
-   * Marks a task as in progress and creates execution record.
+   * Marks a task as in progress.
    * @param taskId - Task ID to mark.
    * @returns Promise that resolves when marking is complete.
    */
   private async markTaskInProgress(taskId: number): Promise<void> {
     await this.taskRepository.updateStatus(taskId, TaskStatusEnum.IN_PROGRESS);
-    await this.taskRepository.createExecution(taskId, TaskExecutionStatusEnum.RUNNING);
   }
 
   /**
    * Checks if a task status is terminal.
    * @param status - Task status to check.
    * @returns True if status is terminal.
+   * @private
    */
   private isTerminalStatus(status: TaskStatusEnum): boolean {
-    return [TaskStatusEnum.COMPLETED, TaskStatusEnum.FAILED, TaskStatusEnum.CANCELLED].includes(status);
-  }
-
-  /**
-   * Maps task status to execution status.
-   * @param status - Task status.
-   * @returns Corresponding execution status.
-   * @throws {Error} If status cannot be mapped to execution status.
-   */
-  private mapTaskStatusToExecutionStatus(status: TaskStatusEnum): TaskExecutionStatusEnum {
-    switch (status) {
-      case TaskStatusEnum.COMPLETED:
-        return TaskExecutionStatusEnum.SUCCESS;
-      case TaskStatusEnum.FAILED:
-        return TaskExecutionStatusEnum.FAILED;
-      case TaskStatusEnum.CANCELLED:
-        return TaskExecutionStatusEnum.CANCELLED;
-      case TaskStatusEnum.PENDING:
-      case TaskStatusEnum.IN_PROGRESS:
-        throw new Error(`Cannot map non-terminal status: ${status}`);
-    }
+    const terminalStatuses = [
+      TaskStatusEnum.COMPLETED,
+      TaskStatusEnum.FAILED,
+      TaskStatusEnum.CANCELLED,
+      TaskStatusEnum.STOPPED
+    ];
+    return terminalStatuses.includes(status);
   }
 }

@@ -1,75 +1,49 @@
 /**
- * MFAService class for managing Multi-Factor Authentication.
+ * MFA Service for managing Multi-Factor Authentication.
+ * @module modules/core/auth/services/mfa.service
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import { type ILogger, LogSource } from '@/modules/core/logger/types';
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
-import * as crypto from 'crypto';
+import * as cryptoModule from 'crypto';
+import { MFARepository } from '@/modules/core/auth/repositories/mfa.repository';
+import type {
+  MFAConfig,
+  MFASetupResult,
+  MFAVerifyParams
+} from '@/modules/core/auth/types';
+import {
+  MFAError,
+  MFASetupError,
+  MFAVerificationError
+} from '@/modules/core/auth/errors/mfa.errors';
 
-export interface MFAConfig {
-  appName: string;
-  backupCodeCount: number;
-  windowSize: number;
-}
-
-export interface MFASetupResult {
-  secret: string;
-  qrCodeUrl: string;
-  backupCodes: string[];
-}
-
-export interface MFAVerifyParams {
-  userId: string;
-  code: string;
-  isBackupCode?: boolean;
-}
-
-export interface UserMFAData {
-  id: string;
-  mfa_secret?: string | null;
-  mfa_enabled?: number;
-  mfa_backup_codes?: string | null;
-}
-
-export class MFAError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly userId?: string
-  ) {
-    super(message);
-    this.name = 'MFAError';
-  }
-}
-
-export class MFASetupError extends MFAError {
-  constructor(message: string, userId?: string) {
-    super(message, 'MFA_SETUP_ERROR', userId);
-    this.name = 'MFASetupError';
-  }
-}
-
-export class MFAVerificationError extends MFAError {
-  constructor(message: string, userId?: string) {
-    super(message, 'MFA_VERIFICATION_ERROR', userId);
-    this.name = 'MFAVerificationError';
-  }
-}
-
+/**
+ * Service class for managing Multi-Factor Authentication.
+ * Implements singleton pattern for core module compliance.
+ */
 export class MFAService {
-  private static instance: MFAService;
-  private readonly config: MFAConfig;
-  private readonly logger: ILogger;
-  private readonly db: DatabaseService;
+  private static instance: MFAService | undefined;
+  private readonly repository: MFARepository;
+  private config!: MFAConfig;
+  private logger!: ILogger;
+
+  /**
+   * Private constructor for singleton pattern.
+   * @private
+   */
+  private constructor() {
+    this.repository = MFARepository.getInstance();
+  }
 
   /**
    * Get singleton instance.
+   * @returns MFAService instance.
+   * @throws Error if service not initialized.
    */
   public static getInstance(): MFAService {
-    if (!MFAService.instance) {
+    if (MFAService.instance === undefined) {
       throw new Error('MFAService must be initialized with config and logger first');
     }
     return MFAService.instance;
@@ -77,51 +51,47 @@ export class MFAService {
 
   /**
    * Initialize MFAService with configuration.
-   * @param config
-   * @param logger
+   * @param config - MFA configuration.
+   * @param logger - Logger instance.
+   * @returns Initialized MFAService instance.
    */
   public static initialize(config: MFAConfig, logger: ILogger): MFAService {
-    MFAService.instance = new MFAService(config, logger);
+    MFAService.instance ??= new MFAService();
+    MFAService.instance.config = config;
+    MFAService.instance.logger = logger;
     return MFAService.instance;
   }
 
   /**
-   * Constructor for MFAService.
-   * @param config
-   * @param logger
-   */
-  constructor(config: MFAConfig, logger: ILogger) {
-    this.config = config;
-    this.logger = logger;
-    this.db = DatabaseService.getInstance();
-  }
-
-  /**
    * Setup MFA for a user.
-   * @param userId
-   * @param email
+   * @param userId - User ID.
+   * @param email - User email.
+   * @returns MFA setup result with secret and QR code.
+   * @throws MFASetupError if setup fails.
    */
   async setupMFA(userId: string, email: string): Promise<MFASetupResult> {
     this.logger.debug(LogSource.AUTH, 'Setting up MFA for user', {
- userId,
-email
-});
-
-    const secret = speakeasy.generateSecret({
-      name: `${this.config.appName} (${email})`,
-      issuer: this.config.appName,
+      userId,
+      email
     });
 
-    if (!secret.otpauth_url) {
-      throw new Error('Failed to generate OTP auth URL');
-    }
-    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+    const { appName } = this.config;
+    const secret = speakeasy.generateSecret({
+      name: `${appName} (${email})`,
+      issuer: appName,
+    });
 
+    if (typeof secret.otpauth_url !== 'string' || secret.otpauth_url.length === 0) {
+      throw new MFASetupError('Failed to generate OTP auth URL', userId);
+    }
+
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
     const backupCodes = this.generateBackupCodes();
 
-    await this.db.execute(
-      'UPDATE auth_users SET mfa_secret = ?, mfa_backup_codes = ? WHERE id = ?',
-      [secret.base32, JSON.stringify(backupCodes), userId]
+    await this.repository.updateMFASetup(
+      userId,
+      secret.base32,
+      JSON.stringify(backupCodes)
     );
 
     this.logger.info(LogSource.AUTH, 'MFA setup completed for user', { userId });
@@ -135,36 +105,31 @@ email
 
   /**
    * Enable MFA for a user after verifying the initial code.
-   * @param userId
-   * @param code
+   * @param userId - User ID.
+   * @param code - TOTP code to verify.
+   * @returns True if MFA was enabled successfully.
+   * @throws MFASetupError if user not found or MFA not set up.
    */
   async enableMFA(userId: string, code: string): Promise<boolean> {
     this.logger.debug(LogSource.AUTH, 'Enabling MFA for user', { userId });
 
-    const users = await this.db.query<UserMFAData>(
-      'SELECT id, mfa_secret, mfa_backup_codes FROM auth_users WHERE id = ?',
-      [userId]
-    );
+    const user = await this.repository.getUserMFAData(userId);
 
-    if (users.length === 0) {
+    if (user === null) {
       throw new MFASetupError('User not found', userId);
     }
 
-    const user = users[0];
-    if (!user) {
-      throw new MFASetupError('User not found', userId);
-    }
-
-    if (!user.mfa_secret || user.mfa_secret === null
-        || !user.mfa_backup_codes || user.mfa_backup_codes === null) {
+    if (typeof user.mfa_secret !== 'string' || user.mfa_secret.length === 0
+        || typeof user.mfa_backup_codes !== 'string' || user.mfa_backup_codes.length === 0) {
       throw new MFASetupError('MFA not set up', userId);
     }
 
+    const { windowSize } = this.config;
     const isValid = speakeasy.totp.verify({
       secret: user.mfa_secret,
       encoding: 'base32',
       token: code,
-      window: this.config.windowSize,
+      window: windowSize,
     });
 
     if (!isValid) {
@@ -172,10 +137,7 @@ email
       return false;
     }
 
-    await this.db.execute(
-      'UPDATE auth_users SET mfa_enabled = ? WHERE id = ?',
-      [1, userId]
-    );
+    await this.repository.enableMFA(userId);
 
     this.logger.info(LogSource.AUTH, 'MFA enabled for user', { userId });
     return true;
@@ -183,33 +145,33 @@ email
 
   /**
    * Verify MFA code for a user.
-   * @param params
+   * @param params - MFA verification parameters.
+   * @returns True if verification succeeds.
+   * @throws MFAVerificationError if user not found.
    */
   async verifyMFA(params: MFAVerifyParams): Promise<boolean> {
     const {
- userId, code, isBackupCode = false
-} = params;
+      userId,
+      code,
+      isBackupCode = false
+    } = params;
     this.logger.debug(LogSource.AUTH, 'Verifying MFA for user', {
- userId,
-isBackupCode
-});
+      userId,
+      isBackupCode
+    });
 
-    const users = await this.db.query<UserMFAData>(
-      'SELECT id, mfa_secret, mfa_enabled, mfa_backup_codes FROM auth_users WHERE id = ?',
-      [userId]
-    );
+    const user = await this.repository.getUserMFAData(userId);
 
-    if (users.length === 0) {
-      throw new MFAVerificationError('User not found', userId);
-    }
-
-    const user = users[0];
-    if (!user) {
+    if (user === null) {
       throw new MFAVerificationError('User not found', userId);
     }
 
     if (user.mfa_enabled !== 1) {
-      this.logger.warn(LogSource.AUTH, 'MFA verification attempted for user without MFA enabled', { userId });
+      this.logger.warn(
+        LogSource.AUTH,
+        'MFA verification attempted for user without MFA enabled',
+        { userId }
+      );
       return false;
     }
 
@@ -217,60 +179,34 @@ isBackupCode
       return await this.verifyBackupCode(userId, code, user.mfa_backup_codes);
     }
 
-    if (!user.mfa_secret) {
-      this.logger.warn(LogSource.AUTH, 'MFA secret not found for user', { userId });
-      return false;
-    }
-
-    const isValid = speakeasy.totp.verify({
-      secret: user.mfa_secret,
-      encoding: 'base32',
-      token: code,
-      window: this.config.windowSize,
-    });
-
-    if (isValid) {
-      this.logger.info(LogSource.AUTH, 'MFA verification successful', { userId });
-    } else {
-      this.logger.warn(LogSource.AUTH, 'MFA verification failed', { userId });
-    }
-
-    return isValid;
+    return this.verifyTOTPCode(userId, code, user.mfa_secret);
   }
 
   /**
    * Disable MFA for a user.
-   * @param userId
+   * @param userId - User ID.
+   * @returns Promise resolving when MFA is disabled.
    */
   async disableMFA(userId: string): Promise<void> {
     this.logger.debug(LogSource.AUTH, 'Disabling MFA for user', { userId });
 
-    await this.db.execute(
-      'UPDATE auth_users SET mfa_enabled = ?, mfa_secret = ?, mfa_backup_codes = ? WHERE id = ?',
-      [0, null, null, userId]
-    );
+    await this.repository.disableMFA(userId);
 
     this.logger.info(LogSource.AUTH, 'MFA disabled for user', { userId });
   }
 
   /**
    * Regenerate backup codes for a user.
-   * @param userId
+   * @param userId - User ID.
+   * @returns New backup codes.
+   * @throws MFAError if user not found or MFA not enabled.
    */
   async regenerateBackupCodes(userId: string): Promise<string[]> {
     this.logger.debug(LogSource.AUTH, 'Regenerating backup codes for user', { userId });
 
-    const users = await this.db.query<UserMFAData>(
-      'SELECT id, mfa_enabled FROM auth_users WHERE id = ?',
-      [userId]
-    );
+    const user = await this.repository.getUserMFAData(userId);
 
-    if (users.length === 0) {
-      throw new MFAError('User not found', 'USER_NOT_FOUND', userId);
-    }
-
-    const user = users[0];
-    if (!user) {
+    if (user === null) {
       throw new MFAError('User not found', 'USER_NOT_FOUND', userId);
     }
 
@@ -280,10 +216,7 @@ isBackupCode
 
     const backupCodes = this.generateBackupCodes();
 
-    await this.db.execute(
-      'UPDATE auth_users SET mfa_backup_codes = ? WHERE id = ?',
-      [JSON.stringify(backupCodes), userId]
-    );
+    await this.repository.updateBackupCodes(userId, JSON.stringify(backupCodes));
 
     this.logger.info(LogSource.AUTH, 'Backup codes regenerated for user', { userId });
     return backupCodes;
@@ -291,69 +224,130 @@ isBackupCode
 
   /**
    * Check if MFA is enabled for a user.
-   * @param userId
+   * @param userId - User ID.
+   * @returns True if MFA is enabled.
    */
   async isEnabled(userId: string): Promise<boolean> {
-    const users = await this.db.query<UserMFAData>(
-      'SELECT mfa_enabled FROM auth_users WHERE id = ?',
-      [userId]
-    );
-
-    return users.length > 0 && users[0]?.mfa_enabled === 1;
+    return await this.repository.isEnabled(userId);
   }
 
   /**
    * Generate backup codes.
+   * @returns Array of backup codes.
    */
   private generateBackupCodes(): string[] {
     const codes: string[] = [];
-    for (let i = 0; i < this.config.backupCodeCount; i++) {
-      codes.push(crypto.randomBytes(4).toString('hex')
-.toUpperCase());
+    const { backupCodeCount } = this.config;
+
+    for (let i = 0; i < backupCodeCount; i += 1) {
+      codes.push(
+        cryptoModule.randomBytes(4).toString('hex')
+          .toUpperCase()
+      );
     }
+
     return codes;
   }
 
   /**
    * Verify backup code and consume it.
-   * @param userId
-   * @param code
-   * @param backupCodesJson
+   * @param userId - User ID.
+   * @param inputCode - Backup code to verify.
+   * @param backupCodesJson - JSON string of backup codes.
+   * @returns True if code is valid.
    */
-  private async verifyBackupCode(userId: string, code: string, backupCodesJson?: string | null): Promise<boolean> {
-    if (!backupCodesJson) {
+  private async verifyBackupCode(
+    userId: string,
+    inputCode: string,
+    backupCodesJson?: string | null
+  ): Promise<boolean> {
+    if (typeof backupCodesJson !== 'string' || backupCodesJson.length === 0) {
       return false;
     }
 
-    let backupCodes: string[];
-    try {
-      const parsed: unknown = JSON.parse(backupCodesJson);
-      if (!Array.isArray(parsed) || !parsed.every((code): code is string => { return typeof code === 'string' })) {
-        this.logger.warn(LogSource.AUTH, 'Invalid backup codes format', { userId });
-        return false;
-      }
-      backupCodes = parsed;
-    } catch (error) {
-      this.logger.warn(LogSource.AUTH, 'Failed to parse backup codes', {
- userId,
-error: error instanceof Error ? error.message : String(error)
-});
+    const backupCodes = this.parseBackupCodes(userId, backupCodesJson);
+    if (backupCodes === null) {
       return false;
     }
 
-    const codeIndex = backupCodes.indexOf(code);
+    const codeIndex = backupCodes.indexOf(inputCode);
     if (codeIndex === -1) {
       return false;
     }
 
     backupCodes.splice(codeIndex, 1);
 
-    await this.db.execute(
-      'UPDATE auth_users SET mfa_backup_codes = ? WHERE id = ?',
-      [JSON.stringify(backupCodes), userId]
-    );
+    await this.repository.updateBackupCodes(userId, JSON.stringify(backupCodes));
 
     this.logger.info(LogSource.AUTH, 'Backup code used successfully', { userId });
     return true;
+  }
+
+  /**
+   * Parse backup codes from JSON string.
+   * @param userId - User ID for logging.
+   * @param backupCodesJson - JSON string of backup codes.
+   * @returns Array of backup codes or null if invalid.
+   */
+  private parseBackupCodes(userId: string, backupCodesJson: string): string[] | null {
+    try {
+      const parsed: unknown = JSON.parse(backupCodesJson);
+
+      if (!Array.isArray(parsed)) {
+        this.logger.warn(LogSource.AUTH, 'Invalid backup codes format', { userId });
+        return null;
+      }
+
+      const isStringArray = parsed.every((item): item is string => {
+        return typeof item === 'string';
+      });
+
+      if (!isStringArray) {
+        this.logger.warn(LogSource.AUTH, 'Invalid backup codes format', { userId });
+        return null;
+      }
+
+      return parsed;
+    } catch (error) {
+      this.logger.warn(LogSource.AUTH, 'Failed to parse backup codes', {
+        userId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Verify TOTP code.
+   * @param userId - User ID.
+   * @param code - TOTP code to verify.
+   * @param mfaSecret - User's MFA secret.
+   * @returns True if code is valid.
+   */
+  private verifyTOTPCode(
+    userId: string,
+    code: string,
+    mfaSecret?: string | null
+  ): boolean {
+    if (typeof mfaSecret !== 'string' || mfaSecret.length === 0) {
+      this.logger.warn(LogSource.AUTH, 'MFA secret not found for user', { userId });
+      return false;
+    }
+
+    const { windowSize } = this.config;
+    const isValid = speakeasy.totp.verify({
+      secret: mfaSecret,
+      encoding: 'base32',
+      token: code,
+      window: windowSize,
+    });
+
+    if (isValid) {
+      this.logger.info(LogSource.AUTH, 'MFA verification successful', { userId });
+    } else {
+      this.logger.warn(LogSource.AUTH, 'MFA verification failed', { userId });
+    }
+
+    return isValid;
   }
 }

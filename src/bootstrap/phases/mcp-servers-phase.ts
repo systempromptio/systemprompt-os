@@ -5,23 +5,22 @@
  */
 
 import type { Express } from 'express';
-import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { setupMcpServers } from '@/server/mcp/index';
 import { loadExpressApp } from '@/bootstrap/express-loader';
-
-export interface McpServersPhaseContext {
-  logger: ILogger;
-  mcpApp?: Express;
-}
+import type { McpServersPhaseContext } from '@/types/bootstrap';
 
 /**
  * Execute the MCP servers phase of bootstrap.
  * Sets up Express app and MCP server infrastructure.
- * @param context
+ * @param context - The phase context containing logger and optional mcpApp.
+ * @returns Promise resolving to the Express application instance.
  */
-export async function executeMcpServersPhase(context: McpServersPhaseContext): Promise<Express> {
-  const { logger } = context;
+export const executeMcpServersPhase = async (
+  context: McpServersPhaseContext
+): Promise<Express> => {
+  const logger = LoggerService.getInstance();
 
   logger.debug(LogSource.BOOTSTRAP, 'Setting up MCP servers', {
     category: 'mcp',
@@ -29,7 +28,7 @@ export async function executeMcpServersPhase(context: McpServersPhaseContext): P
   });
 
   try {
-    const mcpApp = await loadExpressApp();
+    const mcpApp = context.mcpApp ?? loadExpressApp();
 
     await setupMcpServers(mcpApp);
 
@@ -46,4 +45,4 @@ export async function executeMcpServersPhase(context: McpServersPhaseContext): P
     });
     throw error;
   }
-}
+};

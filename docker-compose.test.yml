@@ -1,0 +1,62 @@
+services:
+  systemprompt-os:
+    image: systemprompt-os:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: systemprompt-os-test
+    ports:
+      - "3001:3000"
+    environment:
+      # Core settings
+      - NODE_ENV=test
+      - PORT=3000
+      - DATABASE_FILE=/data/state/systemprompt.db
+      - STATE_PATH=/data/state
+      - PROJECTS_PATH=/data/projects
+      - CONFIG_PATH=/data/config
+      - LOG_LEVEL=debug
+      
+      # URLs and domains
+      - BASE_URL=http://localhost:3001
+      - OAUTH_DOMAIN=http://localhost:3001
+      
+      # File system settings
+      - FILE_ROOT=/workspace
+      - PROJECT_ROOT=/workspace
+      - GIT_AVAILABLE=true
+      
+      # JWT Configuration (keys auto-generated on first run)
+      - JWT_KEY_PATH=/data/state/auth/keys
+      
+      # Test OAuth Providers
+      - GOOGLE_CLIENT_ID=test-google-client
+      - GOOGLE_CLIENT_SECRET=test-google-secret
+      - GITHUB_CLIENT_ID=test-github-client
+      - GITHUB_CLIENT_SECRET=test-github-secret
+      
+      # Disable tunnel for tests
+      - ENABLE_OAUTH_TUNNEL=false
+      
+      # MCP Settings
+      - MCP_AUTH_REQUIRED=true
+    volumes:
+      # Persistent data storage
+      - systemprompt-test-data:/data
+      # Application logs
+      - systemprompt-test-logs:/app/logs
+      # Mount workspace for file operations
+      - ./:/workspace:rw
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+volumes:
+  systemprompt-test-data:
+    driver: local
+  systemprompt-test-logs:
+    driver: local

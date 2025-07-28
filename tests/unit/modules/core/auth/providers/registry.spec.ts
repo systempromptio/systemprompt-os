@@ -107,9 +107,9 @@ endpoints:
   authorization: https://accounts.google.com/o/oauth2/v2/auth
   token: https://oauth2.googleapis.com/token
 credentials:
-  client_id: test-client-id
-  client_secret: test-client-secret
-  redirect_uri: http://localhost:3000/callback`;
+  clientId: test-client-id
+  clientSecret: test-client-secret
+  redirectUri: http://localhost:3000/callback`;
         }
         if (path.includes('github')) {
           return `
@@ -121,9 +121,9 @@ endpoints:
   authorization: https://github.com/login/oauth/authorize
   token: https://github.com/login/oauth/access_token
 credentials:
-  client_id: github-client-id
-  client_secret: github-client-secret
-  redirect_uri: http://localhost:3000/callback`;
+  clientId: github-client-id
+  clientSecret: github-client-secret
+  redirectUri: http://localhost:3000/callback`;
         }
         return '';
       });
@@ -140,9 +140,9 @@ credentials:
               token: 'https://oauth2.googleapis.com/token'
             },
             credentials: {
-              client_id: 'test-client-id',
-              client_secret: 'test-client-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'test-client-id',
+              clientSecret: 'test-client-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -157,9 +157,9 @@ credentials:
               token: 'https://github.com/login/oauth/access_token'
             },
             credentials: {
-              client_id: 'github-client-id',
-              client_secret: 'github-client-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'github-client-id',
+              clientSecret: 'github-client-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -168,9 +168,9 @@ credentials:
 
       await registry.initialize();
 
-      expect(mockLogger.info).toHaveBeenCalledWith(`Looking for providers in: ${configPath}/providers`);
-      expect(mockLogger.info).toHaveBeenCalledWith('Loaded provider config: google');
-      expect(mockLogger.info).toHaveBeenCalledWith('Loaded provider config: github');
+      expect(mockLogger.info).toHaveBeenCalledWith('auth', `Looking for providers in: ${configPath}`);
+      expect(mockLogger.info).toHaveBeenCalledWith('auth', 'Loaded provider config: google');
+      expect(mockLogger.info).toHaveBeenCalledWith('auth', 'Loaded provider config: github');
       
       // Check that providers were instantiated
       const googleProvider = registry.getProvider('google');
@@ -185,7 +185,7 @@ credentials:
 
       await registry.initialize();
 
-      expect(mockLogger.warn).toHaveBeenCalledWith(`Providers directory not found: ${configPath}/providers`);
+      expect(mockLogger.warn).toHaveBeenCalledWith('auth', `Providers directory not found: ${configPath}`);
     });
 
     it('should skip disabled providers', async () => {
@@ -205,9 +205,9 @@ credentials:
           token: 'https://disabled.com/token'
         },
         credentials: {
-          client_id: 'disabled-id',
-          client_secret: 'disabled-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'disabled-id',
+          clientSecret: 'disabled-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -234,9 +234,9 @@ credentials:
           token: 'https://empty.com/token'
         },
         credentials: {
-          client_id: '',
-          client_secret: '',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: '',
+          clientSecret: '',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -280,9 +280,9 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: 'test-id',
-          client_secret: 'test-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'test-id',
+          clientSecret: 'test-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -361,9 +361,9 @@ credentials:
               token: 'https://provider1.com/token'
             },
             credentials: {
-              client_id: 'provider1-client',
-              client_secret: 'provider1-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'provider1-client',
+              clientSecret: 'provider1-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -378,9 +378,9 @@ credentials:
               token: 'https://provider2.com/token'
             },
             credentials: {
-              client_id: 'provider2-client',
-              client_secret: 'provider2-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'provider2-client',
+              clientSecret: 'provider2-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -413,9 +413,9 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: 'test-id',
-          client_secret: 'test-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'test-id',
+          clientSecret: 'test-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       };
 
@@ -450,9 +450,9 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: 'test-id',
-          client_secret: 'test-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'test-id',
+          clientSecret: 'test-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -517,9 +517,9 @@ credentials:
               token: 'https://provider1.com/token'
             },
             credentials: {
-              client_id: 'provider1-client',
-              client_secret: 'provider1-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'provider1-client',
+              clientSecret: 'provider1-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -533,9 +533,9 @@ credentials:
               token: 'https://provider2.com/token'
             },
             credentials: {
-              client_id: 'provider2-client',
-              client_secret: 'provider2-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'provider2-client',
+              clientSecret: 'provider2-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -581,15 +581,15 @@ credentials:
           token: 'https://custom.com/token'
         },
         credentials: {
-          client_id: 'custom-id',
-          client_secret: 'custom-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'custom-id',
+          clientSecret: 'custom-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
       await registry.initialize();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Loaded custom provider config: custom-provider');
+      expect(mockLogger.info).toHaveBeenCalledWith('auth', 'Loaded custom provider config: custom-provider');
       expect(registry.hasProvider('custom-provider')).toBe(true);
     });
   });
@@ -622,18 +622,18 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: '${OAUTH_CLIENT_ID}',
-          client_secret: '${OAUTH_CLIENT_SECRET}',
-          redirect_uri: '${OAUTH_REDIRECT_URI}'
+          clientId: '${OAUTH_CLIENT_ID}',
+          clientSecret: '${OAUTH_CLIENT_SECRET}',
+          redirectUri: '${OAUTH_REDIRECT_URI}'
         }
       });
 
       await registry.initialize();
 
       const config = registry.getProviderConfig('test-provider');
-      expect(config?.credentials.client_id).toBe('env-client-id');
-      expect(config?.credentials.client_secret).toBe('env-client-secret');
-      expect(config?.credentials.redirect_uri).toBe('https://example.com/oauth2/callback');
+      expect(config?.credentials.clientId).toBe('env-client-id');
+      expect(config?.credentials.clientSecret).toBe('env-client-secret');
+      expect(config?.credentials.redirectUri).toBe('https://example.com/oauth2/callback');
     });
 
     it('should handle missing environment variables', async () => {
@@ -648,16 +648,16 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: '${MISSING_VAR}',
-          client_secret: 'secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: '${MISSING_VAR}',
+          clientSecret: 'secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
       await registry.initialize();
 
       const config = registry.getProviderConfig('test-provider');
-      expect(config?.credentials.client_id).toBe('${MISSING_VAR}');
+      expect(config?.credentials.clientId).toBe('${MISSING_VAR}');
     });
   });
 
@@ -672,8 +672,9 @@ credentials:
       await registry.initialize();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'auth',
         expect.stringContaining('Failed to load provider config'),
-        expect.any(Error)
+        expect.any(Object)
       );
     });
 
@@ -692,6 +693,7 @@ credentials:
       await registry.initialize();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'auth',
         expect.stringContaining('Skipping provider config')
       );
       expect(registry.hasProvider('invalid-provider')).toBe(false);
@@ -710,9 +712,9 @@ credentials:
           token: 'https://test.com/token'
         },
         credentials: {
-          client_id: 'test-id',
-          client_secret: 'test-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'test-id',
+          clientSecret: 'test-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -739,9 +741,9 @@ credentials:
           token: 'https://oauth2.googleapis.com/token'
         },
         credentials: {
-          client_id: 'google-client',
-          client_secret: 'google-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'google-client',
+          clientSecret: 'google-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -765,9 +767,9 @@ credentials:
           token: 'https://github.com/login/oauth/access_token'
         },
         credentials: {
-          client_id: 'github-client',
-          client_secret: 'github-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'github-client',
+          clientSecret: 'github-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -791,9 +793,9 @@ credentials:
           token: 'https://auth.example.com/token'
         },
         credentials: {
-          client_id: 'generic-client',
-          client_secret: 'generic-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'generic-client',
+          clientSecret: 'generic-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -821,9 +823,9 @@ credentials:
           token: 'https://provider1.com/token'
         },
         credentials: {
-          client_id: 'provider1-client',
-          client_secret: 'provider1-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'provider1-client',
+          clientSecret: 'provider1-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -847,9 +849,9 @@ credentials:
           token: 'https://provider2.com/token'
         },
         credentials: {
-          client_id: 'provider2-client',
-          client_secret: 'provider2-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'provider2-client',
+          clientSecret: 'provider2-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -879,9 +881,9 @@ credentials:
           token: 'https://provider1.com/token'
         },
         credentials: {
-          client_id: 'provider1-client',
-          client_secret: 'provider1-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'provider1-client',
+          clientSecret: 'provider1-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -899,8 +901,9 @@ credentials:
       expect(registry.hasProvider('provider1')).toBe(false);
       expect(registry.listProviderIds()).toHaveLength(0);
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'auth',
         expect.stringContaining('Failed to load provider config'),
-        expect.any(Error)
+        expect.any(Object)
       );
     });
   });
@@ -922,9 +925,9 @@ credentials:
           token: 'https://valid.com/token'
         },
         credentials: {
-          client_id: 'valid-client-id',
-          client_secret: 'valid-client-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'valid-client-id',
+          clientSecret: 'valid-client-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -950,9 +953,9 @@ credentials:
           token: 'https://whitespace.com/token'
         },
         credentials: {
-          client_id: '   ',  // Only whitespace
-          client_secret: '\t\n',  // Only whitespace
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: '   ',  // Only whitespace
+          clientSecret: '\t\n',  // Only whitespace
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -960,6 +963,7 @@ credentials:
 
       expect(registry.hasProvider('whitespace-provider')).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'auth',
         expect.stringContaining('Skipping provider config')
       );
     });
@@ -1002,9 +1006,9 @@ credentials:
           discovery: 'https://oidc.example.com/.well-known/openid-configuration'
         },
         credentials: {
-          client_id: 'oidc-client',
-          client_secret: 'oidc-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oidc-client',
+          clientSecret: 'oidc-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1037,15 +1041,16 @@ credentials:
           token: 'https://fallback.com/token'
         },
         credentials: {
-          client_id: 'oidc-client',
-          client_secret: 'oidc-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oidc-client',
+          clientSecret: 'oidc-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
       await registry.initialize();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
+        'auth',
         expect.stringContaining('Failed to discover OIDC config for oidc-failed'),
         expect.any(Object)
       );
@@ -1072,9 +1077,9 @@ credentials:
           token: 'https://fallback.com/token'
         },
         credentials: {
-          client_id: 'oidc-client',
-          client_secret: 'oidc-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oidc-client',
+          clientSecret: 'oidc-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1101,9 +1106,9 @@ credentials:
           discovery: 'https://issuer.example.com/.well-known/openid-configuration'
         },
         credentials: {
-          client_id: 'oidc-client',
-          client_secret: 'oidc-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oidc-client',
+          clientSecret: 'oidc-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1138,9 +1143,9 @@ credentials:
           token: 'https://oauth2.example.com/token'
         },
         credentials: {
-          client_id: 'oauth2-client',
-          client_secret: 'oauth2-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oauth2-client',
+          clientSecret: 'oauth2-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1167,9 +1172,9 @@ credentials:
           token: 'https://oidc.example.com/token'
         },
         credentials: {
-          client_id: 'oidc-client',
-          client_secret: 'oidc-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'oidc-client',
+          clientSecret: 'oidc-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1200,9 +1205,9 @@ credentials:
           jwks: 'https://optional.com/jwks'
         },
         credentials: {
-          client_id: 'optional-client',
-          client_secret: 'optional-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'optional-client',
+          clientSecret: 'optional-secret',
+          redirectUri: 'http://localhost:3000/callback'
         },
         scopes: ['openid', 'profile', 'email'],
         userinfoMapping: {
@@ -1235,9 +1240,9 @@ credentials:
           jwks: '   '    // Whitespace only
         },
         credentials: {
-          client_id: 'empty-client',
-          client_secret: 'empty-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'empty-client',
+          clientSecret: 'empty-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1269,9 +1274,9 @@ credentials:
           token: 'https://failing.com/token'
         },
         credentials: {
-          client_id: 'failing-client',
-          client_secret: 'failing-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'failing-client',
+          clientSecret: 'failing-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1300,9 +1305,9 @@ credentials:
           token: 'https://noid.com/token'
         },
         credentials: {
-          client_id: 'noid-client',
-          client_secret: 'noid-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'noid-client',
+          clientSecret: 'noid-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1330,9 +1335,9 @@ credentials:
           token: 'https://emptyid.com/token'
         },
         credentials: {
-          client_id: 'emptyid-client',
-          client_secret: 'emptyid-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'emptyid-client',
+          clientSecret: 'emptyid-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 
@@ -1365,9 +1370,9 @@ credentials:
               token: 'https://template.com/token'
             },
             credentials: {
-              client_id: 'template-client',
-              client_secret: 'template-secret',
-              redirect_uri: 'http://localhost:3000/callback'
+              clientId: 'template-client',
+              clientSecret: 'template-secret',
+              redirectUri: 'http://localhost:3000/callback'
             }
           };
         }
@@ -1380,9 +1385,9 @@ credentials:
             token: 'https://valid.com/token'
           },
           credentials: {
-            client_id: 'valid-client',
-            client_secret: 'valid-secret',
-            redirect_uri: 'http://localhost:3000/callback'
+            clientId: 'valid-client',
+            clientSecret: 'valid-secret',
+            redirectUri: 'http://localhost:3000/callback'
           }
         };
       });
@@ -1411,9 +1416,9 @@ credentials:
           token: 'https://unsupported.com/token'
         },
         credentials: {
-          client_id: 'unsupported-client',
-          client_secret: 'unsupported-secret',
-          redirect_uri: 'http://localhost:3000/callback'
+          clientId: 'unsupported-client',
+          clientSecret: 'unsupported-secret',
+          redirectUri: 'http://localhost:3000/callback'
         }
       });
 

@@ -5,17 +5,147 @@
  */
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
-import { TaskStatus } from '@/modules/core/tasks/types/index';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { getTasksModule } from '@/modules/core/tasks';
+import {
+  type ITask,
+  type ITaskFilter,
+  TaskStatusEnum
+} from '@/modules/core/tasks/types/index';
 
-interface ErrorReport {
-  id: string;
-  path: string;
-  errors: number;
-  type: 'lint' | 'typecheck';
-  timestamp: string;
-}
+/**
+ * Type guard to check if string is a valid TaskStatusEnum.
+ * @param value - String to check.
+ * @returns True if value is a valid TaskStatusEnum.
+ */
+const isValidTaskStatus = (value: string): value is TaskStatusEnum => {
+  const validValues: string[] = Object.values(TaskStatusEnum as Record<string, string>);
+  return validValues.includes(value);
+};
+
+/**
+ * Extract and validate command arguments.
+ * @param context - CLI context.
+ * @returns Parsed arguments.
+ */
+const extractListArgs = (context: CLIContext): {
+  limit: number;
+  status: string | undefined;
+  format: string;
+} => {
+  const { args } = context;
+
+  const limit = typeof args.limit === 'number' ? args.limit : 10;
+  const status = typeof args.status === 'string' ? args.status : undefined;
+  const format = typeof args.format === 'string' ? args.format : 'table';
+
+  return {
+    limit,
+    status,
+    format
+  };
+};
+
+/**
+ * Build task filter from arguments.
+ * @param args - Parsed arguments.
+ * @param args.limit - Maximum number of tasks.
+ * @param args.status - Status filter.
+ * @param args.format - Output format.
+ * @returns Task filter object.
+ */
+const buildTaskFilter = (args: {
+  limit: number;
+  status: string | undefined;
+  format: string;
+}): ITaskFilter => {
+  const filter: ITaskFilter = { limit: args.limit };
+
+  const { status } = args;
+  if (status !== undefined && isValidTaskStatus(status)) {
+    filter.status = status;
+  }
+
+  return filter;
+};
+
+/**
+ * Display tasks in JSON format.
+ * @param tasks - Array of tasks to display.
+ */
+const displayJsonOutput = (tasks: ITask[]): void => {
+  process.stdout.write(`${JSON.stringify(tasks, null, 2)}\n`);
+};
+
+/**
+ * Display table header.
+ */
+const displayTableHeader = (): void => {
+  process.stdout.write('\nTask Queue\n');
+  process.stdout.write('==========\n\n');
+  process.stdout.write('ID\tType\t\tModule\t\tStatus\t\tPriority\n');
+  process.stdout.write('--\t----\t\t------\t\t------\t\t--------\n');
+};
+
+/**
+ * Display a single task row.
+ * @param task - Task to display.
+ */
+const displayTaskRow = (task: ITask): void => {
+  const {
+    id,
+    type,
+    moduleId,
+    status,
+    priority
+  } = task;
+
+  const idStr = String(id ?? 'N/A');
+  const priorityStr = String(priority);
+  const row = `${idStr}\t${type}\t${moduleId}\t${status}\t${priorityStr}\n`;
+  process.stdout.write(row);
+};
+
+/**
+ * Display tasks in table format.
+ * @param tasks - Array of tasks to display.
+ */
+const displayTableOutput = (tasks: ITask[]): void => {
+  displayTableHeader();
+
+  if (tasks.length === 0) {
+    process.stdout.write('No tasks found.\n');
+    return;
+  }
+
+  for (const task of tasks) {
+    displayTaskRow(task);
+  }
+};
+
+/**
+ * Execute list command.
+ * @param context - CLI context.
+ * @returns Promise that resolves when listing is complete.
+ */
+const executeList = async (context: CLIContext): Promise<void> => {
+  const args = extractListArgs(context);
+  const filter = buildTaskFilter(args);
+
+  try {
+    const tasksModule = getTasksModule();
+    const taskService = tasksModule.exports.service();
+    const tasks = await taskService.listTasks(filter);
+
+    if (args.format === 'json') {
+      displayJsonOutput(tasks);
+    } else {
+      displayTableOutput(tasks);
+    }
+  } catch (error) {
+    process.stderr.write(`Error: ${String(error)}\n`);
+    process.exit(1);
+  }
+};
 
 /**
  * Tasks list command.
@@ -29,7 +159,7 @@ export const list: CLICommand = {
       alias: 's',
       type: 'string',
       description: 'Filter by task status',
-      choices: Object.values(TaskStatus)
+      choices: Object.values(TaskStatusEnum as Record<string, string>)
     },
     {
       name: 'limit',
@@ -39,59 +169,14 @@ export const list: CLICommand = {
       default: 10
     },
     {
-      name: 'errors',
-      alias: 'e',
-      type: 'boolean',
-      description: 'Show error reports instead of tasks',
-      default: false
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (table or json)',
+      default: 'table'
     }
   ],
-
-  execute: async (context: CLIContext): Promise<void> => {
-    const limit = (context.args?.limit as number | undefined) ?? 10;
-    const showErrors = (context.args?.errors as boolean | undefined) ?? false;
-
-    if (showErrors) {
-      const reportsFile = join(process.cwd(), 'error-reports.json');
-
-      if (!existsSync(reportsFile)) {
-        process.stdout.write('\nNo error reports found. Run "npm run track-errors" to generate reports.\n');
-        return;
-      }
-
-      try {
-        const reports: ErrorReport[] = JSON.parse(readFileSync(reportsFile, 'utf8'));
-        const sortedReports = reports
-          .sort((a, b) => { return b.errors - a.errors })
-          .slice(0, limit);
-
-        process.stdout.write('\nError Reports (sorted by error count)\n');
-        process.stdout.write('=====================================\n\n');
-
-        if (sortedReports.length === 0) {
-          process.stdout.write('No error reports found.\n');
-          return;
-        }
-
-        sortedReports.forEach((report, index) => {
-          const date = new Date(report.timestamp).toLocaleString();
-          process.stdout.write(`${index + 1}. ${report.type.toUpperCase()} - ${report.errors} errors\n`);
-          process.stdout.write(`   Path: ${report.path}\n`);
-          process.stdout.write(`   Time: ${date}\n\n`);
-        });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        process.stderr.write(`Error reading reports: ${errorMessage}\n`);
-        process.exit(1);
-      }
-    } else {
-      process.stdout.write('\nTask Queue\n');
-      process.stdout.write('==========\n\n');
-      process.stdout.write('Tasks list command - placeholder implementation\n');
-      process.stdout.write('The actual implementation would list tasks in the queue\n');
-      process.stdout.write('\nTip: Use --errors flag to show error reports\n');
-    }
-  }
+  execute: executeList
 };
 
 export default list;

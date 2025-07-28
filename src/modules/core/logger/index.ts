@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Core logger module - provides system-wide logging.
  * @file Core logger module - provides system-wide logging.
@@ -39,7 +40,7 @@ export const isLoggerModule = (mod: unknown): mod is IModule<ILoggerModuleExport
  */
 export class LoggerModule implements IModule<ILoggerModuleExports> {
   public readonly name = 'logger';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'System-wide logging service with file and console output';
   public readonly dependencies = [];
@@ -293,7 +294,20 @@ export const initialize = async (): Promise<LoggerModule> => {
 };
 
 /**
+ * Creates and initializes a logger module for bootstrap.
+ * This is used during bootstrap before the module loader is available.
+ * @returns {Promise<IModule<ILoggerModuleExports>>} Initialized logger module.
+ */
+export async function createLoggerModuleForBootstrap(): Promise<IModule<ILoggerModuleExports>> {
+  const loggerModule = new LoggerModule();
+  await loggerModule.initialize();
+  await loggerModule.start();
+  return loggerModule;
+}
+
+/**
  * Gets the Logger module with type safety and validation.
+ * This should only be used after bootstrap when the module loader is available.
  * @returns The Logger module with guaranteed typed exports.
  * @throws {Error} If Logger module is not available or missing required exports.
  */

@@ -6,7 +6,8 @@ export enum TaskStatusEnum {
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
   FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
+  STOPPED = 'stopped'
 }
 
 /**
@@ -38,45 +39,18 @@ export interface ITask {
   id?: number;
   type: string;
   moduleId: string;
-  payload?: unknown;
+  instructions?: unknown;
   priority: number;
   status: TaskStatusEnum;
   retryCount: number;
-  maxRetries: number;
+  maxExecutions: number;
+  maxTime?: number;
+  result?: string;
   scheduledAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
   createdBy?: string;
   metadata?: Record<string, unknown>;
-}
-
-/**
- * Represents a single execution instance of a task.
- */
-export interface ITaskExecution {
-  id?: number;
-  taskId: number;
-  startedAt: Date;
-  completedAt?: Date;
-  status: TaskExecutionStatusEnum;
-  result?: unknown;
-  error?: string;
-  durationMs?: number;
-  executorId?: string;
-}
-
-/**
- * Represents a task type configuration in the system.
- */
-export interface ITaskType {
-  id?: number;
-  type: string;
-  moduleId: string;
-  description?: string;
-  handlerConfig?: unknown;
-  enabled: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
 /**
@@ -109,6 +83,7 @@ export interface ITaskService {
   addTask(task: Partial<ITask>): Promise<ITask>;
   receiveTask(types?: string[]): Promise<ITask | null>;
   updateTaskStatus(taskId: number, status: TaskStatusEnum): Promise<void>;
+  updateTask(taskId: number, updates: Partial<ITask>): Promise<ITask>;
   getTaskById(taskId: number): Promise<ITask | null>;
   listTasks(filter?: ITaskFilter): Promise<ITask[]>;
   cancelTask(taskId: number): Promise<void>;
@@ -153,6 +128,27 @@ export interface ITasksModuleExports {
 }
 
 /**
+ * Database row interface for tasks.
+ */
+export interface ITaskRow {
+  id: number;
+  type: string;
+  module_id: string;
+  instructions: string | null;
+  priority: number;
+  status: string;
+  retry_count: number;
+  max_executions: number;
+  max_time: number | null;
+  result: string | null;
+  scheduled_at: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  metadata: string | null;
+}
+
+/**
  * Represents an error report for lint or typecheck tasks.
  */
 export interface IErrorReport {
@@ -162,8 +158,3 @@ export interface IErrorReport {
   type: 'lint' | 'typecheck';
   timestamp: string;
 }
-
-// Export aliases for backward compatibility
-export const TaskStatus = TaskStatusEnum;
-export const TaskExecutionStatus = TaskExecutionStatusEnum;
-export const TaskPriority = TaskPriorityEnum;

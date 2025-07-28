@@ -11,6 +11,7 @@ import {
  ONE, ZERO
 } from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import type { IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',
@@ -19,7 +20,7 @@ export const command = {
       execute: async (_context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
-          const providers = authModule.exports.getAllProviders();
+          const providers = authModule.exports.getAllProviders() as IIdentityProvider[];
 
           if (providers.length === ZERO) {
             console.log('No OAuth2/OIDC providers are currently configured.');
@@ -54,7 +55,7 @@ export const command = {
           console.log('Reloading provider configurations...');
           await authModule.exports.reloadProviders();
 
-          const providers = authModule.exports.getAllProviders();
+          const providers = authModule.exports.getAllProviders() as IIdentityProvider[];
           console.log(`✓ Reloaded successfully. ${providers.length} provider(s) available.`);
 
           if (providers.length > ZERO) {

@@ -3,7 +3,6 @@ import { HealthEndpoint } from '../../../../../src/server/external/rest/health.j
 import { Request, Response } from 'express';
 import { readFileSync, existsSync } from 'fs';
 import { setupTestEnvironment } from '../../../../helpers/test-utils.js';
-import type { HeartbeatData } from '../../../../../src/modules/core/heartbeat/types.js';
 
 vi.mock('fs', () => ({
   readFileSync: vi.fn(),

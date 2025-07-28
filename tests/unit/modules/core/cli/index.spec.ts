@@ -11,7 +11,8 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import { LogSource } from '@/modules/core/logger';
 import type { CLICommand, CLIOption } from '@/modules/core/cli/types';
 import type { ILogger } from '@/modules/core/logger/types';
-import { ModuleStatusEnum as ModuleStatus } from '@/modules/core/modules/types';
+import { ModuleStatusEnum } from '@/modules/core/modules/types';
+import { setupLoggerMocks } from '@/tests/unit/mocks/logger.mock';
 
 // Mock the dependencies
 vi.mock('@/modules/core/cli/services/cli.service');
@@ -20,11 +21,14 @@ vi.mock('@/modules/core/database/services/database.service');
 describe('CLIModule', () => {
   let cliModule: CLIModule;
   let mockCliService: any;
-  let mockLogger: any;
+  let mockLogger: ILogger;
   let mockDatabase: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Setup logger mocks
+    mockLogger = setupLoggerMocks();
     
     // Create mock services
     mockCliService = {
@@ -37,8 +41,6 @@ describe('CLIModule', () => {
       generateDocs: vi.fn().mockReturnValue('Generated docs'),
       scanAndRegisterModuleCommands: vi.fn().mockResolvedValue(undefined)
     };
-
-    // mockLogger is already imported from logger setup
 
     mockDatabase = {
       isInitialized: vi.fn().mockReturnValue(true)
@@ -58,7 +60,7 @@ describe('CLIModule', () => {
       expect(cliModule.name).toBe('cli');
       expect(cliModule.version).toBe('1.0.0');
       expect(cliModule.type).toBe('service');
-      expect(cliModule.status).toBe('stopped');
+      expect(cliModule.status).toBe(ModuleStatusEnum.STOPPED);
       expect(cliModule.dependencies).toEqual(['logger', 'database']);
       expect(cliModule.exports).toBeDefined();
     });
@@ -101,7 +103,7 @@ describe('CLIModule', () => {
     it('should set status to stopped and log stop message', async () => {
       await cliModule.initialize(); // Initialize first to set up logger
       cliModule.stop();
-      expect(cliModule.status).toBe('stopped');
+      expect(cliModule.status).toBe(ModuleStatusEnum.STOPPED);
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.CLI, 'CLI module stopped');
     });
   });

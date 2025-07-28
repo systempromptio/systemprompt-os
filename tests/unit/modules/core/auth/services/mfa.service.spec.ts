@@ -3,7 +3,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MFAService, MFAError, MFASetupError, MFAVerificationError } from '@/modules/core/auth/services/mfa.service';
+import { MFAService } from '@/modules/core/auth/services/mfa.service';
+import { MFAError, MFASetupError, MFAVerificationError } from '@/modules/core/auth/errors/mfa.errors';
+import { MFARepository } from '@/modules/core/auth/repositories/mfa.repository';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ILogger } from '@/modules/core/logger/types';
 import { LogSource } from '@/modules/core/logger/types';
@@ -12,6 +14,7 @@ import * as qrcode from 'qrcode';
 
 // Mock dependencies
 vi.mock('@/modules/core/database/services/database.service');
+vi.mock('@/modules/core/auth/repositories/mfa.repository');
 vi.mock('speakeasy');
 vi.mock('qrcode');
 
@@ -90,6 +93,7 @@ describe('MFAService', () => {
   let mockDb: any;
   let mockLogger: ILogger;
   let mockConfig: any;
+  let mockRepository: any;
 
   beforeEach(() => {
     mockDb = {
@@ -111,12 +115,23 @@ describe('MFAService', () => {
       windowSize: 1,
     };
 
+    // Mock repository methods
+    mockRepository = {
+      getUserMFAData: vi.fn(),
+      updateMFASetup: vi.fn(),
+      enableMFA: vi.fn(),
+      disableMFA: vi.fn(),
+      updateBackupCodes: vi.fn(),
+      isEnabled: vi.fn(),
+    };
+
     (DatabaseService.getInstance as any) = vi.fn().mockReturnValue(mockDb);
+    (MFARepository.getInstance as any) = vi.fn().mockReturnValue(mockRepository);
 
     // Reset singleton instance for each test
     (MFAService as any).instance = undefined;
 
-    mfaService = new MFAService(mockConfig, mockLogger);
+    mfaService = MFAService.initialize(mockConfig, mockLogger);
   });
 
   afterEach(() => {
@@ -137,22 +152,22 @@ describe('MFAService', () => {
       expect(instance1).toBe(instance2);
     });
 
-    it('should create new instance when initialize is called', () => {
+    it('should return same instance when initialize is called multiple times', () => {
       const instance1 = MFAService.initialize(mockConfig, mockLogger);
       const instance2 = MFAService.initialize(mockConfig, mockLogger);
-      expect(instance1).not.toBe(instance2);
+      expect(instance1).toBe(instance2);
     });
   });
 
-  describe('Constructor', () => {
+  describe('Initialization', () => {
     it('should initialize with provided config and logger', () => {
-      const service = new MFAService(mockConfig, mockLogger);
+      const service = MFAService.initialize(mockConfig, mockLogger);
       expect(service).toBeInstanceOf(MFAService);
-      expect(DatabaseService.getInstance).toHaveBeenCalled();
+      expect(MFARepository.getInstance).toHaveBeenCalled();
     });
 
     it('should store config and logger internally', () => {
-      const service = new MFAService(mockConfig, mockLogger);
+      const service = MFAService.initialize(mockConfig, mockLogger);
       // Test that config is used by calling a method that uses it
       expect(service).toBeDefined();
     });
@@ -169,6 +184,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       const result = await mfaService.setupMFA(userId, email);
 
@@ -191,6 +207,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockRejectedValue(new Error('QR generation failed'));
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('QR generation failed');
     });
@@ -205,7 +222,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockRejectedValue(new Error('Database error'));
+      mockRepository.updateMFASetup.mockRejectedValue(new Error('Database error'));
 
       await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('Database error');
     });
@@ -220,7 +237,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       await mfaService.setupMFA(userId, email);
 
@@ -237,14 +254,16 @@ describe('MFAService', () => {
       };
 
       // Test with different backup code count
-      const customService = new MFAService(
+      // Reset singleton for custom config test
+      (MFAService as any).instance = undefined;
+      const customService = MFAService.initialize(
         { ...mockConfig, backupCodeCount: 10 },
         mockLogger
       );
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       const result = await customService.setupMFA(userId, email);
 
@@ -263,7 +282,7 @@ describe('MFAService', () => {
 
       await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('Failed to generate OTP auth URL');
       expect(qrcode.toDataURL).not.toHaveBeenCalled();
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateMFASetup).not.toHaveBeenCalled();
     });
 
     it('should throw error when secret generation produces null otpauth_url', async () => {
@@ -278,7 +297,7 @@ describe('MFAService', () => {
 
       await expect(mfaService.setupMFA(userId, email)).rejects.toThrow('Failed to generate OTP auth URL');
       expect(qrcode.toDataURL).not.toHaveBeenCalled();
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateMFASetup).not.toHaveBeenCalled();
     });
   });
 
@@ -292,17 +311,14 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.enableMFA.mockResolvedValue(undefined);
 
       const result = await mfaService.enableMFA(userId, code);
 
       expect(result).toBe(true);
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE auth_users SET mfa_enabled = ?'),
-        [1, userId]
-      );
+      expect(mockRepository.enableMFA).toHaveBeenCalledWith(userId);
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.AUTH, 'MFA enabled for user', { userId });
     });
 
@@ -315,13 +331,13 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(false);
 
       const result = await mfaService.enableMFA(userId, code);
 
       expect(result).toBe(false);
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.enableMFA).not.toHaveBeenCalled();
     });
 
     it('should handle missing MFA setup', async () => {
@@ -333,7 +349,7 @@ describe('MFAService', () => {
         mfa_backup_codes: null,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('MFA not set up');
     });
@@ -342,7 +358,7 @@ describe('MFAService', () => {
       const userId = 'user-123';
       const code = '123456';
 
-      mockDb.query.mockResolvedValueOnce([]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('User not found');
     });
@@ -356,7 +372,7 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('MFA not set up');
     });
@@ -370,7 +386,7 @@ describe('MFAService', () => {
         mfa_backup_codes: null,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('MFA not set up');
     });
@@ -379,7 +395,7 @@ describe('MFAService', () => {
       const userId = 'user-123';
       const code = '123456';
 
-      mockDb.query.mockRejectedValue(new Error('Database query failed'));
+      mockRepository.getUserMFAData.mockRejectedValue(new Error('Database query failed'));
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('Database query failed');
     });
@@ -393,9 +409,9 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
-      mockDb.execute.mockRejectedValue(new Error('Database update failed'));
+      mockRepository.enableMFA.mockRejectedValue(new Error('Database update failed'));
 
       await expect(mfaService.enableMFA(userId, code)).rejects.toThrow('Database update failed');
     });
@@ -409,9 +425,9 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.enableMFA.mockResolvedValue(undefined);
 
       const result = await mfaService.enableMFA(userId, code);
 
@@ -429,7 +445,7 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['code1', 'code2']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(false);
 
       const result = await mfaService.enableMFA(userId, code);
@@ -449,7 +465,7 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
 
       const result = await mfaService.verifyMFA({ userId, code });
@@ -473,16 +489,16 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123', 'backup456']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(false);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(true);
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE auth_users SET mfa_backup_codes = ?'),
-        [JSON.stringify(['backup456']), userId]
+      expect(mockRepository.updateBackupCodes).toHaveBeenCalledWith(
+        userId,
+        JSON.stringify(['backup456'])
       );
     });
 
@@ -494,7 +510,7 @@ describe('MFAService', () => {
         mfa_enabled: 0,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code });
 
@@ -506,7 +522,7 @@ describe('MFAService', () => {
       const userId = 'user-123';
       const code = '123456';
 
-      mockDb.query.mockResolvedValueOnce([]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
     });
@@ -515,8 +531,8 @@ describe('MFAService', () => {
       const userId = 'user-123';
       const code = '123456';
 
-      // Simulate database returning array with undefined element
-      mockDb.query.mockResolvedValueOnce([undefined]);
+      // Simulate repository returning null
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
     });
@@ -525,8 +541,8 @@ describe('MFAService', () => {
       const userId = 'user-123';
       const code = '123456';
 
-      // Simulate database returning array with null element
-      mockDb.query.mockResolvedValueOnce([null]);
+      // Simulate repository returning null
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('User not found');
     });
@@ -541,12 +557,12 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123', 'backup456']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle null backup codes when verifying backup code', async () => {
@@ -559,12 +575,12 @@ describe('MFAService', () => {
         mfa_backup_codes: null,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle invalid JSON in backup codes', async () => {
@@ -577,19 +593,19 @@ describe('MFAService', () => {
         mfa_backup_codes: 'invalid-json',
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle database query failure during verify', async () => {
       const userId = 'user-123';
       const code = '123456';
 
-      mockDb.query.mockRejectedValue(new Error('Database query failed'));
+      mockRepository.getUserMFAData.mockRejectedValue(new Error('Database query failed'));
 
       await expect(mfaService.verifyMFA({ userId, code })).rejects.toThrow('Database query failed');
     });
@@ -604,8 +620,8 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123', 'backup456']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockRejectedValue(new Error('Database update failed'));
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockRejectedValue(new Error('Database update failed'));
 
       await expect(mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true })).rejects.toThrow('Database update failed');
     });
@@ -619,7 +635,7 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
 
       const result = await mfaService.verifyMFA({ userId, code });
@@ -638,7 +654,7 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(false);
 
       const result = await mfaService.verifyMFA({ userId, code });
@@ -658,8 +674,8 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123', 'backup456']),
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
@@ -676,7 +692,7 @@ describe('MFAService', () => {
         mfa_enabled: 0,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code });
 
@@ -693,7 +709,7 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code });
 
@@ -712,13 +728,13 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123', 123, 'backup456']), // Contains non-string element
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle backup codes with mixed data types', async () => {
@@ -731,13 +747,13 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify([true, null, 'backup456']), // Contains boolean and null
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle backup codes as non-array JSON', async () => {
@@ -750,13 +766,13 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify({ codes: ['backup123'] }), // Object instead of array
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(false);
       expect(mockLogger.warn).toHaveBeenCalledWith(LogSource.AUTH, 'Invalid backup codes format', { userId });
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should log specific error message when JSON parsing fails', async () => {
@@ -769,7 +785,7 @@ describe('MFAService', () => {
         mfa_backup_codes: '{invalid-json-syntax}', // Malformed JSON
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
@@ -778,7 +794,7 @@ describe('MFAService', () => {
         userId,
         error: expect.any(String)
       });
-      expect(mockDb.execute).not.toHaveBeenCalled();
+      expect(mockRepository.updateBackupCodes).not.toHaveBeenCalled();
     });
 
     it('should handle non-Error objects in JSON parse catch block', async () => {
@@ -797,7 +813,7 @@ describe('MFAService', () => {
         throw 'String error'; // Non-Error object
       });
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
@@ -816,21 +832,18 @@ describe('MFAService', () => {
     it('should disable MFA successfully', async () => {
       const userId = 'user-123';
 
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.disableMFA.mockResolvedValue(undefined);
 
       await mfaService.disableMFA(userId);
 
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE auth_users SET mfa_enabled = ?, mfa_secret = ?, mfa_backup_codes = ?'),
-        [0, null, null, userId]
-      );
+      expect(mockRepository.disableMFA).toHaveBeenCalledWith(userId);
       expect(mockLogger.info).toHaveBeenCalledWith(LogSource.AUTH, 'MFA disabled for user', { userId });
     });
 
     it('should handle database update failure during disable', async () => {
       const userId = 'user-123';
 
-      mockDb.execute.mockRejectedValue(new Error('Database update failed'));
+      mockRepository.disableMFA.mockRejectedValue(new Error('Database update failed'));
 
       await expect(mfaService.disableMFA(userId)).rejects.toThrow('Database update failed');
     });
@@ -838,7 +851,7 @@ describe('MFAService', () => {
     it('should call logger.debug during disable process', async () => {
       const userId = 'user-123';
 
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.disableMFA.mockResolvedValue(undefined);
 
       await mfaService.disableMFA(userId);
 
@@ -855,15 +868,15 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await mfaService.regenerateBackupCodes(userId);
 
       expect(result).toHaveLength(8);
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE auth_users SET mfa_backup_codes = ?'),
-        [expect.any(String), userId]
+      expect(mockRepository.updateBackupCodes).toHaveBeenCalledWith(
+        userId,
+        expect.any(String)
       );
     });
 
@@ -874,7 +887,7 @@ describe('MFAService', () => {
         mfa_enabled: 0,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('MFA not enabled');
     });
@@ -882,7 +895,7 @@ describe('MFAService', () => {
     it('should throw error for user not found during regenerate', async () => {
       const userId = 'user-123';
 
-      mockDb.query.mockResolvedValueOnce([]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
     });
@@ -890,8 +903,8 @@ describe('MFAService', () => {
     it('should handle undefined user object in array during regenerate', async () => {
       const userId = 'user-123';
 
-      // Simulate database returning array with undefined element
-      mockDb.query.mockResolvedValueOnce([undefined]);
+      // Simulate repository returning null
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
     });
@@ -899,8 +912,8 @@ describe('MFAService', () => {
     it('should handle null user object in array during regenerate', async () => {
       const userId = 'user-123';
 
-      // Simulate database returning array with null element
-      mockDb.query.mockResolvedValueOnce([null]);
+      // Simulate repository returning null
+      mockRepository.getUserMFAData.mockResolvedValueOnce(null);
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('User not found');
     });
@@ -908,7 +921,7 @@ describe('MFAService', () => {
     it('should handle database query failure during regenerate', async () => {
       const userId = 'user-123';
 
-      mockDb.query.mockRejectedValue(new Error('Database query failed'));
+      mockRepository.getUserMFAData.mockRejectedValue(new Error('Database query failed'));
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('Database query failed');
     });
@@ -920,8 +933,8 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockRejectedValue(new Error('Database update failed'));
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockRejectedValue(new Error('Database update failed'));
 
       await expect(mfaService.regenerateBackupCodes(userId)).rejects.toThrow('Database update failed');
     });
@@ -933,8 +946,8 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await mfaService.regenerateBackupCodes(userId);
 
@@ -951,13 +964,15 @@ describe('MFAService', () => {
       };
 
       // Test with different backup code count
-      const customService = new MFAService(
+      // Reset singleton for custom config test
+      (MFAService as any).instance = undefined;
+      const customService = MFAService.initialize(
         { ...mockConfig, backupCodeCount: 12 },
         mockLogger
       );
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await customService.regenerateBackupCodes(userId);
 
@@ -968,28 +983,19 @@ describe('MFAService', () => {
   describe('isEnabled', () => {
     it('should return true for MFA-enabled user', async () => {
       const userId = 'user-123';
-      const mockUser = {
-        mfa_enabled: 1,
-      };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.isEnabled.mockResolvedValueOnce(true);
 
       const result = await mfaService.isEnabled(userId);
 
       expect(result).toBe(true);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT mfa_enabled FROM auth_users WHERE id = ?',
-        [userId]
-      );
+      expect(mockRepository.isEnabled).toHaveBeenCalledWith(userId);
     });
 
     it('should return false for MFA-disabled user', async () => {
       const userId = 'user-123';
-      const mockUser = {
-        mfa_enabled: 0,
-      };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.isEnabled.mockResolvedValueOnce(false);
 
       const result = await mfaService.isEnabled(userId);
 
@@ -999,7 +1005,7 @@ describe('MFAService', () => {
     it('should return false for user not found', async () => {
       const userId = 'user-123';
 
-      mockDb.query.mockResolvedValueOnce([]);
+      mockRepository.isEnabled.mockResolvedValueOnce(false);
 
       const result = await mfaService.isEnabled(userId);
 
@@ -1009,18 +1015,15 @@ describe('MFAService', () => {
     it('should handle database query failure during isEnabled', async () => {
       const userId = 'user-123';
 
-      mockDb.query.mockRejectedValue(new Error('Database query failed'));
+      mockRepository.isEnabled.mockRejectedValue(new Error('Database query failed'));
 
       await expect(mfaService.isEnabled(userId)).rejects.toThrow('Database query failed');
     });
 
     it('should return false for user with null mfa_enabled', async () => {
       const userId = 'user-123';
-      const mockUser = {
-        mfa_enabled: null,
-      };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.isEnabled.mockResolvedValueOnce(false);
 
       const result = await mfaService.isEnabled(userId);
 
@@ -1029,9 +1032,8 @@ describe('MFAService', () => {
 
     it('should return false for user with undefined mfa_enabled', async () => {
       const userId = 'user-123';
-      const mockUser = {};
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.isEnabled.mockResolvedValueOnce(false);
 
       const result = await mfaService.isEnabled(userId);
 
@@ -1050,7 +1052,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       const result1 = await mfaService.setupMFA(userId, email);
       const result2 = await mfaService.setupMFA(userId, email);
@@ -1071,7 +1073,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       const result = await mfaService.setupMFA(userId, email);
 
@@ -1090,22 +1092,24 @@ describe('MFAService', () => {
         mfa_backup_codes: JSON.stringify(['backup123']), // Only one code
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
+      mockRepository.updateBackupCodes.mockResolvedValue(undefined);
 
       const result = await mfaService.verifyMFA({ userId, code: backupCode, isBackupCode: true });
 
       expect(result).toBe(true);
-      expect(mockDb.execute).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE auth_users SET mfa_backup_codes = ?'),
-        [JSON.stringify([]), userId] // Empty array after removing the last code
+      expect(mockRepository.updateBackupCodes).toHaveBeenCalledWith(
+        userId,
+        JSON.stringify([]) // Empty array after removing the last code
       );
     });
   });
 
   describe('Configuration and Edge Case Coverage', () => {
     it('should use windowSize from config during TOTP verification', async () => {
-      const customService = new MFAService(
+      // Reset singleton for custom config test
+      (MFAService as any).instance = undefined;
+      const customService = MFAService.initialize(
         { ...mockConfig, windowSize: 2 },
         mockLogger
       );
@@ -1118,7 +1122,7 @@ describe('MFAService', () => {
         mfa_enabled: 1,
       };
 
-      mockDb.query.mockResolvedValueOnce([mockUser]);
+      mockRepository.getUserMFAData.mockResolvedValueOnce(mockUser);
       (speakeasy.totp.verify as any) = vi.fn().mockReturnValue(true);
 
       await customService.verifyMFA({ userId, code });
@@ -1132,7 +1136,9 @@ describe('MFAService', () => {
     });
 
     it('should use appName from config during secret generation', async () => {
-      const customService = new MFAService(
+      // Reset singleton for custom config test
+      (MFAService as any).instance = undefined;
+      const customService = MFAService.initialize(
         { ...mockConfig, appName: 'CustomApp' },
         mockLogger
       );
@@ -1146,7 +1152,7 @@ describe('MFAService', () => {
 
       (speakeasy.generateSecret as any) = vi.fn().mockReturnValue(mockSecret);
       (qrcode.toDataURL as any) = vi.fn().mockResolvedValue('data:image/png;base64,mockQRCode');
-      mockDb.execute.mockResolvedValue(undefined);
+      mockRepository.updateMFASetup.mockResolvedValue(undefined);
 
       await customService.setupMFA(userId, email);
 

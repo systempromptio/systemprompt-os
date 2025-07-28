@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AgentService } from '../../../../../../src/modules/core/agents/services/agent.service';
-import type { Agent, AgentTask, CreateAgentDto } from '../../../../../../src/modules/core/agents/types/agent.types';
+import type { IAgent, IAgentTask, ICreateAgentDto } from '../../../../../../src/modules/core/agents/types/agent.types';
 
 describe('AgentService', () => {
   let service: AgentService;
@@ -48,13 +48,13 @@ describe('AgentService', () => {
 
   describe('createAgent', () => {
     it('should create an agent successfully', async () => {
-      const createDto: CreateAgentDto = {
+      const createDto: ICreateAgentDto = {
         name: 'test-agent',
         type: 'worker',
         config: { maxTasks: 10 }
       };
 
-      const createdAgent: Agent = {
+      const createdAgent: IAgent = {
         id: 'agent-123',
         name: 'test-agent',
         type: 'worker',
@@ -74,30 +74,35 @@ describe('AgentService', () => {
 
       expect(result).toEqual(createdAgent);
       expect(mockRepository.createAgent).toHaveBeenCalledWith(createDto);
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent created', {
-        agentId: 'agent-123',
-        name: 'test-agent'
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent created', {
+        metadata: {
+          agentId: 'agent-123',
+          name: 'test-agent'
+        }
       });
     });
 
     it('should handle creation errors', async () => {
-      const createDto: CreateAgentDto = { name: 'test-agent', type: 'worker' };
+      const createDto: ICreateAgentDto = { name: 'test-agent', type: 'worker' };
       const error = new Error('Database error');
       mockRepository.createAgent.mockRejectedValue(error);
 
       await expect(service.createAgent(createDto)).rejects.toThrow('Database error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Failed to create agent', { error, data: createDto });
+      expect(mockLogger.error).toHaveBeenCalledWith('system', 'Failed to create agent', {
+        error: 'Database error',
+        metadata: createDto
+      });
     });
 
     it('should create agent with all optional fields', async () => {
-      const createDto: CreateAgentDto = {
+      const createDto: ICreateAgentDto = {
         name: 'test-agent',
         type: 'coordinator',
         config: { maxTasks: 5, timeout: 30000 },
         capabilities: ['analysis', 'processing']
       };
 
-      const createdAgent: Agent = {
+      const createdAgent: IAgent = {
         id: 'agent-456',
         name: 'test-agent',
         type: 'coordinator',
@@ -117,19 +122,21 @@ describe('AgentService', () => {
 
       expect(result).toEqual(createdAgent);
       expect(mockRepository.createAgent).toHaveBeenCalledWith(createDto);
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent created', {
-        agentId: 'agent-456',
-        name: 'test-agent'
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent created', {
+        metadata: {
+          agentId: 'agent-456',
+          name: 'test-agent'
+        }
       });
     });
 
     it('should create agent with minimal required fields', async () => {
-      const createDto: CreateAgentDto = {
+      const createDto: ICreateAgentDto = {
         name: 'minimal-agent',
         type: 'monitor'
       };
 
-      const createdAgent: Agent = {
+      const createdAgent: IAgent = {
         id: 'agent-789',
         name: 'minimal-agent',
         type: 'monitor',
@@ -153,7 +160,7 @@ describe('AgentService', () => {
   });
 
   describe('startAgent', () => {
-    const mockAgent: Agent = {
+    const mockAgent: IAgent = {
       id: 'agent-123',
       name: 'test-agent',
       type: 'worker',
@@ -174,7 +181,7 @@ describe('AgentService', () => {
       await service.startAgent('agent-123');
 
       expect(mockRepository.updateAgent).toHaveBeenCalledWith('agent-123', { status: 'active' });
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent started', { agentId: 'agent-123' });
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent started', { metadata: { agentId: 'agent-123' } });
     });
 
     it('should throw error if agent not found', async () => {
@@ -198,7 +205,7 @@ describe('AgentService', () => {
   });
 
   describe('stopAgent', () => {
-    const mockAgent: Agent = {
+    const mockAgent: IAgent = {
       id: 'agent-123',
       name: 'test-agent',
       type: 'worker',
@@ -220,11 +227,16 @@ describe('AgentService', () => {
       await service.stopAgent('agent-123');
 
       expect(mockRepository.updateAgent).toHaveBeenCalledWith('agent-123', { status: 'stopped' });
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent stopped', { agentId: 'agent-123', force: false });
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent stopped', {
+        metadata: {
+          agentId: 'agent-123',
+          force: false
+        }
+      });
     });
 
     it('should stop agent even with running tasks (no task check implemented)', async () => {
-      const runningTask: AgentTask = {
+      const runningTask: IAgentTask = {
         id: 'task-1',
         agent_id: 'agent-123',
         name: 'running-task',
@@ -246,7 +258,7 @@ describe('AgentService', () => {
     });
 
     it('should force stop agent with running tasks', async () => {
-      const runningTask: AgentTask = {
+      const runningTask: IAgentTask = {
         id: 'task-1',
         agent_id: 'agent-123',
         name: 'running-task',
@@ -265,7 +277,12 @@ describe('AgentService', () => {
       await service.stopAgent('agent-123', true);
 
       expect(mockRepository.updateAgent).toHaveBeenCalledWith('agent-123', { status: 'stopped' });
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent stopped', { agentId: 'agent-123', force: true });
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent stopped', {
+        metadata: {
+          agentId: 'agent-123',
+          force: true
+        }
+      });
     });
 
     it('should handle already stopped agent', async () => {
@@ -284,7 +301,7 @@ describe('AgentService', () => {
   });
 
   describe('assignTask', () => {
-    const mockAgent: Agent = {
+    const mockAgent: IAgent = {
       id: 'agent-123',
       name: 'test-agent',
       type: 'worker',
@@ -305,7 +322,7 @@ describe('AgentService', () => {
         payload: { data: 'test' }
       };
 
-      const createdTask: AgentTask = {
+      const createdTask: IAgentTask = {
         id: 'task-123',
         agent_id: 'agent-123',
         name: 'test-task',
@@ -326,10 +343,12 @@ describe('AgentService', () => {
 
       expect(result).toEqual(createdTask);
       expect(mockRepository.createTask).toHaveBeenCalledWith(taskData);
-      expect(mockLogger.info).toHaveBeenCalledWith('Task assigned to agent', {
-        agentId: 'agent-123',
-        taskId: 'task-123',
-        taskName: 'test-task'
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Task assigned to agent', {
+        metadata: {
+          agentId: 'agent-123',
+          taskId: 'task-123',
+          taskName: 'test-task'
+        }
       });
     });
 
@@ -373,7 +392,7 @@ describe('AgentService', () => {
         payload: { data: 'test' }
       };
 
-      const createdTask: AgentTask = {
+      const createdTask: IAgentTask = {
         id: 'task-123',
         agent_id: 'agent-123',
         name: 'test-task',
@@ -402,7 +421,7 @@ describe('AgentService', () => {
         max_retries: 5
       };
 
-      const createdTask: AgentTask = {
+      const createdTask: IAgentTask = {
         id: 'task-456',
         agent_id: 'agent-123',
         name: 'high-priority-task',
@@ -423,10 +442,12 @@ describe('AgentService', () => {
 
       expect(result).toEqual(createdTask);
       expect(mockRepository.createTask).toHaveBeenCalledWith(taskData);
-      expect(mockLogger.info).toHaveBeenCalledWith('Task assigned to agent', {
-        agentId: 'agent-123',
-        taskId: 'task-456',
-        taskName: 'high-priority-task'
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Task assigned to agent', {
+        metadata: {
+          agentId: 'agent-123',
+          taskId: 'task-456',
+          taskName: 'high-priority-task'
+        }
       });
     });
 
@@ -437,7 +458,7 @@ describe('AgentService', () => {
         payload: {}
       };
 
-      const createdTask: AgentTask = {
+      const createdTask: IAgentTask = {
         id: 'task-789',
         agent_id: 'agent-123',
         name: 'simple-task',
@@ -462,7 +483,7 @@ describe('AgentService', () => {
 
   describe('monitoring', () => {
     it('should start monitoring successfully', async () => {
-      const activeAgents: Agent[] = [{
+      const activeAgents: IAgent[] = [{
         id: 'agent-1',
         name: 'active-agent',
         type: 'worker',
@@ -482,7 +503,7 @@ describe('AgentService', () => {
 
       await service.startMonitoring();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent monitoring started');
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent monitoring started');
       expect(service.isHealthy()).toBe(true);
       
       // Monitoring doesn't start immediately, it runs on interval
@@ -500,7 +521,7 @@ describe('AgentService', () => {
       await service.startMonitoring();
       
       // Should not log start message again
-      expect(mockLogger.info).not.toHaveBeenCalledWith('Agent monitoring started');
+      expect(mockLogger.info).not.toHaveBeenCalledWith('system', 'Agent monitoring started');
       expect(service.isHealthy()).toBe(true);
     });
 
@@ -509,7 +530,7 @@ describe('AgentService', () => {
       await service.startMonitoring();
       await service.stopMonitoring();
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent monitoring stopped');
+      expect(mockLogger.info).toHaveBeenCalledWith('system', 'Agent monitoring stopped');
       expect(service.isHealthy()).toBe(false);
     });
 
@@ -519,7 +540,7 @@ describe('AgentService', () => {
       
       await service.stopMonitoring(); // Should not throw and return early
       
-      expect(mockLogger.info).not.toHaveBeenCalledWith('Agent monitoring stopped');
+      expect(mockLogger.info).not.toHaveBeenCalledWith('system', 'Agent monitoring stopped');
     });
 
     it('should handle monitoring errors gracefully', async () => {
@@ -619,8 +640,12 @@ describe('AgentService', () => {
       await service.stopMonitoring();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'system',
         'Failed to monitor agent',
-        { agentId: 'agent-1', error: expect.any(Error) }
+        {
+          metadata: { agentId: 'agent-1' },
+          error: 'Heartbeat failed'
+        }
       );
     });
 
@@ -635,8 +660,11 @@ describe('AgentService', () => {
       await service.stopMonitoring();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
+        'system',
         'Monitoring cycle failed',
-        { error: expect.any(Error) }
+        {
+          error: 'Database connection failed'
+        }
       );
     });
   });

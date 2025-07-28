@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * @file CLI module - CLI utilities and help system.
  * @module modules/core/cli
@@ -41,7 +42,7 @@ export async function initialize(): Promise<void> {
 export class CLIModule implements IModule<ICLIModuleExports> {
   name = 'cli';
   version = '1.0.0';
-  type = 'service' as const;
+  type = ModuleTypeEnum.CORE;
   status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
   dependencies = ['logger', 'database'];
   private cliService?: CliService;

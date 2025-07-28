@@ -9,28 +9,38 @@ import type {
   IAgentLog,
   IAgentTask,
   ICreateAgentDto,
-  ICreateTaskDto
+  ICreateTaskDto,
+  IUpdateAgentDto
 } from '@/modules/core/agents/types/agent.types';
-import type { AgentRepository } from '@/modules/core/agents/repositories/agent-repository';
+import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Service for managing agents and their tasks.
  */
 export class AgentService {
+  private static instance: AgentService | null = null;
   private readonly repository: AgentRepository;
   private readonly logger: ILogger;
   private monitoringInterval: NodeJS.Timeout | undefined;
   private isMonitoring = false;
 
   /**
-   * Creates an instance of AgentService.
-   * @param repository - Agent repository for data access.
-   * @param logger - Logger instance.
+   * Private constructor for singleton pattern.
    */
-  constructor(repository: AgentRepository, logger: ILogger) {
-    this.repository = repository;
-    this.logger = logger;
+  private constructor() {
+    this.repository = AgentRepository.getInstance();
+    this.logger = LoggerService.getInstance();
+  }
+
+  /**
+   * Get singleton instance of AgentService.
+   * @returns The AgentService instance.
+   */
+  static getInstance(): AgentService {
+    AgentService.instance ??= new AgentService();
+    return AgentService.instance;
   }
 
   /**
@@ -42,7 +52,7 @@ export class AgentService {
     try {
       const agent = await this.repository.createAgent(createAgentDto);
 
-      this.logger.info(LogSource.SYSTEM, 'Agent created', {
+      this.logger.info(LogSource.AGENT, 'Agent created', {
         metadata: {
           agentId: agent.id,
           name: agent.name
@@ -51,7 +61,7 @@ export class AgentService {
 
       return agent;
     } catch (error) {
-      this.logger.error(LogSource.SYSTEM, 'Failed to create agent', {
+      this.logger.error(LogSource.AGENT, 'Failed to create agent', {
         error: error instanceof Error ? error.message : String(error),
         metadata: { ...createAgentDto }
       });
@@ -67,7 +77,7 @@ export class AgentService {
   async startAgent(agentId: string): Promise<void> {
     const agent = await this.repository.getAgentById(agentId);
 
-    if (agent === null || agent === undefined) {
+    if (agent === null) {
       throw new Error('Agent not found');
     }
 
@@ -77,7 +87,7 @@ export class AgentService {
 
     await this.repository.updateAgent(agentId, { status: 'active' });
 
-    this.logger.info(LogSource.SYSTEM, 'Agent started', { metadata: { agentId } });
+    this.logger.info(LogSource.AGENT, 'Agent started', { metadata: { agentId } });
   }
 
   /**
@@ -89,7 +99,7 @@ export class AgentService {
   async stopAgent(agentId: string, force = false): Promise<void> {
     const agent = await this.repository.getAgentById(agentId);
 
-    if (agent === null || agent === undefined) {
+    if (agent === null) {
       throw new Error('Agent not found');
     }
 
@@ -99,7 +109,7 @@ export class AgentService {
 
     await this.repository.updateAgent(agentId, { status: 'stopped' });
 
-    this.logger.info(LogSource.SYSTEM, 'Agent stopped', {
+    this.logger.info(LogSource.AGENT, 'Agent stopped', {
       metadata: {
         agentId,
         force
@@ -115,7 +125,7 @@ export class AgentService {
   async assignTask(taskData: ICreateTaskDto): Promise<IAgentTask> {
     const agent = await this.repository.getAgentById(taskData.agent_id);
 
-    if (agent === null || agent === undefined) {
+    if (agent === null) {
       throw new Error('Agent not found');
     }
 
@@ -126,7 +136,7 @@ export class AgentService {
     const task = await this.repository.createTask(taskData);
     await this.repository.updateTaskStatus(task.id, 'assigned');
 
-    this.logger.info(LogSource.SYSTEM, 'Task assigned to agent', {
+    this.logger.info(LogSource.AGENT, 'Task assigned to agent', {
       metadata: {
         agentId: taskData.agent_id,
         taskId: task.id,
@@ -141,18 +151,19 @@ export class AgentService {
    * Starts monitoring agents.
    * @returns Promise.
    */
-  startMonitoring(): void {
+  async startMonitoring(): Promise<void> {
     if (this.isMonitoring) {
       return;
     }
 
     this.isMonitoring = true;
 
-    this.logger.info(LogSource.SYSTEM, 'Agent monitoring started');
+    await Promise.resolve();
+    this.logger.info(LogSource.AGENT, 'Agent monitoring started');
 
-    this.monitoringInterval = setInterval(() => {
-      void this.performMonitoringCycle().catch((error) => {
-        this.logger.error(LogSource.SYSTEM, 'Monitoring cycle failed', {
+    this.monitoringInterval = setInterval((): void => {
+      this.performMonitoringCycle().catch((error: unknown): void => {
+        this.logger.error(LogSource.AGENT, 'Monitoring cycle failed', {
           error: error instanceof Error ? error.message : String(error)
         });
       });
@@ -163,7 +174,7 @@ export class AgentService {
    * Stops monitoring agents.
    * @returns Promise.
    */
-  stopMonitoring(): void {
+  async stopMonitoring(): Promise<void> {
     if (!this.isMonitoring) {
       return;
     }
@@ -175,7 +186,8 @@ export class AgentService {
       this.monitoringInterval = undefined;
     }
 
-    this.logger.info(LogSource.SYSTEM, 'Agent monitoring stopped');
+    await Promise.resolve();
+    this.logger.info(LogSource.AGENT, 'Agent monitoring stopped');
   }
 
   /**
@@ -197,6 +209,59 @@ export class AgentService {
   }
 
   /**
+   * Gets an agent by ID or name.
+   * @param identifier - Agent ID or name.
+   * @returns Promise resolving to the agent or null.
+   */
+  async getAgent(identifier: string): Promise<IAgent | null> {
+    let agent = await this.repository.getAgentById(identifier);
+
+    agent ??= await this.repository.getAgentByName(identifier);
+
+    return agent;
+  }
+
+  /**
+   * Lists all agents.
+   * @param status - Optional status filter.
+   * @returns Promise resolving to array of agents.
+   */
+  async listAgents(status?: string): Promise<IAgent[]> {
+    return await this.repository.listAgents(status);
+  }
+
+  /**
+   * Updates an agent.
+   * @param identifier - Agent ID or name.
+   * @param data - Update data.
+   * @returns Promise resolving to updated agent or null.
+   */
+  async updateAgent(identifier: string, data: IUpdateAgentDto): Promise<IAgent | null> {
+    const agent = await this.getAgent(identifier);
+
+    if (agent === null) {
+      return null;
+    }
+
+    return await this.repository.updateAgent(agent.id, data);
+  }
+
+  /**
+   * Deletes an agent.
+   * @param identifier - Agent ID or name.
+   * @returns Promise resolving to true if deleted, false if not found.
+   */
+  async deleteAgent(identifier: string): Promise<boolean> {
+    const agent = await this.getAgent(identifier);
+
+    if (agent === null) {
+      return false;
+    }
+
+    return await this.repository.deleteAgent(agent.id);
+  }
+
+  /**
    * Performs a monitoring cycle for all active agents.
    * @returns Promise.
    */
@@ -204,9 +269,8 @@ export class AgentService {
     const activeAgents = await this.repository.listAgents('active');
 
     await Promise.all(
-      activeAgents.map(async (agent) => {
+      activeAgents.map(async (agent): Promise<void> => {
         try {
-          await this.repository.updateHeartbeat(agent.id);
           await this.repository.getAgentTasks(agent.id);
           await this.repository.recordMetrics({
             agent_id: agent.id,
@@ -216,7 +280,7 @@ export class AgentService {
             timestamp: new Date()
           });
         } catch (error) {
-          this.logger.error(LogSource.SYSTEM, 'Failed to monitor agent', {
+          this.logger.error(LogSource.AGENT, 'Failed to monitor agent', {
             metadata: { agentId: agent.id },
             error: error instanceof Error ? error.message : String(error)
           });

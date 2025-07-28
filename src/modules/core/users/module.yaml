@@ -1,5 +1,5 @@
 name: users
-type: service
+type: core
 version: 1.0.0
 description: User management and authentication services
 author: SystemPrompt OS

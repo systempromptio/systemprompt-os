@@ -105,7 +105,7 @@ export interface IProviderRegistry {
  * Auth repository interface.
  */
 export interface IAuthRepository {
-    upsertUserFromOAuth: (
+    upsertIUserFromOAuth: (
     provider: string,
     providerId: string,
     userData: IOAuthUserData

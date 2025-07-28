@@ -43,3 +43,11 @@ export interface AuthCookieOptions {
   maxAge: number;
   path?: string;
 }
+
+/**
+ * Options for auth middleware configuration.
+ */
+export interface AuthMiddlewareOptions {
+  redirectToLogin?: boolean;
+  requiredRoles?: string[];
+}

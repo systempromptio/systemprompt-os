@@ -26,7 +26,6 @@ import {
   type IRemoteMcpServer,
   McpServerTypeEnum
 } from '@/server/mcp/types';
-import { ZERO } from '@/constants/process.constants';
 
 /**
  * Default options for the MCP loader.
@@ -75,13 +74,17 @@ export class CustomMcpLoader {
 
     try {
       const localServers = this.discoverLocalServers(dir);
+      console.log(`✅ Discovered ${localServers.length} local MCP servers`);
+
       await this.loadLocalServersSequentially(localServers, dir);
 
       if (this.options.loadRemoteConfigs === true) {
         await this.loadRemoteConfigs(dir);
       }
+
+      console.log(`✅ Loaded ${this.registry.getServerCount()} custom MCP servers`);
     } catch (error) {
-      throw error;
+      console.error('Failed to load custom MCP servers:', error);
     }
   }
 
@@ -105,6 +108,7 @@ export class CustomMcpLoader {
    */
   private discoverLocalServers(customDir: string): string[] {
     if (!fs.existsSync(customDir)) {
+      console.log(`Custom directory does not exist: ${customDir}`);
       return [];
     }
 
@@ -148,11 +152,16 @@ export class CustomMcpLoader {
    * @returns Promise that resolves when the server is loaded.
    */
   private async loadLocalServer(serverDir: string, customDir: string): Promise<void> {
-    const serverPath = path.join(customDir, serverDir);
-    const serverModule = await this.loadServerModule(serverPath, serverDir);
-    const serverConfig = this.extractServerConfig(serverModule, serverDir);
-    const localServer = this.createLocalServerInstance(serverDir, serverConfig, serverModule);
-    await this.registry.registerServer(localServer);
+    try {
+      const serverPath = path.join(customDir, serverDir);
+      const serverModule = await this.loadServerModule(serverPath, serverDir);
+      const serverConfig = this.extractServerConfig(serverModule, serverDir);
+      const localServer = this.createLocalServerInstance(serverDir, serverConfig, serverModule);
+      await this.registry.registerServer(localServer);
+      console.log(`✅ Loaded local server: ${serverConfig.name} v${serverConfig.version}`);
+    } catch (error) {
+      console.error(`Failed to load local server ${serverDir}:`, error);
+    }
   }
 
   /**
@@ -219,8 +228,9 @@ export class CustomMcpLoader {
       type: McpServerTypeEnum.LOCAL,
       description: config.description,
       createHandler: serverModule.createMcpHandler,
-      getActiveSessionCount: (): number => { return ZERO },
+      getActiveSessionCount: (): number => { return 0 },
       shutdown: async (): Promise<void> => {
+        console.log(`Shutting down ${config.name}`);
       }
     };
   }
@@ -242,6 +252,7 @@ export class CustomMcpLoader {
           }
         }
       } catch (error) {
+        console.warn(`Failed to parse package.json in ${serverPath}:`, error);
       }
     }
 
@@ -273,23 +284,29 @@ export class CustomMcpLoader {
     const configPath = path.join(customDir, this.options.remoteConfigFile ?? 'remote-servers.yaml');
 
     if (!fs.existsSync(configPath)) {
+      console.log(`No remote server config found at ${configPath}`);
       return;
     }
 
-    const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
-    const configs: IRemoteMcpConfig[] = JSON.parse(configContent) as IRemoteMcpConfig[];
+    try {
+      const configContent = fs.readFileSync(configPath.replace('.yaml', '.json'), 'utf8');
+      const configs: IRemoteMcpConfig[] = JSON.parse(configContent) as IRemoteMcpConfig[];
 
-    for (const config of configs) {
-      const remoteServer: IRemoteMcpServer = {
-        id: config.name.toLowerCase().replace(/\s+/gu, '-'),
-        name: config.name,
-        version: '1.0.0',
-        type: McpServerTypeEnum.REMOTE,
-        description: `Remote MCP server: ${config.name}`,
-        config
-      };
+      for (const config of configs) {
+        const remoteServer: IRemoteMcpServer = {
+          id: config.name.toLowerCase().replace(/\s+/gu, '-'),
+          name: config.name,
+          version: '1.0.0',
+          type: McpServerTypeEnum.REMOTE,
+          description: `Remote MCP server: ${config.name}`,
+          config
+        };
 
-      await this.registry.registerServer(remoteServer);
+        await this.registry.registerServer(remoteServer);
+        console.log(`✅ Loaded remote server config: ${config.name} -> ${config.url}`);
+      }
+    } catch (error) {
+      console.error('Failed to load remote server configs:', error);
     }
   }
 }

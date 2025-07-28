@@ -74,7 +74,7 @@ export class AuthRepository {
     providerId: string,
     profile: IOAuthProfile,
   ): Promise<IUser> {
-    const user = await this.userService.createOrUpdateIUserFromOAuth({
+    const user = await this.userService.createOrUpdateUserFromOauth({
       provider,
       providerId,
       email: profile.email,
@@ -89,7 +89,7 @@ export class AuthRepository {
       id: user.id,
       email: user.email,
       ...user.name && { name: user.name },
-      ...user.avatarUrl && { avatarUrl: user.avatarUrl },
+      ...user.avatarurl && { avatarUrl: user.avatarurl },
       isActive: true,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

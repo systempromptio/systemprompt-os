@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Dev module - Development tools and utilities.
  * @file Dev module entry point.
@@ -8,7 +9,6 @@ import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/ind
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-
 import type { IDevModuleExports } from '@/modules/core/dev/types/index';
 
 /**
@@ -16,7 +16,7 @@ import type { IDevModuleExports } from '@/modules/core/dev/types/index';
  */
 export class DevModule implements IModule<IDevModuleExports> {
   public readonly name = 'dev';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Development tools and utilities';
   public readonly dependencies = ['logger', 'database'] as const;
@@ -27,7 +27,7 @@ export class DevModule implements IModule<IDevModuleExports> {
   private started = false;
   get exports(): IDevModuleExports {
     return {
-      service: (): DevService => { return this.getService() },
+      service: (): DevService => { return this.getService() }
     };
   }
 
@@ -140,18 +140,21 @@ export const initialize = async (): Promise<DevModule> => {
  * @throws {Error} If Dev module is not available or missing required exports.
  */
 export const getDevModule = (): IModule<IDevModuleExports> => {
-  const { getModuleLoader } = require('@/modules/loader') as typeof import('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types') as typeof import('@/modules/types/module-names.types');
+  const moduleLoader = require('@/modules/loader').getModuleLoader() as ReturnType<
+    typeof import('@/modules/loader').getModuleLoader
+  >;
+  const { ModuleName } = require('@/modules/types/module-names.types') as {
+    ModuleName: typeof import('@/modules/types/module-names.types').ModuleName;
+  };
 
-  const moduleLoader = getModuleLoader();
   const devModule = moduleLoader.getModule(ModuleName.DEV);
 
   if (!('exports' in devModule) || typeof devModule.exports !== 'object' || devModule.exports === null) {
     throw new Error('Dev module missing exports property');
   }
 
-  const exports = devModule.exports as Record<string, unknown>;
-  if (!('service' in exports) || typeof exports.service !== 'function') {
+  const moduleExports = devModule.exports as Record<string, unknown>;
+  if (!('service' in moduleExports) || typeof moduleExports.service !== 'function') {
     throw new Error('Dev module missing required service export');
   }
 

@@ -5,29 +5,27 @@
  */
 import type { Express } from 'express';
 import { CORE_MODULES } from './constants/bootstrap';
-import { createConsoleLogger } from './utils/console-logger';
 import {
   BootstrapPhaseEnum,
   type CoreModuleType,
   type GlobalConfiguration,
   type IBootstrapOptions,
   type ICoreModuleDefinition,
+  type McpServersPhaseContext,
 } from './types/bootstrap';
-import type { ILogger } from '@/modules/core/logger/types/index';
 import type { IModule } from '@/modules/core/modules/types/index';
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
-import { BootstrapLogger } from './bootstrap/bootstrap-logger';
 import { executeCoreModulesPhase } from './bootstrap/phases/core-modules-phase';
-import {
-  type McpServersPhaseContext,
-  executeMcpServersPhase
-} from './bootstrap/phases/mcp-servers-phase';
+import { executeMcpServersPhase } from './bootstrap/phases/mcp-servers-phase';
 import { executeModuleDiscoveryPhase } from './bootstrap/phases/module-discovery-phase';
 import {
   registerCliCommands,
   registerCoreModulesInDatabase,
   registerModulesWithLoader
 } from './bootstrap/phases/module-registration-phase';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { createLoggerModuleForBootstrap } from './modules/core/logger';
 
 /**
  * Bootstrap class manages the initialization lifecycle of SystemPrompt OS.
@@ -40,8 +38,6 @@ export class Bootstrap {
   private readonly modules: Map<string, CoreModuleType> = new Map();
   private readonly options: IBootstrapOptions;
   private readonly coreModules: ICoreModuleDefinition[] = CORE_MODULES;
-  private readonly logger: ILogger;
-  private readonly bootstrapLogger: BootstrapLogger;
   private currentPhase: BootstrapPhaseEnum = BootstrapPhaseEnum.INIT;
   private mcpApp?: Express;
 
@@ -51,11 +47,6 @@ export class Bootstrap {
    */
   constructor(bootstrapOptions: IBootstrapOptions = {}) {
     this.options = bootstrapOptions;
-    const { logger } = bootstrapOptions;
-
-    this.logger = logger ?? createConsoleLogger();
-    this.bootstrapLogger = new BootstrapLogger(this.logger);
-
     const {
  configPath, statePath, environment
 } = bootstrapOptions;
@@ -74,31 +65,15 @@ export class Bootstrap {
    */
   async bootstrap(): Promise<Map<string, IModule>> {
     try {
-      this.bootstrapLogger.info('Starting bootstrap process', 'startup');
-
-      await this.executeCoreModulesPhase();
-
-      if (this.options.skipMcp !== true) {
-        await this.executeMcpServersPhase();
-      }
-
-      if (this.options.skipDiscovery !== true) {
-        await this.executeModuleDiscoveryPhase();
-      }
-
-      await this.executeRegistrationPhase();
-
-      this.setCurrentPhase(BootstrapPhaseEnum.READY);
-      this.bootstrapLogger.info(
-        `Bootstrap completed - ${String(this.modules.size)} modules`,
-        'startup'
-      );
-
-      await this.registerModulesWithLoader();
-
+      await this.loadLoggerModule();
+      await this.executeAllPhases();
       return this.modules;
     } catch (error) {
-      this.bootstrapLogger.error('Bootstrap failed', 'error', error);
+      const logger = LoggerService.getInstance();
+      logger.error(LogSource.BOOTSTRAP, 'Bootstrap failed', {
+        error: error instanceof Error ? error.message : String(error),
+        category: 'startup'
+      });
       throw error;
     }
   }
@@ -153,17 +128,52 @@ export class Bootstrap {
    * @returns {Promise<void>} Promise that resolves when shutdown is complete.
    */
   async shutdown(): Promise<void> {
-    this.bootstrapLogger.info('Shutting down system', 'shutdown');
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Shutting down system', { category: 'shutdown' });
 
     if (this.hasCompletedPhase(BootstrapPhaseEnum.MODULE_DISCOVERY)) {
-      this.bootstrapLogger.info('Shutting down autodiscovered modules', 'shutdown');
+      const moduleDiscoveryLogger = LoggerService.getInstance();
+      moduleDiscoveryLogger.info(
+        LogSource.BOOTSTRAP,
+        'Shutting down autodiscovered modules',
+        { category: 'shutdown' }
+      );
     }
 
-    await shutdownAllModules(this.modules, this.logger);
+    await shutdownAllModules(this.modules, logger);
 
     this.modules.clear();
     this.setCurrentPhase(BootstrapPhaseEnum.INIT);
-    this.bootstrapLogger.info('All modules shut down', 'shutdown');
+    logger.info(LogSource.BOOTSTRAP, 'All modules shut down', { category: 'shutdown' });
+  }
+
+  /**
+   * Execute all bootstrap phases in sequence.
+   */
+  private async executeAllPhases(): Promise<void> {
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process', { category: 'startup' });
+
+    await this.executeCoreModulesPhase();
+
+    if (this.options.skipMcp !== true) {
+      await this.executeMcpServersPhase();
+    }
+
+    if (this.options.skipDiscovery !== true) {
+      await this.executeModuleDiscoveryPhase();
+    }
+
+    await this.executeRegistrationPhase();
+
+    this.setCurrentPhase(BootstrapPhaseEnum.READY);
+    logger.info(
+      LogSource.BOOTSTRAP,
+      `Bootstrap completed - ${this.modules.size.toString()} modules`,
+      { category: 'startup' }
+    );
+
+    await this.registerModulesWithLoader();
   }
 
   /**
@@ -178,82 +188,89 @@ export class Bootstrap {
    * Phase 1: Load and initialize core modules.
    */
   private async executeCoreModulesPhase(): Promise<void> {
-    this.bootstrapLogger.phaseTransition('core modules');
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Starting core modules phase', { category: 'phase' });
     this.setCurrentPhase(BootstrapPhaseEnum.CORE_MODULES);
 
     await executeCoreModulesPhase({
       modules: this.modules,
       coreModules: this.coreModules,
-      logger: this.logger,
       isCliMode: this.options.cliMode ?? false
     });
 
-    this.bootstrapLogger.phaseTransition('core modules', false);
+    logger.info(LogSource.BOOTSTRAP, 'Core modules phase completed', { category: 'phase' });
   }
 
   /**
    * Phase 2: Setup MCP servers for communication.
    */
   private async executeMcpServersPhase(): Promise<void> {
-    this.bootstrapLogger.phaseTransition('MCP servers');
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Starting MCP servers phase', { category: 'phase' });
     this.setCurrentPhase(BootstrapPhaseEnum.MCP_SERVERS);
 
-    const mcpServersContext: McpServersPhaseContext = {
-      logger: this.logger
-    };
-    if (this.mcpApp !== undefined) {
-      ({ mcpApp: mcpServersContext.mcpApp } = this);
+    const mcpServersContext: McpServersPhaseContext = {};
+    if (this.mcpApp !== null && this.mcpApp !== undefined) {
+      const { mcpApp } = { mcpApp: this.mcpApp };
+      mcpServersContext.mcpApp = mcpApp;
     }
     this.mcpApp = await executeMcpServersPhase(mcpServersContext);
 
-    this.bootstrapLogger.phaseTransition('MCP servers', false);
+    logger.info(LogSource.BOOTSTRAP, 'MCP servers phase completed', { category: 'phase' });
   }
 
   /**
    * Phase 3: Autodiscover and load extension modules.
    */
   private async executeModuleDiscoveryPhase(): Promise<void> {
-    this.bootstrapLogger.phaseTransition('module discovery');
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Starting module discovery phase', { category: 'phase' });
     this.setCurrentPhase(BootstrapPhaseEnum.MODULE_DISCOVERY);
 
     await executeModuleDiscoveryPhase({
       modules: this.modules,
-      config: this.config,
-      logger: this.logger
+      config: this.config
     });
 
-    this.bootstrapLogger.phaseTransition('module discovery', false);
+    logger.info(LogSource.BOOTSTRAP, 'Module discovery phase completed', { category: 'phase' });
   }
 
   /**
    * Phase 4: Register modules and CLI commands.
    */
   private async executeRegistrationPhase(): Promise<void> {
-    this.bootstrapLogger.phaseTransition('registration');
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Starting registration phase', { category: 'phase' });
 
     await registerCoreModulesInDatabase({
       modules: this.modules,
-      coreModules: this.coreModules,
-      logger: this.logger
+      coreModules: this.coreModules
     });
 
     await registerCliCommands({
       modules: this.modules,
-      coreModules: this.coreModules,
-      logger: this.logger
+      coreModules: this.coreModules
     });
 
-    this.bootstrapLogger.phaseTransition('registration', false);
+    logger.info(LogSource.BOOTSTRAP, 'Registration phase completed', { category: 'phase' });
   }
 
+  /**
+   * Load and initialize the logger module first.
+   * This must be done before any other module loading.
+   * Uses direct instantiation during bootstrap to avoid circular dependencies.
+   */
+  private async loadLoggerModule(): Promise<void> {
+    const loggerModule = await createLoggerModuleForBootstrap();
+    this.modules.set('logger', loggerModule);
+  }
   /**
    * Registers bootstrap modules with the global ModuleLoader.
    */
   private async registerModulesWithLoader(): Promise<void> {
     await registerModulesWithLoader({
       modules: this.modules,
-      coreModules: this.coreModules,
-      logger: this.logger
+      coreModules: this.coreModules
     });
   }
 }

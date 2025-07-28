@@ -10,6 +10,7 @@ import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IAuthenticatedRequest } from '@/server/external/rest/types/config.types';
+import type { IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
 
 const logger = LoggerService.getInstance();
 import { renderLayout } from '@/server/external/templates/config/layout';
@@ -126,7 +127,7 @@ category: 'config'
       throw new Error('Provider registry not initialized');
     }
 
-    const providers = authModule.exports.getAllProviders();
+    const providers = authModule.exports.getAllProviders() as IIdentityProvider[];
     const content = renderInitialSetup(providers);
     const html = renderLayout({
       title: 'Setup',

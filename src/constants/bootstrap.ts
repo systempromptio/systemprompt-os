@@ -1,7 +1,8 @@
 /**
+ * Static bootstrap configuration.
  * @file Static bootstrap configuration.
  * @module bootstrap-static
- * Defines the core modules that must be loaded in a specific order
+ * Defines the core modules that must be loaded in a specific order.
  */
 
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
@@ -76,6 +77,14 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     type: 'self-contained',
   },
   {
+    name: 'agents',
+    path: './src/modules/core/agents/index.ts',
+    dependencies: ['logger', 'database', 'auth'],
+    critical: false,
+    description: 'Agent management and task execution system',
+    type: 'self-contained',
+  },
+  {
     name: 'system',
     path: './src/modules/core/system/index.ts',
     dependencies: ['logger', 'database'],
@@ -115,17 +124,4 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     description: 'Development tools and utilities',
     type: 'self-contained',
   },
-  /*
-   * Temporarily disabled - being worked on separately
-   * {
-   *   name: 'executors',
-   *   path: './src/modules/core/executors/index.ts',
-   *   dependencies: ['logger', 'database'],
-   *   critical: false,
-   *   description: 'Task executor management system',
-   *   type: 'self-contained',
-   * },
-   */
 ];
-
-export const MIN_MODULE_NAME_LENGTH = 2;

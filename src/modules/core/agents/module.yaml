@@ -1,0 +1,114 @@
+name: agents
+version: 1.0.0
+type: core
+description: Agent management and task execution system
+dependencies:
+  - database
+  - logger
+  - auth
+exports:
+  - service
+  - repository
+cli:
+  commands:
+    - name: status
+      description: Show agents module status
+    - name: create
+      description: Create a new agent
+      options:
+        - name: name
+          type: string
+          description: Agent name
+          required: true
+        - name: description
+          type: string
+          description: Agent description
+          required: true
+        - name: instructions
+          type: string
+          description: Agent instructions
+          required: true
+        - name: type
+          type: string
+          description: Agent type (worker, monitor, coordinator)
+          required: true
+        - name: capabilities
+          type: string
+          description: Agent capabilities (comma-separated)
+        - name: tools
+          type: string
+          description: Agent tools (comma-separated)
+        - name: config
+          type: string
+          description: Agent configuration (JSON format)
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+    - name: list
+      description: List all agents
+      options:
+        - name: status
+          type: string
+          description: Filter by agent status
+        - name: type
+          type: string
+          description: Filter by agent type
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+    - name: show
+      description: Show agent details
+      options:
+        - name: id
+          type: string
+          description: Agent ID or name
+          required: true
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+    - name: update
+      description: Update an agent
+      options:
+        - name: id
+          type: string
+          description: Agent ID or name
+          required: true
+        - name: name
+          type: string
+          description: Agent name
+        - name: description
+          type: string
+          description: Agent description
+        - name: instructions
+          type: string
+          description: Agent instructions
+        - name: status
+          type: string
+          description: Agent status
+        - name: capabilities
+          type: string
+          description: Agent capabilities (comma-separated)
+        - name: tools
+          type: string
+          description: Agent tools (comma-separated)
+        - name: config
+          type: string
+          description: Agent configuration (JSON format)
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+    - name: delete
+      description: Delete an agent
+      options:
+        - name: id
+          type: string
+          description: Agent ID or name
+          required: true
+        - name: force
+          type: boolean
+          description: Force deletion without confirmation
+          default: false

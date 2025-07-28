@@ -21,16 +21,18 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export interface IAgent {
   id: string;
   name: string;
+  description: string;
+  instructions: string;
   type: AgentType;
   status: AgentStatus;
   config: Record<string, unknown>;
   capabilities: string[];
+  tools: string[];
   created_at: Date;
   updated_at: Date;
   assigned_tasks: number;
   completed_tasks: number;
   failed_tasks: number;
-  last_heartbeat?: Date;
 }
 
 /**
@@ -38,9 +40,12 @@ export interface IAgent {
  */
 export interface ICreateAgentDto {
   name: string;
+  description: string;
+  instructions: string;
   type: AgentType;
   config?: Record<string, unknown>;
   capabilities?: string[];
+  tools?: string[];
 }
 
 /**
@@ -48,9 +53,12 @@ export interface ICreateAgentDto {
  */
 export interface IUpdateAgentDto {
   name?: string;
+  description?: string;
+  instructions?: string;
   status?: AgentStatus;
   config?: Record<string, unknown>;
   capabilities?: string[];
+  tools?: string[];
 }
 
 /**
@@ -104,4 +112,55 @@ export interface IAgentMetrics {
   memory_usage: number;
   active_tasks: number;
   timestamp: Date;
+}
+
+/**
+ * Database row representation for agents table.
+ */
+export interface IAgentRow {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  type: string;
+  status: string;
+  config: string;
+  capabilities: string;
+  tools: string;
+  created_at: string;
+  updated_at: string;
+  assigned_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+}
+
+/**
+ * Database row representation for agent_tasks table.
+ */
+export interface ITaskRow {
+  id: string;
+  agent_id: string;
+  name: string;
+  priority: string;
+  status: string;
+  payload: string;
+  created_at: string;
+  assigned_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  retry_count: number;
+  max_retries: number;
+  error_message?: string;
+}
+
+/**
+ * Database row representation for agent_logs table.
+ */
+export interface ILogRow {
+  id: string;
+  agent_id: string;
+  level: string;
+  message: string;
+  timestamp: string;
+  metadata?: string;
 }

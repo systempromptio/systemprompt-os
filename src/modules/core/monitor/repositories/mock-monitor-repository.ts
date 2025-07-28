@@ -1,0 +1,60 @@
+/**
+ * @file Mock monitor repository implementation.
+ * @module modules/core/monitor/repositories
+ * @description Mock implementation of monitor repository for testing and development.
+ */
+
+import type {
+  IMetricData,
+  IMetricQuery,
+  MonitorRepository
+} from '@/modules/core/monitor/types/index';
+
+/**
+ * Mock repository implementation for monitor data.
+ */
+export class MockMonitorRepository implements MonitorRepository {
+  /**
+   * Creates a new mock monitor repository.
+   * @param _db - Database adapter instance (unused in mock implementation).
+   */
+  constructor(_db: unknown) {
+    void _db;
+  }
+
+  /**
+   * Records a metric data point.
+   * @param data - Metric data to record.
+   */
+  async recordMetric(data: IMetricData): Promise<void> {
+    void data;
+    await Promise.resolve();
+  }
+
+  /**
+   * Retrieves metrics based on query criteria.
+   * @param query - Query parameters for filtering metrics.
+   * @returns Array of metric data.
+   */
+  async getMetrics(query: IMetricQuery): Promise<IMetricData[]> {
+    void query;
+    return await Promise.resolve([]);
+  }
+
+  /**
+   * Gets all available metric names.
+   * @returns Array of metric names.
+   */
+  async getMetricNames(): Promise<string[]> {
+    return await Promise.resolve(['cpu_usage', 'memory_usage', 'disk_usage']);
+  }
+
+  /**
+   * Deletes metrics older than retention period.
+   * @param retentionDays - Number of days to retain metrics.
+   */
+  async deleteOldMetrics(retentionDays: number): Promise<void> {
+    void retentionDays;
+    await Promise.resolve();
+  }
+}

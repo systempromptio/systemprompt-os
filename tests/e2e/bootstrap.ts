@@ -76,7 +76,7 @@ export async function bootstrapTestEnvironment(): Promise<void> {
   
   dockerEnv = new DockerTestEnvironment(TEST_CONFIG.projectName, {
     serviceName: 'mcp-server',
-    composeFile: 'docker-compose.yml',
+    composeFile: 'docker-compose.test.yml',
     healthEndpoint: `${baseUrl}/health`,
     envVars: TEST_CONFIG.envVars
   });
@@ -125,7 +125,7 @@ export async function execInContainer(command: string): Promise<{ stdout: string
   
   const tempDockerEnv = new DockerTestEnvironment(testState.projectName, {
     serviceName: 'mcp-server',
-    composeFile: 'docker-compose.yml',
+    composeFile: 'docker-compose.test.yml',
     envVars: TEST_CONFIG.envVars
   });
   

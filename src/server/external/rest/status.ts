@@ -15,12 +15,7 @@ const logger = LoggerService.getInstance();
  * Status endpoint handler.
  */
 export class StatusEndpoint {
-  private readonly startTime: Date;
-  
-  constructor() {
-    this.startTime = new Date();
-  }
-  
+  private readonly startTime: Date = new Date();
   public getStatus = (_req: ExpressRequest, res: ExpressResponse): ExpressResponse => {
     try {
       const uptime = Math.floor((Date.now() - this.startTime.getTime()) / 1000);

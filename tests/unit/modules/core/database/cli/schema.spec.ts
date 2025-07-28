@@ -1,19 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { CLIContext } from '@/modules/core/cli/types';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { command as schemaCommand } from '@/modules/core/database/cli/schema';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
+import { DatabaseSchemaService } from '@/modules/core/cli/services/database-schema.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 // Mock the services
-vi.mock('@/modules/core/database/services/database.service');
-vi.mock('@/modules/core/database/services/schema.service');
+vi.mock('@/modules/core/cli/services/database-schema.service');
+vi.mock('@/modules/core/logger/services/logger.service');
 
 describe('database:schema command', () => {
-  let mockContext: CLIContext;
-  let mockDbService: any;
-  let mockSchemaService: any;
-  let consoleLogSpy: any;
-  let consoleErrorSpy: any;
+  let mockContext: ICLIContext;
+  let mockDatabaseSchemaService: any;
+  let mockLoggerService: any;
   let processExitSpy: any;
 
   beforeEach(() => {
@@ -25,28 +24,36 @@ describe('database:schema command', () => {
       env: {}
     };
 
-    // Mock console methods
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Mock process.exit
     processExitSpy = vi.spyOn(process!, 'exit').mockImplementation((code?: number!) => {
       throw new Error(`Process exited with code ${code}`);
     });
 
-    // Setup service mocks
-    mockDbService = {
-      isInitialized: vi.fn().mockResolvedValue(true),
+    // Setup logger service mock
+    mockLoggerService = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
     };
 
-    mockSchemaService = {
-      getInstalledSchemas: vi.fn().mockResolvedValue([]),
-      initializeBaseSchema: vi.fn().mockResolvedValue(undefined),
-      discoverSchemasArray: vi.fn().mockResolvedValue([]),
-      installModuleSchema: vi.fn().mockResolvedValue(undefined),
+    // Setup database schema service mock
+    mockDatabaseSchemaService = {
+      listSchemas: vi.fn().mockResolvedValue({
+        success: true,
+        data: { schemas: [] }
+      }),
+      initializeSchemas: vi.fn().mockResolvedValue({
+        success: true
+      }),
+      validateSchemas: vi.fn().mockResolvedValue({
+        success: true
+      }),
     };
 
     // Mock getInstance methods
-    vi.mocked(DatabaseService.getInstance).mockReturnValue(mockDbService);
-    vi.mocked(SchemaService.getInstance).mockReturnValue(mockSchemaService);
+    vi.mocked(LoggerService.getInstance).mockReturnValue(mockLoggerService);
+    vi.mocked(DatabaseSchemaService.getInstance).mockReturnValue(mockDatabaseSchemaService);
   });
 
   afterEach(() => {
@@ -66,8 +73,8 @@ describe('database:schema command', () => {
   it('should require action parameter', async () => {
     await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
     
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Unknown action: undefined');
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Valid actions are: list, init, validate');
+    expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Unknown action: undefined');
+    expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Valid actions are: list, init, validate');
   });
 
   describe('list action', () => {
@@ -76,35 +83,44 @@ describe('database:schema command', () => {
     });
 
     it('should show message when database is not initialized', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: false,
+        message: 'Database is not initialized. No schemas installed.'
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Database is not initialized. No schemas installed.');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Database is not initialized. No schemas installed.');
     });
 
     it('should show message when no schemas are installed', async () => {
-      mockSchemaService.getInstalledSchemas.mockResolvedValue([]);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: true,
+        data: { schemas: [] }
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('No schemas found.');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'No schemas found.');
     });
 
     it('should list installed schemas', async () => {
       const schemas = [
-        { module_name: 'core', version: '1.0.0', installed_at: '2024-01-01T00:00:00Z' },
-        { module_name: 'auth', version: '2.0.0', installed_at: '2024-01-02T00:00:00Z' },
+        { moduleName: 'core', version: '1.0.0', installedAt: '2024-01-01T00:00:00Z' },
+        { moduleName: 'auth', version: '2.0.0', installedAt: '2024-01-02T00:00:00Z' },
       ];
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(schemas);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: true,
+        data: { schemas }
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nInstalled Schemas:\n');
-      expect(consoleLogSpy).toHaveBeenCalledWith('Module Name           Version    Installed At');
-      expect(consoleLogSpy).toHaveBeenCalledWith('-'.repeat(60));
-      expect(consoleLogSpy).toHaveBeenCalledWith('core                 1.0.0      2024-01-01');
-      expect(consoleLogSpy).toHaveBeenCalledWith('auth                 2.0.0      2024-01-02');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, expect.stringMatching(/INSTALLED SCHEMAS/));
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '\nModule Name           Version    Installed At');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '-'.repeat(60));
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'core                 1.0.0      2024-01-01');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'auth                 2.0.0      2024-01-02');
     });
   });
 
@@ -114,91 +130,104 @@ describe('database:schema command', () => {
     });
 
     it('should prevent initialization when already initialized without force', async () => {
-      mockDbService.isInitialized.mockResolvedValue(true);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: false,
+        message: 'Database is already initialized. Use --force to reinitialize.'
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        LogSource.DATABASE,
         'Database is already initialized. Use --force to reinitialize.'
       );
     });
 
     it('should warn when force initializing', async () => {
-      mockDbService.isInitialized.mockResolvedValue(true);
       mockContext.args.force = true;
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        warnings: [
+          '⚠️  WARNING: Force initializing will reset the database!',
+          'This action cannot be undone.\n'
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('⚠️  WARNING: Force initializing will reset the database!');
-      expect(consoleLogSpy).toHaveBeenCalledWith('This action cannot be undone.\n');
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(LogSource.DATABASE, '⚠️  WARNING: Force initializing will reset the database!');
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(LogSource.DATABASE, 'This action cannot be undone.\n');
     });
 
     it('should initialize base schema', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: [
+          { module: 'base', success: true, message: 'Base schema initialized' }
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Initializing database schema...\n');
-      expect(mockSchemaService.initializeBaseSchema).toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Base schema initialized');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nDatabase initialization complete.');
+      expect(mockDatabaseSchemaService.initializeSchemas).toHaveBeenCalledWith({ force: false });
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '✓ base: Base schema initialized');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, expect.stringContaining('Database initialization complete'));
     });
 
     it('should initialize specific module schema', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
       mockContext.args.module = 'auth';
-      
-      const moduleSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(moduleSchemas);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: [
+          { module: 'auth', success: true, message: 'Schema initialized' }
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nInitializing schema for module: auth');
-      expect(mockSchemaService.installModuleSchema).toHaveBeenCalledWith(moduleSchemas[1]);
-      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Schema for auth initialized');
+      expect(mockDatabaseSchemaService.initializeSchemas).toHaveBeenCalledWith({ force: false, module: 'auth' });
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '✓ auth: Schema initialized');
     });
 
     it('should error when specified module not found', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
       mockContext.args.module = 'nonexistent';
-      mockSchemaService.discoverSchemasArray.mockResolvedValue([]);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: false,
+        message: "Module 'nonexistent' not found or has no schema."
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        LogSource.DATABASE,
         "Module 'nonexistent' not found or has no schema."
       );
     });
 
     it('should initialize all discovered schemas', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      
-      const moduleSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(moduleSchemas);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: [
+          { module: 'core', success: true, message: 'Schema initialized' },
+          { module: 'auth', success: true, message: 'Schema initialized' }
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nFound 2 module schema(s) to install:\n');
-      expect(consoleLogSpy).toHaveBeenCalledWith('Installing schema for core...');
-      expect(consoleLogSpy).toHaveBeenCalledWith('  ✓ Success');
-      expect(consoleLogSpy).toHaveBeenCalledWith('Installing schema for auth...');
-      expect(consoleLogSpy).toHaveBeenCalledWith('  ✓ Success');
-      expect(mockSchemaService.installModuleSchema).toHaveBeenCalledTimes(2);
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '✓ core: Schema initialized');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '✓ auth: Schema initialized');
     });
 
     it('should handle schema installation errors', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      mockSchemaService.initializeBaseSchema.mockRejectedValue(new Error('Schema error'));
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: false,
+        message: 'Failed to initialize schema: Schema error'
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to initialize schema:', 'Schema error');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Failed to initialize schema: Schema error');
     });
   });
 
@@ -208,105 +237,85 @@ describe('database:schema command', () => {
     });
 
     it('should error when database not initialized', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: false,
+        message: 'Database is not initialized. Nothing to validate.'
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        LogSource.DATABASE,
         'Database is not initialized. Nothing to validate.'
       );
     });
 
     it('should validate all schemas successfully', async () => {
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-        { module_name: 'auth', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: []
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Validating database schemas...\n');
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'core' is installed (v1.0.0)");
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'auth' is installed (v1.0.0)");
-      expect(consoleLogSpy).toHaveBeenCalledWith('\n✓ All schemas are valid.');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'Validating database schemas...\n');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '\n✓ All schemas are valid.');
     });
 
     it('should detect missing schemas', async () => {
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: [
+          { module: 'auth', message: "Schema for 'auth' is not installed", severity: 'error' }
+        ]
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'core' is installed (v1.0.0)");
-      expect(consoleLogSpy).toHaveBeenCalledWith("⚠️  Schema for 'auth' is not installed");
-      expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, '✗ auth: Schema for \'auth\' is not installed');
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(
+        LogSource.DATABASE,
         "\n⚠️  Schema validation found issues. Run 'systemprompt database:schema --action=init' to fix."
       );
     });
 
     it('should detect orphaned schemas', async () => {
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-        { module_name: 'legacy', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: [
+          { module: 'legacy', message: "Installed schema for 'legacy' has no corresponding module", severity: 'warning' }
+        ]
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "⚠️  Installed schema for 'legacy' has no corresponding module"
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(
+        LogSource.DATABASE,
+        "⚠️ legacy: Installed schema for 'legacy' has no corresponding module"
       );
     });
 
     it('should validate specific module only', async () => {
       mockContext.args.module = 'core';
-      
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-        { module_name: 'auth', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: []
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'core' is installed (v1.0.0)");
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('auth'));
+      expect(mockDatabaseSchemaService.validateSchemas).toHaveBeenCalledWith({ module: 'core' });
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '\n✓ All schemas are valid.');
     });
   });
 
   it('should handle service errors gracefully', async () => {
     mockContext.args.action = 'list';
-    mockSchemaService.getInstalledSchemas.mockRejectedValue(new Error('Service error'));
+    mockDatabaseSchemaService.listSchemas.mockRejectedValue(new Error('Service error'));
 
     await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'Service error');
+    expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Service error' });
   });
 
   describe('error handling', () => {
@@ -315,48 +324,47 @@ describe('database:schema command', () => {
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Unknown action: unknown');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Valid actions are: list, init, validate');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Unknown action: unknown');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Valid actions are: list, init, validate');
     });
 
-    it('should handle DatabaseService.getInstance() errors', async () => {
+    it('should handle DatabaseSchemaService.getInstance() errors', async () => {
       mockContext.args.action = 'list';
-      vi.mocked(DatabaseService.getInstance).mockImplementation(() => {
-        throw new Error('Database service not initialized');
+      vi.mocked(DatabaseSchemaService.getInstance).mockImplementation(() => {
+        throw new Error('Database schema service not initialized');
       });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'Database service not initialized');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Database schema service not initialized' });
     });
 
-    it('should handle SchemaService.getInstance() errors', async () => {
+    it('should handle LoggerService.getInstance() errors', async () => {
       mockContext.args.action = 'list';
-      vi.mocked(SchemaService.getInstance).mockImplementation(() => {
-        throw new Error('Schema service not initialized');
+      vi.mocked(LoggerService.getInstance).mockImplementation(() => {
+        throw new Error('Logger service not initialized');
       });
 
-      await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'Schema service not initialized');
+      // The error will be thrown before process.exit is called
+      await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Logger service not initialized');
     });
 
     it('should handle non-Error thrown objects', async () => {
       mockContext.args.action = 'list';
-      mockSchemaService.getInstalledSchemas.mockRejectedValue('String error');
+      mockDatabaseSchemaService.listSchemas.mockRejectedValue('String error');
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'String error');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'String error' });
     });
 
     it('should handle null/undefined thrown values', async () => {
       mockContext.args.action = 'list';
-      mockSchemaService.getInstalledSchemas.mockRejectedValue(null);
+      mockDatabaseSchemaService.listSchemas.mockRejectedValue(null);
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'null');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'null' });
     });
   });
 
@@ -365,49 +373,58 @@ describe('database:schema command', () => {
       mockContext.args.action = 'list';
     });
 
-    it('should handle dbService.isInitialized() errors', async () => {
-      mockDbService.isInitialized.mockRejectedValue(new Error('Connection failed'));
+    it('should handle listSchemas() errors', async () => {
+      mockDatabaseSchemaService.listSchemas.mockRejectedValue(new Error('Connection failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'Connection failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Connection failed' });
     });
 
     it('should handle schemas with missing properties', async () => {
       const schemas = [
-        { module_name: 'core', version: '1.0.0', installed_at: '2024-01-01T00:00:00Z' },
-        { module_name: '', version: '', installed_at: 'invalid-date' }, // Edge case: empty strings
+        { moduleName: 'core', version: '1.0.0', installedAt: '2024-01-01T00:00:00Z' },
+        { moduleName: '', version: '', installedAt: 'invalid-date' }, // Edge case: empty strings
       ];
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(schemas);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: true,
+        data: { schemas }
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('core                 1.0.0      2024-01-01');
-      expect(consoleLogSpy).toHaveBeenCalledWith('                                invalid-date');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'core                 1.0.0      2024-01-01');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '                                invalid-date');
     });
 
     it('should handle schemas with very long names', async () => {
       const longName = 'a'.repeat(50);
       const schemas = [
-        { module_name: longName, version: '1.0.0', installed_at: '2024-01-01T00:00:00Z' },
+        { moduleName: longName, version: '1.0.0', installedAt: '2024-01-01T00:00:00Z' },
       ];
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(schemas);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: true,
+        data: { schemas }
+      });
 
       await schemaCommand.execute(mockContext);
 
       // Should still display the schema even with long name
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(longName));
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, expect.stringContaining(longName));
     });
 
     it('should handle installed_at dates without time component', async () => {
       const schemas = [
-        { module_name: 'core', version: '1.0.0', installed_at: '2024-01-01' },
+        { moduleName: 'core', version: '1.0.0', installedAt: '2024-01-01' },
       ];
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(schemas);
+      mockDatabaseSchemaService.listSchemas.mockResolvedValue({
+        success: true,
+        data: { schemas }
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('core                 1.0.0      2024-01-01');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, 'core                 1.0.0      2024-01-01');
     });
   });
 
@@ -417,95 +434,83 @@ describe('database:schema command', () => {
     });
 
     it('should handle module schema installation failure gracefully', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      
-      const moduleSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'auth', schemaPath: '/path/to/auth/schema.sql' },
-      ];
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(moduleSchemas);
-      
-      // Mock first installation to succeed, second to fail
-      mockSchemaService.installModuleSchema
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('Installation failed'));
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: [
+          { module: 'core', success: true, message: 'Success' },
+          { module: 'auth', success: false, message: 'Installation failed' }
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Installing schema for core...');
-      expect(consoleLogSpy).toHaveBeenCalledWith('  ✓ Success');
-      expect(consoleLogSpy).toHaveBeenCalledWith('Installing schema for auth...');
-      expect(consoleLogSpy).toHaveBeenCalledWith('  ✗ Failed: Installation failed');
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '✓ core: Success');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, '✗ auth: Installation failed');
     });
 
     it('should handle module schema installation failure with non-Error object', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      
-      const moduleSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-      ];
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(moduleSchemas);
-      mockSchemaService.installModuleSchema.mockRejectedValue('String error');
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: [
+          { module: 'core', success: false, message: 'String error' }
+        ]
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('  ✗ Failed: String error');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, '✗ core: String error');
     });
 
     it('should handle empty module name in specific module init', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
       mockContext.args.module = '';
-      mockSchemaService.discoverSchemasArray.mockResolvedValue([]);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true
+      });
 
       await schemaCommand.execute(mockContext);
 
       // Empty module name should be treated as general initialization
-      expect(consoleLogSpy).toHaveBeenCalledWith('Initializing database schema...\n');
-      expect(mockSchemaService.initializeBaseSchema).toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Base schema initialized');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nDatabase initialization complete.');
+      expect(mockDatabaseSchemaService.initializeSchemas).toHaveBeenCalledWith({ force: false });
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, expect.stringContaining('Database initialization complete'));
     });
 
-    it('should handle discoverSchemasArray error during module-specific init', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
+    it('should handle initializeSchemas error during module-specific init', async () => {
       mockContext.args.module = 'auth';
-      mockSchemaService.discoverSchemasArray.mockRejectedValue(new Error('Discovery failed'));
+      mockDatabaseSchemaService.initializeSchemas.mockRejectedValue(new Error('Discovery failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to initialize schema:', 'Discovery failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Discovery failed' });
     });
 
-    it('should handle discoverSchemasArray error during general init', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      mockSchemaService.discoverSchemasArray.mockRejectedValue(new Error('Discovery failed'));
+    it('should handle initializeSchemas error during general init', async () => {
+      mockDatabaseSchemaService.initializeSchemas.mockRejectedValue(new Error('Discovery failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to initialize schema:', 'Discovery failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Discovery failed' });
     });
 
-    it('should handle force initialization with dbService.isInitialized error', async () => {
+    it('should handle force initialization with error', async () => {
       mockContext.args.force = true;
-      mockDbService.isInitialized.mockRejectedValue(new Error('Connection failed'));
+      mockDatabaseSchemaService.initializeSchemas.mockRejectedValue(new Error('Connection failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error managing schema:', 'Connection failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Connection failed' });
     });
 
     it('should handle zero schemas discovered during general init', async () => {
-      mockDbService.isInitialized.mockResolvedValue(false);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue([]);
+      mockDatabaseSchemaService.initializeSchemas.mockResolvedValue({
+        success: true,
+        results: []
+      });
 
       await schemaCommand.execute(mockContext);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('Initializing database schema...\n');
-      expect(mockSchemaService.initializeBaseSchema).toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith('✓ Base schema initialized');
-      expect(consoleLogSpy).toHaveBeenCalledWith('\nDatabase initialization complete.');
-      // Should not show the "Found N module schema(s)" message
-      expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Found'));
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, expect.stringContaining('Database initialization complete'));
+      // Should not have any schema-specific messages
+      expect(mockLoggerService.info).not.toHaveBeenCalledWith(LogSource.DATABASE, expect.stringMatching(/\u2713.*:/));
     });
   });
 
@@ -514,108 +519,85 @@ describe('database:schema command', () => {
       mockContext.args.action = 'validate';
     });
 
-    it('should handle getInstalledSchemas error', async () => {
-      mockDbService.isInitialized.mockResolvedValue(true);
-      mockSchemaService.getInstalledSchemas.mockRejectedValue(new Error('Query failed'));
+    it('should handle validateSchemas error', async () => {
+      mockDatabaseSchemaService.validateSchemas.mockRejectedValue(new Error('Query failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Validation failed:', 'Query failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Query failed' });
     });
 
-    it('should handle discoverSchemasArray error during validation', async () => {
-      mockDbService.isInitialized.mockResolvedValue(true);
-      mockSchemaService.getInstalledSchemas.mockResolvedValue([]);
-      mockSchemaService.discoverSchemasArray.mockRejectedValue(new Error('Discovery failed'));
+    it('should handle validateSchemas error during validation', async () => {
+      mockDatabaseSchemaService.validateSchemas.mockRejectedValue(new Error('Discovery failed'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Validation failed:', 'Discovery failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Discovery failed' });
     });
 
     it('should handle module-specific validation with non-existent module', async () => {
       mockContext.args.module = 'nonexistent';
-      
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: [
+          { module: 'nonexistent', message: "Schema for 'nonexistent' is not installed", severity: 'error' }
+        ]
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("⚠️  Schema for 'nonexistent' is not installed");
-      expect(consoleLogSpy).not.toHaveBeenCalledWith('\n✓ All schemas are valid.');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, "✗ nonexistent: Schema for 'nonexistent' is not installed");
+      expect(mockLoggerService.info).not.toHaveBeenCalledWith(LogSource.DATABASE, '\n✓ All schemas are valid.');
     });
 
     it('should handle empty module name in validation', async () => {
       mockContext.args.module = '';
-      
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: []
+      });
 
       await schemaCommand.execute(mockContext);
 
       // Empty module name should be treated as validating all schemas
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'core' is installed (v1.0.0)");
-      expect(consoleLogSpy).toHaveBeenCalledWith('\n✓ All schemas are valid.');
+      expect(mockDatabaseSchemaService.validateSchemas).toHaveBeenCalledWith({});
+      expect(mockLoggerService.info).toHaveBeenCalledWith(LogSource.DATABASE, '\n✓ All schemas are valid.');
     });
 
     it('should handle schemas with undefined moduleName', async () => {
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: undefined, schemaPath: '/path/to/core/schema.sql' }, // Edge case
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: [
+          { module: 'undefined', message: "Schema for 'undefined' is not installed", severity: 'error' }
+        ]
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("⚠️  Schema for 'undefined' is not installed");
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, "✗ undefined: Schema for 'undefined' is not installed");
     });
 
     it('should handle validation with mixed scenarios', async () => {
-      const installedSchemas = [
-        { module_name: 'core', version: '1.0.0' },
-        { module_name: 'old-module', version: '1.0.0' },
-      ];
-      const discoveredSchemas = [
-        { moduleName: 'core', schemaPath: '/path/to/core/schema.sql' },
-        { moduleName: 'new-module', schemaPath: '/path/to/new/schema.sql' },
-      ];
-
-      mockSchemaService.getInstalledSchemas.mockResolvedValue(installedSchemas);
-      mockSchemaService.discoverSchemasArray.mockResolvedValue(discoveredSchemas);
+      mockDatabaseSchemaService.validateSchemas.mockResolvedValue({
+        success: true,
+        issues: [
+          { module: 'new-module', message: "Schema for 'new-module' is not installed", severity: 'error' },
+          { module: 'old-module', message: "Installed schema for 'old-module' has no corresponding module", severity: 'warning' }
+        ]
+      });
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleLogSpy).toHaveBeenCalledWith("✓ Schema for 'core' is installed (v1.0.0)");
-      expect(consoleLogSpy).toHaveBeenCalledWith("⚠️  Schema for 'new-module' is not installed");
-      expect(consoleLogSpy).toHaveBeenCalledWith("⚠️  Installed schema for 'old-module' has no corresponding module");
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, "✗ new-module: Schema for 'new-module' is not installed");
+      expect(mockLoggerService.warn).toHaveBeenCalledWith(LogSource.DATABASE, "⚠️ old-module: Installed schema for 'old-module' has no corresponding module");
     });
 
     it('should handle Promise.all rejection', async () => {
-      mockDbService.isInitialized.mockResolvedValue(true);
-      mockSchemaService.getInstalledSchemas.mockResolvedValue([]);
-      mockSchemaService.discoverSchemasArray.mockRejectedValue(new Error('Async error'));
+      mockDatabaseSchemaService.validateSchemas.mockRejectedValue(new Error('Async error'));
 
       await expect(schemaCommand.execute(mockContext)).rejects.toThrow('Process exited with code 1');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Validation failed:', 'Async error');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(LogSource.DATABASE, 'Error managing schema:', { error: 'Async error' });
     });
   });
 

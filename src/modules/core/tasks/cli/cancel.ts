@@ -4,7 +4,9 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import { getTasksModule } from '@/modules/core/tasks';
+import { TaskStatusEnum } from '@/modules/core/tasks/types/index';
 
 /**
  * Tasks cancel command.
@@ -22,11 +24,25 @@ export const cancel: CLICommand = {
     }
   ],
 
-  execute: async (): Promise<void> => {
-    await Promise.resolve();
-    process.stdout.write('\nCancelling task...\n');
-    process.stdout.write('Tasks cancel command - placeholder implementation\n');
-    process.stdout.write('The actual implementation would cancel a task\n');
+  execute: async (context: CLIContext): Promise<void> => {
+    const taskId = Number(context.args.id);
+
+    if (taskId === 0 || Number.isNaN(taskId)) {
+      process.stderr.write('Error: Valid task ID is required\n');
+      process.exit(1);
+    }
+
+    try {
+      const tasksModule = getTasksModule();
+      const taskService = tasksModule.exports.service();
+
+      await taskService.updateTask(taskId, { status: TaskStatusEnum.CANCELLED });
+
+      process.stdout.write(`\nTask ${String(taskId)} cancelled successfully!\n`);
+    } catch (error) {
+      process.stderr.write(`Error: ${String(error)}\n`);
+      process.exit(1);
+    }
   }
 };
 

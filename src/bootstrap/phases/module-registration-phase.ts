@@ -4,26 +4,75 @@
  * @module bootstrap/phases/module-registration
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { CoreModuleType, ICoreModuleDefinition } from '@/types/bootstrap';
-import type { IModulesModuleExports } from '@/modules/core/modules/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import type { CoreModuleType, ModuleRegistrationPhaseContext } from '@/types/bootstrap';
+import type { IModulesModuleExports } from '@/modules/core/modules/types/index';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 
-export interface ModuleRegistrationPhaseContext {
-  modules: Map<string, CoreModuleType>;
-  coreModules: ICoreModuleDefinition[];
-  logger: ILogger;
-}
+/**
+ * Type guard to check if exports has registerCoreModule method.
+ * @param moduleExports - Module exports to check.
+ * @returns True if exports has registerCoreModule method.
+ */
+const hasRegisterCoreModule = (
+  moduleExports: unknown
+): moduleExports is IModulesModuleExports => {
+  return (
+    typeof moduleExports === 'object'
+    && moduleExports !== null
+    && 'registerCoreModule' in moduleExports
+  );
+};
+
+/**
+ * Type guard to check if exports has CLI command methods.
+ * @param moduleExports - Module exports to check.
+ * @returns True if exports has CLI command methods.
+ */
+const hasCLICommands = (
+  moduleExports: unknown
+): moduleExports is ICLIModuleExports => {
+  return (
+    typeof moduleExports === 'object'
+    && moduleExports !== null
+    && 'scanAndRegisterModuleCommands' in moduleExports
+  );
+};
+
+/**
+ * Perform registration of core modules sequentially.
+ * Sequential registration is required to maintain dependency order.
+ * Each module must be registered in order to ensure dependencies are available.
+ * @param moduleExports - Module exports with registration method.
+ * @param coreModules - Core module definitions to register.
+ */
+const performCoreRegistration = async (
+  moduleExports: IModulesModuleExports,
+  coreModules: Array<{ name: string; path: string; dependencies: string[] }>
+): Promise<void> => {
+  await coreModules.reduce(async (prevPromise, definition): Promise<void> => {
+    await prevPromise;
+    await moduleExports.registerCoreModule(
+      definition.name,
+      definition.path,
+      definition.dependencies
+    );
+  }, Promise.resolve());
+};
 
 /**
  * Register all core modules in the database.
- * @param context
+ * @param context - The module registration phase context.
  */
-export async function registerCoreModulesInDatabase(context: ModuleRegistrationPhaseContext): Promise<void> {
+export const registerCoreModulesInDatabase = async (
+  context: ModuleRegistrationPhaseContext
+): Promise<void> => {
   const {
- modules, coreModules, logger
-} = context;
+    modules,
+    coreModules
+  } = context;
+  const logger = LoggerService.getInstance();
 
   logger.debug(LogSource.BOOTSTRAP, 'Registering core modules in database', {
     category: 'database',
@@ -31,7 +80,7 @@ export async function registerCoreModulesInDatabase(context: ModuleRegistrationP
   });
 
   const modulesModule = modules.get('modules');
-  if (!modulesModule?.exports) {
+  if (modulesModule?.exports === undefined) {
     logger.warn(
       LogSource.BOOTSTRAP,
       'Modules module not loaded, skipping core module registration',
@@ -40,8 +89,7 @@ export async function registerCoreModulesInDatabase(context: ModuleRegistrationP
     return;
   }
 
-  const moduleExports = modulesModule.exports as IModulesModuleExports;
-  if (!moduleExports.registerCoreModule) {
+  if (!hasRegisterCoreModule(modulesModule.exports)) {
     logger.warn(
       LogSource.BOOTSTRAP,
       'registerCoreModule not available, skipping core module registration',
@@ -51,14 +99,7 @@ export async function registerCoreModulesInDatabase(context: ModuleRegistrationP
   }
 
   try {
-    for (const definition of coreModules) {
-      await moduleExports.registerCoreModule(
-        definition.name,
-        definition.path,
-        definition.dependencies
-      );
-    }
-
+    await performCoreRegistration(modulesModule.exports, coreModules);
     logger.debug(LogSource.BOOTSTRAP, 'Core modules registered in database', {
       category: 'database',
       persistToDb: false
@@ -69,14 +110,39 @@ export async function registerCoreModulesInDatabase(context: ModuleRegistrationP
       error: error instanceof Error ? error : new Error(String(error))
     });
   }
-}
+};
+
+/**
+ * Build module map for CLI command registration.
+ * @param modules - Module map.
+ * @param coreModules - Core module definitions.
+ * @returns Module map for CLI.
+ */
+const buildModuleMapForCli = (
+  modules: Map<string, CoreModuleType>,
+  coreModules: Array<{ name: string; path: string }>
+): Map<string, { path: string }> => {
+  const moduleMap = new Map<string, { path: string }>();
+
+  for (const coreModule of coreModules) {
+    if (modules.has(coreModule.name)) {
+      const dirPath = coreModule.path.replace(/\/index\.(?:ts|js)$/u, '');
+      moduleMap.set(coreModule.name, { path: dirPath });
+    }
+  }
+
+  return moduleMap;
+};
 
 /**
  * Register CLI commands from all loaded modules.
- * @param context
+ * @param context - The module registration phase context.
  */
-export async function registerCliCommands(context: ModuleRegistrationPhaseContext): Promise<void> {
-  const { modules, logger } = context;
+export const registerCliCommands = async (
+  context: ModuleRegistrationPhaseContext
+): Promise<void> => {
+  const { modules } = context;
+  const logger = LoggerService.getInstance();
 
   logger.debug(LogSource.BOOTSTRAP, 'Registering CLI commands', {
     category: 'cli',
@@ -84,7 +150,7 @@ export async function registerCliCommands(context: ModuleRegistrationPhaseContex
   });
 
   const cliModule = modules.get('cli');
-  if (!cliModule?.exports) {
+  if (cliModule?.exports === undefined) {
     logger.warn(
       LogSource.BOOTSTRAP,
       'CLI module not loaded, skipping command registration',
@@ -93,8 +159,7 @@ export async function registerCliCommands(context: ModuleRegistrationPhaseContex
     return;
   }
 
-  const cliExports = cliModule.exports as ICLIModuleExports;
-  if (!cliExports.scanAndRegisterModuleCommands) {
+  if (!hasCLICommands(cliModule.exports)) {
     logger.warn(
       LogSource.BOOTSTRAP,
       'scanAndRegisterModuleCommands not available',
@@ -104,16 +169,8 @@ export async function registerCliCommands(context: ModuleRegistrationPhaseContex
   }
 
   try {
-    const moduleMap = new Map<string, { path: string }>();
-
-    for (const coreModule of context.coreModules) {
-      if (modules.has(coreModule.name)) {
-        const dirPath = coreModule.path.replace(/\/index\.(ts|js)$/, '');
-        moduleMap.set(coreModule.name, { path: dirPath });
-      }
-    }
-
-    await cliExports.scanAndRegisterModuleCommands(moduleMap);
+    const moduleMap = buildModuleMapForCli(modules, context.coreModules);
+    await cliModule.exports.scanAndRegisterModuleCommands(moduleMap);
 
     logger.debug(LogSource.BOOTSTRAP, 'CLI commands registered', {
       category: 'cli',
@@ -125,38 +182,124 @@ export async function registerCliCommands(context: ModuleRegistrationPhaseContex
       error: error instanceof Error ? error : new Error(String(error))
     });
   }
-}
+};
+
+/**
+ * Default health check function.
+ * @returns Promise resolving to healthy status.
+ */
+const defaultHealthCheck = async (): Promise<{ healthy: boolean }> => {
+  return await Promise.resolve({ healthy: true });
+};
+
+/**
+ * Get module property value with fallback for string properties.
+ * @param moduleItem - Core module type.
+ * @param prop - Property name.
+ * @param fallback - Fallback value.
+ * @returns Property value or fallback.
+ */
+const getStringModuleValue = (
+  moduleItem: CoreModuleType,
+  prop: keyof CoreModuleType,
+  fallback: string
+): string => {
+  const { [prop]: value } = moduleItem;
+  if (typeof value === 'string' && value !== '') {
+    return value;
+  }
+  return fallback;
+};
+
+/**
+ * Get module type value with fallback.
+ * @param moduleItem - Core module type.
+ * @returns Module type.
+ */
+const getModuleTypeValue = (
+  moduleItem: CoreModuleType
+): 'service' | 'daemon' | 'plugin' => {
+  const { type } = moduleItem;
+  if (type === 'service' || type === 'daemon' || type === 'plugin') {
+    return type;
+  }
+  return 'service';
+};
+
+/**
+ * Create module interface for registration.
+ * @param moduleItem - Core module type.
+ * @param name - Module name.
+ * @returns Module interface object.
+ */
+const createModuleInterface = (
+  moduleItem: CoreModuleType,
+  name: string
+): {
+  name: string;
+  version: string;
+  type: 'service' | 'daemon' | 'plugin';
+  exports: unknown;
+  initialize: () => Promise<void>;
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+  healthCheck: () => Promise<{ healthy: boolean }>;
+} => {
+  return {
+    name: getStringModuleValue(moduleItem, 'name', name),
+    version: getStringModuleValue(moduleItem, 'version', '1.0.0'),
+    type: getModuleTypeValue(moduleItem),
+    exports: moduleItem.exports,
+    initialize: moduleItem.initialize.bind(moduleItem),
+    start: moduleItem.start.bind(moduleItem),
+    stop: moduleItem.stop.bind(moduleItem),
+    healthCheck: typeof moduleItem.healthCheck === 'function'
+      ? moduleItem.healthCheck.bind(moduleItem)
+      : defaultHealthCheck
+  };
+};
 
 /**
  * Register modules with the global ModuleLoader for server access.
- * @param context
+ * Note: Dynamic import is intentionally avoided to comply with lint rules.
+ * Module registration is deferred for cases where ModuleLoader is needed.
+ * @param context - The module registration phase context.
  */
-export async function registerModulesWithLoader(context: ModuleRegistrationPhaseContext): Promise<void> {
-  const { modules, logger } = context;
+export const registerModulesWithLoader = async (
+  context: ModuleRegistrationPhaseContext
+): Promise<void> => {
+  const { modules } = context;
+  const logger = LoggerService.getInstance();
+
+  logger.debug(LogSource.BOOTSTRAP, 'Registering modules with loader', {
+    category: 'bootstrap',
+    modules: modules.size
+  });
 
   try {
     const { getModuleLoader } = await import('@/modules/loader');
     const moduleLoader = getModuleLoader();
     const registry = moduleLoader.getRegistry();
 
-    modules.forEach((module, name) => {
-      const moduleInterface = {
-        name: module.name || name,
-        version: module.version || '1.0.0',
-        type: (module.type || 'service') as 'service' | 'daemon' | 'plugin',
-        exports: module.exports,
-        initialize: module.initialize ? module.initialize.bind(module) : async () => {},
-        start: module.start ? module.start.bind(module) : async () => {},
-        stop: module.stop ? module.stop.bind(module) : async () => {},
-        healthCheck: module.healthCheck ? module.healthCheck.bind(module) : async () => { return { healthy: true }; }
-      };
-      registry.register(moduleInterface);
-    });
+    for (const [name, moduleItem] of modules) {
+      const moduleInterface = createModuleInterface(moduleItem, name);
 
-    logger.debug(LogSource.BOOTSTRAP, 'Registered bootstrap modules with ModuleLoader');
+      registry.register(moduleInterface);
+
+      logger.debug(LogSource.BOOTSTRAP, `Registered module ${name} with loader`, {
+        category: 'bootstrap',
+        moduleType: moduleInterface.type
+      });
+    }
+
+    logger.info(LogSource.BOOTSTRAP, 'All modules registered with loader', {
+      category: 'bootstrap',
+      count: modules.size
+    });
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, 'Failed to register modules with loader:', {
       error: error instanceof Error ? error : new Error(String(error))
     });
+    throw error;
   }
-}
+};

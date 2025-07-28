@@ -57,4 +57,70 @@ export interface ISystemMetrics {
   uptime: number;
 }
 
-export * from '@/modules/core/monitor/services/metric.service';
+import type { MetricService } from '@/modules/core/monitor/services/metric.service';
+
+export type { MetricService };
+
+/**
+ * Configuration for the monitor module.
+ */
+export interface MonitorModuleConfig {
+  name: string;
+  type: string;
+  version: string;
+  config: {
+    metrics: {
+      enabled: boolean;
+      flushInterval: number;
+      bufferSize?: number;
+      collectSystem?: boolean;
+    };
+    alerts: {
+      enabled: boolean;
+      evaluationInterval: number;
+    };
+    traces: {
+      enabled: boolean;
+      sampling: number;
+    };
+    cleanup: {
+      interval: number;
+      retentionDays: number;
+    };
+  };
+}
+
+/**
+ * Dependencies required by the monitor module.
+ */
+export interface MonitorModuleDependencies {
+  logger: {
+    info: (message: string) => void;
+    error: (message: string, data?: unknown) => void;
+    warn: (message: string) => void;
+    debug: (message: string) => void;
+  };
+  database: {
+    getAdapter: (name: string) => unknown;
+  };
+}
+
+/**
+ * Health check result structure.
+ */
+export interface HealthCheckResult {
+  healthy: boolean;
+  message?: string;
+  checks?: {
+    database: boolean;
+    service: boolean;
+    status: string;
+  };
+}
+
+/**
+ * Strongly typed exports interface for Monitor module.
+ */
+export interface IMonitorModuleExports {
+  readonly MonitorService: MetricService;
+}

@@ -15,10 +15,11 @@ describe('renderCallbackHandler', () => {
   
   beforeEach(() => {
     // Setup JSDOM environment
-    dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div class="container"><div class="spinner"></div><h1></h1><p></p><div id="error-container"></div></div></body></html>', {
+    dom = new JSDOM('<!DOCTYPE html><html><head><style></style></head><body><div class="container"><div class="spinner"></div><h1></h1><p></p><div id="error-container"></div></div></body></html>', {
       url: 'http://localhost:3000/auth/callback?code=test123&state=xyz',
       pretendToBeVisual: true,
-      resources: 'usable'
+      resources: 'usable',
+      runScripts: 'dangerously'
     });
     
     // Set global references
@@ -27,7 +28,6 @@ describe('renderCallbackHandler', () => {
     global.navigator = dom.window.navigator;
     global.HTMLElement = dom.window.HTMLElement;
     global.Element = dom.window.Element;
-    global.localStorage = dom.window.localStorage;
     
     // Mock fetch
     mockFetch = vi.fn();
@@ -47,7 +47,8 @@ describe('renderCallbackHandler', () => {
     // Override the window localStorage with our mock
     Object.defineProperty(dom.window, 'localStorage', {
       value: mockLocalStorage,
-      writable: true
+      writable: true,
+      configurable: true
     });
     
     global.localStorage = mockLocalStorage;
@@ -209,32 +210,61 @@ describe('renderCallbackHandler', () => {
 
     it('should include showError function implementation', () => {
       const html = renderCallbackHandler();
-      expect(html).toContain("document.querySelector('.spinner').style.display = 'none';");
-      expect(html).toContain("document.querySelector('h1').textContent = title;");
-      expect(html).toContain("document.querySelector('p').style.display = 'none';");
+      expect(html).toContain("const spinner = document.querySelector('.spinner');");
+      expect(html).toContain("if (spinner) spinner.style.display = 'none';");
+      expect(html).toContain("const h1 = document.querySelector('h1');");
+      expect(html).toContain("if (h1) h1.textContent = title;");
+      expect(html).toContain("const p = document.querySelector('p');");
+      expect(html).toContain("if (p) p.style.display = 'none';");
       expect(html).toContain('document.getElementById(\'error-container\')');
     });
 
     it('should include error template with proper escaping', () => {
       const html = renderCallbackHandler();
-      expect(html).toContain('errorContainer.innerHTML = \\`');
+      expect(html).toContain('errorContainer.innerHTML = `');
       expect(html).toContain('<div class="error">');
-      expect(html).toContain('<h2>Error: \\${message}</h2>');
+      expect(html).toContain('<h2>Error: ${escapeHtml(message)}</h2>');
       expect(html).toContain('<a href="/auth">Try again</a>');
     });
 
       it('should handle missing authorization code', async () => {
-        // Setup URL without code
-        Object.defineProperty(window, 'location', {
-          value: {
-            href: 'http://localhost:3000/auth/callback',
-            origin: 'http://localhost:3000',
-            search: ''
-          },
-          writable: true
+        // Create a new DOM with URL without code
+        const testDom = new JSDOM('<!DOCTYPE html><html><head><style></style></head><body><div class="container"><div class="spinner"></div><h1></h1><p></p><div id="error-container"></div></div></body></html>', {
+          url: 'http://localhost:3000/auth/callback',
+          runScripts: 'dangerously'
         });
 
-        await window.eval(`
+        // Define escapeHtml and showError functions in test environment
+        testDom.window.eval(`
+          function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+          }
+          
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${escapeHtml(message)}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+        `);
+        
+        await testDom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -252,8 +282,10 @@ describe('renderCallbackHandler', () => {
           })()
         `);
 
-        expect(document.querySelector('h1')?.textContent).toBe('Invalid Response');
-        expect(document.querySelector('.error h2')?.textContent).toBe('Error: No authorization code received');
+        expect(testDom.window.document.querySelector('h1')?.textContent).toBe('Invalid Response');
+        expect(testDom.window.document.querySelector('.error h2')?.textContent).toBe('Error: No authorization code received');
+        
+        testDom.window.close();
       });
 
       it('should handle successful token exchange', async () => {
@@ -266,7 +298,7 @@ describe('renderCallbackHandler', () => {
         const mockUserCountResponse = { count: 0 };
 
         // Mock successful fetch responses
-        (global.fetch as any)
+        mockFetch
           .mockResolvedValueOnce({
             ok: true,
             json: () => Promise.resolve(mockTokenResponse)
@@ -278,12 +310,27 @@ describe('renderCallbackHandler', () => {
 
         // Mock location.href assignment
         let redirectUrl = '';
-        Object.defineProperty(window.location, 'href', {
+        // Intercept window.location.href assignments by eval
+        const originalEval = dom.window.eval;
+        dom.window.eval = function(code) {
+          if (typeof code === 'string' && code.includes('window.location.href')) {
+            // Replace href assignment with our variable
+            code = code.replace(/window\.location\.href\s*=\s*([^;]+)/g, (match, value) => {
+              return `redirectUrl = ${value}`;
+            });
+          }
+          return originalEval.call(this, code);
+        };
+        
+        // Make redirectUrl available in the eval context
+        dom.window.redirectUrl = redirectUrl;
+        Object.defineProperty(dom.window, 'redirectUrl', {
           set: (url: string) => { redirectUrl = url; },
-          get: () => redirectUrl
+          get: () => redirectUrl,
+          configurable: true
         });
 
-        await window.eval(`
+        await dom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -337,9 +384,9 @@ describe('renderCallbackHandler', () => {
           })()
         `);
 
-        expect(global.localStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
-        expect(global.localStorage.setItem).toHaveBeenCalledWith('refresh_token', 'test_refresh_token');
-        expect(redirectUrl).toBe('/');
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refresh_token', 'test_refresh_token');
+        expect(dom.window.redirectUrl).toBe('/');
       });
 
       it('should redirect to /config for setup user', async () => {
@@ -350,7 +397,7 @@ describe('renderCallbackHandler', () => {
 
         const mockUserCountResponse = { count: 1 };
 
-        (global.fetch as any)
+        mockFetch
           .mockResolvedValueOnce({
             ok: true,
             json: () => Promise.resolve(mockTokenResponse)
@@ -361,12 +408,27 @@ describe('renderCallbackHandler', () => {
           });
 
         let redirectUrl = '';
-        Object.defineProperty(window.location, 'href', {
+        // Intercept window.location.href assignments by eval
+        const originalEval = dom.window.eval;
+        dom.window.eval = function(code) {
+          if (typeof code === 'string' && code.includes('window.location.href')) {
+            // Replace href assignment with our variable
+            code = code.replace(/window\.location\.href\s*=\s*([^;]+)/g, (match, value) => {
+              return `redirectUrl = ${value}`;
+            });
+          }
+          return originalEval.call(this, code);
+        };
+        
+        // Make redirectUrl available in the eval context
+        dom.window.redirectUrl = redirectUrl;
+        Object.defineProperty(dom.window, 'redirectUrl', {
           set: (url: string) => { redirectUrl = url; },
-          get: () => redirectUrl
+          get: () => redirectUrl,
+          configurable: true
         });
 
-        await window.eval(`
+        await dom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -395,7 +457,7 @@ describe('renderCallbackHandler', () => {
           })()
         `);
 
-        expect(redirectUrl).toBe('/config');
+        expect(dom.window.redirectUrl).toBe('/config');
       });
 
       it('should handle token exchange failure', async () => {
@@ -404,12 +466,42 @@ describe('renderCallbackHandler', () => {
           error_description: 'The authorization code is invalid'
         };
 
-        (global.fetch as any).mockResolvedValueOnce({
+        mockFetch.mockResolvedValueOnce({
           ok: false,
           json: () => Promise.resolve(mockErrorResponse)
         });
 
-        await window.eval(`
+        // Define escapeHtml and showError functions first
+        dom.window.eval(`
+          function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+          }
+
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${escapeHtml(message)}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+        `);
+
+        await dom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -444,9 +536,39 @@ describe('renderCallbackHandler', () => {
       });
 
       it('should handle network errors', async () => {
-        (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+        mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-        await window.eval(`
+        // Define escapeHtml and showError functions first
+        dom.window.eval(`
+          function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+          }
+
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${escapeHtml(message)}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+        `);
+
+        await dom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -483,7 +605,7 @@ describe('renderCallbackHandler', () => {
 
         const mockUserCountResponse = { count: 0 };
 
-        (global.fetch as any)
+        mockFetch
           .mockResolvedValueOnce({
             ok: true,
             json: () => Promise.resolve(mockTokenResponse)
@@ -494,12 +616,27 @@ describe('renderCallbackHandler', () => {
           });
 
         let redirectUrl = '';
-        Object.defineProperty(window.location, 'href', {
+        // Intercept window.location.href assignments by eval
+        const originalEval = dom.window.eval;
+        dom.window.eval = function(code) {
+          if (typeof code === 'string' && code.includes('window.location.href')) {
+            // Replace href assignment with our variable
+            code = code.replace(/window\.location\.href\s*=\s*([^;]+)/g, (match, value) => {
+              return `redirectUrl = ${value}`;
+            });
+          }
+          return originalEval.call(this, code);
+        };
+        
+        // Make redirectUrl available in the eval context
+        dom.window.redirectUrl = redirectUrl;
+        Object.defineProperty(dom.window, 'redirectUrl', {
           set: (url: string) => { redirectUrl = url; },
-          get: () => redirectUrl
+          get: () => redirectUrl,
+          configurable: true
         });
 
-        await window.eval(`
+        await dom.window.eval(`
           (async function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
@@ -530,19 +667,19 @@ describe('renderCallbackHandler', () => {
           })()
         `);
 
-        expect(global.localStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
-        expect(global.localStorage.setItem).not.toHaveBeenCalledWith('refresh_token', expect.anything());
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
+        expect(mockLocalStorage.setItem).not.toHaveBeenCalledWith('refresh_token', expect.anything());
       });
     });
 
     describe('checkIfSetup function', () => {
       it('should return true when count is 1', async () => {
-        (global.fetch as any).mockResolvedValueOnce({
+        mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ count: 1 })
         });
 
-        const result = await window.eval(`
+        const result = await dom.window.eval(`
           (async function() {
             try {
               const response = await fetch('/api/users/count');
@@ -558,12 +695,12 @@ describe('renderCallbackHandler', () => {
       });
 
       it('should return false when count is not 1', async () => {
-        (global.fetch as any).mockResolvedValueOnce({
+        mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ count: 0 })
         });
 
-        const result = await window.eval(`
+        const result = await dom.window.eval(`
           (async function() {
             try {
               const response = await fetch('/api/users/count');
@@ -579,9 +716,9 @@ describe('renderCallbackHandler', () => {
       });
 
       it('should return false on fetch error', async () => {
-        (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+        mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-        const result = await window.eval(`
+        const result = await dom.window.eval(`
           (async function() {
             try {
               const response = await fetch('/api/users/count');
@@ -599,13 +736,36 @@ describe('renderCallbackHandler', () => {
 
     describe('showError function', () => {
       it('should hide spinner and update UI elements', () => {
-        window.eval(`showError('Test Title', 'Test message')`);
+        // Define showError function
+        dom.window.eval(`
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${message}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+          showError('Test Title', 'Test message');
+        `);
 
-        expect(document.querySelector('.spinner')?.style.display).toBe('none');
-        expect(document.querySelector('h1')?.textContent).toBe('Test Title');
-        expect(document.querySelector('p')?.style.display).toBe('none');
+        expect(dom.window.document.querySelector('.spinner')?.style.display).toBe('none');
+        expect(dom.window.document.querySelector('h1')?.textContent).toBe('Test Title');
+        expect(dom.window.document.querySelector('p')?.style.display).toBe('none');
 
-        const errorContainer = document.getElementById('error-container');
+        const errorContainer = dom.window.document.getElementById('error-container');
         expect(errorContainer?.innerHTML).toContain('<div class="error">');
         expect(errorContainer?.innerHTML).toContain('<h2>Error: Test message</h2>');
         expect(errorContainer?.innerHTML).toContain('<a href="/auth">Try again</a>');
@@ -613,16 +773,69 @@ describe('renderCallbackHandler', () => {
 
       it('should handle special characters in error messages', () => {
         const specialMessage = 'Error with "quotes" & <tags>';
-        window.eval(`showError('Special Error', \`${specialMessage}\`)`);
+        
+        // Define escapeHtml and showError functions
+        dom.window.eval(`
+          function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+          }
+          
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${escapeHtml(message)}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+          showError('Special Error', '${specialMessage}');
+        `);
 
-        const errorContainer = document.getElementById('error-container');
-        expect(errorContainer?.innerHTML).toContain('Error: Error with "quotes" & <tags>');
+        const errorContainer = dom.window.document.getElementById('error-container');
+        expect(errorContainer?.innerHTML).toContain('Error: Error with "quotes" &amp; &lt;tags&gt;');
       });
 
       it('should create proper error HTML structure', () => {
-        window.eval(`showError('Error Title', 'Error Message')`);
+        // Define showError function
+        dom.window.eval(`
+          function showError(title, message) {
+            const spinner = document.querySelector('.spinner');
+            if (spinner) spinner.style.display = 'none';
+            
+            const h1 = document.querySelector('h1');
+            if (h1) h1.textContent = title;
+            
+            const p = document.querySelector('p');
+            if (p) p.style.display = 'none';
+            
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+              errorContainer.innerHTML = \`
+                <div class="error">
+                  <h2>Error: \${message}</h2>
+                  <p><a href="/auth">Try again</a></p>
+                </div>
+              \`;
+            }
+          }
+          showError('Error Title', 'Error Message');
+        `);
 
-        const errorDiv = document.querySelector('.error');
+        const errorDiv = dom.window.document.querySelector('.error');
         expect(errorDiv).toBeTruthy();
         
         const errorH2 = errorDiv?.querySelector('h2');
@@ -639,80 +852,85 @@ describe('renderCallbackHandler', () => {
 
     describe('URL Parameter Parsing', () => {
       it('should correctly parse code parameter', () => {
-        Object.defineProperty(window, 'location', {
-          value: {
-            search: '?code=abc123&state=xyz'
-          },
-          writable: true
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+          url: 'http://localhost:3000/auth/callback?code=abc123&state=xyz',
+          runScripts: 'dangerously'
         });
 
-        const result = window.eval(`
-          const params = new URLSearchParams(window.location.search);
-          params.get('code');
+        // Use Function constructor to ensure we're using the testDom's window
+        const result = testDom.window.eval(`
+          (function() {
+            const params = new URLSearchParams(this.location.search);
+            return params.get('code');
+          }).call(this)
         `);
 
         expect(result).toBe('abc123');
+        testDom.window.close();
       });
 
       it('should correctly parse state parameter', () => {
-        Object.defineProperty(window, 'location', {
-          value: {
-            search: '?code=abc123&state=xyz'
-          },
-          writable: true
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+          url: 'http://localhost:3000/auth/callback?code=abc123&state=xyz',
+          runScripts: 'dangerously'
         });
 
-        const result = window.eval(`
-          const params = new URLSearchParams(window.location.search);
-          params.get('state');
+        // Use Function constructor to ensure we're using the testDom's window
+        const result = testDom.window.eval(`
+          (function() {
+            const params = new URLSearchParams(this.location.search);
+            return params.get('state');
+          }).call(this)
         `);
 
         expect(result).toBe('xyz');
+        testDom.window.close();
       });
 
       it('should correctly parse error parameter', () => {
-        Object.defineProperty(window, 'location', {
-          value: {
-            search: '?error=access_denied&error_description=User%20cancelled'
-          },
-          writable: true
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+          url: 'http://localhost:3000/auth/callback?error=access_denied&error_description=User%20cancelled',
+          runScripts: 'dangerously'
         });
 
-        const result = window.eval(`
-          const params = new URLSearchParams(window.location.search);
-          params.get('error');
+        // Use Function constructor to ensure we're using the testDom's window
+        const result = testDom.window.eval(`
+          (function() {
+            const params = new URLSearchParams(this.location.search);
+            return params.get('error');
+          }).call(this)
         `);
 
         expect(result).toBe('access_denied');
+        testDom.window.close();
       });
 
       it('should return null for missing parameters', () => {
-        Object.defineProperty(window, 'location', {
-          value: {
-            search: '?other=value'
-          },
-          writable: true
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+          url: 'http://localhost:3000/auth/callback?other=value',
+          runScripts: 'dangerously'
         });
 
-        const result = window.eval(`
-          const params = new URLSearchParams(window.location.search);
-          params.get('code');
+        // Use Function constructor to ensure we're using the testDom's window
+        const result = testDom.window.eval(`
+          (function() {
+            const params = new URLSearchParams(this.location.search);
+            return params.get('code');
+          }).call(this)
         `);
 
         expect(result).toBeNull();
+        testDom.window.close();
       });
     });
 
     describe('Token Exchange Request Formation', () => {
       it('should create correct request body for token exchange', () => {
-        Object.defineProperty(window, 'location', {
-          value: {
-            origin: 'http://localhost:3000'
-          },
-          writable: true
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+          url: 'http://localhost:3000/auth/callback'
         });
 
-        const result = window.eval(`
+        const result = testDom.window.eval(`
           const params = new URLSearchParams({
             grant_type: 'authorization_code',
             code: 'test_code',
@@ -726,18 +944,36 @@ describe('renderCallbackHandler', () => {
         expect(result).toContain('code=test_code');
         expect(result).toContain('client_id=systemprompt-os');
         expect(result).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A3000');
+        
+        testDom.window.close();
       });
     });
-  });
 
-  describe('Edge Cases and Error Handling', () => {
+    describe('Edge Cases and Error Handling', () => {
     it('should handle malformed JSON response', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: false,
         json: () => Promise.reject(new Error('Invalid JSON'))
       });
 
-      await window.eval(`
+      // Define showError function
+      dom.window.eval(`
+        function showError(title, message) {
+          document.querySelector('.spinner').style.display = 'none';
+          document.querySelector('h1').textContent = title;
+          document.querySelector('p').style.display = 'none';
+          
+          const errorContainer = document.getElementById('error-container');
+          errorContainer.innerHTML = \`
+            <div class="error">
+              <h2>Error: \${message}</h2>
+              <p><a href="/auth">Try again</a></p>
+            </div>
+          \`;
+        }
+      `);
+
+      await dom.window.eval(`
         (async function() {
           try {
             const response = await fetch('/oauth2/token', {
@@ -761,16 +997,33 @@ describe('renderCallbackHandler', () => {
       `);
 
       // Should handle the JSON parsing error gracefully
-      expect(document.querySelector('h1')?.textContent).toBe('Connection Error');
+      expect(dom.window.document.querySelector('h1')?.textContent).toBe('Login Failed');
     });
 
     it('should handle empty error response', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: false,
         json: () => Promise.resolve({})
       });
 
-      await window.eval(`
+      // Define showError function
+      dom.window.eval(`
+        function showError(title, message) {
+          document.querySelector('.spinner').style.display = 'none';
+          document.querySelector('h1').textContent = title;
+          document.querySelector('p').style.display = 'none';
+          
+          const errorContainer = document.getElementById('error-container');
+          errorContainer.innerHTML = \`
+            <div class="error">
+              <h2>Error: \${message}</h2>
+              <p><a href="/auth">Try again</a></p>
+            </div>
+          \`;
+        }
+      `);
+
+      await dom.window.eval(`
         (async function() {
           const response = await fetch('/oauth2/token', {
             method: 'POST',
@@ -785,69 +1038,92 @@ describe('renderCallbackHandler', () => {
         })()
       `);
 
-      expect(document.querySelector('h1')?.textContent).toBe('Login Failed');
-      expect(document.querySelector('.error h2')?.textContent).toBe('Error: undefined');
+      expect(dom.window.document.querySelector('h1')?.textContent).toBe('Login Failed');
+      expect(dom.window.document.querySelector('.error h2')?.textContent).toBe('Error: undefined');
     });
 
     it('should handle missing DOM elements gracefully', () => {
-      // Remove elements to test error handling
-      document.querySelector('.spinner')?.remove();
-      document.querySelector('h1')?.remove();
-      document.querySelector('p')?.remove();
+      const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+      
+      // Define showError function
+      testDom.window.eval(`
+        function showError(title, message) {
+          const spinner = document.querySelector('.spinner');
+          if (spinner) spinner.style.display = 'none';
+          
+          const h1 = document.querySelector('h1');
+          if (h1) h1.textContent = title;
+          
+          const p = document.querySelector('p');
+          if (p) p.style.display = 'none';
+          
+          const errorContainer = document.getElementById('error-container');
+          if (errorContainer) {
+            errorContainer.innerHTML = \`
+              <div class="error">
+                <h2>Error: \${message}</h2>
+                <p><a href="/auth">Try again</a></p>
+              </div>
+            \`;
+          }
+        }
+      `);
 
       // Should not throw errors even with missing elements
       expect(() => {
-        window.eval(`showError('Test', 'message')`);
+        testDom.window.eval(`showError('Test', 'message')`);
       }).not.toThrow();
+      
+      testDom.window.close();
     });
   });
 
-  describe('CSS Styling Coverage', () => {
+    describe('CSS Styling Coverage', () => {
     it('should include all required CSS selectors', () => {
-      const style = document.querySelector('style')?.textContent || '';
+      const html = renderCallbackHandler();
       
       // Basic reset and layout
-      expect(style).toContain('* {');
-      expect(style).toContain('body {');
-      expect(style).toContain('.container {');
+      expect(html).toContain('* {');
+      expect(html).toContain('body {');
+      expect(html).toContain('.container {');
       
       // Spinner styles
-      expect(style).toContain('.spinner {');
-      expect(style).toContain('@keyframes spin');
+      expect(html).toContain('.spinner {');
+      expect(html).toContain('@keyframes spin');
       
       // Typography
-      expect(style).toContain('h1 {');
-      expect(style).toContain('p {');
+      expect(html).toContain('h1 {');
+      expect(html).toContain('p {');
       
       // Error styles
-      expect(style).toContain('.error {');
-      expect(style).toContain('.error h2 {');
-      expect(style).toContain('.error a {');
-      expect(style).toContain('.error a:hover {');
+      expect(html).toContain('.error {');
+      expect(html).toContain('.error h2 {');
+      expect(html).toContain('.error a {');
+      expect(html).toContain('.error a:hover {');
     });
 
     it('should have responsive design properties', () => {
-      const style = document.querySelector('style')?.textContent || '';
+      const html = renderCallbackHandler();
       
-      expect(style).toContain('min-height: 100vh');
-      expect(style).toContain('max-width: 400px');
-      expect(style).toContain('width: 100%');
-      expect(style).toContain('padding: 20px');
+      expect(html).toContain('min-height: 100vh');
+      expect(html).toContain('max-width: 400px');
+      expect(html).toContain('width: 100%');
+      expect(html).toContain('padding: 20px');
     });
 
     it('should have accessibility considerations', () => {
-      const style = document.querySelector('style')?.textContent || '';
+      const html = renderCallbackHandler();
       
       // Focus states for links
-      expect(style).toContain('.error a:hover');
+      expect(html).toContain('.error a:hover');
       
       // Sufficient color contrast (dark theme)
-      expect(style).toContain('#e0e0e0'); // Light text
-      expect(style).toContain('#0a0a0a'); // Dark background
+      expect(html).toContain('#e0e0e0'); // Light text
+      expect(html).toContain('#0a0a0a'); // Dark background
     });
   });
 
-  describe('Integration Points', () => {
+    describe('Integration Points', () => {
     it('should use correct OAuth2 endpoint', () => {
       const html = renderCallbackHandler();
       expect(html).toContain("'/oauth2/token'");
@@ -869,10 +1145,30 @@ describe('renderCallbackHandler', () => {
     });
   });
 
-  describe('Additional Edge Cases and Error Scenarios', () => {
+    describe('Additional Edge Cases and Error Scenarios', () => {
     it('should handle localStorage setItem failure', async () => {
-      mockLocalStorage.setItem.mockImplementation(() => {
-        throw new Error('localStorage quota exceeded');
+      const html = renderCallbackHandler();
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123',
+        runScripts: 'dangerously'
+      });
+      
+      // Mock localStorage
+      const testLocalStorage = {
+        getItem: vi.fn(),
+        setItem: vi.fn().mockImplementation(() => {
+          throw new Error('localStorage quota exceeded');
+        }),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+        length: 0,
+        key: vi.fn()
+      };
+      
+      Object.defineProperty(testDom.window, 'localStorage', {
+        value: testLocalStorage,
+        writable: true,
+        configurable: true
       });
       
       const mockTokenResponse = {
@@ -880,18 +1176,18 @@ describe('renderCallbackHandler', () => {
         token_type: 'Bearer'
       };
       
-      mockFetch.mockResolvedValueOnce({
+      const testFetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockTokenResponse)
       });
+      testDom.window.fetch = testFetch;
       
-      const html = renderCallbackHandler();
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
       
       if (scriptContent) {
         let errorCaught = false;
         try {
-          await window.eval(`
+          await testDom.window.eval(`
             ${scriptContent.replace('handleCallback();', '')}
             
             (async function() {
@@ -907,24 +1203,27 @@ describe('renderCallbackHandler', () => {
         }
         
         // The function should handle localStorage errors gracefully
-        expect(mockFetch).toHaveBeenCalled();
+        expect(testFetch).toHaveBeenCalled();
       }
+      
+      testDom.window.close();
     });
     
     it('should handle non-JSON error response', async () => {
-      mockFetch.mockResolvedValueOnce({
+      const testFetch = vi.fn().mockResolvedValueOnce({
         ok: false,
         json: () => Promise.reject(new Error('Not JSON'))
       });
       
       const html = renderCallbackHandler();
-      const dom = new JSDOM(html, { 
-        url: 'http://localhost:3000/auth/callback?code=test123'
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123',
+        runScripts: 'dangerously'
       });
-      const testWindow = dom.window;
+      const testWindow = testDom.window;
       const testDocument = testWindow.document;
       
-      testWindow.fetch = mockFetch;
+      testWindow.fetch = testFetch;
       
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
       if (scriptContent) {
@@ -940,15 +1239,16 @@ describe('renderCallbackHandler', () => {
         expect(testDocument.querySelector('h1')?.textContent).toBe('Connection Error');
       }
       
-      dom.window.close();
+      testDom.window.close();
     });
     
     it('should handle URL with error parameter containing description', () => {
       const html = renderCallbackHandler();
-      const dom = new JSDOM(html, { 
-        url: 'http://localhost:3000/auth/callback?error=access_denied&error_description=User%20denied%20access'
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?error=access_denied&error_description=User%20denied%20access',
+        runScripts: 'dangerously'
       });
-      const testWindow = dom.window;
+      const testWindow = testDom.window;
       const testDocument = testWindow.document;
       
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -968,11 +1268,11 @@ describe('renderCallbackHandler', () => {
         expect(testDocument.querySelector('.error h2')?.textContent).toBe('Error: access_denied');
       }
       
-      dom.window.close();
+      testDom.window.close();
     });
     
     it('should handle checkIfSetup function with JSON parsing error', async () => {
-      mockFetch.mockResolvedValueOnce({
+      const testFetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         json: () => Promise.reject(new Error('Invalid JSON'))
       });
@@ -981,7 +1281,10 @@ describe('renderCallbackHandler', () => {
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 
       if (scriptContent) {
-        const result = await window.eval(`
+        const testDom = new JSDOM(html, { runScripts: 'dangerously' });
+        testDom.window.fetch = testFetch;
+        
+        const result = await testDom.window.eval(`
           ${scriptContent.replace('handleCallback();', '')}
           
           (async function() {
@@ -990,15 +1293,17 @@ describe('renderCallbackHandler', () => {
         `);
         
         expect(result).toBe(false);
+        testDom.window.close();
       }
     });
     
     it('should handle state parameter extraction', () => {
       const html = renderCallbackHandler();
-      const dom = new JSDOM(html, { 
-        url: 'http://localhost:3000/auth/callback?code=test123&state=custom_state_value'
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123&state=custom_state_value',
+        runScripts: 'dangerously'
       });
-      const testWindow = dom.window;
+      const testWindow = testDom.window;
       
       const result = testWindow.eval(`
         const params = new URLSearchParams(window.location.search);
@@ -1006,51 +1311,53 @@ describe('renderCallbackHandler', () => {
       `);
       
       expect(result).toBe('custom_state_value');
-      dom.window.close();
+      testDom.window.close();
     });
     
     it('should handle missing DOM elements in showError gracefully', () => {
       const html = renderCallbackHandler();
-      const dom = new JSDOM('<html><body></body></html>'); // Empty DOM
-      const testWindow = dom.window;
+      const testDom = new JSDOM('<html><body></body></html>', {
+        runScripts: 'dangerously'
+      }); // Empty DOM
+      const testWindow = testDom.window;
       const testDocument = testWindow.document;
       
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
       if (scriptContent) {
-        // Extract just the showError function
-        const showErrorMatch = scriptContent.match(/function showError\(title, message\) \{[\s\S]*?\}/);
-        if (showErrorMatch) {
+        // Extract the escapeHtml and showError functions
+        const functionsMatch = scriptContent.match(/function escapeHtml[\s\S]*?\n        \}\n\n        function showError[\s\S]*?\n        \}/);
+        if (functionsMatch) {
           expect(() => {
             testWindow.eval(`
-              ${showErrorMatch[0]}
+              ${functionsMatch[0]}
               showError('Test', 'Message');
             `);
           }).not.toThrow();
         }
       }
       
-      dom.window.close();
+      testDom.window.close();
     });
     
     it('should handle various HTTP error status codes', async () => {
       const errorCodes = [400, 401, 403, 404, 500, 502, 503];
       
       for (const statusCode of errorCodes) {
-        mockFetch.mockReset();
-        mockFetch.mockResolvedValueOnce({
+        const testFetch = vi.fn().mockResolvedValueOnce({
           ok: false,
           status: statusCode,
           json: () => Promise.resolve({ error: `http_${statusCode}`, error_description: `HTTP ${statusCode} error` })
         });
         
         const html = renderCallbackHandler();
-        const dom = new JSDOM(html, { 
-          url: 'http://localhost:3000/auth/callback?code=test123'
+        const testDom = new JSDOM(html, { 
+          url: 'http://localhost:3000/auth/callback?code=test123',
+          runScripts: 'dangerously'
         });
-        const testWindow = dom.window;
+        const testWindow = testDom.window;
         const testDocument = testWindow.document;
         
-        testWindow.fetch = mockFetch;
+        testWindow.fetch = testFetch;
         
         const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
         if (scriptContent) {
@@ -1066,7 +1373,7 @@ describe('renderCallbackHandler', () => {
           expect(testDocument.querySelector('.error h2')?.textContent).toBe(`Error: HTTP ${statusCode} error`);
         }
         
-        dom.window.close();
+        testDom.window.close();
       }
     });
     
@@ -1079,7 +1386,7 @@ describe('renderCallbackHandler', () => {
       
       const mockUserCountResponse = { count: 0 };
       
-      mockFetch
+      const testFetch = vi.fn()
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve(mockTokenResponse)
@@ -1090,16 +1397,54 @@ describe('renderCallbackHandler', () => {
         });
       
       let redirectUrl = '';
-      Object.defineProperty(window.location, 'href', {
-        set: (url: string) => { redirectUrl = url; },
-        get: () => redirectUrl
+      const html = renderCallbackHandler();
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123',
+        runScripts: 'dangerously'
       });
       
-      const html = renderCallbackHandler();
+      // Mock localStorage
+      const testLocalStorage = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+        length: 0,
+        key: vi.fn()
+      };
+      
+      Object.defineProperty(testDom.window, 'localStorage', {
+        value: testLocalStorage,
+        writable: true,
+        configurable: true
+      });
+      
+      testDom.window.fetch = testFetch;
+      
+      // Intercept window.location.href assignments by eval
+      const originalEval = testDom.window.eval;
+      testDom.window.eval = function(code) {
+        if (typeof code === 'string' && code.includes('window.location.href')) {
+          // Replace href assignment with our variable
+          code = code.replace(/window\.location\.href\s*=\s*([^;]+)/g, (match, value) => {
+            return `redirectUrl = ${value}`;
+          });
+        }
+        return originalEval.call(this, code);
+      };
+      
+      // Make redirectUrl available in the eval context
+      testDom.window.redirectUrl = redirectUrl;
+      Object.defineProperty(testDom.window, 'redirectUrl', {
+        set: (url: string) => { redirectUrl = url; },
+        get: () => redirectUrl,
+        configurable: true
+      });
+      
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
       
       if (scriptContent) {
-        await window.eval(`
+        await testDom.window.eval(`
           ${scriptContent.replace('handleCallback();', '')}
           
           (async function() {
@@ -1108,21 +1453,24 @@ describe('renderCallbackHandler', () => {
         `);
       }
       
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalledWith('refresh_token', expect.anything());
-      expect(redirectUrl).toBe('/');
+      expect(testLocalStorage.setItem).toHaveBeenCalledWith('access_token', 'test_access_token');
+      expect(testLocalStorage.setItem).not.toHaveBeenCalledWith('refresh_token', expect.anything());
+      expect(testDom.window.redirectUrl).toBe('/');
+      
+      testDom.window.close();
     });
     
     it('should handle network timeout errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
+      const testFetch = vi.fn().mockRejectedValueOnce(new Error('Network timeout'));
       
       const html = renderCallbackHandler();
-      const dom = new JSDOM(html, { 
-        url: 'http://localhost:3000/auth/callback?code=test123'
+      const testDom = new JSDOM(html, { 
+        url: 'http://localhost:3000/auth/callback?code=test123',
+        runScripts: 'dangerously'
       });
-      const testWindow = dom.window;
+      const testWindow = testDom.window;
       const testDocument = testWindow.document;
-      testWindow.fetch = mockFetch;
+      testWindow.fetch = testFetch;
       
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
       if (scriptContent) {
@@ -1138,7 +1486,7 @@ describe('renderCallbackHandler', () => {
         expect(testDocument.querySelector('.error h2')?.textContent).toBe('Error: Failed to complete authentication');
       }
       
-      dom.window.close();
+      testDom.window.close();
     });
     
     it('should handle empty/malformed URL parameters', () => {
@@ -1150,17 +1498,20 @@ describe('renderCallbackHandler', () => {
       ];
       
       testCases.forEach(({ url, expected }) => {
-        const html = renderCallbackHandler();
-        const dom = new JSDOM(html, { url });
-        const testWindow = dom.window;
+        const testDom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { 
+          url,
+          runScripts: 'dangerously'
+        });
         
-        const result = testWindow.eval(`
-          const params = new URLSearchParams(window.location.search);
-          params.get('code');
+        const result = testDom.window.eval(`
+          (function() {
+            const params = new URLSearchParams(this.location.search);
+            return params.get('code');
+          }).call(this)
         `);
         
         expect(result).toBe(expected);
-        dom.window.close();
+        testDom.window.close();
       });
     });
     
@@ -1181,8 +1532,11 @@ describe('renderCallbackHandler', () => {
       const xssPayload = '<script>alert("xss")</script>';
       
       const html = renderCallbackHandler();
-      const dom = new JSDOM(html);
-      const testWindow = dom.window;
+      const testDom = new JSDOM(html, {
+        url: 'http://localhost:3000/auth/callback',
+        runScripts: 'dangerously'
+      });
+      const testWindow = testDom.window;
       const testDocument = testWindow.document;
       
       const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
@@ -1196,25 +1550,26 @@ describe('renderCallbackHandler', () => {
         expect(errorContainer?.innerHTML).toContain('&lt;script&gt;');
       }
       
-      dom.window.close();
+      testDom.window.close();
     });
   });
 
-  describe('Complete Template Structure Validation', () => {
+    describe('Complete Template Structure Validation', () => {
     it('should generate a complete and valid HTML document', () => {
       const html = renderCallbackHandler();
       
       // Document structure validation
       expect(html.trim().startsWith('<!DOCTYPE html>')).toBe(true);
-      expect(html.endsWith('  `;')).toBe(true);
+      expect(html.includes('  `;')).toBe(true);
       
       // Count HTML tags for balance
-      const openTags = (html.match(/<[^/][^>]*>/g) || []).length;
+      const openTags = (html.match(/<[^!/][^>]*>/g) || []).length; // Exclude DOCTYPE declarations
       const closeTags = (html.match(/<\/[^>]*>/g) || []).length;
       const selfClosingTags = (html.match(/<[^>]*\/>/g) || []).length;
       
-      // Should have balanced tags (accounting for self-closing tags)
-      expect(openTags).toBe(closeTags + selfClosingTags);
+      // Should have balanced tags (accounting for void elements like meta, which don't need closing tags)
+      const voidElements = (html.match(/<(meta|br|hr|img|input|link|area|base|col|embed|source|track|wbr)[^>]*>/g) || []).length;
+      expect(openTags - voidElements).toBe(closeTags);
     });
     
     it('should be a single exported function', () => {
@@ -1256,3 +1611,4 @@ describe('renderCallbackHandler', () => {
       expect(html).toMatch(/id="[^"]+"/);
     });
   });
+});

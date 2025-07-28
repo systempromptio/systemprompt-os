@@ -111,3 +111,12 @@ export type TransactionIsolationLevel =
   | 'READ COMMITTED'
   | 'REPEATABLE READ'
   | 'SERIALIZABLE';
+
+/**
+ * Summary parameters for database summary operations.
+ */
+export interface ISummaryParams {
+  format?: 'text' | 'json' | 'table';
+  includeSystem?: boolean;
+  sortBy?: 'name' | 'rows' | 'columns';
+}

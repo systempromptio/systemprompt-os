@@ -1,3 +1,5 @@
+import type { ICoreModuleDefinition } from '@/types/bootstrap';
+
 /**
  * Module status enum - strongly typed.
  */
@@ -41,10 +43,7 @@ export const enum ModuleStatusEnum {
  */
 export const enum ModuleTypeEnum {
   CORE = 'core',
-  SERVICE = 'service',
-  DAEMON = 'daemon',
-  PLUGIN = 'plugin',
-  EXTENSION = 'extension'
+  CUSTOM = 'custom'
 }
 
 /**
@@ -455,4 +454,11 @@ export interface IModulesModuleExports {
     path: string,
     dependencies?: string[],
   ) => Promise<void>;
+  // Core module loading methods
+  readonly loadCoreModule: (definition: ICoreModuleDefinition) => Promise<IModule>;
+  readonly initializeCoreModule: (name: string) => Promise<void>;
+  readonly startCoreModule: (name: string) => Promise<void>;
+  readonly getCoreModule: (name: string) => IModule | undefined;
+  readonly getAllCoreModules: () => Map<string, IModule>;
+  readonly registerPreLoadedModule: (name: string, module: IModule) => void;
 }

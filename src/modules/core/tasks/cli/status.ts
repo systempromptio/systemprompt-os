@@ -4,11 +4,75 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { TaskService } from '@/modules/core/tasks/services/task.service';
-import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import { getTasksModule } from '@/modules/core/tasks';
+import type { ITaskStatistics } from '@/modules/core/tasks/types/index';
+
+/**
+ * Display module status information.
+ */
+const displayModuleStatus = (): void => {
+  process.stdout.write('\nTasks Module Status\n');
+  process.stdout.write('==================\n\n');
+  process.stdout.write('Module: tasks\n');
+  process.stdout.write('Enabled: ✓\n');
+  process.stdout.write('Healthy: ✓\n');
+  process.stdout.write('Service: TaskService initialized\n');
+};
+
+/**
+ * Display queue statistics.
+ * @param stats - Task statistics to display.
+ */
+const displayQueueStatistics = (stats: ITaskStatistics): void => {
+  process.stdout.write('\nQueue Statistics\n');
+  process.stdout.write('================\n\n');
+  process.stdout.write(`Total tasks: ${String(stats.total)}\n`);
+  process.stdout.write(`Pending: ${String(stats.pending)}\n`);
+  process.stdout.write(`In Progress: ${String(stats.inProgress)}\n`);
+  process.stdout.write(`Completed: ${String(stats.completed)}\n`);
+  process.stdout.write(`Failed: ${String(stats.failed)}\n`);
+  process.stdout.write(`Cancelled: ${String(stats.cancelled)}\n`);
+};
+
+/**
+ * Display JSON output format.
+ * @param stats - Task statistics to display.
+ */
+const displayJsonOutput = (stats: ITaskStatistics): void => {
+  process.stdout.write('\n');
+  process.stdout.write(JSON.stringify({
+    module: 'tasks',
+    enabled: true,
+    healthy: true,
+    statistics: stats
+  }, null, 2));
+  process.stdout.write('\n');
+};
+
+/**
+ * Execute status command.
+ * @param context - CLI context.
+ * @returns Promise that resolves when status is displayed.
+ */
+const executeStatus = async (context: CLIContext): Promise<void> => {
+  try {
+    const tasksModule = getTasksModule();
+    const taskService = tasksModule.exports.service();
+    const stats = await taskService.getStatistics();
+
+    displayModuleStatus();
+    displayQueueStatistics(stats);
+
+    if (context.args.format === 'json') {
+      displayJsonOutput(stats);
+    }
+  } catch (error) {
+    process.stderr.write('❌ Error getting tasks status\n');
+    process.stderr.write(`Error: ${String(error)}\n`);
+    process.exit(1);
+  }
+};
 
 /**
  * Tasks status command.
@@ -26,53 +90,7 @@ export const status: CLICommand = {
       default: 'text'
     }
   ],
-
-  execute: async (context: ICLIContext): Promise<void> => {
-    const logger = LoggerService.getInstance();
-    const cliOutput = CliOutputService.getInstance();
-
-    try {
-      const taskService = TaskService.getInstance();
-
-      cliOutput.section('Tasks Module Status');
-
-      cliOutput.keyValue({
-        Module: 'tasks',
-        Enabled: '✓',
-        Healthy: '✓',
-        Service: 'TaskService initialized',
-      });
-
-      const stats = await taskService.getStatistics();
-
-      cliOutput.section('Task Queue Statistics');
-
-      cliOutput.keyValue({
-        'Total tasks': stats.total,
-        'Pending': stats.pending,
-        'In Progress': stats.inProgress,
-        'Completed': stats.completed,
-        'Failed': stats.failed,
-      });
-
-      if (context.args.format === 'json') {
-        cliOutput.output({
-          module: 'tasks',
-          enabled: true,
-          healthy: true,
-          statistics: stats
-        }, { format: 'json' });
-      }
-
-      process.exit(0);
-    } catch (error) {
-      cliOutput.error('Error getting tasks status');
-      logger.error(LogSource.TASKS, 'Error getting tasks status', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      process.exit(1);
-    }
-  }
+  execute: executeStatus
 };
 
 export default status;

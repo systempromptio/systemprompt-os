@@ -1,3 +1,4 @@
+import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Webhooks module - Webhook management system.
  * @file Webhooks module entry point.
@@ -39,7 +40,7 @@ export class WebhookService implements IWebhookService {
  */
 export class WebhooksModule implements IModule<IWebhooksModuleExports> {
   public readonly name = 'webhooks';
-  public readonly type = 'service' as const;
+  public readonly type = ModuleTypeEnum.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Webhook management system';
   public readonly dependencies = ['logger', 'database', 'auth'] as const;

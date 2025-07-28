@@ -147,18 +147,31 @@ export function renderCallbackHandler(): string {
           }
         }
 
+        function escapeHtml(str) {
+          const div = document.createElement('div');
+          div.textContent = str;
+          return div.innerHTML;
+        }
+
         function showError(title, message) {
-          document.querySelector('.spinner').style.display = 'none';
-          document.querySelector('h1').textContent = title;
-          document.querySelector('p').style.display = 'none';
+          const spinner = document.querySelector('.spinner');
+          if (spinner) spinner.style.display = 'none';
+          
+          const h1 = document.querySelector('h1');
+          if (h1) h1.textContent = title;
+          
+          const p = document.querySelector('p');
+          if (p) p.style.display = 'none';
           
           const errorContainer = document.getElementById('error-container');
-          errorContainer.innerHTML = \`
-            <div class="error">
-              <h2>Error: \${message}</h2>
-              <p><a href="/auth">Try again</a></p>
-            </div>
-          \`;
+          if (errorContainer) {
+            errorContainer.innerHTML = \`
+              <div class="error">
+                <h2>Error: \${escapeHtml(message)}</h2>
+                <p><a href="/auth">Try again</a></p>
+              </div>
+            \`;
+          }
         }
 
         // Start the callback handling

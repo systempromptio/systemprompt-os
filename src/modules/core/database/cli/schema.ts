@@ -1,6 +1,5 @@
 import type { ICLIContext } from '@/modules/core/cli/types/index';
-import { DatabaseSchemaService } from '@/modules/core/cli/services/database-schema.service';
-import type { ISchemaInitParams, ISchemaValidateParams } from '@/modules/core/cli/services/database-schema.service';
+import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { createFooter, createHeader } from '@/modules/core/cli/utils/cli-formatter';
@@ -11,7 +10,7 @@ import { createFooter, createHeader } from '@/modules/core/cli/utils/cli-formatt
  */
 const listSchemas = async (): Promise<void> => {
   const logger = LoggerService.getInstance();
-  const schemaService = DatabaseSchemaService.getInstance();
+  const schemaService = DatabaseCLIHandlerService.getInstance(logger);
 
   const result = await schemaService.listSchemas();
 
@@ -44,40 +43,42 @@ const listSchemas = async (): Promise<void> => {
  */
 const initSchemas = async (context: ICLIContext): Promise<void> => {
   const logger = LoggerService.getInstance();
-  const schemaService = DatabaseSchemaService.getInstance();
+  const schemaService = DatabaseCLIHandlerService.getInstance(logger);
 
   const {args} = context;
   const {module: moduleNameArg, force: forceArg} = args;
   const moduleName = typeof moduleNameArg === 'string' ? moduleNameArg : undefined;
   const forceInit = Boolean(forceArg);
 
-  const initParams: ISchemaInitParams = {
+  const initParams: { force?: boolean; module?: string } = {
     force: forceInit
   };
 
-  if (moduleName) {
+  if (moduleName !== undefined) {
     initParams.module = moduleName;
   }
 
   const initResult = await schemaService.initializeSchemas(initParams);
 
-  if (!initResult.success) {
-    logger.error(LogSource.DATABASE, initResult.message ?? 'Failed to initialize schemas');
+  const initResultTyped = initResult as { success: boolean; message?: string; warnings?: string[]; results?: Array<{ success: boolean; module: string; message?: string }> };
+
+  if (!initResultTyped.success) {
+    logger.error(LogSource.DATABASE, initResultTyped.message ?? 'Failed to initialize schemas');
     process.exit(1);
   }
 
-  if (initResult.warnings) {
-    initResult.warnings.forEach((warning): void => {
+  if (initResultTyped.warnings) {
+    initResultTyped.warnings.forEach((warning): void => {
       logger.warn(LogSource.DATABASE, warning);
     });
   }
 
-  if (initResult.results) {
-    initResult.results.forEach((result): void => {
-      if (result.success) {
-        logger.info(LogSource.DATABASE, `✓ ${result.module}: ${result.message ?? 'Success'}`);
+  if (initResultTyped.results) {
+    initResultTyped.results.forEach((item): void => {
+      if (item.success) {
+        logger.info(LogSource.DATABASE, `✓ ${item.module}: ${item.message ?? 'Success'}`);
       } else {
-        logger.error(LogSource.DATABASE, `✗ ${result.module}: ${result.message ?? 'Failed'}`);
+        logger.error(LogSource.DATABASE, `✗ ${item.module}: ${item.message ?? 'Failed'}`);
       }
     });
   }
@@ -92,7 +93,7 @@ const initSchemas = async (context: ICLIContext): Promise<void> => {
  */
 const validateSchemas = async (context: ICLIContext): Promise<void> => {
   const logger = LoggerService.getInstance();
-  const schemaService = DatabaseSchemaService.getInstance();
+  const schemaService = DatabaseCLIHandlerService.getInstance(logger);
 
   const {args} = context;
   const {module: moduleNameArg} = args;
@@ -100,22 +101,24 @@ const validateSchemas = async (context: ICLIContext): Promise<void> => {
 
   logger.info(LogSource.DATABASE, 'Validating database schemas...\n');
 
-  const validateParams: ISchemaValidateParams = {};
+  const validateParams: { module?: string } = {};
 
-  if (moduleName) {
+  if (moduleName !== undefined) {
     validateParams.module = moduleName;
   }
 
   const validationResult = await schemaService.validateSchemas(validateParams);
 
-  if (!validationResult.success) {
-    logger.error(LogSource.DATABASE, validationResult.message ?? 'Validation failed');
+  const validationResultTyped = validationResult as { success: boolean; message?: string; issues?: Array<{ severity: string; module: string; message: string }> };
+
+  if (!validationResultTyped.success) {
+    logger.error(LogSource.DATABASE, validationResultTyped.message ?? 'Validation failed');
     process.exit(1);
   }
 
-  if (validationResult.issues
-      && validationResult.issues.length > 0) {
-    validationResult.issues.forEach((issue): void => {
+  if (validationResultTyped.issues
+      && validationResultTyped.issues.length > 0) {
+    validationResultTyped.issues.forEach((issue): void => {
       const icon = issue.severity === 'error' ? '✗' : '⚠️';
       if (issue.severity === 'error') {
         logger.error(LogSource.DATABASE, `${icon} ${issue.module}: ${issue.message}`);

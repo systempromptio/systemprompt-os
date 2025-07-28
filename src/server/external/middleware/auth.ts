@@ -1,181 +1,283 @@
 /**
+ * Authentication middleware for validating OAuth2 tokens.
+ * Provides Express middleware for authenticating requests using JWT tokens.
+ * Supports both Bearer token authentication and cookie-based authentication.
  * @file Authentication middleware for validating OAuth2 tokens.
  * @module server/external/middleware/auth
  */
 
+/// <reference path="../types/express.d.ts" />
+
 import type {
- NextFunction, Request, Response
+  Request as ExpressRequest,
+  Response as ExpressResponse,
+  NextFunction,
 } from 'express';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-// Mock imports for missing modules
-const jwtVerify = async (_token: string, _options: any) => {
-  return {
-    payload: {
-      sub: 'mock_user_id',
-      email: 'mock@example.com',
-      tokentype: 'access',
-      user: {
- email: 'mock@example.com',
-roles: ['user']
-},
-      roles: ['user']
-    }
-  };
-};
-
-const CONFIG = {
-  JWTISSUER: 'mock_issuer',
-  JWTAUDIENCE: 'mock_audience'
-};
-
-interface AccessTokenPayload {
-  sub: string;
-  email?: string;
-  tokentype: string;
-  user?: { email?: string; roles?: string[] };
-  roles?: string[];
-  clientid?: string;
-  scope?: string;
-}
-
-interface AuthUser {
-  id: string;
-  email: string;
-  roles: string[];
-  clientId?: string;
-  scope?: string;
-}
-
-const LoggerService = {
-  getInstance: () => { return {
-    warn: (...args: any[]) => { console.warn(...args); },
-    error: (...args: any[]) => { console.error(...args); }
-  } }
-};
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { jwtVerify } from '@/server/external/auth/jwt';
+import { CONFIG } from '@/server/config';
+import type {
+  AccessTokenPayload,
+  AuthMiddlewareOptions,
+  AuthUser,
+} from '@/server/external/types/auth';
 
 const logger = LoggerService.getInstance();
 
 /**
- * Options for auth middleware.
+ * Extracts JWT token from request.
+ * @param req - Express request object.
+ * @returns JWT token string or undefined.
  */
-export interface AuthMiddlewareOptions {
-    redirectToLogin?: boolean;
-    requiredRoles?: string[];
+const extractToken = (req: ExpressRequest): string | undefined => {
+  const { authorization: authHeader } = req.headers;
+  if (authHeader !== undefined && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+
+  const { cookies } = req;
+  if (cookies !== undefined && typeof cookies.auth_token === 'string') {
+    return cookies.auth_token;
+  }
+
+  return undefined;
+};
+
+interface AuthFailureParams {
+  res: ExpressResponse;
+  options: AuthMiddlewareOptions;
+  statusCode: number;
+  error: string;
+  errorDescription: string;
 }
 
 /**
- * Creates authentication middleware with options.
- * @param options
+ * Handles authentication failure response.
+ * @param params - Authentication failure parameters.
  */
-export function createAuthMiddleware(options: AuthMiddlewareOptions = {}) {
-  return async function authMiddleware(
-    req: Request,
-    res: Response,
+const handleAuthFailure = (params: AuthFailureParams): void => {
+  const {
+ res, options, statusCode, error, errorDescription
+} = params;
+
+  if (options.redirectToLogin === true) {
+    res.redirect('/auth');
+    return;
+  }
+
+  res.status(statusCode).json({
+    error,
+    error_description: errorDescription,
+  });
+};
+
+/**
+ * Validates user roles against required roles.
+ * @param authUser - Authenticated user object.
+ * @param requiredRoles - Array of required roles.
+ * @returns True if user has required role.
+ */
+const hasRequiredRole = (
+  authUser: AuthUser,
+  requiredRoles: string[]
+): boolean => {
+  return requiredRoles.some((role): boolean => { return authUser.roles.includes(role) });
+};
+
+/**
+ * Maps error message to user-friendly description.
+ * @param error - Error object.
+ * @returns Error description string.
+ */
+const getErrorDescription = (error: unknown): string => {
+  if (!(error instanceof Error)) {
+    return 'Invalid token';
+  }
+
+  const errorMap: Record<string, string> = {
+    'Invalid issuer': 'Invalid token issuer or audience',
+    'Invalid audience': 'Invalid token issuer or audience',
+    'Token expired': 'Token has expired',
+    'Invalid signature': 'Invalid token signature',
+  };
+
+  return errorMap[error.message] ?? 'Invalid token';
+};
+
+/**
+ * Creates AuthUser from token payload.
+ * @param payload - JWT token payload.
+ * @returns AuthUser object.
+ */
+const createAuthUser = (payload: AccessTokenPayload): AuthUser => {
+  const { clientid } = payload;
+  const { scope } = payload;
+  const authUser: AuthUser = {
+    id: payload.sub,
+    email: payload.user?.email ?? payload.email ?? '',
+    roles: payload.user?.roles ?? payload.roles ?? [],
+  };
+
+  if (clientid !== undefined) {
+    authUser.clientId = clientid;
+  }
+
+  if (scope !== undefined) {
+    authUser.scope = scope;
+  }
+
+  return authUser;
+};
+
+/**
+ * Verifies JWT token and returns payload.
+ * @param token - JWT token string.
+ * @returns Token payload.
+ * @throws Error if token is invalid.
+ */
+const verifyToken = (token: string): AccessTokenPayload => {
+  const verifyResult = jwtVerify(token, {
+    issuer: CONFIG.JWTISSUER,
+    audience: CONFIG.JWTAUDIENCE,
+  });
+
+  const { payload } = verifyResult;
+  return payload as unknown as AccessTokenPayload;
+};
+
+/**
+ * Validates access token type.
+ * @param tokenPayload - Token payload to validate.
+ * @returns True if token type is valid.
+ */
+const isValidAccessToken = (tokenPayload: AccessTokenPayload): boolean => {
+  return tokenPayload.tokentype === 'access';
+};
+
+/**
+ * Checks if user has required roles.
+ * @param authUser - Authenticated user.
+ * @param options - Middleware options.
+ * @returns True if user has required roles or no roles are required.
+ */
+const checkRequiredRoles = (
+  authUser: AuthUser,
+  options: AuthMiddlewareOptions
+): boolean => {
+  if (
+    options.requiredRoles === undefined
+    || options.requiredRoles.length === 0
+  ) {
+    return true;
+  }
+
+  return hasRequiredRole(authUser, options.requiredRoles);
+};
+
+/**
+ * Handles successful authentication.
+ * @param req - Express request object.
+ * @param authUser - Authenticated user.
+ * @param next - Next middleware function.
+ */
+const handleAuthSuccess = (
+  req: ExpressRequest,
+  authUser: AuthUser,
+  next: NextFunction
+): void => {
+  req.user = {
+    id: authUser.id,
+    sub: authUser.id,
+    email: authUser.email,
+    roles: authUser.roles,
+    ...authUser.clientId !== undefined && { clientid: authUser.clientId },
+    ...authUser.scope !== undefined && { scope: authUser.scope },
+  };
+
+  next();
+};
+
+/**
+ * Creates authentication middleware with options.
+ * @param options - Configuration options for the authentication middleware.
+ * @returns Express middleware function for authentication.
+ */
+export const createAuthMiddleware = (
+  options: AuthMiddlewareOptions = {}
+): ((
+  req: ExpressRequest,
+  res: ExpressResponse,
+  next: NextFunction
+) => Promise<void>) => {
+  return async (
+    req: ExpressRequest,
+    res: ExpressResponse,
     next: NextFunction,
-  ): Promise<void> {
+  ): Promise<void> => {
     try {
-      let token: string | undefined;
+      const token = extractToken(req);
 
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      } else if (req.cookies?.auth_token) {
-        token = req.cookies.auth_token;
-      }
-
-      if (!token) {
-        if (options.redirectToLogin) {
-          res.redirect('/auth'); return;
-        }
-        res
-          .status(401)
-          .json({
- error: 'unauthorized',
-error_description: 'Missing authentication token'
-});
-        return;
-      }
-      const { payload } = await jwtVerify(token, {
-        issuer: CONFIG.JWTISSUER,
-        audience: CONFIG.JWTAUDIENCE,
-      });
-
-      const tokenPayload = payload as AccessTokenPayload;
-
-      if (tokenPayload.tokentype !== 'access') {
-        if (options.redirectToLogin) {
-          res.redirect('/auth'); return;
-        }
-        res.status(401).json({
- error: 'unauthorized',
-error_description: 'Invalid token type'
-});
+      if (token === undefined) {
+        handleAuthFailure({
+          res,
+          options,
+          statusCode: 401,
+          error: 'unauthorized',
+          errorDescription: 'Missing authentication token',
+        });
         return;
       }
 
-      const authUser: AuthUser = {
-        id: tokenPayload.sub,
-        email: tokenPayload.user?.email || tokenPayload.email || '',
-        roles: tokenPayload.user?.roles || tokenPayload.roles || [],
-        ...tokenPayload.clientid !== undefined && { clientId: tokenPayload.clientid },
-        ...tokenPayload.scope !== undefined && { scope: tokenPayload.scope },
-      };
+      const tokenPayload = verifyToken(token);
 
-      if (options.requiredRoles && options.requiredRoles.length > 0) {
-        const hasRequiredRole = options.requiredRoles.some((role) => { return authUser.roles.includes(role) });
-        if (!hasRequiredRole) {
-          logger.warn(LogSource.AUTH, 'Access denied - missing required role', {
-            userId: authUser.id,
-            requiredRoles: options.requiredRoles,
-            userRoles: authUser.roles,
-          });
-          res
-            .status(403)
-            .json({
- error: 'forbidden',
-error_description: 'Insufficient permissions'
-});
-          return;
-        }
+      if (!isValidAccessToken(tokenPayload)) {
+        handleAuthFailure({
+          res,
+          options,
+          statusCode: 401,
+          error: 'unauthorized',
+          errorDescription: 'Invalid token type',
+        });
+        return;
       }
 
-      req.user = {
-        id: authUser.id,
-        sub: authUser.id,
-        email: authUser.email,
-        roles: authUser.roles,
-        ...authUser.clientId !== undefined && { clientid: authUser.clientId },
-        ...authUser.scope !== undefined && { scope: authUser.scope },
-      };
+      const authUser = createAuthUser(tokenPayload);
 
-      next();
+      if (!checkRequiredRoles(authUser, options)) {
+        logger.warn(LogSource.AUTH, 'Access denied - missing required role', {
+          userId: authUser.id,
+          requiredRoles: options.requiredRoles,
+          userRoles: authUser.roles,
+        });
+
+        handleAuthFailure({
+          res,
+          options,
+          statusCode: 403,
+          error: 'forbidden',
+          errorDescription: 'Insufficient permissions',
+        });
+        return;
+      }
+
+      handleAuthSuccess(req, authUser, next);
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Auth middleware error', { error });
+      const errorForLogging = error instanceof Error ? error : String(error);
+      logger.error(LogSource.AUTH, 'Auth middleware error', { error: errorForLogging });
 
-      if (options.redirectToLogin) {
-        res.redirect('/auth'); return;
-      }
+      const errorDescription = getErrorDescription(error);
 
-      let errorDescription = 'Invalid token';
-
-      if (error instanceof Error) {
-        if (error.message === 'Invalid issuer' || error.message === 'Invalid audience') {
-          errorDescription = 'Invalid token issuer or audience';
-        } else if (error.message === 'Token expired') {
-          errorDescription = 'Token has expired';
-        } else if (error.message === 'Invalid signature') {
-          errorDescription = 'Invalid token signature';
-        }
-      }
-
-      res.status(401).json({
- error: 'unauthorized',
-error_description: errorDescription
-});
+      handleAuthFailure({
+        res,
+        options,
+        statusCode: 401,
+        error: 'unauthorized',
+        errorDescription,
+      });
     }
   };
-}
+};
 
 /**
  * Default auth middleware for API endpoints.

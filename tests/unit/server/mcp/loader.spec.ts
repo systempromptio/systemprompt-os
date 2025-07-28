@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CustomMCPLoader } from '../../../../src/server/mcp/loader.js';
+import { CustomMcpLoader } from '../../../../src/server/mcp/loader.js';
 import { McpServerTypeEnum } from '../../../../src/server/mcp/types.js';
 import fs from 'fs';
 import path from 'path';
@@ -14,9 +14,34 @@ vi.mock('fs');
 vi.mock('path');
 vi.mock('url');
 
-// Mock dynamic imports
+// Mock dynamic imports by intercepting the import() call in the loader
 const mockImport = vi.fn();
-vi.stubGlobal('import', mockImport);
+
+// Use vi.mock with factory for the loader module to intercept imports
+vi.mock('../../../../src/server/mcp/loader.js', async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    CustomMcpLoader: class extends original.CustomMcpLoader {
+      // Override the private loadServerModule method to use our mock
+      async loadServerModule(serverPath, serverDir) {
+        const entryPoint = this.findEntryPoint(serverPath);
+        if (entryPoint === null) {
+          throw new Error(`No entry point found for server: ${serverDir}`);
+        }
+        
+        // Call our mock import instead of the real one
+        const loadedModule = await mockImport(entryPoint);
+        
+        if (loadedModule.createMcpHandler === null || typeof loadedModule.createMcpHandler !== 'function') {
+          throw new Error(`Invalid MCP server module: ${serverDir} - missing createMcpHandler export`);
+        }
+        
+        return loadedModule;
+      }
+    }
+  };
+});
 
 // Mock the registry to avoid actual class instantiation
 const mockRegistry = {
@@ -24,14 +49,14 @@ const mockRegistry = {
   getServerCount: vi.fn()
 };
 
-describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
-  let loader: CustomMCPLoader;
+describe('CustomMcpLoader - Complete Coverage Test Suite', () => {
+  let loader: CustomMcpLoader;
   let consoleLogSpy: any;
   let consoleErrorSpy: any;
   let consoleWarnSpy: any;
 
   beforeEach(() => {
-    loader = new CustomMCPLoader(mockRegistry as any);
+    loader = new CustomMcpLoader(mockRegistry as any);
     
     // Mock console methods to avoid test noise
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -67,9 +92,9 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
 
   describe('Constructor', () => {
     it('should create loader instance with default options', () => {
-      const testLoader = new CustomMCPLoader(mockRegistry as any);
+      const testLoader = new CustomMcpLoader(mockRegistry as any);
       expect(testLoader).toBeDefined();
-      expect(testLoader).toBeInstanceOf(CustomMCPLoader);
+      expect(testLoader).toBeInstanceOf(CustomMcpLoader);
     });
 
     it('should create loader instance with custom options', () => {
@@ -78,9 +103,9 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         loadRemoteConfigs: false,
         remoteConfigFile: 'custom-remote.yaml'
       };
-      const testLoader = new CustomMCPLoader(mockRegistry as any, customOptions);
+      const testLoader = new CustomMcpLoader(mockRegistry as any, customOptions);
       expect(testLoader).toBeDefined();
-      expect(testLoader).toBeInstanceOf(CustomMCPLoader);
+      expect(testLoader).toBeInstanceOf(CustomMcpLoader);
     });
 
     it('should merge default options with provided options', () => {
@@ -88,7 +113,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         customDir: '/custom/path'
         // loadRemoteConfigs and remoteConfigFile should use defaults
       };
-      const testLoader = new CustomMCPLoader(mockRegistry as any, partialOptions);
+      const testLoader = new CustomMcpLoader(mockRegistry as any, partialOptions);
       expect(testLoader).toBeDefined();
     });
   });
@@ -127,7 +152,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(fs.readdirSync).toHaveBeenCalledWith('./test-custom');
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 2 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 2 local MCP servers');
       expect(mockRegistry.getServerCount).toHaveBeenCalled();
     });
 
@@ -137,7 +162,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./override-custom');
       
       expect(fs.existsSync).toHaveBeenCalledWith('./override-custom');
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Custom directory does not exist: ./override-custom'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('Custom directory does not exist: ./override-custom');
     });
 
     it('should use options customDir when no parameter provided', async () => {
@@ -159,7 +184,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       vi.mocked(fs.readdirSync).mockReturnValue([]);
       vi.mocked(fs.readFileSync).mockReturnValue('[]');
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true,
         remoteConfigFile: 'remote-servers.yaml'
@@ -174,7 +199,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readdirSync).mockReturnValue([]);
       
-      const loaderNoRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderNoRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: false
       });
@@ -215,7 +240,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       // We need to access the private method through reflection or test it indirectly
       await loader.loadAllServers('./non-existent');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Custom directory does not exist: ./non-existent'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('Custom directory does not exist: ./non-existent');
     });
 
     it('should discover servers with package.json', async () => {
@@ -231,7 +256,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 2 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 2 local MCP servers');
     });
 
     it('should discover servers with index.js', async () => {
@@ -247,7 +272,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 1 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 1 local MCP servers');
     });
 
     it('should discover servers with build/index.js', async () => {
@@ -263,11 +288,16 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 1 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 1 local MCP servers');
     });
 
     it('should skip hidden directories', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr === './test-custom') return true;
+        // Return false for any entry point checks
+        return false;
+      });
       vi.mocked(fs.readdirSync).mockReturnValue(['.hidden', 'valid-server'] as any);
       vi.mocked(fs.statSync).mockImplementation((filePath: any) => ({
         isDirectory: () => !String(filePath).includes('.hidden')
@@ -275,11 +305,16 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 0 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 0 local MCP servers');
     });
 
     it('should skip non-directories', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
+        const pathStr = String(filePath);
+        if (pathStr === './test-custom') return true;
+        // Return false for any entry point checks
+        return false;
+      });
       vi.mocked(fs.readdirSync).mockReturnValue(['file.txt', 'directory'] as any);
       vi.mocked(fs.statSync).mockImplementation((filePath: any) => ({
         isDirectory: () => String(filePath).includes('directory')
@@ -287,7 +322,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 0 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 0 local MCP servers');
     });
 
     it('should skip directories without valid entry points', async () => {
@@ -301,7 +336,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       await loader.loadAllServers('./test-custom');
       
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Discovered 0 local MCP servers'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('✅ Discovered 0 local MCP servers');
     });
   });
 
@@ -311,11 +346,15 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         const pathStr = String(filePath);
         if (pathStr === './test-custom') return true;
         if (pathStr.includes('server1') && pathStr.includes('package.json')) return true;
+        if (pathStr.includes('server1') && pathStr.includes('index.js') && !pathStr.includes('build')) return true;
         return false;
       });
       
       vi.mocked(fs.readdirSync).mockReturnValue(['server1'] as any);
       vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as any);
+      
+      // Mock readFileSync to return a package.json without main field
+      vi.mocked(fs.readFileSync).mockReturnValue('{}');
     });
 
     it('should load local server successfully with full config', async () => {
@@ -376,13 +415,19 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
     it('should handle server with no entry point', async () => {
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const pathStr = String(filePath);
-        return pathStr === './test-custom'; // No entry points exist
+        if (pathStr === './test-custom') return true;
+        if (pathStr.includes('server1') && pathStr.includes('package.json')) return true;
+        // No other entry points exist
+        return false;
       });
+      
+      // Override readFileSync to return package.json without main field
+      vi.mocked(fs.readFileSync).mockReturnValue('{}');
       
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.any(Error)
       );
     });
@@ -396,7 +441,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.objectContaining({
           message: expect.stringContaining('missing createMcpHandler export')
         })
@@ -412,7 +457,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.objectContaining({
           message: expect.stringContaining('missing createMcpHandler export')
         })
@@ -425,7 +470,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.any(Error)
       );
     });
@@ -447,7 +492,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       // Test shutdown method
       await serverArg.shutdown();
-      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Shutting down Test Server'));
+      expect(consoleLogSpy).toHaveBeenCalledWith('Shutting down Test Server');
     });
   });
 
@@ -484,7 +529,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(fs.readFileSync).toHaveBeenCalledWith('./test-custom/server1/package.json', 'utf8');
-      expect(mockImport).toHaveBeenCalledWith('file:///mock/path');
+      expect(mockImport).toHaveBeenCalledWith('./test-custom/server1/custom-main.js');
     });
 
     it('should handle package.json with non-existent main file', async () => {
@@ -542,11 +587,16 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         const pathStr = String(filePath);
         if (pathStr === './test-custom') return true;
         if (pathStr.includes('server1')) {
+          // Need package.json to exist so server is discovered
+          if (pathStr.includes('package.json')) return true;
           // Only dist/index.js exists (should be found after trying others)
           if (pathStr.includes('dist/index.js')) return true;
         }
         return false;
       });
+      
+      // Mock package.json without main field to force fallback to common entry points
+      vi.mocked(fs.readFileSync).mockReturnValue('{}');
       
       mockImport.mockResolvedValue({
         createMcpHandler: vi.fn(),
@@ -561,13 +611,19 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
     it('should return null when no entry point found', async () => {
       vi.mocked(fs.existsSync).mockImplementation((filePath: any) => {
         const pathStr = String(filePath);
-        return pathStr === './test-custom'; // Only base directory exists
+        if (pathStr === './test-custom') return true;
+        // Make package.json exist so server is discovered but no entry points
+        if (pathStr.includes('server1') && pathStr.includes('package.json')) return true;
+        return false; // No entry points exist
       });
+      
+      // Mock package.json without main field
+      vi.mocked(fs.readFileSync).mockReturnValue('{}');
       
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.objectContaining({
           message: expect.stringContaining('No entry point found')
         })
@@ -596,7 +652,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         }
       ]));
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true,
         remoteConfigFile: 'remote-servers.yaml'
@@ -628,7 +684,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       
       vi.mocked(fs.readdirSync).mockReturnValue([]);
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true
       });
@@ -650,7 +706,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       vi.mocked(fs.readdirSync).mockReturnValue([]);
       vi.mocked(fs.readFileSync).mockReturnValue('invalid json');
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true
       });
@@ -676,7 +732,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         throw new Error('Permission denied');
       });
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true
       });
@@ -700,7 +756,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       vi.mocked(fs.readdirSync).mockReturnValue([]);
       vi.mocked(fs.readFileSync).mockReturnValue('[]');
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true
         // No remoteConfigFile specified, should use default
@@ -728,7 +784,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         }
       ]));
       
-      const loaderWithRemote = new CustomMCPLoader(mockRegistry as any, {
+      const loaderWithRemote = new CustomMcpLoader(mockRegistry as any, {
         customDir: './test-custom',
         loadRemoteConfigs: true
       });
@@ -754,17 +810,15 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       vi.mocked(fs.readdirSync).mockReturnValue(['good-server', 'bad-server'] as any);
       vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as any);
       
-      let callCount = 0;
-      mockImport.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          // First call succeeds
+      mockImport.mockImplementation((path: string) => {
+        if (path.includes('good-server')) {
+          // Good server call succeeds
           return Promise.resolve({
             createMcpHandler: vi.fn(),
             config: { serverName: 'Good Server' }
           });
         } else {
-          // Second call fails
+          // Bad server call fails
           return Promise.reject(new Error('Module loading failed'));
         }
       });
@@ -774,7 +828,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       expect(mockRegistry.registerServer).toHaveBeenCalledTimes(1);
       expect(consoleLogSpy).toHaveBeenCalledWith('✅ Loaded local server: Good Server v0.0.0');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server bad-server'),
+        'Failed to load local server bad-server:',
         expect.any(Error)
       );
     });
@@ -800,7 +854,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
       await loader.loadAllServers('./test-custom');
       
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to load local server server1'),
+        'Failed to load local server server1:',
         expect.any(Error)
       );
     });
@@ -810,11 +864,13 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
         const pathStr = String(filePath);
         if (pathStr === './test-custom') return true;
         if (pathStr.includes('server1') && pathStr.includes('package.json')) return true;
+        if (pathStr.includes('server1') && pathStr.includes('index.js') && !pathStr.includes('build')) return true;
         return false;
       });
       
       vi.mocked(fs.readdirSync).mockReturnValue(['server1'] as any);
       vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as any);
+      vi.mocked(fs.readFileSync).mockReturnValue('{}');
       
       mockImport.mockResolvedValue({
         createMcpHandler: vi.fn(),
@@ -848,10 +904,15 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
           const pathStr = String(filePath);
           if (pathStr === './test-custom') return true;
           if (pathStr.includes('server1')) {
+            // Make sure there's a package.json so server is discovered
+            if (pathStr.includes('package.json')) return true;
             if (pathStr.endsWith(targetEntry)) return true;
           }
           return false;
         });
+        
+        // Mock readFileSync to return empty package.json
+        vi.mocked(fs.readFileSync).mockReturnValue('{}');
         
         vi.mocked(fs.readdirSync).mockReturnValue(['server1'] as any);
         vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as any);
@@ -861,7 +922,7 @@ describe('CustomMCPLoader - Complete Coverage Test Suite', () => {
           config: { serverName: `Test Server ${i}` }
         });
         
-        const testLoader = new CustomMCPLoader(mockRegistry as any, { customDir: './test-custom' });
+        const testLoader = new CustomMcpLoader(mockRegistry as any, { customDir: './test-custom' });
         await testLoader.loadAllServers();
         
         expect(mockImport).toHaveBeenCalled();

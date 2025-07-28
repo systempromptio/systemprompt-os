@@ -7,17 +7,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response } from 'express';
 import { WellKnownEndpoint, type OpenIDConfiguration } from '@/server/external/rest/oauth2/well-known';
 
-// Mock the singleton import first
-vi.mock('@/modules/core/auth/singleton', () => ({
+// Mock the auth module import first
+vi.mock('@/modules/core/auth/index', () => ({
   getAuthModule: vi.fn()
 }));
 
 // Import the mock after setting up the mock
-import { getAuthModule } from '@/modules/core/auth/singleton';
+import { getAuthModule } from '@/modules/core/auth/index';
 
 // Mock the auth module and dependencies
 const mockOAuth2ConfigService = {
-  getOpenIDConfiguration: vi.fn()
+  getAuthorizationServerMetadata: vi.fn()
 };
 
 const mockAuthModule = {
@@ -101,25 +101,25 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code', 'refresh_token']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
 
       const result = endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
 
       expect(mockGetAuthModule).toHaveBeenCalledTimes(1);
       expect(mockAuthModule.exports.oauth2ConfigService).toHaveBeenCalledTimes(1);
-      expect(mockOAuth2ConfigService.getOpenIDConfiguration).toHaveBeenCalledTimes(1);
+      expect(mockOAuth2ConfigService.getAuthorizationServerMetadata).toHaveBeenCalledTimes(1);
       expect(jsonSpy).toHaveBeenCalledWith(mockConfig);
       expect(result).toBe(mockResponse);
     });
 
     it('should handle when authModule throws an error', () => {
       mockGetAuthModule.mockImplementation(() => {
-        throw new Error('Auth module not loaded');
+        throw new Error('Auth module not found in registry');
       });
 
       expect(() => {
         endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
-      }).toThrow('Auth module not loaded');
+      }).toThrow('Auth module not found in registry');
 
       expect(mockGetAuthModule).toHaveBeenCalledTimes(1);
       expect(jsonSpy).not.toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe('WellKnownEndpoint', () => {
     });
 
     it('should handle when getOpenIDConfiguration throws an error', () => {
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockImplementation(() => {
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockImplementation(() => {
         throw new Error('Configuration retrieval error');
       });
 
@@ -150,7 +150,7 @@ describe('WellKnownEndpoint', () => {
 
       expect(mockGetAuthModule).toHaveBeenCalledTimes(1);
       expect(mockAuthModule.exports.oauth2ConfigService).toHaveBeenCalledTimes(1);
-      expect(mockOAuth2ConfigService.getOpenIDConfiguration).toHaveBeenCalledTimes(1);
+      expect(mockOAuth2ConfigService.getAuthorizationServerMetadata).toHaveBeenCalledTimes(1);
       expect(jsonSpy).not.toHaveBeenCalled();
     });
 
@@ -171,7 +171,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
 
       const differentRequest = {
         method: 'GET',
@@ -188,7 +188,7 @@ describe('WellKnownEndpoint', () => {
     });
 
     it('should handle null/undefined config gracefully', () => {
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(null);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(null);
 
       const result = endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
 
@@ -362,7 +362,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code', 'refresh_token', 'implicit']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(validConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(validConfig);
 
       endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
 
@@ -386,7 +386,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(minimalConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(minimalConfig);
 
       endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
 
@@ -412,7 +412,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
       jsonSpy.mockImplementation(() => {
         throw new Error('JSON serialization error');
       });
@@ -466,7 +466,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
 
       const result1 = endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
       const result2 = endpoint.getOpenIDConfiguration(mockRequest as Request, mockResponse as Response);
@@ -474,7 +474,7 @@ describe('WellKnownEndpoint', () => {
 
       expect([result1, result2, result3]).toEqual([mockResponse, mockResponse, mockResponse]);
       expect(jsonSpy).toHaveBeenCalledTimes(3);
-      expect(mockOAuth2ConfigService.getOpenIDConfiguration).toHaveBeenCalledTimes(3);
+      expect(mockOAuth2ConfigService.getAuthorizationServerMetadata).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -496,7 +496,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
 
       const extractedMethod = endpoint.getOpenIDConfiguration;
       const result = extractedMethod(mockRequest as Request, mockResponse as Response);
@@ -536,7 +536,7 @@ describe('WellKnownEndpoint', () => {
         grant_types_supported: ['authorization_code']
       };
 
-      mockOAuth2ConfigService.getOpenIDConfiguration.mockReturnValue(mockConfig);
+      mockOAuth2ConfigService.getAuthorizationServerMetadata.mockReturnValue(mockConfig);
 
       const method = endpoint.getOpenIDConfiguration.bind(endpoint);
       const result = method(mockRequest as Request, mockResponse as Response);

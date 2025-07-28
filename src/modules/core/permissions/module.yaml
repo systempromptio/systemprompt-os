@@ -1,5 +1,5 @@
 name: permissions
-type: service
+type: core
 version: 1.0.0
 description: Role-based access control and permissions management
 author: SystemPrompt OS

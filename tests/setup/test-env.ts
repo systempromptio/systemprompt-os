@@ -135,7 +135,8 @@ vi.mock('@/modules/core/logger/types', () => ({
 // Mock legacy logger if needed
 vi.mock('@/utils/logger', () => ({
   logger: mockLogger,
-  getLogger: vi.fn(() => mockLogger)
+  getLogger: vi.fn(() => mockLogger),
+  setModuleRegistry: vi.fn()
 }));
 
 // Mock logger errors

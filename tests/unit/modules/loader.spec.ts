@@ -99,19 +99,7 @@ vi.mock('./core/modules/index.js', () => ({
   }))
 }));
 
-vi.mock('../../../src/modules/core/heartbeat/index', () => ({
-  HeartbeatModule: vi.fn().mockImplementation((config: any) => ({
-    name: 'heartbeat',
-    version: '1.0.0',
-    type: 'daemon',
-    config,
-    start: vi.fn(),
-    stop: vi.fn(),
-    isRunning: vi.fn(),
-    initialize: vi.fn().mockResolvedValue(undefined),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-  }))
-}));
+
 
 vi.mock('../../../src/modules/core/modules/index', () => ({
   ModulesModule: vi.fn().mockImplementation(() => ({

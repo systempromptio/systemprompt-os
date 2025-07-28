@@ -23,17 +23,23 @@ vi.mock('../../../../src/server/mcp/auth-adapter', () => ({
   mcpAuthAdapter: vi.fn((_req: any, _res: any, next: any) => next())
 }));
 
-vi.mock('../../../../src/utils/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn()
+vi.mock('../../../../src/modules/core/logger/index', () => ({
+  LoggerService: {
+    getInstance: vi.fn(() => ({
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    }))
+  },
+  LogSource: {
+    MCP: 'MCP'
   }
 }));
 
 // Mock global fetch
-global.fetch = vi.fn();
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 // Mock Response constructor for Node.js environment
 if (!global.Response) {
@@ -89,8 +95,12 @@ describe('McpServerRegistry', () => {
     };
     
     // Get mock logger instance
-    const { LoggerService } = vi.mocked(await import('../../../../src/modules/core/logger/index'));
-    mockLogger = LoggerService.getInstance();
+    mockLogger = {
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      debug: vi.fn()
+    };
     
     // Setup mock timers for timeout tests
     vi.useFakeTimers();
@@ -103,49 +113,50 @@ describe('McpServerRegistry', () => {
 
   describe('registerServer', () => {
     it('should register a local server successfully', async () => {
-      const server: LocalMCPServer = {
+      const server: ILocalMcpServer = {
         id: 'test-local',
         name: 'Test Local Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         description: 'Test server',
         createHandler: vi.fn()
       };
 
-      await registry.registerServer(server);
+      registry.registerServer(server);
 
       expect(registry.getServer('test-local')).toBe(server);
     });
 
     it('should register a remote server successfully', async () => {
-      const server: RemoteMCPServer = {
+      const server: IRemoteMcpServer = {
         id: 'test-remote',
         name: 'Test Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         description: 'Remote test server',
         config: {
+          name: 'Test Remote',
           url: 'http://remote.example.com/mcp'
         }
       };
 
-      await registry.registerServer(server);
+      registry.registerServer(server);
 
       expect(registry.getServer('test-remote')).toBe(server);
     });
 
     it('should throw error when registering duplicate server ID', async () => {
-      const server: LocalMCPServer = {
+      const server: ILocalMcpServer = {
         id: 'duplicate',
         name: 'Duplicate Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn()
       };
 
-      await registry.registerServer(server);
+      registry.registerServer(server);
       
-      await expect(registry.registerServer(server)).rejects.toThrow(
+      expect(() => registry.registerServer(server)).toThrow(
         "Server with ID 'duplicate' is already registered"
       );
     });
@@ -154,16 +165,16 @@ describe('McpServerRegistry', () => {
   describe('setupRoutes', () => {
     it('should setup routes for registered servers', async () => {
       const mockHandler = vi.fn();
-      const localServer: LocalMCPServer = {
+      const localServer: ILocalMcpServer = {
         id: 'test-server',
         name: 'Test Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: () => mockHandler
       };
 
-      await registry.registerServer(localServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(localServer);
+      registry.setupRoutes(mockApp);
 
       expect(mockApp.all).toHaveBeenCalledWith(
         '/mcp/test-server',
@@ -178,16 +189,16 @@ describe('McpServerRegistry', () => {
 
     it('should setup core server at both /mcp/core and /mcp', async () => {
       const mockHandler = vi.fn();
-      const coreServer: LocalMCPServer = {
+      const coreServer: ILocalMcpServer = {
         id: 'core',
         name: 'Core Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: () => mockHandler
       };
 
-      await registry.registerServer(coreServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(coreServer);
+      registry.setupRoutes(mockApp);
 
       expect(mockApp.all).toHaveBeenCalledWith(
         '/mcp/core',
@@ -202,18 +213,19 @@ describe('McpServerRegistry', () => {
     });
 
     it('should setup proxy routes for remote servers', async () => {
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp'
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       expect(mockApp.all).toHaveBeenCalledWith(
         '/mcp/remote',
@@ -225,29 +237,30 @@ describe('McpServerRegistry', () => {
 
   describe('status handling', () => {
     it('should return server statuses', async () => {
-      const localServer: LocalMCPServer = {
+      const localServer: ILocalMcpServer = {
         id: 'local',
         name: 'Local Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn(),
         getActiveSessionCount: vi.fn().mockReturnValue(5)
       };
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '2.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com'
         }
       };
 
-      await registry.registerServer(localServer);
-      await registry.registerServer(remoteServer);
+      registry.registerServer(localServer);
+      registry.registerServer(remoteServer);
 
-      const statuses = await registry.getServerStatuses();
+      const statuses = registry.getServerStatuses();
 
       expect(statuses.size).toBe(2);
       
@@ -257,7 +270,7 @@ describe('McpServerRegistry', () => {
         name: 'Local Server',
         status: 'running',
         version: '1.0.0',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         transport: 'http',
         sessions: 5
       });
@@ -268,7 +281,7 @@ describe('McpServerRegistry', () => {
         name: 'Remote Server',
         status: 'running',
         version: '2.0.0',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         transport: 'http',
         sessions: 0,
         url: 'http://remote.example.com'
@@ -276,16 +289,16 @@ describe('McpServerRegistry', () => {
     });
 
     it('should handle status endpoint', async () => {
-      const server: LocalMCPServer = {
+      const server: ILocalMcpServer = {
         id: 'test',
         name: 'Test Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn()
       };
 
-      await registry.registerServer(server);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(server);
+      registry.setupRoutes(mockApp);
 
       // Get the status handler
       const statusHandler = mockApp.get.mock.calls.find(
@@ -295,12 +308,12 @@ describe('McpServerRegistry', () => {
       expect(statusHandler).toBeDefined();
 
       // Test the handler
-      const mockReq = {} as Request;
+      const mockReq = {} as ExpressRequest;
       const mockRes = {
         json: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
-      await statusHandler(mockReq, mockRes);
+      statusHandler(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalledWith({
         servers: expect.objectContaining({
@@ -324,19 +337,20 @@ describe('McpServerRegistry', () => {
       
       vi.mocked(global.fetch).mockResolvedValue(mockResponse);
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp',
           headers: { 'X-Custom': 'value' }
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       // Get the proxy handler
       const proxyHandler = mockApp.all.mock.calls.find(
@@ -346,20 +360,20 @@ describe('McpServerRegistry', () => {
       const mockReq = {
         method: 'POST',
         body: { jsonrpc: '2.0', method: 'test', id: 1 }
-      } as unknown as Request;
+      } as unknown as ExpressRequest;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         setHeader: vi.fn(),
         send: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
       await proxyHandler(mockReq, mockRes);
 
       expect(global.fetch).toHaveBeenCalledWith('http://remote.example.com/mcp', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'content-type': 'application/json',
           'X-Custom': 'value'
         },
         body: JSON.stringify({ jsonrpc: '2.0', method: 'test', id: 1 }),
@@ -375,19 +389,20 @@ describe('McpServerRegistry', () => {
         Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
       );
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp',
           timeout: 5000
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       const proxyHandler = mockApp.all.mock.calls.find(
         call => call[0] === '/mcp/remote'
@@ -396,12 +411,12 @@ describe('McpServerRegistry', () => {
       const mockReq = {
         method: 'POST',
         body: { id: 1 }
-      } as unknown as Request;
+      } as unknown as ExpressRequest;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
       await proxyHandler(mockReq, mockRes);
 
@@ -412,25 +427,26 @@ describe('McpServerRegistry', () => {
           code: -32000,
           message: 'Request to remote server timed out after 5000ms'
         },
-        id: 1
+        id: null
       });
     });
 
     it('should handle proxy errors', async () => {
       vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp'
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       const proxyHandler = mockApp.all.mock.calls.find(
         call => call[0] === '/mcp/remote'
@@ -439,12 +455,12 @@ describe('McpServerRegistry', () => {
       const mockReq = {
         method: 'POST',
         body: { id: 1 }
-      } as unknown as Request;
+      } as unknown as ExpressRequest;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
       await proxyHandler(mockReq, mockRes);
 
@@ -455,7 +471,7 @@ describe('McpServerRegistry', () => {
           code: -32000,
           message: 'Failed to proxy request to remote server: Network error'
         },
-        id: 1
+        id: null
       });
     });
 
@@ -466,12 +482,13 @@ describe('McpServerRegistry', () => {
         text: vi.fn().mockResolvedValue('{}')
       } as any);
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp',
           auth: {
             type: 'bearer',
@@ -480,8 +497,8 @@ describe('McpServerRegistry', () => {
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       const proxyHandler = mockApp.all.mock.calls.find(
         call => call[0] === '/mcp/remote'
@@ -489,13 +506,13 @@ describe('McpServerRegistry', () => {
 
       const mockReq = {
         method: 'GET'
-      } as unknown as Request;
+      } as unknown as ExpressRequest;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         setHeader: vi.fn(),
         send: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
       await proxyHandler(mockReq, mockRes);
 
@@ -516,12 +533,13 @@ describe('McpServerRegistry', () => {
         text: vi.fn().mockResolvedValue('{}')
       } as any);
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
         config: {
+          name: 'Remote Server',
           url: 'http://remote.example.com/mcp',
           auth: {
             type: 'basic',
@@ -531,8 +549,8 @@ describe('McpServerRegistry', () => {
         }
       };
 
-      await registry.registerServer(remoteServer);
-      await registry.setupRoutes(mockApp);
+      registry.registerServer(remoteServer);
+      registry.setupRoutes(mockApp);
 
       const proxyHandler = mockApp.all.mock.calls.find(
         call => call[0] === '/mcp/remote'
@@ -540,13 +558,13 @@ describe('McpServerRegistry', () => {
 
       const mockReq = {
         method: 'GET'
-      } as unknown as Request;
+      } as unknown as ExpressRequest;
 
       const mockRes = {
         status: vi.fn().mockReturnThis(),
         setHeader: vi.fn(),
         send: vi.fn()
-      } as unknown as Response;
+      } as unknown as ExpressResponse;
 
       await proxyHandler(mockReq, mockRes);
 
@@ -564,24 +582,24 @@ describe('McpServerRegistry', () => {
 
   describe('server management', () => {
     it('should get all servers', async () => {
-      const server1: LocalMCPServer = {
+      const server1: ILocalMcpServer = {
         id: 'server1',
         name: 'Server 1',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn()
       };
 
-      const server2: RemoteMCPServer = {
+      const server2: IRemoteMcpServer = {
         id: 'server2',
         name: 'Server 2',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '2.0.0',
-        config: { url: 'http://example.com' }
+        config: { name: 'Server 2', url: 'http://example.com' }
       };
 
-      await registry.registerServer(server1);
-      await registry.registerServer(server2);
+      registry.registerServer(server1);
+      registry.registerServer(server2);
 
       const servers = registry.getAllServers();
       expect(servers).toHaveLength(2);
@@ -592,10 +610,10 @@ describe('McpServerRegistry', () => {
     it('should get server count', async () => {
       expect(registry.getServerCount()).toBe(0);
 
-      await registry.registerServer({
+      registry.registerServer({
         id: 'test',
         name: 'Test',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn()
       });
@@ -613,35 +631,35 @@ describe('McpServerRegistry', () => {
       const shutdownFn1 = vi.fn().mockResolvedValue(undefined);
       const shutdownFn2 = vi.fn().mockResolvedValue(undefined);
 
-      const server1: LocalMCPServer = {
+      const server1: ILocalMcpServer = {
         id: 'server1',
         name: 'Server 1',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn(),
         shutdown: shutdownFn1
       };
 
-      const server2: LocalMCPServer = {
+      const server2: ILocalMcpServer = {
         id: 'server2',
         name: 'Server 2',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn(),
         shutdown: shutdownFn2
       };
 
-      const remoteServer: RemoteMCPServer = {
+      const remoteServer: IRemoteMcpServer = {
         id: 'remote',
         name: 'Remote Server',
-        type: MCPServerType.REMOTE,
+        type: McpServerTypeEnum.REMOTE,
         version: '1.0.0',
-        config: { url: 'http://example.com' }
+        config: { name: 'Remote Server', url: 'http://example.com' }
       };
 
-      await registry.registerServer(server1);
-      await registry.registerServer(server2);
-      await registry.registerServer(remoteServer);
+      registry.registerServer(server1);
+      registry.registerServer(server2);
+      registry.registerServer(remoteServer);
 
       await registry.shutdown();
 
@@ -653,16 +671,16 @@ describe('McpServerRegistry', () => {
     it('should handle shutdown errors gracefully', async () => {
       const shutdownFn = vi.fn().mockRejectedValue(new Error('Shutdown failed'));
 
-      const server: LocalMCPServer = {
+      const server: ILocalMcpServer = {
         id: 'server',
         name: 'Server',
-        type: MCPServerType.LOCAL,
+        type: McpServerTypeEnum.LOCAL,
         version: '1.0.0',
         createHandler: vi.fn(),
         shutdown: shutdownFn
       };
 
-      await registry.registerServer(server);
+      registry.registerServer(server);
       
       // Should not throw
       await expect(registry.shutdown()).resolves.not.toThrow();
@@ -677,26 +695,26 @@ describe('McpServerRegistry', () => {
     });
 
     it('should initialize registry singleton', async () => {
-      const { initializeMCPServerRegistry } = await import('../../../../src/server/mcp/registry');
+      const { initializeMcpServerRegistry } = await import('../../../../src/server/mcp/registry');
       
-      const registry1 = initializeMCPServerRegistry();
-      const registry2 = initializeMCPServerRegistry();
+      const registry1 = initializeMcpServerRegistry();
+      const registry2 = initializeMcpServerRegistry();
       
       expect(registry1).toBe(registry2);
     });
 
     it('should get existing registry', async () => {
-      const { initializeMCPServerRegistry, getMCPServerRegistry } = await import('../../../../src/server/mcp/registry');
+      const { initializeMcpServerRegistry, getMcpServerRegistry } = await import('../../../../src/server/mcp/registry');
       
-      const initialized = initializeMCPServerRegistry();
-      const retrieved = getMCPServerRegistry();
+      const initialized = initializeMcpServerRegistry();
+      const retrieved = getMcpServerRegistry();
       
       expect(retrieved).toBe(initialized);
     });
 
     it('should throw error when getting registry before initialization', async () => {
       // Import fresh module instance
-      const { getMCPServerRegistry: getRegistry } = await import('../../../../src/server/mcp/registry');
+      const { getMcpServerRegistry: getRegistry } = await import('../../../../src/server/mcp/registry');
       
       expect(() => getRegistry()).toThrow(
         'MCP Server Registry not initialized'

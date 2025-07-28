@@ -340,6 +340,8 @@ export interface IUserListRow {
  * These will be used for the IAuthModuleExports interface when services are fixed
  */
 import type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
+import type { TunnelService } from '@/modules/core/auth/services/tunnel.service';
+import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
 
 type AuthService = unknown;
 type TokenService = unknown;
@@ -368,6 +370,12 @@ export interface IAuthModuleExports {
   hasProvider: (id: string) => boolean;
   getProviderRegistry: () => unknown;
   reloadProviders: () => Promise<void>;
+  getTunnelService: () => TunnelService | null;
+  getTunnelStatus: () => ITunnelStatus;
+  listUserTokens: (userId: string) => Promise<IAuthToken[]>;
+  revokeToken: (tokenId: string) => Promise<void>;
+  revokeUserTokens: (userId: string, type?: string) => Promise<void>;
+  cleanupExpiredTokens: () => Promise<number>;
 }
 
 // Re-exporting types from other files in the auth module
@@ -380,6 +388,7 @@ export type * from '@/modules/core/auth/types/generate-key.types';
 export type * from '@/modules/core/auth/types/user-service.types';
 export type * from '@/modules/core/auth/types/tunnel.types';
 export type * from '@/modules/core/auth/types/tool.types';
+export type * from '@/modules/core/auth/types/mfa.types';
 export type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 
 /**

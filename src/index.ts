@@ -31,35 +31,27 @@ const hasLoggerService = (
 
 /**
  * Console fallback logger that implements ILogger interface.
+ * Unused parameters are prefixed with underscore to indicate intentional non-use.
  */
 const consoleFallback: ILogger = {
-  debug: (source: LogSource, message: string, args?: unknown): void => {
-    void source;
-    void args;
+  debug: (_source: LogSource, message: string, _args?: unknown): void => {
     console.debug(message);
   },
-  info: (source: LogSource, message: string, args?: unknown): void => {
-    void source;
-    void args;
+  info: (_source: LogSource, message: string, _args?: unknown): void => {
     console.info(message);
   },
-  warn: (source: LogSource, message: string, args?: unknown): void => {
-    void source;
-    void args;
+  warn: (_source: LogSource, message: string, _args?: unknown): void => {
     console.warn(message);
   },
-  error: (source: LogSource, message: string, args?: unknown): void => {
-    void source;
-    void args;
+  error: (_source: LogSource, message: string, _args?: unknown): void => {
     console.error(message);
   },
-  log: (level: string, source: LogSource, message: string): void => {
-    void level;
-    void source;
+  log: (_level: string, _source: LogSource, message: string): void => {
     console.log(message);
   },
   access: (message: string): void => { console.log(message); },
   clearLogs: async (): Promise<void> => {
+    await Promise.resolve();
   },
   getLogs: async (): Promise<string[]> => {
     return await Promise.resolve([]);
@@ -81,9 +73,10 @@ const getLoggerService = (modules: Map<string, unknown>): ILogger => {
     && hasLoggerService(loggerModule.exports)
   ) {
     try {
-      const {service} = loggerModule.exports;
+      const {exports: loggerExports} = loggerModule;
+      const {service} = loggerExports;
       return typeof service === 'function' ? service() : service;
-    } catch (error) {
+    } catch {
       return consoleFallback;
     }
   }

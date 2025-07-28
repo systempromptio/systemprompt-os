@@ -29,10 +29,13 @@ describe('ProtectedResourceEndpoint', () => {
     
     protectedResourceEndpoint = new ProtectedResourceEndpoint();
     
-    mockReq = {};
+    mockReq = {
+      method: 'GET' // Default to GET method
+    };
     
     mockRes = {
-      json: vi.fn().mockReturnThis()
+      json: vi.fn().mockReturnThis(),
+      status: vi.fn().mockReturnThis() // Add status method to mock
     };
 
     // Setup mock auth module and oauth2ConfigService
@@ -543,13 +546,6 @@ describe('ProtectedResourceEndpoint', () => {
   });
 
   describe('HTTP method validation', () => {
-    let mockStatus: any;
-
-    beforeEach(() => {
-      mockStatus = vi.fn().mockReturnThis();
-      mockRes.status = mockStatus;
-    });
-
     it('should return 405 Method Not Allowed for POST requests', () => {
       mockReq.method = 'POST';
 

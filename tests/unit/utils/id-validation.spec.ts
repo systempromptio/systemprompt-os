@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { 
-  isValidUUID, 
+  isValidUuid, 
   validateTaskId,
   sanitizeTaskId 
-} from '../../../src/utils/id-validation.js';
+} from '../../../src/utils/id-validation';
 
 describe('ID Validation Utils', () => {
   describe('isValidUUID', () => {
@@ -32,7 +32,7 @@ describe('ID Validation Utils', () => {
       [null, false, 'null input'],
       [undefined, false, 'undefined input']
     ])('validates %s as %s (%s)', (input, expected, description) => {
-      expect(isValidUUID(input as any)).toBe(expected);
+      expect(isValidUuid(input as any)).toBe(expected);
     });
   });
 

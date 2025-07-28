@@ -1,4 +1,5 @@
-/* eslint-disable logical-assignment-operators, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/strict-boolean-expressions, systemprompt-os/no-block-comments */
+/* eslint-disable logical-assignment-operators, @typescript-eslint/no-unnecessary-condition,
+   @typescript-eslint/strict-boolean-expressions, systemprompt-os/no-block-comments */
 /**
  * Development service implementation - placeholder service for development tools.
  * @file Development service implementation.
@@ -6,11 +7,10 @@
  * Provides business logic for development operations.
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type {DevSessionType} from '@/modules/core/dev/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import {
   DevSessionStatus,
+  type DevSessionType,
   type IDevProfile,
   type IDevService,
   type IDevSession
@@ -55,11 +55,12 @@ export class DevService implements IDevService {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      return;
+      await Promise.resolve(); return;
     }
 
     this.initialized = true;
     this.logger?.info(LogSource.DEV, 'DevService initialized');
+    await Promise.resolve();
   }
 
   /**
@@ -74,7 +75,7 @@ export class DevService implements IDevService {
     const profile: IDevProfile = {
       id: 1,
       name,
-      config: config || {},
+      config: config ?? {},
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -106,7 +107,7 @@ export class DevService implements IDevService {
 
     const session: IDevSession = {
       id: 1,
-      profileId: profileId || 0,
+      profileId: profileId ?? 0,
       type,
       status: DevSessionStatus.ACTIVE,
       startedAt: new Date()
@@ -125,7 +126,10 @@ export class DevService implements IDevService {
   async endSession(sessionId: number, status: DevSessionStatus): Promise<void> {
     await this.ensureInitialized();
 
-    this.logger?.info(LogSource.DEV, `Ended session ${sessionId} with status: ${status}`);
+    this.logger?.info(
+      LogSource.DEV,
+      `Ended session ${sessionId.toString()} with status: ${status}`
+    );
   }
 
   /**

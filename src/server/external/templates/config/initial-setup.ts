@@ -15,14 +15,12 @@ const renderProviderButton = (provider: IIdentityProvider): string => {
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
 
-  const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
-  const authUrl = `${baseUrl}/oauth2/authorize?${new URLSearchParams({
-    response_type: 'code',
-    client_id: 'systemprompt-os',
-    redirect_uri: baseUrl,
-    scope: 'profile email',
-    provider: providerName,
-  }).toString()}`;
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl || baseUrl === '') {
+    baseUrl = 'http://localhost:3000';
+  }
+
+  const authUrl = `${baseUrl}/oauth2/authorize?response_type=code&client_id=systemprompt-os&redirect_uri=${baseUrl}&scope=openid+profile+email&provider=${encodeURIComponent(providerName)}`;
 
   return `
     <a href="${authUrl}" class="provider-button">
@@ -106,9 +104,7 @@ const renderSecurityNote = (): string => {
         <path fill-rule="evenodd" d="${securityPath}" clip-rule="evenodd" />
       </svg>
       <div class="security-text">
-        <strong>Security First:</strong> Your authentication credentials are never stored 
-        by SystemPrompt OS. We use OAuth 2.0 to securely authenticate through your 
-        chosen provider.
+        <strong>Security First:</strong> Your authentication credentials are never stored by SystemPrompt OS. We use OAuth 2.0 to securely authenticate through your chosen provider.
       </div>
     </div>
   `;
@@ -222,9 +218,7 @@ const getProviderButtonStyles = (): string => {
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, 
-        rgba(59, 130, 246, 0.1) 0%, 
-        rgba(139, 92, 246, 0.1) 100%);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
       opacity: 0;
       transition: opacity 0.2s;
     }

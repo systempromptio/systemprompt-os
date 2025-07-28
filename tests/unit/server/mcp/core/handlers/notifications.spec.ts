@@ -17,7 +17,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 // Mock the MCP handler
 vi.mock('../../../../../../src/server/mcp', () => ({
-  getMCPHandlerInstance: vi.fn()
+  getMcpHandlerInstance: vi.fn()
 }));
 
 // Mock the Server class
@@ -44,9 +44,9 @@ describe('Notification Handlers', () => {
       getServerForSession: vi.fn().mockReturnValue(null)
     };
     
-    // Setup getMCPHandlerInstance mock
-    const { getMCPHandlerInstance } = vi.mocked(await import('../../../../../../src/server/mcp'));
-    getMCPHandlerInstance.mockReturnValue(mockHandler);
+    // Setup getMcpHandlerInstance mock
+    const { getMcpHandlerInstance } = vi.mocked(await import('../../../../../../src/server/mcp'));
+    getMcpHandlerInstance.mockReturnValue(mockHandler);
   });
 
   describe('sendOperationNotification', () => {
@@ -272,8 +272,8 @@ describe('Notification Handlers', () => {
   describe('error handling', () => {
     it('should handle missing handler gracefully', async () => {
       const mcpModule = await import('../../../../../../src/server/mcp');
-      const { getMCPHandlerInstance } = vi.mocked(mcpModule);
-      getMCPHandlerInstance.mockReturnValue(null);
+      const { getMcpHandlerInstance } = vi.mocked(mcpModule);
+      getMcpHandlerInstance.mockReturnValue(null);
       
       // Should not throw
       await expect(sendOperationNotification('test', 'message')).resolves.toBeUndefined();
