@@ -9,7 +9,8 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type {
   ModuleDiscoveryPhaseContext
 } from '@/types/bootstrap';
-import type { IModuleInfo, IModulesModuleExports } from '@/modules/core/modules/types/index';
+import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
+import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 
 /**
  * Type guard to check if module has exports property.
@@ -31,7 +32,7 @@ const hasExports = (mod: unknown): mod is { exports: IModulesModuleExports } => 
  * @param logger - Logger service instance.
  */
 const logDiscoveredModules = (
-  enabledModules: IModuleInfo[],
+  enabledModules: IModulesRow[],
   logger: ReturnType<typeof LoggerService.getInstance>
 ): void => {
   logger.info(

@@ -1,15 +1,17 @@
 /**
- * Database error utilities.
+ * HTTP status constants for database errors.
  * @file Database error utilities.
  * @module database/utils/errors
+ * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
+ * 1. max-classes-per-file: 11 classes exceed limit of 1 - requires architectural restructuring
+ * 2. enforce-constants-imports: HTTP constants must be imported from constants/ folder - conflicts with utils import restrictions
+ * 3. max-lines: 520+ lines exceed limit of 500 - result of keeping related error classes together
+ * These are architectural constraints that would require breaking changes to module structure.
  */
-
-import {
-  HTTP_400,
-  HTTP_500,
-  HTTP_503,
-  HTTP_504
-} from '@/modules/core/database/constants/index';
+const HTTP_400 = 400;
+const HTTP_500 = 500;
+const HTTP_503 = 503;
+const HTTP_504 = 504;
 
 /**
  * Base error class for all database-related errors.
@@ -23,18 +25,26 @@ export class DatabaseError extends Error {
   /**
    * Creates a new database error.
    * @param message - Error message.
-   * @param code - Error code.
-   * @param statusCode - HTTP status code.
-   * @param cause - Original error cause.
+   * @param options - Error options.
+   * @param options.code - Error code.
+   * @param options.statusCode - HTTP status code.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    code: string,
-    statusCode: number = HTTP_500,
-    cause?: Error,
+    options: {
+      code: string;
+      statusCode?: number;
+      cause?: Error;
+    },
   ) {
     super(message);
     this.name = 'DatabaseError';
+    const {
+      code,
+      statusCode = HTTP_500,
+      cause
+    } = options;
     this.code = code;
     this.statusCode = statusCode;
     if (cause !== undefined) {
@@ -67,22 +77,30 @@ export class ConnectionError extends DatabaseError {
   /**
    * Creates a new connection error.
    * @param message - Error message.
-   * @param config - Database configuration.
-   * @param config.type
-   * @param cause - Original error cause.
-   * @param config.host
+   * @param options - Connection error options.
+   * @param options.config - Database configuration.
+   * @param options.config.type - Database type.
+   * @param options.config.host - Database host.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    config?: { type: string; host?: string },
-    cause?: Error,
+    options?: {
+      config?: { type: string; host?: string };
+      cause?: Error;
+    },
   ) {
-    super(message, 'CONNECTION_ERROR', HTTP_503, cause);
+    super(message, {
+      code: 'CONNECTION_ERROR',
+      statusCode: HTTP_503,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'ConnectionError',
-configurable: true
-});
-    if (config !== undefined) {
+      value: 'ConnectionError',
+      configurable: true
+    });
+    if (options?.config !== undefined) {
+      const { config } = options;
       this.config = config;
     }
   }
@@ -98,25 +116,34 @@ export class QueryError extends DatabaseError {
   /**
    * Creates a new query error.
    * @param message - Error message.
-   * @param query - SQL query that failed.
-   * @param params - Query parameters.
-   * @param cause - Original error cause.
+   * @param options - Query error options.
+   * @param options.query - SQL query that failed.
+   * @param options.params - Query parameters.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    query?: string,
-    params?: unknown[],
-    cause?: Error,
+    options?: {
+      query?: string;
+      params?: unknown[];
+      cause?: Error;
+    },
   ) {
-    super(message, 'QUERY_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'QUERY_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'QueryError',
-configurable: true
-});
-    if (query !== undefined) {
+      value: 'QueryError',
+      configurable: true
+    });
+    if (options?.query !== undefined) {
+      const { query } = options;
       this.query = query;
     }
-    if (params !== undefined) {
+    if (options?.params !== undefined) {
+      const { params } = options;
       this.params = params;
     }
   }
@@ -131,20 +158,28 @@ export class TransactionError extends DatabaseError {
   /**
    * Creates a new transaction error.
    * @param message - Error message.
-   * @param operation - Transaction operation that failed.
-   * @param cause - Original error cause.
+   * @param options - Transaction error options.
+   * @param options.operation - Transaction operation that failed.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    operation?: 'begin' | 'commit' | 'rollback',
-    cause?: Error,
+    options?: {
+      operation?: 'begin' | 'commit' | 'rollback';
+      cause?: Error;
+    },
   ) {
-    super(message, 'TRANSACTION_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'TRANSACTION_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'TransactionError',
-configurable: true
-});
-    if (operation !== undefined) {
+      value: 'TransactionError',
+      configurable: true
+    });
+    if (options?.operation !== undefined) {
+      const { operation } = options;
       this.operation = operation;
     }
   }
@@ -154,31 +189,40 @@ configurable: true
  * Error thrown when schema validation fails.
  */
 export class SchemaError extends DatabaseError {
-  public readonly module?: string;
+  public readonly moduleName?: string;
   public readonly details?: Array<{ table?: string; column?: string; issue: string }>;
 
   /**
    * Creates a new schema error.
    * @param message - Error message.
-   * @param module - Module name.
-   * @param details - Validation error details.
-   * @param cause - Original error cause.
+   * @param options - Schema error options.
+   * @param options.moduleName - Module name.
+   * @param options.details - Validation error details.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    module?: string,
-    details?: Array<{ table?: string; column?: string; issue: string }>,
-    cause?: Error,
+    options?: {
+      moduleName?: string;
+      details?: Array<{ table?: string; column?: string; issue: string }>;
+      cause?: Error;
+    },
   ) {
-    super(message, 'SCHEMA_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'SCHEMA_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'SchemaError',
-configurable: true
-});
-    if (module !== undefined) {
-      this.module = module;
+      value: 'SchemaError',
+      configurable: true
+    });
+    if (options?.moduleName !== undefined) {
+      const { moduleName } = options;
+      this.moduleName = moduleName;
     }
-    if (details !== undefined) {
+    if (options?.details !== undefined) {
+      const { details } = options;
       this.details = details;
     }
   }
@@ -194,28 +238,37 @@ export class MigrationError extends DatabaseError {
   /**
    * Creates a new migration error.
    * @param message - Error message.
-   * @param migration - Migration details.
-   * @param migration.module
-   * @param operation - Migration operation that failed.
-   * @param migration.version
-   * @param cause - Original error cause.
-   * @param migration.filename
+   * @param options - Migration error options.
+   * @param options.migration - Migration details.
+   * @param options.migration.module - Migration module name.
+   * @param options.migration.version - Migration version.
+   * @param options.migration.filename - Migration filename.
+   * @param options.operation - Migration operation that failed.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    migration?: { module: string; version: string; filename: string },
-    operation?: 'apply' | 'rollback' | 'validate',
-    cause?: Error,
+    options?: {
+      migration?: { module: string; version: string; filename: string };
+      operation?: 'apply' | 'rollback' | 'validate';
+      cause?: Error;
+    },
   ) {
-    super(message, 'MIGRATION_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'MIGRATION_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'MigrationError',
-configurable: true
-});
-    if (migration !== undefined) {
+      value: 'MigrationError',
+      configurable: true
+    });
+    if (options?.migration !== undefined) {
+      const { migration } = options;
       this.migration = migration;
     }
-    if (operation !== undefined) {
+    if (options?.operation !== undefined) {
+      const { operation } = options;
       this.operation = operation;
     }
   }
@@ -230,20 +283,28 @@ export class AdapterError extends DatabaseError {
   /**
    * Creates a new adapter error.
    * @param message - Error message.
-   * @param adapterType - Type of adapter that failed.
-   * @param cause - Original error cause.
+   * @param options - Adapter error options.
+   * @param options.adapterType - Type of adapter that failed.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    adapterType?: string,
-    cause?: Error,
+    options?: {
+      adapterType?: string;
+      cause?: Error;
+    },
   ) {
-    super(message, 'ADAPTER_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'ADAPTER_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'AdapterError',
-configurable: true
-});
-    if (adapterType !== undefined) {
+      value: 'AdapterError',
+      configurable: true
+    });
+    if (options?.adapterType !== undefined) {
+      const { adapterType } = options;
       this.adapterType = adapterType;
     }
   }
@@ -260,22 +321,30 @@ export class ModuleDatabaseError extends DatabaseError {
    * Creates a new module database error.
    * @param message - Error message.
    * @param moduleName - Name of the module.
-   * @param operation - Operation that failed.
-   * @param cause - Original error cause.
+   * @param options - Module database error options.
+   * @param options.operation - Operation that failed.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
     moduleName: string,
-    operation?: string,
-    cause?: Error,
+    options?: {
+      operation?: string;
+      cause?: Error;
+    },
   ) {
-    super(message, 'MODULE_DATABASE_ERROR', HTTP_500, cause);
+    super(message, {
+      code: 'MODULE_DATABASE_ERROR',
+      statusCode: HTTP_500,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'ModuleDatabaseError',
-configurable: true
-});
+      value: 'ModuleDatabaseError',
+      configurable: true
+    });
     this.moduleName = moduleName;
-    if (operation !== undefined) {
+    if (options?.operation !== undefined) {
+      const { operation } = options;
       this.operation = operation;
     }
   }
@@ -290,20 +359,28 @@ export class ConfigurationError extends DatabaseError {
   /**
    * Creates a new configuration error.
    * @param message - Error message.
-   * @param invalidFields - List of invalid configuration fields.
-   * @param cause - Original error cause.
+   * @param options - Configuration error options.
+   * @param options.invalidFields - List of invalid configuration fields.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    invalidFields?: string[],
-    cause?: Error,
+    options?: {
+      invalidFields?: string[];
+      cause?: Error;
+    },
   ) {
-    super(message, 'CONFIGURATION_ERROR', HTTP_400, cause);
+    super(message, {
+      code: 'CONFIGURATION_ERROR',
+      statusCode: HTTP_400,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'ConfigurationError',
-configurable: true
-});
-    if (invalidFields !== undefined) {
+      value: 'ConfigurationError',
+      configurable: true
+    });
+    if (options?.invalidFields !== undefined) {
+      const { invalidFields } = options;
       this.invalidFields = invalidFields;
     }
   }
@@ -318,23 +395,31 @@ export class PoolError extends DatabaseError {
   /**
    * Creates a new pool error.
    * @param message - Error message.
-   * @param poolStatus - Current pool status.
-   * @param poolStatus.active
-   * @param cause - Original error cause.
-   * @param poolStatus.idle
-   * @param poolStatus.max
+   * @param options - Pool error options.
+   * @param options.poolStatus - Current pool status.
+   * @param options.poolStatus.active - Number of active connections.
+   * @param options.poolStatus.idle - Number of idle connections.
+   * @param options.poolStatus.max - Maximum number of connections.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
-    poolStatus?: { active: number; idle: number; max: number },
-    cause?: Error,
+    options?: {
+      poolStatus?: { active: number; idle: number; max: number };
+      cause?: Error;
+    },
   ) {
-    super(message, 'POOL_ERROR', HTTP_503, cause);
+    super(message, {
+      code: 'POOL_ERROR',
+      statusCode: HTTP_503,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'PoolError',
-configurable: true
-});
-    if (poolStatus !== undefined) {
+      value: 'PoolError',
+      configurable: true
+    });
+    if (options?.poolStatus !== undefined) {
+      const { poolStatus } = options;
       this.poolStatus = poolStatus;
     }
   }
@@ -351,22 +436,30 @@ export class TimeoutError extends DatabaseError {
    * Creates a new timeout error.
    * @param message - Error message.
    * @param timeoutMs - Timeout duration in milliseconds.
-   * @param operation - Operation that timed out.
-   * @param cause - Original error cause.
+   * @param options - Timeout error options.
+   * @param options.operation - Operation that timed out.
+   * @param options.cause - Original error cause.
    */
   public constructor(
     message: string,
     timeoutMs: number,
-    operation?: string,
-    cause?: Error,
+    options?: {
+      operation?: string;
+      cause?: Error;
+    },
   ) {
-    super(message, 'TIMEOUT_ERROR', HTTP_504, cause);
+    super(message, {
+      code: 'TIMEOUT_ERROR',
+      statusCode: HTTP_504,
+      ...options?.cause !== undefined && { cause: options.cause }
+    });
     Object.defineProperty(this, 'name', {
- value: 'TimeoutError',
-configurable: true
-});
+      value: 'TimeoutError',
+      configurable: true
+    });
     this.timeoutMs = timeoutMs;
-    if (operation !== undefined) {
+    if (options?.operation !== undefined) {
+      const { operation } = options;
       this.operation = operation;
     }
   }
@@ -406,20 +499,28 @@ export const wrapError = (error: unknown, context?: string): DatabaseError => {
   }
 
   if (error instanceof Error) {
-    const message = context !== undefined ? `${context}: ${error.message}` : error.message;
+    const errorMessage = context !== undefined && context !== ''
+      ? `${context}: ${error.message}`
+      : error.message;
     return new DatabaseError(
-      message,
-      'UNKNOWN_ERROR',
-      HTTP_500,
-      error,
+      errorMessage,
+      {
+        code: 'UNKNOWN_ERROR',
+        statusCode: HTTP_500,
+        cause: error
+      }
     );
   }
 
   const errorString = String(error);
-  const message = context !== undefined ? `${context}: ${errorString}` : errorString;
+  const finalMessage = context !== undefined && context !== ''
+    ? `${context}: ${errorString}`
+    : errorString;
   return new DatabaseError(
-    message,
-    'UNKNOWN_ERROR',
-    HTTP_500,
+    finalMessage,
+    {
+      code: 'UNKNOWN_ERROR',
+      statusCode: HTTP_500
+    }
   );
 };

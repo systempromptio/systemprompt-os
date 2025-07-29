@@ -5,21 +5,19 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/index';
-import type {
-  IModuleInfo,
-  IScannedModule,
-  ModuleHealthStatusEnum,
-  ModuleStatusEnum,
-  ModuleTypeEnum
-} from '@/modules/core/modules/types/index';
-import type { IDatabaseModuleRow } from '@/modules/core/modules/types/module-manager.types';
+import type { IScannedModule } from "@/modules/core/modules/types/scanner.types";
+import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 
 /**
  * Repository for module manager database operations.
  */
 export class ModuleManagerRepository {
-  private static instance: ModuleManagerRepository;
+  private static instance: ModuleManagerRepository | undefined;
 
+  /**
+   * Private constructor for singleton pattern.
+   * @param database - Database service instance.
+   */
   private constructor(
     private readonly database: DatabaseService
   ) {}
@@ -30,19 +28,19 @@ export class ModuleManagerRepository {
    * @returns ModuleManagerRepository instance.
    */
   static getInstance(database: DatabaseService): ModuleManagerRepository {
-    ModuleManagerRepository.instance ||= new ModuleManagerRepository(database);
+    ModuleManagerRepository.instance ??= new ModuleManagerRepository(database);
     return ModuleManagerRepository.instance;
   }
 
   /**
    * Upsert a module into the database.
-   * @param module - Module data to upsert.
+   * @param moduleInfo - Module data to upsert.
    * @returns Promise that resolves when upsert is complete.
    */
-  async upsertModule(module: IScannedModule): Promise<void> {
+  async upsertModule(moduleInfo: IScannedModule): Promise<void> {
     const existingModule = await this.database.query<{ id: number }>(
       'SELECT id FROM modules WHERE name = ?',
-      [module.name]
+      [moduleInfo.name]
     );
 
     if (existingModule.length > 0) {
@@ -53,13 +51,13 @@ export class ModuleManagerRepository {
          updated_at = CURRENT_TIMESTAMP
          WHERE name = ?`,
         [
-          module.version,
-          module.type,
-          module.path,
-          JSON.stringify(module.dependencies ?? []),
-          JSON.stringify(module.config ?? {}),
-          JSON.stringify(module.metadata ?? {}),
-          module.name
+          moduleInfo.version,
+          moduleInfo.type,
+          moduleInfo.path,
+          JSON.stringify(moduleInfo.dependencies ?? []),
+          JSON.stringify(moduleInfo.config ?? {}),
+          JSON.stringify(moduleInfo.metadata ?? {}),
+          moduleInfo.name
         ]
       );
     } else {
@@ -68,13 +66,13 @@ export class ModuleManagerRepository {
          (name, version, type, path, enabled, dependencies, config, metadata)
          VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
         [
-          module.name,
-          module.version,
-          module.type,
-          module.path,
-          JSON.stringify(module.dependencies ?? []),
-          JSON.stringify(module.config ?? {}),
-          JSON.stringify(module.metadata ?? {})
+          moduleInfo.name,
+          moduleInfo.version,
+          moduleInfo.type,
+          moduleInfo.path,
+          JSON.stringify(moduleInfo.dependencies ?? []),
+          JSON.stringify(moduleInfo.config ?? {}),
+          JSON.stringify(moduleInfo.metadata ?? {})
         ]
       );
     }
@@ -84,24 +82,20 @@ export class ModuleManagerRepository {
    * Get all modules.
    * @returns Promise that resolves to array of all modules.
    */
-  async getAllModules(): Promise<IModuleInfo[]> {
-    const rows = await this.database.query<IDatabaseModuleRow>(
+  async getAllModules(): Promise<IModulesRow[]> {
+    return await this.database.query<IModulesRow>(
       'SELECT * FROM modules ORDER BY name'
     );
-
-    return rows.map((row): IModuleInfo => { return this.rowToModuleInfo(row) });
   }
 
   /**
    * Get all enabled modules.
    * @returns Promise that resolves to array of enabled modules.
    */
-  async getEnabledModules(): Promise<IModuleInfo[]> {
-    const rows = await this.database.query<IDatabaseModuleRow>(
+  async getEnabledModules(): Promise<IModulesRow[]> {
+    return await this.database.query<IModulesRow>(
       'SELECT * FROM modules WHERE enabled = 1 ORDER BY name'
     );
-
-    return rows.map((row): IModuleInfo => { return this.rowToModuleInfo(row) });
   }
 
   /**
@@ -109,22 +103,13 @@ export class ModuleManagerRepository {
    * @param name - Module name.
    * @returns Promise that resolves to module info or undefined.
    */
-  async getModule(name: string): Promise<IModuleInfo | undefined> {
-    const rows = await this.database.query<IDatabaseModuleRow>(
+  async getModule(name: string): Promise<IModulesRow | undefined> {
+    const rows = await this.database.query<IModulesRow>(
       'SELECT * FROM modules WHERE name = ?',
       [name]
     );
 
-    if (rows.length === 0) {
-      return undefined;
-    }
-
-    const firstRow = rows[0];
-    if (!firstRow) {
-      return undefined;
-    }
-
-    return this.rowToModuleInfo(firstRow);
+    return rows[0];
   }
 
   /**
@@ -149,34 +134,5 @@ export class ModuleManagerRepository {
       'UPDATE modules SET enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE name = ?',
       [name]
     );
-  }
-
-  /**
-   * Convert database row to ModuleInfo.
-   * @param row - Database row data.
-   * @returns ModuleInfo object.
-   */
-  private rowToModuleInfo(row: IDatabaseModuleRow): IModuleInfo {
-    const isEnabled = row.enabled !== 0;
-    const moduleDeps = row.dependencies !== '' ? JSON.parse(row.dependencies) as string[] : [];
-    const moduleConfig = row.config !== '' ? JSON.parse(row.config) as Record<string, unknown> : {};
-    const moduleMetadata = row.metadata !== '' ? JSON.parse(row.metadata) as Record<string, unknown> : {};
-
-    return {
-      id: row.id,
-      name: row.name,
-      version: row.version,
-      type: row.type as ModuleTypeEnum,
-      path: row.path,
-      enabled: isEnabled,
-      autoStart: true,
-      status: 'installed' as ModuleStatusEnum,
-      healthStatus: 'unknown' as ModuleHealthStatusEnum,
-      dependencies: moduleDeps,
-      config: moduleConfig,
-      metadata: moduleMetadata,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    };
   }
 }

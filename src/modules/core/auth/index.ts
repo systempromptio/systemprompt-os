@@ -1,4 +1,4 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
+import { ModulesType } from "@/modules/core/modules/types/database.generated";
 import {
   existsSync, mkdirSync, readFileSync
 } from 'fs';
@@ -6,7 +6,8 @@ import {
   dirname, join
 } from 'path';
 import { fileURLToPath } from 'url';
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
+import type { IModule } from '@/modules/core/modules/types';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
@@ -26,13 +27,13 @@ import type {
   AuthConfig,
   AuthToken,
   IAuthModuleExports,
-  ITunnelStatus,
   IdentityProvider,
   LoginInput,
   LoginResult,
   TokenCreateInput,
   TokenValidationResult
 } from '@/modules/core/auth/types/index';
+import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
 
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 
@@ -47,10 +48,10 @@ const currentDirname = dirname(filename);
 export class AuthModule implements IModule<IAuthModuleExports> {
   public readonly name = 'auth';
   public readonly version = '2.0.0';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly description = 'Authentication, authorization, and JWT management';
   public readonly dependencies = ['logger', 'database'];
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private config!: AuthConfig;
   private providerRegistry: ProviderRegistry | null = null;
   private tunnelService: TunnelService | null = null;
@@ -282,11 +283,11 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       await this.initializeDatabase();
       this.setupTokenCleanup();
 
-      this.status = ModuleStatusEnum.RUNNING;
+      this.status = ModulesStatus.RUNNING;
       this.started = true;
       this.logger.info(LogSource.AUTH, 'Auth module started');
     } catch (error) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       throw error;
     }
   }
@@ -356,7 +357,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     if (this.tunnelService !== null) {
       this.tunnelService.stop();
     }
-    this.status = ModuleStatusEnum.STOPPED;
+    this.status = ModulesStatus.STOPPED;
     this.started = false;
     this.logger.info(LogSource.AUTH, 'Auth module stopped');
   }
@@ -394,7 +395,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    * @returns Promise resolving to login result with tokens and user info.
    */
   async login(input: LoginInput): Promise<LoginResult> {
-    return this.authService.login(input);
+    return await this.authService.login(input);
   }
 
   /**

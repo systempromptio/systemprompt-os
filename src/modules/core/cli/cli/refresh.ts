@@ -4,7 +4,7 @@
  * Refreshes CLI commands by rescanning enabled modules.
  */
 
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/index';
 import type {
   CLICommand,
@@ -21,8 +21,8 @@ import { RefreshService } from '@/modules/core/cli/services/refresh.service';
  * @throws {Error} If the CLI module or service is not available.
  */
 const getCliService = (): ICliService => {
-  const moduleLoader = getModuleLoader();
-  const cliModule = moduleLoader.getModule(ModuleName.CLI) as unknown;
+  const registry = getModuleRegistry();
+  const cliModule = registry.get(ModuleName.CLI) as unknown;
 
   if (cliModule === null || cliModule === undefined
       || typeof cliModule !== 'object'

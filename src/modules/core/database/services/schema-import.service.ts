@@ -9,7 +9,6 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 import type { IDatabaseService, ISQLParserService } from '@/modules/core/database/types/schema-import.types';
 
@@ -132,7 +131,7 @@ export class SchemaImportService {
     }
 
     return {
-      success: errors.length === ZERO,
+      success: errors.length === 0,
       imported,
       skipped,
       errors
@@ -173,7 +172,7 @@ export class SchemaImportService {
       ...categorized.other
     ].filter((stmt): boolean => { return stmt.isValid && stmt.statement.trim() !== '' });
 
-    if (validStatements.length === ZERO) {
+    if (validStatements.length === 0) {
       this.logger?.warn(LogSource.DATABASE, 'No valid statements found in schema file', {
         module: schema.module,
         file: schema.filepath
@@ -265,8 +264,8 @@ export class SchemaImportService {
       [module, filepath]
     );
 
-    const firstResult = result[ZERO];
-    return firstResult !== undefined && firstResult.count > ZERO;
+    const firstResult = result[0];
+    return firstResult !== undefined && firstResult.count > 0;
   }
 
   /**
@@ -279,7 +278,7 @@ export class SchemaImportService {
     return createHash('sha256')
       .update(content.trim())
       .digest('hex')
-      .substring(ZERO, CHECKSUM_LENGTH);
+      .substring(0, CHECKSUM_LENGTH);
   }
 
   /**
@@ -297,7 +296,7 @@ export class SchemaImportService {
     let lastImport: string | undefined;
 
     for (const schema of schemas) {
-      const currentCount = byModule[schema.module] ?? ZERO;
+      const currentCount = byModule[schema.module] ?? 0;
       byModule[schema.module] = currentCount + 1;
       if (lastImport === undefined || schema.imported_at > lastImport) {
         lastImport = schema.imported_at;

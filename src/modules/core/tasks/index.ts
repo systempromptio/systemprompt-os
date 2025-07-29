@@ -4,7 +4,7 @@
  * @module modules/core/tasks
  */
 
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import { TaskService } from '@/modules/core/tasks/services/task.service';
 import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import {
@@ -22,26 +22,25 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
  * Tasks module implementation.
  * @class TasksModule
  */
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/database.generated';
+
 export class TasksModule implements IModule<ITasksModuleExports> {
   public readonly name = 'tasks';
-  public readonly type = 'core' as const;
+  public readonly type = ModulesType.CORE as const;
   public readonly version = '1.0.0';
   public readonly description = 'Task queue and execution system for SystemPrompt OS';
   public readonly dependencies = ['logger', 'database', 'events'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private taskService!: TaskService;
   private logger!: ILogger;
   private database!: DatabaseService;
   private initialized = false;
   private started = false;
-  /**
-   * Gets the module exports.
-   * @returns Module exports object.
-   */
   get exports(): ITasksModuleExports {
     return {
       service: (): ITaskService => {
-        return this.taskService;
+        return this.getService();
       },
       TaskStatus: TaskStatusEnum,
       TaskExecutionStatus: TaskExecutionStatusEnum,
@@ -57,7 +56,6 @@ export class TasksModule implements IModule<ITasksModuleExports> {
     this.database = DatabaseService.getInstance();
     this.logger = LoggerService.getInstance();
 
-    // Database should already be initialized at this point
     if (this.initialized) {
       throw new Error('Tasks module already initialized');
     }
@@ -89,7 +87,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
       throw new Error('Tasks module already started');
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
 
     this.logger.info(LogSource.MODULES, 'Tasks module started');
@@ -100,7 +98,7 @@ export class TasksModule implements IModule<ITasksModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.MODULES, 'Tasks module stopped');
     }
@@ -176,36 +174,34 @@ export const initialize = async (): Promise<TasksModule> => {
 
 /**
  * Gets the Tasks module with type safety and validation.
+ * This should only be used after bootstrap when the module loader is available.
  * @returns The Tasks module with guaranteed typed exports.
+ * @throws {Error} If Tasks module is not available or missing required exports.
  */
-export const getTasksModule = (): IModule<ITasksModuleExports> => {
-  return {
-    name: 'tasks',
-    type: 'core',
-    version: '1.0.0',
-    dependencies: ['logger', 'database'],
-    status: ModuleStatusEnum.STOPPED,
-    exports: {
-      service: (): ITaskService => {
-        return TaskService.getInstance();
-      },
-      TaskStatus: TaskStatusEnum,
-      TaskExecutionStatus: TaskExecutionStatusEnum,
-      TaskPriority: TaskPriorityEnum
-    },
-    initialize: async (): Promise<void> => {
-      await Promise.resolve();
-    },
-    start: async (): Promise<void> => {
-      await Promise.resolve();
-    },
-    stop: async (): Promise<void> => {
-      await Promise.resolve();
-    },
-    healthCheck: async (): Promise<{ healthy: boolean }> => {
-      return await Promise.resolve({ healthy: true });
-    }
-  };
-};
+export function getTasksModule(): IModule<ITasksModuleExports> {
+  const { getModuleRegistry } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const registry = getModuleRegistry();
+  const tasksModule = registry.get(ModuleName.TASKS);
+
+  if (!tasksModule.exports?.service || typeof tasksModule.exports.service !== 'function') {
+    throw new Error('Tasks module missing required service export');
+  }
+
+  if (!tasksModule.exports?.TaskStatus) {
+    throw new Error('Tasks module missing required TaskStatus export');
+  }
+
+  if (!tasksModule.exports?.TaskExecutionStatus) {
+    throw new Error('Tasks module missing required TaskExecutionStatus export');
+  }
+
+  if (!tasksModule.exports?.TaskPriority) {
+    throw new Error('Tasks module missing required TaskPriority export');
+  }
+
+  return tasksModule as IModule<ITasksModuleExports>;
+}
 
 export default TasksModule;

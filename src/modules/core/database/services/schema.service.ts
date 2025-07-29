@@ -11,7 +11,6 @@ import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * MCP content scanner interface.
@@ -258,7 +257,7 @@ schema
     const relativePath = normalized.replace(`${normalizedBase}/`, '');
     const parts = relativePath.split('/');
 
-    const firstPart = parts[ZERO];
+    const firstPart = parts[0];
     const secondPart = parts[1];
 
     if (firstPart === 'core' && parts.length > 1 && secondPart !== undefined) {

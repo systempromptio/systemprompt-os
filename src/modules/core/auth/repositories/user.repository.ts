@@ -10,7 +10,7 @@ import type {
   IDatabaseConnection,
   IUserWithRoles,
 } from '@/modules/core/auth/types/user-service.types';
-import type { IAuthUsersRow } from '@/modules/core/auth/types/database.generated';
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
 import { ZERO } from '@/constants/numbers';
 
 /**
@@ -40,7 +40,7 @@ export class UserRepository {
    */
   async hasAdminUsers(): Promise<boolean> {
     const result = await this.db.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM auth_users u
+      `SELECT COUNT(*) as count FROM users u
        JOIN auth_user_roles ur ON u.id = ur.user_id
        JOIN auth_roles r ON ur.role_id = r.id
        WHERE r.name = 'admin'`,
@@ -66,8 +66,8 @@ export class UserRepository {
     const userId = randomUUID();
 
     await connection.execute(
-      `INSERT INTO auth_users (id, email, name, avatar_url, last_login_at)
-       VALUES (?, ?, ?, ?, datetime('now'))`,
+      `INSERT INTO users (id, email, display_name, avatar_url)
+       VALUES (?, ?, ?, ?)`,
       [userId, email, name ?? null, avatar ?? null],
     );
 
@@ -112,8 +112,8 @@ export class UserRepository {
     connection: IDatabaseConnection,
   ): Promise<void> {
     await connection.execute(
-      `UPDATE auth_users
-       SET name = ?, avatar_url = ?, last_login_at = datetime('now'), updated_at = datetime('now')
+      `UPDATE users
+       SET display_name = ?, avatar_url = ?, updated_at = datetime('now')
        WHERE id = ?`,
       [name ?? null, avatar ?? null, userId],
     );
@@ -150,8 +150,8 @@ export class UserRepository {
     userId: string,
     connection: IDatabaseConnection,
   ): Promise<IUserWithRoles | null> {
-    const userResult = await connection.query<IAuthUsersRow>(
-      'SELECT * FROM auth_users WHERE id = ?',
+    const userResult = await connection.query<IUsersRow>(
+      'SELECT * FROM users WHERE id = ?',
       [userId],
     );
 
@@ -170,7 +170,7 @@ export class UserRepository {
     return {
       id: userRow.id,
       email: userRow.email,
-      name: userRow.name,
+      name: userRow.display_name,
       avatarurl: userRow.avatar_url,
       roles: rolesResult.rows.map((role): string => { return role.name }),
       createdAt: userRow.created_at ?? new Date().toISOString(),
@@ -184,8 +184,8 @@ export class UserRepository {
    * @returns Promise resolving to user with roles or null.
    */
   async getUserById(userId: string): Promise<IUserWithRoles | null> {
-    const userRows = await this.db.query<IAuthUsersRow>(
-      'SELECT * FROM auth_users WHERE id = ?',
+    const userRows = await this.db.query<IUsersRow>(
+      'SELECT * FROM users WHERE id = ?',
       [userId],
     );
 
@@ -204,7 +204,7 @@ export class UserRepository {
     return {
       id: userRow.id,
       email: userRow.email,
-      name: userRow.name,
+      name: userRow.display_name,
       avatarurl: userRow.avatar_url,
       roles: roles.map((role): string => { return role.name }),
       createdAt: userRow.created_at ?? new Date().toISOString(),
@@ -218,8 +218,8 @@ export class UserRepository {
    * @returns Promise resolving to user with roles or null.
    */
   async getUserByEmail(email: string): Promise<IUserWithRoles | null> {
-    const userRows = await this.db.query<IAuthUsersRow>(
-      'SELECT * FROM auth_users WHERE email = ?',
+    const userRows = await this.db.query<IUsersRow>(
+      'SELECT * FROM users WHERE email = ?',
       [email],
     );
 

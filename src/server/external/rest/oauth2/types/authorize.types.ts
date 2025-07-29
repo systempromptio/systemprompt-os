@@ -1,3 +1,5 @@
+import type { IAuthorizationCodeData } from '@/modules/core/auth/types/auth-code.types';
+
 /**
  * Interface for identity provider implementations.
  */
@@ -39,22 +41,6 @@ export interface IOAuthUserData {
 }
 
 /**
- * Authorization code creation parameters.
- */
-export interface IAuthCodeParams {
-    clientId: string;
-    redirectUri: string;
-    scope: string;
-    userId: string;
-    userEmail: string;
-    provider?: string;
-    providerTokens?: Record<string, unknown>;
-    codeChallenge?: string;
-    codeChallengeMethod?: string;
-    expiresAt: Date;
-}
-
-/**
  * State data encoded in OAuth flow.
  */
 export interface IStateData {
@@ -89,7 +75,7 @@ export interface IDatabaseUser {
  * Auth code service interface.
  */
 export interface IAuthCodeService {
-    createAuthorizationCode: (params: IAuthCodeParams) => Promise<string>;
+    createAuthorizationCode: (params: IAuthorizationCodeData) => Promise<string>;
     cleanupExpiredCodes: () => Promise<void>;
 }
 
@@ -113,17 +99,17 @@ export interface IAuthRepository {
 }
 
 /**
- * Type for validated authorization request parameters.
+ * Type for validated authorization request parameters (database-aligned snake_case).
  */
 export interface IAuthorizeRequestParams {
-    responseType: 'code' | 'code id_token';
-    clientId: string;
-    redirectUri: string;
+    response_type: 'code' | 'code id_token';
+    client_id: string;
+    redirect_uri: string;
     scope: string;
     state?: string;
     nonce?: string;
-    codeChallenge?: string;
-    codeChallengeMethod?: 'S256' | 'plain';
-        provider?: string;
-        providerCode?: string;
+    code_challenge?: string;
+    code_challenge_method?: 'S256' | 'plain';
+    provider?: string;
+    provider_code?: string;
 }

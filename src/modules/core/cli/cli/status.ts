@@ -4,7 +4,7 @@
  * Shows status and summary of enabled CLI commands.
  */
 
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/index';
 import type {
   CLICommand,
@@ -21,8 +21,8 @@ import { StatusService } from '@/modules/core/cli/services/status.service';
  * @throws {Error} If the CLI module or service is not available.
  */
 const getCliService = (): ICliService => {
-  const moduleLoader = getModuleLoader();
-  const cliModule = moduleLoader.getModule(ModuleName.CLI) as unknown;
+  const registry = getModuleRegistry();
+  const cliModule = registry.get(ModuleName.CLI) as unknown;
 
   if (cliModule === null || cliModule === undefined
       || typeof cliModule !== 'object'

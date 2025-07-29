@@ -5,7 +5,6 @@
  */
 
 import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when a query fails to execute.
@@ -27,7 +26,7 @@ export class QueryError extends DatabaseError {
     params?: unknown[],
     cause?: Error,
   ) {
-    super(message, 'QUERY_ERROR', HTTP_500, cause);
+    super(message, 'QUERY_ERROR', 500, cause);
     Object.defineProperty(this, 'name', {
  value: 'QueryError',
 configurable: true

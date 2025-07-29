@@ -27,7 +27,7 @@ import type {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
@@ -186,11 +186,10 @@ export const handleListTools = async function handleListTools(
       permissionCount: userContext.permissions.length,
     });
 
-    const moduleLoader = getModuleLoader();
-    await moduleLoader.loadModules();
-    const toolsModule = moduleLoader.getModule(ModuleName.MCP);
+    const registry = getModuleRegistry();
+    const toolsModule = registry.get(ModuleName.MCP);
 
-    if (toolsModule == null || toolsModule.exports == null) {
+    if (toolsModule == null || !toolsModule.exports) {
       logger.error(LogSource.MCP, 'Tools module not available');
       return { tools: [] };
     }
@@ -254,11 +253,10 @@ export const handleToolCall = async function handleToolCall(
       hasArguments: toolArgs !== undefined,
     });
 
-    const moduleLoader = getModuleLoader();
-    await moduleLoader.loadModules();
-    const toolsModule = moduleLoader.getModule(ModuleName.MCP);
+    const registry = getModuleRegistry();
+    const toolsModule = registry.get(ModuleName.MCP);
 
-    if (toolsModule == null || toolsModule.exports == null) {
+    if (toolsModule == null || !toolsModule.exports) {
       const error = new Error('Tools module not available');
       logger.error(LogSource.MCP, 'Tools module not loaded', { requestId });
       throw error;

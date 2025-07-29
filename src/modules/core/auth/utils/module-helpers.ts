@@ -3,7 +3,7 @@
  */
 
 import { type IModule } from '@/modules/core/modules/types/index';
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
 import type { IAuthModuleExports } from '@/modules/core/auth/types/index';
 
@@ -40,17 +40,13 @@ export function validateAuthModule(
  * @throws {Error} If Auth module is not available or missing required exports.
  */
 export const getAuthModule = (): IModule<IAuthModuleExports> => {
-  const moduleLoader = getModuleLoader();
-  const registry = moduleLoader.getRegistry();
-  const authModules = registry.getAll().filter((module): boolean => {
-    return module.name === ModuleName.AUTH;
-  });
+  const registry = getModuleRegistry();
+  const authModule = registry.get(ModuleName.AUTH) as IModule<IAuthModuleExports>;
 
-  if (authModules.length === 0) {
+  if (!authModule) {
     throw new Error('Auth module not found in registry');
   }
 
-  const authModule = authModules[0] as IModule<IAuthModuleExports>;
   validateAuthModule(authModule);
 
   return authModule;

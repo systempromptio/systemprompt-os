@@ -4,22 +4,15 @@
  * @module modules/core/config
  */
 
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import {
+ type IModule, ModulesStatus, ModulesType
+} from '@/modules/core/modules/types/index';
 import { ConfigService } from '@/modules/core/config/services/config.service';
 import type {
- ConfigValue, IConfigEntry, IConfigService
+ ConfigValue, IConfigEntry, IConfigModuleExports, IConfigService
 } from '@/modules/core/config/types/index';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-
-/**
- * Strongly typed exports interface for Config module.
- */
-export interface IConfigModuleExports {
-  readonly service: () => IConfigService;
-  readonly get: (key?: string) => Promise<ConfigValue | IConfigEntry[]>;
-  readonly set: (key: string, value: ConfigValue) => Promise<void>;
-}
 
 /**
  * Config module implementation.
@@ -27,20 +20,24 @@ export interface IConfigModuleExports {
  */
 export class ConfigModule implements IModule<IConfigModuleExports> {
   public readonly name = 'config';
-  public readonly type = 'core' as const;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Configuration management module for SystemPrompt OS';
   public readonly dependencies = ['database', 'logger'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private configService!: ConfigService;
   private logger!: ILogger;
   private initialized = false;
   private started = false;
   get exports(): IConfigModuleExports {
     return {
-      service: () => { return this.configService; },
-      get: async (key?: string) => { return await this.get(key); },
-      set: async (key: string, value: ConfigValue) => { await this.set(key, value); }
+      service: (): IConfigService => { return this.configService; },
+      get: async (key?: string): Promise<ConfigValue | IConfigEntry[]> => {
+        return await this.get(key);
+      },
+      set: async (key: string, value: ConfigValue): Promise<void> => {
+        await this.set(key, value);
+      }
     };
   }
 
@@ -70,7 +67,7 @@ export class ConfigModule implements IModule<IConfigModuleExports> {
 
   /**
    * Start the config module.
-   * @returns {Promise<void>} Promise that resolves when started.
+   * @returns {void} Synchronously starts the module.
    * @throws {Error} If module not initialized or already started.
    */
   async start(): Promise<void> {
@@ -82,18 +79,18 @@ export class ConfigModule implements IModule<IConfigModuleExports> {
       return;
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.MODULES, 'Config module started');
   }
 
   /**
    * Stop the config module.
-   * @returns {Promise<void>} Promise that resolves when stopped.
+   * @returns {void} Synchronously stops the module.
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.MODULES, 'Config module stopped');
     }
@@ -101,7 +98,7 @@ export class ConfigModule implements IModule<IConfigModuleExports> {
 
   /**
    * Perform health check on the config module.
-   * @returns {Promise<{ healthy: boolean; message?: string }>} Health check result.
+   * @returns {{ healthy: boolean; message?: string }} Health check result.
    */
   async healthCheck(): Promise<{
     healthy: boolean;
@@ -171,15 +168,16 @@ export const initialize = async (): Promise<ConfigModule> => {
 
 /**
  * Gets the Config module with type safety and validation.
+ * This should only be used after bootstrap when the module loader is available.
  * @returns The Config module with guaranteed typed exports.
  * @throws {Error} If Config module is not available or missing required exports.
  */
 export function getConfigModule(): IModule<IConfigModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
+  const { getModuleRegistry } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
 
-  const moduleLoader = getModuleLoader();
-  const configModule = moduleLoader.getModule(ModuleName.CONFIG);
+  const registry = getModuleRegistry();
+  const configModule = registry.get(ModuleName.CONFIG);
 
   if (!configModule.exports?.service || typeof configModule.exports.service !== 'function') {
     throw new Error('Config module missing required service export');

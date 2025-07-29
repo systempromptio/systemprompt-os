@@ -1,19 +1,14 @@
 /**
+ * Core type definitions and utility functions for the module system.
  * @file Module system type definitions.
  * @module modules/types
  */
 
-export type {
-  IModuleConfig,
-  IModulesConfig,
-  IModuleScannerService,
-  IModuleService,
-  IModuleWithService,
-  IModuleInstance,
-  IModuleContext,
-  IModuleConstructor,
-  IModuleExports,
-} from '@/modules/types/loader.types';
+export {
+  hasResourceExports,
+  hasPromptExports,
+  hasToolExports,
+} from '@/modules/types/module-exports.types';
 
 export type {
   IResourceModuleExports,
@@ -23,13 +18,18 @@ export type {
 } from '@/modules/types/module-exports.types';
 
 export {
-  hasResourceExports,
-  hasPromptExports,
-  hasToolExports,
-} from '@/modules/types/module-exports.types';
-
-export {
   ModuleName,
-  type ModuleNameType,
   isValidModuleName,
 } from '@/modules/types/module-names.types';
+
+// Re-export all loader types
+export type {
+  IModuleConfig,
+  IModulesConfig,
+  IModuleService,
+  IModuleWithService,
+  IModuleInstance,
+  IModuleContext,
+  IModuleConstructor,
+  IModuleExports,
+} from '@/modules/types/loader.types';

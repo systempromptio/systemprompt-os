@@ -1,14 +1,16 @@
 /**
  * Users repository implementation - database operations.
+ * Handles user data persistence without authentication concerns.
  */
 
 import {
   type IUser,
-  type IUserApiKey,
-  type IUserSession,
-  type IUserUpdateData,
-  UserStatusEnum
+  type IUserUpdateData
 } from '@/modules/core/users/types/index';
+import { UsersStatus } from '@/modules/core/users/types/database.generated';
+import {
+  type IUsersRow
+} from '@/modules/core/users/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 
@@ -22,8 +24,7 @@ export class UsersRepository {
   /**
    * Private constructor for singleton.
    */
-  private constructor() {
-  }
+  private constructor() {}
 
   /**
    * Get singleton instance.
@@ -45,121 +46,98 @@ export class UsersRepository {
 
   /**
    * Create a new user.
-   * @param options - User creation options.
-   * @param options.id
-   * @param options.username
-   * @param options.email
-   * @param options.passwordHash
+   * @param user - User data.
    * @returns The created user.
    */
-  async createUser(options: {
-    id: string;
-    username: string;
-    email: string;
-    passwordHash?: string;
-    role?: string;
-  }): Promise<IUser> {
+  async createUser(user: IUser): Promise<IUser> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
-    const {
-      id, username, email, passwordHash, role = 'user'
-    } = options;
-
-    const now = new Date().toISOString();
-    const stmt = await this.database.prepare(`
-      INSERT INTO users (id, username, email, password_hash, role, status, email_verified, login_attempts, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const stmt = await this.database.prepare(
+      `INSERT INTO users (
+        id, username, email, display_name, avatar_url, bio,
+        timezone, language, status, email_verified,
+        preferences, metadata, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
 
     await stmt.run([
-      id,
-      username,
-      email,
-      passwordHash || null,
-      role,
-      UserStatusEnum.ACTIVE,
-      0,
-      0,
-      now,
-      now
+      user.id,
+      user.username,
+      user.email,
+      user.displayName || null,
+      user.avatarUrl || null,
+      user.bio || null,
+      user.timezone,
+      user.language,
+      user.status,
+      user.emailVerified ? 1 : 0,
+      user.preferences ? JSON.stringify(user.preferences) : null,
+      user.metadata ? JSON.stringify(user.metadata) : null,
+      user.createdAt.toISOString(),
+      user.updatedAt.toISOString()
     ]);
 
-    const user: IUser = {
-      id,
-      username,
-      email,
-      passwordHash: passwordHash ?? '',
-      role,
-      status: UserStatusEnum.ACTIVE,
-      emailVerified: false,
-      loginAttempts: 0,
-      createdAt: new Date(now),
-      updatedAt: new Date(now)
-    };
-
+    await stmt.finalize();
     return user;
   }
 
   /**
    * Find user by ID.
-   * @param id - The user ID.
-   * @returns The user or null.
+   * @param id - User ID.
+   * @returns User or null.
    */
   async findById(id: string): Promise<IUser | null> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = await this.database.prepare('SELECT * FROM users WHERE id = ?');
-    const row = await stmt.get([id]) as any;
+    const result = await this.database.query<IUsersRow>(
+      'SELECT * FROM users WHERE id = ?',
+      [id]
+    );
 
-    if (!row) {
-      return null;
-    }
-
-    return this.mapRowToUser(row);
+    const row = result[0];
+    return row ? this.mapRowToUser(row) : null;
   }
 
   /**
    * Find user by username.
-   * @param username - The username.
-   * @returns The user or null.
+   * @param username - Username.
+   * @returns User or null.
    */
   async findByUsername(username: string): Promise<IUser | null> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = await this.database.prepare('SELECT * FROM users WHERE username = ?');
-    const row = await stmt.get([username]) as any;
+    const result = await this.database.query<IUsersRow>(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
 
-    if (!row) {
-      return null;
-    }
-
-    return this.mapRowToUser(row);
+    const row = result[0];
+    return row ? this.mapRowToUser(row) : null;
   }
 
   /**
    * Find user by email.
-   * @param email - The email address.
-   * @returns The user or null.
+   * @param email - Email address.
+   * @returns User or null.
    */
   async findByEmail(email: string): Promise<IUser | null> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = await this.database.prepare('SELECT * FROM users WHERE email = ?');
-    const row = await stmt.get([email]) as any;
+    const result = await this.database.query<IUsersRow>(
+      'SELECT * FROM users WHERE email = ?',
+      [email]
+    );
 
-    if (!row) {
-      return null;
-    }
-
-    return this.mapRowToUser(row);
+    const row = result[0];
+    return row ? this.mapRowToUser(row) : null;
   }
 
   /**
@@ -171,54 +149,82 @@ export class UsersRepository {
       throw new Error('Database not initialized');
     }
 
-    const stmt = await this.database.prepare('SELECT * FROM users ORDER BY created_at DESC');
-    const rows = await stmt.all();
+    const result = await this.database.query<IUsersRow>(
+      'SELECT * FROM users ORDER BY created_at DESC'
+    );
 
-    return rows.map(row => { return this.mapRowToUser(row) });
+    return result.map((row: IUsersRow) => { return this.mapRowToUser(row) });
   }
 
   /**
    * Update user.
-   * @param id - The user ID.
-   * @param updateData - The update data.
-   * @returns The updated user.
+   * @param id - User ID.
+   * @param data - Update data.
+   * @returns Updated user.
    */
-  async updateUser(id: string, updateData: IUserUpdateData): Promise<IUser> {
+  async updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
-    if (updateData.email !== undefined) {
+    if (data.username !== undefined) {
+      updates.push('username = ?');
+      values.push(data.username);
+    }
+    if (data.email !== undefined) {
       updates.push('email = ?');
-      values.push(updateData.email);
+      values.push(data.email);
     }
-    if (updateData.status !== undefined) {
+    if (data.displayName !== undefined) {
+      updates.push('display_name = ?');
+      values.push(data.displayName);
+    }
+    if (data.avatarUrl !== undefined) {
+      updates.push('avatar_url = ?');
+      values.push(data.avatarUrl);
+    }
+    if (data.bio !== undefined) {
+      updates.push('bio = ?');
+      values.push(data.bio);
+    }
+    if (data.timezone !== undefined) {
+      updates.push('timezone = ?');
+      values.push(data.timezone);
+    }
+    if (data.language !== undefined) {
+      updates.push('language = ?');
+      values.push(data.language);
+    }
+    if (data.status !== undefined) {
       updates.push('status = ?');
-      values.push(updateData.status);
+      values.push(data.status);
     }
-    if (updateData.emailVerified !== undefined) {
+    if (data.emailVerified !== undefined) {
       updates.push('email_verified = ?');
-      values.push(updateData.emailVerified ? 1 : 0);
+      values.push(data.emailVerified ? 1 : 0);
+    }
+    if (data.preferences !== undefined) {
+      updates.push('preferences = ?');
+      values.push(JSON.stringify(data.preferences));
+    }
+    if (data.metadata !== undefined) {
+      updates.push('metadata = ?');
+      values.push(JSON.stringify(data.metadata));
     }
 
     updates.push('updated_at = ?');
     values.push(new Date().toISOString());
+
     values.push(id);
 
-    const stmt = await this.database.prepare(`
-      UPDATE users 
-      SET ${updates.join(', ')} 
-      WHERE id = ?
-    `);
-
-    const result = await stmt.run(values);
-
-    if (result.changes === 0) {
-      throw new Error(`User not found: ${id}`);
-    }
+    const stmt = await this.database.prepare(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ?`
+    );
+    await stmt.run(values);
+    await stmt.finalize();
 
     const user = await this.findById(id);
     if (!user) {
@@ -230,329 +236,61 @@ export class UsersRepository {
 
   /**
    * Delete user.
-   * @param id - The user ID.
+   * @param id - User ID.
    */
   async deleteUser(id: string): Promise<void> {
     if (!this.database) {
       throw new Error('Database not initialized');
     }
 
-    const stmt = await this.database.prepare('DELETE FROM users WHERE id = ?');
-    const result = await stmt.run([id]);
-
-    if (result.changes === 0) {
-      throw new Error(`User not found: ${id}`);
-    }
-  }
-
-  /**
-   * Update login information.
-   * @param id - The user ID.
-   * @param success - Whether login was successful.
-   */
-  async updateLoginInfo(id: string, success: boolean): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const now = new Date().toISOString();
-    const stmt = success
-      ? await this.database.prepare('UPDATE users SET last_login_at = ?, login_attempts = 0, updated_at = ? WHERE id = ?')
-      : await this.database.prepare('UPDATE users SET login_attempts = login_attempts + 1, updated_at = ? WHERE id = ?');
-
-    if (success) {
-      await stmt.run([now, now, id]);
-    } else {
-      await stmt.run([now, id]);
-    }
-  }
-
-  /**
-   * Lock user account.
-   * @param id - The user ID.
-   * @param until - Lock until date.
-   */
-  async lockUser(id: string, until: Date): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
     const stmt = await this.database.prepare(
-      'UPDATE users SET locked_until = ?, login_attempts = 0, updated_at = ? WHERE id = ?'
+      'DELETE FROM users WHERE id = ?'
     );
-    await stmt.run([until.toISOString(), new Date().toISOString(), id]);
-  }
-
-  /**
-   * Create session.
-   * @param options - Session creation options.
-   * @param options.id
-   * @param options.userId
-   * @param options.tokenHash
-   * @param options.expiresAt
-   * @param options.ipAddress
-   * @param options.userAgent
-   * @returns The created session.
-   */
-  async createSession(options: {
-    id: string;
-    userId: string;
-    tokenHash: string;
-    expiresAt: Date;
-    ipAddress?: string;
-    userAgent?: string;
-  }): Promise<IUserSession> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const {
-      id, userId, tokenHash, expiresAt, ipAddress, userAgent
-    } = options;
-
-    const now = new Date().toISOString();
-    const stmt = await this.database.prepare(`
-      INSERT INTO user_sessions (id, user_id, token_hash, expires_at, ip_address, user_agent, created_at, last_activity_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    await stmt.run([
-      id,
-      userId,
-      tokenHash,
-      expiresAt.toISOString(),
-      ipAddress || null,
-      userAgent || null,
-      now,
-      now
-    ]);
-
-    return {
-      id,
-      userId,
-      tokenHash,
-      ipAddress: ipAddress ?? '',
-      userAgent: userAgent ?? '',
-      expiresAt,
-      createdAt: new Date(now),
-      lastActivityAt: new Date(now)
-    };
-  }
-
-  /**
-   * Find session by token hash.
-   * @param tokenHash - The token hash.
-   * @returns The session or null.
-   */
-  async findSessionByToken(tokenHash: string): Promise<IUserSession | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare('SELECT * FROM user_sessions WHERE token_hash = ?');
-    const row = await stmt.get([tokenHash]) as any;
-
-    if (!row) {
-      return null;
-    }
-
-    const session: IUserSession = {
-      id: row.id,
-      userId: row.user_id,
-      tokenHash: row.token_hash,
-      expiresAt: new Date(row.expires_at),
-      createdAt: new Date(row.created_at),
-      lastActivityAt: new Date(row.last_activity_at)
-    };
-
-    if (row.ip_address) {
-      session.ipAddress = row.ip_address;
-    }
-    if (row.user_agent) {
-      session.userAgent = row.user_agent;
-    }
-    if (row.revoked_at) {
-      session.revokedAt = new Date(row.revoked_at);
-    }
-
-    return session;
-  }
-
-  /**
-   * Update session activity.
-   * @param id - The session ID.
-   */
-  async updateSessionActivity(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare(
-      'UPDATE user_sessions SET last_activity_at = ? WHERE id = ?'
-    );
-    await stmt.run([new Date().toISOString(), id]);
-  }
-
-  /**
-   * Revoke session.
-   * @param id - The session ID.
-   */
-  async revokeSession(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare(
-      'UPDATE user_sessions SET revoked_at = ? WHERE id = ?'
-    );
-    await stmt.run([new Date().toISOString(), id]);
-  }
-
-  /**
-   * Create API key.
-   * @param options - API key creation options.
-   * @param options.id
-   * @param options.userId
-   * @param options.name
-   * @param options.keyHash
-   * @param options.permissions
-   * @returns The created API key.
-   */
-  async createApiKey(options: {
-    id: string;
-    userId: string;
-    name: string;
-    keyHash: string;
-    permissions?: string[];
-  }): Promise<IUserApiKey> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const {
-      id, userId, name, keyHash, permissions
-    } = options;
-
-    const now = new Date().toISOString();
-    const stmt = await this.database.prepare(`
-      INSERT INTO user_api_keys (id, user_id, name, key_hash, permissions, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    await stmt.run([
-      id,
-      userId,
-      name,
-      keyHash,
-      JSON.stringify(permissions || []),
-      now
-    ]);
-
-    return {
-      id,
-      userId,
-      name,
-      keyHash,
-      permissions: permissions ?? [],
-      createdAt: new Date(now)
-    };
-  }
-
-  /**
-   * Find API key by hash.
-   * @param keyHash - The key hash.
-   * @returns The API key or null.
-   */
-  async findApiKeyByHash(keyHash: string): Promise<IUserApiKey | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare('SELECT * FROM user_api_keys WHERE key_hash = ?');
-    const row = await stmt.get([keyHash]) as any;
-
-    if (!row) {
-      return null;
-    }
-
-    const apiKey: IUserApiKey = {
-      id: row.id,
-      userId: row.user_id,
-      name: row.name,
-      keyHash: row.key_hash,
-      createdAt: new Date(row.created_at)
-    };
-
-    const permissions = JSON.parse(row.permissions || '[]');
-    if (permissions && permissions.length > 0) {
-      apiKey.permissions = permissions;
-    }
-    if (row.expires_at) {
-      apiKey.expiresAt = new Date(row.expires_at);
-    }
-    if (row.last_used_at) {
-      apiKey.lastUsedAt = new Date(row.last_used_at);
-    }
-
-    return apiKey;
-  }
-
-  /**
-   * Update API key usage.
-   * @param id - The API key ID.
-   */
-  async updateApiKeyUsage(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare(
-      'UPDATE user_api_keys SET last_used_at = ? WHERE id = ?'
-    );
-    await stmt.run([new Date().toISOString(), id]);
-  }
-
-  /**
-   * Delete API key.
-   * @param id - The API key ID.
-   */
-  async deleteApiKey(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
-
-    const stmt = await this.database.prepare('DELETE FROM user_api_keys WHERE id = ?');
     await stmt.run([id]);
+    await stmt.finalize();
   }
 
   /**
-   * Map database row to user object.
-   * @param row - Database row.
-   * @returns User object.
+   * Search users by query.
+   * @param query - Search query.
+   * @returns Array of matching users.
    */
-  private mapRowToUser(row: any): IUser {
-    const user: IUser = {
+  async searchUsers(query: string): Promise<IUser[]> {
+    if (!this.database) {
+      throw new Error('Database not initialized');
+    }
+
+    const searchPattern = `%${query}%`;
+    const result = await this.database.query<IUsersRow>(
+      `SELECT * FROM users 
+       WHERE username LIKE ? OR email LIKE ? OR display_name LIKE ?
+       ORDER BY created_at DESC`,
+      [searchPattern, searchPattern, searchPattern]
+    );
+
+    return result.map((row: IUsersRow) => { return this.mapRowToUser(row) });
+  }
+
+  /**
+   * Map database row to user entity.
+   * @param row - Database row.
+   * @returns User entity.
+   */
+  private mapRowToUser(row: IUsersRow): IUser {
+    return {
       id: row.id,
       username: row.username,
       email: row.email,
-      role: row.role,
-      status: row.status as UserStatusEnum,
+      ...row.display_name && { displayName: row.display_name },
+      ...row.avatar_url && { avatarUrl: row.avatar_url },
+      ...row.bio && { bio: row.bio },
+      timezone: row.timezone || 'UTC',
+      language: row.language || 'en',
+      status: row.status || UsersStatus.ACTIVE,
       emailVerified: Boolean(row.email_verified),
-      loginAttempts: row.login_attempts || 0,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
+      ...row.metadata && { metadata: JSON.parse(row.metadata) },
+      createdAt: new Date(row.created_at || Date.now()),
+      updatedAt: new Date(row.updated_at || Date.now())
     };
-
-    if (row.password_hash) {
-      user.passwordHash = row.password_hash;
-    }
-    if (row.last_login_at) {
-      user.lastLoginAt = new Date(row.last_login_at);
-    }
-    if (row.locked_until) {
-      user.lockedUntil = new Date(row.locked_until);
-    }
-
-    return user;
   }
 }

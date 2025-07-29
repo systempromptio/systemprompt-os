@@ -3,13 +3,13 @@
  * @module modules/core/auth/cli/db
  */
 
-import type { IAuthUsersRow } from '@/modules/core/auth/types/database.generated';
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
 import readline from 'readline';
 
 /**
  * User list row interface extending database type with aggregated roles.
  */
-interface IUserListQueryResult extends IAuthUsersRow {
+interface IUserListQueryResult extends IUsersRow {
   roles: string | null;
 }
 import {
@@ -66,14 +66,11 @@ const displayUserInfo = (user: IUserListQueryResult, index: number, logger: ILog
   const userNumber = index + ONE;
   logger.info(LogSource.AUTH, `${String(userNumber)}. ${user.email}`);
   logger.info(LogSource.AUTH, `   ID: ${user.id}`);
-  if (user.name !== null && user.name !== undefined) {
-    logger.info(LogSource.AUTH, `   Name: ${user.name}`);
+  if (user.display_name !== null && user.display_name !== undefined) {
+    logger.info(LogSource.AUTH, `   Name: ${user.display_name}`);
   }
   logger.info(LogSource.AUTH, `   Roles: ${user.roles ?? 'none'}`);
   logger.info(LogSource.AUTH, `   Created: ${new Date(user.created_at ?? new Date().toISOString()).toLocaleString()}`);
-  if (user.last_login_at !== null && user.last_login_at !== undefined) {
-    logger.info(LogSource.AUTH, `   Last login: ${new Date(user.last_login_at ?? new Date().toISOString()).toLocaleString()}`);
-  }
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
 };

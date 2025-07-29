@@ -7,7 +7,7 @@
  */
 
 import {
- type IModule, ModuleStatusEnum, ModuleTypeEnum
+ type IModule, ModulesStatus, ModulesType
 } from '@/modules/core/modules/types/index';
 import { AgentService } from '@/modules/core/agents/services/agent.service';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
@@ -20,10 +20,10 @@ import { type IAgentsModuleExports } from '@/modules/core/agents/types/index';
 export class AgentsModule implements IModule<IAgentsModuleExports> {
   public readonly name = 'agents';
   public readonly version = '1.0.0';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly description = 'Agent management and task execution system';
   public readonly dependencies = ['database', 'logger', 'auth', 'events'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private agentService!: AgentService;
   private agentRepository!: AgentRepository;
   private logger!: ILogger;
@@ -31,8 +31,12 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
   private started = false;
   get exports(): IAgentsModuleExports {
     return {
-      service: (): AgentService => { return this.agentService },
-      repository: (): AgentRepository => { return this.agentRepository }
+      service: (): AgentService => {
+        return this.agentService;
+      },
+      repository: (): AgentRepository => {
+        return this.agentRepository;
+      }
     };
   }
 
@@ -42,17 +46,18 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
    */
   async initialize(): Promise<void> {
     this.logger = LoggerService.getInstance();
+
     if (this.initialized) {
       throw new Error('Agents module already initialized');
     }
 
     try {
-      this.logger = LoggerService.getInstance();
       this.agentRepository = AgentRepository.getInstance();
       this.agentService = AgentService.getInstance();
 
       this.initialized = true;
       this.logger.info(LogSource.MODULES, 'Agents module initialized');
+      await Promise.resolve();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to initialize Agents module: ${errorMessage}`);
@@ -74,11 +79,11 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
 
     try {
       await this.agentService.startMonitoring();
-      this.status = ModuleStatusEnum.RUNNING;
+      [this.status] = [ModulesStatus.RUNNING];
       this.started = true;
       this.logger.info(LogSource.MODULES, 'Agents module started');
     } catch (error) {
-      this.status = ModuleStatusEnum.STOPPED;
+      [this.status] = [ModulesStatus.STOPPED];
       throw error;
     }
   }
@@ -90,7 +95,7 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
   async stop(): Promise<void> {
     try {
       await this.agentService.stopMonitoring();
-      this.status = ModuleStatusEnum.STOPPED;
+      [this.status] = [ModulesStatus.STOPPED];
       this.started = false;
       this.logger.info(LogSource.MODULES, 'Agents module stopped');
     } catch (error) {
@@ -124,6 +129,7 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
         };
       }
 
+      await Promise.resolve();
       return {
         healthy: true,
         message: 'Agents module is healthy'
@@ -149,39 +155,34 @@ export const createModule = (): AgentsModule => {
  * Create and initialize a new AgentsModule instance.
  * @returns An initialized AgentsModule instance.
  */
-export const initialize = (): AgentsModule => {
+export const initialize = async (): Promise<AgentsModule> => {
   const agentsModule = new AgentsModule();
-  agentsModule.initialize();
+  await agentsModule.initialize();
   return agentsModule;
 };
 
 /**
  * Gets the Agents module with type safety and validation.
+ * This should only be used after bootstrap when the module loader is available.
  * @returns The Agents module with guaranteed typed exports.
+ * @throws {Error} If Agents module is not available or missing required exports.
  */
-export const getAgentsModule = (): IModule<IAgentsModuleExports> => {
-  return {
-    name: 'agents',
-    type: 'core',
-    version: '1.0.0',
-    dependencies: ['logger', 'database'],
-    status: ModuleStatusEnum.RUNNING,
-    exports: {
-      service: () => AgentService.getInstance(),
-      repository: () => AgentRepository.getInstance()
-    },
-    initialize: async () => { await Promise.resolve(); },
-    start: async () => { await Promise.resolve(); },
-    stop: async () => { await Promise.resolve(); },
-    healthCheck: async () => {
-      try {
-        await AgentService.getInstance().listAgents();
-        return { healthy: true, message: 'Agents module is healthy' };
-      } catch (error) {
-        return { healthy: false, message: `Unhealthy: ${error instanceof Error ? error.message : 'Unknown error'}` };
-      }
-    }
-  };
-};
+export function getAgentsModule(): IModule<IAgentsModuleExports> {
+  const { getModuleRegistry } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
+
+  const registry = getModuleRegistry();
+  const agentsModule = registry.get(ModuleName.AGENTS);
+
+  if (!agentsModule.exports?.service || typeof agentsModule.exports.service !== 'function') {
+    throw new Error('Agents module missing required service export');
+  }
+
+  if (!agentsModule.exports?.repository || typeof agentsModule.exports.repository !== 'function') {
+    throw new Error('Agents module missing required repository export');
+  }
+
+  return agentsModule as IModule<IAgentsModuleExports>;
+}
 
 export default AgentsModule;

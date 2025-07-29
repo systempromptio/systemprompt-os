@@ -1,4 +1,4 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
+import { ModulesType } from "@/modules/core/modules/types/database.generated";
 /**
  * Permissions module - Role-based access control and permissions management.
  * @file Permissions module entry point.
@@ -6,13 +6,13 @@ import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 import type { IPermissionsService } from '@/modules/core/permissions/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
 import type { IPermissionsModuleExports } from '@/modules/core/permissions/types/index';
 
@@ -21,11 +21,11 @@ import type { IPermissionsModuleExports } from '@/modules/core/permissions/types
  */
 export class PermissionsModule implements IModule<IPermissionsModuleExports> {
   public readonly name = 'permissions';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Role-based access control and permissions management';
   public readonly dependencies = ['logger', 'database', 'auth'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private permissionsService!: PermissionsService;
   private logger!: ILogger;
   private initialized = false;
@@ -69,7 +69,7 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
       return;
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.AUTH, 'Permissions module started');
   }
@@ -79,7 +79,7 @@ export class PermissionsModule implements IModule<IPermissionsModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.AUTH, 'Permissions module stopped');
     }
@@ -145,8 +145,8 @@ export const initialize = async (): Promise<PermissionsModule> => {
  * @throws {Error} If Permissions module is not available or missing required exports.
  */
 export const getPermissionsModule = (): IModule<IPermissionsModuleExports> => {
-  const moduleLoader = getModuleLoader();
-  const permissionsModule = moduleLoader.getModule(ModuleName.PERMISSIONS) as unknown as IModule<IPermissionsModuleExports>;
+  const registry = getModuleRegistry();
+  const permissionsModule = registry.get(ModuleName.PERMISSIONS) as unknown as IModule<IPermissionsModuleExports>;
 
   if (
     !permissionsModule

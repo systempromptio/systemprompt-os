@@ -4,9 +4,15 @@
  */
 
 import type {
-  IIdentityProvider, IIdpUserInfo, IdpTokens
+  IIdentityProvider,
+  IIdpUserInfo,
+  IdpTokens,
 } from '@/modules/core/auth/types/provider-interface';
-import type { IGenericOAuth2Config, IOIDCDiscoveryConfig } from '@/modules/core/auth/types/oauth2.types';
+import type {
+  IGenericOAuth2Config,
+  IOIDCDiscoveryConfig,
+  ITokenResponseData,
+} from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * Generic OAuth2 Provider implementation.
@@ -28,7 +34,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     } = config;
     this.id = id;
     this.name = name;
-    this.type = issuer !== undefined && issuer !== null ? 'oidc' : 'oauth2';
+    this.type = issuer ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
       scope: scope ?? 'email profile',
@@ -51,11 +57,11 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       state,
     });
 
-    if (nonce !== undefined && nonce !== null && this.type === 'oidc') {
+    if (nonce && this.type === 'oidc') {
       params.append('nonce', nonce);
     }
 
-    if ('authorizationParams' in this.config && this.config.authorizationParams !== undefined) {
+    if ('authorizationParams' in this.config && this.config.authorizationParams) {
       Object.entries(this.config.authorizationParams).forEach(
         ([key, value]): void => {
           params.append(key, String(value));
@@ -72,56 +78,9 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @returns Promise resolving to the token response.
    */
   public async exchangeCodeForTokens(authCode: string): Promise<IdpTokens> {
-    const params = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: authCode,
-      redirect_uri: this.config.redirectUri,
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
-    });
-
-    const response = await fetch(this.config.tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: params,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to exchange code: ${errorText}`);
-    }
-
-    const rawTokenData = await response.json() as {
-      access_token: string;
-      token_type: string;
-      expires_in?: number;
-      refresh_token?: string;
-      scope?: string;
-      id_token?: string;
-    };
-
-    const tokenData: IdpTokens = {
-      accessToken: rawTokenData.access_token,
-      tokenType: rawTokenData.token_type,
-    };
-
-    if (rawTokenData.expires_in !== undefined) {
-      tokenData.expiresIn = rawTokenData.expires_in;
-    }
-    if (rawTokenData.refresh_token !== undefined) {
-      tokenData.refreshToken = rawTokenData.refresh_token;
-    }
-    if (rawTokenData.scope !== undefined) {
-      tokenData.scope = rawTokenData.scope;
-    }
-    if (rawTokenData.id_token !== undefined) {
-      tokenData.idToken = rawTokenData.id_token;
-    }
-
-    return tokenData;
+    const response = await this.fetchTokens(authCode);
+    const rawTokenData = await this.parseTokenResponse(response);
+    return this.buildTokenData(rawTokenData);
   }
 
   /**
@@ -130,11 +89,130 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    * @returns Promise resolving to the user information.
    */
   public async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
-    if (this.config.userinfoEndpoint === undefined || this.config.userinfoEndpoint === null) {
+    if (!this.config.userinfoEndpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
 
-    const response = await fetch(this.config.userinfoEndpoint, {
+    const userData = await this.fetchUserData(accessToken);
+    return this.mapUserData(userData);
+  }
+
+  /**
+   * Refreshes access tokens using a refresh token.
+   * @param refreshToken - The refresh token.
+   * @returns Promise resolving to new tokens.
+   */
+  public async refreshTokens(refreshToken: string): Promise<IdpTokens> {
+    const response = await this.fetchRefreshTokens(refreshToken);
+    const rawTokenData = await this.parseTokenResponse(response);
+    return this.buildTokenData(rawTokenData);
+  }
+
+  /**
+   * Fetches tokens from the token endpoint.
+   * @param authCode - The authorization code.
+   * @returns Promise resolving to the fetch response.
+   */
+  private async fetchTokens(authCode: string): Promise<Response> {
+    const params = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: authCode,
+      redirect_uri: this.config.redirectUri,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+    });
+
+    return await fetch(this.config.tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: params,
+    });
+  }
+
+  /**
+   * Fetches refreshed tokens from the token endpoint.
+   * @param refreshToken - The refresh token.
+   * @returns Promise resolving to the fetch response.
+   */
+  private async fetchRefreshTokens(refreshToken: string): Promise<Response> {
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+    });
+
+    return await fetch(this.config.tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: params,
+    });
+  }
+
+  /**
+   * Parses the token response and handles errors.
+   * @param response - The fetch response.
+   * @returns Promise resolving to parsed token data.
+   */
+  private async parseTokenResponse(response: Response): Promise<ITokenResponseData> {
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to exchange code: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data as ITokenResponseData;
+  }
+
+  /**
+   * Builds IdpTokens from raw token response data.
+   * @param rawTokenData - The raw token data from the response.
+   * @returns The structured token data.
+   */
+  private buildTokenData(rawTokenData: ITokenResponseData): IdpTokens {
+    const {
+      access_token: accessToken,
+      token_type: tokenType,
+      expires_in: expiresIn,
+      refresh_token: refreshToken,
+      scope,
+      id_token: idToken,
+    } = rawTokenData;
+
+    const tokenData: IdpTokens = {
+      accessToken,
+      tokenType,
+    };
+
+    if (expiresIn !== undefined) {
+      tokenData.expiresIn = expiresIn;
+    }
+    if (refreshToken !== undefined) {
+      tokenData.refreshToken = refreshToken;
+    }
+    if (scope !== undefined) {
+      tokenData.scope = scope;
+    }
+    if (idToken !== undefined) {
+      tokenData.idToken = idToken;
+    }
+
+    return tokenData;
+  }
+
+  /**
+   * Fetches user data from the userinfo endpoint.
+   * @param accessToken - The access token for authentication.
+   * @returns Promise resolving to user data.
+   */
+  private async fetchUserData(accessToken: string): Promise<Record<string, unknown>> {
+    const response = await fetch(this.config.userinfoEndpoint ?? '', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         Accept: 'application/json',
@@ -145,135 +223,112 @@ export class GenericOAuth2Provider implements IIdentityProvider {
       throw new Error(`Failed to get user info: ${response.statusText}`);
     }
 
-    const userData = await response.json() as Record<string, unknown>;
+    const data = await response.json();
+    return data as Record<string, unknown>;
+  }
+
+  /**
+   * Maps raw user data to IIdpUserInfo format.
+   * @param userData - The raw user data from the provider.
+   * @returns The mapped user information.
+   */
+  private mapUserData(userData: Record<string, unknown>): IIdpUserInfo {
     const mapping = this.config.userinfoMapping ?? {};
 
-    const getUserId = (userInfo: Record<string, unknown>): string => {
-      const nestedValue = this.getNestedValue(userInfo, mapping.id ?? 'sub');
-      const idValue = nestedValue ?? userInfo.sub ?? userInfo.id ?? '';
-      return String(idValue);
-    };
-
-    const getUserEmail = (userInfo: Record<string, unknown>): string => {
-      const customMappingPath = mapping.email;
-      let emailValue: unknown;
-
-      if (customMappingPath) {
-        emailValue = this.getNestedValue(userInfo, customMappingPath);
-        if (emailValue === undefined) {
-          emailValue = userInfo.email;
-        }
-      } else {
-        emailValue = userInfo.email;
-      }
-
-      return String(emailValue);
-    };
-
-    const getEmailVerified = (userInfo: Record<string, unknown>): boolean => {
-      const verifiedValue = this.getNestedValue(
-        userInfo,
-        mapping.emailVerified ?? 'email_verified'
-      );
-      return Boolean(verifiedValue);
-    };
-
-    const getUserName = (userInfo: Record<string, unknown>): string => {
-      const customMappingPath = mapping.name;
-      let nameValue: unknown;
-
-      if (customMappingPath) {
-        nameValue = this.getNestedValue(userInfo, customMappingPath);
-        if (nameValue === undefined) {
-          nameValue = userInfo.name;
-        }
-      } else {
-        nameValue = userInfo.name;
-      }
-
-      return String(nameValue);
-    };
-
-    const getUserPicture = (userInfo: Record<string, unknown>): string => {
-      const customMappingPath = mapping.picture;
-      let pictureValue: unknown;
-
-      if (customMappingPath) {
-        pictureValue = this.getNestedValue(userInfo, customMappingPath);
-        if (pictureValue === undefined) {
-          pictureValue = userInfo.picture;
-        }
-      } else {
-        pictureValue = userInfo.picture;
-      }
-
-      return String(pictureValue);
-    };
-
     return {
-      id: getUserId(userData),
-      email: getUserEmail(userData),
-      emailVerified: getEmailVerified(userData),
-      name: getUserName(userData),
-      picture: getUserPicture(userData),
+      id: this.getUserId(userData, mapping),
+      email: this.getUserEmail(userData, mapping),
+      emailVerified: this.getEmailVerified(userData, mapping),
+      name: this.getUserName(userData, mapping),
+      picture: this.getUserPicture(userData, mapping),
       raw: userData,
     };
   }
 
   /**
-   * Refreshes access tokens using a refresh token.
-   * @param refreshToken - The refresh token.
-   * @returns Promise resolving to new tokens.
+   * Extracts user ID from user data.
+   * @param userInfo - The user information object.
+   * @param mapping - The field mapping configuration.
+   * @returns The user ID as a string.
    */
-  public async refreshTokens(refreshToken: string): Promise<IdpTokens> {
-    const params = new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
-    });
+  private getUserId(
+    userInfo: Record<string, unknown>,
+    mapping: Record<string, string>
+  ): string {
+    const nestedValue = this.getNestedValue(userInfo, mapping.id ?? 'sub');
+    const idValue = nestedValue ?? userInfo.sub ?? userInfo.id ?? '';
+    return String(idValue);
+  }
 
-    const response = await fetch(this.config.tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: params,
-    });
+  /**
+   * Extracts user email from user data.
+   * @param userInfo - The user information object.
+   * @param mapping - The field mapping configuration.
+   * @returns The user email as a string.
+   */
+  private getUserEmail(
+    userInfo: Record<string, unknown>,
+    mapping: Record<string, string>
+  ): string {
+    const { email: customMappingPath } = mapping;
+    const emailValue = customMappingPath
+      ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.email
+      : userInfo.email;
 
-    if (!response.ok) {
-      throw new Error(`Failed to refresh tokens: ${response.statusText}`);
-    }
+    return String(emailValue ?? '');
+  }
 
-    const rawTokenData = await response.json() as {
-      access_token: string;
-      token_type: string;
-      expires_in?: number;
-      refresh_token?: string;
-      scope?: string;
-      id_token?: string;
-    };
+  /**
+   * Extracts email verification status from user data.
+   * @param userInfo - The user information object.
+   * @param mapping - The field mapping configuration.
+   * @returns The email verification status.
+   */
+  private getEmailVerified(
+    userInfo: Record<string, unknown>,
+    mapping: Record<string, string>
+  ): boolean {
+    const verifiedValue = this.getNestedValue(
+      userInfo,
+      mapping.emailVerified ?? 'email_verified'
+    );
+    return Boolean(verifiedValue);
+  }
 
-    const tokenData: IdpTokens = {
-      accessToken: rawTokenData.access_token,
-      tokenType: rawTokenData.token_type,
-    };
+  /**
+   * Extracts user name from user data.
+   * @param userInfo - The user information object.
+   * @param mapping - The field mapping configuration.
+   * @returns The user name as a string.
+   */
+  private getUserName(
+    userInfo: Record<string, unknown>,
+    mapping: Record<string, string>
+  ): string {
+    const { name: customMappingPath } = mapping;
+    const nameValue = customMappingPath
+      ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.name
+      : userInfo.name;
 
-    if (rawTokenData.expires_in !== undefined) {
-      tokenData.expiresIn = rawTokenData.expires_in;
-    }
-    if (rawTokenData.refresh_token !== undefined) {
-      tokenData.refreshToken = rawTokenData.refresh_token;
-    }
-    if (rawTokenData.scope !== undefined) {
-      tokenData.scope = rawTokenData.scope;
-    }
-    if (rawTokenData.id_token !== undefined) {
-      tokenData.idToken = rawTokenData.id_token;
-    }
+    return String(nameValue ?? '');
+  }
 
-    return tokenData;
+  /**
+   * Extracts user picture URL from user data.
+   * @param userInfo - The user information object.
+   * @param mapping - The field mapping configuration.
+   * @returns The user picture URL as a string.
+   */
+  private getUserPicture(
+    userInfo: Record<string, unknown>,
+    mapping: Record<string, string>
+  ): string {
+    const { picture: customMappingPath } = mapping;
+    const pictureValue = customMappingPath
+      ? this.getNestedValue(userInfo, customMappingPath) ?? userInfo.picture
+      : userInfo.picture;
+
+    return String(pictureValue ?? '');
   }
 
   /**
@@ -311,24 +366,38 @@ export class GenericOAuth2Provider implements IIdentityProvider {
 export const discoverOidcConfiguration = async (
   issuer: string
 ): Promise<Partial<IGenericOAuth2Config>> => {
-  const discoveryUrl = `${issuer.replace(/\/$/u, '')}/.well-known/openid-configuration`;
+  const normalizedIssuer = issuer.replace(/\/$/u, '');
+  const discoveryUrl = `${normalizedIssuer}/.well-known/openid-configuration`;
 
   const response = await fetch(discoveryUrl);
   if (!response.ok) {
     throw new Error(`Failed to discover OIDC configuration: ${response.statusText}`);
   }
 
-  const configData = await response.json() as IOIDCDiscoveryConfig;
+  const data: unknown = await response.json();
+  const configData = data as IOIDCDiscoveryConfig;
+
+  const {
+    issuer: configIssuer,
+    authorization_endpoint,
+    token_endpoint,
+    userinfo_endpoint,
+    jwks_uri,
+    scopes_supported,
+    response_types_supported,
+    grant_types_supported,
+    token_endpoint_auth_methods_supported,
+  } = configData;
 
   return {
-    issuer: configData.issuer,
-    authorizationEndpoint: configData.authorization_endpoint,
-    tokenEndpoint: configData.token_endpoint,
-    userinfoEndpoint: configData.userinfo_endpoint,
-    jwksUri: configData.jwks_uri,
-    scopesSupported: configData.scopes_supported,
-    responseTypesSupported: configData.response_types_supported,
-    grantTypesSupported: configData.grant_types_supported,
-    tokenEndpointAuthMethods: configData.token_endpoint_auth_methods_supported,
+    issuer: configIssuer,
+    authorizationEndpoint: authorization_endpoint,
+    tokenEndpoint: token_endpoint,
+    userinfoEndpoint: userinfo_endpoint,
+    jwksUri: jwks_uri,
+    scopesSupported: scopes_supported,
+    responseTypesSupported: response_types_supported,
+    grantTypesSupported: grant_types_supported,
+    tokenEndpointAuthMethods: token_endpoint_auth_methods_supported,
   };
 };

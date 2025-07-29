@@ -5,7 +5,6 @@
  */
 
 import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_503 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when database connection fails.
@@ -26,7 +25,7 @@ export class ConnectionError extends DatabaseError {
     config?: { type: string; host?: string },
     cause?: Error,
   ) {
-    super(message, 'CONNECTION_ERROR', HTTP_503, cause);
+    super(message, 'CONNECTION_ERROR', 503, cause);
     Object.defineProperty(this, 'name', {
  value: 'ConnectionError',
 configurable: true

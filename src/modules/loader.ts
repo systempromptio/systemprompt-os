@@ -13,20 +13,18 @@ import { ModuleRegistry } from '@/modules/registry';
 import { CONFIG } from '@/server/config';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import {
-  type IModuleInfo,
-  ModuleStatusEnum,
-} from '@/modules/core/modules/types/index';
+import { ModulesStatus } from '@/modules/core/modules/types/database.generated';
+import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 import type {
   IModuleConstructor,
   IModuleContext,
   IModuleExports,
   IModuleInstance,
-  IModuleScannerService,
   IModuleWithService,
   IModulesConfig,
   ModuleName,
 } from '@/modules/types/index';
+import type { IModuleScannerService } from '@/modules/core/modules/types/scanner.types';
 import type { IModuleInterface } from '@/types/modules';
 
 const logger = LoggerService.getInstance();
@@ -36,9 +34,7 @@ const logger = LoggerService.getInstance();
  * @param moduleInstance - The module instance to check.
  * @returns True if the module has a service property with getScannerService method.
  */
-const hasModuleService = (
-  moduleInstance: unknown,
-): moduleInstance is IModuleWithService => {
+const hasModuleService = (moduleInstance: unknown): moduleInstance is IModuleWithService => {
   if (
     moduleInstance === null
     || moduleInstance === undefined
@@ -129,17 +125,12 @@ export class ModuleLoader {
         }
 
         if (this.scannerService !== null) {
-          await this.scannerService.updateModuleStatus(
-            moduleInstance.name,
-            ModuleStatusEnum.STOPPED,
-          );
+          await this.scannerService.updateModuleStatus(moduleInstance.name, ModulesStatus.STOPPED);
         }
       } catch (error) {
-        logger.error(
-          LogSource.MODULES,
-          `Error stopping module ${moduleInstance.name}:`,
-          { error: error instanceof Error ? error : new Error(String(error)) },
-        );
+        logger.error(LogSource.MODULES, `Error stopping module ${moduleInstance.name}:`, {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
       }
     }
 
@@ -203,11 +194,9 @@ export class ModuleLoader {
       const parsed: unknown = JSON.parse(configData);
       return parsed as IModulesConfig;
     } catch (error) {
-      logger.error(
-        LogSource.MODULES,
-        `Failed to load module config from ${this.configPath}:`,
-        { error: error instanceof Error ? error : new Error(String(error)) },
-      );
+      logger.error(LogSource.MODULES, `Failed to load module config from ${this.configPath}:`, {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
       return { modules: {} };
     }
   }
@@ -236,25 +225,25 @@ export class ModuleLoader {
   private async scanAndLoadModules(config: IModulesConfig): Promise<void> {
     try {
       const modulesModule = this.registry.get('modules');
-      if (modulesModule === undefined || !hasModuleService(modulesModule)) {
-        logger.error(
-          LogSource.MODULES,
-          'Modules module not properly initialized or missing service',
-        );
+      if (modulesModule === undefined) {
+        logger.error(LogSource.MODULES, 'Modules module not properly initialized');
         return;
       }
 
-      this.scannerService = modulesModule.service.getScannerService();
+      const moduleWithService = modulesModule as unknown as IModuleWithService;
+      if (!hasModuleService(moduleWithService)) {
+        logger.error(LogSource.MODULES, 'Modules module missing service');
+        return;
+      }
+
+      this.scannerService = moduleWithService.service.getScannerService() ?? null;
       if (this.scannerService === null) {
         logger.error(LogSource.MODULES, 'Scanner service not available');
         return;
       }
 
       logger.debug(LogSource.MODULES, 'Scanning for available modules...');
-      const scannedModules = await this.scannerService.scan({
-        deep: true,
-        includeDisabled: false,
-      });
+      const scannedModules = await this.scannerService.scan({});
 
       logger.debug(LogSource.MODULES, `Found ${scannedModules.length} modules`);
 
@@ -278,11 +267,9 @@ export class ModuleLoader {
         await this.loadModuleFromInfo(moduleInfo, config);
       }
     } catch (error) {
-      logger.error(
-        LogSource.MODULES,
-        'Failed to scan and load modules:',
-        { error: error instanceof Error ? error : new Error(String(error)) },
-      );
+      logger.error(LogSource.MODULES, 'Failed to scan and load modules:', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
     }
   }
 
@@ -293,13 +280,10 @@ export class ModuleLoader {
    * @returns Promise that resolves when module is loaded.
    * @private
    */
-  private async loadModuleFromInfo(
-    moduleInfo: IModuleInfo,
-    config: IModulesConfig,
-  ): Promise<void> {
+  private async loadModuleFromInfo(moduleInfo: IModulesRow, config: IModulesConfig): Promise<void> {
     try {
       if (this.scannerService !== null) {
-        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatusEnum.LOADING);
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModulesStatus.LOADING);
       }
 
       const relativePath = moduleInfo.path.replace(process.cwd(), '.');
@@ -308,18 +292,16 @@ export class ModuleLoader {
       await this.loadModule(moduleInfo.name, importPath, config);
 
       if (this.scannerService !== null) {
-        await this.scannerService.updateModuleStatus(moduleInfo.name, ModuleStatusEnum.RUNNING);
+        await this.scannerService.updateModuleStatus(moduleInfo.name, ModulesStatus.RUNNING);
       }
     } catch (error) {
-      logger.error(
-        LogSource.MODULES,
-        `Failed to load module ${moduleInfo.name}:`,
-        { error: error instanceof Error ? error : new Error(String(error)) },
-      );
+      logger.error(LogSource.MODULES, `Failed to load module ${moduleInfo.name}:`, {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
       if (this.scannerService !== null) {
         await this.scannerService.updateModuleStatus(
           moduleInfo.name,
-          ModuleStatusEnum.ERROR,
+          ModulesStatus.ERROR,
           error instanceof Error ? error.message : String(error),
         );
       }
@@ -403,12 +385,12 @@ export class ModuleLoader {
     const registryModule: IModuleInterface = {
       name: moduleInstance.name,
       version: moduleInstance.version ?? '1.0.0',
-      type: moduleInstance.type ?? 'service' as const,
-      initialize: async (_ctx: import('@/types/modules').IModuleContext) => {
-      },
+      type: moduleInstance.type ?? ('service' as const),
+      initialize: async (_ctx: import('../types/modules').IModuleContext) => {},
       start: moduleInstance.start?.bind(moduleInstance) ?? this.createNoOpAsyncFunction(),
       stop: moduleInstance.stop?.bind(moduleInstance) ?? this.createNoOpAsyncFunction(),
-      healthCheck: moduleInstance.healthCheck?.bind(moduleInstance) ?? this.createHealthCheckFunction(),
+      healthCheck:
+        moduleInstance.healthCheck?.bind(moduleInstance) ?? this.createHealthCheckFunction(),
     };
 
     this.registry.register(registryModule);
@@ -424,8 +406,7 @@ export class ModuleLoader {
    * @private
    */
   private createNoOpAsyncFunction(): () => Promise<void> {
-    return async (): Promise<void> => {
-    };
+    return async (): Promise<void> => {};
   }
 
   /**
@@ -446,11 +427,9 @@ export class ModuleLoader {
    * @private
    */
   private logModuleError(name: string, error: unknown): void {
-    logger.error(
-      LogSource.MODULES,
-      `Failed to load module ${name}:`,
-      { error: error instanceof Error ? error : new Error(String(error)) },
-    );
+    logger.error(LogSource.MODULES, `Failed to load module ${name}:`, {
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
   }
 }
 

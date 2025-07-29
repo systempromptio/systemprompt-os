@@ -1,6 +1,14 @@
 // Auto-generated database types for cli module
-// Generated on: 2025-07-28T20:02:59.643Z
+// Generated on: 2025-07-29T15:52:59.255Z
 // Do not modify this file manually - it will be overwritten
+
+// Enums generated from CHECK constraints
+export enum CliCommandOptionsOptionType {
+  STRING = 'string',
+  BOOLEAN = 'boolean',
+  NUMBER = 'number',
+  ARRAY = 'array'
+}
 
 /**
  * Generated from database table: cli_commands
@@ -13,36 +21,49 @@ export interface ICliCommandsRow {
   command_path: string;
   description: string | null;
   executor_path: string;
-  options: string | null;
-  aliases: string | null;
   active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
 }
 
 /**
- * Generated from database table: cli_command_history
+ * Generated from database table: cli_command_options
  * Do not modify this file manually - it will be overwritten
  */
-export interface ICliCommandHistoryRow {
+export interface ICliCommandOptionsRow {
   id: number;
-  command_path: string;
-  arguments: string | null;
-  exit_code: number | null;
-  duration_ms: number | null;
-  error_message: string | null;
-  executed_at: string | null;
+  command_id: number;
+  option_name: string;
+  option_type: CliCommandOptionsOptionType;
+  description: string;
+  alias: string | null;
+  default_value: string | null;
+  required: boolean | null;
+  choices: string | null;
+  created_at: string | null;
+}
+
+/**
+ * Generated from database table: cli_command_aliases
+ * Do not modify this file manually - it will be overwritten
+ */
+export interface ICliCommandAliasesRow {
+  id: number;
+  command_id: number;
+  alias: string;
+  created_at: string | null;
 }
 
 /**
  * Union type of all database row types in this module
  */
-export type CliDatabaseRow = ICliCommandsRow | ICliCommandHistoryRow;
+export type CliDatabaseRow = ICliCommandsRow | ICliCommandOptionsRow | ICliCommandAliasesRow;
 
 /**
  * Database table names for this module
  */
 export const CLI_TABLES = {
   CLICOMMANDS: 'cli_commands',
-  CLICOMMANDHISTORY: 'cli_command_history',
+  CLICOMMANDOPTIONS: 'cli_command_options',
+  CLICOMMANDALIASES: 'cli_command_aliases',
 } as const;

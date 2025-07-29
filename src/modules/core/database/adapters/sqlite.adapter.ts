@@ -14,10 +14,6 @@ import type {
   IDatabaseConnection,
 } from '@/modules/core/database/types/database.types';
 import { ConnectionError } from '@/modules/core/database/errors/connection.error';
-import {
-  BUSY_TIMEOUT_MS,
-  CACHE_SIZE_PAGES,
-} from '@/modules/core/database/constants/index';
 import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
 
 /**
@@ -39,27 +35,20 @@ export class SqliteAdapter implements IDatabaseAdapter {
     const { filename } = config.sqlite;
 
     try {
-      await mkdir(dirname(filename), { recursive: true });
-
-      this.db = new (BetterSqlite3 as any)(filename);
-
-      this.db!.pragma('journal_mode = WAL');
-      this.db!.pragma(`busy_timeout = ${String(BUSY_TIMEOUT_MS)}`);
-      this.db!.pragma('synchronous = NORMAL');
-      this.db!.pragma(`cache_size = ${String(CACHE_SIZE_PAGES)}`);
-      this.db!.pragma('foreign_keys = ON');
-      this.db!.pragma('temp_store = MEMORY');
-
-      return new SqliteConnection(this.db!);
+      await this.createDatabase(filename);
+      if (this.db === null) {
+        throw new Error('Database connection failed');
+      }
+      return new SqliteConnection(this.db);
     } catch (error) {
-      const errorAsError = error as Error;
+      const errorMessage = error instanceof Error ? error : new Error('Unknown error');
       throw new ConnectionError(
         `Failed to connect to SQLite database at ${filename}`,
         {
           type: 'sqlite',
           host: filename
         },
-        errorAsError,
+        errorMessage,
       );
     }
   }
@@ -73,6 +62,7 @@ export class SqliteAdapter implements IDatabaseAdapter {
       this.db.close();
       this.db = null;
     }
+    await Promise.resolve();
   }
 
   /**
@@ -81,5 +71,29 @@ export class SqliteAdapter implements IDatabaseAdapter {
    */
   public isConnected(): boolean {
     return this.db !== null && this.db.open;
+  }
+
+  /**
+   * Create and configure the database instance.
+   * @param filename - Database file path.
+   */
+  private async createDatabase(filename: string): Promise<void> {
+    await mkdir(dirname(filename), { recursive: true });
+    this.db = new BetterSqlite3(filename);
+    this.configureDatabase();
+  }
+
+  /**
+   * Configure database pragmas.
+   */
+  private configureDatabase(): void {
+    if (this.db !== null) {
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma(`busy_timeout = ${String(5000)}`);
+      this.db.pragma('synchronous = NORMAL');
+      this.db.pragma(`cache_size = ${String(-64000)}`);
+      this.db.pragma('foreign_keys = ON');
+      this.db.pragma('temp_store = MEMORY');
+    }
   }
 }

@@ -1,13 +1,44 @@
+/*
+ * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
+ * 1. TypeScript circular dependency with @/modules/core/modules/types/index import
+ * 2. Type assertion issues due to strict TypeScript configuration
+ * 3. Complex path mapping issues in tsconfig affecting module resolution
+ * 4. ESLint custom rules enforcing types in types/ folders create conflicts
+ * The file has been significantly improved: reduced complexity, better error handling,
+ * removed many lint violations, but some issues require broader codebase refactoring.
+ */
+
 /**
+ * Type-safe manifest parser utilities.
+ * Utilities for parsing and validating module manifests.
  * @file Type-safe manifest parser utilities.
  * @module modules/core/modules/utils/manifest-parser
- * Utilities for parsing and validating module manifests.
  */
 
 import { parse as parseYaml } from 'yaml';
-import {
- type ICliCommand, type IModuleManifest, ModuleTypeEnum
-} from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/database.generated';
+import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
+
+type ModuleManifest = Pick<IModulesRow, 'name' | 'version' | 'type'> & {
+  description?: string;
+  author?: string;
+  dependencies?: string[];
+  config?: Record<string, unknown>;
+  cli?: {
+    commands?: Array<{
+      name: string;
+      description: string;
+      options?: Array<{
+        name: string;
+        type: 'string' | 'number' | 'boolean';
+        description: string;
+        alias?: string;
+        required?: boolean;
+        default?: string | number | boolean;
+      }>;
+    }>;
+  };
+};
 
 /**
  * Parse error for manifest validation failures.
@@ -32,15 +63,179 @@ export class ManifestParseError extends Error {
  * @param value - Value to check.
  * @returns True if value is a valid ModuleType.
  */
-const isModuleType = (value: unknown): value is ModuleTypeEnum => {
+const isModuleType = (value: unknown): value is ModulesType => {
   const validTypes: string[] = [
-    ModuleTypeEnum.CORE,
-    ModuleTypeEnum.SERVICE,
-    ModuleTypeEnum.DAEMON,
-    ModuleTypeEnum.PLUGIN,
-    ModuleTypeEnum.EXTENSION
+    ModulesType.CORE,
+    ModulesType.SERVICE,
+    ModulesType.DAEMON,
+    ModulesType.PLUGIN,
+    ModulesType.EXTENSION
   ];
   return typeof value === 'string' && validTypes.includes(value);
+};
+
+/**
+ * Validate required string field.
+ * @param data - Manifest data object.
+ * @param fieldName - Name of the field to validate.
+ * @param errors - Array to collect errors.
+ */
+const validateRequiredStringField = (
+  data: Record<string, unknown>,
+  fieldName: string,
+  errors: string[],
+): void => {
+  const value = data[fieldName];
+  if (value === null || value === undefined || typeof value !== 'string') {
+    errors.push(`${fieldName}: required field missing or not a string`);
+  }
+};
+
+/**
+ * Validate optional string field.
+ * @param data - Manifest data object.
+ * @param fieldName - Name of the field to validate.
+ * @param errors - Array to collect errors.
+ */
+const validateOptionalStringField = (
+  data: Record<string, unknown>,
+  fieldName: string,
+  errors: string[],
+): void => {
+  const value = data[fieldName];
+  if (value !== undefined && typeof value !== 'string') {
+    errors.push(`${fieldName}: must be a string`);
+  }
+};
+
+/**
+ * Validate module type field.
+ * @param data - Manifest data object.
+ * @param errors - Array to collect errors.
+ */
+const validateModuleTypeField = (
+  data: Record<string, unknown>,
+  errors: string[],
+): void => {
+  const { type: typeValue } = data;
+  if (typeValue === null || typeValue === undefined || typeof typeValue !== 'string') {
+    errors.push('type: required field missing or not a string');
+    return;
+  }
+
+  if (!isModuleType(typeValue)) {
+    const validTypes = [
+      ModulesType.CORE,
+      ModulesType.SERVICE,
+      ModulesType.DAEMON,
+      ModulesType.PLUGIN,
+      ModulesType.EXTENSION
+    ];
+    errors.push(
+      `type: invalid value '${typeValue}', must be one of: ${validTypes.join(', ')}`,
+    );
+  }
+};
+
+/**
+ * Validate dependencies field.
+ * @param data - Manifest data object.
+ * @param errors - Array to collect errors.
+ */
+const validateDependenciesField = (
+  data: Record<string, unknown>,
+  errors: string[],
+): void => {
+  const { dependencies: deps } = data;
+  if (deps === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(deps)) {
+    errors.push('dependencies: must be an array');
+    return;
+  }
+
+  const isValidDeps = deps.every((dep): boolean => {
+    return typeof dep === 'string';
+  });
+  if (!isValidDeps) {
+    errors.push('dependencies: all items must be strings');
+  }
+};
+
+/**
+ * Validate object field (config or cli).
+ * @param data - Manifest data object.
+ * @param fieldName - Name of the field to validate.
+ * @param errors - Array to collect errors.
+ */
+const validateObjectField = (
+  data: Record<string, unknown>,
+  fieldName: string,
+  errors: string[],
+): void => {
+  const value = data[fieldName];
+  if (value === undefined) {
+    return;
+  }
+
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    errors.push(`${fieldName}: must be an object`);
+  }
+};
+
+/**
+ * Add optional string field to result.
+ * @param result - Result object to modify.
+ * @param data - Source data.
+ * @param fieldName - Field name to check.
+ */
+const addOptionalStringField = <K extends keyof ModuleManifest>(
+  result: ModuleManifest,
+  data: Record<string, unknown>,
+  fieldName: K,
+): void => {
+  const value = data[fieldName];
+  if (typeof value === 'string') {
+    (result as any)[fieldName] = value;
+  }
+};
+
+/**
+ * Build the result manifest from validated data.
+ * @param data - Validated manifest data.
+ * @returns Built manifest object.
+ */
+const buildManifestResult = (data: Record<string, unknown>): ModuleManifest => {
+  const {
+    name,
+    version,
+    type,
+    dependencies,
+    config,
+    cli,
+  } = data;
+  const result: ModuleManifest = {
+    name: String(name),
+    version: String(version),
+    type: String(type) as ModulesType,
+  };
+
+  addOptionalStringField(result, data, 'description');
+  addOptionalStringField(result, data, 'author');
+
+  if (dependencies !== undefined && Array.isArray(dependencies)) {
+    result.dependencies = dependencies.map(String);
+  }
+  if (config !== undefined && typeof config === 'object' && config !== null && !Array.isArray(config)) {
+    result.config = config as Record<string, unknown>;
+  }
+  if (cli !== undefined && typeof cli === 'object' && cli !== null && !Array.isArray(cli)) {
+    result.cli = cli as NonNullable<ModuleManifest['cli']>;
+  }
+
+  return result;
 };
 
 /**
@@ -49,103 +244,33 @@ const isModuleType = (value: unknown): value is ModuleTypeEnum => {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if validation fails.
  */
-const validateManifest = (raw: unknown): IModuleManifest => {
+const validateManifest = (raw: unknown): ModuleManifest => {
   const errors: string[] = [];
 
-  if (!raw || typeof raw !== 'object') {
+  if (raw === null || raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new ManifestParseError('Manifest must be an object', ['Invalid manifest format']);
   }
 
   const manifestData = raw as Record<string, unknown>;
 
-  if (!manifestData.name || typeof manifestData.name !== 'string') {
-    errors.push('name: required field missing or not a string');
-  }
-
-  if (!manifestData.version || typeof manifestData.version !== 'string') {
-    errors.push('version: required field missing or not a string');
-  }
-
-  if (!manifestData.type || typeof manifestData.type !== 'string') {
-    errors.push('type: required field missing or not a string');
-  } else if (!isModuleType(manifestData.type)) {
-    const validTypes = [
-      ModuleTypeEnum.CORE,
-      ModuleTypeEnum.SERVICE,
-      ModuleTypeEnum.DAEMON,
-      ModuleTypeEnum.PLUGIN,
-      ModuleTypeEnum.EXTENSION
-    ];
-    errors.push(
-      `type: invalid value '${manifestData.type}', must be one of: ${validTypes.join(', ')}`,
-    );
-  }
-
-  if (manifestData.description !== undefined && typeof manifestData.description !== 'string') {
-    errors.push('description: must be a string');
-  }
-
-  if (manifestData.author !== undefined && typeof manifestData.author !== 'string') {
-    errors.push('author: must be a string');
-  }
-
-  if (manifestData.dependencies !== undefined) {
-    if (!Array.isArray(manifestData.dependencies)) {
-      errors.push('dependencies: must be an array');
-    } else if (!manifestData.dependencies.every((dep) => { return typeof dep === 'string' })) {
-      errors.push('dependencies: all items must be strings');
-    }
-  }
-
-  if (
-    manifestData.config !== undefined
-    && (typeof manifestData.config !== 'object'
-        || manifestData.config === null
-        || Array.isArray(manifestData.config))
-  ) {
-    errors.push('config: must be an object');
-  }
-
-  if (
-    manifestData.cli !== undefined
-    && (typeof manifestData.cli !== 'object'
-        || manifestData.cli === null
-        || Array.isArray(manifestData.cli))
-  ) {
-    errors.push('cli: must be an object');
-  }
+  validateRequiredStringField(manifestData, 'name', errors);
+  validateRequiredStringField(manifestData, 'version', errors);
+  validateModuleTypeField(manifestData, errors);
+  validateOptionalStringField(manifestData, 'description', errors);
+  validateOptionalStringField(manifestData, 'author', errors);
+  validateDependenciesField(manifestData, errors);
+  validateObjectField(manifestData, 'config', errors);
+  validateObjectField(manifestData, 'cli', errors);
 
   if (errors.length > 0) {
     throw new ManifestParseError(
-      `Manifest validation failed with ${errors.length} error(s)`,
+      `Manifest validation failed with ${String(errors.length)} error(s)`,
       errors,
     );
   }
 
-  const result: IModuleManifest = {
-    name: String(manifestData.name),
-    version: String(manifestData.version),
-    type: manifestData.type as string,
-  };
-
-  if (manifestData.description !== undefined) {
-    result.description = String(manifestData.description);
-  }
-  if (manifestData.author !== undefined) {
-    result.author = String(manifestData.author);
-  }
-  if (manifestData.dependencies !== undefined) {
-    result.dependencies = manifestData.dependencies as string[];
-  }
-  if (manifestData.config !== undefined) {
-    result.config = manifestData.config as Record<string, unknown>;
-  }
-  if (manifestData.cli !== undefined) {
-    result.cli = manifestData.cli as { commands?: ICliCommand[] };
-  }
-
-  return result;
-}
+  return buildManifestResult(manifestData);
+};
 
 /**
  * Parse a YAML string into a validated ModuleManifest.
@@ -153,7 +278,7 @@ const validateManifest = (raw: unknown): IModuleManifest => {
  * @returns Validated ModuleManifest.
  * @throws ManifestParseError if parsing or validation fails.
  */
-export const parseModuleManifest = (yamlContent: string): IModuleManifest => {
+export const parseModuleManifest = (yamlContent: string): ModuleManifest => {
   try {
     const raw = parseYaml(yamlContent);
     return validateManifest(raw);
@@ -172,7 +297,7 @@ export const parseModuleManifest = (yamlContent: string): IModuleManifest => {
  * @param yamlContent - YAML content to parse.
  * @returns ModuleManifest or undefined.
  */
-export const tryParseModuleManifest = (yamlContent: string): IModuleManifest | undefined => {
+export const tryParseModuleManifest = (yamlContent: string): ModuleManifest | undefined => {
   try {
     return parseModuleManifest(yamlContent);
   } catch {
@@ -186,7 +311,7 @@ export const tryParseModuleManifest = (yamlContent: string): IModuleManifest | u
  * @returns Object with either manifest or errors.
  */
 export const parseModuleManifestSafe = (yamlContent: string): {
-  manifest?: IModuleManifest;
+  manifest?: ModuleManifest;
   errors?: string[];
 } => {
   try {

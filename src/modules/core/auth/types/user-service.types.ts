@@ -22,8 +22,10 @@ export interface IUserWithRoles {
   updatedAt: string;
 }
 
-// Database user types are now auto-generated in database.generated.ts
-// Use IAuthUsersRow instead of IDatabaseUser
+/*
+ * Database user types are now auto-generated in database.generated.ts
+ * Use IAuthUsersRow instead of IDatabaseUser
+ */
 
 /**
  * Database connection interface for transaction operations.

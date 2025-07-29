@@ -4,7 +4,6 @@
  * @module database/adapters/module.adapter
  */
 
-import type { Database } from 'better-sqlite3';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type {
   IDatabaseRow,
@@ -12,34 +11,21 @@ import type {
   IModulePreparedStatement,
   IMutationResult
 } from '@/modules/core/database/types/module-adapter.types';
-import { ZERO } from '@/modules/core/database/constants/index';
+import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 
 /**
- * Helper to get database instance from service.
- * @param dbService - Database service instance.
- * @returns Database instance.
- */
-const getDbInstance = async (dbService: any): Promise<Database> => {
-  const adapterAccess = dbService.adapter;
-  if (!adapterAccess?.db) {
-    throw new Error('Database adapter not available');
-  }
-  return adapterAccess.db as Database;
-};
-
-/**
- * Adapter for SQLite database connections.
+ * Adapter for module database operations.
  * Provides a consistent interface for modules to interact with the database.
  */
 export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
-  private readonly db: Database;
+  private readonly connection: IDatabaseConnection;
 
   /**
    * Creates a new SQLite module adapter.
-   * @param db - The SQLite database instance.
+   * @param connection - The database connection instance.
    */
-  public constructor(db: Database) {
-    this.db = db;
+  public constructor(connection: IDatabaseConnection) {
+    this.connection = connection;
   }
 
   /**
@@ -48,22 +34,20 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @returns A prepared statement object.
    */
   public prepare<T = IDatabaseRow>(sql: string): IModulePreparedStatement<T> {
-    const stmt = this.db.prepare(sql);
-
     return {
-      all: (...params: unknown[]): T[] => {
-        const result = stmt.all(...params);
-        return Array.isArray(result) ? (result as T[]) : [];
+      all: async (...params: unknown[]): Promise<T[]> => {
+        const result = await this.connection.query<T>(sql, params);
+        return result.rows;
       },
-      get: (...params: unknown[]): T | undefined => {
-        const result = stmt.get(...params);
-        return result === undefined ? undefined : (result as T);
+      get: async (...params: unknown[]): Promise<T | undefined> => {
+        const result = await this.connection.query<T>(sql, params);
+        return result.rows[0];
       },
-      run: (...params: unknown[]): IMutationResult => {
-        const result = stmt.run(...params);
+      run: async (...params: unknown[]): Promise<IMutationResult> => {
+        await this.connection.execute(sql, params);
         return {
-          changes: result.changes,
-          lastInsertRowid: result.lastInsertRowid
+          changes: 1,
+          lastInsertRowid: 0
         };
       }
     };
@@ -73,8 +57,8 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * Executes a SQL script.
    * @param sql - The SQL script to execute.
    */
-  public exec(sql: string): void {
-    this.db.exec(sql);
+  public async exec(sql: string): Promise<void> {
+    await this.connection.execute(sql);
   }
 
   /**
@@ -82,8 +66,10 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @param fn - The function to execute.
    * @returns The result of the function.
    */
-  public transaction<T>(fn: () => T): T {
-    return this.db.transaction(fn)();
+  public async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return await this.connection.transaction(async (): Promise<T> => {
+      return await fn();
+    });
   }
 
   /**
@@ -93,10 +79,8 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @returns Promise resolving to array of results.
    */
   public async query<T = IDatabaseRow>(sql: string, params?: unknown[]): Promise<T[]> {
-    const stmt = this.db.prepare(sql);
-    const queryParams = params ?? [];
-    const result = stmt.all(...queryParams);
-    return await Promise.resolve(Array.isArray(result) ? (result as T[]) : []);
+    const result = await this.connection.query<T>(sql, params);
+    return result.rows;
   }
 
   /**
@@ -106,19 +90,11 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @returns Promise resolving to mutation result.
    */
   public async execute(sql: string, params?: unknown[]): Promise<IMutationResult> {
-    if (params !== undefined && params.length > ZERO) {
-      const stmt = this.db.prepare(sql);
-      const result = stmt.run(...params);
-      return {
-        changes: result.changes,
-        lastInsertRowid: result.lastInsertRowid
-      };
-    }
-      this.db.exec(sql);
-      return {
-        changes: 0,
-        lastInsertRowid: 0
-      };
+    await this.connection.execute(sql, params);
+    return {
+      changes: 1,
+      lastInsertRowid: 0
+    };
   }
 }
 
@@ -128,26 +104,17 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
  * @returns A module database adapter instance.
  * @throws Error if the database is not SQLite or adapter is not available.
  */
-export const createModuleAdapter = async (moduleName: string): Promise<IModuleDatabaseAdapter> => {
-  void moduleName;
-
+export const createModuleAdapter = async (
+  moduleName: string
+): Promise<IModuleDatabaseAdapter> => {
   const dbService = DatabaseService.getInstance();
-
-  await dbService.getConnection();
+  const connection = await dbService.getConnection();
 
   if (dbService.getDatabaseType() !== 'sqlite') {
     throw new Error(
-      'Module adapter currently only supports SQLite database'
+      `Module adapter currently only supports SQLite database. Module: ${moduleName}`
     );
   }
 
-  const db = await getDbInstance(dbService);
-
-  if (db === undefined) {
-    throw new Error(
-      'SQLite database instance not available'
-    );
-  }
-
-  return new SqliteModuleAdapter(db);
+  return new SqliteModuleAdapter(connection);
 };

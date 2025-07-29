@@ -1,5 +1,5 @@
 // Auto-generated database types for logger module
-// Generated on: 2025-07-28T20:02:59.642Z
+// Generated on: 2025-07-29T15:52:59.254Z
 // Do not modify this file manually - it will be overwritten
 
 /**

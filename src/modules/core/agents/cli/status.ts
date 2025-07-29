@@ -20,18 +20,17 @@ export const command: ICLICommand = {
 
     try {
       const agentService = AgentService.getInstance();
-      
-      // Test service health by attempting to list agents
-      await agentService.listAgents();
-      
+
+      const isHealthy = agentService.isHealthy();
+
       cliOutput.section('Agents Module Status');
 
       cliOutput.keyValue({
         Module: 'agents',
         Enabled: '✓',
-        Healthy: '✓',
+        Healthy: isHealthy ? '✓' : '✗',
         Service: 'AgentService initialized',
-        Message: 'Module is operational',
+        Message: isHealthy ? 'Module is operational' : 'Module available but not monitoring',
       });
 
       cliOutput.section('Capabilities');
@@ -41,9 +40,23 @@ export const command: ICLICommand = {
         'State persistence': '✓',
       });
 
+      try {
+        const agents = await agentService.listAgents();
+        cliOutput.section('Statistics');
+        cliOutput.keyValue({
+          'Total agents': agents.length.toString(),
+        });
+      } catch (error) {
+        logger.debug(LogSource.AGENT, 'Could not list agents for status (non-critical)', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       process.exit(0);
     } catch (error) {
-      cliOutput.error(`Error getting agents status: ${error instanceof Error ? error.message : String(error)}`);
+      cliOutput.error(
+        `Error getting agents status: ${error instanceof Error ? error.message : String(error)}`
+      );
       logger.error(LogSource.AGENT, 'Error getting agents status', {
         error: error instanceof Error ? error : new Error(String(error)),
       });

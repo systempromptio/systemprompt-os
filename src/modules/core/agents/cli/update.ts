@@ -231,7 +231,7 @@ const displayUpdatedAgent = (
     name: agent.name,
     type: agent.type,
     status: agent.status,
-    updated: new Date(agent.updated_at).toISOString()
+    updated: agent.updated_at ? new Date(agent.updated_at).toISOString() : 'N/A'
   }];
 
   cliOutput.table(tableData, [
@@ -259,6 +259,45 @@ const displayUpdatedAgent = (
 };
 
 /**
+ * Validates update data has at least one field.
+ * @param updateData - Update data to validate.
+ * @param cliOutput - CLI output service.
+ */
+const validateUpdateData = (
+  updateData: IUpdateAgentDto,
+  cliOutput: CliOutputService
+): void => {
+  if (Object.keys(updateData).length === 0) {
+    cliOutput.error('No update fields provided');
+    process.exit(1);
+  }
+};
+
+/**
+ * Handles the agent update result.
+ * @param agent - Updated agent or null.
+ * @param format - Output format.
+ * @param cliOutput - CLI output service.
+ */
+const handleUpdateResult = (
+  agent: IAgent | null,
+  format: unknown,
+  cliOutput: CliOutputService
+): void => {
+  if (agent === null) {
+    cliOutput.error('Agent not found');
+    process.exit(1);
+  }
+
+  if (format !== 'json') {
+    cliOutput.success(`Agent '${agent.name}' updated successfully`);
+  }
+
+  displayUpdatedAgent(agent, format, cliOutput);
+  process.exit(0);
+};
+
+/**
  * Executes the agent update process.
  * @param args - CLI arguments.
  * @param cliOutput - CLI output service.
@@ -271,33 +310,15 @@ const executeUpdate = async (
 ): Promise<void> => {
   const identifier = validateAgentId(args, cliOutput);
   const updateData = buildUpdateData(args, cliOutput);
+  validateUpdateData(updateData, cliOutput);
 
-  if (Object.keys(updateData).length === 0) {
-    cliOutput.error('No update fields provided');
-    process.exit(1);
-  }
-
-  const format = args.format;
-  
-  // Only show section header for non-JSON formats
+  const {format} = args;
   if (format !== 'json') {
     cliOutput.section('Updating Agent');
   }
-  
+
   const agent = await agentService.updateAgent(identifier, updateData);
-
-  if (agent === null) {
-    cliOutput.error('Agent not found');
-    process.exit(1);
-  }
-
-  // Only show success message for non-JSON formats
-  if (format !== 'json') {
-    cliOutput.success(`Agent '${agent.name}' updated successfully`);
-  }
-  
-  displayUpdatedAgent(agent, args.format, cliOutput);
-  process.exit(0);
+  handleUpdateResult(agent, format, cliOutput);
 };
 
 export const command: ICLICommand = {
@@ -305,7 +326,7 @@ export const command: ICLICommand = {
   options: [
     {
       name: 'id',
-      alias: 'i', 
+      alias: 'i',
       type: 'string',
       description: 'Agent ID to update',
       required: true

@@ -4,16 +4,27 @@ import { resolve } from 'path';
 export default defineConfig({
   test: {
     name: 'integration',
-    include: ['tests/integration/**/*.integration.test.ts'],
+    include: [
+      'tests/integration/bootstrap/**/*.integration.test.ts',
+      'tests/integration/**/*.integration.test.ts', 
+      'tests/integration/**/*.spec.ts'
+    ],
     testTimeout: 60000,
     hookTimeout: 30000,
     isolate: true,
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true
+        singleFork: false,
+        isolate: true,
+        execArgv: ['--max-old-space-size=8192', '--expose-gc']
       }
     },
+    sequence: {
+      concurrent: true,
+      shuffle: false
+    },
+    bail: 1,
     environment: 'node',
     setupFiles: ['tests/integration/setup.ts'],
     globals: true,
@@ -21,8 +32,10 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
     coverage: {
+      enabled: true,
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      reportsDirectory: 'tests/integration/coverage',
       exclude: [
         'node_modules/',
         'tests/',
@@ -39,7 +52,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src')
+      '@': resolve(__dirname, './src'),
+      '@tests': resolve(__dirname, './tests')
     }
   }
 });

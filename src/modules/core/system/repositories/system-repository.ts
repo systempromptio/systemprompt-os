@@ -15,7 +15,7 @@ import {
   type ISystemMaintenance,
   type ISystemModule,
   type MaintenanceTypeEnum,
-  type ModuleStatusEnum
+  ModulesStatus,
 } from '@/modules/core/system/types/index';
 
 /**
@@ -47,8 +47,7 @@ export class SystemRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  async initialize(): Promise<void> {
-  }
+  async initialize(): Promise<void> {}
 
   /**
    * Check database connectivity.
@@ -76,11 +75,7 @@ export class SystemRepository {
    * @param type - The value type.
    * @returns Promise that resolves to the config.
    */
-  async upsertConfig(
-    key: string,
-    value: string,
-    type: ConfigTypeEnum
-  ): Promise<ISystemConfig> {
+  async upsertConfig(key: string, value: string, type: ConfigTypeEnum): Promise<ISystemConfig> {
     const existing = this.configs.get(key);
 
     const config: ISystemConfig = {
@@ -90,7 +85,7 @@ export class SystemRepository {
       isSecret: false,
       isReadonly: false,
       createdAt: existing?.createdAt ?? new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.configs.set(key, config);
@@ -126,11 +121,11 @@ export class SystemRepository {
     const module: ISystemModule = {
       name,
       version,
-      status: existing?.status ?? ('active' as ModuleStatusEnum),
+      status: existing?.status ?? ModulesStatus.RUNNING,
       enabled: existing?.enabled ?? true,
       initializedAt: existing?.initializedAt ?? new Date(),
       createdAt: existing?.createdAt ?? new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.modules.set(name, module);
@@ -143,7 +138,7 @@ export class SystemRepository {
    * @param status - The new status.
    * @returns Promise that resolves when updated.
    */
-  async updateModuleStatus(name: string, status: ModuleStatusEnum): Promise<void> {
+  async updateModuleStatus(name: string, status: ModulesStatus): Promise<void> {
     const module = this.modules.get(name);
     if (module) {
       module.status = status;
@@ -166,7 +161,7 @@ export class SystemRepository {
     source: string,
     severity: EventSeverityEnum,
     message: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<ISystemEvent> {
     const event: ISystemEvent = {
       id: this.eventIdCounter++,
@@ -175,7 +170,7 @@ export class SystemRepository {
       severity,
       message,
       metadata: metadata || {},
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     this.events.push(event);
@@ -192,13 +187,13 @@ export class SystemRepository {
   async createMaintenance(
     id: string,
     type: MaintenanceTypeEnum,
-    reason: string
+    reason: string,
   ): Promise<ISystemMaintenance> {
     const maintenance: ISystemMaintenance = {
       id,
       type,
       reason,
-      startedAt: new Date()
+      startedAt: new Date(),
     };
 
     this.maintenance.set(id, maintenance);

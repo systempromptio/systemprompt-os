@@ -4,12 +4,12 @@
  * @module modules/core/config/cli/model-commands
  */
 
-import { GoogleGenAI } from '@google/genai';
+import type { GoogleGenAI } from '@google/genai';
 import { getLoggerService } from '@/modules/core/logger';
 import { LogSource } from '@/modules/core/logger/types';
 import type {
-  IProviderConfig,
-  IModelParams
+  IModelParams,
+  IProviderConfig
 } from '@/modules/core/config/types/model.types';
 
 const logger = getLoggerService();

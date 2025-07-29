@@ -14,7 +14,8 @@ import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
 import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/database.generated";
+import type { IModule } from '@/modules/core/modules/types';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type {
@@ -73,11 +74,11 @@ export { createModuleAdapter };
  */
 export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   public readonly name = 'database';
-  public readonly type = 'core' as const;
+  public readonly type = ModulesType.CORE as const;
   public readonly version = '1.0.0';
   public readonly description = 'Core database management for SystemPrompt OS';
   public readonly dependencies: string[] = [];
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private initialized = false;
   private started = false;
   private logger!: ILogger;
@@ -255,7 +256,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       throw new Error('Database module already started');
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.DATABASE, 'Database module started', { category: 'startup' });
   }
@@ -281,7 +282,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
         });
       }
 
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.DATABASE, 'Database module stopped', { category: 'shutdown' });
     }
@@ -343,11 +344,11 @@ export const createModule = (): DatabaseModule => {
  * @throws {Error} If Database module is not available or missing required exports.
  */
 export function getDatabaseModule(): IModule<IDatabaseModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
+  const { getModuleRegistry } = require('@/modules/loader');
   const { ModuleName } = require('@/modules/types/index');
 
-  const moduleLoader = getModuleLoader();
-  const databaseModule = moduleLoader.getModule(ModuleName.DATABASE);
+  const registry = getModuleRegistry();
+  const databaseModule = registry.get(ModuleName.DATABASE);
 
   if (!databaseModule.exports?.service || typeof databaseModule.exports.service !== 'function') {
     throw new Error('Database module missing required service export');

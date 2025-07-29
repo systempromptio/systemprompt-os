@@ -28,9 +28,21 @@ import type {
   ListResourceTemplatesResult,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js';
-import { LogSource, LoggerService } from '@/modules/core/logger/index';
+/**
+ * Simple logger implementation to avoid circular dependencies.
+ */
+const logger = {
+  debug: (source: string, message: string, data?: unknown): void => {
+    console.debug(`[${source}] ${message}`, data ? JSON.stringify(data) : '');
+  }
+};
 
-const logger = LoggerService.getInstance();
+/**
+ * Log source constants.
+ */
+const LogSource = {
+  MCP: 'MCP'
+} as const;
 
 /**
  * Available resource templates for dynamic resource discovery.
@@ -77,8 +89,7 @@ const RESOURCETEMPLATES: ResourceTemplate[] = [
 
 /**
  * Handles MCP resources/templates/list requests.
- * @param _request - The list resource templates request (unused).
- * @param request
+ * @param request - The list resource templates request.
  * @returns List of available resource templates.
  * Returns the list of available resource templates that clients can use
  * to construct dynamic resource URIs.
@@ -88,13 +99,12 @@ const RESOURCETEMPLATES: ResourceTemplate[] = [
  * console.log(`Available templates: ${result.resourceTemplates.length}`);
  * ```
  */
-export const handleListResourceTemplates = function handleListResourceTemplatesImpl(
+export const handleListResourceTemplates = function handleListResourceTemplates(
   request: ListResourceTemplatesRequest,
 ): ListResourceTemplatesResult {
-  void request;
-
   logger.debug(LogSource.MCP, '📋 Listing resource templates', {
     templateCount: RESOURCETEMPLATES.length,
+    requestReceived: Boolean(request)
   });
 
   return {
@@ -106,7 +116,7 @@ export const handleListResourceTemplates = function handleListResourceTemplatesI
  * Gets the current resource templates.
  * @returns Array of resource templates.
  */
-export const getResourceTemplates = function getResourceTemplatesImpl(): ResourceTemplate[] {
+export const getResourceTemplates = function getResourceTemplates(): ResourceTemplate[] {
   return RESOURCETEMPLATES;
 }
 
@@ -115,7 +125,7 @@ export const getResourceTemplates = function getResourceTemplatesImpl(): Resourc
  * @param template - The URI template string.
  * @returns Regular expression for matching URIs.
  */
-const createTemplateRegex = function createTemplateRegexImpl(template: string): RegExp {
+const createTemplateRegex = function createTemplateRegex(template: string): RegExp {
   const pattern = template
     .replace(/[.*+?^$()|[\]\\]/gu, '\\$&')
     .replace(/\{(\w+)\}/gu, '(?<$1>[^/]+)');
@@ -135,14 +145,14 @@ const createTemplateRegex = function createTemplateRegexImpl(template: string): 
  * }
  * ```
  */
-export const matchResourceTemplate = function matchResourceTemplateImpl(
+export const matchResourceTemplate = function matchResourceTemplate(
   uri: string,
 ): { template: ResourceTemplate; params: Record<string, string> } | null {
   for (const template of RESOURCETEMPLATES) {
     const regex = createTemplateRegex(template.uriTemplate);
     const match = uri.match(regex);
 
-    if (match?.groups != null) {
+    if (match?.groups !== undefined) {
       return {
         template,
         params: match.groups,
@@ -164,7 +174,10 @@ export const matchResourceTemplate = function matchResourceTemplateImpl(
  * console.log( uri); // 'task://123/logs'
  * ```
  */
-export const expandTemplate = function expandTemplateImpl(template: string, params: Record<string, string>): string {
+export const expandTemplate = function expandTemplate(
+  template: string,
+  params: Record<string, string>
+): string {
   return template.replace(/\{(\w+)\}/gu, (match, key: string): string => {
     return params[key] ?? match;
   });

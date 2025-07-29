@@ -82,15 +82,14 @@ export class TaskService implements ITaskService {
       LogSource.MODULES,
       `Task added: ${String(newTask.id)} (${newTask.type})`
     );
-    
-    // Emit task created event
+
     this.eventBus.emit(EventNames.TASK_CREATED, {
       taskId: newTask.id!,
       type: newTask.type,
       moduleId: newTask.moduleId,
       priority: newTask.priority
     });
-    
+
     return newTask;
   }
 
@@ -278,27 +277,26 @@ export class TaskService implements ITaskService {
    */
   public async assignTaskToAgent(taskId: number, agentId: string): Promise<void> {
     this.ensureInitialized();
-    
+
     const task = await this.taskRepository.findById(taskId);
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
-    
+
     if (task.assignedAgentId) {
       throw new Error(`Task ${taskId} already assigned to agent ${task.assignedAgentId}`);
     }
-    
-    await this.taskRepository.update(taskId, { 
+
+    await this.taskRepository.update(taskId, {
       assignedAgentId: agentId,
-      status: TaskStatusEnum.ASSIGNED 
+      status: TaskStatusEnum.ASSIGNED
     });
-    
+
     this.logger.info(
       LogSource.MODULES,
       `Task ${taskId} assigned to agent ${agentId}`
     );
-    
-    // Emit task assigned event
+
     this.eventBus.emit(EventNames.TASK_ASSIGNED, {
       taskId,
       agentId,
@@ -313,11 +311,11 @@ export class TaskService implements ITaskService {
    */
   public async unassignTask(taskId: number): Promise<void> {
     this.ensureInitialized();
-    
-    await this.taskRepository.update(taskId, { 
-      status: TaskStatusEnum.PENDING 
+
+    await this.taskRepository.update(taskId, {
+      status: TaskStatusEnum.PENDING
     });
-    
+
     this.logger.info(
       LogSource.MODULES,
       `Task ${taskId} unassigned`
@@ -352,13 +350,13 @@ export class TaskService implements ITaskService {
    */
   public async updateTaskProgress(taskId: number, progress: number): Promise<void> {
     this.ensureInitialized();
-    
+
     if (progress < 0 || progress > 100) {
       throw new Error('Progress must be between 0 and 100');
     }
-    
+
     await this.taskRepository.update(taskId, { progress });
-    
+
     this.logger.info(
       LogSource.MODULES,
       `Task ${taskId} progress updated to ${progress}%`
@@ -382,23 +380,22 @@ export class TaskService implements ITaskService {
    */
   public async completeTask(taskId: number, result: any): Promise<void> {
     this.ensureInitialized();
-    
+
     const task = await this.getTask(taskId);
-    if (!task) throw new Error('Task not found');
-    
+    if (!task) { throw new Error('Task not found'); }
+
     await this.taskRepository.update(taskId, {
       status: TaskStatusEnum.COMPLETED,
       result: typeof result === 'string' ? result : JSON.stringify(result),
       completedAt: new Date(),
       progress: 100
     });
-    
+
     this.logger.info(
       LogSource.MODULES,
       `Task ${taskId} completed successfully`
     );
-    
-    // Emit task completed event
+
     this.eventBus.emit(EventNames.TASK_COMPLETED, {
       taskId,
       agentId: task.assignedAgentId!,
@@ -415,23 +412,22 @@ export class TaskService implements ITaskService {
    */
   public async failTask(taskId: number, error: string): Promise<void> {
     this.ensureInitialized();
-    
+
     const task = await this.getTask(taskId);
-    if (!task) throw new Error('Task not found');
-    
+    if (!task) { throw new Error('Task not found'); }
+
     await this.taskRepository.update(taskId, {
       status: TaskStatusEnum.FAILED,
       error,
       completedAt: new Date()
     });
-    
+
     this.logger.error(
       LogSource.MODULES,
       `Task ${taskId} failed`,
       { error }
     );
-    
-    // Emit task failed event
+
     this.eventBus.emit(EventNames.TASK_FAILED, {
       taskId,
       agentId: task.assignedAgentId!,
@@ -439,5 +435,4 @@ export class TaskService implements ITaskService {
       failedAt: new Date()
     });
   }
-
 }

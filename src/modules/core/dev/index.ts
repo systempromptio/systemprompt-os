@@ -1,11 +1,11 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 /**
  * Dev module - Development tools and utilities.
  * @file Dev module entry point.
  * @module modules/core/dev
  */
 
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/index';
+import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/database.generated';
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -16,23 +16,23 @@ import type { IDevModuleExports } from '@/modules/core/dev/types/index';
  */
 export class DevModule implements IModule<IDevModuleExports> {
   public readonly name = 'dev';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Development tools and utilities';
   public readonly dependencies = ['logger', 'database'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private devService!: DevService;
   private logger!: ILogger;
   private initialized = false;
   private started = false;
   get exports(): IDevModuleExports {
     return {
-      service: (): DevService => { return this.getService() }
+      service: (): DevService => { return this.getService(); }
     };
   }
-
   /**
    * Initialize the dev module.
+   * @throws {Error} If module is already initialized or initialization fails.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -54,6 +54,7 @@ export class DevModule implements IModule<IDevModuleExports> {
 
   /**
    * Start the dev module.
+   * @throws {Error} If module is not initialized.
    */
   async start(): Promise<void> {
     if (!this.initialized) {
@@ -61,12 +62,14 @@ export class DevModule implements IModule<IDevModuleExports> {
     }
 
     if (this.started) {
-      return;
+      await Promise.resolve(); return;
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    const { RUNNING } = ModulesStatus;
+    this.status = RUNNING;
     this.started = true;
     this.logger.info(LogSource.SYSTEM, 'Dev module started');
+    await Promise.resolve();
   }
 
   /**
@@ -74,10 +77,12 @@ export class DevModule implements IModule<IDevModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      const { STOPPED } = ModulesStatus;
+      this.status = STOPPED;
       this.started = false;
       this.logger.info(LogSource.SYSTEM, 'Dev module stopped');
     }
+    await Promise.resolve();
   }
 
   /**
@@ -86,21 +91,21 @@ export class DevModule implements IModule<IDevModuleExports> {
    */
   async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
     if (!this.initialized) {
-      return {
+      return await Promise.resolve({
         healthy: false,
         message: 'Dev module not initialized'
-      };
+      });
     }
     if (!this.started) {
-      return {
+      return await Promise.resolve({
         healthy: false,
         message: 'Dev module not started'
-      };
+      });
     }
-    return {
+    return await Promise.resolve({
       healthy: true,
       message: 'Dev module is healthy'
-    };
+    });
   }
 
   /**
@@ -135,30 +140,73 @@ export const initialize = async (): Promise<DevModule> => {
 };
 
 /**
- * Gets the Dev module with type safety and validation.
+ * Singleton instance of DevModule.
+ */
+let devModuleInstance: DevModule | null = null;
+let initializationPromise: Promise<DevModule> | null = null;
+
+/**
+ * Gets the Dev module with type safety and validation using singleton pattern.
+ * Always returns an initialized module instance.
  * @returns The Dev module with guaranteed typed exports.
- * @throws {Error} If Dev module is not available or missing required exports.
+ * @throws {Error} If Dev module exports are invalid or missing service.
  */
 export const getDevModule = (): IModule<IDevModuleExports> => {
-  const moduleLoader = require('@/modules/loader').getModuleLoader() as ReturnType<
-    typeof import('@/modules/loader').getModuleLoader
-  >;
-  const { ModuleName } = require('@/modules/types/module-names.types') as {
-    ModuleName: typeof import('@/modules/types/module-names.types').ModuleName;
-  };
-
-  const devModule = moduleLoader.getModule(ModuleName.DEV);
-
-  if (!('exports' in devModule) || typeof devModule.exports !== 'object' || devModule.exports === null) {
-    throw new Error('Dev module missing exports property');
+  if (devModuleInstance && devModuleInstance.status !== ModulesStatus.PENDING) {
+    return devModuleInstance;
   }
 
-  const moduleExports = devModule.exports as Record<string, unknown>;
-  if (!('service' in moduleExports) || typeof moduleExports.service !== 'function') {
-    throw new Error('Dev module missing required service export');
+  if (!devModuleInstance) {
+    devModuleInstance = new DevModule();
   }
 
-  return devModule as unknown as IModule<IDevModuleExports>;
+  // Initialize synchronously if not already initialized
+  if (!initializationPromise && devModuleInstance.status === ModulesStatus.PENDING) {
+    initializationPromise = devModuleInstance.initialize().then(() => {
+      initializationPromise = null;
+      return devModuleInstance!;
+    }).catch((error) => {
+      initializationPromise = null;
+      throw error;
+    });
+  }
+
+  if (typeof devModuleInstance.exports.service !== 'function') {
+    throw new Error(
+      'Dev module missing required service export'
+    );
+  }
+
+  return devModuleInstance;
+};
+
+/**
+ * Gets the Dev module asynchronously with guaranteed initialization.
+ * @returns Promise that resolves to the initialized Dev module.
+ */
+export const getDevModuleAsync = async (): Promise<IModule<IDevModuleExports>> => {
+  if (devModuleInstance && devModuleInstance.status !== ModulesStatus.PENDING) {
+    return devModuleInstance;
+  }
+
+  if (!devModuleInstance) {
+    devModuleInstance = new DevModule();
+  }
+
+  if (devModuleInstance.status === ModulesStatus.PENDING) {
+    if (!initializationPromise) {
+      initializationPromise = devModuleInstance.initialize().then(() => {
+        initializationPromise = null;
+        return devModuleInstance!;
+      }).catch((error) => {
+        initializationPromise = null;
+        throw error;
+      });
+    }
+    await initializationPromise;
+  }
+
+  return devModuleInstance;
 };
 
 export default DevModule;

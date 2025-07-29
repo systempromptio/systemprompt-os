@@ -1,40 +1,96 @@
 /**
+ * Config get CLI command - retrieves configuration values by key or lists all configuration.
  * @file Config get CLI command.
  * @module modules/core/config/cli/get
  */
 
-import { ConfigModule } from '@/modules/core/config/index';
+import { getConfigModule } from '@/modules/core/config/index';
 import type { ICLIContext } from '@/modules/core/cli/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+
+/**
+ * Extracts the key from the context object.
+ * @param context - CLI context or simple object with key.
+ * @returns The extracted key or undefined.
+ */
+const extractKey = (context: ICLIContext | { key?: string }): string | undefined => {
+  if ('args' in context) {
+    const { args } = context;
+    const { key: argsKey } = args;
+    return typeof argsKey === 'string' ? argsKey : undefined;
+  }
+  const { key } = context;
+  return key;
+};
+
+/**
+ * Handles the case when no configuration key is provided.
+ * @param value - The configuration value (should be array or undefined).
+ * @param logger - Logger instance.
+ */
+const handleNoKey = (
+  value: unknown,
+  logger: ReturnType<typeof LoggerService.getInstance>
+): void => {
+  if (value === undefined) {
+    logger.info(LogSource.CLI, 'No configuration values found.');
+    return;
+  }
+
+  try {
+    logger.info(LogSource.CLI, JSON.stringify(value, null, 2));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(LogSource.CLI, `Error serializing configuration value: ${errorMessage}`);
+    process.exit(1);
+  }
+};
+
+/**
+ * Handles the case when a specific configuration key is provided.
+ * @param key - The configuration key.
+ * @param value - The configuration value.
+ * @param logger - Logger instance.
+ */
+const handleSpecificKey = (
+  key: string,
+  value: unknown,
+  logger: ReturnType<typeof LoggerService.getInstance>
+): void => {
+  if (value === undefined) {
+    logger.error(LogSource.CLI, `Configuration key '${key}' not found.`);
+    process.exit(1);
+  }
+
+  try {
+    logger.info(LogSource.CLI, JSON.stringify(value, null, 2));
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(LogSource.CLI, `Error serializing configuration value: ${errorMessage}`);
+    process.exit(1);
+  }
+};
 
 export const command = {
   description: 'Get configuration value(s)',
   execute: async (context: ICLIContext | { key?: string }): Promise<void> => {
-    let key: string | undefined;
-    if ('args' in context) {
-      key = context.args?.key as string | undefined;
-    } else {
-      key = context.key;
-    }
-
-    const configModule = new ConfigModule();
-    await configModule.initialize();
-
-    const value = await configModule.get(key);
-
-    if (key && value === undefined) {
-      console.error(`Configuration key '${key}' not found.`);
-      process.exit(1);
-    }
-
-    if (!key && value === undefined) {
-      console.log('No configuration values found.');
-      return;
-    }
+    const logger = LoggerService.getInstance();
+    const key = extractKey(context);
 
     try {
-      console.log(JSON.stringify(value, null, 2));
+      const configModule = getConfigModule();
+      const value = await configModule.exports.get(key);
+
+      if (key !== undefined && key !== '') {
+        handleSpecificKey(key, value, logger);
+      } else {
+        handleNoKey(value, logger);
+      }
     } catch (error) {
-      console.error('Error serializing configuration value:', error);
+      logger.error(LogSource.CLI, 'Failed to get configuration', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
       process.exit(1);
     }
   },

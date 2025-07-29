@@ -9,6 +9,7 @@ import { AuthService } from '@/modules/core/auth/services/auth.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
 
 export const command = {
   description: 'Show auth module status (enabled/healthy)',
@@ -18,14 +19,19 @@ export const command = {
 
     try {
       AuthService.getInstance();
+      const authModule = getAuthModule();
+      const moduleVersion = authModule?.version || 'Unknown';
+      const moduleStatus = authModule?.status || 'Unknown';
 
       cliOutput.section('Auth Module Status');
 
       cliOutput.keyValue({
-        Module: 'auth',
-        Enabled: '✓',
-        Healthy: '✓',
-        Service: 'AuthService initialized',
+        "Module": 'auth',
+        'Module Version': moduleVersion,
+        'Module Status': moduleStatus,
+        "Enabled": '✓',
+        "Healthy": '✓',
+        "Service": 'AuthService initialized',
       });
 
       const hasProviders = true

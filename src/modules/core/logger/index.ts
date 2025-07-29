@@ -1,4 +1,4 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
+import { ModulesType } from "@/modules/core/modules/types/database.generated";
 /**
  * Core logger module - provides system-wide logging.
  * @file Core logger module - provides system-wide logging.
@@ -7,7 +7,8 @@ import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
 
 import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
-import { type IModule, ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
+import type { IModule } from '@/modules/core/modules/types';
 import {
   type ILogFiles,
   type ILogger,
@@ -40,18 +41,17 @@ export const isLoggerModule = (mod: unknown): mod is IModule<ILoggerModuleExport
  */
 export class LoggerModule implements IModule<ILoggerModuleExports> {
   public readonly name = 'logger';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'System-wide logging service with file and console output';
   public readonly dependencies = [];
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private readonly loggerService: LoggerServiceClass;
   private initialized = false;
   private started = false;
   get exports(): ILoggerModuleExports {
     return {
       service: (): ILogger => { return this.getService() },
-      logger: (): ILogger => { return this.getService() },
       getInstance: (): LoggerServiceClass => { return LoggerServiceClass.getInstance() },
     };
   }
@@ -214,7 +214,6 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
     }
 
     if (this.getLoggerMode() === LoggerMode.CLI) {
-      // Include console output when debug logging is requested in CLI mode
       if (this.getLogLevel() === 'debug') {
         return [LogOutput.CONSOLE, LogOutput.DATABASE];
       }
@@ -316,18 +315,14 @@ export async function createLoggerModuleForBootstrap(): Promise<IModule<ILoggerM
  * @throws {Error} If Logger module is not available or missing required exports.
  */
 export function getLoggerModule(): IModule<ILoggerModuleExports> {
-  const { getModuleLoader } = require('@/modules/loader');
+  const { getModuleRegistry } = require('@/modules/loader');
   const { ModuleName } = require('@/modules/types/module-names.types');
 
-  const moduleLoader = getModuleLoader();
-  const loggerModule = moduleLoader.getModule(ModuleName.LOGGER);
+  const registry = getModuleRegistry();
+  const loggerModule = registry.get(ModuleName.LOGGER);
 
   if (!loggerModule.exports?.service || typeof loggerModule.exports.service !== 'function') {
     throw new Error('Logger module missing required service export');
-  }
-
-  if (!loggerModule.exports?.logger || typeof loggerModule.exports.logger !== 'function') {
-    throw new Error('Logger module missing required logger export');
   }
 
   if (!loggerModule.exports?.getInstance || typeof loggerModule.exports.getInstance !== 'function') {

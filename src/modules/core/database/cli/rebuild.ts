@@ -7,182 +7,46 @@
 
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import type { ICLIContext } from '@/modules/core/cli/types/index';
 import {
- existsSync, readFileSync
-} from 'fs';
-import { join } from 'path';
-import { CORE_MODULES } from '@/constants/bootstrap';
+  DatabaseRebuildService,
+  type IRebuildParams
+} from '@/modules/core/cli/services/database-rebuild.service';
+import type { ICLIContext } from '@/modules/core/cli/types/index';
 
 /**
- * Discover all module schema files by scanning the module directories.
+ * Handle rebuild command execution.
+ * @param params - Rebuild parameters.
+ * @param logger - Logger service instance.
  */
-function discoverModuleSchemas(): string[] {
-  const logger = LoggerService.getInstance();
-  const cliOutput = CliOutputService.getInstance();
-  const schemaFiles: string[] = [];
-
-  cliOutput.info(`Scanning ${CORE_MODULES.length} core modules for schemas...`);
-  logger.debug(LogSource.CLI, `Scanning ${CORE_MODULES.length} core modules for schemas...`);
-
-  for (const coreModule of CORE_MODULES) {
-    const modulePath = coreModule.path.replace(/\/index\.(?:ts|js)$/u, '');
-    const schemaPath = join(process.cwd(), modulePath, 'database', 'schema.sql');
-
-    logger.debug(LogSource.CLI, `Checking schema for ${coreModule.name}: ${schemaPath}`);
-
-    if (existsSync(schemaPath)) {
-      schemaFiles.push(schemaPath);
-      cliOutput.info(`Found schema for ${coreModule.name}`);
-      logger.debug(LogSource.CLI, `Found schema for ${coreModule.name}`);
-    } else {
-      logger.debug(LogSource.CLI, `No schema found for ${coreModule.name}`);
-    }
-  }
-
-  return schemaFiles;
-}
-
-/**
- * Execute SQL statements from a schema file.
- * @param schemaPath
- * @param database
- * @param logger
- * @param cliOutput
- */
-async function executeSchemaFile(schemaPath: string, database: DatabaseService, logger: LoggerService, cliOutput: CliOutputService): Promise<void> {
-  try {
-    const schemaSql = readFileSync(schemaPath, 'utf-8');
-
-    const statements = schemaSql
-      .split(';')
-      .map(stmt => { return stmt.trim() })
-      .filter(stmt => {
-        return stmt.length > 0
-               && !stmt.startsWith('--')
-               && !stmt.toUpperCase().startsWith('BEGIN')
-               && !stmt.toUpperCase().startsWith('COMMIT')
-               && !stmt.toUpperCase().startsWith('ROLLBACK');
-      });
-
-    let hasErrors = false;
-
-    for (const statement of statements) {
-      if (statement.trim()) {
-        try {
-          await database.execute(statement);
-        } catch (statementError: any) {
-          const errorMessage = statementError.message || String(statementError);
-          if (errorMessage.includes('already exists')
-              || errorMessage.includes('cannot commit')
-              || errorMessage.includes('no transaction')) {
-            logger.debug(LogSource.CLI, `Non-critical SQL warning in ${schemaPath}: ${errorMessage}`);
-          } else {
-            logger.error(LogSource.CLI, `SQL error in ${schemaPath}: ${errorMessage}`);
-            hasErrors = true;
-          }
-        }
-      }
-    }
-
-    if (hasErrors) {
-      cliOutput.warning(`Schema initialized with warnings: ${schemaPath.split('/').pop()}`);
-    } else {
-      cliOutput.success(`Initialized schema: ${schemaPath.split('/').pop()}`);
-    }
-    logger.debug(LogSource.CLI, `Completed schema: ${schemaPath}`);
-  } catch (error) {
-    cliOutput.error(`Failed to read schema ${schemaPath.split('/').pop()}: ${error}`);
-    logger.error(LogSource.CLI, `Failed to read schema ${schemaPath}: ${error}`);
-  }
-}
-
-/**
- * Drop all existing database objects (tables, indexes, views, triggers).
- */
-async function dropAllTables(): Promise<void> {
-  const logger = LoggerService.getInstance();
-  const database = DatabaseService.getInstance();
+const handleRebuildExecution = async function handleRebuildExecution(
+  params: IRebuildParams,
+  logger: LoggerService
+): Promise<void> {
+  const rebuildService = DatabaseRebuildService.getInstance();
   const cliOutput = CliOutputService.getInstance();
 
-  cliOutput.info('Dropping all existing database objects...');
-  logger.debug(LogSource.CLI, 'Dropping all existing database objects...');
+  cliOutput.section('Database Rebuild', 'Initializing module schemas');
+  logger.info(LogSource.CLI, 'Starting database rebuild...');
 
-  try {
-    // Get all database objects (tables, indexes, views, triggers)
-    const objects = await database.query<{ type: string; name: string }>(
-      "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type DESC"
+  const result = await rebuildService.handleRebuild(params, logger);
+
+  if (!result.success) {
+    cliOutput.error(result.message);
+    logger.error(LogSource.CLI, result.message);
+    process.exit(1);
+  }
+
+  if (result.details !== null && result.details !== undefined) {
+    cliOutput.success(
+      `Rebuilt database: ${String(result.details.tablesDropped)} tables dropped, `
+      + `${String(result.details.filesImported)} schemas imported`
     );
-
-    let dropped = 0;
-
-    // Drop each object in order (views first, then triggers, then indexes, then tables)
-    for (const obj of objects) {
-      try {
-        let dropStatement = '';
-        switch (obj.type) {
-          case 'table':
-            dropStatement = `DROP TABLE IF EXISTS "${obj.name}"`;
-            break;
-          case 'index':
-            dropStatement = `DROP INDEX IF EXISTS "${obj.name}"`;
-            break;
-          case 'view':
-            dropStatement = `DROP VIEW IF EXISTS "${obj.name}"`;
-            break;
-          case 'trigger':
-            dropStatement = `DROP TRIGGER IF EXISTS "${obj.name}"`;
-            break;
-          default:
-            continue;
-        }
-
-        await database.execute(dropStatement);
-        cliOutput.info(`Dropped ${obj.type}: ${obj.name}`);
-        logger.debug(LogSource.CLI, `Dropped ${obj.type}: ${obj.name}`);
-        dropped++;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        // Use debug instead of warning since IF EXISTS makes this expected behavior
-        logger.debug(LogSource.CLI, `Could not drop ${obj.type} ${obj.name}: ${errorMessage}`);
-      }
-    }
-
-    cliOutput.success(`Dropped ${dropped} database objects`);
-    logger.debug(LogSource.CLI, `Dropped ${dropped} database objects`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    cliOutput.error(`Failed to drop database objects: ${errorMessage}`);
-    logger.error(LogSource.CLI, `Failed to drop database objects: ${errorMessage}`);
-    throw error;
   }
-}
 
-/**
- * Initialize module schemas from discovered schema files.
- */
-async function initializeModuleSchemas(): Promise<void> {
-  const logger = LoggerService.getInstance();
-  const database = DatabaseService.getInstance();
-  const cliOutput = CliOutputService.getInstance();
-
-  // First drop all existing tables
-  await dropAllTables();
-
-  cliOutput.info('Discovering module schemas...');
-  logger.debug(LogSource.CLI, 'Discovering module schemas...');
-
-  const schemaFiles = discoverModuleSchemas();
-
-  cliOutput.info(`Found ${schemaFiles.length} schema files to initialize`);
-  logger.debug(LogSource.CLI, `Found ${schemaFiles.length} schema files to initialize`);
-
-  for (const schemaPath of schemaFiles) {
-    await executeSchemaFile(schemaPath, database, logger, cliOutput);
-  }
-}
+  cliOutput.success(result.message);
+  logger.info(LogSource.CLI, result.message);
+};
 
 /**
  * Database rebuild command configuration.
@@ -205,31 +69,25 @@ export const command = {
   ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
-    const force = args.force === true;
-    const confirm = args.confirm === true;
-
     const logger = LoggerService.getInstance();
-    const cliOutput = CliOutputService.getInstance();
 
-    if (!force && !confirm) {
-      cliOutput.error('Confirmation required. Use --force or --confirm to proceed.');
-      logger.error(LogSource.CLI, 'Confirmation required. Use --force or --confirm to proceed.');
-      process.exit(1);
-    }
+    const force = Boolean(args.force);
+    const confirm = Boolean(args.confirm);
+
+    const params: IRebuildParams = {
+      force,
+      confirm
+    };
 
     try {
-      cliOutput.section('Database Rebuild', 'Initializing module schemas');
-      logger.info(LogSource.CLI, 'Starting database rebuild...');
-
-      await initializeModuleSchemas();
-
-      cliOutput.success('Database rebuild completed successfully');
-      logger.info(LogSource.CLI, 'Database rebuild completed successfully');
-      process.exit(0);
+      await handleRebuildExecution(params, logger);
     } catch (error) {
-      cliOutput.error(`Database rebuild failed: ${error}`);
-      logger.error(LogSource.CLI, `Database rebuild failed: ${error}`);
+      logger.error(LogSource.CLI, 'Error rebuilding database', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
       process.exit(1);
     }
-  },
+
+    process.exit(0);
+  }
 };

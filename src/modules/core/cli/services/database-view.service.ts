@@ -73,17 +73,21 @@ export class DatabaseViewService {
    * Private constructor for singleton.
    */
   private constructor() {
-    // Private constructor
+    /**
+     * Private constructor.
+     */
   }
 
   /**
    * Handle view operation for a database table.
    * @param params - View parameters including table name, format, and filters.
-   * @returns Promise resolving to view result.
+   * @returns View result.
    */
-  public async handleView(params: IViewParams): Promise<IViewResult> {
+  public handleView(params: IViewParams): IViewResult {
     try {
-      // Validate table name
+      /**
+       * Validate table name.
+       */
       if (!params.tableName || params.tableName.trim() === '') {
         return {
           success: false,
@@ -91,17 +95,21 @@ export class DatabaseViewService {
         };
       }
 
-      // Check if only schema is requested
+      /**
+       * Check if only schema is requested.
+       */
       if (params.schemaOnly) {
-        const schema = await this.getTableSchema(params.tableName);
+        const schema = this.getTableSchema(params.tableName);
         return {
           success: true,
           schema
         };
       }
 
-      // Get table data with pagination
-      const tableData = await this.getTableData(params);
+      /**
+       * Get table data with pagination.
+       */
+      const tableData = this.getTableData(params);
       return {
         success: true,
         data: tableData
@@ -118,10 +126,12 @@ export class DatabaseViewService {
   /**
    * Get schema information for a table.
    * @param tableName - Name of the table.
-   * @returns Promise resolving to schema information.
+   * @returns Schema information.
    */
-  private async getTableSchema(tableName: string): Promise<ISchemaInfo> {
-    // Mock implementation - would query actual database schema
+  private getTableSchema(tableName: string): ISchemaInfo {
+    /**
+     * Mock implementation - would query actual database schema.
+     */
     const columns: IColumnInfo[] = this.getMockColumns(tableName);
     
     return {
@@ -133,13 +143,15 @@ export class DatabaseViewService {
   /**
    * Get table data with pagination and filtering.
    * @param params - View parameters.
-   * @returns Promise resolving to table data.
+   * @returns Table data.
    */
-  private async getTableData(params: IViewParams): Promise<ITableData> {
+  private getTableData(params: IViewParams): ITableData {
     const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
     
-    // Mock implementation - would query actual database
+    /**
+     * Mock implementation - would query actual database.
+     */
     const mockData = this.getMockTableData(params.tableName, limit, offset);
     const totalRows = this.getMockTotalRows(params.tableName);
     
@@ -159,76 +171,102 @@ export class DatabaseViewService {
    * @returns Array of column information.
    */
   private getMockColumns(tableName: string): IColumnInfo[] {
-    // Return appropriate mock columns based on table name
+    /**
+     * Return appropriate mock columns based on table name.
+     */
     switch (tableName.toLowerCase()) {
       case 'users':
         return [
-          { name: 'id',
-type: 'INTEGER',
-nullable: false,
-primaryKey: true,
-defaultValue: null },
-          { name: 'email',
-type: 'TEXT',
-nullable: false,
-primaryKey: false,
-defaultValue: null },
-          { name: 'name',
-type: 'TEXT',
-nullable: true,
-primaryKey: false,
-defaultValue: null },
-          { name: 'created_at',
-type: 'DATETIME',
-nullable: false,
-primaryKey: false,
-defaultValue: 'CURRENT_TIMESTAMP' },
-          { name: 'updated_at',
-type: 'DATETIME',
-nullable: false,
-primaryKey: false,
-defaultValue: 'CURRENT_TIMESTAMP' }
+          {
+            name: 'id',
+            type: 'INTEGER',
+            nullable: false,
+            primaryKey: true,
+            defaultValue: null
+          },
+          {
+            name: 'email',
+            type: 'TEXT',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: null
+          },
+          {
+            name: 'name',
+            type: 'TEXT',
+            nullable: true,
+            primaryKey: false,
+            defaultValue: null
+          },
+          {
+            name: 'created_at',
+            type: 'DATETIME',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: 'CURRENT_TIMESTAMP'
+          },
+          {
+            name: 'updated_at',
+            type: 'DATETIME',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: 'CURRENT_TIMESTAMP'
+          }
         ];
       case 'sessions':
         return [
-          { name: 'id',
-type: 'TEXT',
-nullable: false,
-primaryKey: true,
-defaultValue: null },
-          { name: 'user_id',
-type: 'INTEGER',
-nullable: false,
-primaryKey: false,
-defaultValue: null },
-          { name: 'expires_at',
-type: 'DATETIME',
-nullable: false,
-primaryKey: false,
-defaultValue: null },
-          { name: 'created_at',
-type: 'DATETIME',
-nullable: false,
-primaryKey: false,
-defaultValue: 'CURRENT_TIMESTAMP' }
+          {
+            name: 'id',
+            type: 'TEXT',
+            nullable: false,
+            primaryKey: true,
+            defaultValue: null
+          },
+          {
+            name: 'user_id',
+            type: 'INTEGER',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: null
+          },
+          {
+            name: 'expires_at',
+            type: 'DATETIME',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: null
+          },
+          {
+            name: 'created_at',
+            type: 'DATETIME',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: 'CURRENT_TIMESTAMP'
+          }
         ];
       default:
         return [
-          { name: 'id',
-type: 'INTEGER',
-nullable: false,
-primaryKey: true,
-defaultValue: null },
-          { name: 'name',
-type: 'TEXT',
-nullable: false,
-primaryKey: false,
-defaultValue: null },
-          { name: 'value',
-type: 'TEXT',
-nullable: true,
-primaryKey: false,
-defaultValue: null }
+          {
+            name: 'id',
+            type: 'INTEGER',
+            nullable: false,
+            primaryKey: true,
+            defaultValue: null
+          },
+          {
+            name: 'name',
+            type: 'TEXT',
+            nullable: false,
+            primaryKey: false,
+            defaultValue: null
+          },
+          {
+            name: 'value',
+            type: 'TEXT',
+            nullable: true,
+            primaryKey: false,
+            defaultValue: null
+          }
         ];
     }
   }
@@ -241,23 +279,25 @@ defaultValue: null }
    * @returns Array of mock data rows.
    */
   private getMockTableData(tableName: string, limit: number, offset: number): unknown[] {
-    // Generate mock data based on table name
+    /**
+     * Generate mock data based on table name.
+     */
     const mockRows: unknown[] = [];
     
-    for (let i = offset; i < offset + Math.min(limit, 10); i++) {
+    for (let i = offset; i < offset + Math.min(limit, 10); i += 1) {
       switch (tableName.toLowerCase()) {
         case 'users':
           mockRows.push({
             id: i + 1,
-            email: `user${i + 1}@example.com`,
-            name: `User ${i + 1}`,
+            email: `user${String(i + 1)}@example.com`,
+            name: `User ${String(i + 1)}`,
             created_at: new Date(Date.now() - (i * 86400000)).toISOString(),
             updated_at: new Date().toISOString()
           });
           break;
         case 'sessions':
           mockRows.push({
-            id: `session_${i + 1}`,
+            id: `session_${String(i + 1)}`,
             user_id: i + 1,
             expires_at: new Date(Date.now() + 86400000).toISOString(),
             created_at: new Date().toISOString()
@@ -266,8 +306,8 @@ defaultValue: null }
         default:
           mockRows.push({
             id: i + 1,
-            name: `Item ${i + 1}`,
-            value: `Value for item ${i + 1}`
+            name: `Item ${String(i + 1)}`,
+            value: `Value for item ${String(i + 1)}`
           });
       }
     }
@@ -281,7 +321,9 @@ defaultValue: null }
    * @returns Total number of rows in the table.
    */
   private getMockTotalRows(tableName: string): number {
-    // Return different counts based on table name
+    /**
+     * Return different counts based on table name.
+     */
     switch (tableName.toLowerCase()) {
       case 'users': return 150;
       case 'sessions': return 75;

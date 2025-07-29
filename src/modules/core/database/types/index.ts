@@ -120,3 +120,61 @@ export interface ISummaryParams {
   includeSystem?: boolean;
   sortBy?: 'name' | 'rows' | 'columns';
 }
+
+/**
+ * Summary statistics for database tables.
+ */
+export interface ISummaryStats {
+  totalTables: number;
+  totalRows: number;
+  totalColumns: number;
+  schemaVersion?: string;
+}
+
+/**
+ * Table information.
+ */
+export interface ITableInfo {
+  name: string;
+  rows: number;
+  columns: number;
+  rowCount: number;
+  columnCount: number;
+  schema?: string;
+}
+
+/**
+ * Database connection interface.
+ */
+export interface IDatabaseConnection {
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
+  close(): Promise<void>;
+}
+
+/**
+ * Database adapter interface.
+ */
+export interface IDatabaseAdapter {
+  connect(): Promise<IDatabaseConnection>;
+  disconnect(): Promise<void>;
+  isConnected(): boolean;
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
+}
+
+/**
+ * Summary result for database operations.
+ */
+export interface ISummaryResult {
+  success: boolean;
+  message?: string;
+  data?: unknown;
+}
+
+/**
+ * Database connection interface for summary operations.
+ */
+export interface IDatabaseConnectionForSummary {
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+}

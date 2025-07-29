@@ -10,6 +10,12 @@ import type {
   CLIOption,
   CommandMetadata,
 } from '@/modules/core/cli/types/index';
+import type {
+  ICliCommandAliasesRow,
+  ICliCommandOptionsRow,
+  ICliCommandsRow,
+} from '@/modules/core/cli/types/database.generated';
+import { CLI_TABLES } from '@/modules/core/cli/types/database.generated';
 import {
   CliInitializationError,
   CommandNotFoundError,
@@ -23,53 +29,11 @@ import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
 
 /**
- * Database command interface matching exact database schema.
- * @interface IDatabaseCommand
+ * Complete command with options and aliases loaded from normalized tables.
  */
- 
-interface IDatabaseCommand {
-  id: number;
-   
-  command_path: string;
-   
-  command_name: string;
-  description: string;
-   
-  module_name: string;
-   
-  executor_path: string;
-  options: string;
-  aliases: string;
-  active: number;
-   
-  created_at: string;
-   
-  updated_at: string;
-}
-
-/**
- * Parsed database command interface with JSON-parsed fields.
- * @interface IParsedDatabaseCommand
- */
- 
-interface IParsedDatabaseCommand {
-  id: number;
-   
-  command_path: string;
-   
-  command_name: string;
-  description: string;
-   
-  module_name: string;
-   
-  executor_path: string;
+interface ICompleteCommand extends ICliCommandsRow {
   options: CLIOption[];
   aliases: string[];
-  active: number;
-   
-  created_at: string;
-   
-  updated_at: string;
 }
 
 /**
@@ -150,7 +114,7 @@ export class CliService {
     for (const cmd of commands) {
       commandMap.set(cmd.command_path, {
         name: cmd.command_name,
-        description: cmd.description,
+        description: cmd.description || '',
         options: cmd.options,
         executorPath: cmd.executor_path,
       });
@@ -437,43 +401,164 @@ export class CliService {
 
     const commandPath = `${moduleName}:${command.name ?? 'unknown'}`;
 
+    // Insert the main command record
     await this.database.execute(
-      `INSERT OR REPLACE INTO cli_commands 
-       (command_path, command_name, description, module_name, executor_path, options, aliases, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO ${CLI_TABLES.CLICOMMANDS}
+       (command_path, command_name, description, module_name, executor_path, active)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         commandPath,
         command.name ?? 'unknown',
         command.description,
         moduleName,
         executorPath,
-        JSON.stringify(command.options ?? []),
-        JSON.stringify(command.aliases ?? []),
         1,
       ],
     );
+
+    // Get the command ID (for INSERT OR REPLACE, we need to query it)
+    const commandRecord = await this.database.query<ICliCommandsRow>(
+      `SELECT id FROM ${CLI_TABLES.CLICOMMANDS} WHERE command_path = ?`,
+      [commandPath],
+    );
+
+    if (commandRecord.length === 0) {
+      throw new Error(`Failed to retrieve command ID for ${commandPath}`);
+    }
+
+    const commandId = commandRecord[0]?.id;
+    if (!commandId) {
+      throw new Error(`Failed to retrieve command ID for ${commandPath}`);
+    }
+
+    // Clear existing options and aliases for this command
+    await this.database.execute(
+      `DELETE FROM ${CLI_TABLES.CLICOMMANDOPTIONS} WHERE command_id = ?`,
+      [commandId],
+    );
+    await this.database.execute(
+      `DELETE FROM ${CLI_TABLES.CLICOMMANDALIASES} WHERE command_id = ?`,
+      [commandId],
+    );
+
+    // Insert options
+    if (command.options && command.options.length > 0) {
+      for (const option of command.options) {
+        await this.database.execute(
+          `INSERT INTO ${CLI_TABLES.CLICOMMANDOPTIONS}
+           (command_id, option_name, option_type, description, alias, default_value, required, choices)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            commandId,
+            option.name,
+            option.type,
+            option.description,
+            option.alias || null,
+            option.default ? String(option.default) : null,
+            option.required ? 1 : 0,
+            option.choices ? option.choices.join(',') : null,
+          ],
+        );
+      }
+    }
+
+    // Insert aliases
+    if (command.aliases && command.aliases.length > 0) {
+      for (const alias of command.aliases) {
+        await this.database.execute(
+          `INSERT INTO ${CLI_TABLES.CLICOMMANDALIASES}
+           (command_id, alias)
+           VALUES (?, ?)`,
+          [commandId, alias],
+        );
+      }
+    }
   }
 
   /**
-   * Get commands from database.
-   * @returns Array of registered commands.
+   * Get commands from database with options and aliases.
+   * @returns Array of complete commands.
    */
-  public async getCommandsFromDatabase(): Promise<IParsedDatabaseCommand[]> {
+  public async getCommandsFromDatabase(): Promise<ICompleteCommand[]> {
     if (this.database === null || this.database === undefined) {
       throw new Error('Database not initialized');
     }
 
-    const result = await this.database.query<IDatabaseCommand>(
-      `SELECT * FROM cli_commands WHERE active = 1 ORDER BY command_path`,
+    const commands = await this.database.query<ICliCommandsRow>(
+      `SELECT * FROM ${CLI_TABLES.CLICOMMANDS} WHERE active = 1 ORDER BY command_path`,
     );
 
-    return result.map((row): IParsedDatabaseCommand => {
-      return {
-        ...row,
-        options: JSON.parse(row.options ?? '[]') as CLIOption[],
-        aliases: JSON.parse(row.aliases ?? '[]') as string[],
+    const result: ICompleteCommand[] = [];
+
+    for (const command of commands) {
+      const options = await this.getCommandOptions(command.id);
+      const aliases = await this.getCommandAliases(command.id);
+      
+      result.push({
+        ...command,
+        options,
+        aliases,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Get options for a specific command.
+   * @param commandId - ID of the command.
+   * @returns Array of CLI options.
+   */
+  private async getCommandOptions(commandId: number): Promise<CLIOption[]> {
+    if (this.database === null || this.database === undefined) {
+      throw new Error('Database not initialized');
+    }
+
+    const options = await this.database.query<ICliCommandOptionsRow>(
+      `SELECT * FROM ${CLI_TABLES.CLICOMMANDOPTIONS} WHERE command_id = ? ORDER BY option_name`,
+      [commandId],
+    );
+
+    return options.map((opt): CLIOption => {
+      const cliOption: CLIOption = {
+        name: opt.option_name,
+        type: opt.option_type as 'string' | 'boolean' | 'number' | 'array',
+        description: opt.description,
+        required: opt.required ?? false,
       };
+      
+      if (opt.alias) {
+        cliOption.alias = opt.alias;
+      }
+      
+      if (opt.default_value) {
+        cliOption.default = opt.default_value;
+      }
+      
+      if (opt.choices) {
+        cliOption.choices = opt.choices.split(',').map(c => c.trim());
+      }
+      
+      return cliOption;
     });
+  }
+
+  /**
+   * Get aliases for a specific command.
+   * @param commandId - ID of the command.
+   * @returns Array of alias strings.
+   */
+  private async getCommandAliases(commandId: number): Promise<string[]> {
+    if (this.database === null || this.database === undefined) {
+      throw new Error('Database not initialized');
+    }
+
+    const aliases = await this.database.query<ICliCommandAliasesRow>(
+      `SELECT * FROM ${CLI_TABLES.CLICOMMANDALIASES} WHERE command_id = ? ORDER BY alias`,
+      [commandId],
+    );
+
+    return aliases.map(a => a.alias);
   }
 
   /**
@@ -513,7 +598,10 @@ export class CliService {
       throw new Error('Database not initialized');
     }
 
-    await this.database.execute('DELETE FROM cli_commands');
+    // Delete from child tables first (foreign key constraints)
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDOPTIONS}`);
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDALIASES}`);
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDS}`);
   }
 
   /**

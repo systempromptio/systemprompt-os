@@ -10,56 +10,80 @@ import {
 } from 'fs';
 import { join, resolve } from 'path';
 import { parse } from 'yaml';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { DatabaseService } from '@/modules/core/database/index';
-import type {
-  IModuleInfo,
-  IScannedModule
-} from '@/modules/core/modules/types/index';
-import { ModuleTypeEnum } from '@/modules/core/modules/types/index';
-import type {
-  IModuleManagerConfig
-} from '@/modules/core/modules/types/module-manager.types';
-import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { IScannedModule } from "@/modules/core/modules/types/scanner.types";
+import { ModulesType } from '@/modules/core/modules/types/database.generated';
+import type { ModuleManagerRepository } from
+  '@/modules/core/modules/repositories/module-manager.repository';
+import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 
 /**
  * Service for managing injectable modules with database persistence.
  */
 export class ModuleManagerService {
   private static instance: ModuleManagerService;
-  private readonly config: IModuleManagerConfig;
+  private readonly config: {
+    modulesPath: string;
+    injectablePath: string;
+    extensionsPath: string;
+  };
   private readonly repository: ModuleManagerRepository;
+  private readonly logger: ILogger;
 
   /**
    * Private constructor for singleton pattern.
    * @param config - Module manager configuration.
+   * @param config.modulesPath
    * @param logger - Logger instance.
+   * @param config.injectablePath
    * @param repository - Module manager repository.
+   * @param config.extensionsPath
    */
   private constructor(
-    config: IModuleManagerConfig,
-    private readonly logger: ILogger,
+    config: {
+      modulesPath: string;
+      injectablePath: string;
+      extensionsPath: string;
+    },
+    logger: ILogger,
     repository: ModuleManagerRepository
   ) {
     this.config = config;
+    this.logger = logger;
     this.repository = repository;
   }
 
   /**
    * Get singleton instance.
    * @param config - Module manager configuration.
+   * @param config.modulesPath
    * @param logger - Logger instance.
-   * @param database - Database service instance.
+   * @param config.injectablePath
+   * @param repository - Module manager repository.
+   * @param config.extensionsPath
    * @returns ModuleManagerService instance.
+   * @throws {Error} If required parameters are missing during initialization.
    */
-  static getInstance(config?: IModuleManagerConfig, logger?: ILogger, database?: DatabaseService): ModuleManagerService {
-    if (!ModuleManagerService.instance) {
-      if (!config || !logger || !database) {
-        throw new Error('ModuleManagerService not initialized - required parameters missing');
+  static getInstance(
+    config?: {
+      modulesPath: string;
+      injectablePath: string;
+      extensionsPath: string;
+    },
+    logger?: ILogger,
+    repository?: ModuleManagerRepository
+  ): ModuleManagerService {
+    if (ModuleManagerService.instance === undefined) {
+      if (config === undefined || logger === undefined || repository === undefined) {
+        throw new Error(
+          'ModuleManagerService not initialized - required parameters missing'
+        );
       }
-      const repository = ModuleManagerRepository.getInstance(database);
-      ModuleManagerService.instance = new ModuleManagerService(config, logger, repository);
+      ModuleManagerService.instance = new ModuleManagerService(
+        config,
+        logger,
+        repository
+      );
     }
     return ModuleManagerService.instance;
   }
@@ -78,65 +102,22 @@ export class ModuleManagerService {
    */
   async scanForModules(): Promise<IScannedModule[]> {
     const modules: IScannedModule[] = [];
-    const injectablePath = resolve(process.cwd(), this.config.injectablePath);
+    const injectablePath = this.getInjectablePath();
 
-    if (!existsSync(injectablePath)) {
-      this.logger.warn(LogSource.MODULES, `Injectable modules path does not exist: ${injectablePath}`);
+    if (!this.pathExists(injectablePath)) {
+      this.logPathNotFound(injectablePath);
       return modules;
     }
 
     try {
-      const entries = readdirSync(injectablePath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const modulePath = join(injectablePath, entry.name);
-          const moduleYaml = join(modulePath, 'module.yaml');
-
-          if (existsSync(moduleYaml)) {
-            try {
-              const content = readFileSync(moduleYaml, 'utf-8');
-              const manifestData = parse(content);
-
-              if (manifestData && manifestData.name) {
-                const scannedModule: IScannedModule = {
-                  name: manifestData.name as string,
-                  version: (manifestData.version as string | undefined) ?? '1.0.0',
-                  type: ModuleTypeEnum.SERVICE,
-                  path: modulePath
-                };
-
-                if (manifestData.dependencies) {
-                  scannedModule.dependencies = manifestData.dependencies as string[];
-                }
-                if (manifestData.config) {
-                  scannedModule.config = manifestData.config as Record<string, unknown>;
-                }
-                if (manifestData.metadata) {
-                  scannedModule.metadata = manifestData.metadata as Record<string, unknown>;
-                }
-
-                modules.push(scannedModule);
-
-                await this.repository.upsertModule(scannedModule);
-              }
-            } catch (error) {
-              const errorObject = error instanceof Error ? error : new Error(String(error));
-              this.logger.error(LogSource.MODULES, `Failed to parse module.yaml in ${modulePath}:`, {
-                error: errorObject
-              });
-            }
-          }
-        }
-      }
+      const discoveredModules = this.discoverModules(injectablePath);
+      modules.push(...discoveredModules);
+      await this.persistModules(discoveredModules);
     } catch (error) {
-      const errorObject = error instanceof Error ? error : new Error(String(error));
-      this.logger.error(LogSource.MODULES, 'Failed to scan for modules:', {
-        error: errorObject
-      });
+      this.logScanError(error);
     }
 
-    this.logger.info(LogSource.MODULES, `Discovered ${modules.length} injectable modules`);
+    this.logScanComplete(modules.length);
     return modules;
   }
 
@@ -147,29 +128,21 @@ export class ModuleManagerService {
    * @param dependencies - Array of module dependencies.
    * @returns Promise that resolves when registration is complete.
    */
-  async registerCoreModule(name: string, path: string, dependencies: string[] = []): Promise<void> {
-    const moduleData: IScannedModule = {
-      name,
-      version: '1.0.0',
-      type: ModuleTypeEnum.SERVICE,
-      path
-    };
-
-    if (dependencies.length > 0) {
-      moduleData.dependencies = dependencies;
-    }
-    moduleData.config = {};
-    moduleData.metadata = { core: true };
-
+  async registerCoreModule(
+    name: string,
+    path: string,
+    dependencies: string[] = []
+  ): Promise<void> {
+    const moduleData = this.buildCoreModuleData(name, path, dependencies);
     await this.repository.upsertModule(moduleData);
-    this.logger.info(LogSource.MODULES, `Registered core module '${name}' in database`);
+    this.logCoreModuleRegistration(name);
   }
 
   /**
    * Get all modules.
    * @returns Promise that resolves to array of all modules.
    */
-  async getAllModules(): Promise<IModuleInfo[]> {
+  async getAllModules(): Promise<IModulesRow[]> {
     return await this.repository.getAllModules();
   }
 
@@ -177,7 +150,7 @@ export class ModuleManagerService {
    * Get all enabled modules.
    * @returns Promise that resolves to array of enabled modules.
    */
-  async getEnabledModules(): Promise<IModuleInfo[]> {
+  async getEnabledModules(): Promise<IModulesRow[]> {
     return await this.repository.getEnabledModules();
   }
 
@@ -186,7 +159,7 @@ export class ModuleManagerService {
    * @param name - Module name.
    * @returns Promise that resolves to module info or undefined.
    */
-  async getModule(name: string): Promise<IModuleInfo | undefined> {
+  async getModule(name: string): Promise<IModulesRow | undefined> {
     return await this.repository.getModule(name);
   }
 
@@ -197,7 +170,7 @@ export class ModuleManagerService {
    */
   async enableModule(name: string): Promise<void> {
     await this.repository.enableModule(name);
-    this.logger.info(LogSource.MODULES, `Module '${name}' enabled`);
+    this.logModuleStatusChange(name, 'enabled');
   }
 
   /**
@@ -207,6 +180,296 @@ export class ModuleManagerService {
    */
   async disableModule(name: string): Promise<void> {
     await this.repository.disableModule(name);
-    this.logger.info(LogSource.MODULES, `Module '${name}' disabled`);
+    this.logModuleStatusChange(name, 'disabled');
+  }
+
+  /**
+   * Get the injectable modules path.
+   * @returns Resolved injectable path.
+   */
+  private getInjectablePath(): string {
+    return resolve(process.cwd(), this.config.injectablePath);
+  }
+
+  /**
+   * Check if a path exists.
+   * @param path - Path to check.
+   * @returns True if path exists.
+   */
+  private pathExists(path: string): boolean {
+    return existsSync(path);
+  }
+
+  /**
+   * Log warning when injectable path is not found.
+   * @param injectablePath - The path that was not found.
+   */
+  private logPathNotFound(injectablePath: string): void {
+    this.logger.warn(
+      LogSource.MODULES,
+      `Injectable modules path does not exist: ${injectablePath}`
+    );
+  }
+
+  /**
+   * Discover modules in the given path.
+   * @param injectablePath - Path to scan for modules.
+   * @returns Array of discovered modules.
+   */
+  private discoverModules(injectablePath: string): IScannedModule[] {
+    const modules: IScannedModule[] = [];
+    const entries = readdirSync(injectablePath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const discoveredModule = this.processModuleDirectory(
+          injectablePath,
+          entry.name
+        );
+        if (discoveredModule !== undefined) {
+          modules.push(discoveredModule);
+        }
+      }
+    }
+
+    return modules;
+  }
+
+  /**
+   * Process a single module directory.
+   * @param basePath - Base path containing modules.
+   * @param directoryName - Name of the module directory.
+   * @returns Scanned module or undefined.
+   */
+  private processModuleDirectory(
+    basePath: string,
+    directoryName: string
+  ): IScannedModule | undefined {
+    const modulePath = join(basePath, directoryName);
+    const moduleYaml = join(modulePath, 'module.yaml');
+
+    if (!existsSync(moduleYaml)) {
+      return undefined;
+    }
+
+    try {
+      return this.parseModuleManifest(moduleYaml, modulePath);
+    } catch (error) {
+      this.logModuleParseError(modulePath, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Parse module manifest file.
+   * @param moduleYamlPath - Path to module.yaml file.
+   * @param modulePath - Path to module directory.
+   * @returns Promise that resolves to scanned module or undefined.
+   */
+  private parseModuleManifest(
+    moduleYamlPath: string,
+    modulePath: string
+  ): IScannedModule | undefined {
+    const content = readFileSync(moduleYamlPath, 'utf-8');
+    const manifestData = parse(content);
+
+    if (!this.isValidManifestData(manifestData)) {
+      return undefined;
+    }
+
+    return this.createScannedModule(manifestData, modulePath);
+  }
+
+  /**
+   * Check if manifest data is valid.
+   * @param manifestData - Parsed manifest data.
+   * @returns True if manifest data is valid.
+   */
+  private isValidManifestData(
+    manifestData: unknown
+  ): manifestData is Record<string, unknown> {
+    return (
+      typeof manifestData === 'object'
+      && manifestData !== null
+      && 'name' in manifestData
+      && this.hasValidName(manifestData)
+    );
+  }
+
+  /**
+   * Check if manifest has a valid name property.
+   * @param manifestData - Manifest data to check.
+   * @returns True if has valid name.
+   */
+  private hasValidName(manifestData: Record<string, unknown>): boolean {
+    const { name } = manifestData;
+    return typeof name === 'string';
+  }
+
+  /**
+   * Create a scanned module from manifest data.
+   * @param manifestData - Parsed manifest data.
+   * @param modulePath - Path to module directory.
+   * @returns Scanned module object.
+   */
+  private createScannedModule(
+    manifestData: Record<string, unknown>,
+    modulePath: string
+  ): IScannedModule {
+    const { name, version } = manifestData;
+    const scannedModule: IScannedModule = {
+      name: String(name),
+      version: typeof version === 'string' ? version : '1.0.0',
+      type: ModulesType.SERVICE,
+      path: modulePath
+    };
+
+    return this.addOptionalFields(scannedModule, manifestData);
+  }
+
+  /**
+   * Add optional fields to scanned module.
+   * @param scannedModule - Module to add fields to.
+   * @param manifestData - Source manifest data.
+   * @returns Modified scanned module with optional fields.
+   */
+  private addOptionalFields(
+    scannedModule: IScannedModule,
+    manifestData: Record<string, unknown>
+  ): IScannedModule {
+    const {
+      dependencies,
+      config,
+      metadata
+    } = manifestData;
+    const result = { ...scannedModule };
+
+    if (Array.isArray(dependencies)) {
+      result.dependencies = dependencies;
+    }
+    if (this.isValidRecord(config)) {
+      result.config = config;
+    }
+    if (this.isValidRecord(metadata)) {
+      result.metadata = metadata;
+    }
+
+    return result;
+  }
+
+  /**
+   * Check if value is a valid record.
+   * @param value - Value to check.
+   * @returns True if value is a valid record.
+   */
+  private isValidRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Persist discovered modules to database.
+   * Uses parallel execution for better performance as module upserts are independent.
+   * @param modules - Modules to persist.
+   * @returns Promise that resolves when all modules are persisted.
+   */
+  private async persistModules(modules: IScannedModule[]): Promise<void> {
+    await Promise.all(
+      modules.map(async (moduleInfo: IScannedModule): Promise<void> => {
+        await this.repository.upsertModule(moduleInfo);
+      })
+    );
+  }
+
+  /**
+   * Log module parsing error.
+   * @param modulePath - Path where error occurred.
+   * @param error - Error that occurred.
+   */
+  private logModuleParseError(modulePath: string, error: unknown): void {
+    const errorObject = error instanceof Error ? error : new Error(String(error));
+    this.logger.error(
+      LogSource.MODULES,
+      `Failed to parse module.yaml in ${modulePath}:`,
+      { error: errorObject }
+    );
+  }
+
+  /**
+   * Log module scanning error.
+   * @param error - Error that occurred during scanning.
+   */
+  private logScanError(error: unknown): void {
+    const errorObject = error instanceof Error ? error : new Error(String(error));
+    this.logger.error(LogSource.MODULES, 'Failed to scan for modules:', {
+      error: errorObject
+    });
+  }
+
+  /**
+   * Log scan completion.
+   * @param moduleCount - Number of modules discovered.
+   */
+  private logScanComplete(moduleCount: number): void {
+    this.logger.info(
+      LogSource.MODULES,
+      `Discovered ${String(moduleCount)} injectable modules`
+    );
+  }
+
+  /**
+   * Build core module data for registration.
+   * @param name - Module name.
+   * @param path - Module path.
+   * @param dependencies - Module dependencies.
+   * @returns Core module data.
+   */
+  private buildCoreModuleData(
+    name: string,
+    path: string,
+    dependencies: string[]
+  ): IScannedModule {
+    const moduleData: IScannedModule = {
+      name,
+      version: '1.0.0',
+      type: ModulesType.SERVICE,
+      path,
+      config: {},
+      metadata: { core: true }
+    };
+
+    if (dependencies.length > 0) {
+      moduleData.dependencies = dependencies;
+    }
+
+    return moduleData;
+  }
+
+  /**
+   * Log core module registration.
+   * @param name - Name of registered module.
+   */
+  private logCoreModuleRegistration(name: string): void {
+    this.logger.info(
+      LogSource.MODULES,
+      `Registered core module '${name}' in database`
+    );
+  }
+
+  /**
+   * Log module status change.
+   * @param name - Module name.
+   * @param status - New status.
+   */
+  private logModuleStatusChange(name: string, status: string): void {
+    this.logger.info(LogSource.MODULES, `Module '${name}' ${status}`);
+  }
+
+  /**
+   * Upsert a module into the database.
+   * @param moduleInfo - Module information to upsert.
+   * @returns Promise that resolves when upsert is complete.
+   */
+  async upsertModule(moduleInfo: IScannedModule): Promise<void> {
+    await this.repository.upsertModule(moduleInfo);
   }
 }

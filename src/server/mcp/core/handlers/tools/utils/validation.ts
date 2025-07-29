@@ -8,7 +8,7 @@ import type { z} from "zod";
 import { ZodError } from "zod";
 import { ValidationError } from '@/server/mcp/core/handlers/tools/utils/types';
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types';
+import { formatToolResponse } from '@/server/mcp/core/handlers/types/core.types';
 
 /**
  * Validates input against a Zod schema with detailed error reporting.

@@ -25,7 +25,7 @@ import {
 } from './bootstrap/phases/module-registration-phase';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { createLoggerModuleForBootstrap } from './modules/core/logger';
+import { createLoggerModuleForBootstrap } from '@/modules/core/logger';
 
 /**
  * Bootstrap class manages the initialization lifecycle of SystemPrompt OS.
@@ -210,7 +210,7 @@ export class Bootstrap {
     this.setCurrentPhase(BootstrapPhaseEnum.MCP_SERVERS);
 
     const mcpServersContext: McpServersPhaseContext = {};
-    if (this.mcpApp !== null && this.mcpApp !== undefined) {
+    if (this.mcpApp !== undefined) {
       const { mcpApp } = { mcpApp: this.mcpApp };
       mcpServersContext.mcpApp = mcpApp;
     }
@@ -268,7 +268,7 @@ export class Bootstrap {
    * Registers bootstrap modules with the global ModuleLoader.
    */
   private async registerModulesWithLoader(): Promise<void> {
-    await registerModulesWithLoader({
+    registerModulesWithLoader({
       modules: this.modules,
       coreModules: this.coreModules
     });

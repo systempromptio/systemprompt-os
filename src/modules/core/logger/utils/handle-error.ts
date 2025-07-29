@@ -22,13 +22,15 @@ export function handleError(
 ): void {
   const errorService = ErrorHandlingService.getInstance();
 
-  errorService.processError(source, error, options).catch(processingError => {
+  try {
+    errorService.processError(source, error, options);
+  } catch (processingError) {
     console.error('Error processing failed:', {
       originalError: error,
       processingError,
       source
     });
-  });
+  }
 }
 
 /**
@@ -54,7 +56,7 @@ export async function handleErrorAsync(
   const errorService = ErrorHandlingService.getInstance();
 
   try {
-    await errorService.processError(source, error, options);
+    errorService.processError(source, error, options);
   } catch (processingError) {
     console.error('Error processing failed:', {
       originalError: error,

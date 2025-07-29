@@ -74,7 +74,7 @@ export class CustomMcpLoader {
 
     try {
       const localServers = this.discoverLocalServers(dir);
-      console.log(`✅ Discovered ${localServers.length} local MCP servers`);
+      console.log(`✅ Discovered ${localServers.length.toString()} local MCP servers`);
 
       await this.loadLocalServersSequentially(localServers, dir);
 
@@ -82,7 +82,7 @@ export class CustomMcpLoader {
         await this.loadRemoteConfigs(dir);
       }
 
-      console.log(`✅ Loaded ${this.registry.getServerCount()} custom MCP servers`);
+      console.log(`✅ Loaded ${this.registry.getServerCount().toString()} custom MCP servers`);
     } catch (error) {
       console.error('Failed to load custom MCP servers:', error);
     }
@@ -142,7 +142,9 @@ export class CustomMcpLoader {
     const indexPath = path.join(fullPath, 'index.js');
     const buildIndexPath = path.join(fullPath, 'build', 'index.js');
 
-    return fs.existsSync(packageJsonPath) || fs.existsSync(indexPath) || fs.existsSync(buildIndexPath);
+    return fs.existsSync(packageJsonPath)
+      || fs.existsSync(indexPath)
+      || fs.existsSync(buildIndexPath);
   }
 
   /**
@@ -157,7 +159,7 @@ export class CustomMcpLoader {
       const serverModule = await this.loadServerModule(serverPath, serverDir);
       const serverConfig = this.extractServerConfig(serverModule, serverDir);
       const localServer = this.createLocalServerInstance(serverDir, serverConfig, serverModule);
-      await this.registry.registerServer(localServer);
+      this.registry.registerServer(localServer);
       console.log(`✅ Loaded local server: ${serverConfig.name} v${serverConfig.version}`);
     } catch (error) {
       console.error(`Failed to load local server ${serverDir}:`, error);

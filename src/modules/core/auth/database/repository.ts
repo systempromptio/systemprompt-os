@@ -1,48 +1,34 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { getAuthModule } from '@/modules/core/auth/index';
+import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
+import type { UserService } from '@/modules/core/auth/services/user.service';
 import type {
  IPermission, IRole, IUser
 } from '@/modules/core/auth/types';
+import type {
+ IAuthPermissionsRow,
+ IAuthRolesRow
+} from '@/modules/core/auth/types/database.generated';
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
+import type {
+ OAuthProfile,
+ SessionMetadata
+} from '@/modules/core/auth/types/repository.types';
 import {
  ZERO
 } from '@/constants/numbers';
 
 /**
- *
- * ISessionMetadata interface.
- *
+ * Repository for authentication-related database operations.
+ * Provides methods for user management, role/permission verification,
+ * and session handling in the authentication system.
  */
-
-export interface ISessionMetadata {
-  ipAddress?: string;
-  userAgent?: string;
-}
-
-/**
- *
- * IOAuthProfile interface.
- *
- */
-
-export interface IOAuthProfile {
-  email: string;
-  name?: string;
-  avatar?: string;
-}
-
-/**
- *
- * AuthRepository class.
- *
- */
-
 export class AuthRepository {
-  private static instance: AuthRepository;
-  private readonly userService: any;
+  private static instance: AuthRepository | undefined;
+  private readonly userService: UserService;
 
   /**
-   *  * Creates a new AuthRepository instance.
+   * Creates a new AuthRepository instance.
    * @param db - Database service instance for executing queries.
    */
   private constructor(private readonly db: DatabaseService) {
@@ -51,16 +37,16 @@ export class AuthRepository {
   }
 
   /**
-   *  * Gets the singleton instance of AuthRepository.
+   * Gets the singleton instance of AuthRepository.
    * @returns AuthRepository instance.
    */
   static getInstance(): AuthRepository {
-    this.instance ||= new AuthRepository(DatabaseService.getInstance());
+    this.instance ??= new AuthRepository(DatabaseService.getInstance());
     return this.instance;
   }
 
   /**
-   *  * Creates or updates a user from OAuth authentication.
+   * Creates or updates a user from OAuth authentication.
    * Delegates to any which properly handles first-user detection.
    * Outside of the transaction to avoid race conditions.
    * @param provider - OAuth provider identifier (e.g., 'google', 'github').
@@ -72,7 +58,7 @@ export class AuthRepository {
   async upsertIUserFromOAuth(
     provider: string,
     providerId: string,
-    profile: IOAuthProfile,
+    profile: OAuthProfile,
   ): Promise<IUser> {
     const user = await this.userService.createOrUpdateUserFromOauth({
       provider,
@@ -88,8 +74,8 @@ export class AuthRepository {
     return {
       id: user.id,
       email: user.email,
-      ...user.name && { name: user.name },
-      ...user.avatarurl && { avatarUrl: user.avatarurl },
+      ...user.name !== null && { name: user.name },
+      ...user.avatarurl !== null && { avatarUrl: user.avatarurl },
       isActive: true,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -107,10 +93,10 @@ export class AuthRepository {
    */
   async getIUserById(userId: string): Promise<IUser | null> {
     const userRow = await this.db
-      .query<any>('SELECT * FROM auth_users WHERE id = ?', [userId])
-      .then((rows: any[]) => { return rows[ZERO] });
+      .query<IUsersRow>('SELECT * FROM users WHERE id = ?', [userId])
+      .then((rows: IUsersRow[]): IUsersRow | undefined => { return rows[ZERO] });
 
-    if (!userRow) {
+    if (userRow === undefined) {
       return null;
     }
 
@@ -120,12 +106,11 @@ export class AuthRepository {
     return {
       id: userRow.id,
       email: userRow.email,
-      ...userRow.name && { name: userRow.name },
-      ...userRow.avatar_url && { avatarUrl: userRow.avatar_url },
-      isActive: Boolean(userRow.is_active),
-      createdAt: userRow.created_at,
-      updatedAt: userRow.updated_at,
-      ...userRow.last_login_at && { lastLoginAt: userRow.last_login_at },
+      ...userRow.display_name !== null && { name: userRow.display_name },
+      ...userRow.avatar_url !== null && { avatarUrl: userRow.avatar_url },
+      isActive: userRow.status === 'active',
+      createdAt: userRow.created_at ?? new Date().toISOString(),
+      updatedAt: userRow.updated_at ?? new Date().toISOString(),
       roles,
       permissions,
     };
@@ -138,10 +123,12 @@ export class AuthRepository {
    */
   async getIUserByEmail(email: string): Promise<IUser | null> {
     const userRow = await this.db
-      .query<Pick<any, 'id'>>('SELECT id FROM auth_users WHERE email = ?', [email])
-      .then((rows: Pick<any, 'id'>[]) => { return rows[ZERO] });
+      .query<Pick<IUsersRow, 'id'>>('SELECT id FROM users WHERE email = ?', [email])
+      .then((rows: Pick<IUsersRow, 'id'>[]): Pick<IUsersRow, 'id'> | undefined => {
+        return rows[ZERO];
+      });
 
-    if (!userRow) {
+    if (userRow === undefined) {
       return null;
     }
 
@@ -154,18 +141,18 @@ export class AuthRepository {
    * @returns Array of role objects assigned to the user.
    */
   async getIUserIRoles(userId: string): Promise<IRole[]> {
-    const rows = await this.db.query<any>(
+    const rows = await this.db.query<IAuthRolesRow>(
       `SELECT r.* FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.role_id
        WHERE ur.user_id = ?`,
       [userId],
     );
 
-    return rows.map((row: any) => { return {
+    return rows.map((row: IAuthRolesRow): IRole => { return {
       id: row.id,
       name: row.name,
-      ...row.description && { description: row.description },
-      isSystem: Boolean(row.isSystem),
+      ...row.description !== null && { description: row.description },
+      isSystem: Boolean(row.is_system),
     } });
   }
 
@@ -177,7 +164,7 @@ export class AuthRepository {
    * @returns Array of unique permission objects granted to the user.
    */
   async getIUserIPermissions(userId: string): Promise<IPermission[]> {
-    const rows = await this.db.query<any>(
+    const rows = await this.db.query<IAuthPermissionsRow>(
       `SELECT DISTINCT p.* FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
        JOIN auth_user_roles ur ON rp.role_id = ur.role_id
@@ -185,12 +172,12 @@ export class AuthRepository {
       [userId],
     );
 
-    return rows.map((row: any) => { return {
+    return rows.map((row: IAuthPermissionsRow): IPermission => { return {
       id: row.id,
       name: row.name,
       resource: row.resource,
       action: row.action,
-      ...row.description && { description: row.description },
+      ...row.description !== null && { description: row.description },
     } });
   }
 
@@ -234,17 +221,20 @@ export class AuthRepository {
   /**
    * Creates a new authentication session.
    * Sessions store hashed tokens to validate subsequent requests.
-   * @param userId - IUser's unique identifier.
-   * @param tokenHash - Hashed authentication token.
-   * @param expiresAt - Session expiration timestamp.
-   * @param metadata - Optional client metadata for the session.
+   * @param sessionData - Session data object.
+   * @param sessionData.userId - User's unique identifier.
+   * @param sessionData.tokenHash - Hashed authentication token.
+   * @param sessionData.expiresAt - Session expiration timestamp.
+   * @param sessionData.metadata - Optional client metadata for the session.
    * @returns Generated session ID.
    */
   async createSession(
-    userId: string,
-    tokenHash: string,
-    expiresAt: Date,
-    metadata?: ISessionMetadata,
+    sessionData: {
+      userId: string;
+      tokenHash: string;
+      expiresAt: Date;
+      metadata?: SessionMetadata;
+    }
   ): Promise<string> {
     const sessionId = randomUUID();
 
@@ -254,11 +244,11 @@ export class AuthRepository {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
-        userId,
-        tokenHash,
-        expiresAt.toISOString(),
-        metadata?.ipAddress,
-        metadata?.userAgent,
+        sessionData.userId,
+        sessionData.tokenHash,
+        sessionData.expiresAt.toISOString(),
+        sessionData.metadata?.ipAddress,
+        sessionData.metadata?.userAgent,
       ],
     );
 

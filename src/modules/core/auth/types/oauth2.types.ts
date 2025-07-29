@@ -148,3 +148,16 @@ export interface IOIDCDiscoveryConfig {
       grant_types_supported: string[];
       token_endpoint_auth_methods_supported: string[];
 }
+
+/**
+ * Token response data interface for OAuth2 token endpoint responses.
+ * Uses snake_case as per OAuth2 specification requirements.
+ */
+export interface ITokenResponseData {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+  id_token?: string;
+}

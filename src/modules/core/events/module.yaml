@@ -1,0 +1,8 @@
+name: events
+version: 1.0.0
+description: Event system for inter-module communication
+category: core
+dependencies: []
+exports:
+  - eventBus
+  - EventNames

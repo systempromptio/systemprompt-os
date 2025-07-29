@@ -11,7 +11,6 @@ import type {
   ITransaction
 } from '@/modules/core/database/types/database.types';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQLite transaction implementation.
@@ -51,7 +50,7 @@ export class SqliteTransaction implements ITransaction {
    * @returns Promise that resolves when complete.
    */
   public async execute(sql: string, params?: unknown[]): Promise<void> {
-    if (params !== undefined && params.length > ZERO) {
+    if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
       stmt.run(...params);
     } else {

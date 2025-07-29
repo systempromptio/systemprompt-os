@@ -26,7 +26,7 @@ import {
   type ISystemService,
   type MaintenanceTypeEnum
 } from '@/modules/core/system/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -171,7 +171,7 @@ export class SystemService implements ISystemService {
    * @param status - The new status.
    * @returns Promise that resolves when updated.
    */
-  async updateModuleStatus(name: string, status: ModuleStatusEnum): Promise<void> {
+  async updateModuleStatus(name: string, status: ModulesStatus): Promise<void> {
     await this.ensureInitialized();
 
     this.logger?.info(LogSource.SYSTEM, `Updating module status: ${name} -> ${status}`);
@@ -180,7 +180,7 @@ export class SystemService implements ISystemService {
     await this.logEvent(
       'module.status_changed',
       'system',
-      status === ModuleStatusEnum.ERROR ? EventSeverityEnum.ERROR : EventSeverityEnum.INFO,
+      status === ModulesStatus.ERROR ? EventSeverityEnum.ERROR : EventSeverityEnum.INFO,
       `Module ${name} status changed to ${status}`
     );
   }
@@ -195,9 +195,9 @@ export class SystemService implements ISystemService {
     const modules = await this.repository.findAllModules();
     const moduleCounts = {
       total: modules.length,
-      active: modules.filter(m => { return m.status === ModuleStatusEnum.RUNNING }).length,
-      inactive: modules.filter(m => { return m.status === ModuleStatusEnum.STOPPED }).length,
-      error: modules.filter(m => { return m.status === ModuleStatusEnum.ERROR }).length
+      active: modules.filter(m => { return m.status === ModulesStatus.RUNNING }).length,
+      inactive: modules.filter(m => { return m.status === ModulesStatus.STOPPED }).length,
+      error: modules.filter(m => { return m.status === ModulesStatus.ERROR }).length
     };
 
     const uptime = Math.floor(
@@ -243,7 +243,7 @@ export class SystemService implements ISystemService {
     }
 
     const modules = await this.repository.findAllModules();
-    const errorModules = modules.filter(m => { return m.status === ModuleStatusEnum.ERROR });
+    const errorModules = modules.filter(m => { return m.status === ModulesStatus.ERROR });
 
     if (errorModules.length === 0) {
       checks.push({

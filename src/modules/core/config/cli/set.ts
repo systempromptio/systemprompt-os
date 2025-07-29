@@ -3,13 +3,12 @@
  * @module modules/core/config/cli/set
  */
 
-import { ConfigModule } from '@/modules/core/config/index';
+import { getConfigModule } from '@/modules/core/config/index';
 import type { ConfigValue } from '@/modules/core/config/types/index';
-
-interface SetCommandContext {
-  key?: string;
-  value?: string;
-}
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
  * Parse a string value into appropriate type.
@@ -39,24 +38,37 @@ function formatValue(value: ConfigValue): string {
   return String(value);
 }
 
-export const command = {
+export const command: ICLICommand = {
   description: 'Set configuration value',
-  execute: async (context: SetCommandContext): Promise<void> => {
-    const { key, value } = context;
+  execute: async (context: ICLIContext): Promise<void> => {
+    const { args } = context;
+    const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
+
+    const key = args.key as string | undefined;
+    const value = args.value as string | undefined;
 
     if (!key || !value) {
-      console.error('Error: Both key and value are required.');
+      cliOutput.error('Error: Both key and value are required.');
       process.exit(1);
     }
 
-    const configModule = new ConfigModule();
-    await configModule.initialize();
+    try {
+      const configModule = getConfigModule();
+      const parsedValue = parseValue(value);
 
-    const parsedValue = parseValue(value);
+      await configModule.exports.set(key, parsedValue);
 
-    await configModule.set(key, parsedValue);
-
-    console.log('✓ Configuration updated:');
-    console.log(`  ${key} = ${formatValue(parsedValue)}`);
+      cliOutput.success('Configuration updated:');
+      cliOutput.keyValue({
+        [key]: formatValue(parsedValue)
+      });
+    } catch (error) {
+      cliOutput.error('Failed to set configuration');
+      logger.error(LogSource.CLI, 'Failed to set configuration', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      process.exit(1);
+    }
   },
 };

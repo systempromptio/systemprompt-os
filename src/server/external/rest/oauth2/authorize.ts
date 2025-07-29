@@ -11,7 +11,6 @@ import { LogSource } from '@/modules/core/logger/types/index';
 import { getAuthModule } from '@/modules/core/auth/index';
 import { AuthRepository } from '@/modules/core/auth/database/repository';
 import type {
-  IAuthCodeParams,
   IAuthCodeService,
   IAuthenticatedUser,
   IAuthorizeRequestParams,
@@ -21,6 +20,7 @@ import type {
   IProviderRegistry,
   IStateData
 } from '@/server/external/rest/oauth2/types/authorize.types';
+import type { IAuthorizationCodeData } from '@/modules/core/auth/types/auth-code.types';
 
 /**
  * Mock OAuth2 error implementation - needs to be replaced with actual implementation.
@@ -81,27 +81,51 @@ const authorizeRequestSchema = z.object({
   response_type: z.enum(['code', 'code id_token']),
   client_id: z.string(),
   redirect_uri: z.string().url(),
+  /**
+   * Default scope for OAuth authorization requests.
+   */
   scope: z.string().optional()
-.default('openid email profile'), // Make optional with default
+.default('openid email profile'),
   state: z.string().optional(),
   nonce: z.string().optional(),
   code_challenge: z.string().optional(),
   code_challenge_method: z.enum(['S256', 'plain']).optional(),
   provider: z.string().optional(),
-  idp: z.string().optional(), // Support both 'provider' and 'idp' for backwards compatibility
+  /**
+   * Support both 'provider' and 'idp' for backwards compatibility.
+   */
+  idp: z.string().optional(),
   provider_code: z.string().optional()
-}).transform((input) => { return {
-  responseType: input.response_type,
-  clientId: input.client_id,
-  redirectUri: input.redirect_uri,
-  scope: input.scope,
-  state: input.state,
-  nonce: input.nonce,
-  codeChallenge: input.code_challenge,
-  codeChallengeMethod: input.code_challenge_method,
-  provider: input.provider || input.idp,
-  providerCode: input.provider_code
-} });
+}).transform((input): IAuthorizeRequestParams => {
+  const params: IAuthorizeRequestParams = {
+    response_type: input.response_type,
+    client_id: input.client_id,
+    redirect_uri: input.redirect_uri,
+    scope: input.scope
+  };
+
+  if (input.state) {
+    params.state = input.state;
+  }
+  if (input.nonce) {
+    params.nonce = input.nonce;
+  }
+  if (input.code_challenge) {
+    params.code_challenge = input.code_challenge;
+  }
+  if (input.code_challenge_method) {
+    params.code_challenge_method = input.code_challenge_method;
+  }
+  const providerValue = input.provider ?? input.idp;
+  if (providerValue) {
+    params.provider = providerValue;
+  }
+  if (input.provider_code) {
+    params.provider_code = input.provider_code;
+  }
+
+  return params;
+});
 
 /**
  * Build URL search params for OAuth provider redirect.
@@ -115,9 +139,9 @@ const buildProviderParams = (
 ): URLSearchParams => {
   const providerParams = new URLSearchParams();
 
-  providerParams.set('response_type', params.responseType);
-  providerParams.set('client_id', params.clientId);
-  providerParams.set('redirect_uri', params.redirectUri);
+  providerParams.set('response_type', params.response_type);
+  providerParams.set('client_id', params.client_id);
+  providerParams.set('redirect_uri', params.redirect_uri);
   providerParams.set('scope', params.scope);
   providerParams.set('provider', providerName);
 
@@ -127,11 +151,11 @@ const buildProviderParams = (
   if (params.nonce !== undefined) {
     providerParams.set('nonce', params.nonce);
   }
-  if (params.codeChallenge !== undefined) {
-    providerParams.set('code_challenge', params.codeChallenge);
+  if (params.code_challenge !== undefined) {
+    providerParams.set('code_challenge', params.code_challenge);
   }
-  if (params.codeChallengeMethod !== undefined) {
-    providerParams.set('code_challenge_method', params.codeChallengeMethod);
+  if (params.code_challenge_method !== undefined) {
+    providerParams.set('code_challenge_method', params.code_challenge_method);
   }
 
   return providerParams;
@@ -207,7 +231,7 @@ const generateConsentPageHtml = (
   params: IAuthorizeRequestParams,
   availableProviders: IIdentityProvider[]
 ): string => {
-  const scopeItems = params.scope
+  const scopeItems = (params.scope || '')
     .split(' ')
     .map((scope): string => { return `<li class="scope-item">${scope}</li>` })
     .join('');
@@ -216,8 +240,8 @@ const generateConsentPageHtml = (
     .map((provider): string => { return generateProviderButton(provider, params) })
     .join('');
 
-  const cancelUrl = `${params.redirectUri}?error=access_denied${
-    params.state !== undefined ? `&state=${params.state}` : ''
+  const cancelUrl = `${params.redirect_uri}?error=access_denied${
+    params.state ? `&state=${params.state}` : ''
   }`;
 
   return `
@@ -231,7 +255,7 @@ const generateConsentPageHtml = (
       <div class="container">
         <h1>Sign in to continue</h1>
         <div class="client">
-          <strong>Application:</strong> ${params.clientId}<br>
+          <strong>Application:</strong> ${params.client_id}<br>
           <small style="color: #666;">
             This application is requesting access to your account
           </small>
@@ -270,7 +294,7 @@ const generateErrorPageHtml = (title: string, message: string, description?: str
     <body>
       <h1>${title}</h1>
       <p>${message}</p>
-      ${description !== undefined ? `<p>${description}</p>` : ''}
+      ${description != null && description !== '' ? `<p>${description}</p>` : ''}
     </body>
     </html>
   `;
@@ -338,27 +362,30 @@ const handleAuthorizationDenial = (
 const createAuthCodeParams = (
   params: IAuthorizeRequestParams,
   user: IAuthenticatedUser
-): IAuthCodeParams => {
-  const authCodeParams: IAuthCodeParams = {
-    clientId: params.clientId,
-    redirectUri: params.redirectUri,
+): IAuthorizationCodeData => {
+  const authCodeParams: IAuthorizationCodeData = {
+    clientId: params.client_id,
+    redirectUri: params.redirect_uri,
     scope: params.scope,
     userId: user.sub ?? user.id ?? '',
     userEmail: user.email ?? '',
     expiresAt: new Date(Date.now() + 10 * 60 * 1000)
   };
 
-  if (params.provider !== undefined) {
-    authCodeParams.provider = params.provider;
+  const {
+ provider, provider_code, code_challenge, code_challenge_method
+} = params;
+  if (provider !== undefined) {
+    authCodeParams.provider = provider;
   }
-  if (params.providerCode !== undefined) {
-    authCodeParams.providerTokens = { code: params.providerCode };
+  if (provider_code !== undefined) {
+    authCodeParams.providerTokens = { code: provider_code };
   }
-  if (params.codeChallenge !== undefined) {
-    authCodeParams.codeChallenge = params.codeChallenge;
+  if (code_challenge !== undefined) {
+    authCodeParams.codeChallenge = code_challenge;
   }
-  if (params.codeChallengeMethod !== undefined) {
-    authCodeParams.codeChallengeMethod = params.codeChallengeMethod;
+  if (code_challenge_method !== undefined) {
+    authCodeParams.codeChallengeMethod = code_challenge_method;
   }
 
   return authCodeParams;
@@ -376,7 +403,11 @@ let authCodeService: IAuthCodeService | null = null;
 const getAuthCodeService = (): IAuthCodeService => {
   if (authCodeService === null) {
     const authModule = getAuthModule();
-    authCodeService = authModule.exports.authCodeService() as IAuthCodeService;
+    const authCodeServiceExport = authModule.exports.authCodeService();
+    if (!authCodeServiceExport || typeof authCodeServiceExport !== 'object') {
+      throw new Error('Invalid auth code service export');
+    }
+    authCodeService = authCodeServiceExport;
   }
   return authCodeService;
 };
@@ -400,7 +431,8 @@ export class AuthorizeEndpoint {
       const params = authorizeRequestSchema.parse(req.query);
 
       const authModule = getAuthModule();
-      const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
+      const providerRegistryExport = authModule.exports.getProviderRegistry();
+      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');
@@ -421,19 +453,19 @@ export class AuthorizeEndpoint {
         }
 
         const stateData: IStateData = {
-          clientId: params.clientId,
-          redirectUri: params.redirectUri,
+          clientId: params.client_id,
+          redirectUri: params.redirect_uri,
           scope: params.scope
         };
 
         if (params.state !== undefined) {
           stateData.originalState = params.state;
         }
-        if (params.codeChallenge !== undefined) {
-          stateData.codeChallenge = params.codeChallenge;
+        if (params.code_challenge !== undefined) {
+          stateData.codeChallenge = params.code_challenge;
         }
-        if (params.codeChallengeMethod !== undefined) {
-          stateData.codeChallengeMethod = params.codeChallengeMethod;
+        if (params.code_challenge_method !== undefined) {
+          stateData.codeChallengeMethod = params.code_challenge_method;
         }
 
         const providerState = Buffer.from(
@@ -447,7 +479,7 @@ export class AuthorizeEndpoint {
       }
 
       const availableProviders = providerRegistry.getAllProviders();
-      const html = generateConsentPageHtml(params as IAuthorizeRequestParams, availableProviders);
+      const html = generateConsentPageHtml(params, availableProviders);
       res.type('html').send(html);
     } catch (error: unknown) {
       const errorInstance = error instanceof Error
@@ -511,7 +543,8 @@ export class AuthorizeEndpoint {
 
       if (params.provider !== undefined) {
         const authModule = getAuthModule();
-        const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
+        const providerRegistryExport = authModule.exports.getProviderRegistry();
+      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
         if (providerRegistry === null) {
           throw new Error('Provider registry not initialized');
@@ -525,19 +558,19 @@ export class AuthorizeEndpoint {
         }
 
         const stateData: IStateData = {
-          clientId: params.clientId,
-          redirectUri: params.redirectUri,
+          clientId: params.client_id,
+          redirectUri: params.redirect_uri,
           scope: params.scope
         };
 
         if (params.state !== undefined) {
           stateData.originalState = params.state;
         }
-        if (params.codeChallenge !== undefined) {
-          stateData.codeChallenge = params.codeChallenge;
+        if (params.code_challenge !== undefined) {
+          stateData.codeChallenge = params.code_challenge;
         }
-        if (params.codeChallengeMethod !== undefined) {
-          stateData.codeChallengeMethod = params.codeChallengeMethod;
+        if (params.code_challenge_method !== undefined) {
+          stateData.codeChallengeMethod = params.code_challenge_method;
         }
 
         const providerState = Buffer.from(
@@ -557,7 +590,7 @@ export class AuthorizeEndpoint {
       }
 
       const authCodeServiceInstance = getAuthCodeService();
-      const authCodeParams = createAuthCodeParams(params as IAuthorizeRequestParams, user);
+      const authCodeParams = createAuthCodeParams(params, user);
 
       const code = await authCodeServiceInstance.createAuthorizationCode(
         authCodeParams
@@ -570,7 +603,7 @@ export class AuthorizeEndpoint {
         responseParams.append('state', params.state);
       }
 
-      res.redirect(`${params.redirectUri}?${responseParams.toString()}`);
+      res.redirect(`${params.redirect_uri}?${responseParams.toString()}`);
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         const missingFields = error.errors.filter(e => { return e.code === 'invalid_type' && e.message === 'Required' });
@@ -598,7 +631,7 @@ export class AuthorizeEndpoint {
     try {
       const { provider } = req.params;
 
-      if (!provider) {
+      if (provider == null || provider === '') {
         const {
  error, error_description: errorDescription, state, code
 } = req.query as {
@@ -608,7 +641,7 @@ export class AuthorizeEndpoint {
           code?: string;
         };
 
-        if (error) {
+        if (error != null && error !== '') {
           const oauthError = oauth2Error.accessDenied(errorDescription || 'User denied access');
           return res.status(oauthError.code).json(oauthError.toJSON());
         }
@@ -657,7 +690,7 @@ export class AuthorizeEndpoint {
         ));
       }
 
-      if (!code || !state) {
+      if (code == null || code === '' || state == null || state === '') {
         const missingParam = !code ? 'code' : 'state';
         const invalidError = oauth2Error.invalidRequest(`Missing ${missingParam} parameter`);
         return res.status(invalidError.code).json(invalidError.toJSON());
@@ -681,7 +714,8 @@ export class AuthorizeEndpoint {
       }
 
       const authModule = getAuthModule();
-      const providerRegistry = authModule.exports.getProviderRegistry() as IProviderRegistry | null;
+      const providerRegistryExport = authModule.exports.getProviderRegistry();
+      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
       if (providerRegistry === null) {
         throw new Error('Provider registry not initialized');
@@ -733,7 +767,7 @@ export class AuthorizeEndpoint {
       });
 
       const authCodeServiceInstance = getAuthCodeService();
-      const authCodeParams: IAuthCodeParams = {
+      const authCodeParams: IAuthorizationCodeData = {
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,
         scope: stateData.scope,

@@ -3,8 +3,8 @@
  * @module modules/core/config/cli/list
  */
 
-import { ConfigModule } from '@/modules/core/config/index';
-import { LogSource, LoggerModule } from '@/modules/core/logger/index';
+import { getConfigModule } from '@/modules/core/config/index';
+import { LogSource, getLoggerModule } from '@/modules/core/logger/index';
 
 /**
  * Options for the list command.
@@ -119,37 +119,53 @@ export const command = {
    * @returns {Promise<void>} Promise that resolves when command completes.
    */
   async execute(options: IListCommandOptions = {}): Promise<void> {
-    const configModule = new ConfigModule();
-    await configModule.initialize();
+    try {
+      const configModule = getConfigModule();
+      const configList = await configModule.exports.get();
 
-    const configData = await configModule.get();
+      const configData = Array.isArray(configList)
+        ? configList.reduce<Record<string, unknown>>((acc, entry) => {
+            if (entry && typeof entry === 'object' && 'key' in entry && 'value' in entry) {
+              acc[String(entry.key)] = entry.value;
+            }
+            return acc;
+          }, {})
+        : configList;
 
-    const loggerModule = new LoggerModule();
-    await loggerModule.initialize();
-    const logger = loggerModule.exports.logger();
+      const loggerModule = getLoggerModule();
+      const logger = loggerModule.exports.service();
 
-    if (!configData || typeof configData === 'object'
-        && Object.keys(configData as Record<string, unknown>).length === 0) {
-      logger.info(LogSource.CLI, 'No configuration values found.');
-      return;
-    }
+      if (!configData || typeof configData === 'object'
+          && Object.keys(configData).length === 0) {
+        logger.info(LogSource.CLI, 'No configuration values found.');
+        process.exit(0);
+        return;
+      }
 
-    const format = options.format ?? 'tree';
+      const format = options.format ?? 'tree';
 
-    switch (format) {
-      case 'json':
-        logger.info(LogSource.CLI, JSON.stringify(configData, null, 2));
-        break;
+      switch (format) {
+        case 'json':
+          logger.info(LogSource.CLI, JSON.stringify(configData, null, 2));
+          break;
 
-      case 'yaml':
-        logger.info(LogSource.CLI, formatYaml(configData));
-        break;
+        case 'yaml':
+          logger.info(LogSource.CLI, formatYaml(configData));
+          break;
 
-      case 'tree':
-        logger.info(LogSource.CLI, '\nConfiguration Values:');
-        logger.info(LogSource.CLI, '====================\n');
-        logger.info(LogSource.CLI, formatTree(configData));
-        break;
+        case 'tree':
+          logger.info(LogSource.CLI, '\nConfiguration Values:');
+          logger.info(LogSource.CLI, '====================\n');
+          logger.info(LogSource.CLI, formatTree(configData));
+          break;
+      }
+    } catch (error) {
+      const loggerModule = getLoggerModule();
+      const logger = loggerModule.exports.service();
+      logger.error(LogSource.CLI, 'Failed to list configuration', {
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      process.exit(1);
     }
   }
 };

@@ -17,8 +17,10 @@ import figlet from 'figlet';
  */
 export const createHeader = (title: string, subtitle?: string, isMainCommand = true): string => {
   if (!isMainCommand) {
-    // Simpler header for subcommands
-    const simpleTitle = gradient('orange', 'red')(title.toUpperCase());
+    /**
+     * Simpler header for subcommands.
+     */
+    const simpleTitle = gradient(['orange', 'red'])(title.toUpperCase());
     const headerContent = [
       simpleTitle,
       subtitle ? chalk.gray(subtitle) : ''
@@ -38,8 +40,10 @@ right: 0 },
     });
   }
 
-  // Single line orange title using lowercase and bold
-  const orangeTitle = gradient('orange', 'red')(
+  /**
+   * Single line orange title using lowercase and bold.
+   */
+  const orangeTitle = gradient(['orange', 'red'])(
     figlet.textSync(title.toLowerCase(), { 
       font: 'Big',
       horizontalLayout: 'fitted',
@@ -58,7 +62,10 @@ right: 0 },
     borderStyle: 'round',
     borderColor: 'yellow',
     backgroundColor: 'black',
-    width: 91 // Set consistent width for main header
+    /**
+     * Set consistent width for main header.
+     */
+    width: 91
   });
 };
 
@@ -70,7 +77,10 @@ right: 0 },
  * @returns Formatted command string.
  */
 export const formatCommand = (icon: string, name: string, description: string): string => {
-  const commandName = chalk.hex('#FF8C00').bold(name.padEnd(15)); // Orange color for commands
+  /**
+   * Orange color for commands.
+   */
+  const commandName = chalk.hex('#FF8C00').bold(name.padEnd(15));
   const commandDesc = chalk.gray(description);
   return `  ${icon} ${commandName} ${commandDesc}`;
 };
@@ -105,7 +115,7 @@ export const createSection = (title: string, width: number = 93): string => {
  * @returns Formatted footer string.
  */
 export const createFooter = (items: string[]): string => {
-  const footerContent = items.map(item => chalk.dim(`• ${item}`)).join('\n');
+  const footerContent = items.map((item: string): string => chalk.dim(`• ${item}`)).join('\n');
   
   return boxen(footerContent, {
     padding: { top: 0,
@@ -119,7 +129,10 @@ right: 0 },
     borderStyle: 'single',
     borderColor: 'gray',
     dimBorder: true,
-    width: 93 // Set consistent width to match header
+    /**
+     * Set consistent width to match header.
+     */
+    width: 93
   });
 };
 

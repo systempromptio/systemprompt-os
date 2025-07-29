@@ -3,7 +3,7 @@
  * @module handlers/tools
  */
 
-export * from '@/server/mcp/core/handlers/tools/types';
+export type * from '@/server/mcp/core/handlers/tools/types';
 
 export type {
   ToolHandler,

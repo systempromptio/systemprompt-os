@@ -7,7 +7,6 @@
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQL parser service for parsing and validating SQL statements.
@@ -65,14 +64,14 @@ export class SQLParserService {
     const errors: Array<{ line: number; message: string }> = [];
 
     let currentStatement = '';
-    let statementStartLine = ZERO;
+    let statementStartLine = 0;
     let inComment = false;
     let inString = false;
     let stringChar = '';
     let inTrigger = false;
-    let triggerBeginCount = ZERO;
+    let triggerBeginCount = 0;
 
-    for (let lineIndex = ZERO; lineIndex < lines.length; lineIndex++) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex];
       if (line === undefined) { continue; }
       const trimmedLine = line.trim();
@@ -102,7 +101,7 @@ export class SQLParserService {
 
       if (trimmedLine.toUpperCase().startsWith('CREATE TRIGGER')) {
         inTrigger = true;
-        triggerBeginCount = ZERO;
+        triggerBeginCount = 0;
       }
 
       if (inTrigger) {
@@ -111,16 +110,16 @@ export class SQLParserService {
           triggerBeginCount++;
         } else if (upperLine.startsWith('END;') || upperLine === 'END') {
           triggerBeginCount--;
-          if (triggerBeginCount === ZERO) {
+          if (triggerBeginCount === 0) {
             inTrigger = false;
           }
         }
       }
 
-      let charIndex = ZERO;
-      for (charIndex = ZERO; charIndex < line.length; charIndex++) {
+      let charIndex = 0;
+      for (charIndex = 0; charIndex < line.length; charIndex++) {
         const char = line[charIndex];
-        const prevChar = charIndex > ZERO ? line[charIndex - 1] : '';
+        const prevChar = charIndex > 0 ? line[charIndex - 1] : '';
 
         if ((char === '"' || char === "'") && prevChar !== '\\') {
           if (!inString) {
@@ -168,7 +167,7 @@ export class SQLParserService {
 
     return {
       statements,
-      hasErrors: errors.length > ZERO,
+      hasErrors: errors.length > 0,
       errors
     };
   }
@@ -229,8 +228,8 @@ export class SQLParserService {
   private validateStatement(statement: string, type: IParsedStatement['type']): { isValid: boolean; error?: string } {
     const openParenMatches = statement.match(/\(/g);
     const closeParenMatches = statement.match(/\)/g);
-    const openParens = openParenMatches?.length ?? ZERO;
-    const closeParens = closeParenMatches?.length ?? ZERO;
+    const openParens = openParenMatches?.length ?? 0;
+    const closeParens = closeParenMatches?.length ?? 0;
 
     if (openParens !== closeParens) {
       return {
@@ -243,14 +242,14 @@ export class SQLParserService {
     const doubleQuotes = statement.split('"').length - 1;
     const TWO = 2;
 
-    if (singleQuotes % TWO !== ZERO) {
+    if (singleQuotes % TWO !== 0) {
       return {
         isValid: false,
         error: 'Unclosed single quote'
       };
     }
 
-    if (doubleQuotes % TWO !== ZERO) {
+    if (doubleQuotes % TWO !== 0) {
       return {
         isValid: false,
         error: 'Unclosed double quote'

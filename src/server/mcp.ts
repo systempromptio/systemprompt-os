@@ -1,10 +1,13 @@
 /**
  * MCP protocol handler with session management and per-session server instances.
- * @file MCP protocol handler with session management and per-session server instances.
  * @module server/mcp
  */
 
-import type express from 'express';
+import type {
+  Application,
+  Request,
+  Response,
+} from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
@@ -42,9 +45,6 @@ import {
   MCP_CONSTANTS,
 } from '@/server/types/mcp.types';
 
-/**
- * Logger instance.
- */
 const logger = LoggerService.getInstance();
 
 /**
@@ -66,10 +66,9 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Sets up routes for the Express app.
-   * @param {express.Application} app - Express application instance.
-   * @returns {Promise<void>} Promise that resolves when routes are set up.
+   * @param app
    */
-  async setupRoutes(app: express.Application): Promise<void> {
+  async setupRoutes(app: Application): Promise<void> {
     await Promise.resolve();
     const mcpMiddleware = [
       rateLimitMiddleware(
@@ -87,8 +86,7 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Get the server instance for a specific session.
-   * @param {string} sessionId - The session ID to look up.
-   * @returns {Server | undefined} Server instance if found, undefined otherwise.
+   * @param sessionId
    */
   getServerForSession(sessionId: string): Server | undefined {
     const sessionInfo = this.sessions.get(sessionId);
@@ -97,7 +95,6 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Get all active servers.
-   * @returns {Server[]} Array of all active server instances.
    */
   getAllServers(): Server[] {
     return Array.from(this.sessions.values()).map((info): Server => {
@@ -107,7 +104,6 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Get any server instance (for compatibility).
-   * @returns {Server} A server instance, creating temporary one if needed.
    */
   getServer(): Server {
     const iterator = this.sessions.values();
@@ -120,7 +116,7 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Clean up a specific session.
-   * @param {string} sessionId - The session ID to clean up.
+   * @param sessionId
    */
   cleanupSession(sessionId: string): void {
     const sessionInfo = this.sessions.get(sessionId);
@@ -138,7 +134,6 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Get active session count.
-   * @returns {number} Number of active sessions.
    */
   getActiveSessionCount(): number {
     return this.sessions.size;
@@ -165,9 +160,7 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Creates a new server instance with handlers.
-   * @param {string} sessionId - The session ID for logging context.
-   * @returns {Server} Server instance configured with all handlers.
-   * @private
+   * @param sessionId
    */
   private createServer(sessionId: string): Server {
     const server = new Server(serverConfig, serverCapabilities);
@@ -181,9 +174,8 @@ export class McpHandler implements IMcpHandler {
 
   /**
    * Register tool handlers.
-   * @param {Server} server - Server instance.
-   * @param {string} sessionId - Session ID.
-   * @private
+   * @param server
+   * @param sessionId
    */
   private registerToolHandlers(server: Server, sessionId: string): void {
     server.setRequestHandler(
@@ -226,9 +218,8 @@ persistToDb: false
 
   /**
    * Register prompt handlers.
-   * @param {Server} server - Server instance.
-   * @param {string} sessionId - Session ID.
-   * @private
+   * @param server
+   * @param sessionId
    */
   private registerPromptHandlers(server: Server, sessionId: string): void {
     server.setRequestHandler(
@@ -253,9 +244,8 @@ promptName: request.params.name
 
   /**
    * Register resource handlers.
-   * @param {Server} server - Server instance.
-   * @param {string} sessionId - Session ID.
-   * @private
+   * @param server
+   * @param sessionId
    */
   private registerResourceHandlers(server: Server, sessionId: string): void {
     server.setRequestHandler(
@@ -287,7 +277,7 @@ resourceUri: request.params.uri
 
     server.setRequestHandler(
       ListResourceTemplatesRequestSchema,
-      async (request) => {
+      (request) => {
         logger.debug(LogSource.MCP, `[${sessionId}] Listing resource templates`, { sessionId });
         logger.info(
           LogSource.MCP,
@@ -305,21 +295,15 @@ persistToDb: false
 
   /**
    * Handles incoming MCP requests with proper session management.
-   * @param {express.Request} req - Express request object.
-   * @param {express.Response} res - Express response object.
-   * @returns {Promise<void>} Promise that resolves when request is handled.
-   * @private
+   * @param req
+   * @param res
    */
-  private async handleRequest(req: express.Request, res: express.Response): Promise<void> {
+  private async handleRequest(req: Request, res: Response): Promise<void> {
     const startTime = Date.now();
 
     try {
-      logger.debug(LogSource.MCP, `MCP ${req.method} request`, {
-        headers: req.headers,
-        sessionId: (req.headers['mcp-session-id'] ?? req.headers['x-session-id']) as string | undefined,
-        acceptHeader: req.headers.accept,
-      });
-
+      const requestSessionId = this.extractSessionId(req);
+      this.logIncomingRequest(req, requestSessionId);
       res.header('Access-Control-Expose-Headers', 'mcp-session-id, x-session-id');
 
       const sessionResult = await this.getOrCreateSession(req, res);
@@ -327,48 +311,112 @@ persistToDb: false
         return;
       }
 
-      const { sessionId, sessionInfo } = sessionResult;
-      sessionInfo.lastAccessed = new Date();
-      await sessionInfo.transport.handleRequest(req, res);
-
-      logger.debug(
-        LogSource.MCP,
-        `MCP request completed in ${String(Date.now() - startTime)}ms for session ${sessionId}`,
-        {
- sessionId,
-duration: Date.now() - startTime
-}
-      );
+      await this.processSessionRequest({
+ sessionResult,
+req,
+res,
+startTime
+});
     } catch (error) {
-      logger.error(LogSource.MCP, 'MCP request failed', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        duration: Date.now() - startTime,
-      });
+      this.handleRequestError(error, res, startTime);
+    }
+  }
 
-      if (!res.headersSent) {
-        res.status(MCP_CONSTANTS.internalServerErrorStatus).json({
-          jsonrpc: '2.0',
-          error: {
-            code: MCP_CONSTANTS.jsonrpcInternalErrorCode,
-            message: 'Internal error',
-          },
-          id: null,
-        });
-      }
+  /**
+   * Extract session ID from request headers.
+   * @param req
+   */
+  private extractSessionId(req: Request): string | undefined {
+    const { 'mcp-session-id': mcpSessionId, 'x-session-id': xSessionId } = req.headers;
+    if (typeof mcpSessionId === 'string') {
+      return mcpSessionId;
+    }
+    if (typeof xSessionId === 'string') {
+      return xSessionId;
+    }
+    return undefined;
+  }
+
+  /**
+   * Log incoming request details.
+   * @param req
+   * @param sessionId
+   */
+  private logIncomingRequest(req: Request, sessionId: string | undefined): void {
+    const { headers, method } = req;
+    logger.debug(LogSource.MCP, `MCP ${method} request`, {
+      headers,
+      sessionId,
+      acceptHeader: headers.accept,
+    });
+  }
+
+  /**
+   * Process session request.
+   * @param options
+   * @param options.sessionResult
+   * @param options.sessionResult.sessionId
+   * @param options.sessionResult.sessionInfo
+   * @param options.req
+   * @param options.res
+   * @param options.startTime
+   */
+  private async processSessionRequest(options: {
+    sessionResult: { sessionId: string; sessionInfo: ISessionInfo };
+    req: Request;
+    res: Response;
+    startTime: number;
+  }): Promise<void> {
+    const {
+ sessionResult, req, res, startTime
+} = options;
+    const { sessionId, sessionInfo } = sessionResult;
+    sessionInfo.lastAccessed = new Date();
+    await sessionInfo.transport.handleRequest(req, res);
+
+    logger.debug(
+      LogSource.MCP,
+      `MCP request completed in ${String(Date.now() - startTime)}ms for session ${sessionId}`,
+      {
+        sessionId,
+        duration: Date.now() - startTime,
+      },
+    );
+  }
+
+  /**
+   * Handle request error.
+   * @param error
+   * @param res
+   * @param startTime
+   */
+  private handleRequestError(error: unknown, res: Response, startTime: number): void {
+    logger.error(LogSource.MCP, 'MCP request failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      duration: Date.now() - startTime,
+    });
+
+    if (!res.headersSent) {
+      res.status(MCP_CONSTANTS.internalServerErrorStatus).json({
+        jsonrpc: '2.0',
+        error: {
+          code: MCP_CONSTANTS.jsonrpcInternalErrorCode,
+          message: 'Internal error',
+        },
+        id: null,
+      });
     }
   }
 
   /**
    * Get or create session from request.
-   * @param {express.Request} req - Express request.
-   * @param {express.Response} res - Express response.
-   * @returns {Promise<{ sessionId: string; sessionInfo: ISessionInfo } | null>} Session info.
-   * @private
+   * @param req
+   * @param res
    */
   private async getOrCreateSession(
-    req: express.Request,
-    res: express.Response,
+    req: Request,
+    res: Response,
   ): Promise<{ sessionId: string; sessionInfo: ISessionInfo } | null> {
     const { headers } = req;
     const { 'mcp-session-id': mcpSessionHeader } = headers;
@@ -377,10 +425,14 @@ duration: Date.now() - startTime
       = (typeof mcpSessionHeader === 'string' ? mcpSessionHeader : undefined)
       ?? (typeof xSessionHeader === 'string' ? xSessionHeader : undefined);
 
-    logger.info(LogSource.MCP, `[SESSION] Request method: ${req.method}, Session ID: ${sessionId ?? 'none'}`, {
- sessionId,
-method: req.method
-});
+    logger.info(
+      LogSource.MCP,
+      `[SESSION] Request method: ${req.method}, Session ID: ${sessionId ?? 'none'}`,
+      {
+        sessionId,
+        method: req.method,
+      },
+    );
 
     if (sessionId === undefined) {
       return await this.createNewSession();
@@ -392,10 +444,14 @@ method: req.method
       return null;
     }
 
-    logger.info(LogSource.MCP, `[SESSION] Found session ${sessionId}, handling ${req.method} request`, {
- sessionId,
-method: req.method
-});
+    logger.info(
+      LogSource.MCP,
+      `[SESSION] Found session ${sessionId}, handling ${req.method} request`,
+      {
+        sessionId,
+        method: req.method,
+      },
+    );
     return {
       sessionId,
       sessionInfo,
@@ -404,8 +460,6 @@ method: req.method
 
   /**
    * Create new session.
-   * @returns {Promise<{ sessionId: string; sessionInfo: ISessionInfo }>} Session info.
-   * @private
    */
   private async createNewSession(): Promise<{ sessionId: string; sessionInfo: ISessionInfo }> {
     const sessionId = `session_${String(Date.now())}_${Math.random()
@@ -437,7 +491,11 @@ method: req.method
     };
     this.sessions.set(sessionId, sessionInfo);
 
-    logger.debug(LogSource.MCP, `📝 Created new session with dedicated server: ${sessionId}`, { sessionId });
+    logger.debug(
+      LogSource.MCP,
+      `📝 Created new session with dedicated server: ${sessionId}`,
+      { sessionId },
+    );
     return {
       sessionId,
       sessionInfo,
@@ -446,13 +504,16 @@ method: req.method
 
   /**
    * Handle session not found error.
-   * @param {string} sessionId - Session ID.
-   * @param {express.Response} res - Express response.
-   * @private
+   * @param sessionId
+   * @param res
    */
-  private handleSessionNotFound(sessionId: string, res: express.Response): void {
+  private handleSessionNotFound(sessionId: string, res: Response): void {
     logger.error(LogSource.MCP, `[SESSION] Session not found: ${sessionId}`, { sessionId });
-    logger.info(LogSource.MCP, `[SESSION] Active sessions: ${Array.from(this.sessions.keys()).join(', ')}`, { activeSessions: Array.from(this.sessions.keys()) });
+    logger.info(
+      LogSource.MCP,
+      `[SESSION] Active sessions: ${Array.from(this.sessions.keys()).join(', ')}`,
+      { activeSessions: Array.from(this.sessions.keys()) },
+    );
     res.status(MCP_CONSTANTS.notFoundStatus).json({
       jsonrpc: '2.0',
       error: {
@@ -465,7 +526,6 @@ method: req.method
 
   /**
    * Clean up old sessions that have exceeded the timeout.
-   * @private
    */
   private cleanupOldSessions(): void {
     const now = Date.now();
@@ -486,7 +546,11 @@ method: req.method
     }
 
     if (cleaned > MCP_CONSTANTS.zero) {
-      logger.info(LogSource.MCP, `Cleaned up ${String(cleaned)} old sessions`, { cleanedCount: cleaned });
+      logger.info(
+        LogSource.MCP,
+        `Cleaned up ${String(cleaned)} old sessions`,
+        { cleanedCount: cleaned },
+      );
     }
   }
 }
@@ -495,7 +559,7 @@ let mcpHandlerInstance: McpHandler | null = null;
 
 /**
  * Set the global MCP handler instance.
- * @param {McpHandler} handler - The MCP handler instance.
+ * @param handler
  */
 export const setMcpHandlerInstance = (handler: McpHandler): void => {
   mcpHandlerInstance = handler;
@@ -503,7 +567,6 @@ export const setMcpHandlerInstance = (handler: McpHandler): void => {
 
 /**
  * Get the global MCP handler instance.
- * @returns {McpHandler | null} The MCP handler instance or null if not set.
  */
 export const getMcpHandlerInstance = (): McpHandler | null => {
   return mcpHandlerInstance;

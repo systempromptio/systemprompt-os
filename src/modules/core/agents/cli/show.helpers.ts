@@ -20,8 +20,8 @@ const displayBasicInfo = (agent: IAgent, cliOutput: CliOutputService): void => {
     Description: agent.description,
     Type: agent.type,
     Status: agent.status,
-    Created: new Date(agent.created_at).toISOString(),
-    Updated: new Date(agent.updated_at).toISOString()
+    Created: agent.created_at ? new Date(agent.created_at).toISOString() : 'N/A',
+    Updated: agent.updated_at ? new Date(agent.updated_at).toISOString() : 'N/A'
   });
 };
 
@@ -73,9 +73,9 @@ const displayConfiguration = (agent: IAgent, cliOutput: CliOutputService): void 
 const displayMetrics = (agent: IAgent, cliOutput: CliOutputService): void => {
   cliOutput.section('Task Metrics');
   cliOutput.keyValue({
-    'Assigned Tasks': agent.assigned_tasks.toString(),
-    'Completed Tasks': agent.completed_tasks.toString(),
-    'Failed Tasks': agent.failed_tasks.toString()
+    'Assigned Tasks': agent.assigned_tasks?.toString() || '0',
+    'Completed Tasks': agent.completed_tasks?.toString() || '0',
+    'Failed Tasks': agent.failed_tasks?.toString() || '0'
   });
 };
 

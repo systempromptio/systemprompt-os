@@ -24,7 +24,7 @@ import type {
  ListRootsRequest, ListRootsResult, Root
 } from '@modelcontextprotocol/sdk/types.js';
 import { LogSource, LoggerService } from '@/modules/core/logger/index';
-import { sendRootsListChangedNotification } from '@/server/mcp/core/handlers/notifications';
+import { sendRootsNotification } from '@/server/mcp/core/handlers/notifications';
 
 const logger = LoggerService.getInstance();
 import * as path from 'path';
@@ -131,7 +131,7 @@ export async function notifyRootsChanged(): Promise<void> {
   logger.info(LogSource.MCP, '🔄 Notifying clients about roots change');
 
   try {
-    await sendRootsListChangedNotification();
+    await sendRootsNotification();
     logger.debug(LogSource.MCP, '📡 Sent roots/listchanged notification');
   } catch (error) {
     logger.error(LogSource.MCP, 'Failed to send roots changed notification', {

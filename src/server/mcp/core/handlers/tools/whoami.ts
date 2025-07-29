@@ -1,4 +1,5 @@
 /**
+ * Whoami tool handler for retrieving current user information.
  * @file Whoami tool handler for retrieving current user information.
  * @module handlers/tools/whoami
  */
@@ -8,7 +9,7 @@ import type {
   IToolHandlerContext,
   ToolHandler,
 } from '@/server/mcp/core/handlers/tools/types';
-import { formatToolResponse } from '@/server/mcp/core/handlers/tools/types';
+import { formatToolResponse } from '@/server/mcp/core/handlers/types/core.types';
 import { LogSource, LoggerService } from '@/modules/core/logger/index';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
 import type { IUserPermissionContext } from '@/server/mcp/core/types/permissions';
@@ -42,19 +43,21 @@ interface WhoamiResponse {
 
 /**
  * Get user permission context (imported from tool-handlers.ts logic).
- * @param context
+ * @param context - The MCP tool context.
+ * @returns Promise resolving to user permission context.
  */
-const getUserContext = async function (context: IMCPToolContext): Promise<IUserPermissionContext> {
-  if (!context.sessionId) {
+const getUserContext = function getUserContextImpl(context: IMCPToolContext): IUserPermissionContext {
+  if (context.sessionId === null || context.sessionId === undefined || context.sessionId === '') {
     throw new Error('Session ID is required');
   }
 
   const adminUserIds = ['113783121475955670750'];
-  const isAdmin = context.userId && adminUserIds.includes(context.userId);
+  const hasUserId = context.userId !== null && context.userId !== undefined && context.userId !== '';
+  const isAdmin = hasUserId && context.userId !== undefined && adminUserIds.includes(context.userId);
   const role = isAdmin ? 'admin' : 'basic';
 
   return {
-    userId: context.userId || 'anonymous',
+    userId: context.userId ?? 'anonymous',
     email: isAdmin ? 'admin@systemprompt.io' : 'user@systemprompt.io',
     role,
     permissions: ROLE_PERMISSIONS[role],
@@ -64,8 +67,9 @@ const getUserContext = async function (context: IMCPToolContext): Promise<IUserP
 
 /**
  * Whoami tool handler accessible to all authenticated users.
- * @param args
- * @param context
+ * @param args - Tool arguments.
+ * @param context - Tool handler context.
+ * @returns Promise resolving to call tool result.
  */
 export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
   args: WhoamiArgs | undefined,
@@ -83,7 +87,7 @@ export const handleWhoami: ToolHandler<WhoamiArgs | undefined> = async (
       throw new Error('Authentication context is required');
     }
 
-    const userContext = await getUserContext(context as IMCPToolContext);
+    const userContext = getUserContext(context as IMCPToolContext);
 
     const response: WhoamiResponse = {
       userId: userContext.userId,

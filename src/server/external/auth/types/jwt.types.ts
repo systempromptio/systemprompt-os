@@ -87,3 +87,32 @@ export interface IJwtInfo {
   algorithms: IJwtAlgorithm[];
   keyPath?: string;
 }
+
+/**
+ * Parameters for signature verification operations.
+ */
+export interface ISignatureVerifyParams {
+  message: string;
+  signature: string;
+  algorithm: IJwtAlgorithm;
+  config: IKeyConfig;
+}
+
+/**
+ * Parameters for time-based claims validation.
+ */
+export interface ITimeValidationParams {
+  payload: IJwtPayload;
+  options: IVerifyOptions;
+  now: number;
+  clockTolerance: number;
+}
+
+/**
+ * Parameters for signature generation operations.
+ */
+export interface ISignatureGenerateParams {
+  message: string;
+  algorithm: IJwtAlgorithm;
+  config: IKeyConfig;
+}

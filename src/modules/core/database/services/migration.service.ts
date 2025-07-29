@@ -13,7 +13,6 @@ import { LogSource } from '@/modules/core/logger/types/index';
 import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
 import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * Database row type for migration records.
@@ -135,7 +134,7 @@ export class MigrationService {
     const pending = this.migrations.filter((migration): boolean =>
       { return !applied.has(this.getMigrationKey(migration)) });
 
-    if (pending.length === ZERO) {
+    if (pending.length === 0) {
       this.logger?.info(LogSource.DATABASE, 'No pending migrations', { category: 'migration' });
       return;
     }
@@ -243,7 +242,7 @@ pending: pending.length
     const relativePath = filepath.replace(`${baseDir}/`, '');
     const parts = relativePath.split('/');
 
-    const firstPart = parts[ZERO];
+    const firstPart = parts[0];
     const secondPart = parts[1];
 
     if (firstPart === 'core' && parts.length > 1 && secondPart !== undefined) {
@@ -275,7 +274,7 @@ pending: pending.length
   private calculateChecksum(sql: string): string {
     const checksum = Buffer.from(sql).toString('base64');
     const CHECKSUM_LENGTH = 16;
-    return checksum.substring(ZERO, CHECKSUM_LENGTH);
+    return checksum.substring(0, CHECKSUM_LENGTH);
   }
 
   /**
@@ -287,7 +286,7 @@ pending: pending.length
   private compareVersions(versionA: string, versionB: string): number {
     const NUMERIC_PATTERN = /^\d+$/;
     if (NUMERIC_PATTERN.test(versionA) && NUMERIC_PATTERN.test(versionB)) {
-      return (parseInt(versionA, 10) || ZERO) - (parseInt(versionB, 10) || ZERO);
+      return (parseInt(versionA, 10) || 0) - (parseInt(versionB, 10) || 0);
     }
 
     return versionA.localeCompare(versionB);
@@ -298,7 +297,7 @@ pending: pending.length
    * @returns Array of pending migrations.
    */
   public async getPendingMigrations(): Promise<IMigration[]> {
-    if (this.migrations.length === ZERO) {
+    if (this.migrations.length === 0) {
       await this.discoverMigrations();
     }
 

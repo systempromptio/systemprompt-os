@@ -13,7 +13,6 @@ import type {
 } from '@/modules/core/database/types/database.types';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
 import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter';
-import { ZERO } from '@/modules/core/database/constants/index';
 
 /**
  * SQLite database connection implementation.
@@ -53,7 +52,7 @@ export class SqliteConnection implements IDatabaseConnection {
    * @returns Promise that resolves when complete.
    */
   public async execute(sql: string, params?: unknown[]): Promise<void> {
-    if (params !== undefined && params.length > ZERO) {
+    if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
       stmt.run(...params);
     } else {

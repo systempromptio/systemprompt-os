@@ -51,6 +51,7 @@ export interface IAuthToken {
  */
 export interface ITokenCreateInput {
   userId: string;
+  name?: string;
   type: TokenType;
   scope: string[];
   expiresIn?: number;
@@ -153,8 +154,8 @@ export interface ILoginInput {
  * Contains the result of a successful login attempt.
  */
 export interface ILoginResult {
-  user: IAuthUser;
-  session: IAuthSession;
+  user: IUsersRow;
+  session: IAuthSessionsRow;
   accessToken: string;
   refreshToken: string;
   requiresMfa: boolean;
@@ -243,86 +244,6 @@ export interface IProviderUser {
   metadata?: Record<string, unknown>;
 }
 
-/**
- * Database user row interface.
- * Raw database representation of a user record.
- */
-export interface IUserRow {
-  id: string;
-  email: string;
-  name?: string;
-  avatar_url?: string;
-  isActive: number;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt?: string;
-}
-
-/**
- * Database role row interface.
- * Raw database representation of a role record.
- */
-export interface IRoleRow {
-  id: string;
-  name: string;
-  description?: string;
-  isSystem: number;
-}
-
-/**
- * Database permission row interface.
- * Raw database representation of a permission record.
- */
-export interface IPermissionRow {
-  id: string;
-  name: string;
-  resource: string;
-  action: string;
-  description?: string;
-}
-
-/**
- * Database user-role relationship row interface.
- * Raw database representation of user-role associations.
- */
-export interface IUserRoleRow {
-  userId: string;
-  roleId: string;
-  createdAt: string;
-}
-
-/**
- * Database session row interface.
- * Raw database representation of a session record.
- */
-export interface ISessionRow {
-  id: string;
-  userId: string;
-  tokenHash: string;
-  expiresAt: string;
-  ip_address?: string;
-  user_agent?: string;
-  createdAt: string;
-}
-
-/**
- * Database audit row interface.
- * Raw database representation of an audit log record.
- */
-export interface IAuditRow {
-  id: string;
-  userId?: string;
-  action: string;
-  resource?: string;
-  ip_address?: string;
-  user_agent?: string;
-  success: number;
-  error_message?: string;
-  metadata?: string;
-  timestamp: string;
-}
-
-
 /*
  * Type-only imports to avoid circular dependencies and module resolution issues
  * These will be used for the IAuthModuleExports interface when services are fixed
@@ -330,14 +251,16 @@ export interface IAuditRow {
 import type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import type { TunnelService } from '@/modules/core/auth/services/tunnel.service';
 import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
-
-type AuthService = unknown;
-type TokenService = unknown;
-type UserService = unknown;
-type AuthCodeService = unknown;
-type MFAService = unknown;
-type AuthAuditService = unknown;
-type IdentityProvider = unknown;
+export type { ITunnelStatus };
+import type { AuthService } from '@/modules/core/auth/services/auth.service';
+import type { TokenService } from '@/modules/core/auth/services/token.service';
+import type { UserService } from '@/modules/core/auth/services/user.service';
+import type { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
+import type { MFAService } from '@/modules/core/auth/services/mfa.service';
+import type { AuthAuditService } from '@/modules/core/auth/services/audit.service';
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
+import type { IAuthSessionsRow } from '@/modules/core/auth/types/database.generated';
+export type IdentityProvider = unknown;
 
 /**
  * Authentication module exports interface.
@@ -365,19 +288,6 @@ export interface IAuthModuleExports {
   revokeUserTokens: (userId: string, type?: string) => Promise<void>;
   cleanupExpiredTokens: () => Promise<number>;
 }
-
-// Re-exporting types from other files in the auth module
-export type * from '@/modules/core/auth/types/provider-interface';
-export type { IAuthService } from '@/modules/core/auth/types/auth-service.interface';
-export type * from '@/modules/core/auth/types/oauth2.types';
-export type * from '@/modules/core/auth/types/auth-code.types';
-export type * from '@/modules/core/auth/types/repository.types';
-export type * from '@/modules/core/auth/types/generate-key.types';
-export type * from '@/modules/core/auth/types/user-service.types';
-export type * from '@/modules/core/auth/types/tunnel.types';
-export type * from '@/modules/core/auth/types/tool.types';
-export type * from '@/modules/core/auth/types/mfa.types';
-export type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 
 /**
  * Type alias for AuthUser interface for compatibility.
@@ -435,40 +345,6 @@ export type AuthConfig = IAuthConfig;
 export type ProviderUser = IProviderUser;
 
 /**
- * Type alias for UserRow interface for compatibility.
- */
-export type UserRow = IUserRow;
-
-/**
- * Type alias for RoleRow interface for compatibility.
- */
-export type RoleRow = IRoleRow;
-
-/**
- * Type alias for PermissionRow interface for compatibility.
- */
-export type PermissionRow = IPermissionRow;
-
-/**
- * Type alias for UserRoleRow interface for compatibility.
- */
-export type UserRoleRow = IUserRoleRow;
-
-/**
- * Type alias for SessionRow interface for compatibility.
- */
-export type SessionRow = ISessionRow;
-
-/**
- * Type alias for AuditRow interface for compatibility.
- */
-export type AuditRow = IAuditRow;
-
-/**
- * Type alias for UserListRow interface for compatibility.
- */
-
-/**
  * Type alias for AuthModuleExports interface for compatibility.
  */
 export type AuthModuleExports = IAuthModuleExports;
@@ -507,23 +383,6 @@ export interface IUserMFAData {
   mfa_secret?: string | null;
   mfa_enabled?: number;
   mfa_backup_codes?: string | null;
-}
-
-/**
- * Database row interface for auth_tokens table.
- * Raw database representation of a token record.
- */
-export interface ITokenRow {
-  id: string;
-  userId: string;
-  tokenHash: string;
-  type: string;
-  scope: string;
-  expiresAt: string;
-  createdAt: string;
-  lastUsedAt?: string;
-  isRevoked: boolean;
-  metadata?: string;
 }
 
 /**
@@ -628,4 +487,121 @@ export interface IAuditEventRow {
   details: string | null;
   ipAddress: string | null;
   userAgent: string | null;
+}
+
+/**
+ * Status check input parameters interface.
+ */
+export interface IStatusCheckInput {
+  includeContainers?: boolean;
+  includeUsers?: boolean;
+  includeResources?: boolean;
+  includeTunnels?: boolean;
+  includeAuditLog?: boolean;
+}
+
+/**
+ * Resource information interface.
+ */
+export interface IResourceInfo {
+  memory: {
+    used: number;
+    total: number;
+    unit: string;
+  };
+  uptime: {
+    seconds: number;
+    formatted: string;
+  };
+}
+
+/**
+ * Container information interface.
+ */
+export interface IContainerInfo {
+  status: string;
+  count: number;
+  details: Array<{
+    name: string;
+    status: string;
+    health: string;
+  }>;
+}
+
+/**
+ * User statistics interface.
+ */
+export interface IUserStats {
+  total: number;
+  active: number;
+  admins: number;
+}
+
+/**
+ * Audit log summary interface.
+ */
+export interface IAuditLogSummary {
+  entries: number;
+  latest: Array<unknown>;
+}
+
+/**
+ * Status check result interface.
+ */
+export interface IStatusCheckResult {
+  status: string;
+  version: string;
+  uptime: number;
+  timestamp: string;
+  resources?: IResourceInfo;
+  containers?: IContainerInfo;
+  users?: IUserStats;
+  tunnels?: ITunnelStatus;
+  auditLog?: IAuditLogSummary;
+}
+
+/**
+ * Status check response interface.
+ */
+export interface IStatusCheckResponse {
+  message: string;
+  result: IStatusCheckResult;
+}
+
+/**
+ * OAuth2 Server Metadata Internal interface.
+ * Internal representation of OAuth2 server metadata.
+ */
+export interface IOAuth2ServerMetadataInternal {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  jwks_uri: string;
+  registration_endpoint?: string;
+  userinfo_endpoint?: string;
+  introspection_endpoint?: string;
+  revocation_endpoint?: string;
+  scopes_supported: string[];
+  response_types_supported: string[];
+  response_modes_supported?: string[];
+  grant_types_supported: string[];
+  token_endpoint_auth_methods_supported: string[];
+  service_documentation?: string;
+  code_challenge_methods_supported?: string[];
+  subject_types_supported?: string[];
+  id_token_signing_alg_values_supported?: string[];
+  claims_supported?: string[];
+}
+
+/**
+ * OAuth2 Protected Resource Metadata Internal interface.
+ * Internal representation of OAuth2 protected resource metadata.
+ */
+export interface IOAuth2ProtectedResourceMetadataInternal {
+  resource: string;
+  authorization_servers: string[];
+  jwks_uri?: string;
+  bearer_methods_supported?: string[];
+  resource_documentation?: string;
+  scopes_supported?: string[];
 }

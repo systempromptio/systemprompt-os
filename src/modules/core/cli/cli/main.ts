@@ -23,8 +23,12 @@ let globalBootstrap: { shutdown: () => Promise<void> } | null = null;
  */
 process.on('SIGINT', (): void => {
   if (globalBootstrap) {
-    void globalBootstrap.shutdown().finally((): void => {
+    globalBootstrap.shutdown().finally((): void => {
       process.exit(0);
+    })
+.catch((error: unknown): void => {
+      console.error('Shutdown error:', error);
+      process.exit(1);
     });
   } else {
     process.exit(0);
@@ -33,8 +37,12 @@ process.on('SIGINT', (): void => {
 
 process.on('SIGTERM', (): void => {
   if (globalBootstrap) {
-    void globalBootstrap.shutdown().finally((): void => {
+    globalBootstrap.shutdown().finally((): void => {
       process.exit(0);
+    })
+.catch((error: unknown): void => {
+      console.error('Shutdown error:', error);
+      process.exit(1);
     });
   } else {
     process.exit(0);
@@ -50,7 +58,7 @@ program
   )
   .version('0.1.0')
   .configureHelp({
-    formatHelp: (cmd, _helper): string => {
+    formatHelp: (cmd): string => {
       try {
         const formatter = CliFormatterService.getInstance();
         return formatter.formatHelp(cmd, true);
@@ -103,14 +111,14 @@ interface IParsedDatabaseCommand {
   id: number;
   command_path: string;
   command_name: string;
-  description: string;
+  description: string | null;
   module_name: string;
   executor_path: string;
   options: CLIOption[];
   aliases: string[];
-  active: number;
-  created_at: string;
-  updated_at: string;
+  active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 const buildOptionFlags = (option: CLIOption): string => {
@@ -161,6 +169,8 @@ const createCommandAction = (cmd: IParsedDatabaseCommand):
     /**
      * Dynamic import needed for loading command modules at runtime.
      */
+    // Dynamic import needed for loading command modules at runtime
+    // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
     const module = await import(cmd.executor_path) as ICommandModule;
     const executor = findExecutor(module);
 
@@ -206,6 +216,7 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
   for (let i = 0; i < commandParts.length; i += 1) {
     const part = commandParts[i];
     if (part === undefined) {
+      // eslint-disable-next-line systemprompt-os/no-continue-with-help
       continue;
     }
     const isLastPart = i === commandParts.length - 1;
@@ -216,12 +227,12 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
       command = foundCommand;
     } else if (isLastPart) {
       const newCommand = command.command(part);
-      if (cmd.description !== undefined && cmd.description !== '') {
+      if (cmd.description !== undefined && cmd.description !== null && cmd.description !== '') {
         newCommand.description(cmd.description);
       }
 
       if (cmd.options !== undefined && Array.isArray(cmd.options)) {
-        for (const opt of cmd.options) {
+        cmd.options.forEach((opt): void => {
           const flags = buildOptionFlags(opt);
           const description = opt.description ?? '';
 
@@ -230,7 +241,7 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
           } else {
             newCommand.option(flags, description);
           }
-        }
+        });
       }
 
       /**
@@ -265,6 +276,8 @@ const registerCommand = (cmd: IParsedDatabaseCommand): void => {
  * @throws {Error} If CLI bootstrap fails.
  */
 const registerModuleCommands = async (): Promise<IBootstrapCliResult> => {
+  // Dynamic import needed for lazy loading CLI service during bootstrap
+  // eslint-disable-next-line systemprompt-os/no-restricted-syntax-typescript-with-help
   const { BootstrapCliService } = await import('@/modules/core/cli/services/bootstrap-cli.service');
   const bootstrapService = BootstrapCliService.getInstance();
   const { cliService, bootstrap } = await bootstrapService.bootstrapCli();
@@ -292,6 +305,31 @@ bootstrap };
     });
     throw error;
   }
+};
+
+/**
+ * Handles command parsing errors with proper exit codes.
+ * @param error - The error object.
+ * @param bootstrap - The bootstrap instance for cleanup.
+ */
+const handleCommandError = async (error: unknown, bootstrap: Bootstrap | null): Promise<void> => {
+  if (error && typeof error === 'object' && 'exitCode' in error) {
+    const errorWithCode = error as { exitCode?: number };
+    if (typeof errorWithCode.exitCode === 'number') {
+      const exitCode = errorWithCode.exitCode;
+      
+      if (bootstrap) {
+        await bootstrap.shutdown();
+      }
+      
+      // Force exit with the error code
+      setTimeout(() => {
+        process.exit(exitCode);
+      }, 100);
+      return;
+    }
+  }
+  throw error;
 };
 
 /**
@@ -360,6 +398,17 @@ const main = async (): Promise<void> => {
     });
 
     /**
+     * If no arguments provided, show help.
+     */
+    if (process.argv.length === 2) {
+      program.outputHelp();
+      if (bootstrap) {
+        await bootstrap.shutdown();
+      }
+      process.exit(0);
+    }
+
+    /**
      * Parse command line arguments.
      */
     try {
@@ -368,30 +417,7 @@ const main = async (): Promise<void> => {
       /**
        * Commander throws an error with exitCode property for built-in commands like --version, --help.
        */
-      if (error && typeof error === 'object' && 'exitCode' in error) {
-        const errorWithCode = error as { exitCode?: number };
-        if (typeof errorWithCode.exitCode === 'number') {
-          const exitCode = errorWithCode.exitCode;
-          
-          /**
-           * If exitCode is 0, it's a successful operation (like --version or --help).
-           */
-          if (exitCode === 0) {
-            /**
-             * Clean shutdown and exit successfully.
-             */
-            if (bootstrap) {
-              await bootstrap.shutdown();
-            }
-            setTimeout((): void => {
-              process.exit(0);
-            }, 100);
-            return;
-          }
-          process.exitCode = exitCode;
-        }
-      }
-      throw error;
+      await handleCommandError(error, bootstrap);
     }
     
     /**
@@ -419,7 +445,7 @@ const main = async (): Promise<void> => {
     if (bootstrap) {
       try {
         await bootstrap.shutdown();
-      } catch (_cleanupError: unknown) {
+      } catch {
         /**
          * Ignore cleanup errors during error handling.
          */
@@ -435,7 +461,7 @@ const main = async (): Promise<void> => {
  * Use import.meta.url for ES modules.
  */
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
-  void main().catch((error: unknown): void => {
+  main().catch((error: unknown): void => {
     console.error('Unhandled error in main:', error);
     process.exit(1);
   });

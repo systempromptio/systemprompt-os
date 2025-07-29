@@ -1,3 +1,4 @@
+/* eslint-disable require-unicode-regexp */
 import { randomUUID } from 'crypto';
 import { hostname } from 'os';
 import {
@@ -18,7 +19,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
  * Service for centralized error handling and processing.
  */
 export class ErrorHandlingService {
-  private static instance: ErrorHandlingService;
+  private static instance: ErrorHandlingService | undefined;
   private readonly errorFingerprints: Map<string, number> = new Map();
   private readonly logger: LoggerService;
   private config: IErrorHandlingConfig;
@@ -36,7 +37,7 @@ export class ErrorHandlingService {
    * @returns The singleton instance of ErrorHandlingService.
    */
   public static getInstance(): ErrorHandlingService {
-    ErrorHandlingService.instance ||= new ErrorHandlingService();
+    ErrorHandlingService.instance ??= new ErrorHandlingService();
     return ErrorHandlingService.instance;
   }
 
@@ -56,13 +57,14 @@ export class ErrorHandlingService {
    * @param source - The source identifier where the error originated.
    * @param error - The error to be processed.
    * @param options - Optional processing options.
-   * @returns Promise resolving to the processed error.
+   * @returns The processed error.
+   * @throws {Error} When rethrow option is enabled and processed error is rethrown.
    */
-  public async processError(
+  public processError(
     source: string,
     error: unknown,
     options?: Partial<IErrorHandlingOptions>,
-  ): Promise<IProcessedError> {
+  ): IProcessedError {
     const mergedOptions = {
       ...this.config.defaultOptions,
       ...options,
@@ -77,7 +79,7 @@ export class ErrorHandlingService {
 
     this.trackErrorOccurrence(processedError);
 
-    await this.logError(processedError, mergedOptions);
+    this.logError(processedError, mergedOptions);
 
     if (mergedOptions.rethrow ?? false) {
       throw this.createRethrowError(processedError);
@@ -100,6 +102,29 @@ export class ErrorHandlingService {
     const name = error.name.toLowerCase();
 
     return this.determineErrorCategory(message, name);
+  }
+
+  /**
+   * Determine error severity.
+   * @param error - The error to analyze (unused but kept for interface compatibility).
+   * @param _error
+   * @param category - The error category.
+   * @returns The determined error severity.
+   */
+  public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
+    if (category === 'SYSTEM' || category === 'DATABASE') {
+      return 'error';
+    }
+
+    if (category === 'AUTHENTICATION' || category === 'AUTHORIZATION') {
+      return 'warn';
+    }
+
+    if (category === 'VALIDATION' || category === 'BUSINESS_LOGIC') {
+      return 'info';
+    }
+
+    return 'warn';
   }
 
   /**
@@ -136,100 +161,28 @@ export class ErrorHandlingService {
     return 'UNKNOWN';
   }
 
-  /**
-   * Check if error is an authentication error.
-   * @param message - The error message.
-   * @param name - The error name.
-   * @returns True if authentication error.
-   */
   private isAuthenticationError(message: string, name: string): boolean {
-    return message.includes('unauthorized')
-      || message.includes('authentication')
-      || name.includes('auth');
+    return message.includes('unauthorized') || message.includes('authentication') || name.includes('auth');
   }
 
-  /**
-   * Check if error is an authorization error.
-   * @param message - The error message.
-   * @returns True if authorization error.
-   */
   private isAuthorizationError(message: string): boolean {
-    return message.includes('forbidden')
-      || message.includes('permission')
-      || message.includes('access denied');
+    return message.includes('forbidden') || message.includes('permission') || message.includes('access denied');
   }
 
-  /**
-   * Check if error is a validation error.
-   * @param message - The error message.
-   * @param name - The error name.
-   * @returns True if validation error.
-   */
   private isValidationError(message: string, name: string): boolean {
-    return message.includes('validation')
-      || message.includes('invalid')
-      || name.includes('validation');
+    return message.includes('validation') || message.includes('invalid') || name.includes('validation');
   }
 
-  /**
-   * Check if error is a database error.
-   * @param message - The error message.
-   * @param name - The error name.
-   * @returns True if database error.
-   */
   private isDatabaseError(message: string, name: string): boolean {
-    return message.includes('database')
-      || message.includes('sql')
-      || message.includes('connection')
-      || name.includes('sequelize');
+    return message.includes('database') || message.includes('sql') || message.includes('connection') || name.includes('sequelize');
   }
 
-  /**
-   * Check if error is an external service error.
-   * @param message - The error message.
-   * @returns True if external service error.
-   */
   private isExternalServiceError(message: string): boolean {
-    return message.includes('api')
-      || message.includes('service')
-      || message.includes('timeout')
-      || message.includes('network');
+    return message.includes('api') || message.includes('service') || message.includes('timeout') || message.includes('network');
   }
 
-  /**
-   * Check if error is a system error.
-   * @param message - The error message.
-   * @param name - The error name.
-   * @returns True if system error.
-   */
   private isSystemError(message: string, name: string): boolean {
-    return message.includes('system')
-      || message.includes('memory')
-      || message.includes('disk')
-      || name.includes('system');
-  }
-
-  /**
-   * Determine error severity.
-   * @param error - The error to analyze.
-   * @param _error
-   * @param category - The error category.
-   * @returns The determined error severity.
-   */
-  public determineErrorSeverity(_error: unknown, category: ErrorCategory): ErrorSeverity {
-    if (category === 'SYSTEM' || category === 'DATABASE') {
-      return 'error';
-    }
-
-    if (category === 'AUTHENTICATION' || category === 'AUTHORIZATION') {
-      return 'warn';
-    }
-
-    if (category === 'VALIDATION' || category === 'BUSINESS_LOGIC') {
-      return 'info';
-    }
-
-    return 'warn';
+    return message.includes('system') || message.includes('memory') || message.includes('disk') || name.includes('system');
   }
 
   /**
@@ -245,12 +198,34 @@ export class ErrorHandlingService {
       environment: process.env.NODE_ENV ?? 'development',
       hostname: hostname(),
       pid: process.pid,
-      requestId: options.metadata?.requestId ? String(options.metadata.requestId) : undefined,
-      userId: options.metadata?.userId ? String(options.metadata.userId) : undefined,
-      sessionId: options.metadata?.sessionId ? String(options.metadata.sessionId) : undefined,
-      correlationId: options.metadata?.correlationId ? String(options.metadata.correlationId) : randomUUID(),
+      requestId: this.extractStringFromMetadata(options.metadata?.requestId),
+      userId: this.extractStringFromMetadata(options.metadata?.userId),
+      sessionId: this.extractStringFromMetadata(options.metadata?.sessionId),
+      correlationId:
+        this.extractStringFromMetadata(options.metadata?.correlationId) ?? randomUUID(),
       metadata: options.metadata,
     };
+  }
+
+  /**
+   * Extract string value from metadata field safely.
+   * @param value - The metadata value to extract.
+   * @returns String representation or undefined.
+   */
+  private extractStringFromMetadata(value: unknown): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    return JSON.stringify(value);
   }
 
   /**
@@ -268,49 +243,23 @@ export class ErrorHandlingService {
     const category = options.category ?? this.categorizeError(error);
     const severity = options.severity ?? this.determineErrorSeverity(error, category);
 
-    let message: string;
-    let stack: string | undefined;
-    let code: string | undefined;
-    let type: string;
-
-    if (error instanceof Error) {
-      message = options.message ?? error.message;
-      stack = error.stack;
-      type = error.constructor.name;
-      code = 'code' in error && typeof error.code === 'string' ? error.code : undefined;
-    } else if (typeof error === 'string') {
-      message = error;
-      type = 'StringError';
-    } else if (error !== null && typeof error === 'object') {
-      message = options.message ?? JSON.stringify(error);
-      type = 'ObjectError';
-      code = 'code' in error && typeof error.code === 'string' ? error.code : undefined;
-    } else {
-      message = options.message ?? String(error);
-      type = 'UnknownError';
-    }
-
-    const maxMessageLength = this.config.maxMessageLength ?? 0;
-    if (maxMessageLength > 0 && message.length > maxMessageLength) {
-      message = `${message.substring(0, maxMessageLength)}...`;
-    }
-
-    const maxStackLength = this.config.maxStackLength ?? 0;
-    if (maxStackLength > 0 && stack !== undefined && stack.length > maxStackLength) {
-      stack = `${stack.substring(0, maxStackLength)}...`;
-    }
-
-    const fingerprint = this.generateFingerprint(message, type, context.source);
+    const errorDetails = this.extractErrorDetails(error, options);
+    const truncatedDetails = this.truncateErrorDetails(errorDetails);
+    const fingerprint = this.generateFingerprint(
+      truncatedDetails.message,
+      truncatedDetails.type,
+      context.source,
+    );
 
     return {
       id: randomUUID(),
-      message,
-      code,
-      type,
+      message: truncatedDetails.message,
+      code: truncatedDetails.code,
+      type: truncatedDetails.type,
       category,
       logCategory: ErrorCategoryMapping[category],
       severity,
-      stack,
+      stack: truncatedDetails.stack,
       context,
       originalError: error,
       sanitized: false,
@@ -320,11 +269,149 @@ export class ErrorHandlingService {
   }
 
   /**
+   * Extract error details from unknown error.
+   * @param error - The error to extract details from.
+   * @param options - The error handling options.
+   * @returns Extracted error details.
+   */
+  private extractErrorDetails(error: unknown, options: IErrorHandlingOptions): {
+    message: string;
+    stack?: string;
+    code?: string;
+    type: string;
+  } {
+    if (error instanceof Error) {
+      return this.extractErrorInstanceDetails(error, options);
+    }
+
+    if (typeof error === 'string') {
+      return {
+        message: error,
+        type: 'StringError',
+      };
+    }
+
+    if (error !== null && typeof error === 'object') {
+      return this.extractObjectErrorDetails(error, options);
+    }
+
+    return {
+      message: options.message ?? String(error),
+      type: 'UnknownError',
+    };
+  }
+
+  /**
+   * Extract details from Error instance.
+   * @param error - The Error instance.
+   * @param options - The error handling options.
+   * @returns Extracted error details.
+   */
+  private extractErrorInstanceDetails(error: Error, options: IErrorHandlingOptions): {
+    message: string;
+    stack?: string;
+    code?: string;
+    type: string;
+  } {
+    const result: {
+      message: string;
+      stack?: string;
+      code?: string;
+      type: string;
+    } = {
+      message: options.message ?? error.message,
+      type: error.constructor.name,
+    };
+
+    if (error.stack !== undefined) {
+      result.stack = error.stack;
+    }
+
+    if ('code' in error && typeof error.code === 'string') {
+      result.code = error.code;
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract details from object error.
+   * @param error - The object error.
+   * @param options - The error handling options.
+   * @returns Extracted error details.
+   */
+  private extractObjectErrorDetails(error: object, options: IErrorHandlingOptions): {
+    message: string;
+    type: string;
+    code?: string;
+  } {
+    const result: {
+      message: string;
+      type: string;
+      code?: string;
+    } = {
+      message: options.message ?? JSON.stringify(error),
+      type: 'ObjectError',
+    };
+
+    if ('code' in error && typeof error.code === 'string') {
+      result.code = error.code;
+    }
+
+    return result;
+  }
+
+  /**
+   * Truncate error details if they exceed configured limits.
+   * @param details - The error details to truncate.
+   * @param details.message - The error message.
+   * @param details.stack - The error stack trace.
+   * @param details.code - The error code.
+   * @param details.type - The error type.
+   * @returns Truncated error details.
+   */
+  private truncateErrorDetails(details: {
+    message: string;
+    stack?: string;
+    code?: string;
+    type: string;
+  }): {
+    message: string;
+    stack?: string;
+    code?: string;
+    type: string;
+  } {
+    const maxMessageLength = this.config.maxMessageLength ?? 0;
+    const maxStackLength = this.config.maxStackLength ?? 0;
+
+    let { message, stack } = details;
+
+    if (maxMessageLength > 0 && message.length > maxMessageLength) {
+      message = `${message.substring(0, maxMessageLength)}...`;
+    }
+
+    if (maxStackLength > 0 && stack !== undefined && stack.length > maxStackLength) {
+      stack = `${stack.substring(0, maxStackLength)}...`;
+    }
+
+    const result = {
+      ...details,
+      message,
+    } as typeof details & { message: string; stack?: string };
+
+    if (stack !== undefined) {
+      result.stack = stack;
+    }
+
+    return result;
+  }
+
+  /**
    * Sanitize sensitive information from error.
    * @param error - The processed error to sanitize.
    */
   private sanitizeError(error: IProcessedError): void {
-    const patterns = this.config.sanitizePatterns || [
+    const patterns = this.config.sanitizePatterns ?? [
       /password["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
       /token["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
       /api[_-]?key["\s]*[:=]["\s]*["']?[^"'\s,}]+/gi,
@@ -332,9 +419,11 @@ export class ErrorHandlingService {
       /authorization["\s]*[:=]["\s]*["']?Bearer\s+[^"'\s,}]+/gi,
     ];
 
-    patterns.forEach((pattern: RegExp) => {
+    patterns.forEach((pattern: RegExp): void => {
       error.message = error.message.replace(pattern, '[REDACTED]');
-      error.stack &&= error.stack.replace(pattern, '[REDACTED]');
+      if (error.stack !== undefined) {
+        error.stack = error.stack.replace(pattern, '[REDACTED]');
+      }
     });
 
     error.sanitized = true;
@@ -372,7 +461,7 @@ export class ErrorHandlingService {
    * @param error - The processed error to log.
    * @param options - The error handling options.
    */
-  private async logError(error: IProcessedError, options: IErrorHandlingOptions): Promise<void> {
+  private logError(error: IProcessedError, options: IErrorHandlingOptions): void {
     const logSource = options.logSource ?? LogSource.SYSTEM;
     const logArgs: LogArgs = {
       category: options.logCategory ?? error.logCategory,
@@ -415,10 +504,13 @@ export class ErrorHandlingService {
    * @returns The created error for rethrowing.
    */
   private createRethrowError(processedError: IProcessedError): Error {
-    const error = new Error(processedError.message);
-    error.name = processedError.type;
-    if (processedError.stack !== undefined && processedError.stack.length > 0) {
-      error.stack = processedError.stack;
+    const {
+ message, type, stack
+} = processedError;
+    const error = new Error(message);
+    error.name = type;
+    if (stack !== undefined && stack.length > 0) {
+      error.stack = stack;
     }
     Object.assign(error, {
       errorId: processedError.id,

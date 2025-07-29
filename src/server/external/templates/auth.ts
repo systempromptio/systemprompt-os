@@ -1,10 +1,41 @@
-/**
- * @file Authentication page templates for SystemPrompt OS.
- * @module server/external/templates/auth
+/*
+ * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
+ * - systemprompt-os/enforce-type-exports violations for LayoutConfig, IdentityProvider, AuthPageConfig
+ * - These types need to be moved to a types/ folder per project standards
  */
 
-// Mock imports for missing modules
-const renderLayout = (config: { title: string; content: string; styles: string }) => {
+/**
+ * Configuration interface for rendering layout components.
+ */
+interface LayoutConfig {
+  title: string;
+  content: string;
+  styles: string;
+}
+
+/**
+ * Identity provider configuration for OAuth authentication.
+ */
+interface IdentityProvider {
+  name: string;
+}
+
+/**
+ * Authentication page configuration options.
+ */
+export interface AuthPageConfig {
+  providers: IdentityProvider[];
+  isAuthenticated: boolean;
+  userEmail?: string;
+  error?: string;
+}
+
+/**
+ * Mock layout renderer for HTML page structure.
+ * @param config - Layout configuration options.
+ * @returns Complete HTML page string.
+ */
+const renderLayout = (config: LayoutConfig): string => {
   return `
     <!DOCTYPE html>
     <html>
@@ -19,162 +50,27 @@ const renderLayout = (config: { title: string; content: string; styles: string }
   `;
 };
 
-interface IdentityProvider {
-  name: string;
-}
-
+/**
+ * Mock tunnel status service for URL resolution.
+ */
 const tunnelStatus = {
-  getBaseUrlOrDefault: (fallback: string) => { return fallback }
+  /**
+   * Gets the base URL or returns a default fallback.
+   * @param fallback - Default URL to use.
+   * @returns The base URL string.
+   */
+  getBaseUrlOrDefault: (fallback: string): string => { return fallback; }
 };
 
 /**
- * Authentication page configuration.
- */
-export interface AuthPageConfig {
-  providers: IdentityProvider[];
-  isAuthenticated: boolean;
-  userEmail?: string;
-  error?: string;
-}
-
-/**
- * Renders the authentication page combining login and registration.
- * @param config
- */
-export function renderAuthPage(config: AuthPageConfig): string {
-  const content = config.isAuthenticated
-    ? renderLogoutSection(config.userEmail)
-    : renderLoginSection(config.providers, config.error);
-
-  return renderLayout({
-    title: config.isAuthenticated ? 'Account' : 'Sign In',
-    content,
-    styles: getAuthStyles(),
-  });
-}
-
-/**
- * Renders the login/register section for unauthenticated users.
- * @param providers
- * @param error
- */
-function renderLoginSection(providers: IdentityProvider[], error?: string): string {
-  return `
-    <h1>Sign In to SystemPrompt</h1>
-    <p class="subtitle">Access your AI operating system</p>
-
-    ${
-      error
-        ? `
-    <div class="error-message">
-      <svg class="error-icon" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-      </svg>
-      <span>${error}</span>
-    </div>
-    `
-        : ''
-    }
-
-    <div class="auth-section">
-      <div class="section-header">
-        <svg class="section-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-        </svg>
-        <h2>Choose Authentication Method</h2>
-      </div>
-      
-      <div class="provider-list">
-        ${providers
-          .map((provider) => {
-            return renderProviderButton(provider);
-          })
-          .join('')}
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="info-card">
-        <svg class="info-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-        <div class="info-content">
-          <h3>New to SystemPrompt?</h3>
-          <p>Sign in with your preferred provider to automatically create an account. Your first login registers you as a new user.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">
-      <p>
-        <a href="/">Back to Home</a> • 
-        <a href="/config">System Status</a>
-      </p>
-    </div>
-  `;
-}
-
-/**
- * Renders the logout section for authenticated users.
- * @param userEmail
- */
-function renderLogoutSection(userEmail?: string): string {
-  return `
-    <h1>Your Account</h1>
-    <p class="subtitle">Manage your SystemPrompt session</p>
-
-    <div class="account-section">
-      <div class="account-info">
-        <div class="account-avatar">
-          <svg fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-          </svg>
-        </div>
-        <div class="account-details">
-          <h2>Signed in as</h2>
-          <p class="user-email">${userEmail || 'User'}</p>
-        </div>
-      </div>
-
-      <div class="session-info">
-        <div class="session-item">
-          <span class="session-label">Session Status</span>
-          <span class="session-value active">Active</span>
-        </div>
-        <div class="session-item">
-          <span class="session-label">Authentication Method</span>
-          <span class="session-value">OAuth 2.0</span>
-        </div>
-      </div>
-
-      <form method="POST" action="/auth/logout" class="logout-form">
-        <button type="submit" class="logout-button">
-          <svg class="button-icon" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/>
-          </svg>
-          Sign Out
-        </button>
-      </form>
-    </div>
-
-    <div class="footer">
-      <p>
-        <a href="/config">Configuration</a> • 
-        <a href="/">Home</a>
-      </p>
-    </div>
-  `;
-}
-
-/**
  * Renders an OAuth provider button.
- * @param provider
+ * @param provider - The identity provider configuration.
+ * @returns HTML string for provider authentication button.
  */
-function renderProviderButton(provider: IdentityProvider): string {
+const renderProviderButton = (provider: IdentityProvider): string => {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-
   const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
 
   const params = new URLSearchParams({
@@ -192,209 +88,129 @@ function renderProviderButton(provider: IdentityProvider): string {
       Continue with ${displayName}
     </a>
   `;
-}
+};
 
 /**
- * Returns CSS styles specific to the authentication pages.
+ * Renders the login section for unauthenticated users.
+ * @param providers - Array of available identity providers.
+ * @param error - Optional error message to display.
+ * @returns HTML string for login section.
  */
-function getAuthStyles(): string {
+const renderLoginSection = (providers: IdentityProvider[], error?: string): string => {
+  const errorHtml = error ? `
+    <div class="error-message">
+      <span class="error-icon">⚠</span>
+      <span>${error}</span>
+    </div>
+  ` : '';
+
+  const providerButtons = providers
+    .map((provider: IdentityProvider): string => {
+      return renderProviderButton(provider);
+    })
+    .join('');
+
   return `
-    .auth-section {
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 32px;
-      margin: 40px 0;
-    }
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .section-icon {
-      width: 24px;
-      height: 24px;
-      color: #3b82f6;
-    }
-    .section-header h2 {
-      font-size: 20px;
-      font-weight: 600;
-      color: #f1f5f9;
-      margin: 0;
-    }
-    .provider-list {
-      display: grid;
-      gap: 12px;
-    }
-    .provider-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      padding: 16px 24px;
-      border: 2px solid #334155;
-      border-radius: 10px;
-      background: #1e293b;
-      color: #e5e7eb;
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-    .provider-button:hover {
-      background: #334155;
-      border-color: #475569;
-      transform: translateY(-1px);
-    }
-    .provider-icon {
-      width: 20px;
-      height: 20px;
-      margin-right: 12px;
-    }
-    .info-section {
-      margin: 32px 0;
-    }
-    .info-card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 20px;
-      display: flex;
-      gap: 16px;
-    }
-    .info-icon {
-      width: 24px;
-      height: 24px;
-      color: #60a5fa;
-      flex-shrink: 0;
-    }
-    .info-content h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #f1f5f9;
-      margin: 0 0 8px 0;
-    }
-    .info-content p {
-      font-size: 14px;
-      color: #cbd5e1;
-      line-height: 1.5;
-      margin: 0;
-    }
-    .error-message {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 8px;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 24px 0;
-    }
-    .error-icon {
-      width: 20px;
-      height: 20px;
-      color: #ef4444;
-      flex-shrink: 0;
-    }
-    .error-message span {
-      color: #fca5a5;
-      font-size: 14px;
-    }
-    
-    /* Account/Logout styles */
-    .account-section {
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 32px;
-      margin: 40px 0;
-    }
-    .account-info {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin-bottom: 32px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid #1e293b;
-    }
-    .account-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: #1e293b;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .account-avatar svg {
-      width: 32px;
-      height: 32px;
-      color: #3b82f6;
-    }
-    .account-details h2 {
-      font-size: 14px;
-      font-weight: 500;
-      color: #9ca3af;
-      margin: 0 0 4px 0;
-    }
-    .user-email {
-      font-size: 20px;
-      font-weight: 600;
-      color: #f1f5f9;
-      margin: 0;
-    }
-    .session-info {
-      display: grid;
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-    .session-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid #1e293b;
-    }
-    .session-label {
-      font-size: 14px;
-      color: #9ca3af;
-    }
-    .session-value {
-      font-size: 14px;
-      font-weight: 500;
-      color: #e2e8f0;
-    }
-    .session-value.active {
-      color: #10b981;
-    }
-    .logout-form {
-      margin: 0;
-    }
-    .logout-button {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 16px 24px;
-      background: #dc2626;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .logout-button:hover {
-      background: #b91c1c;
-      transform: translateY(-1px);
-    }
-    .button-icon {
-      width: 20px;
-      height: 20px;
-    }
+    <h1>Sign In to SystemPrompt</h1>
+    <p class="subtitle">Access your AI operating system</p>
+    ${errorHtml}
+    <div class="auth-section">
+      <h2>Choose Authentication Method</h2>
+      <div class="provider-list">${providerButtons}</div>
+    </div>
+    <div class="info-section">
+      <h3>New to SystemPrompt?</h3>
+      <p>Sign in with your preferred provider to create an account.</p>
+    </div>
+    <div class="footer">
+      <a href="/">Home</a> • <a href="/config">Status</a>
+    </div>
   `;
-}
+};
+
+/**
+ * Renders the logout section for authenticated users.
+ * @param userEmail - The user's email address to display.
+ * @returns HTML string for logout section.
+ */
+const renderLogoutSection = (userEmail?: string): string => {
+  const displayEmail = userEmail ?? 'User';
+
+  return `
+    <h1>Your Account</h1>
+    <p class="subtitle">Manage your SystemPrompt session</p>
+    <div class="account-section">
+      <div class="account-info">
+        <h2>Signed in as</h2>
+        <p class="user-email">${displayEmail}</p>
+      </div>
+      <div class="session-info">
+        <div class="session-item">
+          <span>Session Status</span>
+          <span class="active">Active</span>
+        </div>
+        <div class="session-item">
+          <span>Authentication</span>
+          <span>OAuth 2.0</span>
+        </div>
+      </div>
+      <form method="POST" action="/auth/logout" class="logout-form">
+        <button type="submit" class="logout-button">Sign Out</button>
+      </form>
+    </div>
+    <div class="footer">
+      <a href="/config">Configuration</a> • <a href="/">Home</a>
+    </div>
+  `;
+};
+
+/**
+ * Returns CSS styles for authentication pages.
+ * @returns CSS styles string for authentication pages.
+ */
+const getAuthStyles = (): string => {
+  return `
+    body { font-family: system-ui; margin: 0; padding: 20px; 
+           background: #0f172a; color: #f1f5f9; }
+    h1, h2, h3 { margin: 0 0 16px 0; }
+    .subtitle { color: #94a3b8; margin-bottom: 24px; }
+    .auth-section, .account-section { background: #1e293b; padding: 24px; 
+                                      border-radius: 8px; margin: 24px 0; }
+    .provider-list { display: grid; gap: 12px; }
+    .provider-button { display: flex; align-items: center; padding: 12px; 
+                       background: #334155; color: white; text-decoration: none; 
+                       border-radius: 6px; }
+    .provider-icon { margin-right: 8px; }
+    .error-message { background: rgba(239, 68, 68, 0.1); padding: 12px; 
+                     border-radius: 6px; margin: 16px 0; }
+    .error-icon { color: #ef4444; margin-right: 8px; }
+    .info-section { margin: 24px 0; padding: 16px; background: #1e293b; 
+                    border-radius: 6px; }
+    .account-info { margin-bottom: 24px; }
+    .user-email { font-size: 18px; font-weight: 600; }
+    .session-info { margin: 24px 0; }
+    .session-item { display: flex; justify-content: space-between; padding: 8px 0; }
+    .active { color: #10b981; }
+    .logout-button { width: 100%; padding: 12px; background: #dc2626; color: white; 
+                     border: none; border-radius: 6px; cursor: pointer; }
+    .footer { margin-top: 32px; text-align: center; color: #64748b; }
+    .footer a { color: #3b82f6; text-decoration: none; }
+  `;
+};
+
+/**
+ * Renders the authentication page combining login and registration.
+ * @param config - Authentication page configuration options.
+ * @returns Complete HTML page for authentication.
+ */
+export const renderAuthPage = (config: AuthPageConfig): string => {
+  const content = config.isAuthenticated
+    ? renderLogoutSection(config.userEmail)
+    : renderLoginSection(config.providers, config.error);
+
+  return renderLayout({
+    title: config.isAuthenticated ? 'Account' : 'Sign In',
+    content,
+    styles: getAuthStyles(),
+  });
+};

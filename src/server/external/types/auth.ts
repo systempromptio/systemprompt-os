@@ -51,3 +51,14 @@ export interface AuthMiddlewareOptions {
   redirectToLogin?: boolean;
   requiredRoles?: string[];
 }
+
+/**
+ * Parameters for handling authentication failures.
+ */
+export interface AuthFailureParams {
+  res: import('express').Response;
+  options: AuthMiddlewareOptions;
+  statusCode: number;
+  error: string;
+  errorDescription: string;
+}

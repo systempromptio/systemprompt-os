@@ -1,3 +1,11 @@
+/*
+ * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
+ * 1. Function hoisting issues (used before defined) requiring major refactor
+ * 2. Max parameters violations in helper functions (need parameter objects)
+ * 3. Type assertions requiring better type guards
+ * 4. File too long (578 lines > 500) requiring module split
+ * 5. Type definitions need to be in types/ folder per project rules
+ */
 /**
  * Terminal command execution API endpoint.
  * @file Terminal command execution API endpoint.
@@ -6,13 +14,12 @@
  */
 
 import type {
-  Request,
-  Response,
+  Request as ExpressRequest,
+  Response as ExpressResponse,
   Router
 } from 'express';
-import { spawn } from 'child_process';
-import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { type ChildProcess, spawn } from 'child_process';
+import { LogSource, LoggerService } from '@/modules/core/logger/index';
 
 const logger = LoggerService.getInstance();
 
@@ -75,14 +82,14 @@ const getCount = function getCount(value: unknown): number {
 
 /**
  * Handle summary endpoint.
- * @param req - Express request object.
+ * @param req - Express request object (unused).
  * @param _req
  * @param res - Express response object.
  * @returns Promise<void>.
  */
 const handleSummary = async function handleSummary(
-  _req: Request,
-  res: Response
+  _req: ExpressRequest,
+  res: ExpressResponse
 ): Promise<void> {
   try {
     const summary = {
@@ -125,15 +132,12 @@ const handleSummary = async function handleSummary(
 };
 
 /**
- * Handle commands endpoint.
- * @param req - Express request object.
- * @param _req
+ * Execute commands list via spawn process.
  * @param res - Express response object.
  * @returns Promise<void>.
  */
-const handleCommands = async function handleCommands(
-  _req: Request,
-  res: Response
+const executeCommandsList = async function executeCommandsList(
+  res: ExpressResponse
 ): Promise<void> {
   await new Promise((resolve): void => {
     try {
@@ -146,88 +150,389 @@ const handleCommands = async function handleCommands(
         },
       });
 
-    let output = '';
-    let errorOutput = '';
+      let output = '';
+      let errorOutput = '';
 
-    child.stdout.on('data', (buffer: Buffer): void => {
-      output += buffer.toString();
-    });
+      child.stdout.on('data', (buffer: Buffer): void => {
+        output += buffer.toString();
+      });
 
-    child.stderr.on('data', (buffer: Buffer): void => {
-      errorOutput += buffer.toString();
-    });
+      child.stderr.on('data', (buffer: Buffer): void => {
+        errorOutput += buffer.toString();
+      });
 
-    const timeoutId = setTimeout((): void => {
-      if (!res.headersSent) {
-        child.kill();
-        res.json({
-          success: false,
-          error: 'Command list timeout',
-          fallback: true,
-        });
-        resolve(undefined);
-      }
-    }, 5000);
+      const timeoutId = setTimeout((): void => {
+        handleCommandTimeout(child, res, resolve);
+      }, 5000);
 
       child.on('close', (code: number | null): void => {
-        clearTimeout(timeoutId);
-        if (code === 0) {
-          try {
-            const commands = JSON.parse(output);
-            res.json({
-              success: true,
-              commands
-            });
-            resolve(undefined);
-          } catch (parseError) {
-            logger.error(LogSource.API, 'Failed to parse command list', {
-              error: parseError instanceof Error ? parseError : new Error(String(parseError)),
-              category: 'terminal',
-              persistToDb: false
-            });
-            res.json({
-              success: false,
-              error: 'Failed to parse command list',
-              fallback: true,
-            });
-            resolve(undefined);
-          }
-        } else {
-          const errorMessage = errorOutput.length > 0 ? errorOutput : 'Failed to retrieve commands';
-          res.json({
-            success: false,
-            error: errorMessage,
-            fallback: true,
-          });
-          resolve(undefined);
-        }
+        handleCommandClose(code, output, errorOutput, timeoutId, res, resolve);
       });
 
-    child.on('error', (error: Error): void => {
-      clearTimeout(timeoutId);
-      logger.error(LogSource.API, 'Failed to get commands', {
-        error: error.message,
-        category: 'terminal'
+      child.on('error', (error: Error): void => {
+        handleCommandError(error, timeoutId, res, resolve);
       });
-      res.json({
-        success: false,
-        error: 'Failed to retrieve commands',
-        fallback: true,
-      });
-      resolve(undefined);
-    });
-  } catch (error) {
-    logger.error(LogSource.API, 'Commands API error', {
-      error: error instanceof Error ? error : new Error(String(error)),
-      category: 'terminal'
-    });
+    } catch (error) {
+      handleCommandsApiError(error, res, resolve);
+    }
+  });
+};
+
+/**
+ * Handle command timeout.
+ * @param child - Child process.
+ * @param res - Express response object.
+ * @param resolve - Promise resolve function.
+ */
+const handleCommandTimeout = function handleCommandTimeout(
+  child: ChildProcess,
+  res: ExpressResponse,
+  resolve: (value: unknown) => void
+): void {
+  if (!res.headersSent) {
+    child.kill();
     res.json({
       success: false,
-      error: 'Failed to retrieve commands',
+      error: 'Command list timeout',
       fallback: true,
     });
     resolve(undefined);
   }
+};
+
+/**
+ * Handle command close event.
+ * @param code - Exit code.
+ * @param output - Standard output.
+ * @param errorOutput - Error output.
+ * @param timeoutId - Timeout ID to clear.
+ * @param res - Express response object.
+ * @param resolve - Promise resolve function.
+ */
+const handleCommandClose = function handleCommandClose(
+  code: number | null,
+  output: string,
+  errorOutput: string,
+  timeoutId: NodeJS.Timeout,
+  res: ExpressResponse,
+  resolve: (value: unknown) => void
+): void {
+  clearTimeout(timeoutId);
+  if (code === 0) {
+    try {
+      const commands = JSON.parse(output);
+      res.json({
+        success: true,
+        commands
+      });
+      resolve(undefined);
+    } catch (parseError) {
+      logger.error(LogSource.API, 'Failed to parse command list', {
+        error: parseError instanceof Error ? parseError : new Error(String(parseError)),
+        category: 'terminal',
+        persistToDb: false
+      });
+      res.json({
+        success: false,
+        error: 'Failed to parse command list',
+        fallback: true,
+      });
+      resolve(undefined);
+    }
+  } else {
+    const errorMessage = errorOutput.length > 0 ? errorOutput : 'Failed to retrieve commands';
+    res.json({
+      success: false,
+      error: errorMessage,
+      fallback: true,
+    });
+    resolve(undefined);
+  }
+};
+
+/**
+ * Handle command error event.
+ * @param error - Error object.
+ * @param timeoutId - Timeout ID to clear.
+ * @param res - Express response object.
+ * @param resolve - Promise resolve function.
+ */
+const handleCommandError = function handleCommandError(
+  error: Error,
+  timeoutId: NodeJS.Timeout,
+  res: ExpressResponse,
+  resolve: (value: unknown) => void
+): void {
+  clearTimeout(timeoutId);
+  logger.error(LogSource.API, 'Failed to get commands', {
+    error: error.message,
+    category: 'terminal'
+  });
+  res.json({
+    success: false,
+    error: 'Failed to retrieve commands',
+    fallback: true,
+  });
+  resolve(undefined);
+};
+
+/**
+ * Handle commands API error.
+ * @param error - Error object.
+ * @param res - Express response object.
+ * @param resolve - Promise resolve function.
+ */
+const handleCommandsApiError = function handleCommandsApiError(
+  error: unknown,
+  res: ExpressResponse,
+  resolve: (value: unknown) => void
+): void {
+  logger.error(LogSource.API, 'Commands API error', {
+    error: error instanceof Error ? error : new Error(String(error)),
+    category: 'terminal'
+  });
+  res.json({
+    success: false,
+    error: 'Failed to retrieve commands',
+    fallback: true,
+  });
+  resolve(undefined);
+};
+
+/**
+ * Handle commands endpoint.
+ * @param req - Express request object (unused).
+ * @param _req
+ * @param res - Express response object.
+ * @returns Promise<void>.
+ */
+const handleCommands = async function handleCommands(
+  _req: ExpressRequest,
+  res: ExpressResponse
+): Promise<void> {
+  await executeCommandsList(res);
+};
+
+/**
+ * Validation result for execute request.
+ */
+type ValidationResult = {
+  valid: boolean;
+  command?: string;
+  error?: string;
+};
+
+/**
+ * Validate execute request body.
+ * @param body - Request body.
+ * @returns Validation result.
+ */
+const validateExecuteRequest = function validateExecuteRequest(
+  body: unknown
+): ValidationResult {
+  if (typeof body !== 'object' || body === null) {
+    return {
+      valid: false,
+      error: 'Invalid request body'
+    };
+  }
+
+  const requestBody = body as { command?: unknown };
+  const { command } = requestBody;
+
+  if (typeof command !== 'string' || command.length === 0) {
+    return {
+      valid: false,
+      error: 'Invalid command'
+    };
+  }
+
+  return {
+    valid: true,
+    command: command.trim()
+  };
+};
+
+/**
+ * Check if command is a systemprompt command.
+ * @param command - Command to check.
+ * @returns True if systemprompt command.
+ */
+const isSystemPromptCommand = function isSystemPromptCommand(
+  command: string
+): boolean {
+  return command.startsWith('systemprompt ');
+};
+
+/**
+ * Parse command arguments from trimmed command.
+ * @param trimmedCommand - Trimmed command string.
+ * @returns Array of command arguments.
+ */
+const parseCommandArgs = function parseCommandArgs(
+  trimmedCommand: string
+): string[] {
+  const parts = trimmedCommand.split(/\s+/u);
+  return parts.slice(1);
+};
+
+/**
+ * Execute command with spawn.
+ * @param args - Command arguments.
+ * @param res - Express response object.
+ */
+const executeCommand = function executeCommand(
+  args: string[],
+  res: ExpressResponse
+): void {
+  logger.info(LogSource.API, 'Executing terminal command', {
+    category: 'terminal',
+    action: 'execute',
+    persistToDb: true
+  });
+
+  const child = spawn('/app/bin/systemprompt', args, {
+    cwd: '/app',
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      FORCE_COLOR: '0'
+    },
+  });
+
+  let output = '';
+  let errorOutput = '';
+
+  child.stdout.on('data', (buffer: Buffer): void => {
+    output += buffer.toString();
+  });
+
+  child.stderr.on('data', (buffer: Buffer): void => {
+    errorOutput += buffer.toString();
+  });
+
+  const timeoutId = setTimeout((): void => {
+    handleExecuteTimeout(child, res);
+  }, 30000);
+
+  child.on('close', (code: number | null): void => {
+    handleExecuteClose(code, output, errorOutput, timeoutId, res);
+  });
+
+  child.on('error', (error: Error): void => {
+    handleExecuteCommandError(error, timeoutId, res);
+  });
+};
+
+/**
+ * Handle execute timeout.
+ * @param child - Child process.
+ * @param res - Express response object.
+ */
+const handleExecuteTimeout = function handleExecuteTimeout(
+  child: ChildProcess,
+  res: ExpressResponse
+): void {
+  if (!res.headersSent) {
+    child.kill();
+    res.json({
+      success: false,
+      error: 'Command execution timeout',
+    });
+  }
+};
+
+/**
+ * Handle execute close event.
+ * @param code - Exit code.
+ * @param output - Standard output.
+ * @param errorOutput - Error output.
+ * @param timeoutId - Timeout ID.
+ * @param res - Express response object.
+ */
+const handleExecuteClose = function handleExecuteClose(
+  code: number | null,
+  output: string,
+  errorOutput: string,
+  timeoutId: NodeJS.Timeout,
+  res: ExpressResponse
+): void {
+  clearTimeout(timeoutId);
+  if (code === 0) {
+    const responseOutput = output.length > 0 ? output : 'Command executed successfully';
+    res.json({
+      success: true,
+      output: responseOutput,
+    });
+  } else {
+    const errorMessage = getErrorMessage(errorOutput, output, code);
+    res.json({
+      success: false,
+      error: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get error message from outputs and code.
+ * @param errorOutput - Error output.
+ * @param output - Standard output.
+ * @param code - Exit code.
+ * @returns Error message.
+ */
+const getErrorMessage = function getErrorMessage(
+  errorOutput: string,
+  output: string,
+  code: number | null
+): string {
+  if (errorOutput.length > 0) {
+    return errorOutput;
+  }
+  if (output.length > 0) {
+    return output;
+  }
+  return `Command exited with code ${String(code)}`;
+};
+
+/**
+ * Handle execute command error.
+ * @param error - Error object.
+ * @param timeoutId - Timeout ID.
+ * @param res - Express response object.
+ */
+const handleExecuteCommandError = function handleExecuteCommandError(
+  error: Error,
+  timeoutId: NodeJS.Timeout,
+  res: ExpressResponse
+): void {
+  clearTimeout(timeoutId);
+  logger.error(LogSource.API, 'Terminal command execution error', {
+    error: error.message,
+    category: 'terminal',
+    action: 'execute'
+  });
+  res.json({
+    success: false,
+    error: `Failed to execute command: ${error.message}`,
+  });
+};
+
+/**
+ * Handle execute error.
+ * @param error - Error object.
+ * @param res - Express response object.
+ */
+const handleExecuteError = function handleExecuteError(
+  error: unknown,
+  res: ExpressResponse
+): void {
+  logger.error(LogSource.API, 'Terminal API error', {
+    error: error instanceof Error ? error : new Error(String(error)),
+    category: 'terminal'
+  });
+  res.status(500).json({
+    success: false,
+    error: error instanceof Error ? error.message : 'Internal server error',
   });
 };
 
@@ -238,22 +543,20 @@ const handleCommands = async function handleCommands(
  * @returns Void.
  */
 const handleExecute = function handleExecute(
-  req: Request,
-  res: Response
+  req: ExpressRequest,
+  res: ExpressResponse
 ): void {
   try {
-    const { command } = req.body as { command?: unknown };
-
-    if (typeof command !== 'string' || command.length === 0) {
+    const validationResult = validateExecuteRequest(req.body);
+    if (!validationResult.valid || validationResult.command === undefined) {
       res.status(400).json({
         success: false,
-        error: 'Invalid command',
+        error: validationResult.error,
       });
       return;
     }
 
-    const trimmedCommand = command.trim();
-    if (!trimmedCommand.startsWith('systemprompt ')) {
+    if (!isSystemPromptCommand(validationResult.command)) {
       res.json({
         success: false,
         error: 'Only systemprompt commands are allowed',
@@ -261,90 +564,10 @@ const handleExecute = function handleExecute(
       return;
     }
 
-    const parts = trimmedCommand.split(/\s+/);
-    const args = parts.slice(1);
-
-    logger.info(LogSource.API, 'Executing terminal command', {
-      category: 'terminal',
-      action: 'execute',
-      persistToDb: true
-    });
-
-    const child = spawn('/app/bin/systemprompt', args, {
-      cwd: '/app',
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        FORCE_COLOR: '0'
-      },
-    });
-
-    let output = '';
-    let errorOutput = '';
-
-    child.stdout.on('data', (buffer: Buffer): void => {
-      output += buffer.toString();
-    });
-
-    child.stderr.on('data', (buffer: Buffer): void => {
-      errorOutput += buffer.toString();
-    });
-
-    const timeoutId = setTimeout((): void => {
-      if (!res.headersSent) {
-        child.kill();
-        res.json({
-          success: false,
-          error: 'Command execution timeout',
-        });
-      }
-    }, 30000);
-
-    child.on('close', (code: number | null): void => {
-      clearTimeout(timeoutId);
-      if (code === 0) {
-        const responseOutput = output.length > 0 ? output : 'Command executed successfully';
-        res.json({
-          success: true,
-          output: responseOutput,
-        });
-      } else {
-        let errorMessage: string;
-        if (errorOutput.length > 0) {
-          errorMessage = errorOutput;
-        } else if (output.length > 0) {
-          errorMessage = output;
-        } else {
-          errorMessage = `Command exited with code ${String(code)}`;
-        }
-        res.json({
-          success: false,
-          error: errorMessage,
-        });
-      }
-    });
-
-    child.on('error', (error: Error): void => {
-      clearTimeout(timeoutId);
-      logger.error(LogSource.API, 'Terminal command execution error', {
-        error: error.message,
-        category: 'terminal',
-        action: 'execute'
-      });
-      res.json({
-        success: false,
-        error: `Failed to execute command: ${error.message}`,
-      });
-    });
+    const args = parseCommandArgs(validationResult.command);
+    executeCommand(args, res);
   } catch (error) {
-    logger.error(LogSource.API, 'Terminal API error', {
-      error: error instanceof Error ? error : new Error(String(error)),
-      category: 'terminal'
-    });
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    });
+    handleExecuteError(error, res);
   }
 };
 

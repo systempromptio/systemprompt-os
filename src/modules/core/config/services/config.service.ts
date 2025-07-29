@@ -6,18 +6,16 @@
 import type {
  ConfigValue, IConfigEntry, IConfigService
 } from '@/modules/core/config/types/index';
+import type { IConfigsRow } from '@/modules/core/config/types/database.generated';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 /**
  * Service for managing configuration with singleton pattern.
- * TODO: Load configurations from database.
- * TODO: Persist to database.
- * TODO: Remove from database.
- * TODO: Implement validation logic.
  * @class ConfigService
  */
 export class ConfigService implements IConfigService {
   private static instance: ConfigService | undefined;
-  private readonly configs: Map<string, IConfigEntry> = new Map();
+  private databaseService!: DatabaseService;
   private initialized = false;
 
   /**
@@ -45,7 +43,7 @@ export class ConfigService implements IConfigService {
       return;
     }
 
-    await Promise.resolve();
+    this.databaseService = DatabaseService.getInstance();
     this.initialized = true;
   }
 
@@ -55,9 +53,22 @@ export class ConfigService implements IConfigService {
    * @returns {Promise<ConfigValue>} Configuration value.
    */
   async get(key: string): Promise<ConfigValue> {
-    const entry = this.configs.get(key);
-    await Promise.resolve();
-    return entry === undefined ? null : entry.value;
+    const query = 'SELECT * FROM configs WHERE key = ? LIMIT 1';
+    const rows = await this.databaseService.query<IConfigsRow>(query, [key]);
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    const result = rows[0];
+    if (!result) {
+      return null;
+    }
+    try {
+      return JSON.parse(result.value);
+    } catch {
+      return result.value;
+    }
   }
 
   /**
@@ -67,18 +78,17 @@ export class ConfigService implements IConfigService {
    * @returns {Promise<void>} Promise that resolves when value is set.
    */
   async set(key: string, value: ConfigValue): Promise<void> {
-    const now = new Date();
-    const existing = this.configs.get(key);
+    const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
 
-    const entry: IConfigEntry = {
-      key,
-      value,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
+    const query = `
+      INSERT INTO configs (key, value, updated_at) 
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(key) DO UPDATE SET 
+        value = excluded.value,
+        updated_at = CURRENT_TIMESTAMP
+    `;
 
-    this.configs.set(key, entry);
-    await Promise.resolve();
+    await this.databaseService.execute(query, [key, serializedValue]);
   }
 
   /**
@@ -87,8 +97,8 @@ export class ConfigService implements IConfigService {
    * @returns {Promise<void>} Promise that resolves when value is deleted.
    */
   async delete(key: string): Promise<void> {
-    this.configs.delete(key);
-    await Promise.resolve();
+    const query = 'DELETE FROM configs WHERE key = ?';
+    await this.databaseService.execute(query, [key]);
   }
 
   /**
@@ -96,8 +106,16 @@ export class ConfigService implements IConfigService {
    * @returns {Promise<IConfigEntry[]>} All configuration entries.
    */
   async list(): Promise<IConfigEntry[]> {
-    await Promise.resolve();
-    return Array.from(this.configs.values());
+    const query = 'SELECT * FROM configs ORDER BY key';
+    const rows = await this.databaseService.query<IConfigsRow>(query);
+
+    return rows.map(row => { return {
+      key: row.key,
+      value: this.parseValue(row.value),
+      description: row.description ?? '',
+      createdAt: new Date(row.created_at || ''),
+      updatedAt: new Date(row.updated_at || '')
+    } as IConfigEntry });
   }
 
   /**
@@ -107,7 +125,12 @@ export class ConfigService implements IConfigService {
   async validate(): Promise<{ valid: boolean; errors?: string[] }> {
     const errors: string[] = [];
 
-    await Promise.resolve();
+    try {
+      const query = 'SELECT COUNT(*) as count FROM configs';
+      await this.databaseService.query(query);
+    } catch (error) {
+      errors.push(`Database validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
 
     const EMPTY_ERRORS = 0;
     if (errors.length > EMPTY_ERRORS) {
@@ -120,5 +143,18 @@ export class ConfigService implements IConfigService {
     return {
       valid: true,
     };
+  }
+
+  /**
+   * Parse configuration value from database.
+   * @param {string} value - Raw value from database.
+   * @returns {ConfigValue} Parsed configuration value.
+   */
+  private parseValue(value: string): ConfigValue {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
   }
 }

@@ -10,10 +10,10 @@ import type { IIdentityProvider } from '@/server/external/rest/oauth2/types/auth
 import { getAuthModule } from '@/modules/core/auth/index';
 
 /**
- * Adapter that wraps auth module providers to match server interface
+ * Adapter that wraps auth module providers to match server interface.
  */
 class ProviderAdapter implements IIdentityProvider {
-  constructor(private authProvider: IdentityProvider) {}
+  constructor(private readonly authProvider: IdentityProvider) {}
 
   get name(): string {
     return this.authProvider.id;
@@ -75,7 +75,7 @@ export class AuthModuleProviderRegistry {
   }
 
   /**
-   * Get a provider by ID (alias for compatibility)
+   * Get a provider by ID (alias for compatibility).
    * @param providerId
    */
   getProvider(providerId: string): IIdentityProvider | undefined {
@@ -88,11 +88,11 @@ export class AuthModuleProviderRegistry {
   list(): IIdentityProvider[] {
     const authModule = getAuthModule();
     const providers = authModule.exports.getAllProviders();
-    return providers.map((provider) => new ProviderAdapter(provider as IdentityProvider));
+    return providers.map((provider) => { return new ProviderAdapter(provider as IdentityProvider) });
   }
 
   /**
-   * Get all providers (alias for compatibility)
+   * Get all providers (alias for compatibility).
    */
   getAllProviders(): IIdentityProvider[] {
     return this.list();

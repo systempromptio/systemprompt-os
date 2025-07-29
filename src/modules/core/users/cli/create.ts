@@ -31,14 +31,6 @@ export const command: ICLICommand = {
         email: args.email as string
       };
 
-      if (args.password) {
-        userData.password = args.password as string;
-      }
-
-      if (args.role) {
-        userData.role = args.role as string;
-      }
-
       cliOutput.section('Creating User');
 
       const user = await usersService.createUser(userData);

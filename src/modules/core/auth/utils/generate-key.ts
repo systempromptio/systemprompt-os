@@ -4,7 +4,7 @@ import { join } from 'path';
 import {
   TWO
 } from '@/constants/numbers';
-import type { IGenerateKeyOptions } from '@/modules/core/auth/types';
+import type { IGenerateKeyOptions } from '@/modules/core/auth/types/generate-key.types';
 
 /**
  * Generates RSA key pair for the specified algorithm.

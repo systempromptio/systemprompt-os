@@ -8,13 +8,15 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type {DevSessionStatus} from '@/modules/core/dev/types/index';
 import {
-  DevSessionStatus,
   type DevSessionType,
-  type IDevProfile,
+  type IDevProfileConfig,
   type IDevService,
-  type IDevSession
+  type IDevSessionMetadata
 } from '@/modules/core/dev/types/index';
+import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/database.generated';
+import { DevRepository } from '@/modules/core/dev/repositories/dev.repository';
 
 /**
  * Service for managing development tools - placeholder implementation.
@@ -22,6 +24,7 @@ import {
 export class DevService implements IDevService {
   private static instance: DevService;
   private logger?: ILogger;
+  private repository!: DevRepository;
   private initialized = false;
 
   /**
@@ -58,6 +61,9 @@ export class DevService implements IDevService {
       await Promise.resolve(); return;
     }
 
+    this.repository = DevRepository.getInstance();
+    await this.repository.initialize();
+
     this.initialized = true;
     this.logger?.info(LogSource.DEV, 'DevService initialized');
     await Promise.resolve();
@@ -66,22 +72,13 @@ export class DevService implements IDevService {
   /**
    * Create a new development profile.
    * @param name - The profile name.
+   * @param description - Optional profile description.
    * @param config - Optional profile configuration.
    * @returns Promise that resolves to the created profile.
    */
-  async createProfile(name: string, config?: Record<string, unknown>): Promise<IDevProfile> {
+  async createProfile(name: string, description?: string, config?: IDevProfileConfig): Promise<IDevProfilesRow> {
     await this.ensureInitialized();
-
-    const profile: IDevProfile = {
-      id: 1,
-      name,
-      config: config ?? {},
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.logger?.info(LogSource.DEV, `Created dev profile: ${name}`);
-    return profile;
+    return await this.repository.createProfile(name, description, config);
   }
 
   /**
@@ -89,11 +86,9 @@ export class DevService implements IDevService {
    * @param name - The profile name.
    * @returns Promise that resolves to the profile or null if not found.
    */
-  async getProfile(name: string): Promise<IDevProfile | null> {
+  async getProfile(name: string): Promise<IDevProfilesRow | null> {
     await this.ensureInitialized();
-
-    this.logger?.debug(LogSource.DEV, `Getting profile: ${name}`);
-    return null;
+    return await this.repository.getProfileByName(name);
   }
 
   /**
@@ -102,34 +97,96 @@ export class DevService implements IDevService {
    * @param profileId - Optional profile ID.
    * @returns Promise that resolves to the created session.
    */
-  async startSession(type: DevSessionType, profileId?: number): Promise<IDevSession> {
+  async startSession(type: DevSessionType, profileId?: number): Promise<IDevSessionsRow> {
     await this.ensureInitialized();
-
-    const session: IDevSession = {
-      id: 1,
-      profileId: profileId ?? 0,
-      type,
-      status: DevSessionStatus.ACTIVE,
-      startedAt: new Date()
-    };
-
-    this.logger?.info(LogSource.DEV, `Started ${type} session`);
-    return session;
+    return await this.repository.startSession(type, profileId);
   }
 
   /**
    * End a development session.
    * @param sessionId - The session ID.
    * @param status - The final status.
+   * @param metadata - Optional session metadata.
    * @returns Promise that resolves when ended.
    */
-  async endSession(sessionId: number, status: DevSessionStatus): Promise<void> {
+  async endSession(sessionId: number, status: DevSessionStatus, metadata?: IDevSessionMetadata): Promise<void> {
     await this.ensureInitialized();
+    await this.repository.endSession(sessionId, status, metadata);
+  }
 
-    this.logger?.info(
-      LogSource.DEV,
-      `Ended session ${sessionId.toString()} with status: ${status}`
-    );
+  /**
+   * Get all profiles.
+   * @returns Array of profiles.
+   */
+  async getAllProfiles(): Promise<IDevProfilesRow[]> {
+    await this.ensureInitialized();
+    return await this.repository.getAllProfiles();
+  }
+
+  /**
+   * Update profile.
+   * @param id - Profile ID.
+   * @param updates - Profile updates.
+   * @param updates.name
+   * @param updates.description
+   * @param updates.config
+   * @returns Updated profile.
+   */
+  async updateProfile(
+    id: number,
+    updates: {
+      name?: string;
+      description?: string;
+      config?: IDevProfileConfig;
+    }
+  ): Promise<IDevProfilesRow> {
+    await this.ensureInitialized();
+    return await this.repository.updateProfile(id, updates);
+  }
+
+  /**
+   * Delete profile.
+   * @param id - Profile ID.
+   */
+  async deleteProfile(id: number): Promise<void> {
+    await this.ensureInitialized();
+    await this.repository.deleteProfile(id);
+  }
+
+  /**
+   * Get active sessions.
+   * @param profileId - Optional profile ID filter.
+   * @returns Array of active sessions.
+   */
+  async getActiveSessions(profileId?: number): Promise<IDevSessionsRow[]> {
+    await this.ensureInitialized();
+    return await this.repository.getActiveSessions(profileId);
+  }
+
+  /**
+   * Get all sessions.
+   * @param profileId - Optional profile ID filter.
+   * @returns Array of sessions.
+   */
+  async getAllSessions(profileId?: number): Promise<IDevSessionsRow[]> {
+    await this.ensureInitialized();
+    return await this.repository.getAllSessions(profileId);
+  }
+
+  /**
+   * Get session statistics.
+   * @param profileId - Optional profile ID filter.
+   * @returns Session statistics.
+   */
+  async getSessionStats(profileId?: number): Promise<{
+    total: number;
+    active: number;
+    completed: number;
+    failed: number;
+    averageDuration: number;
+  }> {
+    await this.ensureInitialized();
+    return await this.repository.getSessionStats(profileId);
   }
 
   /**

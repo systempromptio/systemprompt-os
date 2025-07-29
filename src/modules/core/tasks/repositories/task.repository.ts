@@ -32,8 +32,24 @@ export class TaskRepository {
   async create(task: Partial<ITask>): Promise<ITask> {
     this.validateRequiredTaskFields(task);
     const taskData = this.prepareTaskDataForInsert(task);
-    await this.insertTaskData(taskData);
-    const taskId = await this.getLastInsertedTaskId();
+
+    const sql = `INSERT INTO task 
+      (type, module_id, instructions, priority, status, retry_count, max_executions, 
+       max_time, result, scheduled_at, created_by, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id`;
+
+    const result = await this.database.query<{ id: number }>(sql, [
+      taskData.type, taskData.moduleId, taskData.instructions, taskData.priority,
+      taskData.status, taskData.retryCount, taskData.maxExecutions, taskData.maxTime,
+      taskData.result, taskData.scheduledAt, taskData.createdBy, taskData.metadata
+    ]);
+
+    const taskId = result[0]?.id;
+    if (taskId === undefined) {
+      throw new Error('Failed to get task ID after insert');
+    }
+
     return this.buildCreatedTaskResponse(taskId, taskData, task);
   }
 
@@ -178,40 +194,6 @@ export class TaskRepository {
   }
 
   /**
-   * Insert task data into database.
-   * @param taskData - Prepared task data.
-   * @returns Promise that resolves when insert is complete.
-   */
-  private async insertTaskData(taskData: Record<string, unknown>): Promise<void> {
-    const sql = `INSERT INTO task 
-      (type, module_id, instructions, priority, status, retry_count, max_executions, 
-       max_time, result, scheduled_at, created_by, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    await this.database.execute(sql, [
-      taskData.type, taskData.moduleId, taskData.instructions, taskData.priority,
-      taskData.status, taskData.retryCount, taskData.maxExecutions, taskData.maxTime,
-      taskData.result, taskData.scheduledAt, taskData.createdBy, taskData.metadata
-    ]);
-  }
-
-  /**
-   * Get the ID of the last inserted task.
-   * @returns Promise resolving to the task ID.
-   * @throws Error if ID cannot be retrieved.
-   */
-  private async getLastInsertedTaskId(): Promise<number> {
-    const result = await this.database.query<{ id: number }>('SELECT last_insert_rowid() as id');
-    const taskId = result[0]?.id;
-
-    if (taskId === undefined) {
-      throw new Error('Failed to get task ID after insert');
-    }
-
-    return taskId;
-  }
-
-  /**
    * Build the response object for a created task.
    * @param taskId - ID of the created task.
    * @param taskData - Prepared task data.
@@ -240,6 +222,7 @@ export class TaskRepository {
   /**
    * Add optional fields to task object.
    * @param task - Base task object to modify.
+   * @param baseTask
    * @param taskData - Prepared task data.
    * @param originalTask - Original task input.
    */
@@ -330,8 +313,7 @@ params
     if (updates.status !== undefined) {
       updateFields.push('status = ?');
       updateValues.push(updates.status);
-      
-      // Automatically set completedAt when task is completed or failed
+
       if (updates.status === TaskStatusEnum.COMPLETED || updates.status === TaskStatusEnum.FAILED) {
         updateFields.push('completed_at = ?');
         updateValues.push(new Date().toISOString());
@@ -499,6 +481,7 @@ params
   /**
    * Add optional fields from database row to task object.
    * @param task - Base task object to modify.
+   * @param baseTask
    * @param row - Database row with optional fields.
    */
   private addOptionalRowFieldsToTask(baseTask: ITask, row: ITaskRow): ITask {
@@ -577,7 +560,7 @@ params
   async findByAgent(agentId: string): Promise<ITask[]> {
     const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? ORDER BY priority DESC, created_at ASC';
     const result = await this.database.query<ITaskRow>(sql, [agentId]);
-    return result.map(row => this.mapRowToTask(row));
+    return result.map(row => { return this.mapRowToTask(row) });
   }
 
   /**
@@ -588,6 +571,6 @@ params
   async findByStatus(status: TaskStatusEnum): Promise<ITask[]> {
     const sql = 'SELECT * FROM task WHERE status = ? ORDER BY priority DESC, created_at ASC';
     const result = await this.database.query<ITaskRow>(sql, [status]);
-    return result.map(row => this.mapRowToTask(row));
+    return result.map(row => { return this.mapRowToTask(row) });
   }
 }

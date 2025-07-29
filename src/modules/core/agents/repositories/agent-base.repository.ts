@@ -38,11 +38,16 @@ export abstract class AgentBaseRepository {
    * @throws Error if the type is invalid.
    */
   protected validateAgentType(type: string): AgentType {
-    const validTypes: readonly string[] = ['worker', 'monitor', 'coordinator'];
-    if (validTypes.includes(type)) {
-      return type as AgentType;
+    switch (type) {
+      case 'worker':
+        return 'worker' as AgentType;
+      case 'monitor':
+        return 'monitor' as AgentType;
+      case 'coordinator':
+        return 'coordinator' as AgentType;
+      default:
+        throw new Error(`Invalid agent type: ${type}`);
     }
-    throw new Error(`Invalid agent type: ${type}`);
   }
 
   /**
@@ -52,11 +57,18 @@ export abstract class AgentBaseRepository {
    * @throws Error if the status is invalid.
    */
   protected validateAgentStatus(status: string): AgentStatus {
-    const validStatuses: readonly string[] = ['idle', 'active', 'stopped', 'error'];
-    if (validStatuses.includes(status)) {
-      return status as AgentStatus;
+    switch (status) {
+      case 'idle':
+        return 'idle' as AgentStatus;
+      case 'active':
+        return 'active' as AgentStatus;
+      case 'stopped':
+        return 'stopped' as AgentStatus;
+      case 'error':
+        return 'error' as AgentStatus;
+      default:
+        throw new Error(`Invalid agent status: ${status}`);
     }
-    throw new Error(`Invalid agent status: ${status}`);
   }
 
   /**
@@ -66,11 +78,18 @@ export abstract class AgentBaseRepository {
    * @throws Error if the priority is invalid.
    */
   protected validateTaskPriority(priority: string): TaskPriority {
-    const validPriorities: readonly string[] = ['low', 'medium', 'high', 'critical'];
-    if (validPriorities.includes(priority)) {
-      return priority as TaskPriority;
+    switch (priority) {
+      case 'low':
+        return 'low' as TaskPriority;
+      case 'medium':
+        return 'medium' as TaskPriority;
+      case 'high':
+        return 'high' as TaskPriority;
+      case 'critical':
+        return 'critical' as TaskPriority;
+      default:
+        throw new Error(`Invalid task priority: ${priority}`);
     }
-    throw new Error(`Invalid task priority: ${priority}`);
   }
 
   /**
@@ -80,13 +99,22 @@ export abstract class AgentBaseRepository {
    * @throws Error if the status is invalid.
    */
   protected validateTaskStatus(status: string): TaskStatus {
-    const validStatuses: readonly string[] = [
-      'pending', 'assigned', 'running', 'completed', 'failed', 'cancelled'
-    ];
-    if (validStatuses.includes(status)) {
-      return status as TaskStatus;
+    switch (status) {
+      case 'pending':
+        return 'pending' as TaskStatus;
+      case 'assigned':
+        return 'assigned' as TaskStatus;
+      case 'running':
+        return 'running' as TaskStatus;
+      case 'completed':
+        return 'completed' as TaskStatus;
+      case 'failed':
+        return 'failed' as TaskStatus;
+      case 'cancelled':
+        return 'cancelled' as TaskStatus;
+      default:
+        throw new Error(`Invalid task status: ${status}`);
     }
-    throw new Error(`Invalid task status: ${status}`);
   }
 
   /**
@@ -94,22 +122,23 @@ export abstract class AgentBaseRepository {
    * @param row - Database row data.
    * @returns Agent object.
    */
-  protected rowToAgent(row: IAgentsRow): IAgent {
+  protected rowToAgent(row: unknown): IAgent {
+    const agentRow = row as IAgentsRow;
     const agent: IAgent = {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      instructions: row.instructions,
-      type: this.validateAgentType(row.type),
-      status: this.validateAgentStatus(row.status),
-      config: row.config !== null ? JSON.parse(row.config) : {},
-      capabilities: row.capabilities !== null ? JSON.parse(row.capabilities) : [],
-      tools: row.tools !== null ? JSON.parse(row.tools) : [],
-      created_at: new Date(row.created_at ?? new Date().toISOString()),
-      updated_at: new Date(row.updated_at ?? new Date().toISOString()),
-      assigned_tasks: row.assigned_tasks ?? 0,
-      completed_tasks: row.completed_tasks ?? 0,
-      failed_tasks: row.failed_tasks ?? 0
+      id: agentRow.id,
+      name: agentRow.name,
+      description: agentRow.description,
+      instructions: agentRow.instructions,
+      type: this.validateAgentType(agentRow.type),
+      status: this.validateAgentStatus(agentRow.status),
+      config: {},
+      capabilities: [],
+      tools: [],
+      created_at: agentRow.created_at,
+      updated_at: agentRow.updated_at,
+      assigned_tasks: agentRow.assigned_tasks ?? 0,
+      completed_tasks: agentRow.completed_tasks ?? 0,
+      failed_tasks: agentRow.failed_tasks ?? 0
     };
 
     return agent;

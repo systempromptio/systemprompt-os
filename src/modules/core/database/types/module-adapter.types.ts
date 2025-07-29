@@ -25,9 +25,9 @@ export interface IMutationResult {
  * Prepared statement interface for modules.
  */
 export interface IModulePreparedStatement<T = IDatabaseRow> {
-  all(...params: unknown[]): T[];
-  get(...params: unknown[]): T | undefined;
-  run(...params: unknown[]): IMutationResult;
+  all(...params: unknown[]): Promise<T[]>;
+  get(...params: unknown[]): Promise<T | undefined>;
+  run(...params: unknown[]): Promise<IMutationResult>;
 }
 
 /**
@@ -44,8 +44,8 @@ export interface IModuleTransaction {
  */
 export interface IModuleDatabaseAdapter {
   prepare<T = IDatabaseRow>(sql: string): IModulePreparedStatement<T>;
-  exec(sql: string): void;
-  transaction<T>(fn: () => T): T;
+  exec(sql: string): Promise<void>;
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
   query<T = IDatabaseRow>(sql: string, params?: unknown[]): Promise<T[]>;
   execute(sql: string, params?: unknown[]): Promise<IMutationResult>;
 }

@@ -20,8 +20,37 @@ beforeAll(() => {
   process.env.DISABLE_TELEMETRY = 'true';
 });
 
-afterAll(() => {
+afterAll(async () => {
   console.log('🧹 Cleaning up integration test environment...');
+  
+  // Clean up singletons
+  try {
+    const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+    await DatabaseService.reset();
+  } catch (error) {
+    // Service might not be loaded
+  }
+
+  try {
+    const { AgentService } = await import('@/modules/core/agents/services/agent.service');
+    await AgentService.reset();
+  } catch (error) {
+    // Service might not be loaded
+  }
+
+  try {
+    const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+    LoggerService.resetInstance();
+  } catch (error) {
+    // Service might not be loaded
+  }
+
+  try {
+    const { EventBusService } = await import('@/modules/core/events/services/event-bus.service');
+    EventBusService.reset();
+  } catch (error) {
+    // Service might not be loaded
+  }
   
   // Restore original environment
   Object.keys(process.env).forEach(key => {
@@ -31,6 +60,11 @@ afterAll(() => {
   });
   
   Object.assign(process.env, originalEnv);
+
+  // Force garbage collection if available
+  if (typeof global.gc === 'function') {
+    global.gc();
+  }
 });
 
 // Global test utilities

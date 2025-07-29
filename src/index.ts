@@ -31,23 +31,22 @@ const hasLoggerService = (
 
 /**
  * Console fallback logger that implements ILogger interface.
- * Unused parameters are prefixed with underscore to indicate intentional non-use.
  */
 const consoleFallback: ILogger = {
-  debug: (_source: LogSource, message: string, _args?: unknown): void => {
-    console.debug(message);
+  debug: (source: LogSource, message: string, args?: unknown): void => {
+    console.debug(`[${source}] ${message}`, args);
   },
-  info: (_source: LogSource, message: string, _args?: unknown): void => {
-    console.info(message);
+  info: (source: LogSource, message: string, args?: unknown): void => {
+    console.info(`[${source}] ${message}`, args);
   },
-  warn: (_source: LogSource, message: string, _args?: unknown): void => {
-    console.warn(message);
+  warn: (source: LogSource, message: string, args?: unknown): void => {
+    console.warn(`[${source}] ${message}`, args);
   },
-  error: (_source: LogSource, message: string, _args?: unknown): void => {
-    console.error(message);
+  error: (source: LogSource, message: string, args?: unknown): void => {
+    console.error(`[${source}] ${message}`, args);
   },
-  log: (_level: string, _source: LogSource, message: string): void => {
-    console.log(message);
+  log: (level: string, source: LogSource, message: string): void => {
+    console.log(`[${level}] [${source}] ${message}`);
   },
   access: (message: string): void => { console.log(message); },
   clearLogs: async (): Promise<void> => {

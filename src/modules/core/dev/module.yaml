@@ -62,6 +62,32 @@ cli:
         - name: deps
           type: array
           description: Module dependencies
+    - name: profile-create
+      description: Create a new development profile
+      options:
+        - name: name
+          alias: n
+          type: string
+          required: true
+          description: Profile name
+        - name: description
+          alias: d
+          type: string
+          description: Profile description
+    - name: profile-list
+      description: List all development profiles
+    - name: session-start
+      description: Start a new development session
+      options:
+        - name: type
+          alias: t
+          type: string
+          required: true
+          description: Session type (development, testing, debugging)
+        - name: profile
+          alias: p
+          type: string
+          description: Profile name to use
 
 database:
   schema: ./database/schema.sql

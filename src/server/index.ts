@@ -7,15 +7,13 @@
 import express from 'express';
 import cors from 'cors';
 import { CONFIG } from '@/server/config';
-import { setupExternalEndpoints } from '@/server/external/index';
+import { setupExternalEndpoints } from '@/server/external/setup';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { getModuleLoader } from '@/modules/loader';
+import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
 import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
-import type { IModuleInstance } from '@/modules/types/loader.types';
 import type { Server } from 'http';
-import type { ModuleLoader } from '@/modules/loader';
 
 const logger = LoggerService.getInstance();
 
@@ -75,10 +73,10 @@ const logInactiveTunnelWarning = function logInactiveTunnelWarning(): void {
 export const createApp = async function createApp(): Promise<express.Application> {
   const app = express();
 
-  const moduleLoader: ModuleLoader = getModuleLoader();
+  const registry = getModuleRegistry();
 
-  const authModule: IModuleInstance = moduleLoader.getModule(ModuleName.AUTH);
-  if ('start' in authModule && 'initialized' in authModule
+  const authModule = registry.get(ModuleName.AUTH);
+  if (authModule && 'start' in authModule && 'initialized' in authModule
       && authModule.start !== null && authModule.start !== undefined && authModule.initialized !== true
   ) {
     await authModule.start();
@@ -133,10 +131,10 @@ export const startServer = async function startServer(
 
     const AUTH_STATUS_DELAY = 2000;
     setTimeout((): void => {
-      const moduleLoaderDelayed: ModuleLoader = getModuleLoader();
-      const authModuleDelayed: IModuleInstance = moduleLoaderDelayed.getModule(ModuleName.AUTH);
+      const registryDelayed = getModuleRegistry();
+      const authModuleDelayed = registryDelayed.get(ModuleName.AUTH);
 
-      if (hasGetTunnelStatus(authModuleDelayed)) {
+      if (authModuleDelayed && hasGetTunnelStatus(authModuleDelayed)) {
         const tunnelStatus = authModuleDelayed.getTunnelStatus();
 
         if (tunnelStatus.active && tunnelStatus.url !== null && tunnelStatus.url !== undefined) {
@@ -160,10 +158,10 @@ export const getServerModule = function getServerModule(): {
   createApp: typeof createApp;
   startServer: typeof startServer;
 } {
-  const moduleLoader: ModuleLoader = getModuleLoader();
+  const registry = getModuleRegistry();
 
-  if (!moduleLoader) {
-    throw new Error('Module loader not available');
+  if (!registry) {
+    throw new Error('Module registry not available');
   }
 
   if (typeof createApp !== 'function') {

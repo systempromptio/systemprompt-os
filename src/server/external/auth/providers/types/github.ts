@@ -43,3 +43,25 @@ export interface IGitHubEmailData {
     primary: boolean;
     verified: boolean;
 }
+
+/**
+ * GitHub OAuth2 token response from GitHub API.
+ */
+export interface GitHubTokenResponse {
+    access_token?: string;
+    token_type?: string;
+    scope?: string;
+}
+
+/**
+ * GitHub user data structure for API responses.
+ * Represents the raw data format returned from GitHub's user endpoint.
+ */
+export interface GitHubUserData {
+    id?: number;
+    login?: string;
+    email?: string | null;
+    name?: string | null;
+    avatar_url?: string;
+    [key: string]: unknown;
+}

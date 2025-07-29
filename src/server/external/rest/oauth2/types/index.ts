@@ -171,3 +171,12 @@ export interface IUserInfo {
   agent_type?: string;
   picture?: string;
 }
+
+/**
+ * Default OAuth client configuration for registration/login pages.
+ */
+export interface IDefaultClient {
+  client_id: string;
+  client_secret: string;
+  redirect_uris: string[];
+}

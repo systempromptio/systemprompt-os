@@ -5,8 +5,20 @@
  * @module modules/core/database/cli/query
  */
 
+/*
+ * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
+ * - JSDoc parameter documentation inconsistencies across multiple functions
+ * - File length exceeds 500 lines (currently 538 lines) - requires architectural refactoring
+ * - Multiple function complexity violations requiring deeper code restructuring
+ * - Type assertion and strict boolean expression issues requiring type system changes
+ * - Many formatting issues that would benefit from Prettier configuration
+ */
+
 import type { ICLIContext } from '@/modules/core/cli/types/index';
-import { DatabaseQueryService, type OutputFormat } from '@/modules/core/cli/services/database-query.service';
+import {
+  DatabaseQueryService,
+  type OutputFormat
+} from '@/modules/core/cli/services/database-query.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
@@ -17,11 +29,10 @@ import { readFile } from 'fs/promises';
  * Log query results based on format.
  * @param output - Query output lines.
  * @param executionTime - Query execution time.
- * @param context
- * @param format - Output format.
- * @param logger - Logger service instance.
- * @param context.format
- * @param context.logger
+ * @param context - Context object containing formatting and logging services.
+ * @param context.format - Output format for query results.
+ * @param context.logger - Logger service instance.
+ * @param context.cliOutput - CLI output service instance.
  */
 const logQueryResults = (
   output: string[],
@@ -53,19 +64,22 @@ const logQueryResults = (
 
 /**
  * Check if query can be executed based on readonly mode.
- * @param context
- * @param queryService - Query service instance.
- * @param query - SQL query.
- * @param readonly - Whether readonly mode is enabled.
- * @param logger - Logger service instance.
- * @param context.queryService
- * @param context.readonly
- * @param context.logger
+ * @param query - SQL query to validate.
+ * @param context - Context object containing query service and configuration.
+ * @param context.queryService - Database query service instance.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.logger - Logger service instance.
+ * @param context.cliOutput - CLI output service instance.
  * @returns True if query can be executed.
  */
 const canExecuteQuery = (
   query: string,
-  context: { queryService: DatabaseQueryService; readonly: boolean; logger: LoggerService; cliOutput: CliOutputService }
+  context: {
+    queryService: DatabaseQueryService;
+    readonly: boolean;
+    logger: LoggerService;
+    cliOutput: CliOutputService;
+  }
 ): boolean => {
   if (context.readonly && !context.queryService.isReadOnlyQuery(query)) {
     context.cliOutput.error('Error: Only SELECT queries are allowed in readonly mode.');
@@ -81,10 +95,11 @@ const canExecuteQuery = (
  * Execute and log a single query.
  * @param query - SQL query to execute.
  * @param context - Query execution context.
- * @param context.queryService
- * @param context.logger
- * @param context.format
- * @param context.readonly
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.cliOutput - CLI output service instance.
  * @returns Promise that resolves when query is executed.
  */
 const executeAndLogQuery = async (
@@ -105,10 +120,38 @@ const executeAndLogQuery = async (
   } = context;
   const { output, executionTime } = await queryService.executeQuery(query, format);
   logQueryResults(output, executionTime, {
- format,
-logger,
-cliOutput
-});
+    format,
+    logger,
+    cliOutput
+  });
+};
+
+/**
+ * Process user input in interactive mode.
+ * @param trimmedInput - Trimmed user input.
+ * @param context - Query execution context.
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.cliOutput - CLI output service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @returns Promise that resolves when input is processed.
+ */
+const processInteractiveInput = async (
+  trimmedInput: string,
+  context: {
+    queryService: DatabaseQueryService;
+    logger: LoggerService;
+    cliOutput: CliOutputService;
+    format: OutputFormat;
+    readonly: boolean;
+  }
+): Promise<void> => {
+  if (!canExecuteQuery(trimmedInput, context)) {
+    return;
+  }
+
+  await executeAndLogQuery(trimmedInput, context);
 };
 
 /**
@@ -116,10 +159,11 @@ cliOutput
  * @param input - User input.
  * @param rl - Readline interface.
  * @param context - Query execution context.
- * @param context.queryService
- * @param context.logger
- * @param context.format
- * @param context.readonly
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.cliOutput - CLI output service instance.
  */
 const handleInteractiveLine = async (
   input: string,
@@ -145,12 +189,7 @@ const handleInteractiveLine = async (
   }
 
   try {
-    if (!canExecuteQuery(trimmedInput, context)) {
-      rl.prompt();
-      return;
-    }
-
-    await executeAndLogQuery(trimmedInput, context);
+    await processInteractiveInput(trimmedInput, context);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     context.cliOutput.error(`Query failed: ${errorMessage}`);
@@ -163,10 +202,11 @@ const handleInteractiveLine = async (
 /**
  * Handle interactive query mode.
  * @param context - Query execution context.
- * @param context.queryService
- * @param context.logger
- * @param context.format
- * @param context.readonly
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.cliOutput - CLI output service instance.
  * @returns Promise that resolves when interactive mode exits.
  */
 const handleInteractiveMode = async (
@@ -189,7 +229,7 @@ const handleInteractiveMode = async (
   rl.prompt();
 
   rl.on('line', (input: string): void => {
-    handleInteractiveLine(input, rl, context).catch((error): void => {
+    handleInteractiveLine(input, rl, context).catch((error: unknown): void => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       context.cliOutput.error(`Interactive mode error: ${errorMessage}`);
       context.logger.error(LogSource.CLI, `Interactive mode error: ${errorMessage}`);
@@ -210,10 +250,11 @@ const handleInteractiveMode = async (
  * Execute queries from a file.
  * @param file - Path to SQL file.
  * @param context - Query execution context.
- * @param context.queryService
- * @param context.logger
- * @param context.format
- * @param context.readonly
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.cliOutput - CLI output service instance.
  * @returns Promise that resolves when all queries are executed.
  */
 const executeFileQueries = async (
@@ -235,8 +276,13 @@ const executeFileQueries = async (
     return;
   }
 
-  context.cliOutput.info(`Executing ${String(queries.length)} queries from ${String(file)}...\n`);
-  context.logger.info(LogSource.CLI, `Executing ${String(queries.length)} queries from ${String(file)}...`);
+  context.cliOutput.info(
+    `Executing ${String(queries.length)} queries from ${String(file)}...\n`
+  );
+  context.logger.info(
+    LogSource.CLI,
+    `Executing ${String(queries.length)} queries from ${String(file)}...`
+  );
 
   for (const query of queries) {
     if (!canExecuteQuery(query, context)) {
@@ -254,10 +300,11 @@ const executeFileQueries = async (
  * Execute a single query.
  * @param sql - SQL query to execute.
  * @param context - Query execution context.
- * @param context.queryService
- * @param context.logger
- * @param context.format
- * @param context.readonly
+ * @param context.queryService - Database query service instance.
+ * @param context.logger - Logger service instance.
+ * @param context.format - Output format for query results.
+ * @param context.readonly - Whether readonly mode is enabled.
+ * @param context.cliOutput - CLI output service instance.
  * @returns Promise that resolves when query is executed.
  */
 const executeSingleQuery = async (
@@ -290,9 +337,10 @@ const parseArguments = (args: Record<string, unknown>): {
   sql: unknown;
   file: unknown;
 } => {
-  const format = typeof args.format === 'string'
-    && ['table', 'json', 'csv'].includes(args.format)
-    ? args.format as OutputFormat : 'table';
+  const validFormats: OutputFormat[] = ['table', 'json', 'csv'];
+  const format = typeof args.format === 'string' && validFormats.includes(args.format as OutputFormat)
+    ? (args.format as OutputFormat)
+    : 'table';
 
   return {
     format,
@@ -301,6 +349,113 @@ const parseArguments = (args: Record<string, unknown>): {
     sql: args.sql,
     file: args.file
   };
+};
+
+/**
+ * Initialize and validate database services for query execution.
+ * @param context
+ * @param _context
+ */
+const initializeQueryServices = async (_context: ICLIContext): Promise<{
+  queryService: DatabaseQueryService;
+  logger: LoggerService;
+  cliOutput: CliOutputService;
+} | null> => {
+  const queryService = DatabaseQueryService.getInstance();
+  const logger = LoggerService.getInstance();
+  const cliOutput = CliOutputService.getInstance();
+
+  const isInitialized = await queryService.isInitialized();
+  if (!isInitialized) {
+    const message = "Database is not initialized. "
+      + "Run 'systemprompt database:schema --action=init' to initialize.";
+    cliOutput.error(message);
+    logger.error(LogSource.CLI, message);
+    process.exit(1);
+    return null;
+  }
+
+  return {
+ queryService,
+logger,
+cliOutput
+};
+};
+
+/**
+ * Validate command arguments to ensure at least one execution mode is provided.
+ * @param args
+ * @param args.sql
+ * @param args.file
+ * @param args.interactive
+ * @param cliOutput
+ * @param logger
+ */
+const validateCommandArguments = (
+  args: { sql: unknown; file: unknown; interactive: boolean },
+  cliOutput: CliOutputService,
+  logger: LoggerService
+): boolean => {
+  if (args.sql === undefined && args.file === undefined && !args.interactive) {
+    const message = 'Please provide --sql, --file, or --interactive option.';
+    cliOutput.error(message);
+    logger.error(LogSource.CLI, message);
+    process.exit(1);
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Execute queries based on provided arguments.
+ * @param error
+ * @param cliOutput
+ * @param logger
+ */
+const handleQueryExecutionError = (
+  error: unknown,
+  cliOutput: CliOutputService,
+  logger: LoggerService
+): void => {
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  cliOutput.error(`Query failed: ${errorMessage}`);
+  logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
+  process.exit(1);
+};
+
+const executeQueryCommand = async (
+  args: { sql: unknown; file: unknown; interactive: boolean },
+  queryContext: {
+    queryService: DatabaseQueryService;
+    logger: LoggerService;
+    cliOutput: CliOutputService;
+    format: OutputFormat;
+    readonly: boolean;
+  }
+): Promise<void> => {
+  const { cliOutput, logger } = queryContext;
+
+  if (args.interactive) {
+    await handleInteractiveMode(queryContext);
+    return;
+  }
+
+  if (typeof args.file === 'string' && args.file.length > 0) {
+    try {
+      await executeFileQueries(args.file, queryContext);
+    } catch (error) {
+      handleQueryExecutionError(error, cliOutput, logger);
+    }
+    return;
+  }
+
+  if (typeof args.sql === 'string' && args.sql.length > 0) {
+    try {
+      await executeSingleQuery(args.sql, queryContext);
+    } catch (error) {
+      handleQueryExecutionError(error, cliOutput, logger);
+    }
+  }
 };
 
 /**
@@ -343,28 +498,20 @@ export const command = {
     }
   ],
   execute: async (context: ICLIContext): Promise<void> => {
-    const { args } = context;
-    const queryService = DatabaseQueryService.getInstance();
-    const logger = LoggerService.getInstance();
-    const cliOutput = CliOutputService.getInstance();
-
     try {
-      const isInitialized = await queryService.isInitialized();
-      if (!isInitialized) {
-        cliOutput.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
-        logger.error(LogSource.CLI, "Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
-        process.exit(1);
+      const services = await initializeQueryServices(context);
+      if (!services) {
         return;
       }
 
       const {
- format, readonly, interactive, sql, file
-} = parseArguments(args);
+        queryService,
+        logger,
+        cliOutput
+      } = services;
+      const parsedArgs = parseArguments(context.args);
 
-      if (sql === undefined && file === undefined && !interactive) {
-        cliOutput.error('Please provide --sql, --file, or --interactive option.');
-        logger.error(LogSource.CLI, 'Please provide --sql, --file, or --interactive option.');
-        process.exit(1);
+      if (!validateCommandArguments(parsedArgs, cliOutput, logger)) {
         return;
       }
 
@@ -372,40 +519,15 @@ export const command = {
         queryService,
         logger,
         cliOutput,
-        format,
-        readonly
+        format: parsedArgs.format,
+        readonly: parsedArgs.readonly
       };
 
-      if (interactive) {
-        await handleInteractiveMode(queryContext);
-        return;
-      }
-
-      if (typeof file === 'string' && file.length > 0) {
-        try {
-          await executeFileQueries(file, queryContext);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          cliOutput.error(`Query failed: ${errorMessage}`);
-          logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
-          process.exit(1);
-          return;
-        }
-        return;
-      }
-
-      if (typeof sql === 'string' && sql.length > 0) {
-        try {
-          await executeSingleQuery(sql, queryContext);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          cliOutput.error(`Query failed: ${errorMessage}`);
-          logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
-          process.exit(1);
-        }
-      }
+      await executeQueryCommand(parsedArgs, queryContext);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const cliOutput = CliOutputService.getInstance();
+      const logger = LoggerService.getInstance();
       cliOutput.error(`Query failed: ${errorMessage}`);
       logger.error(LogSource.CLI, `Query failed: ${errorMessage}`);
       process.exit(1);

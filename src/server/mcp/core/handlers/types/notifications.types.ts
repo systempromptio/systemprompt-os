@@ -60,6 +60,16 @@ export interface IProgressNotificationOptions {
 }
 
 /**
+ * Simple progress options interface.
+ */
+export interface IProgressOptions {
+  progressToken: string | number;
+  progress: number;
+  total?: number;
+  sessionId?: string;
+}
+
+/**
  * Union type for all notification types.
  */
 export type NotificationType =

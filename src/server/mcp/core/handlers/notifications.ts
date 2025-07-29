@@ -1,7 +1,7 @@
 /**
+ * MCP notification handlers for sending various notification types.
  * @file MCP notification handlers for sending various notification types.
  * @module handlers/notifications
- * @remarks
  * This module provides functions for sending different types of MCP notifications:
  * - Operation notifications (task updates)
  * - Configuration change notifications
@@ -25,56 +25,90 @@
 import type { ServerNotification } from '@modelcontextprotocol/sdk/types.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { getMcpHandlerInstance } from '@/server/mcp';
+import type {
+  IConfigNotification,
+  IProgressNotification,
+  IProgressOptions,
+  IResourcesListChangedNotification,
+  IResourcesUpdatedNotification,
+  IRootsListChangedNotification,
+  NotificationType,
+} from '@/server/mcp/core/handlers/types/notifications.types';
 
 /**
- * Configuration change notification type.
+ * Helper function to broadcast notification to all servers.
+ * @param notification - The notification to send.
+ * @param activeServers - Array of active servers.
  */
-type ConfigNotification = {
-  method: "server/config/changed";
-  params: {
-    meta: Record<string, unknown>;
-    message: string;
-    level: "info" | "warning" | "error";
-    timestamp: string;
-  };
+const broadcastToServers = async (
+  notification: NotificationType | ServerNotification,
+  activeServers: Server[],
+): Promise<void> => {
+  const promises = activeServers.map(
+    async (server: Server): Promise<void> => {
+      await server.notification(notification)
+        .catch((error: unknown): void => {
+          if (error instanceof Error) {
+            throw error;
+          }
+        });
+    },
+  );
+
+  await Promise.all(promises);
 };
 
 /**
- * Progress update notification type.
+ * Helper to send notification to a specific session.
+ * @param notification - The notification to send.
+ * @param sessionId - Session ID for targeted notification.
+ * @param handler - MCP handler instance.
  */
-type ProgressNotification = {
-  method: "notifications/progress";
-  params: {
-    progressToken: string | number;
-    progress: number;
-    total?: number;
-  };
+const sendToSession = async (
+  notification: NotificationType | ServerNotification,
+  sessionId: string,
+  handler: ReturnType<typeof getMcpHandlerInstance>,
+): Promise<void> => {
+  const server = handler?.getServerForSession(sessionId);
+  if (server === null || server === undefined) {
+    return;
+  }
+
+  try {
+    await server.notification(notification);
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    throw error;
+  }
 };
 
 /**
- * Roots list change notification type.
+ * Internal function to send notifications to MCP clients.
+ * @param notification - The notification to send.
+ * @param sessionId - Optional session ID for targeted notification.
+ * @description
+ * This function handles both targeted and broadcast notifications.
  */
-type RootsListChangedNotification = {
-  method: "notifications/roots/listchanged";
-  params?: Record<string, never>;
-};
+const sendNotification = async function sendNotification(
+  notification: NotificationType | ServerNotification,
+  sessionId?: string,
+): Promise<void> {
+  const handler = getMcpHandlerInstance();
+  if (handler === null) {
+    return;
+  }
 
-/**
- * Resource update notification type.
- */
-type ResourcesUpdatedNotification = {
-  method: "notifications/resources/updated";
-  params: {
-    uri: string;
-  };
-};
+  if (sessionId !== null && sessionId !== undefined) {
+    await sendToSession(notification, sessionId, handler);
+    return;
+  }
 
-/**
- * Resources list change notification type.
- */
-type ResourcesListChangedNotification = {
-  method: "notifications/resources/listchanged";
-  params?: Record<string, never>;
+  const activeServers = handler.getAllServers();
+  if (activeServers.length === 0) {
+    return;
+  }
+
+  await broadcastToServers(notification, activeServers);
 };
 
 /**
@@ -87,72 +121,82 @@ type ResourcesListChangedNotification = {
  * await sendOperationNotification('endtask', 'Task completed successfully', 'session-123');
  * ```
  */
-export const sendOperationNotification = async function (operation: string, message: string, sessionId?: string): Promise<void> {
+export const sendOperationNotification = async function sendOperationNotification(
+  operation: string,
+  message: string,
+  sessionId?: string,
+): Promise<void> {
   const notification: ServerNotification = {
-    method: "notifications/message",
+    method: 'notifications/message',
     params: {
       meta: {},
       message: `Operation ${operation}: ${message}`,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
   await sendNotification(notification, sessionId);
-}
+};
 
 /**
  * Sends a JSON result notification.
  * @param message - The notification message.
  */
-export const sendJsonResultNotification = async function (message: string): Promise<void> {
+export const sendJsonResultNotification = async function sendJsonResultNotification(
+  message: string,
+): Promise<void> {
   const notification: ServerNotification = {
-    method: "notifications/message",
+    method: 'notifications/message',
     params: {
       meta: {},
       message,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
   await sendNotification(notification);
-}
+};
 
 /**
  * Sends a configuration change notification.
  * @param message - The configuration change message.
  */
-export const sendConfigNotification = async function (message: string): Promise<void> {
-  const notification: ConfigNotification = {
-    method: "server/config/changed",
+export const sendConfigNotification = async function sendConfigNotification(
+  message: string,
+): Promise<void> {
+  const notification: IConfigNotification = {
+    method: 'server/config/changed',
     params: {
       meta: {},
       message,
-      level: "info",
+      level: 'info',
       timestamp: new Date().toISOString(),
     },
   };
   await sendNotification(notification);
-}
+};
 
 /**
  * Sends a progress update notification.
- * @param progressToken - Unique token identifying the operation.
- * @param progress - Current progress value.
- * @param total - Optional total value for percentage calculation.
- * @param sessionId - Optional session ID for targeted notification.
+ * @param options - Progress notification options.
  * @example
  * ```typescript
- * await sendProgressNotification('task-123', 75, 100, 'session-456');
+ * await sendProgressNotification({
+ *   progressToken: 'task-123',
+ *   progress: 75,
+ *   total: 100,
+ *   sessionId: 'session-456'
+ * });
  * ```
  */
-export const sendProgressNotification = async function (
-  progressToken: string | number,
-  progress: number,
-  total?: number,
-  sessionId?: string
+export const sendProgressNotification = async function sendProgressNotification(
+  options: IProgressOptions,
 ): Promise<void> {
-  const notification: ProgressNotification = {
-    method: "notifications/progress",
+  const {
+ progressToken, progress, total, sessionId
+} = options;
+  const notification: IProgressNotification = {
+    method: 'notifications/progress',
     params: {
       progressToken,
       progress,
@@ -160,19 +204,18 @@ export const sendProgressNotification = async function (
     },
   };
   await sendNotification(notification, sessionId);
-}
+};
 
 /**
  * Sends a notification that the roots list has changed.
- *
  */
-export const sendRootsListChangedNotification = async function (): Promise<void> {
-  const notification: RootsListChangedNotification = {
-    method: "notifications/roots/listchanged",
-    params: {}
+export const sendRootsNotification = async function sendRootsNotification(): Promise<void> {
+  const notification: IRootsListChangedNotification = {
+    method: 'notifications/roots/listchanged',
+    params: {},
   };
   await sendNotification(notification);
-}
+};
 
 /**
  * Sends a notification that a specific resource has been updated.
@@ -180,70 +223,30 @@ export const sendRootsListChangedNotification = async function (): Promise<void>
  * @param sessionId - Optional session ID for targeted notification.
  * @example
  * ```typescript
- * await sendResourcesUpdatedNotification('task://123', 'session-789');
+ * await sendResourceNotification('task://123', 'session-789');
  * ```
  */
-export const sendResourcesUpdatedNotification = async function (uri: string, sessionId?: string): Promise<void> {
-  const notification: ResourcesUpdatedNotification = {
-    method: "notifications/resources/updated",
-    params: { uri }
+export const sendResourceNotification = async function sendResourceNotification(
+  uri: string,
+  sessionId?: string,
+): Promise<void> {
+  const notification: IResourcesUpdatedNotification = {
+    method: 'notifications/resources/updated',
+    params: { uri },
   };
   await sendNotification(notification, sessionId);
-}
+};
 
 /**
  * Sends a notification that the resources list has changed.
  * @param sessionId - Optional session ID for targeted notification.
  */
-export const sendResourcesListChangedNotification = async function (sessionId?: string): Promise<void> {
-  const notification: ResourcesListChangedNotification = {
-    method: "notifications/resources/listchanged",
-    params: {}
+export const sendResourcesNotification = async function sendResourcesNotification(
+  sessionId?: string,
+): Promise<void> {
+  const notification: IResourcesListChangedNotification = {
+    method: 'notifications/resources/listchanged',
+    params: {},
   };
   await sendNotification(notification, sessionId);
-}
-
-/**
- * Internal function to send notifications to MCP clients.
- * @param notification - The notification to send.
- * @param sessionId - Optional session ID for targeted notification.
- * @remarks
- * This function handles both targeted (session-specific) and broadcast
- * notifications. If sessionId is provided, the notification is sent only
- * to that session. Otherwise, it's broadcast to all active sessions.
- */
-const sendNotification = async function (
-  notification: ServerNotification | ConfigNotification | ProgressNotification | RootsListChangedNotification | ResourcesUpdatedNotification | ResourcesListChangedNotification,
-  sessionId?: string
-) {
-  const handler = getMcpHandlerInstance();
-  if (!handler) {
-    return;
-  }
-
-  if (sessionId) {
-    const server = handler.getServerForSession(sessionId);
-    if (!server) {
-      return;
-    }
-
-    try {
-      await server.notification(notification as ServerNotification);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      throw error;
-    }
-    return;
-  }
-
-  const activeServers = handler.getAllServers();
-  if (activeServers.length === 0) {
-    return;
-  }
-
-  const notificationPromises = activeServers.map(async (server: Server) => { await server.notification(notification as ServerNotification).catch(() => {
-
-    }); });
-
-  await Promise.all(notificationPromises);
-}
+};

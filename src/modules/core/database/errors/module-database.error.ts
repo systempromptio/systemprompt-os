@@ -5,7 +5,6 @@
  */
 
 import { DatabaseError } from '@/modules/core/database/errors/base.error';
-import { HTTP_500 } from '@/modules/core/database/constants/index';
 
 /**
  * Error thrown when module database operations fail.
@@ -27,7 +26,7 @@ export class ModuleDatabaseError extends DatabaseError {
     operation?: string,
     cause?: Error,
   ) {
-    super(message, 'MODULE_DATABASE_ERROR', HTTP_500, cause);
+    super(message, 'MODULE_DATABASE_ERROR', 500, cause);
     Object.defineProperty(this, 'name', {
  value: 'ModuleDatabaseError',
 configurable: true

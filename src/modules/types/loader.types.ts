@@ -3,16 +3,17 @@
  * @module modules/types/loader
  */
 
-import type { IModuleConfig as ICoreModuleConfig, IModuleScannerService as ICoreModuleScannerService } from '@/modules/core/modules/types/index';
+// Remove imports that no longer exist
 
 /**
  * Configuration for an individual module from config file.
  * @interface IModuleConfig
  */
-export interface IModuleConfig extends ICoreModuleConfig {
+export interface IModuleConfig {
     enabled: boolean;
     autoStart?: boolean;
     config?: Record<string, unknown>;
+    dependencies?: string[];
 }
 
 /**
@@ -23,18 +24,17 @@ export interface IModulesConfig {
     modules: Record<string, IModuleConfig>;
 }
 
-/**
- * Scanner service interface from modules module.
- * @interface IModuleScannerService
+/*
+ * Scanner service type moved to @/modules/core/modules/types/scanner.types
+ * Remove this duplicate definition and import from the correct location
  */
-export interface IModuleScannerService extends ICoreModuleScannerService {}
 
 /**
  * Module service interface that provides scanner access.
  * @interface IModuleService
  */
 export interface IModuleService {
-    getScannerService(): IModuleScannerService;
+    getScannerService(): import('@/modules/core/modules/types/scanner.types').IModuleScannerService | undefined;
 }
 
 /**

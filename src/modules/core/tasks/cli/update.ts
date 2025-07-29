@@ -213,7 +213,7 @@ const addAssignedAgentIdUpdate = (args: Record<string, unknown>): Record<string,
     'assigned-agent-id': assignedAgentIdKebab,
     assignedAgentId
   } = args;
-  
+
   if (assignedAgentIdKebab !== null && assignedAgentIdKebab !== undefined) {
     return { assignedAgentId: assignedAgentIdKebab };
   }

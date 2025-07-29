@@ -132,4 +132,12 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     description: 'Development tools and utilities',
     type: 'self-contained',
   },
+  {
+    name: 'monitor',
+    path: './src/modules/core/monitor/index.ts',
+    dependencies: ['logger', 'database'],
+    critical: false,
+    description: 'System monitoring and observability',
+    type: 'self-contained',
+  },
 ];

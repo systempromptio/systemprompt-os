@@ -70,7 +70,7 @@ const shutdownModulesSequentially = async ({
     return;
   }
 
-  const name = moduleNames[index];
+  const [name] = moduleNames.slice(index, index + 1);
   if (name !== undefined) {
     const moduleInstance = modules.get(name);
     if (moduleInstance !== undefined) {

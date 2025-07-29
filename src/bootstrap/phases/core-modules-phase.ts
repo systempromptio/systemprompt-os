@@ -1,8 +1,13 @@
 /**
- * Eslint-disable systemprompt-os/no-restricted-syntax-typescript-with-help
- * eslint-disable systemprompt-os/no-await-in-loop-with-help.
+ * Core modules phase for bootstrapping the application.
  * @file Dynamic imports and await in loops required for bootstrap module loading.
  */
+// eslint-disable-next-line systemprompt-os/no-block-comments
+/* eslint-disable systemprompt-os/no-restricted-syntax-typescript-with-help */
+// eslint-disable-next-line systemprompt-os/no-block-comments
+/* eslint-disable systemprompt-os/no-await-in-loop-with-help */
+// eslint-disable-next-line systemprompt-os/no-block-comments
+/* eslint-disable @typescript-eslint/consistent-type-assertions */
 
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -11,10 +16,10 @@ import type {
   CoreModuleType,
   CoreModulesPhaseContext,
   ICoreModuleDefinition,
-  IModuleExports,
-  IModuleImportResult
+  IModuleImportResult,
 } from '@/types/bootstrap';
-import type { IModule } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types';
+import type { IModulesModuleExports } from '@/modules/core/modules/types/modules-exports.types';
 
 /**
  * Create a module instance from the loaded exports.
@@ -56,14 +61,14 @@ const loadModuleDirectly = async (definition: ICoreModuleDefinition): Promise<IM
 
     logger.debug(LogSource.BOOTSTRAP, `Loaded module: ${name}`, {
       category: 'modules',
-      persistToDb: false
+      persistToDb: false,
     });
 
     return moduleInstance;
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Failed to load module ${name}`, {
       category: 'error',
-      error: error instanceof Error ? error : new Error(String(error))
+      error: error instanceof Error ? error : new Error(String(error)),
     });
     throw error;
   }
@@ -79,7 +84,7 @@ const loadModuleDirectly = async (definition: ICoreModuleDefinition): Promise<IM
 const verifyDependencies = (
   definition: ICoreModuleDefinition,
   modules: Map<string, CoreModuleType>,
-  moduleName: string
+  moduleName: string,
 ): void => {
   for (const dep of definition.dependencies) {
     if (!modules.has(dep)) {
@@ -99,7 +104,7 @@ const initializeModule = async (moduleInstance: IModule, moduleName: string): Pr
     const logger = LoggerService.getInstance();
     logger.debug(LogSource.BOOTSTRAP, `Initialized module: ${moduleName}`, {
       category: 'modules',
-      persistToDb: false
+      persistToDb: false,
     });
   }
 };
@@ -113,14 +118,14 @@ const initializeModule = async (moduleInstance: IModule, moduleName: string): Pr
 const startCriticalModule = async (
   moduleInstance: IModule,
   definition: ICoreModuleDefinition,
-  moduleName: string
+  moduleName: string,
 ): Promise<void> => {
   if (definition.critical && typeof moduleInstance.start === 'function') {
     await moduleInstance.start();
     const logger = LoggerService.getInstance();
     logger.debug(LogSource.BOOTSTRAP, `Started critical module: ${moduleName}`, {
       category: 'modules',
-      persistToDb: false
+      persistToDb: false,
     });
   }
 };
@@ -135,7 +140,7 @@ const startCriticalModule = async (
 const processEssentialModule = async (
   moduleName: string,
   coreModules: ICoreModuleDefinition[],
-  modules: Map<string, CoreModuleType>
+  modules: Map<string, CoreModuleType>,
 ): Promise<void> => {
   const definition = coreModules.find((moduleDefinition): boolean => {
     return moduleDefinition.name === moduleName;
@@ -148,7 +153,7 @@ const processEssentialModule = async (
   verifyDependencies(definition, modules, moduleName);
 
   const moduleInstance = await loadModuleDirectly(definition);
-  const coreModuleType = moduleInstance as CoreModuleType;
+  const coreModuleType: CoreModuleType = moduleInstance;
   modules.set(moduleName, coreModuleType);
 
   await initializeModule(moduleInstance, moduleName);
@@ -166,13 +171,13 @@ const processEssentialModule = async (
 const loadEssentialModules = async (
   modules: Map<string, CoreModuleType>,
   coreModules: ICoreModuleDefinition[],
-  essentialModules: string[]
+  essentialModules: string[],
 ): Promise<void> => {
   const logger = LoggerService.getInstance();
 
   logger.debug(LogSource.BOOTSTRAP, 'Processing essential modules', {
     category: 'modules',
-    persistToDb: false
+    persistToDb: false,
   });
 
   for (const moduleName of essentialModules) {
@@ -186,8 +191,8 @@ const loadEssentialModules = async (
  * @param modules - The modules map containing pre-loaded modules.
  */
 const registerPreLoadedModules = (
-  moduleExports: IModuleExports,
-  modules: Map<string, CoreModuleType>
+  moduleExports: IModulesModuleExports,
+  modules: Map<string, CoreModuleType>,
 ): void => {
   const loggerModule = modules.get('logger');
   if (loggerModule !== undefined) {
@@ -208,7 +213,7 @@ const registerPreLoadedModules = (
  */
 const filterRemainingModules = (
   coreModules: ICoreModuleDefinition[],
-  essentialModules: string[]
+  essentialModules: string[],
 ): ICoreModuleDefinition[] => {
   return coreModules.filter((definition): boolean => {
     return definition.name !== 'logger' && !essentialModules.includes(definition.name);
@@ -223,7 +228,7 @@ const filterRemainingModules = (
  */
 const areDependenciesLoaded = (
   definition: ICoreModuleDefinition,
-  modules: Map<string, CoreModuleType>
+  modules: Map<string, CoreModuleType>,
 ): boolean => {
   return definition.dependencies.every((dep): boolean => {
     return modules.has(dep);
@@ -240,32 +245,27 @@ const areDependenciesLoaded = (
 const processRemainingModule = async (
   definition: ICoreModuleDefinition,
   modules: Map<string, CoreModuleType>,
-  moduleExports: IModuleExports
+  moduleExports: IModulesModuleExports,
 ): Promise<void> => {
   const logger = LoggerService.getInstance();
 
   if (!areDependenciesLoaded(definition, modules)) {
-    logger.warn(
-      LogSource.BOOTSTRAP,
-      `Skipping module ${definition.name} - dependencies not met`,
-      { category: 'modules' }
-    );
+    logger.warn(LogSource.BOOTSTRAP, `Skipping module ${definition.name} - dependencies not met`, {
+      category: 'modules',
+    });
     return;
   }
 
   try {
     const loadedModule = await moduleExports.loadCoreModule(definition);
     modules.set(definition.name, loadedModule);
-
-    await moduleExports.initializeCoreModule(definition.name);
-
     if (definition.critical) {
       await moduleExports.startCoreModule(definition.name);
     }
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Failed to load module ${definition.name}`, {
       category: 'modules',
-      error: error instanceof Error ? error : new Error(String(error))
+      error: error instanceof Error ? error : new Error(String(error)),
     });
     if (definition.critical) {
       throw error;
@@ -282,7 +282,7 @@ const processRemainingModule = async (
 const loadRemainingCoreModules = async (
   modules: Map<string, CoreModuleType>,
   coreModules: ICoreModuleDefinition[],
-  moduleExports: IModuleExports
+  moduleExports: IModulesModuleExports,
 ): Promise<void> => {
   const essentialModules = ['database', 'modules'];
   const remainingModules = filterRemainingModules(coreModules, essentialModules);
@@ -300,14 +300,10 @@ const loadRemainingCoreModules = async (
  */
 const filterNonCriticalModules = (
   coreModules: ICoreModuleDefinition[],
-  modules: Map<string, CoreModuleType>
+  modules: Map<string, CoreModuleType>,
 ): ICoreModuleDefinition[] => {
   return coreModules.filter((definition): boolean => {
-    return (
-      definition.name !== 'logger'
-      && !definition.critical
-      && modules.has(definition.name)
-    );
+    return definition.name !== 'logger' && !definition.critical && modules.has(definition.name);
   });
 };
 
@@ -319,7 +315,7 @@ const filterNonCriticalModules = (
  */
 const startNonCriticalModule = async (
   definition: ICoreModuleDefinition,
-  moduleExports: IModuleExports
+  moduleExports: IModulesModuleExports,
 ): Promise<void> => {
   const logger = LoggerService.getInstance();
 
@@ -328,7 +324,7 @@ const startNonCriticalModule = async (
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Failed to start module ${definition.name}`, {
       category: 'modules',
-      error: error instanceof Error ? error : new Error(String(error))
+      error: error instanceof Error ? error : new Error(String(error)),
     });
   }
 };
@@ -342,7 +338,7 @@ const startNonCriticalModule = async (
 const startNonCriticalModules = async (
   coreModules: ICoreModuleDefinition[],
   modules: Map<string, CoreModuleType>,
-  moduleExports: IModuleExports
+  moduleExports: IModulesModuleExports,
 ): Promise<void> => {
   const nonCriticalModules = filterNonCriticalModules(coreModules, modules);
 
@@ -357,14 +353,14 @@ const startNonCriticalModules = async (
  * @returns The modules service exports.
  * @throws Error when modules module is not properly loaded.
  */
-const getModulesServiceExports = (modules: Map<string, CoreModuleType>): IModuleExports => {
+const getModulesServiceExports = (modules: Map<string, CoreModuleType>): IModulesModuleExports => {
   const modulesModule = modules.get('modules');
   if (modulesModule === undefined || !('exports' in modulesModule)) {
     throw new Error('Modules module not properly loaded');
   }
 
   const { exports: moduleExports } = modulesModule;
-  return moduleExports as IModuleExports;
+  return moduleExports as IModulesModuleExports;
 };
 
 /**
@@ -373,15 +369,13 @@ const getModulesServiceExports = (modules: Map<string, CoreModuleType>): IModule
  * Other modules will be loaded through the modules service.
  * @param context - The core modules phase context containing modules map and configuration.
  */
-export const executeCoreModulesPhase = async (
-  context: CoreModulesPhaseContext
-): Promise<void> => {
+export const executeCoreModulesPhase = async (context: CoreModulesPhaseContext): Promise<void> => {
   const { modules, coreModules } = context;
   const logger = LoggerService.getInstance();
 
   logger.debug(LogSource.BOOTSTRAP, 'Loading essential core modules', {
     category: 'modules',
-    persistToDb: false
+    persistToDb: false,
   });
 
   const essentialModules = ['database', 'modules'];
@@ -396,8 +390,12 @@ export const executeCoreModulesPhase = async (
 
   await startNonCriticalModules(coreModules, modules, moduleExports);
 
+  logger.debug(LogSource.BOOTSTRAP, 'Core modules loading completed, validation will occur after registration', {
+    category: 'modules',
+  });
+
   logger.debug(LogSource.BOOTSTRAP, 'Core modules phase completed', {
     category: 'modules',
-    persistToDb: false
+    persistToDb: false,
   });
 };

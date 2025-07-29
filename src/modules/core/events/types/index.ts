@@ -1,89 +1,25 @@
+import type { IEventSubscriptionsRow, IEventsRow } from '@/modules/core/events/types/database.generated';
+
 /**
- * Event system types for inter-module communication
+ * Event bus interface for inter-module communication.
  */
-
 export interface IEventBus {
-  emit<T = any>(event: string, data: T): void;
-  on<T = any>(event: string, handler: (data: T) => void | Promise<void>): void;
-  off(event: string, handler: Function): void;
-  once<T = any>(event: string, handler: (data: T) => void | Promise<void>): void;
+    emit(event: string, data: unknown): void;
+    on(event: string, handler: (data: unknown) => void | Promise<void>): void;
+    off(event: string, handler: (data: unknown) => void | Promise<void>): void;
+    once(event: string, handler: (data: unknown) => void | Promise<void>): void;
 }
 
-export interface IEventHandler<T = any> {
-  (data: T): void | Promise<void>;
+/**
+ * Event handler interface.
+ */
+export interface IEventHandler {
+  (data: unknown): void | Promise<void>;
 }
 
-// Task Events
-export interface TaskCreatedEvent {
-  taskId: number;
-  type: string;
-  moduleId: string;
-  priority: number;
-}
-
-export interface TaskAssignedEvent {
-  taskId: number;
-  agentId: string;
-  assignedAt: Date;
-}
-
-export interface TaskStartedEvent {
-  taskId: number;
-  agentId: string;
-  startedAt: Date;
-}
-
-export interface TaskCompletedEvent {
-  taskId: number;
-  agentId: string;
-  result: any;
-  completedAt: Date;
-}
-
-export interface TaskFailedEvent {
-  taskId: number;
-  agentId: string;
-  error: string;
-  failedAt: Date;
-}
-
-// Agent Events
-export interface AgentCreatedEvent {
-  agentId: string;
-  name: string;
-  type: string;
-  capabilities: string[];
-}
-
-export interface AgentStartedEvent {
-  agentId: string;
-  startedAt: Date;
-}
-
-export interface AgentStoppedEvent {
-  agentId: string;
-  stoppedAt: Date;
-}
-
-export interface AgentAvailableEvent {
-  agentId: string;
-  capabilities: string[];
-}
-
-export interface AgentBusyEvent {
-  agentId: string;
-  taskId: number;
-}
-
-export interface AgentIdleEvent {
-  agentId: string;
-}
-
-export interface AgentDeletedEvent {
-  agentId: string;
-}
-
-// Event Names
+/**
+ * Event names enumeration for all system events.
+ */
 export enum EventNames {
   // Task Events
   TASK_CREATED = 'task.created',
@@ -91,7 +27,7 @@ export enum EventNames {
   TASK_STARTED = 'task.started',
   TASK_COMPLETED = 'task.completed',
   TASK_FAILED = 'task.failed',
-  
+
   // Agent Events
   AGENT_CREATED = 'agent.created',
   AGENT_STARTED = 'agent.started',
@@ -100,10 +36,158 @@ export enum EventNames {
   AGENT_BUSY = 'agent.busy',
   AGENT_IDLE = 'agent.idle',
   AGENT_DELETED = 'agent.deleted',
+  AGENT_STATUS_CHANGED = 'agent.status.changed',
+
+  // User Events
+  USER_CREATED = 'user.created',
+  USER_UPDATED = 'user.updated',
+  USER_DELETED = 'user.deleted',
+  USER_STATUS_CHANGED = 'user.status.changed',
+
+  // Auth Events
+  LOGIN_SUCCESS = 'auth.login.success',
+  LOGIN_FAILED = 'auth.login.failed',
+  LOGOUT = 'auth.logout',
+  SESSION_CREATED = 'auth.session.created',
+  SESSION_EXPIRED = 'auth.session.expired',
+  TOKEN_CREATED = 'auth.token.created',
+  TOKEN_REVOKED = 'auth.token.revoked',
 }
 
-// Module Events exports
+/**
+ * Events module exports interface.
+ */
 export interface IEventsModuleExports {
   eventBus: IEventBus;
   EventNames: typeof EventNames;
 }
+
+/**
+ * Event payload interfaces.
+ */
+
+// User event payloads
+export interface UserCreatedEvent {
+  userId: string;
+  username: string;
+  email: string;
+  timestamp: Date;
+}
+
+export interface UserUpdatedEvent {
+  userId: string;
+  changes: Record<string, unknown>;
+  timestamp: Date;
+}
+
+export interface UserDeletedEvent {
+  userId: string;
+  timestamp: Date;
+}
+
+export interface UserStatusChangedEvent {
+  userId: string;
+  oldStatus: string;
+  newStatus: string;
+  timestamp: Date;
+}
+
+export interface UserDataRequestEvent {
+  requestId: string;
+  username?: string;
+  email?: string;
+  userId?: string;
+}
+
+export interface UserDataResponseEvent {
+  requestId: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    status: string;
+    emailVerified: boolean;
+  } | null;
+}
+
+// Auth event payloads
+export interface LoginSuccessEvent {
+  userId: string;
+  sessionId: string;
+  ipAddress?: string;
+  userAgent?: string;
+  timestamp: Date;
+}
+
+export interface LoginFailedEvent {
+  username?: string;
+  email?: string;
+  reason: string;
+  ipAddress?: string;
+  timestamp: Date;
+}
+
+export interface LogoutEvent {
+  userId: string;
+  sessionId: string;
+  timestamp: Date;
+}
+
+export interface SessionCreatedEvent {
+  sessionId: string;
+  userId: string;
+  type: 'web' | 'api' | 'oauth';
+  expiresAt: Date;
+  timestamp: Date;
+}
+
+export interface SessionExpiredEvent {
+  sessionId: string;
+  userId: string;
+  timestamp: Date;
+}
+
+export interface TokenCreatedEvent {
+  tokenId: string;
+  userId: string;
+  type: 'api' | 'personal' | 'service';
+  name: string;
+  expiresAt?: Date;
+  timestamp: Date;
+}
+
+export interface TokenRevokedEvent {
+  tokenId: string;
+  userId: string;
+  reason?: string;
+  timestamp: Date;
+}
+
+// User Events enum
+export enum UserEvents {
+  USER_CREATED = 'user.created',
+  USER_UPDATED = 'user.updated',
+  USER_DELETED = 'user.deleted',
+  USER_STATUS_CHANGED = 'user.status.changed',
+  USER_DATA_REQUEST = 'user.data.request',
+  USER_DATA_RESPONSE = 'user.data.response',
+}
+
+// Auth Events enum
+export enum AuthEvents {
+  LOGIN_SUCCESS = 'auth.login.success',
+  LOGIN_FAILED = 'auth.login.failed',
+  LOGOUT = 'auth.logout',
+  SESSION_CREATED = 'auth.session.created',
+  SESSION_EXPIRED = 'auth.session.expired',
+  SESSION_REVOKED = 'auth.session.revoked',
+  TOKEN_CREATED = 'auth.token.created',
+  TOKEN_REVOKED = 'auth.token.revoked',
+  PASSWORD_CHANGED = 'auth.password.changed',
+  PASSWORD_RESET_REQUESTED = 'auth.password.reset.requested',
+  MFA_ENABLED = 'auth.mfa.enabled',
+  MFA_DISABLED = 'auth.mfa.disabled',
+}
+
+// Re-export autogenerated database types
+export type { IEventsRow, IEventSubscriptionsRow };

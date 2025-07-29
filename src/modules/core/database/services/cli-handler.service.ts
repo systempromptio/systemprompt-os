@@ -5,7 +5,6 @@ import { ViewHelperService } from '@/modules/core/database/services/view-helper.
 import { SummaryHelperService } from '@/modules/core/database/services/summary-helper.service';
 import { ClearOperationsHelperService } from '@/modules/core/database/services/clear-operations-helper.service';
 import { LoggingHelperService } from '@/modules/core/database/services/logging-helper.service';
-import { RebuildOperationsHelperService } from '@/modules/core/database/services/rebuild-operations-helper.service';
 import { SchemaListHelperService } from '@/modules/core/database/services/schema-list-helper.service';
 import { InitHelperService } from '@/modules/core/database/services/init-helper.service';
 import { type ILogger } from '@/modules/core/logger/types/index';
@@ -199,7 +198,7 @@ export class DatabaseCLIHandlerService {
          AND name NOT LIKE 'sqlite_%' ORDER BY name`
       );
 
-      LoggingHelperService.logRebuildWarning(tables, this.logger);
+      LoggingHelperService.getInstance().logRebuildWarning(tables, this.logger);
 
       if (params.force !== true && params.confirm !== true) {
         return {
@@ -210,18 +209,32 @@ export class DatabaseCLIHandlerService {
 
       const dropResult = await RebuildHelperService.dropAllTables(tables, this.logger);
       if (!dropResult.success) {
-        return RebuildOperationsHelperService.createRebuildError(dropResult.message, 0, 0, 0);
+        return {
+          success: false,
+          message: dropResult.message ?? 'Operation failed',
+          details: {
+            tablesDropped: 0,
+            schemasFound: 0,
+            filesImported: 0,
+            filesSkipped: 0,
+            errors: [dropResult.message ?? 'Operation failed']
+          }
+        };
       }
 
       const schemaResult = await RebuildHelperService.discoverSchemas(this.logger);
       if (!schemaResult.success) {
-        return RebuildOperationsHelperService.createRebuildError(
-          schemaResult.message,
-          dropResult.tablesDropped,
-          schemaResult.schemasFound,
-          0,
-          0
-        );
+        return {
+          success: false,
+          message: schemaResult.message ?? 'Operation failed',
+          details: {
+            tablesDropped: dropResult.tablesDropped,
+            schemasFound: schemaResult.schemasFound,
+            filesImported: 0,
+            filesSkipped: 0,
+            errors: [schemaResult.message ?? 'Operation failed']
+          }
+        };
       }
 
       const importResult = await RebuildHelperService.importSchemas(
@@ -236,7 +249,7 @@ export class DatabaseCLIHandlerService {
          AND name NOT LIKE 'sqlite_%' ORDER BY name`
       );
 
-      LoggingHelperService.logRebuildComplete(finalTables, this.logger);
+      LoggingHelperService.getInstance().logRebuildComplete(finalTables, this.logger);
 
       return {
         success: true,
@@ -359,7 +372,7 @@ export class DatabaseCLIHandlerService {
         };
       }
 
-      LoggingHelperService.logClearWarning(tables, this.logger);
+      LoggingHelperService.getInstance().logClearWarning(tables, this.logger);
 
       if (params.force !== true && params.confirm !== true) {
         return {
@@ -368,9 +381,9 @@ export class DatabaseCLIHandlerService {
         };
       }
 
-      const result = await ClearOperationsHelperService.clearTables(tables, this.logger);
-      LoggingHelperService.logClearComplete(result, this.logger);
-      await ClearOperationsHelperService.optimizeDatabase(this.logger);
+      const result = await ClearOperationsHelperService.getInstance().clearTables(tables, this.logger);
+      LoggingHelperService.getInstance().logClearComplete(result, this.logger);
+      await ClearOperationsHelperService.getInstance().optimizeDatabase(this.logger);
 
       return {
         success: true,

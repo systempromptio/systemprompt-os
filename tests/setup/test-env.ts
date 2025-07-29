@@ -48,6 +48,17 @@ vi.mock('@/modules/core/logger/index', () => ({
     resetInstance: vi.fn()
   },
   getLoggerService: vi.fn(() => mockLogger),
+  createLoggerModuleForBootstrap: vi.fn(() => ({
+    name: 'logger',
+    dependencies: [],
+    exports: {
+      logger: mockLogger,
+      LoggerService: {
+        getInstance: vi.fn(() => mockLogger),
+        resetInstance: vi.fn()
+      }
+    }
+  })),
   LogSource: {
     AGENT: 'agent',
     BOOTSTRAP: 'bootstrap',

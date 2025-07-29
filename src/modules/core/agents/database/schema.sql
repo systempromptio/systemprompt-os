@@ -2,7 +2,7 @@
 -- Manages autonomous agents and their tasks
 
 -- Agents table
--- Stores agent definitions with their configurations
+-- Stores agent definitions
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -10,15 +10,39 @@ CREATE TABLE IF NOT EXISTS agents (
   instructions TEXT NOT NULL,
   type TEXT NOT NULL CHECK(type IN ('worker', 'monitor', 'coordinator')),
   status TEXT NOT NULL DEFAULT 'stopped' CHECK(status IN ('idle', 'active', 'stopped', 'error')),
-  config TEXT DEFAULT '{}', -- JSON configuration
-  capabilities TEXT DEFAULT '[]', -- JSON array of capabilities
-  tools TEXT DEFAULT '[]', -- JSON array of tools the agent can use
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   assigned_tasks INTEGER DEFAULT 0,
   completed_tasks INTEGER DEFAULT 0,
-  failed_tasks INTEGER DEFAULT 0,
-  last_heartbeat TIMESTAMP
+  failed_tasks INTEGER DEFAULT 0
+);
+
+-- Agent capabilities table
+-- Stores agent capabilities in structured format
+CREATE TABLE IF NOT EXISTS agent_capabilities (
+  agent_id TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  PRIMARY KEY (agent_id, capability),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+-- Agent tools table  
+-- Stores agent tools in structured format
+CREATE TABLE IF NOT EXISTS agent_tools (
+  agent_id TEXT NOT NULL,
+  tool TEXT NOT NULL,
+  PRIMARY KEY (agent_id, tool),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+);
+
+-- Agent config table
+-- Stores agent configuration as key-value pairs
+CREATE TABLE IF NOT EXISTS agent_config (
+  agent_id TEXT NOT NULL,
+  config_key TEXT NOT NULL,
+  config_value TEXT NOT NULL,
+  PRIMARY KEY (agent_id, config_key),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
 );
 
 -- Agent tasks table
@@ -76,9 +100,4 @@ CREATE INDEX IF NOT EXISTS idx_agent_logs_timestamp ON agent_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_agent_metrics_agent_id ON agent_metrics(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_metrics_timestamp ON agent_metrics(timestamp);
 
--- Triggers to update timestamps
-CREATE TRIGGER IF NOT EXISTS update_agents_timestamp 
-AFTER UPDATE ON agents
-BEGIN
-  UPDATE agents SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
-END;
+-- Triggers to update timestamps - removed due to conflicts with application-level updates

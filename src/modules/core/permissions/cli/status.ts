@@ -4,38 +4,48 @@
  * @module modules/core/permissions/cli/status
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
+/**
+ * Display permissions module status information.
+ * @param logger - Logger service instance.
+ * @param permissionsService - Permissions service instance.
+ * @returns Promise that resolves when status is displayed.
+ */
+const displayStatus = async (
+  logger: LoggerService,
+  permissionsService: PermissionsService
+): Promise<void> => {
+  logger.info(LogSource.PERMISSIONS, '\nPermissions Module Status:');
+  logger.info(LogSource.PERMISSIONS, '════════════════════════\n');
+  logger.info(LogSource.PERMISSIONS, 'Module: permissions');
+  logger.info(LogSource.PERMISSIONS, 'Enabled: ✓');
+  logger.info(LogSource.PERMISSIONS, 'Healthy: ✓');
+  logger.info(LogSource.PERMISSIONS, 'Service: PermissionsService initialized');
+
+  const roles = await permissionsService.listRoles();
+  logger.info(LogSource.PERMISSIONS, `Defined roles: ${String(roles.length)}`);
+  logger.info(LogSource.PERMISSIONS, 'RBAC system: ✓');
+  logger.info(LogSource.PERMISSIONS, 'Permission checks: ✓');
+  logger.info(LogSource.PERMISSIONS, 'Role inheritance: ✓');
+};
+
 export const command = {
   description: 'Show permissions module status (enabled/healthy)',
-  execute: async (_context: ICLIContext): Promise<void> => {
+  execute: async (): Promise<void> => {
     const logger = LoggerService.getInstance();
 
     try {
       const permissionsService = PermissionsService.getInstance();
-
-      console.log('\nPermissions Module Status:');
-      console.log('════════════════════════\n');
-      console.log('Module: permissions');
-      console.log('Enabled: ✓');
-      console.log('Healthy: ✓');
-      console.log('Service: PermissionsService initialized');
-
-      const roles = await permissionsService.listRoles();
-      console.log(`Defined roles: ${roles.length}`);
-      console.log('RBAC system: ✓');
-      console.log('Permission checks: ✓');
-      console.log('Role inheritance: ✓');
-
+      await displayStatus(logger, permissionsService);
       process.exit(0);
     } catch (error) {
-      logger.error(LogSource.PERMISSIONS, 'Error getting permissions status', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      console.error('Error getting permissions status:', error);
+      const errorMessage = 'Error getting permissions status';
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+
+      logger.error(LogSource.PERMISSIONS, errorMessage, { error: errorObj });
       process.exit(1);
     }
   },

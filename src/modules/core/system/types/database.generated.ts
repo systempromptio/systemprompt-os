@@ -1,6 +1,33 @@
 // Auto-generated database types for system module
-// Generated on: 2025-07-28T20:02:59.640Z
+// Generated on: 2025-07-29T15:52:59.252Z
 // Do not modify this file manually - it will be overwritten
+
+// Enums generated from CHECK constraints
+export enum SystemConfigType {
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  JSON = 'json'
+}
+
+export enum SystemModulesStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  ERROR = 'error'
+}
+
+export enum SystemEventsSeverity {
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARNING = 'warning',
+  ERROR = 'error',
+  CRITICAL = 'critical'
+}
+
+export enum SystemMaintenanceType {
+  SCHEDULED = 'scheduled',
+  EMERGENCY = 'emergency'
+}
 
 /**
  * Generated from database table: system_config
@@ -9,7 +36,7 @@
 export interface ISystemConfigRow {
   key: string;
   value: string;
-  type: string;
+  type: SystemConfigType;
   description: string | null;
   is_secret: boolean | null;
   is_readonly: boolean | null;
@@ -24,7 +51,7 @@ export interface ISystemConfigRow {
 export interface ISystemModulesRow {
   name: string;
   version: string;
-  status: string;
+  status: SystemModulesStatus;
   enabled: boolean | null;
   metadata: string | null;
   initialized_at: string | null;
@@ -41,7 +68,7 @@ export interface ISystemEventsRow {
   id: number;
   event_type: string;
   source: string;
-  severity: string;
+  severity: SystemEventsSeverity;
   message: string;
   metadata: string | null;
   created_at: string | null;
@@ -53,7 +80,7 @@ export interface ISystemEventsRow {
  */
 export interface ISystemMaintenanceRow {
   id: string;
-  type: string;
+  type: SystemMaintenanceType;
   reason: string;
   started_at: string | null;
   ended_at: string | null;

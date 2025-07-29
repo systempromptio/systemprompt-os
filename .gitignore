@@ -105,3 +105,5 @@ src/modules/custom/*
 # But keep .gitkeep files in custom directories
 !src/server/mcp/custom/.gitkeep
 !src/modules/custom/.gitkeep
+
+tests/integration/report/*

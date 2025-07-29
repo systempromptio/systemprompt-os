@@ -5,32 +5,28 @@
 import { RegisterEndpoint } from '@/server/external/rest/oauth2/register';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+import type { IDefaultClient } from '@/server/external/rest/oauth2/types/index';
 
 const logger = LoggerService.getInstance();
 
-export interface DefaultClient {
-  client_id: string;
-  client_secret: string;
-  redirect_uris: string[];
-}
-
-let defaultClient: DefaultClient | null = null;
+let defaultClient: IDefaultClient | null = null;
 
 /**
  * Get or create the default OAuth client for the registration/login flow.
- * @param baseUrl
+ * @param baseUrl - The base URL for redirect URIs.
+ * @returns The default OAuth client configuration.
  */
-export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultClient> {
-  if (defaultClient) {
+export const getDefaultOAuthClient = (baseUrl: string): IDefaultClient => {
+  if (defaultClient !== null) {
     return defaultClient;
   }
 
   const existingClient = RegisterEndpoint.getClient('default-web-client');
-  if (existingClient) {
+  if (existingClient !== undefined) {
     defaultClient = {
       client_id: existingClient.client_id,
-      client_secret: existingClient.client_secret || '',
-      redirect_uris: existingClient.redirect_uris || [],
+      client_secret: existingClient.client_secret ?? '',
+      redirect_uris: existingClient.redirect_uris ?? [],
     };
     return defaultClient;
   }
@@ -49,12 +45,12 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
     token_endpoint_auth_method: 'none'
   };
 
-  const registeredClient = await RegisterEndpoint.registerClient(registration);
+  const registeredClient = RegisterEndpoint.registerClient(registration);
 
   defaultClient = {
     client_id: registeredClient.client_id,
-    client_secret: registeredClient.client_secret || '',
-    redirect_uris: registeredClient.redirect_uris || [],
+    client_secret: registeredClient.client_secret ?? '',
+    redirect_uris: registeredClient.redirect_uris ?? [],
   };
 
   logger.info(LogSource.AUTH, 'Created default OAuth client', {
@@ -64,4 +60,4 @@ export async function getDefaultOAuthClient(baseUrl: string): Promise<DefaultCli
   });
 
   return defaultClient;
-}
+};

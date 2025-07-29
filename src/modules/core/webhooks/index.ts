@@ -1,4 +1,4 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
+import { ModulesType } from "@/modules/core/modules/types/database.generated";
 /**
  * Webhooks module - Webhook management system.
  * @file Webhooks module entry point.
@@ -6,7 +6,7 @@ import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -40,11 +40,11 @@ export class WebhookService implements IWebhookService {
  */
 export class WebhooksModule implements IModule<IWebhooksModuleExports> {
   public readonly name = 'webhooks';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Webhook management system';
   public readonly dependencies = ['logger', 'database', 'auth'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private webhookService!: WebhookService;
   private logger!: ILogger;
   private initialized = false;
@@ -88,7 +88,7 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
       return;
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.SYSTEM, 'Webhooks module started');
   }
@@ -98,7 +98,7 @@ export class WebhooksModule implements IModule<IWebhooksModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.SYSTEM, 'Webhooks module stopped');
     }
@@ -163,12 +163,12 @@ export const initialize = async (): Promise<WebhooksModule> => {
  * @returns The Webhooks module with guaranteed typed exports.
  * @throws {Error} If Webhooks module is not available or missing required exports.
  */
-export const getWebhooksModule = async (): Promise<IModule<IWebhooksModuleExports>> => {
-  const { getModuleLoader } = await import('@/modules/loader');
-  const { ModuleName } = await import('@/modules/types/module-names.types');
+export function getWebhooksModule(): IModule<IWebhooksModuleExports> {
+  const { getModuleRegistry } = require('@/modules/loader');
+  const { ModuleName } = require('@/modules/types/module-names.types');
 
-  const moduleLoader = getModuleLoader();
-  const webhooksModule = moduleLoader.getModule(ModuleName.WEBHOOKS);
+  const registry = getModuleRegistry();
+  const webhooksModule = registry.get(ModuleName.WEBHOOKS);
 
   if (!webhooksModule) {
     throw new Error('Webhooks module not found');
@@ -181,6 +181,6 @@ export const getWebhooksModule = async (): Promise<IModule<IWebhooksModuleExport
   }
 
   return typedModule;
-};
+}
 
 export default WebhooksModule;

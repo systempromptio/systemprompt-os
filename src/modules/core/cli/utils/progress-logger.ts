@@ -13,7 +13,7 @@ export class ProgressLogger {
   private readonly startTime: number;
 
   constructor(config: IProgressConfig = {}) {
-    this.text = config.text || 'Processing...';
+    this.text = config.text ?? 'Processing...';
     this.startTime = Date.now();
   }
 
@@ -26,7 +26,7 @@ export class ProgressLogger {
     if (text) {
       this.text = text;
     }
-    console.log(`⏳ ${this.text}`);
+    process.stdout.write(`⏳ ${this.text}\n`);
     return this;
   }
 
@@ -36,9 +36,9 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   succeed(text?: string): this {
-    const message = text || this.text;
+    const message = text ?? this.text;
     const elapsed = this.getElapsedTime();
-    console.log(`✅ ${message} (${elapsed}ms)`);
+    process.stdout.write(`✅ ${message} (${String(elapsed)}ms)\n`);
     return this;
   }
 
@@ -48,9 +48,9 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   fail(text?: string): this {
-    const message = text || this.text;
+    const message = text ?? this.text;
     const elapsed = this.getElapsedTime();
-    console.log(`❌ ${message} (${elapsed}ms)`);
+    process.stdout.write(`❌ ${message} (${String(elapsed)}ms)\n`);
     return this;
   }
 
@@ -61,7 +61,7 @@ export class ProgressLogger {
    */
   updateText(text: string): this {
     this.text = text;
-    console.log(`⏳ ${text}`);
+    process.stdout.write(`⏳ ${text}\n`);
     return this;
   }
 
@@ -70,7 +70,9 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   stop(): this {
-    // No-op for compatibility
+    /**
+     * No-op for compatibility.
+     */
     return this;
   }
 
@@ -88,8 +90,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   warn(text?: string): this {
-    const message = text || this.text;
-    console.log(`⚠️  ${message}`);
+    const message = text ?? this.text;
+    process.stdout.write(`⚠️  ${message}\n`);
     return this;
   }
 
@@ -99,8 +101,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   info(text?: string): this {
-    const message = text || this.text;
-    console.log(`ℹ️  ${message}`);
+    const message = text ?? this.text;
+    process.stdout.write(`ℹ️  ${message}\n`);
     return this;
   }
 }
@@ -123,7 +125,10 @@ export const PROGRESS_PRESETS = {
  * @param text - Optional text to override preset text.
  * @returns New ProgressLogger instance.
  */
-export const createProgressLogger = (preset: keyof typeof PROGRESS_PRESETS = 'loading', text?: string): ProgressLogger => {
+export const createProgressLogger = (
+  preset: keyof typeof PROGRESS_PRESETS = 'loading',
+  text?: string
+): ProgressLogger => {
   const config = { ...PROGRESS_PRESETS[preset] };
   if (text) { config.text = text; }
   return new ProgressLogger(config);
@@ -134,8 +139,8 @@ export const createProgressLogger = (preset: keyof typeof PROGRESS_PRESETS = 'lo
  * @param fn - The async function to execute.
  * @param config - Progress configuration.
  * @param options - Success and error text options.
- * @param options.successText
- * @param options.errorText
+ * @param options.successText - Text to display on success.
+ * @param options.errorText - Text to display on error.
  * @returns Promise with the function result.
  */
 export const withProgress = async <T>(
@@ -190,9 +195,13 @@ export class MultiStepProgress {
     
     if (this.currentStep < this.steps.length) {
       if (successText) {
-        console.log(`✓ ${successText}`);
+        process.stdout.write(`✓ ${successText}\n`);
       }
-      this.logger.updateText(`[${String(this.currentStep + 1)}/${String(this.steps.length)}] ${this.steps[this.currentStep] ?? ''}`);
+      const stepNum = String(this.currentStep + 1);
+      const totalSteps = String(this.steps.length);
+      const currentStepText = this.steps[this.currentStep] ?? '';
+      const stepText = `[${stepNum}/${totalSteps}] ${currentStepText}`;
+      this.logger.updateText(stepText);
     } else {
       this.logger.succeed(successText ?? 'All steps completed');
     }

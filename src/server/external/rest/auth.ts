@@ -44,7 +44,10 @@ export class AuthEndpoint {
         throw new Error('Provider registry not initialized');
       }
 
-      const providers: IdentityProvider[] = providerRegistry.getAllProviders();
+      const allProviders = providerRegistry.getAllProviders();
+      const providers: IdentityProvider[] = allProviders.filter((p): p is IdentityProvider => {
+        return p != null && typeof p === 'object' && 'name' in p;
+      });
 
       const authPageConfig: AuthPageConfig = {
         providers,

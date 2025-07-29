@@ -1,35 +1,41 @@
-/* eslint-disable
-  systemprompt-os/no-console-with-help,
-  systemprompt-os/no-block-comments,
-  systemprompt-os/enforce-constants-imports
-*/
 /**
  * Delete MCP context CLI command.
+ * @file Delete MCP context CLI command.
+ * @module modules/core/mcp/cli/delete
  */
 
-import { Command } from 'commander';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
-const ERROR_EXIT_CODE = 1;
+export const command = {
+  description: 'Delete an MCP context',
+  execute: async (): Promise<void> => {
+    const logger = LoggerService.getInstance();
 
-/**
- * Creates a command for deleting MCP contexts.
- * @returns The configured Commander command.
- */
-export const createDeleteCommand = (): Command => {
-  return new Command('mcp:delete')
-    .description('Delete an MCP context')
-    .requiredOption('-i, --id <id>', 'Context ID')
-    .action(async (options): Promise<void> => {
-      try {
-        const service = MCPService.getInstance();
-        await service.initialize();
+    try {
+      const service = MCPService.getInstance();
+      const contexts = await service.listContexts();
 
-        await service.deleteContext(options.id);
-        console.log(`Deleted MCP context: ${options.id}`);
-      } catch (error) {
-        console.error('Error deleting MCP context:', error);
-        process.exit(ERROR_EXIT_CODE);
+      if (contexts.length === 0) {
+        logger.info(LogSource.MCP, 'No MCP contexts found to delete.');
+        return;
       }
-    });
+
+      const contextToDelete = contexts[0];
+      if (!contextToDelete) {
+        logger.warn(LogSource.MCP, 'No MCP contexts found to delete');
+        return;
+      }
+      await service.deleteContext(contextToDelete.id);
+
+      logger.info(LogSource.MCP, `Deleted MCP context: ${contextToDelete.name} (${contextToDelete.id})`);
+    } catch (error) {
+      const errorMessage = 'Error deleting MCP context';
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+
+      logger.error(LogSource.MCP, errorMessage, { error: errorObj });
+      process.exit(1);
+    }
+  },
 };

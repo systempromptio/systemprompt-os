@@ -9,9 +9,9 @@ import * as qrcode from 'qrcode';
 import * as cryptoModule from 'crypto';
 import { MFARepository } from '@/modules/core/auth/repositories/mfa.repository';
 import type {
-  MFAConfig,
-  MFASetupResult,
-  MFAVerifyParams
+  IMFAConfig,
+  MfaSetupResult,
+  MfaVerifyInput
 } from '@/modules/core/auth/types';
 import {
   MFAError,
@@ -26,7 +26,7 @@ import {
 export class MFAService {
   private static instance: MFAService | undefined;
   private readonly repository: MFARepository;
-  private config!: MFAConfig;
+  private config!: IMFAConfig;
   private logger!: ILogger;
 
   /**
@@ -55,7 +55,7 @@ export class MFAService {
    * @param logger - Logger instance.
    * @returns Initialized MFAService instance.
    */
-  public static initialize(config: MFAConfig, logger: ILogger): MFAService {
+  public static initialize(config: IMFAConfig, logger: ILogger): MFAService {
     MFAService.instance ??= new MFAService();
     MFAService.instance.config = config;
     MFAService.instance.logger = logger;
@@ -69,7 +69,7 @@ export class MFAService {
    * @returns MFA setup result with secret and QR code.
    * @throws MFASetupError if setup fails.
    */
-  async setupMFA(userId: string, email: string): Promise<MFASetupResult> {
+  async setupMFA(userId: string, email: string): Promise<MfaSetupResult> {
     this.logger.debug(LogSource.AUTH, 'Setting up MFA for user', {
       userId,
       email
@@ -149,7 +149,7 @@ export class MFAService {
    * @returns True if verification succeeds.
    * @throws MFAVerificationError if user not found.
    */
-  async verifyMFA(params: MFAVerifyParams): Promise<boolean> {
+  async verifyMFA(params: MfaVerifyInput): Promise<boolean> {
     const {
       userId,
       code,

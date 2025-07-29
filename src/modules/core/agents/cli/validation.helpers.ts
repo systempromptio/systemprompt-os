@@ -17,16 +17,21 @@ export const validateCreateAgentArgs = (context: ICLIContext): boolean => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
 
-  const hasName = Boolean(args.name);
-  const hasDescription = Boolean(args.description);
-  const hasInstructions = Boolean(args.instructions);
-  const hasType = Boolean(args.type);
+  const hasName = Boolean(args.name || args.n);
+  const hasDescription = Boolean(args.description || args.d);
+  const hasInstructions = Boolean(args.instructions || args.i);
+  const hasType = Boolean(args.type || args.t);
+
+  console.error('DEBUG - CLI args received:', JSON.stringify(args, null, 2));
+  console.error('DEBUG - hasName:', hasName, 'hasDescription:', hasDescription, 'hasInstructions:', hasInstructions, 'hasType:', hasType);
 
   if (!hasName || !hasDescription || !hasInstructions || !hasType) {
     cliOutput.error('Name, description, instructions, and type are required');
-    cliOutput.info(
-      'Usage: systemprompt agent create -n <name> -d <description> -i <instructions> -t <type>'
-    );
+    cliOutput.info('Missing arguments:');
+    if (!hasName) { cliOutput.info('  - name (--name or -n)'); }
+    if (!hasDescription) { cliOutput.info('  - description (--description or -d)'); }
+    if (!hasInstructions) { cliOutput.info('  - instructions (--instructions or -i)'); }
+    if (!hasType) { cliOutput.info('  - type (--type or -t)'); }
     cliOutput.info('Types: worker, monitor, coordinator');
     return false;
   }

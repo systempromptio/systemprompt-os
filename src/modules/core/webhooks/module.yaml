@@ -1,0 +1,21 @@
+name: webhooks
+type: core
+version: 1.0.0
+description: Webhook delivery system for event-driven integrations
+author: SystemPrompt OS Team <team@systemprompt-os.com>
+singleton: true
+enabled: true
+dependencies: ['events', 'logger']
+exports:
+  - services
+  - types
+  - repositories
+config:
+  maxRetries: ${WEBHOOK_MAX_RETRIES:-3}
+  retryDelay: ${WEBHOOK_RETRY_DELAY:-1000}
+  timeout: ${WEBHOOK_TIMEOUT:-30000}
+  batchSize: ${WEBHOOK_BATCH_SIZE:-10}
+cli:
+  commands:
+    - name: status
+      description: Show webhooks module status (enabled/healthy)

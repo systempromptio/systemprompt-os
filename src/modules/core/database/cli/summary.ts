@@ -14,10 +14,122 @@ import type {
 import {
   DatabaseSummaryService,
   type ISummaryParams,
+  type ISummaryResult,
+  type ITableInfo,
 } from '@/modules/core/database/services/database-summary.service';
-import { CliOutputService, type ITableColumn } from '@/modules/core/cli/services/cli-output.service';
+import {
+  CliOutputService,
+  type ITableColumn,
+} from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+
+/**
+ * Display summary statistics.
+ * @param data - Summary data to display.
+ * @param cliOutput - CLI output service instance.
+ */
+const displaySummaryStats = (
+  data: NonNullable<ISummaryResult['data']>,
+  cliOutput: CliOutputService,
+): void => {
+  cliOutput.section('Database Summary', `Generated at ${data.timestamp}`);
+  cliOutput.keyValue({
+    'Total Tables': data.totalTables,
+    'Total Rows': data.totalRows.toLocaleString(),
+    'Average Rows/Table': data.averageRowsPerTable.toLocaleString(),
+  });
+};
+
+/**
+ * Display tables in table format.
+ * @param tables - Array of table information.
+ * @param cliOutput - CLI output service instance.
+ */
+const displayTablesAsTable = (
+  tables: ITableInfo[],
+  cliOutput: CliOutputService,
+): void => {
+  cliOutput.section('Tables');
+  const columns: ITableColumn[] = [
+    {
+      key: 'name',
+      header: 'Table Name',
+      align: 'left'
+    },
+    {
+      key: 'rowCount',
+      header: 'Rows',
+      align: 'right',
+      format: (value): string => {
+        return Number(value).toLocaleString();
+      }
+    },
+    {
+      key: 'columnCount',
+      header: 'Columns',
+      align: 'right'
+    }
+  ];
+  cliOutput.table(tables, columns, { format: 'table' });
+};
+
+/**
+ * Display tables in text format.
+ * @param tables - Array of table information.
+ * @param cliOutput - CLI output service instance.
+ */
+const displayTablesAsText = (
+  tables: ITableInfo[],
+  cliOutput: CliOutputService,
+): void => {
+  cliOutput.section('Tables');
+  tables.forEach((table): void => {
+    cliOutput.info(`${table.name}:`);
+    cliOutput.keyValue({
+      '  Rows': table.rowCount.toLocaleString(),
+      '  Columns': table.columnCount
+    });
+  });
+};
+
+/**
+ * Process summary result and display output.
+ * @param result - Summary result from service.
+ * @param params - Summary parameters.
+ * @param cliOutput - CLI output service instance.
+ */
+const processSummaryResult = (
+  result: ISummaryResult,
+  params: ISummaryParams,
+  cliOutput: CliOutputService,
+): void => {
+  if (typeof result.data === 'undefined' || result.data === null) {
+    cliOutput.warning('No summary data received');
+    process.exit(1);
+    return;
+  }
+
+  const { format = 'table' } = params;
+
+  if (format === 'json') {
+    cliOutput.output(result.data, { format: 'json' });
+    return;
+  }
+
+  displaySummaryStats(result.data, cliOutput);
+
+  if (result.data.tables.length === 0) {
+    cliOutput.info('No tables found in the database.');
+    return;
+  }
+
+  if (format === 'table') {
+    displayTablesAsTable(result.data.tables, cliOutput);
+  } else {
+    displayTablesAsText(result.data.tables, cliOutput);
+  }
+};
 
 /**
  * Handle summary command execution.
@@ -31,74 +143,59 @@ const handleSummaryExecution = async (
   logger: LoggerService,
 ): Promise<void> => {
   const summaryService = DatabaseSummaryService.getInstance();
-  const result = await summaryService.handleSummary(params);
+  const result = await summaryService.handleSummary(params, cliOutput);
 
   if (!result.success) {
-    cliOutput.error(result.message ?? 'Unknown error');
-    logger.error(LogSource.DATABASE, result.message ?? 'Unknown error');
+    const errorMessage = result.message ?? 'Unknown error';
+    cliOutput.error(errorMessage);
+    logger.error(LogSource.DATABASE, errorMessage);
     process.exit(1);
     return;
   }
 
-  if (!result.data) {
-    cliOutput.warning('No summary data received');
-    process.exit(1);
-    return;
+  processSummaryResult(result, params, cliOutput);
+};
+
+/**
+ * Type guard to check if value is a valid format.
+ * @param value - Value to check.
+ * @returns True if value is a valid format.
+ */
+const isValidFormat = (value: string): value is ISummaryFormatCLI => {
+  return ['text', 'json', 'table'].includes(value);
+};
+
+/**
+ * Parse and validate format argument.
+ * @param formatValue - Raw format value from args.
+ * @returns Validated format value.
+ */
+const parseFormat = (formatValue: unknown): ISummaryFormatCLI => {
+  if (typeof formatValue === 'string' && isValidFormat(formatValue)) {
+    return formatValue;
   }
+  return 'table';
+};
 
-  const { format = 'table' } = params;
+/**
+ * Type guard to check if value is a valid sort option.
+ * @param value - Value to check.
+ * @returns True if value is a valid sort option.
+ */
+const isValidSortBy = (value: string): value is ISummarySortByCLI => {
+  return ['name', 'rows', 'columns'].includes(value);
+};
 
-  if (format === 'json') {
-    cliOutput.output(result.data, { format: 'json' });
-    return;
+/**
+ * Parse and validate sort-by argument.
+ * @param sortByValue - Raw sort-by value from args.
+ * @returns Validated sort-by value.
+ */
+const parseSortBy = (sortByValue: unknown): ISummarySortByCLI => {
+  if (typeof sortByValue === 'string' && isValidSortBy(sortByValue)) {
+    return sortByValue;
   }
-
-  cliOutput.section('Database Summary', `Generated at ${result.data.timestamp}`);
-
-  cliOutput.keyValue({
-    'Total Tables': result.data.totalTables,
-    'Total Rows': result.data.totalRows.toLocaleString(),
-    'Average Rows/Table': result.data.averageRowsPerTable.toLocaleString(),
-  });
-
-  if (result.data.tables.length === 0) {
-    cliOutput.info('No tables found in the database.');
-    return;
-  }
-
-  if (format === 'table') {
-    cliOutput.section('Tables');
-
-    const columns: ITableColumn[] = [
-      {
-        key: 'name',
-        header: 'Table Name',
-        align: 'left'
-      },
-      {
-        key: 'rowCount',
-        header: 'Rows',
-        align: 'right',
-        format: (value) => { return Number(value).toLocaleString() }
-      },
-      {
-        key: 'columnCount',
-        header: 'Columns',
-        align: 'right'
-      }
-    ];
-
-    cliOutput.table(result.data.tables, columns, { format: 'table' });
-  } else {
-    cliOutput.section('Tables');
-    result.data.tables.forEach((table: { name: string; rowCount: number; columnCount: number }) => {
-      cliOutput.info(`${table.name}:`);
-      cliOutput.keyValue({
-        '  Rows': table.rowCount.toLocaleString(),
-        '  Columns': table.columnCount
-      });
-    });
-  }
+  return 'name';
 };
 
 export const command = {
@@ -108,15 +205,9 @@ export const command = {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
-    const formatValue = args.format;
-    const format: ISummaryFormatCLI = typeof formatValue === 'string'
-      && ['text', 'json', 'table'].includes(formatValue) ? formatValue as ISummaryFormatCLI : 'table';
-
+    const format = parseFormat(args.format);
     const includeSystem = Boolean(args['include-system']);
-
-    const sortByValue = args['sort-by'];
-    const sortBy: ISummarySortByCLI = typeof sortByValue === 'string'
-      && ['name', 'rows', 'columns'].includes(sortByValue) ? sortByValue as ISummarySortByCLI : 'name';
+    const sortBy = parseSortBy(args['sort-by']);
 
     const params: ISummaryParams = {
       format,
@@ -126,14 +217,18 @@ export const command = {
 
     try {
       await handleSummaryExecution(params, cliOutput, logger);
+
+      setTimeout(() => {
+        process.exit(0);
+      }, 100);
     } catch (error) {
       cliOutput.error('Error getting database summary');
       logger.error(LogSource.DATABASE, 'Error getting database summary', {
         error: error instanceof Error ? error : new Error(String(error)),
       });
-      process.exit(1);
+      setTimeout(() => {
+        process.exit(1);
+      }, 100);
     }
-
-    process.exit(0);
   },
 };

@@ -1,6 +1,17 @@
 // Auto-generated database types for tasks module
-// Generated on: 2025-07-28T20:02:59.640Z
+// Generated on: 2025-07-29T15:52:59.251Z
 // Do not modify this file manually - it will be overwritten
+
+// Enums generated from CHECK constraints
+export enum TaskStatus {
+  PENDING = 'pending',
+  ASSIGNED = 'assigned',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
+  STOPPED = 'stopped'
+}
 
 /**
  * Generated from database table: task
@@ -12,7 +23,7 @@ export interface ITaskRow {
   module_id: string;
   instructions: string | null; // JSON string, requires parsing
   priority: number | null;
-  status: string | null;
+  status: TaskStatus | null;
   retry_count: number | null;
   max_executions: number | null;
   max_time: number | null;

@@ -1,27 +1,36 @@
 /**
- * EventBus service for inter-module communication
+ * EventBus service for inter-module communication.
  */
 
 import { EventEmitter } from 'events';
 import type { IEventBus, IEventHandler } from '@/modules/core/events/types/index';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 export class EventBusService implements IEventBus {
   private static instance: EventBusService | null = null;
   private readonly emitter: EventEmitter;
   private readonly logger: ILogger;
-  private readonly handlers: Map<string, Set<Function>>;
+  private readonly handlerMap: Map<Function, Function>;
+  private db: DatabaseService | null = null;
+  private persistEvents = true;
 
   private constructor() {
     this.emitter = new EventEmitter();
-    this.emitter.setMaxListeners(100); // Increase for module communications
+    this.emitter.setMaxListeners(100)
     this.logger = LoggerService.getInstance();
-    this.handlers = new Map();
+    this.handlerMap = new Map();
+
+    try {
+      this.db = DatabaseService.getInstance();
+    } catch {
+      this.persistEvents = false;
+    }
   }
 
   /**
-   * Get singleton instance of EventBusService
+   * Get singleton instance of EventBusService.
    */
   static getInstance(): EventBusService {
     EventBusService.instance ??= new EventBusService();
@@ -29,25 +38,57 @@ export class EventBusService implements IEventBus {
   }
 
   /**
-   * Emit an event with data
+   * Emit an event with data.
+   * @param event
+   * @param data
    */
   emit<T = any>(event: string, data: T): void {
-    this.logger.debug(LogSource.MODULES, `Event emitted: ${event}`, { 
-      data: data as Record<string, unknown> | undefined 
+    this.logger.debug(LogSource.MODULES, `Event emitted: ${event}`, {
+      data: data as Record<string, unknown> | undefined
     });
+
+    if (this.persistEvents && this.db) {
+      this.persistEvent(event, data).catch(error => {
+        this.logger.error(LogSource.MODULES, `Failed to persist event: ${event}`, { error });
+      });
+    }
+
     this.emitter.emit(event, data);
   }
 
   /**
-   * Subscribe to an event
+   * Persist event to database
+   * @param eventName
+   * @param data
    */
-  on<T = any>(event: string, handler: IEventHandler<T>): void {
-    if (!this.handlers.has(event)) {
-      this.handlers.set(event, new Set());
+  private async persistEvent(eventName: string, data: unknown): Promise<void> {
+    if (!this.db) return;
+
+    try {
+      await this.db.execute(
+        `INSERT INTO events (event_name, event_data, module_source) VALUES (?, ?, ?)`,
+        [
+          eventName,
+          JSON.stringify(data),
+          'system'
+        ]
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('no such table')) {
+        this.persistEvents = false;
+        this.logger.debug(LogSource.MODULES, 'Events table not found, disabling event persistence');
+      } else {
+        throw error;
+      }
     }
-    
-    this.handlers.get(event)!.add(handler);
-    
+  }
+
+  /**
+   * Subscribe to an event.
+   * @param event
+   * @param handler
+   */
+  on<T = unknown>(event: string, handler: IEventHandler): void {
     const wrappedHandler = async (data: T) => {
       try {
         await handler(data);
@@ -57,31 +98,34 @@ export class EventBusService implements IEventBus {
         });
       }
     };
-    
+
+    this.handlerMap.set(handler, wrappedHandler);
+
     this.emitter.on(event, wrappedHandler);
     this.logger.debug(LogSource.MODULES, `Event handler registered: ${event}`);
   }
 
   /**
-   * Unsubscribe from an event
+   * Unsubscribe from an event.
+   * @param event
+   * @param handler
    */
   off(event: string, handler: Function): void {
-    const handlers = this.handlers.get(event);
-    if (handlers) {
-      handlers.delete(handler);
-      if (handlers.size === 0) {
-        this.handlers.delete(event);
-      }
+    const wrappedHandler = this.handlerMap.get(handler);
+    if (wrappedHandler) {
+      this.emitter.removeListener(event, wrappedHandler as any);
+      this.handlerMap.delete(handler);
     }
-    
-    this.emitter.removeListener(event, handler as any);
+
     this.logger.debug(LogSource.MODULES, `Event handler removed: ${event}`);
   }
 
   /**
-   * Subscribe to an event once
+   * Subscribe to an event once.
+   * @param event
+   * @param handler
    */
-  once<T = any>(event: string, handler: IEventHandler<T>): void {
+  once<T = unknown>(event: string, handler: IEventHandler): void {
     const wrappedHandler = async (data: T) => {
       try {
         await handler(data);
@@ -91,28 +135,44 @@ export class EventBusService implements IEventBus {
         });
       }
     };
-    
+
     this.emitter.once(event, wrappedHandler);
     this.logger.debug(LogSource.MODULES, `One-time event handler registered: ${event}`);
   }
 
   /**
-   * Remove all listeners for an event
+   * Remove all listeners for an event.
+   * @param event
    */
   removeAllListeners(event?: string): void {
     if (event) {
-      this.handlers.delete(event);
       this.emitter.removeAllListeners(event);
+      for (const [originalHandler, wrappedHandler] of this.handlerMap.entries()) {
+        if (this.emitter.listeners(event).includes(wrappedHandler as any)) {
+          this.handlerMap.delete(originalHandler);
+        }
+      }
     } else {
-      this.handlers.clear();
+      this.handlerMap.clear();
       this.emitter.removeAllListeners();
     }
   }
 
   /**
-   * Get the number of listeners for an event
+   * Get the number of listeners for an event.
+   * @param event
    */
   listenerCount(event: string): number {
     return this.emitter.listenerCount(event);
+  }
+
+  /**
+   * Reset singleton instance for testing purposes.
+   */
+  static reset(): void {
+    if (EventBusService.instance !== null) {
+      EventBusService.instance.removeAllListeners();
+      EventBusService.instance = null;
+    }
   }
 }

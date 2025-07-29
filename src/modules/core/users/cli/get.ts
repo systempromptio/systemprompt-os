@@ -48,8 +48,7 @@ export const command: ICLICommand = {
           "Username": user.username,
           "Email": user.email,
           "Status": user.status,
-          'Login Attempts': user.loginAttempts,
-          'Last Login': user.lastLoginAt ? user.lastLoginAt.toISOString() : 'Never',
+          'Email Verified': user.emailVerified ? 'Yes' : 'No',
           'Created At': user.createdAt.toISOString(),
           'Updated At': user.updatedAt.toISOString()
         });

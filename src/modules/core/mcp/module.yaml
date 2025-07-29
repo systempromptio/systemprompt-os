@@ -14,7 +14,7 @@ cli:
   commands:
     - name: status
       description: Show MCP module status (enabled/healthy)
-    - name: mcp:list
+    - name: list
       description: List all configured MCP contexts
       options:
         - name: format
@@ -23,7 +23,7 @@ cli:
           description: Output format (table, json)
           default: table
           choices: [table, json]
-    - name: mcp:create
+    - name: create
       description: Create a new MCP context
       options:
         - name: name
@@ -36,7 +36,7 @@ cli:
           type: string
           description: Model identifier
           required: true
-    - name: mcp:delete
+    - name: delete
       description: Delete an MCP context
       options:
         - name: id

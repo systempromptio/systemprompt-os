@@ -1,4 +1,4 @@
-import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
+import { ModulesType } from "@/modules/core/modules/types/database.generated";
 /**
  * System module - Core system management and configuration functionality.
  * @file System module entry point.
@@ -6,7 +6,7 @@ import { ModuleTypeEnum } from "@/modules/core/modules/types/index";
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import { SystemService } from '@/modules/core/system/services/system.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -18,11 +18,11 @@ import type { ISystemModuleExports } from '@/modules/core/system/types/index';
  */
 export class SystemModule implements IModule<ISystemModuleExports> {
   public readonly name = 'system';
-  public readonly type = ModuleTypeEnum.CORE;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Core system management and configuration functionality';
   public readonly dependencies = ['logger', 'database'] as const;
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.PENDING;
   private systemService!: SystemService;
   private logger!: ILogger;
   private initialized = false;
@@ -66,7 +66,7 @@ export class SystemModule implements IModule<ISystemModuleExports> {
       return;
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.SYSTEM, 'System module started');
   }
@@ -76,7 +76,7 @@ export class SystemModule implements IModule<ISystemModuleExports> {
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.SYSTEM, 'System module stopped');
     }
@@ -142,11 +142,11 @@ export const initialize = async (): Promise<SystemModule> => {
  * @throws {Error} If System module is not available or missing required exports.
  */
 export const getSystemModule = (): IModule<ISystemModuleExports> => {
-  const { getModuleLoader } = require('@/modules/loader') as { getModuleLoader: () => any };
+  const { getModuleRegistry } = require('@/modules/loader') as { getModuleRegistry: () => any };
   const { ModuleName } = require('@/modules/types/index') as { ModuleName: any };
 
-  const moduleLoader = getModuleLoader();
-  const systemModule = moduleLoader.getModule(ModuleName.SYSTEM) as IModule<ISystemModuleExports>;
+  const registry = getModuleRegistry();
+  const systemModule = registry.get(ModuleName.SYSTEM) as IModule<ISystemModuleExports>;
 
   if (systemModule.exports?.service === undefined || typeof systemModule.exports.service !== 'function') {
     throw new Error('System module missing required service export');
@@ -167,8 +167,8 @@ export type {
 } from '@/modules/core/system/types/index';
 
 /**
- * Re-export ModuleStatusEnum from modules/types to avoid conflicts.
+ * Re-export ModulesStatus from modules/types to avoid conflicts.
  */
-export { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+export { ModulesStatus } from '@/modules/core/modules/types/database.generated';
 
 export default SystemModule;

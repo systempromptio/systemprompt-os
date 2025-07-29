@@ -12,12 +12,19 @@ interface Column {
   autoIncrement: boolean;
 }
 
+interface CheckConstraint {
+  columnName: string;
+  values: string[];
+}
+
 interface Table {
   name: string;
   columns: Column[];
+  checkConstraints: CheckConstraint[];
 }
 
 class SQLTypeGenerator {
+  private checkConstraints: Map<string, CheckConstraint[]> = new Map();
   private sqlToTypeScript(sqlType: string): string {
     const type = sqlType.toUpperCase();
     
@@ -55,14 +62,45 @@ class SQLTypeGenerator {
       const columns = this.parseColumns(tableBody);
       
       if (columns.length > 0) {
+        const checkConstraints = this.parseCheckConstraints(tableBody, tableName);
         tables.push({
           name: tableName,
-          columns
+          columns,
+          checkConstraints
         });
       }
     }
     
     return tables;
+  }
+
+  private parseCheckConstraints(tableBody: string, tableName: string): CheckConstraint[] {
+    const constraints: CheckConstraint[] = [];
+    
+    // Match CHECK constraints in column definitions
+    const columnCheckRegex = /(\w+)\s+\w+\s+CHECK\s*\(\s*\1\s+IN\s*\(([^)]+)\)\s*\)/gi;
+    let match;
+    while ((match = columnCheckRegex.exec(tableBody)) !== null) {
+      const columnName = match[1];
+      const valuesStr = match[2];
+      const values = valuesStr.split(',').map(v => v.trim().replace(/['"`]/g, ''));
+      constraints.push({ columnName, values });
+    }
+    
+    // Also match standalone CHECK constraints
+    const standaloneCheckRegex = /CHECK\s*\((\w+)\s+IN\s*\(([^)]+)\)\s*\)/gi;
+    while ((match = standaloneCheckRegex.exec(tableBody)) !== null) {
+      const columnName = match[1];
+      const valuesStr = match[2];
+      const values = valuesStr.split(',').map(v => v.trim().replace(/['"`]/g, ''));
+      
+      // Avoid duplicates
+      if (!constraints.some(c => c.columnName === columnName)) {
+        constraints.push({ columnName, values });
+      }
+    }
+    
+    return constraints;
   }
 
   private parseColumns(tableBody: string): Column[] {
@@ -116,7 +154,12 @@ class SQLTypeGenerator {
     let interfaceContent = `/**\n * Generated from database table: ${table.name}\n * Do not modify this file manually - it will be overwritten\n */\nexport interface ${interfaceName} {\n`;
     
     for (const column of table.columns) {
-      const tsType = this.sqlToTypeScript(column.type);
+      // Check if this column has a CHECK constraint enum
+      const constraint = table.checkConstraints.find(c => c.columnName === column.name);
+      const tsType = constraint 
+        ? `${this.toPascalCase(table.name)}${this.toPascalCase(constraint.columnName)}`
+        : this.sqlToTypeScript(column.type);
+      
       const nullableSuffix = column.nullable ? ' | null' : '';
       const comment = column.type.toUpperCase().includes('JSON') ? ' // JSON string, requires parsing' : '';
       
@@ -135,11 +178,39 @@ class SQLTypeGenerator {
       .join('');
   }
 
+  private generateEnumFromConstraints(table: Table): string[] {
+    const enums: string[] = [];
+    
+    for (const constraint of table.checkConstraints) {
+      const enumName = `${this.toPascalCase(table.name)}${this.toPascalCase(constraint.columnName)}`;
+      const enumValues = constraint.values
+        .map(value => `  ${value.toUpperCase().replace(/[^A-Z0-9_]/g, '_')} = '${value}'`)
+        .join(',\n');
+      
+      enums.push(`export enum ${enumName} {\n${enumValues}\n}`);
+    }
+    
+    return enums;
+  }
+
   private generateTypesFile(tables: Table[], moduleName: string): string {
     let content = `// Auto-generated database types for ${moduleName} module\n`;
     content += `// Generated on: ${new Date().toISOString()}\n`;
     content += `// Do not modify this file manually - it will be overwritten\n\n`;
     
+    // Generate enums from CHECK constraints
+    const allEnums: string[] = [];
+    for (const table of tables) {
+      const tableEnums = this.generateEnumFromConstraints(table);
+      allEnums.push(...tableEnums);
+    }
+    
+    if (allEnums.length > 0) {
+      content += '// Enums generated from CHECK constraints\n';
+      content += allEnums.join('\n\n') + '\n\n';
+    }
+    
+    // Generate interfaces
     for (const table of tables) {
       content += this.generateInterface(table) + '\n';
     }

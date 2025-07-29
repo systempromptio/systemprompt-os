@@ -1,12 +1,4 @@
 /**
- * Base database error class.
- * @file Base database error class.
- * @module database/errors/base.error
- */
-
-import { HTTP_500 } from '@/modules/core/database/constants/index';
-
-/**
  * Base error class for all database-related errors.
  */
 export class DatabaseError extends Error {
@@ -25,7 +17,7 @@ export class DatabaseError extends Error {
   public constructor(
     message: string,
     code: string,
-    statusCode: number = HTTP_500,
+    statusCode: number = 500,
     cause?: Error,
   ) {
     super(message);

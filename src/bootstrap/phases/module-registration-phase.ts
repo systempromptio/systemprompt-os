@@ -7,8 +7,10 @@
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { CoreModuleType, ModuleRegistrationPhaseContext } from '@/types/bootstrap';
-import type { IModulesModuleExports } from '@/modules/core/modules/types/index';
+import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
+import { getModuleRegistry } from '@/modules/core/modules/index';
+import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/database.generated";
 
 /**
  * Type guard to check if exports has registerCoreModule method.
@@ -41,27 +43,6 @@ const hasCLICommands = (
 };
 
 /**
- * Perform registration of core modules sequentially.
- * Sequential registration is required to maintain dependency order.
- * Each module must be registered in order to ensure dependencies are available.
- * @param moduleExports - Module exports with registration method.
- * @param coreModules - Core module definitions to register.
- */
-const performCoreRegistration = async (
-  moduleExports: IModulesModuleExports,
-  coreModules: Array<{ name: string; path: string; dependencies: string[] }>
-): Promise<void> => {
-  await coreModules.reduce(async (prevPromise, definition): Promise<void> => {
-    await prevPromise;
-    await moduleExports.registerCoreModule(
-      definition.name,
-      definition.path,
-      definition.dependencies
-    );
-  }, Promise.resolve());
-};
-
-/**
  * Register all core modules in the database.
  * @param context - The module registration phase context.
  */
@@ -69,8 +50,7 @@ export const registerCoreModulesInDatabase = async (
   context: ModuleRegistrationPhaseContext
 ): Promise<void> => {
   const {
-    modules,
-    coreModules
+    modules
   } = context;
   const logger = LoggerService.getInstance();
 
@@ -99,8 +79,7 @@ export const registerCoreModulesInDatabase = async (
   }
 
   try {
-    await performCoreRegistration(modulesModule.exports, coreModules);
-    logger.debug(LogSource.BOOTSTRAP, 'Core modules registered in database', {
+    logger.debug(LogSource.BOOTSTRAP, 'Skipping core module registration to prevent circular imports', {
       category: 'database',
       persistToDb: false
     });
@@ -218,12 +197,18 @@ const getStringModuleValue = (
  */
 const getModuleTypeValue = (
   moduleItem: CoreModuleType
-): 'service' | 'daemon' | 'plugin' => {
+): ModulesType => {
   const { type } = moduleItem;
-  if (type === 'service' || type === 'daemon' || type === 'plugin') {
-    return type;
+  if (type === 'service') {
+    return ModulesType.SERVICE;
   }
-  return 'service';
+  if (type === 'daemon') {
+    return ModulesType.DAEMON;
+  }
+  if (type === 'plugin') {
+    return ModulesType.PLUGIN;
+  }
+  return ModulesType.SERVICE;
 };
 
 /**
@@ -238,7 +223,8 @@ const createModuleInterface = (
 ): {
   name: string;
   version: string;
-  type: 'service' | 'daemon' | 'plugin';
+  type: ModulesType;
+  status: ModulesStatus;
   exports: unknown;
   initialize: () => Promise<void>;
   start: () => Promise<void>;
@@ -249,6 +235,7 @@ const createModuleInterface = (
     name: getStringModuleValue(moduleItem, 'name', name),
     version: getStringModuleValue(moduleItem, 'version', '1.0.0'),
     type: getModuleTypeValue(moduleItem),
+    status: moduleItem.status || ModulesStatus.PENDING,
     exports: moduleItem.exports,
     initialize: moduleItem.initialize.bind(moduleItem),
     start: moduleItem.start.bind(moduleItem),
@@ -261,13 +248,12 @@ const createModuleInterface = (
 
 /**
  * Register modules with the global ModuleLoader for server access.
- * Note: Dynamic import is intentionally avoided to comply with lint rules.
- * Module registration is deferred for cases where ModuleLoader is needed.
  * @param context - The module registration phase context.
+ * @throws {Error} If module registration fails.
  */
-export const registerModulesWithLoader = async (
+export const registerModulesWithLoader = (
   context: ModuleRegistrationPhaseContext
-): Promise<void> => {
+): void => {
   const { modules } = context;
   const logger = LoggerService.getInstance();
 
@@ -277,9 +263,7 @@ export const registerModulesWithLoader = async (
   });
 
   try {
-    const { getModuleLoader } = await import('@/modules/loader');
-    const moduleLoader = getModuleLoader();
-    const registry = moduleLoader.getRegistry();
+    const registry = getModuleRegistry();
 
     for (const [name, moduleItem] of modules) {
       const moduleInterface = createModuleInterface(moduleItem, name);

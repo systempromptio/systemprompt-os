@@ -40,8 +40,8 @@ const transformAgentForTable = (agent: IAgent): Record<string, string> => {
     name: agent.name,
     type: agent.type,
     status: agent.status,
-    tasks: `${String(agent.completed_tasks)}/${String(agent.assigned_tasks)}`,
-    created: new Date(agent.created_at).toLocaleDateString()
+    tasks: `${String(agent.completed_tasks ?? 0)}/${String(agent.assigned_tasks ?? 0)}`,
+    created: agent.created_at ? new Date(agent.created_at).toLocaleDateString() : 'N/A'
   };
 };
 

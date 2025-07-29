@@ -134,7 +134,7 @@ export class DatabaseQueryService {
         }
         return csvOutput;
       
-      default: // table format
+      default: // Table format
         if (results.length === 0) {
           return ['(0 rows)'];
         }

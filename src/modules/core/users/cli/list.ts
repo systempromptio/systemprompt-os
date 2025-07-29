@@ -33,8 +33,8 @@ export const command: ICLICommand = {
             "ID": user.id,
             "Username": user.username,
             "Email": user.email,
-            "Role": user.role,
             "Status": user.status,
+            'Email Verified': user.emailVerified ? 'Yes' : 'No',
             'Created At': user.createdAt.toISOString()
           } });
 

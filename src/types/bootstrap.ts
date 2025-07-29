@@ -5,7 +5,7 @@
  */
 
 import type { Express } from 'express';
-import type { IModulesModuleExports } from '@/modules/core/modules/types/index';
+import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import type { IModule } from '@/modules/core/modules/types/index';
 import type { IDatabaseModuleExports } from '@/modules/core/database/types/database-module.types';

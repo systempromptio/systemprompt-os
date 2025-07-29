@@ -1,20 +1,10 @@
 /**
  * CLI commands index for MCP module.
+ * @file CLI commands index for MCP module.
+ * @module modules/core/mcp/cli/index
  */
 
-import type { Command } from 'commander';
-import { createListCommand } from '@/modules/core/mcp/cli/list';
-import { createCreateCommand } from '@/modules/core/mcp/cli/create';
-import { createDeleteCommand } from '@/modules/core/mcp/cli/delete';
-
-/**
- * Get all CLI commands for the MCP module.
- * @returns Array of configured Commander commands.
- */
-export const getCommands = (): Command[] => {
-  return [
-    createListCommand(),
-    createCreateCommand(),
-    createDeleteCommand()
-  ];
-};
+export { command as listCommand } from '@/modules/core/mcp/cli/list';
+export { command as createCommand } from '@/modules/core/mcp/cli/create';
+export { command as deleteCommand } from '@/modules/core/mcp/cli/delete';
+export { command as statusCommand } from '@/modules/core/mcp/cli/status';

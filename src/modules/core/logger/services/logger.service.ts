@@ -65,7 +65,7 @@ export class LoggerService implements ILogger {
    * @returns {LoggerService} The logger service instance.
    */
   static getInstance(): LoggerService {
-    this.instance ??= new LoggerService();
+    this.instance ||= new LoggerService();
     return this.instance;
   }
 

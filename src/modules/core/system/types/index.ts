@@ -1,7 +1,7 @@
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import type { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import type { SystemService } from '@/modules/core/system/services/system.service';
 
-export { ModuleStatusEnum };
+export { ModulesStatus } from '@/modules/core/modules/types/database.generated';
 
 /**
  * Strongly typed exports interface for System module.
@@ -64,7 +64,7 @@ export interface ISystemConfig {
 export interface ISystemModule {
   name: string;
   version: string;
-  status: ModuleStatusEnum;
+  status: ModulesStatus;
   enabled: boolean;
   metadata?: Record<string, unknown>;
   initializedAt?: Date;
@@ -140,7 +140,7 @@ export interface ISystemService {
   setConfig(key: string, value: string, type: ConfigTypeEnum): Promise<void>;
   deleteConfig(key: string): Promise<void>;
   registerModule(name: string, version: string): Promise<ISystemModule>;
-  updateModuleStatus(name: string, status: ModuleStatusEnum): Promise<void>;
+  updateModuleStatus(name: string, status: ModulesStatus): Promise<void>;
   getSystemInfo(): Promise<ISystemInfo>;
   checkHealth(): Promise<ISystemHealth>;
   logEvent(

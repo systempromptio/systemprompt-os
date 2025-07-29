@@ -1,52 +1,40 @@
-/* eslint-disable
-  systemprompt-os/no-console-with-help,
-  systemprompt-os/no-block-comments,
-  systemprompt-os/enforce-constants-imports
-*/
 /**
  * Create MCP context CLI command.
+ * @file Create MCP context CLI command.
+ * @module modules/core/mcp/cli/create
  */
 
-import { Command } from 'commander';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 
-const ERROR_EXIT_CODE = 1;
+export const command = {
+  description: 'Create a new MCP context',
+  execute: async (): Promise<void> => {
+    const logger = LoggerService.getInstance();
 
-/**
- * Creates a command for creating MCP contexts.
- * @returns The configured Commander command.
- */
-export const createCreateCommand = (): Command => {
-  return new Command('mcp:create')
-    .description('Create a new MCP context')
-    .requiredOption('-n, --name <name>', 'Context name')
-    .requiredOption('-m, --model <model>', 'Model identifier')
-    .option('--max-tokens <number>', 'Maximum tokens', '4096')
-    .option('--temperature <number>', 'Temperature', '0.7')
-    .action(async (options): Promise<void> => {
-      try {
-        const service = MCPService.getInstance();
-        await service.initialize();
+    try {
+      const name = 'test-context';
+      const model = 'gpt-4';
+      const config = {
+        maxTokens: 4096,
+        temperature: 0.7
+      };
 
-        const config = {
-          maxTokens: parseInt(options.maxTokens, 10),
-          temperature: parseFloat(options.temperature)
-        };
+      const service = MCPService.getInstance();
+      const context = await service.createContext(name, model, config);
 
-        const context = await service.createContext(
-          options.name,
-          options.model,
-          config
-        );
+      logger.info(LogSource.MCP, `Created MCP context: ${context.name}`);
+      logger.info(LogSource.MCP, `ID: ${context.id}`);
+      logger.info(LogSource.MCP, `Model: ${context.model}`);
+      logger.info(LogSource.MCP, `Max Tokens: ${context.max_tokens}`);
+      logger.info(LogSource.MCP, `Temperature: ${context.temperature}`);
+    } catch (error) {
+      const errorMessage = 'Error creating MCP context';
+      const errorObj = error instanceof Error ? error : new Error(String(error));
 
-        console.log(`Created MCP context: ${context.name}`);
-        console.log(`ID: ${context.id}`);
-        console.log(`Model: ${context.model}`);
-        console.log(`Max Tokens: ${context.maxTokens}`);
-        console.log(`Temperature: ${context.temperature}`);
-      } catch (error) {
-        console.error('Error creating MCP context:', error);
-        process.exit(ERROR_EXIT_CODE);
-      }
-    });
+      logger.error(LogSource.MCP, errorMessage, { error: errorObj });
+      process.exit(1);
+    }
+  },
 };

@@ -16,7 +16,9 @@ export class RefreshService {
    * Private constructor to enforce singleton pattern.
    */
   private constructor() {
-    // Singleton pattern enforcement
+    /**
+     * Singleton pattern enforcement.
+     */
   }
 
   /**
@@ -24,7 +26,7 @@ export class RefreshService {
    * @returns The RefreshService instance.
    */
   public static getInstance(): RefreshService {
-    RefreshService.instance ||= new RefreshService();
+    RefreshService.instance ??= new RefreshService();
     return RefreshService.instance;
   }
 
@@ -59,8 +61,7 @@ export class RefreshService {
 
   /**
    * Scan and build module map.
-   * @param cliService - The CLI service.
-   * @param _cliService
+   * @param _cliService - The CLI service (unused).
    * @returns Module scan result.
    */
   private async scanModules(_cliService: ICliService): Promise<{
@@ -72,7 +73,7 @@ export class RefreshService {
     const errors: string[] = [];
     let modulesScanned = 0;
 
-    /*
+    /**
      * Build module map for core modules (we'll hardcode this for now)
      * In a real implementation, this would come from a module registry.
      */
@@ -118,16 +119,20 @@ export class RefreshService {
     let commandsFound = 0;
 
     try {
-      /*
+      /**
        * Note: This assumes the CLI service has a method to clear commands
        * If not, we'd need to implement this in the database directly.
        */
       await this.clearExistingCommands(cliService);
       
-      // Rescan modules for commands
+      /**
+       * Rescan modules for commands.
+       */
       await cliService.scanAndRegisterModuleCommands(moduleMap);
       
-      // Count newly registered commands
+      /**
+       * Count newly registered commands.
+       */
       const commands = await cliService.getAllCommands();
       commandsFound = commands.size;
     } catch (error: unknown) {
@@ -152,12 +157,10 @@ export class RefreshService {
    * @param cliService - The CLI service.
    */
   private async clearExistingCommands(cliService: ICliService): Promise<void> {
-    /*
-     * If we need explicit clearing, we could add a method to CLI service
-     * or access the database directly here.
-     * For now, this is a no-op to satisfy the interface
+    /**
+     * Mark as intentionally unused.
      */
-    void cliService; // Mark as intentionally unused
+    cliService;
     await Promise.resolve();
   }
 
@@ -170,24 +173,51 @@ export class RefreshService {
     cliService: ICliService, 
     verbose: boolean = false
   ): Promise<void> {
-    if (verbose) {
-      console.log('🔄 Refreshing CLI commands...');
-      console.log('Scanning enabled modules for commands...\n');
-    }
+    this.logIfVerbose(verbose, '🔄 Refreshing CLI commands...');
+    this.logIfVerbose(verbose, 'Scanning enabled modules for commands...\n');
 
     const result = await this.refreshCommands(cliService);
 
+    this.logRefreshResult(result, verbose);
+  }
+
+  /**
+   * Log message if verbose mode is enabled.
+   * @param verbose - Whether to log.
+   * @param message - Message to log.
+   */
+  private logIfVerbose(verbose: boolean, message: string): void {
+    if (verbose) {
+      console.log(message);
+    }
+  }
+
+  /**
+   * Log refresh result.
+   * @param result - Refresh result.
+   * @param result.success
+   * @param verbose - Whether verbose mode is enabled.
+   * @param result.commandsFound
+   * @param result.modulesScanned
+   * @param result.errors
+   */
+  private logRefreshResult(result: {
+    success: boolean;
+    commandsFound: number;
+    modulesScanned: number;
+    errors: string[];
+  }, verbose: boolean): void {
     if (result.success) {
       console.log('✅ CLI commands refreshed successfully');
-      console.log(`📊 Found ${result.commandsFound} commands from ${result.modulesScanned} modules`);
+      console.log(`📊 Found ${result.commandsFound.toString()} commands from ${result.modulesScanned.toString()} modules`);
       
       if (result.errors.length > 0) {
-        console.log(`⚠️  ${result.errors.length} warnings:`);
+        console.log(`⚠️  ${result.errors.length.toString()} warnings:`);
         result.errors.forEach((error: string): void => { console.log(`   • ${error}`); });
       }
     } else {
       console.log('❌ CLI command refresh failed');
-      console.log(`📊 Scanned ${result.modulesScanned} modules`);
+      console.log(`📊 Scanned ${result.modulesScanned.toString()} modules`);
       
       if (result.errors.length > 0) {
         console.log('Errors:');
@@ -195,8 +225,6 @@ export class RefreshService {
       }
     }
 
-    if (verbose) {
-      console.log('\n💡 Use "systemprompt cli:status" to see current command status');
-    }
+    this.logIfVerbose(verbose, '\n💡 Use "systemprompt cli:status" to see current command status');
   }
 }

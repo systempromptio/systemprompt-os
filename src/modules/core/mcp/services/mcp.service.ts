@@ -14,16 +14,17 @@
 import { randomUUID } from 'crypto';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { MCPRepository } from '@/modules/core/mcp/repositories/mcp-repository';
-import {
-  type IMCPConfig,
-  type IMCPContext,
-  type IMCPMessage,
-  type IMCPService,
-  type IMCPSession,
-  type MCPRoleEnum,
-  MCPSessionStatusEnum
+import { MCPRepository } from '@/modules/core/mcp/repositories/mcp.repository';
+import type {
+  IMCPService,
 } from '@/modules/core/mcp/types/index';
+import type {
+  IMcpContextsRow,
+  IMcpMessagesRow,
+  IMcpSessionsRow,
+  McpMessagesRole,
+} from '@/modules/core/mcp/types/database.generated';
+import { McpSessionsStatus } from '@/modules/core/mcp/types/database.generated';
 
 /**
  * Service for managing MCP contexts and sessions.
@@ -69,7 +70,7 @@ export class MCPService implements IMCPService {
       return;
     }
 
-    await this.repository.initialize();
+    this.repository.initialize();
     this.initialized = true;
     this.logger?.info(LogSource.MCP, 'MCPService initialized');
   }
@@ -78,22 +79,44 @@ export class MCPService implements IMCPService {
    * Create a new MCP context.
    * @param name - The context name.
    * @param model - The model identifier.
-   * @param config - Optional context configuration.
+   * @param options - Optional context configuration.
+   * @param options.description
+   * @param options.maxTokens
+   * @param options.temperature
+   * @param options.topP
+   * @param options.frequencyPenalty
+   * @param options.presencePenalty
+   * @param options.stopSequences
+   * @param options.systemPrompt
    * @returns Promise that resolves to the created context.
    */
   async createContext(
     name: string,
     model: string,
-    config?: IMCPConfig
-  ): Promise<IMCPContext> {
+    options?: {
+      description?: string;
+      maxTokens?: number;
+      temperature?: number;
+      topP?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+      stopSequences?: string;
+      systemPrompt?: string;
+    }
+  ): Promise<IMcpContextsRow> {
     await this.ensureInitialized();
 
     const id = randomUUID();
     this.logger?.info(LogSource.MCP, `Creating MCP context: ${name} (${model})`);
 
-    const context = await this.repository.createContext(id, name, model, config);
-    this.logger?.info(LogSource.MCP, `Created MCP context: ${id}`);
+    const context = this.repository.createContext({
+      id,
+      name,
+      model,
+      ...options,
+    });
 
+    this.logger?.info(LogSource.MCP, `Created MCP context: ${id}`);
     return context;
   }
 
@@ -102,18 +125,18 @@ export class MCPService implements IMCPService {
    * @param id - The context ID.
    * @returns Promise that resolves to the context or null if not found.
    */
-  async getContext(id: string): Promise<IMCPContext | null> {
+  async getContext(id: string): Promise<IMcpContextsRow | null> {
     await this.ensureInitialized();
-    return await this.repository.findContextById(id);
+    return this.repository.findContextById(id);
   }
 
   /**
    * List all contexts.
    * @returns Promise that resolves to array of contexts.
    */
-  async listContexts(): Promise<IMCPContext[]> {
+  async listContexts(): Promise<IMcpContextsRow[]> {
     await this.ensureInitialized();
-    return await this.repository.findAllContexts();
+    return this.repository.findAllContexts();
   }
 
   /**
@@ -124,25 +147,31 @@ export class MCPService implements IMCPService {
   async deleteContext(id: string): Promise<void> {
     await this.ensureInitialized();
 
-    const context = await this.repository.findContextById(id);
+    const context = this.repository.findContextById(id);
     if (context === null) {
       throw new Error(`Context not found: ${id}`);
     }
 
     this.logger?.info(LogSource.MCP, `Deleting MCP context: ${id}`);
-    await this.repository.deleteContext(id);
+    this.repository.deleteContext(id);
     this.logger?.info(LogSource.MCP, `Deleted MCP context: ${id}`);
   }
 
   /**
    * Create a new session.
    * @param contextId - The context ID.
+   * @param options - Optional session data.
+   * @param options.sessionName
+   * @param options.userId
    * @returns Promise that resolves to the created session.
    */
-  async createSession(contextId: string): Promise<IMCPSession> {
+  async createSession(contextId: string, options?: {
+    sessionName?: string;
+    userId?: string;
+  }): Promise<IMcpSessionsRow> {
     await this.ensureInitialized();
 
-    const context = await this.repository.findContextById(contextId);
+    const context = this.repository.findContextById(contextId);
     if (context === null) {
       throw new Error(`Context not found: ${contextId}`);
     }
@@ -150,7 +179,7 @@ export class MCPService implements IMCPService {
     const id = randomUUID();
     this.logger?.info(LogSource.MCP, `Creating MCP session for context: ${contextId}`);
 
-    const session = await this.repository.createSession(id, contextId);
+    const session = this.repository.createSession(id, contextId, options);
     this.logger?.info(LogSource.MCP, `Created MCP session: ${id}`);
 
     return session;
@@ -161,26 +190,37 @@ export class MCPService implements IMCPService {
    * @param sessionId - The session ID.
    * @param role - The message role.
    * @param content - The message content.
+   * @param options - Optional message data.
+   * @param options.tokenCount
+   * @param options.cost
+   * @param options.modelUsed
+   * @param options.processingTimeMs
    * @returns Promise that resolves to the created message.
    */
   async addMessage(
     sessionId: string,
-    role: MCPRoleEnum,
-    content: string
-  ): Promise<IMCPMessage> {
+    role: McpMessagesRole,
+    content: string,
+    options?: {
+      tokenCount?: number;
+      cost?: number;
+      modelUsed?: string;
+      processingTimeMs?: number;
+    }
+  ): Promise<IMcpMessagesRow> {
     await this.ensureInitialized();
 
-    const session = await this.repository.findSessionById(sessionId);
+    const session = this.repository.findSessionById(sessionId);
     if (session === null) {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    if (session.status !== MCPSessionStatusEnum.ACTIVE) {
+    if (session.status !== McpSessionsStatus.ACTIVE) {
       throw new Error(`Session not active: ${sessionId}`);
     }
 
     this.logger?.info(LogSource.MCP, `Adding message to session: ${sessionId}`);
-    const message = await this.repository.createMessage(sessionId, role, content);
+    const message = this.repository.createMessage(sessionId, role, content, options);
     this.logger?.info(LogSource.MCP, `Added message: ${String(message.id)}`);
 
     return message;
@@ -191,15 +231,15 @@ export class MCPService implements IMCPService {
    * @param sessionId - The session ID.
    * @returns Promise that resolves to array of messages.
    */
-  async getSessionMessages(sessionId: string): Promise<IMCPMessage[]> {
+  async getSessionMessages(sessionId: string): Promise<IMcpMessagesRow[]> {
     await this.ensureInitialized();
 
-    const session = await this.repository.findSessionById(sessionId);
+    const session = this.repository.findSessionById(sessionId);
     if (session === null) {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    return await this.repository.findMessagesBySessionId(sessionId);
+    return this.repository.findMessagesBySessionId(sessionId);
   }
 
   /**

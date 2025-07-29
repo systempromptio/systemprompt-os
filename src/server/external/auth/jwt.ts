@@ -25,6 +25,9 @@ import type {
   IJwtVerifyResult,
   IKeyConfig,
   ISignOptions,
+  ISignatureGenerateParams,
+  ISignatureVerifyParams,
+  ITimeValidationParams,
   IVerifyOptions,
 } from '@/server/external/auth/types/jwt.types';
 
@@ -40,6 +43,9 @@ export type {
   IJwtVerifyResult,
   ISignOptions,
   IVerifyOptions,
+  ISignatureVerifyParams,
+  ITimeValidationParams,
+  ISignatureGenerateParams,
 };
 
 /**
@@ -55,8 +61,7 @@ class KeyManager {
    * Private constructor for singleton pattern.
    */
   private constructor() {
-    const { JWT_KEY_PATH: envJwtKeyPath } = process.env;
-    const envStatePath = process.env.STATE_PATH ?? './state';
+    const { JWT_KEY_PATH: envJwtKeyPath, STATE_PATH: envStatePath = './state' } = process.env;
     this.keyPath = envJwtKeyPath ?? resolve(envStatePath, 'auth/keys');
   }
 
@@ -65,7 +70,7 @@ class KeyManager {
    * @returns The KeyManager instance.
    */
   static getInstance(): KeyManager {
-    KeyManager.instance ??= new KeyManager();
+    KeyManager.instance ||= new KeyManager();
     return KeyManager.instance;
   }
 
@@ -125,6 +130,7 @@ class KeyManager {
         this.config.publicKey = createPublicKey(readFileSync(publicKeyPath));
         algorithms.push('RS256', 'RS384', 'RS512');
       } catch {
+
       }
     }
   }
@@ -151,17 +157,14 @@ class KeyManager {
 
 /**
  * Generate RSA signature.
- * @param message - Message to sign.
- * @param algorithm - RSA algorithm.
- * @param config - Key configuration.
+ * @param params - Signature generation parameters.
  * @returns Base64URL encoded signature.
  * @throws {Error} If RSA private key is not available or algorithm is unsupported.
  */
-const generateRsaSignature = (
-  message: string,
-  algorithm: IJwtAlgorithm,
-  config: IKeyConfig,
-): string => {
+const generateRsaSignature = (params: ISignatureGenerateParams): string => {
+  const {
+ message, algorithm, config
+} = params;
   if (config.privateKey === undefined) {
     throw new Error('RSA private key not available');
   }
@@ -181,17 +184,14 @@ const generateRsaSignature = (
 
 /**
  * Generate HMAC signature.
- * @param message - Message to sign.
- * @param algorithm - HMAC algorithm.
- * @param config - Key configuration.
+ * @param params - Signature generation parameters.
  * @returns Base64URL encoded signature.
  * @throws {Error} If HMAC secret is not available.
  */
-const generateHmacSignature = (
-  message: string,
-  algorithm: IJwtAlgorithm,
-  config: IKeyConfig,
-): string => {
+const generateHmacSignature = (params: ISignatureGenerateParams): string => {
+  const {
+ message, algorithm, config
+} = params;
   if (config.secret === undefined) {
     throw new Error('HMAC secret not available');
   }
@@ -265,18 +265,14 @@ const buildJwtPayload = (
 
 /**
  * Verify RSA signature.
- * @param message - Message to verify.
- * @param signature - Signature to verify against.
- * @param algorithm - RSA algorithm.
- * @param config - Key configuration.
- * @throws {Error} If RSA public key is not available, algorithm is unsupported, or signature is invalid.
+ * @param params - Verification parameters.
+ * @throws {Error} If RSA public key is not available, algorithm is unsupported,
+ * or signature is invalid.
  */
-const verifyRsaSignature = (
-  message: string,
-  signature: string,
-  algorithm: IJwtAlgorithm,
-  config: IKeyConfig,
-): void => {
+const verifyRsaSignature = (params: ISignatureVerifyParams): void => {
+  const {
+ message, signature, algorithm, config
+} = params;
   if (config.publicKey === undefined) {
     throw new Error('RSA public key not available');
   }
@@ -298,18 +294,13 @@ const verifyRsaSignature = (
 
 /**
  * Verify HMAC signature.
- * @param message - Message to verify.
- * @param signature - Signature to verify against.
- * @param algorithm - HMAC algorithm.
- * @param config - Key configuration.
+ * @param params - Verification parameters.
  * @throws {Error} If HMAC secret is not available or signature is invalid.
  */
-const verifyHmacSignature = (
-  message: string,
-  signature: string,
-  algorithm: IJwtAlgorithm,
-  config: IKeyConfig,
-): void => {
+const verifyHmacSignature = (params: ISignatureVerifyParams): void => {
+  const {
+ message, signature, algorithm, config
+} = params;
   if (config.secret === undefined) {
     throw new Error('HMAC secret not available');
   }
@@ -325,39 +316,26 @@ const verifyHmacSignature = (
 
 /**
  * Verify JWT signature.
- * @param message - Message to verify.
- * @param signature - Signature to verify against.
- * @param algorithm - JWT algorithm.
- * @param config - Key configuration.
+ * @param params - Verification parameters.
  * @throws {Error} If signature verification fails.
  */
-const verifySignature = (
-  message: string,
-  signature: string,
-  algorithm: IJwtAlgorithm,
-  config: IKeyConfig,
-): void => {
-  if (algorithm.startsWith('RS')) {
-    verifyRsaSignature(message, signature, algorithm, config);
+const verifySignature = (params: ISignatureVerifyParams): void => {
+  if (params.algorithm.startsWith('RS')) {
+    verifyRsaSignature(params);
   } else {
-    verifyHmacSignature(message, signature, algorithm, config);
+    verifyHmacSignature(params);
   }
 };
 
 /**
  * Validate time-based claims (exp, nbf, iat).
- * @param payload - JWT payload.
- * @param options - Verification options.
- * @param now - Current timestamp.
- * @param clockTolerance - Clock tolerance in seconds.
+ * @param params - Validation parameters.
  * @throws {Error} If token is expired, not yet valid, or too old.
  */
-const validateTimeBasedClaims = (
-  payload: IJwtPayload,
-  options: IVerifyOptions,
-  now: number,
-  clockTolerance: number,
-): void => {
+const validateTimeBasedClaims = (params: ITimeValidationParams): void => {
+  const {
+ payload, options, now, clockTolerance
+} = params;
   if (options.ignoreExpiration !== true && payload.exp !== undefined) {
     if (payload.exp < now - clockTolerance) {
       throw new Error('Token expired');
@@ -378,35 +356,28 @@ const validateTimeBasedClaims = (
 };
 
 /**
- * Validate issuer claim.
+ * Validate issuer and audience claims.
  * @param payload - JWT payload.
  * @param options - Verification options.
- * @throws {Error} If issuer is invalid.
+ * @throws {Error} If issuer or audience is invalid.
  */
-const validateIssuerClaim = (payload: IJwtPayload, options: IVerifyOptions): void => {
+const validateIssuerAndAudience = (payload: IJwtPayload, options: IVerifyOptions): void => {
   if (options.issuer !== undefined) {
     const issuers = Array.isArray(options.issuer) ? options.issuer : [options.issuer];
     if (payload.iss === undefined || !issuers.includes(payload.iss)) {
       throw new Error('Invalid issuer');
     }
   }
-};
 
-/**
- * Validate audience claim.
- * @param payload - JWT payload.
- * @param options - Verification options.
- * @throws {Error} If audience is invalid.
- */
-const validateAudienceClaim = (payload: IJwtPayload, options: IVerifyOptions): void => {
   if (options.audience !== undefined) {
     const expectedAudiences = Array.isArray(options.audience)
       ? options.audience
       : [options.audience];
 
-    const tokenAudiences = payload.aud === undefined
-      ? []
-      : Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    let tokenAudiences: string[] = [];
+    if (payload.aud !== undefined) {
+      tokenAudiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    }
 
     const hasValidAudience = expectedAudiences.some((aud): boolean => {
       return tokenAudiences.includes(aud);
@@ -428,9 +399,13 @@ const validateClaims = (payload: IJwtPayload, options: IVerifyOptions): void => 
   const now = Math.floor(Date.now() / 1000);
   const clockTolerance = options.clockTolerance ?? 0;
 
-  validateTimeBasedClaims(payload, options, now, clockTolerance);
-  validateIssuerClaim(payload, options);
-  validateAudienceClaim(payload, options);
+  validateTimeBasedClaims({
+    payload,
+    options,
+    now,
+    clockTolerance,
+  });
+  validateIssuerAndAudience(payload, options);
 };
 
 /**
@@ -459,10 +434,40 @@ export const jwtSign = (payload: IJwtPayload, options: ISignOptions = {}): strin
   const message = `${encodedHeader}.${encodedPayload}`;
 
   const signature = algorithm.startsWith('RS')
-    ? generateRsaSignature(message, algorithm, config)
-    : generateHmacSignature(message, algorithm, config);
+    ? generateRsaSignature({
+ message,
+algorithm,
+config
+})
+    : generateHmacSignature({
+ message,
+algorithm,
+config
+});
 
   return `${message}.${signature}`;
+};
+
+/**
+ * Decode JWT header and payload from base64url.
+ * @param encodedHeader - Base64url encoded header.
+ * @param encodedPayload - Base64url encoded payload.
+ * @returns Decoded header and payload.
+ * @throws {Error} If decoding fails.
+ */
+const decodeTokenData = (
+  encodedHeader: string,
+  encodedPayload: string,
+): [IJwtHeader, IJwtPayload] => {
+  try {
+    const headerString = Buffer.from(encodedHeader, 'base64url').toString();
+    const payloadString = Buffer.from(encodedPayload, 'base64url').toString();
+    const header: IJwtHeader = JSON.parse(headerString);
+    const payload: IJwtPayload = JSON.parse(payloadString);
+    return [header, payload];
+  } catch {
+    throw new Error('Invalid token encoding');
+  }
 };
 
 /**
@@ -486,18 +491,9 @@ export const jwtVerify = (
     throw new Error('Invalid token parts');
   }
 
-  let header: IJwtHeader;
-  let payload: IJwtPayload;
+  const [header, payload] = decodeTokenData(encodedHeader, encodedPayload);
 
-  try {
-    header = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString());
-    payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString());
-  } catch {
-    throw new Error('Invalid token encoding');
-  }
-
-  const keyManager = KeyManager.getInstance();
-  const config = keyManager.getConfig();
+  const config = KeyManager.getInstance().getConfig();
 
   const allowedAlgorithms = options.algorithms ?? config.availableAlgorithms;
   if (!allowedAlgorithms.includes(header.alg)) {
@@ -505,13 +501,18 @@ export const jwtVerify = (
   }
 
   const message = `${encodedHeader}.${encodedPayload}`;
-  verifySignature(message, signature, header.alg, config);
+  verifySignature({
+    message,
+    signature,
+    algorithm: header.alg,
+    config,
+  });
   validateClaims(payload, options);
 
   return {
-    payload,
-    header,
-  };
+ payload,
+header
+};
 };
 
 /**
@@ -560,10 +561,10 @@ export const getJWTInfo = (): IJwtInfo => {
   const config = keyManager.getConfig();
 
   let mode: 'rsa' | 'hmac' | 'hybrid';
-  if (config.privateKey !== undefined) {
-    mode = config.secret !== undefined ? 'hybrid' : 'rsa';
-  } else {
+  if (config.privateKey === undefined) {
     mode = 'hmac';
+  } else {
+    mode = config.secret === undefined ? 'rsa' : 'hybrid';
   }
 
   const result: IJwtInfo = {

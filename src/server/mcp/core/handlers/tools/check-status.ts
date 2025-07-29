@@ -15,8 +15,8 @@ import {
   type CallToolResult,
   type IToolHandlerContext,
   type ToolHandler,
-  formatToolResponse,
 } from '@/server/mcp/core/handlers/tools/types';
+import { formatToolResponse } from '@/server/mcp/core/handlers/types/core.types';
 import type {
   IAuditLogEntry,
   ICheckStatusArgs,
@@ -267,7 +267,7 @@ const getUserStatus = async (): Promise<IUserInfo[]> => {
     `;
 
     const queryResult = await db.query(userQuery);
-    const users = queryResult.rows as IUserStatusRow[];
+    const users = (queryResult as any).rows as IUserStatusRow[];
 
     return users.map((user: IUserStatusRow): IUserInfo => {
       return {

@@ -10,6 +10,5 @@ import type { LoggerService } from '@/modules/core/logger/services/logger.servic
  */
 export interface ILoggerModuleExports {
   readonly service: () => ILogger;
-  readonly logger: () => ILogger;
   readonly getInstance: () => LoggerService;
 }

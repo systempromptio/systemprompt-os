@@ -1,5 +1,5 @@
 // Auto-generated database types for dev module
-// Generated on: 2025-07-28T20:02:59.642Z
+// Generated on: 2025-07-29T15:52:59.254Z
 // Do not modify this file manually - it will be overwritten
 
 /**
@@ -9,7 +9,10 @@
 export interface IDevProfilesRow {
   id: number;
   name: string;
-  config: string | null;
+  description: string | null;
+  config_enabled: number | null;
+  config_auto_save: number | null;
+  config_debug_mode: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -25,7 +28,9 @@ export interface IDevSessionsRow {
   status: string;
   started_at: string | null;
   ended_at: string | null;
-  metadata: string | null;
+  exit_code: number | null;
+  output_lines: number | null;
+  error_count: number | null;
 }
 
 /**

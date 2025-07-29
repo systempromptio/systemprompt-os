@@ -4,13 +4,16 @@
  * @module modules/core/dev/services/module-generator
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import { execSync } from 'child_process';
-import type { IModuleGeneratorOptions, IModuleGeneratorService } from '@/modules/core/dev/types/index';
+import type {
+  IModuleGeneratorOptions,
+  IModuleGeneratorService
+} from '@/modules/core/dev/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
  * Service for generating new SystemPrompt OS modules with complete boilerplate.
@@ -19,6 +22,12 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
   private static instance: ModuleGeneratorService;
   private logger!: ILogger;
   private initialized = false;
+
+  /**
+   * Private constructor for singleton pattern.
+   */
+  private constructor() {
+  }
 
   /**
    * Get singleton instance.
@@ -30,14 +39,9 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
   }
 
   /**
-   * Private constructor for singleton.
-   */
-  private constructor() {}
-
-  /**
    * Initialize the service.
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) {
       return;
     }
@@ -53,42 +57,80 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
    */
   async generateModule(options: IModuleGeneratorOptions): Promise<void> {
     if (!this.initialized) {
-      await this.initialize();
+      this.initialize();
     }
 
     try {
-      if (!this.validateModuleName(options.name)) {
-        throw new Error(`Invalid module name: ${options.name}`);
-      }
-
-      await this.createDirectoryStructure(options);
-
-      await this.generateModuleFiles(options);
-      await this.generateTypeDefinitions(options);
-      await this.generateServiceLayer(options);
-
-      if (options.needsDatabase) {
-        await this.generateDatabaseSchema(options);
-      }
-
-      if (options.needsCli) {
-        await this.generateCliCommands(options);
-      }
-
-      await this.generateRepositoryLayer(options);
-      await this.generateErrorClasses(options);
-      await this.generateTests(options);
-
-      await this.validateTypeScript();
-      await this.checkLinting(options);
-
-      await this.registerModule(options);
+      this.validateOptions(options);
+      await this.generateModuleStructure(options);
+      await this.generateOptionalComponents(options);
+      await this.generateSupportingFiles(options);
+      this.performValidation(options);
+      this.registerModule(options);
 
       this.logger.info(LogSource.MODULES, `Successfully generated module: ${options.name}`);
     } catch (error) {
-      this.logger.error(LogSource.MODULES, `Failed to generate module: ${options.name}`, { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error(
+        LogSource.MODULES,
+        `Failed to generate module: ${options.name}`,
+        { error: error instanceof Error ? error.message : String(error) }
+      );
       throw error;
     }
+  }
+
+  /**
+   * Validate module generation options.
+   * @param options - Module generation options.
+   */
+  private validateOptions(options: IModuleGeneratorOptions): void {
+    if (!this.validateModuleName(options.name)) {
+      throw new Error(`Invalid module name: ${options.name}`);
+    }
+  }
+
+  /**
+   * Generate core module structure and files.
+   * @param options - Module generation options.
+   */
+  private async generateModuleStructure(options: IModuleGeneratorOptions): Promise<void> {
+    await this.createDirectoryStructure(options);
+    await this.generateModuleFiles(options);
+    await this.generateTypeDefinitions(options);
+    await this.generateServiceLayer(options);
+  }
+
+  /**
+   * Generate optional components based on configuration.
+   * @param options - Module generation options.
+   */
+  private async generateOptionalComponents(options: IModuleGeneratorOptions): Promise<void> {
+    if (options.needsDatabase) {
+      await this.generateDatabaseSchema(options);
+    }
+
+    if (options.needsCli) {
+      await this.generateCliCommands(options);
+    }
+  }
+
+  /**
+   * Generate supporting files like repositories, errors, and tests.
+   * @param options - Module generation options.
+   */
+  private async generateSupportingFiles(options: IModuleGeneratorOptions): Promise<void> {
+    await this.generateRepositoryLayer(options);
+    await this.generateErrorClasses(options);
+    await this.generateTests(options);
+  }
+
+  /**
+   * Perform validation checks on generated module.
+   * @param options - Module generation options.
+   */
+  private performValidation(options: IModuleGeneratorOptions): void {
+    this.validateTypeScript();
+    this.checkLinting(options);
   }
 
   /**
@@ -97,7 +139,7 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
    * @returns True if valid.
    */
   validateModuleName(name: string): boolean {
-    return (/^[a-z][a-z0-9-]*$/).test(name) && name.length >= 3;
+    return (/^[a-z][a-z0-9-]*$/u).test(name) && name.length >= 3;
   }
 
   /**
@@ -127,9 +169,9 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
       path.join(modulePath, 'errors')
     ];
 
-    for (const dir of directories) {
-      await fs.mkdir(dir, { recursive: true });
-    }
+    await Promise.all(
+      directories.map(async (dir) => { return await fs.mkdir(dir, { recursive: true }) })
+    );
   }
 
   /**
@@ -140,7 +182,7 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
     const modulePath = this.getModulePath(options.name, options.isCustom);
     const pascalName = this.toPascalCase(options.name);
     const camelName = this.toCamelCase(options.name);
-    const upperName = options.name.toUpperCase().replace(/-/g, '_');
+    const upperName = options.name.toUpperCase().replace(/-/gu, '_');
 
     const indexContent = this.generateIndexTemplate(options, pascalName, camelName, upperName);
     await fs.writeFile(path.join(modulePath, 'index.ts'), indexContent);
@@ -213,7 +255,10 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
     const pascalName = this.toPascalCase(options.name);
     const camelName = this.toCamelCase(options.name);
     const content = this.generateRepositoryTemplate(options, pascalName, camelName);
-    await fs.writeFile(path.join(modulePath, 'repositories', `${options.name}.repository.ts`), content);
+    await fs.writeFile(
+      path.join(modulePath, 'repositories', `${options.name}.repository.ts`),
+      content
+    );
   }
 
   /**
@@ -250,10 +295,10 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
   /**
    * Validate TypeScript compilation.
    */
-  private async validateTypeScript(): Promise<void> {
+  private validateTypeScript(): void {
     try {
       execSync('npm run typecheck', { stdio: 'pipe' });
-    } catch (error) {
+    } catch (_error) {
       this.logger.warn(LogSource.MODULES, 'TypeScript validation found issues - please review');
     }
   }
@@ -262,11 +307,11 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
    * Check linting rules.
    * @param options - Module options.
    */
-  private async checkLinting(options: IModuleGeneratorOptions): Promise<void> {
+  private checkLinting(options: IModuleGeneratorOptions): void {
     try {
       const modulePath = this.getModulePath(options.name, options.isCustom);
       execSync(`npm run lint ${modulePath}`, { stdio: 'pipe' });
-    } catch (error) {
+    } catch (_error) {
       this.logger.warn(LogSource.MODULES, 'Linting found issues - please review');
     }
   }
@@ -275,11 +320,14 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
    * Register module in the system.
    * @param options - Module options.
    */
-  private async registerModule(options: IModuleGeneratorOptions): Promise<void> {
-    this.logger.info(LogSource.MODULES, `Module ${options.name} generated. Manual registration required in:
+  private registerModule(options: IModuleGeneratorOptions): void {
+    this.logger.info(
+      LogSource.MODULES,
+      `Module ${options.name} generated. Manual registration required in:
     1. src/modules/types/index.ts - Add to ModuleName enum
     2. src/bootstrap/phases/core-modules-phase.ts - Add to core modules list
-    3. src/modules/core/cli/commands/index.ts - Add CLI command (if applicable)`);
+    3. src/modules/core/cli/commands/index.ts - Add CLI command (if applicable)`
+    );
   }
 
   // Template generation methods
@@ -294,7 +342,7 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
  */
 
 import type { IModule } from '@/modules/core/modules/types/index';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -317,7 +365,7 @@ export class ${pascalName}Module implements IModule<I${pascalName}ModuleExports>
   public readonly version = '1.0.0';
   public readonly description = '${options.description}';
   public readonly dependencies = ${JSON.stringify(options.dependencies)};
-  public status: ModuleStatusEnum = ModuleStatusEnum.STOPPED;
+  public status: ModulesStatus = ModulesStatus.STOPPED;
   private ${camelName}Service!: I${pascalName}Service;
   private logger!: ILogger;
   private initialized = false;
@@ -363,7 +411,7 @@ export class ${pascalName}Module implements IModule<I${pascalName}ModuleExports>
       throw new Error('${pascalName} module already started');
     }
 
-    this.status = ModuleStatusEnum.RUNNING;
+    this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.MODULES, '${pascalName} module started');
   }
@@ -373,7 +421,7 @@ export class ${pascalName}Module implements IModule<I${pascalName}ModuleExports>
    */
   async stop(): Promise<void> {
     if (this.started) {
-      this.status = ModuleStatusEnum.STOPPED;
+      this.status = ModulesStatus.STOPPED;
       this.started = false;
       this.logger.info(LogSource.MODULES, '${pascalName} module stopped');
     }
@@ -451,9 +499,9 @@ export function get${pascalName}Module(): IModule<I${pascalName}ModuleExports> {
   const { ModuleName } = require('@/modules/types/index');
   
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const moduleLoader = getModuleLoader();
+  const registry = getModuleRegistry();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  const ${camelName}Module = moduleLoader.getModule(ModuleName.${upperName});
+  const ${camelName}Module = registry.get(ModuleName.${upperName});
   
   // Validate the module has expected structure
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

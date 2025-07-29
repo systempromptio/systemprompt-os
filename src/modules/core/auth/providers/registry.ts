@@ -5,15 +5,18 @@ import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index";
 import { LogSource } from "@/modules/core/logger/types/index";
-import type { IdpConfig as IDPConfig, IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
+import type {
+  IdpConfig as IDPConfig,
+  IIdentityProvider
+} from '@/modules/core/auth/types/provider-interface';
 import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
-import type { IGenericOAuth2Config } from '@/modules/core/auth/types/oauth2.types';
+import type {
+  IGenericOAuth2Config,
+  IOIDCDiscoveryConfig
+} from '@/modules/core/auth/types/oauth2.types';
 import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
 import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
-import type {
- ProviderConfig,
-} from '@/modules/core/auth/providers/types';
-import type { IOIDCDiscoveryConfig } from '@/modules/core/auth/types/oauth2.types';
+import type { ProviderConfig } from '@/modules/core/auth/providers/types';
 
 /**
  * ProviderRegistry manages OAuth2/OIDC identity provider configurations.
@@ -28,19 +31,19 @@ export class ProviderRegistry {
   private readonly configPath: string;
 
   /**
-   *  * Creates a new ProviderRegistry instance.
+   * Creates a new ProviderRegistry instance.
    * @param configPath - Base path for provider configuration files.
    * @param logger - Optional logger instance for debugging.
    */
   constructor(configPath: string, logger?: ILogger) {
     this.configPath = configPath;
-    if (logger) {
+    if (logger != null) {
       this.logger = logger;
     }
   }
 
   /**
-   *  * Initializes the registry by loading and instantiating all providers.
+   * Initializes the registry by loading and instantiating all providers.
    * @returns Promise that resolves when initialization is complete.
    * @throws Error if critical initialization failure occurs.
    */
@@ -50,12 +53,12 @@ export class ProviderRegistry {
   }
 
   /**
-   *  * Loads provider configurations from YAML files.
+   * Loads provider configurations from YAML files.
    * Scans the providers directory for YAML files and loads configurations.
    * For enabled providers. Also checks for custom providers in a subdirectory.
    */
   private async loadProviderConfigs(): Promise<void> {
-    const providersPath = this.configPath;
+    const { configPath: providersPath } = this;
 
     this.logger?.info(LogSource.AUTH, `Looking for providers in: ${providersPath}`);
 
@@ -65,13 +68,13 @@ export class ProviderRegistry {
     }
 
     const yamlFiles = readdirSync(providersPath).filter(
-      (file) => {
+      (file): boolean => {
         return [".yaml", ".yml"].includes(extname(file)) && file !== "template.yaml";
       },
     );
 
     await this.loadProviderFiles(
-      yamlFiles.map(file => {
+      yamlFiles.map((file): string => {
         return join(providersPath, file);
       })
     );
@@ -90,10 +93,10 @@ export class ProviderRegistry {
     }
 
     const customFiles = readdirSync(customPath)
-      .filter((file) => {
+      .filter((file): boolean => {
         return [".yaml", ".yml"].includes(extname(file));
       })
-      .map(file => {
+      .map((file): string => {
         return join(customPath, file);
       });
 
@@ -106,10 +109,10 @@ export class ProviderRegistry {
    * @param isCustom - Whether these are custom provider files.
    */
   private async loadProviderFiles(filePaths: string[], isCustom = false): Promise<void> {
-    const loadPromises = filePaths.map(async (filePath) => {
+    const loadPromises = filePaths.map(async (filePath): Promise<void> => {
       try {
-        const config = await this.loadProviderConfig(filePath);
-        if (config !== null && config !== undefined && config.enabled) {
+        const config = this.loadProviderConfig(filePath);
+        if (config != null && config.enabled) {
           this.configs.set(config.id, config);
           const providerType = isCustom ? "custom provider" : "provider";
           this.logger?.info(LogSource.AUTH, `Loaded ${providerType} config: ${config.id}`);
@@ -133,20 +136,23 @@ export class ProviderRegistry {
    * @param filePath - Path to the YAML configuration file.
    * @returns Parsed and validated provider configuration or null if invalid.
    */
-  private async loadProviderConfig(filePath: string): Promise<ProviderConfig | null> {
+  private loadProviderConfig(filePath: string): ProviderConfig | null {
     const content = readFileSync(filePath, "utf8");
     const rawConfig: unknown = parseYaml(content);
     const config = this.substituteEnvVars(rawConfig);
 
     if (!this.isValidProviderConfig(config)) {
-      this.logger?.warn(LogSource.AUTH, `Skipping provider config ${filePath}: missing required fields`);
+      this.logger?.warn(
+        LogSource.AUTH,
+        `Skipping provider config ${filePath}: missing required fields`
+      );
       return null;
     }
 
     if (
-      config.credentials?.clientId
+      config.credentials?.clientId != null
       && config.credentials.clientId.trim() !== ''
-      && config.credentials.clientSecret
+      && config.credentials.clientSecret != null
       && config.credentials.clientSecret.trim() !== ''
     ) {
       config.enabled = true;
@@ -161,14 +167,14 @@ export class ProviderRegistry {
    * @returns True if configuration has all required fields.
    */
   private isValidProviderConfig(config: unknown): config is ProviderConfig {
-    const c = config as Partial<ProviderConfig>;
+    const providerConfig = config as Partial<ProviderConfig>;
     return Boolean(
-      c.id
-      && c.id.trim() !== ''
-      && c.credentials?.clientId
-      && c.credentials.clientId.trim() !== ''
-      && c.credentials.clientSecret
-      && c.credentials.clientSecret.trim() !== ''
+      providerConfig.id != null
+      && providerConfig.id.trim() !== ''
+      && providerConfig.credentials?.clientId != null
+      && providerConfig.credentials.clientId.trim() !== ''
+      && providerConfig.credentials.clientSecret != null
+      && providerConfig.credentials.clientSecret.trim() !== ''
     );
   }
 
@@ -179,21 +185,21 @@ export class ProviderRegistry {
    */
   private substituteEnvVars(obj: unknown): unknown {
     if (typeof obj === "string") {
-      return obj.replace(/\$\{([^}]+)\}/g, (match, varName) => {
-        if (varName === "OAUTH_REDIRECT_URI" && process.env.BASE_URL) {
+      return obj.replace(/\$\{(?<envVar>[^}]+)\}/gu, (match, varName: string): string => {
+        if (varName === "OAUTH_REDIRECT_URI" && process.env.BASE_URL != null) {
           return `${process.env.BASE_URL}/oauth2/callback`;
         }
-        return process.env[varName] || match;
+        return process.env[varName] ?? match;
       });
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => {
+      return obj.map((item): unknown => {
         return this.substituteEnvVars(item);
       });
     }
 
-    if (obj && typeof obj === "object") {
+    if (obj != null && typeof obj === "object") {
       const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         result[key] = this.substituteEnvVars(value);
@@ -210,10 +216,10 @@ export class ProviderRegistry {
    */
   private async instantiateProviders(): Promise<void> {
     const instantiationPromises = Array.from(this.configs.entries()).map(
-      async ([id, config]) => {
+      async ([id, config]): Promise<void> => {
         try {
           const provider = await this.createProvider(config);
-          if (provider) {
+          if (provider != null) {
             this.providers.set(id, provider);
             this.logger?.info(LogSource.AUTH, `Instantiated provider: ${id}`);
           }

@@ -197,4 +197,14 @@ export const enum LoggerErrorCodeEnum {
   DIRECTORY_CREATE_FAILED = 'LOGGER_DIR_CREATE_FAILED',
 }
 
+/**
+ * Options for clearing logs command.
+ */
+export interface IClearLogsOptions {
+  level?: string;
+  olderThan?: string;
+  confirm?: boolean;
+  dryRun?: boolean;
+}
+
 export type { ILogEntry as ILogEntryDatabase, IShowLogsOptions } from '@/modules/core/logger/types/log-entry.types';
