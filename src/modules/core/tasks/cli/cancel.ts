@@ -6,7 +6,7 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { TaskStatusEnum } from '@/modules/core/tasks/types/index';
+import { TaskStatus } from '@/modules/core/tasks/types/index';
 
 /**
  * Tasks cancel command.
@@ -36,7 +36,7 @@ export const cancel: CLICommand = {
       const tasksModule = getTasksModule();
       const taskService = tasksModule.exports.service();
 
-      await taskService.updateTask(taskId, { status: TaskStatusEnum.CANCELLED });
+      await taskService.updateTask(taskId, { status: TaskStatus.CANCELLED });
 
       process.stdout.write(`\nTask ${String(taskId)} cancelled successfully!\n`);
     } catch (error) {

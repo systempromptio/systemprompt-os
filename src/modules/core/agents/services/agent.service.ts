@@ -69,7 +69,7 @@ export class AgentService {
     try {
       const agent = await this.repository.createAgentExtended({
         ...createAgentDto,
-        type: createAgentDto.type as any // The service will validate this
+        type: createAgentDto.type as an
       });
 
       this.logger.info(LogSource.AGENT, 'Agent created', {
@@ -170,7 +170,7 @@ export class AgentService {
       metadata: {
  agentId,
 status,
-statusType: typeof status 
+statusType: typeof status
 }
     });
 
@@ -181,8 +181,10 @@ statusType: typeof status
     }
 
     this.logger.debug(LogSource.AGENT, 'Found agent before update', {
-      metadata: { agentId,
-currentStatus: agent.status }
+      metadata: {
+ agentId,
+currentStatus: agent.status
+}
     });
 
     try {
@@ -197,8 +199,10 @@ currentStatus: agent.status }
     } catch (error) {
       this.logger.error(LogSource.AGENT, 'Repository update failed', {
         error: error instanceof Error ? error.message : String(error),
-        metadata: { agentId,
-status }
+        metadata: {
+ agentId,
+status
+}
       });
       throw error;
     }
@@ -368,7 +372,7 @@ status }
       return null;
     }
 
-    await new Promise(resolve => {return setTimeout(resolve, 50)});
+    await new Promise(resolve => { return setTimeout(resolve, 50) });
 
     return await this.repository.getAgentByIdExtended(agent.id);
   }
@@ -426,7 +430,9 @@ status }
    * @returns Promise resolving to array of available agents.
    */
   async getAvailableAgents(capability?: string): Promise<IAgentsRow[]> {
-    const agents = await this.repository.listAgents(AgentsStatusEnum.ACTIVE);
+    const activeAgents = await this.repository.listAgents(AgentsStatusEnum.ACTIVE);
+    const idleAgents = await this.repository.listAgents(AgentsStatusEnum.IDLE);
+    const agents = [...activeAgents, ...idleAgents];
 
     if (capability === undefined || capability === '') {
       return agents;

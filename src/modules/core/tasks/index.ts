@@ -10,9 +10,9 @@ import { TaskRepository } from '@/modules/core/tasks/repositories/task.repositor
 import {
   type ITaskService,
   type ITasksModuleExports,
-  TaskExecutionStatusEnum,
-  TaskPriorityEnum,
-  TaskStatusEnum
+  TaskExecutionStatus,
+  TaskPriority,
+  TaskStatus
 } from '@/modules/core/tasks/types/index';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -42,9 +42,9 @@ export class TasksModule implements IModule<ITasksModuleExports> {
       service: (): ITaskService => {
         return this.getService();
       },
-      TaskStatus: TaskStatusEnum,
-      TaskExecutionStatus: TaskExecutionStatusEnum,
-      TaskPriority: TaskPriorityEnum
+      TaskStatus: TaskStatus,
+      TaskExecutionStatus: TaskExecutionStatus,
+      TaskPriority: TaskPriority
     };
   }
 

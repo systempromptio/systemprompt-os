@@ -12,9 +12,11 @@ import type {
 import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IdentityProvider } from '@/modules/core/auth/types/index';
+// Import type { IdentityProvider } from '@/modules/core/auth/types/index';
 import type { ProviderRegistry } from '@/modules/core/auth/providers/registry';
-import { type AuthPageConfig, renderAuthPage } from '@/server/external/templates/auth';
+import {
+ type AuthPageConfig, type IdentityProvider, renderAuthPage
+} from '@/server/external/templates/auth';
 import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 import type {
   TokenResponse
@@ -45,9 +47,7 @@ export class AuthEndpoint {
       }
 
       const allProviders = providerRegistry.getAllProviders();
-      const providers: IdentityProvider[] = allProviders.filter((p): p is IdentityProvider => {
-        return p != null && typeof p === 'object' && 'name' in p;
-      });
+      const providers = allProviders as IdentityProvider[];
 
       const authPageConfig: AuthPageConfig = {
         providers,

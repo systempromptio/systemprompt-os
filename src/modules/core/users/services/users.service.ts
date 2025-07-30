@@ -23,7 +23,9 @@ import {
   type UserDataResponseEvent,
   type UserDeletedEvent,
   UserEvents,
-  type UserUpdatedEvent
+  type UserUpdatedEvent,
+  type UserCreateOAuthRequestEvent,
+  type UserCreateOAuthResponseEvent
 } from '@/modules/core/events/types/index';
 
 /**
@@ -100,7 +102,7 @@ export class UsersService implements IUsersService {
       timezone: data.timezone ?? 'UTC',
       language: data.language ?? 'en',
       status: UsersStatus.ACTIVE,
-      emailVerified: false,
+      emailVerified: data.emailVerified ?? false,
       createdAt: now,
       updatedAt: now
     });
@@ -301,6 +303,64 @@ export class UsersService implements IUsersService {
           user: null
         };
         this.eventBus.emit(UserEvents.USER_DATA_RESPONSE, response);
+      }
+    });
+
+    // Handle OAuth user creation requests from auth module
+    this.eventBus.on<UserCreateOAuthRequestEvent>(UserEvents.USER_CREATE_OAUTH_REQUEST, async (data: unknown) => {
+      try {
+        const event = data as UserCreateOAuthRequestEvent;
+        
+        // Check if user already exists by email
+        let user = await this.getUserByEmail(event.email);
+        
+        if (!user) {
+          // Generate username from email or name
+          const baseUsername = event.name?.toLowerCase().replace(/\s+/g, '') || 
+                            event.email.split('@')[0].toLowerCase();
+          let username = baseUsername;
+          let counter = 1;
+          
+          // Ensure unique username
+          while (await this.getUserByUsername(username)) {
+            username = `${baseUsername}${counter}`;
+            counter++;
+          }
+          
+          // Create new user
+          user = await this.createUser({
+            username,
+            email: event.email,
+            displayName: event.name || username,
+            avatarUrl: event.avatar || '',
+            emailVerified: true // OAuth users are considered email verified
+          });
+        }
+        
+        const response: UserCreateOAuthResponseEvent = {
+          requestId: event.requestId,
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            roles: [] // Roles will be managed by auth module
+          }
+        };
+        
+        this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
+      } catch (error) {
+        this.logger?.error(LogSource.USERS, 'Error handling OAuth user creation', { 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+        
+        const response: UserCreateOAuthResponseEvent = {
+          requestId: (data as UserCreateOAuthRequestEvent).requestId,
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to create OAuth user'
+        };
+        
+        this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
       }
     });
   }

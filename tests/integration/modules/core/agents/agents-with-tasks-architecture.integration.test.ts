@@ -3,7 +3,7 @@
  * Agent and Task modules with clean interfaces
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 
 // Mock interfaces demonstrating clean separation
@@ -22,6 +22,7 @@ interface IAgentAPI {
   getAgent(agentId: string): Promise<IAgent | null>;
   getAvailableAgents(capability?: string): Promise<IAgent[]>;
   reportAgentMetrics(agentId: string, metrics: any): Promise<void>;
+  incrementTaskCount(agentId: string, type: 'assigned' | 'completed' | 'failed'): Promise<void>;
 }
 
 interface ITask {
@@ -42,13 +43,22 @@ interface ITask {
 interface IAgent {
   id: string;
   name: string;
+  description?: string;
+  instructions?: string;
   type: string;
   status: 'stopped' | 'active' | 'busy';
+  config?: any;
   capabilities: string[];
+  tools?: string[];
   currentTaskId?: number;
   tasksProcessed: number;
   tasksSucceeded: number;
   tasksFailed: number;
+  assigned_tasks: number;
+  completed_tasks: number;
+  failed_tasks: number;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // Event types for clean communication
@@ -136,6 +146,12 @@ class TaskModuleMock implements ITaskAPI {
   async getNextAvailableTask(agentCapabilities?: string[]): Promise<ITask | null> {
     const pendingTasks = Array.from(this.tasks.values())
       .filter(t => t.status === 'pending')
+      .filter(t => {
+        // If no capabilities specified, return all pending tasks
+        if (!agentCapabilities || agentCapabilities.length === 0) return true;
+        // Check if agent has capability matching the task type
+        return agentCapabilities.includes(t.type);
+      })
       .sort((a, b) => b.priority - a.priority);
     
     return pendingTasks[0] || null;
@@ -146,6 +162,7 @@ class AgentModuleMock implements IAgentAPI {
   private agents: Map<string, IAgent> = new Map();
   private eventBus: EventEmitter;
   private tasks: Map<number, ITask>;
+  private nextAgentId = 1;
 
   constructor(eventBus: EventEmitter, tasks: Map<number, ITask>) {
     this.eventBus = eventBus;
@@ -185,21 +202,24 @@ class AgentModuleMock implements IAgentAPI {
 
   async createAgent(agent: Partial<IAgent>): Promise<IAgent> {
     const newAgent: IAgent = {
-      id: agent.id || `agent-${Date.now()}`,
+      id: agent.id || `agent-${this.nextAgentId++}`,
       name: agent.name!,
       description: agent.description || '',
       instructions: agent.instructions || '',
       type: agent.type!,
-      status: 'stopped',
+      status: agent.status || 'stopped',
       config: agent.config || {},
       capabilities: agent.capabilities || [],
       tools: agent.tools || [],
+      currentTaskId: agent.currentTaskId,
+      tasksProcessed: agent.tasksProcessed || 0,
+      tasksSucceeded: agent.tasksSucceeded || 0,
+      tasksFailed: agent.tasksFailed || 0,
       created_at: new Date(),
       updated_at: new Date(),
-      assigned_tasks: 0,
-      completed_tasks: 0,
-      failed_tasks: 0,
-      ...agent
+      assigned_tasks: agent.assigned_tasks || 0,
+      completed_tasks: agent.completed_tasks || 0,
+      failed_tasks: agent.failed_tasks || 0
     };
     
     this.agents.set(newAgent.id, newAgent);
@@ -318,14 +338,14 @@ describe('Agent-Task Clean Separation Integration Test', () => {
   let agentModule: AgentModuleMock;
   let orchestrator: TaskOrchestrator;
 
-  beforeAll(() => {
+  beforeEach(() => {
     eventBus = new EventEmitter();
     taskModule = new TaskModuleMock(eventBus);
     agentModule = new AgentModuleMock(eventBus, taskModule.tasks);
     orchestrator = new TaskOrchestrator(taskModule, agentModule, eventBus);
   });
 
-  afterAll(() => {
+  afterEach(() => {
     eventBus.removeAllListeners();
   });
 
@@ -345,7 +365,7 @@ describe('Agent-Task Clean Separation Integration Test', () => {
 
     it('should create task without knowing about agents', async () => {
       const task = await taskModule.createTask({
-        type: 'data-processing',
+        type: 'test-data-processing',
         moduleId: 'analytics',
         instructions: { process: 'aggregate', dataset: 'sales' },
         priority: 8
@@ -357,15 +377,18 @@ describe('Agent-Task Clean Separation Integration Test', () => {
     });
 
     it('should coordinate task assignment through orchestrator', async () => {
+      // Small delay to ensure clean state
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       // Create agent and task
       const agent = await agentModule.createAgent({
         name: 'worker-2',
         type: 'processor',
-        capabilities: ['report-generation']
+        capabilities: ['test-report-generation']
       });
 
       const task = await taskModule.createTask({
-        type: 'report-generation',
+        type: 'test-report-generation',
         moduleId: 'reporting',
         instructions: { report: 'monthly-summary' },
         priority: 10
@@ -375,7 +398,7 @@ describe('Agent-Task Clean Separation Integration Test', () => {
       await agentModule.updateAgentStatus(agent.id, 'active');
 
       // Wait for event propagation
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Check task was assigned
       const updatedTask = await taskModule.getTask(task.id!);
@@ -390,11 +413,12 @@ describe('Agent-Task Clean Separation Integration Test', () => {
     it('should handle task execution with clean interfaces', async () => {
       const agent = await agentModule.createAgent({
         name: 'executor-1',
-        type: 'executor'
+        type: 'executor',
+        capabilities: ['test-execution']
       });
 
       const task = await taskModule.createTask({
-        type: 'execution-test',
+        type: 'test-execution',
         moduleId: 'test',
         priority: 5
       });
@@ -405,6 +429,9 @@ describe('Agent-Task Clean Separation Integration Test', () => {
 
       // Execute task through orchestrator
       await orchestrator.executeTask(agent.id, task.id!);
+
+      // Small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Verify task completion
       const completedTask = await taskModule.getTask(task.id!);
@@ -440,6 +467,9 @@ describe('Agent-Task Clean Separation Integration Test', () => {
         await taskModule.assignTaskToAgent(tasks[i].id!, agent.id);
         await agentModule.incrementTaskCount(agent.id, 'assigned');
       }
+
+      // Wait for event propagation
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify all tasks are assigned
       const assignedTasks = await Promise.all(

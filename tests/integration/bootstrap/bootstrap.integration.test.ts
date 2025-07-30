@@ -37,6 +37,16 @@ describe('Bootstrap Integration Tests', () => {
     console.log(`🚀 Starting bootstrap integration test (session: ${testSessionId})`);
     console.log(`📂 Test directory: ${testDir}`);
     console.log(`🗄️ Database path: ${testDbPath}`);
+    
+    // Create and bootstrap instance for all tests
+    bootstrap = new Bootstrap({
+      skipMcp: true,
+      skipDiscovery: true
+    });
+    
+    const modules = await bootstrap.bootstrap();
+    console.log(`✅ Bootstrap completed with ${modules.size} modules`);
+    console.log(`📦 Loaded modules: ${Array.from(modules.keys()).join(', ')}`);
   });
 
   afterAll(async () => {
@@ -58,32 +68,28 @@ describe('Bootstrap Integration Tests', () => {
   });
 
   describe('Bootstrap Core Process', () => {
-    it('should create Bootstrap instance successfully', () => {
-      bootstrap = new Bootstrap({
-        skipMcp: true,
-        skipDiscovery: true
-      });
-      
+    it('should have Bootstrap instance created and ready', () => {
       expect(bootstrap).toBeDefined();
-      expect(bootstrap.getCurrentPhase()).toBe('init');
+      expect(bootstrap.getCurrentPhase()).toBe('ready');
     });
 
-    it('should complete full bootstrap process', async () => {
-      const modules = await bootstrap.bootstrap();
+    it('should have completed bootstrap process', () => {
+      const modules = bootstrap.getModules();
       
       expect(modules).toBeDefined();
       expect(modules.size).toBeGreaterThan(0);
       expect(bootstrap.getCurrentPhase()).toBe('ready');
-      
-      console.log(`✅ Bootstrap completed with ${modules.size} modules`);
-      console.log(`📦 Loaded modules: ${Array.from(modules.keys()).join(', ')}`);
     });
 
     it('should load all expected core modules', () => {
       const modules = bootstrap.getModules();
+      console.log(`🔍 Debug: Checking modules. Type: ${typeof modules}, Size: ${modules?.size}`);
+      console.log(`🔍 Debug: Available modules: ${modules ? Array.from(modules.keys()).join(', ') : 'none'}`);
+      
       const expectedCoreModules = [
         'logger',
         'database', 
+        'modules', // Added based on actual loaded modules
         'auth',
         'cli',
         'config',
@@ -99,7 +105,9 @@ describe('Bootstrap Integration Tests', () => {
       ];
 
       for (const expectedModule of expectedCoreModules) {
-        expect(modules.has(expectedModule), `Expected core module '${expectedModule}' to be loaded`).toBe(true);
+        const hasModule = modules.has(expectedModule);
+        console.log(`🔍 Debug: Module '${expectedModule}': ${hasModule ? 'found' : 'missing'}`);
+        expect(hasModule, `Expected core module '${expectedModule}' to be loaded`).toBe(true);
         
         const module = modules.get(expectedModule);
         expect(module).toBeDefined();
@@ -139,6 +147,9 @@ describe('Bootstrap Integration Tests', () => {
   describe('Database Integration After Bootstrap', () => {
     it('should have functional database service', async () => {
       const dbModule = bootstrap.getModule('database');
+      console.log(`🔍 Debug: Database module found: ${!!dbModule}`);
+      console.log(`🔍 Debug: Database module exports: ${!!dbModule?.exports}`);
+      
       expect(dbModule).toBeDefined();
       expect(dbModule?.exports).toBeDefined();
       

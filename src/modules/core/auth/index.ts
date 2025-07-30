@@ -15,7 +15,7 @@ import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
 import { TunnelService } from '@/modules/core/auth/services/tunnel.service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
-import { UserService } from '@/modules/core/auth/services/user.service';
+import { UserEventService } from '@/modules/core/auth/services/user-event.service';
 import { MFAService } from '@/modules/core/auth/services/mfa.service';
 import { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
@@ -57,7 +57,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
   private tunnelService: TunnelService | null = null;
   private tokenService!: TokenService;
   private authService!: AuthService;
-  private userService!: UserService;
+  private userEventService!: UserEventService;
   private authCodeService!: AuthCodeService;
   private mfaService!: MFAService;
   private auditService!: AuthAuditService;
@@ -71,7 +71,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     return {
       service: (): AuthService => { return this.authService },
       tokenService: (): TokenService => { return this.tokenService },
-      userService: (): UserService => { return this.userService },
+      userService: (): UserEventService => { return this.userEventService },
       authCodeService: (): AuthCodeService => { return this.authCodeService },
       mfaService: (): MFAService => { return this.mfaService },
       auditService: (): AuthAuditService => { return this.auditService },
@@ -174,7 +174,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    */
   private initializeServices(): void {
     this.tokenService = TokenService.getInstance();
-    this.userService = UserService.getInstance();
+    this.userEventService = UserEventService.getInstance();
     this.authCodeService = AuthCodeService.getInstance();
 
     const mfaConfig = {

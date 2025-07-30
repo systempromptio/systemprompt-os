@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
-import type { UserService } from '@/modules/core/auth/services/user.service';
+import { UserEventService } from '@/modules/core/auth/services/user-event.service';
 import type {
  IPermission, IRole, IUser
 } from '@/modules/core/auth/types';
@@ -9,7 +9,6 @@ import type {
  IAuthPermissionsRow,
  IAuthRolesRow
 } from '@/modules/core/auth/types/database.generated';
-import type { IUsersRow } from '@/modules/core/users/types/database.generated';
 import type {
  OAuthProfile,
  SessionMetadata
@@ -25,15 +24,13 @@ import {
  */
 export class AuthRepository {
   private static instance: AuthRepository | undefined;
-  private readonly userService: UserService;
+  private userEventService?: UserEventService;
+  private dbService?: DatabaseService;
 
   /**
    * Creates a new AuthRepository instance.
-   * @param db - Database service instance for executing queries.
    */
-  private constructor(private readonly db: DatabaseService) {
-    const authModule = getAuthModule();
-    this.userService = authModule.exports.userService();
+  private constructor() {
   }
 
   /**
@@ -41,8 +38,39 @@ export class AuthRepository {
    * @returns AuthRepository instance.
    */
   static getInstance(): AuthRepository {
-    this.instance ??= new AuthRepository(DatabaseService.getInstance());
+    this.instance ??= new AuthRepository();
     return this.instance;
+  }
+
+  /**
+   * Initialize repository.
+   * @returns Promise that resolves when initialized.
+   */
+  async initialize(): Promise<void> {
+    this.dbService = DatabaseService.getInstance();
+    this.userEventService = UserEventService.getInstance();
+  }
+
+  /**
+   * Get database connection.
+   * @returns Database connection.
+   */
+  private async getDatabase(): Promise<DatabaseService> {
+    if (!this.dbService) {
+      this.dbService = DatabaseService.getInstance();
+    }
+    return this.dbService;
+  }
+
+  /**
+   * Get user event service.
+   * @returns User event service.
+   */
+  private getUserEventService(): UserEventService {
+    if (!this.userEventService) {
+      this.userEventService = UserEventService.getInstance();
+    }
+    return this.userEventService;
   }
 
   /**
@@ -60,7 +88,7 @@ export class AuthRepository {
     providerId: string,
     profile: OAuthProfile,
   ): Promise<IUser> {
-    const user = await this.userService.createOrUpdateUserFromOauth({
+    const user = await this.getUserEventService().createOrUpdateUserFromOauth({
       provider,
       providerId,
       email: profile.email,
@@ -92,11 +120,9 @@ export class AuthRepository {
    * @returns IUser object with roles and permissions, or null if not found.
    */
   async getIUserById(userId: string): Promise<IUser | null> {
-    const userRow = await this.db
-      .query<IUsersRow>('SELECT * FROM users WHERE id = ?', [userId])
-      .then((rows: IUsersRow[]): IUsersRow | undefined => { return rows[ZERO] });
-
-    if (userRow === undefined) {
+    const userWithRoles = await this.getUserEventService().getUserById(userId);
+    
+    if (!userWithRoles) {
       return null;
     }
 
@@ -104,13 +130,13 @@ export class AuthRepository {
     const permissions = await this.getIUserIPermissions(userId);
 
     return {
-      id: userRow.id,
-      email: userRow.email,
-      ...userRow.display_name !== null && { name: userRow.display_name },
-      ...userRow.avatar_url !== null && { avatarUrl: userRow.avatar_url },
-      isActive: userRow.status === 'active',
-      createdAt: userRow.created_at ?? new Date().toISOString(),
-      updatedAt: userRow.updated_at ?? new Date().toISOString(),
+      id: userWithRoles.id,
+      email: userWithRoles.email,
+      ...userWithRoles.name && { name: userWithRoles.name },
+      ...userWithRoles.avatarurl && { avatarUrl: userWithRoles.avatarurl },
+      isActive: userWithRoles.status === 'active',
+      createdAt: userWithRoles.createdAt ?? new Date().toISOString(),
+      updatedAt: userWithRoles.updatedAt ?? new Date().toISOString(),
       roles,
       permissions,
     };
@@ -122,17 +148,13 @@ export class AuthRepository {
    * @returns IUser object with roles and permissions, or null if not found.
    */
   async getIUserByEmail(email: string): Promise<IUser | null> {
-    const userRow = await this.db
-      .query<Pick<IUsersRow, 'id'>>('SELECT id FROM users WHERE email = ?', [email])
-      .then((rows: Pick<IUsersRow, 'id'>[]): Pick<IUsersRow, 'id'> | undefined => {
-        return rows[ZERO];
-      });
-
-    if (userRow === undefined) {
+    const userWithRoles = await this.getUserEventService().getUserByEmail(email);
+    
+    if (!userWithRoles) {
       return null;
     }
 
-    return await this.getIUserById(userRow.id);
+    return await this.getIUserById(userWithRoles.id);
   }
 
   /**
@@ -141,7 +163,8 @@ export class AuthRepository {
    * @returns Array of role objects assigned to the user.
    */
   async getIUserIRoles(userId: string): Promise<IRole[]> {
-    const rows = await this.db.query<IAuthRolesRow>(
+    const db = await this.getDatabase();
+    const rows = await db.query<IAuthRolesRow>(
       `SELECT r.* FROM auth_roles r
        JOIN auth_user_roles ur ON r.id = ur.role_id
        WHERE ur.user_id = ?`,
@@ -164,7 +187,8 @@ export class AuthRepository {
    * @returns Array of unique permission objects granted to the user.
    */
   async getIUserIPermissions(userId: string): Promise<IPermission[]> {
-    const rows = await this.db.query<IAuthPermissionsRow>(
+    const db = await this.getDatabase();
+    const rows = await db.query<IAuthPermissionsRow>(
       `SELECT DISTINCT p.* FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
        JOIN auth_user_roles ur ON rp.role_id = ur.role_id
@@ -190,7 +214,8 @@ export class AuthRepository {
    * @returns True if user has the permission, false otherwise.
    */
   async hasIPermission(userId: string, resource: string, action: string): Promise<boolean> {
-    const result = await this.db.query<{ count: number }>(
+    const db = await this.getDatabase();
+    const result = await db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_permissions p
        JOIN auth_role_permissions rp ON p.id = rp.permission_id
        JOIN auth_user_roles ur ON rp.role_id = ur.role_id
@@ -208,7 +233,8 @@ export class AuthRepository {
    * @returns True if user has the role, false otherwise.
    */
   async hasIRole(userId: string, roleName: string): Promise<boolean> {
-    const result = await this.db.query<{ count: number }>(
+    const db = await this.getDatabase();
+    const result = await db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM auth_user_roles ur
        JOIN auth_roles r ON ur.role_id = r.id
        WHERE ur.user_id = ? AND r.name = ?`,
@@ -238,7 +264,8 @@ export class AuthRepository {
   ): Promise<string> {
     const sessionId = randomUUID();
 
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       `INSERT INTO auth_sessions
        (id, user_id, token_hash, expires_at, ip_address, user_agent)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -261,7 +288,8 @@ export class AuthRepository {
    * @returns Number of sessions removed (always ZERO for SQLite due to API limitations).
    */
   async cleanupExpiredSessions(): Promise<number> {
-    await this.db.execute(`DELETE FROM auth_sessions WHERE expires_at < datetime('now')`);
+    const db = await this.getDatabase();
+    await db.execute(`DELETE FROM auth_sessions WHERE expires_at < datetime('now')`);
 
     return ZERO;
   }

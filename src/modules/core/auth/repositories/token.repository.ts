@@ -3,7 +3,7 @@
  * @module modules/core/auth/repositories/token.repository
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IAuthTokensRow } from '@/modules/core/auth/types/database.generated';
 import { ZERO } from '@/constants/numbers';
 
@@ -12,20 +12,56 @@ import { ZERO } from '@/constants/numbers';
  */
 export class TokenRepository {
   private static instance: TokenRepository;
+  private dbService?: DatabaseService;
 
   /**
    * Private constructor for singleton pattern.
-   * @param db - Database service instance.
    */
-  private constructor(private readonly db: DatabaseService) {}
+  private constructor() {}
 
   /**
    * Get singleton instance.
    * @returns TokenRepository instance.
    */
   public static getInstance(): TokenRepository {
-    TokenRepository.instance ||= new TokenRepository(DatabaseService.getInstance());
+    TokenRepository.instance ||= new TokenRepository();
     return TokenRepository.instance;
+  }
+
+  /**
+   * Reset singleton instance (for testing).
+   */
+  public static reset(): void {
+    TokenRepository.instance = undefined as any;
+  }
+
+  /**
+   * Initialize repository.
+   * @returns Promise that resolves when initialized.
+   */
+  async initialize(): Promise<void> {
+    // Database will be fetched lazily via getDatabase()
+    this.dbService = undefined;
+  }
+
+  /**
+   * Get database connection.
+   * @returns Database connection.
+   */
+  private async getDatabase(): Promise<DatabaseService> {
+    if (!this.dbService) {
+      try {
+        // Try to get from module registry first
+        const { getDatabaseModule } = await import('@/modules/core/database/index');
+        const databaseModule = getDatabaseModule();
+        this.dbService = databaseModule.exports.service();
+      } catch (error) {
+        // Fallback to direct import if module not available in registry
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        this.dbService = DatabaseService.getInstance();
+      }
+    }
+    return this.dbService;
   }
 
   /**
@@ -48,7 +84,8 @@ export class TokenRepository {
     scopes: string[],
     expiresAt: string | null,
   ): Promise<void> {
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       `INSERT INTO auth_tokens
        (id, user_id, name, token_hash, type, expires_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -56,7 +93,8 @@ export class TokenRepository {
     );
 
     for (const scope of scopes) {
-      await this.db.execute(
+      const db = await this.getDatabase();
+    await db.execute(
         'INSERT INTO auth_token_scopes (token_id, scope) VALUES (?, ?)',
         [id, scope],
       );
@@ -70,7 +108,8 @@ export class TokenRepository {
    * @returns Promise resolving to query results.
    */
   async queryTokens<T = IAuthTokensRow>(sql: string, params?: unknown[]): Promise<T[]> {
-    return await this.db.query<T>(sql, params);
+    const db = await this.getDatabase();
+    return await db.query<T>(sql, params);
   }
 
   /**
@@ -80,7 +119,8 @@ export class TokenRepository {
    * @returns Promise that resolves when command is complete.
    */
   async executeCommand(sql: string, params?: unknown[]): Promise<void> {
-    await this.db.execute(sql, params);
+    const db = await this.getDatabase();
+    await db.execute(sql, params);
   }
 
   /**
@@ -90,7 +130,8 @@ export class TokenRepository {
    * @returns Promise resolving to token data or null.
    */
   async findTokenByIdAndHash(tokenId: string, hashedToken: string): Promise<IAuthTokensRow | null> {
-    const result = await this.db.query<IAuthTokensRow>(
+    const db = await this.getDatabase();
+    const result = await db.query<IAuthTokensRow>(
       'SELECT * FROM auth_tokens WHERE id = ? AND token_hash = ?',
       [tokenId, hashedToken],
     );
@@ -103,7 +144,8 @@ export class TokenRepository {
    * @returns Promise resolving to array of scopes.
    */
   async getTokenScopes(tokenId: string): Promise<string[]> {
-    const result = await this.db.query<{ scope: string }>(
+    const db = await this.getDatabase();
+    const result = await db.query<{ scope: string }>(
       'SELECT scope FROM auth_token_scopes WHERE token_id = ?',
       [tokenId],
     );
@@ -116,7 +158,8 @@ export class TokenRepository {
    * @returns Promise resolving to array of token data.
    */
   async findTokensByUserId(userId: string): Promise<IAuthTokensRow[]> {
-    return await this.db.query<IAuthTokensRow>(
+    const db = await this.getDatabase();
+    return await db.query<IAuthTokensRow>(
       `SELECT * FROM auth_tokens
        WHERE user_id = ? AND is_revoked = 0
        ORDER BY created_at DESC`,
@@ -130,7 +173,8 @@ export class TokenRepository {
    * @returns Promise that resolves when revocation is complete.
    */
   async revokeToken(tokenId: string): Promise<void> {
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       'UPDATE auth_tokens SET is_revoked = true WHERE id = ?',
       [tokenId],
     );
@@ -151,7 +195,8 @@ export class TokenRepository {
       params.push(type);
     }
 
-    await this.db.execute(sql, params);
+    const db = await this.getDatabase();
+    await db.execute(sql, params);
   }
 
   /**
@@ -159,7 +204,8 @@ export class TokenRepository {
    * @returns Promise resolving to count of expired tokens.
    */
   async countExpiredTokens(): Promise<number> {
-    const result = await this.db.query<{ count: number }>(
+    const db = await this.getDatabase();
+    const result = await db.query<{ count: number }>(
       "SELECT COUNT(*) as count FROM auth_tokens WHERE expires_at < datetime('now')",
     );
     return result[ZERO]?.count ?? ZERO;
@@ -170,7 +216,8 @@ export class TokenRepository {
    * @returns Promise that resolves when deletion is complete.
    */
   async deleteExpiredTokens(): Promise<void> {
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       "DELETE FROM auth_tokens WHERE expires_at < datetime('now')",
     );
   }
@@ -181,7 +228,8 @@ export class TokenRepository {
    * @returns Promise that resolves when update is complete.
    */
   async updateTokenUsage(tokenId: string): Promise<void> {
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       'UPDATE auth_tokens SET last_used_at = datetime(\'now\') WHERE id = ?',
       [tokenId],
     );

@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IAuditRow } from '@/modules/core/auth/types/audit-service.types';
 import { ONE_HUNDRED } from '@/constants/numbers';
 
@@ -13,20 +13,49 @@ import { ONE_HUNDRED } from '@/constants/numbers';
  */
 export class AuditRepository {
   private static instance: AuditRepository;
+  private dbService?: DatabaseService;
 
   /**
    * Private constructor for singleton pattern.
-   * @param db - Database service instance.
    */
-  private constructor(private readonly db: DatabaseService) {}
+  private constructor() {}
 
   /**
    * Get singleton instance.
    * @returns AuditRepository instance.
    */
   public static getInstance(): AuditRepository {
-    AuditRepository.instance ||= new AuditRepository(DatabaseService.getInstance());
+    AuditRepository.instance ||= new AuditRepository();
     return AuditRepository.instance;
+  }
+
+  /**
+   * Initialize repository.
+   * @returns Promise that resolves when initialized.
+   */
+  async initialize(): Promise<void> {
+    // Database will be fetched lazily via getDatabase()
+    this.dbService = undefined;
+  }
+
+  /**
+   * Get database connection.
+   * @returns Database connection.
+   */
+  private async getDatabase(): Promise<DatabaseService> {
+    if (!this.dbService) {
+      try {
+        // Try to get from module registry first
+        const { getDatabaseModule } = await import('@/modules/core/database/index');
+        const databaseModule = getDatabaseModule();
+        this.dbService = databaseModule.exports.service();
+      } catch (error) {
+        // Fallback to direct import if module not available in registry
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        this.dbService = DatabaseService.getInstance();
+      }
+    }
+    return this.dbService;
   }
 
   /**
@@ -52,7 +81,8 @@ export class AuditRepository {
     userAgent: string | null,
   ): Promise<void> {
     const id = randomUUID();
-    await this.db.execute(
+    const db = await this.getDatabase();
+    await db.execute(
       `INSERT INTO auth_audit_log (id, user_id, action, resource, success, error_message, metadata, ip_address, user_agent, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [id, userId, action, resource, success ? 1 : 0, errorMessage, metadata, ipAddress, userAgent],
@@ -77,6 +107,7 @@ export class AuditRepository {
     query += ' ORDER BY timestamp DESC LIMIT ?';
     params.push(String(limit));
 
-    return await this.db.query<IAuditRow>(query, params);
+    const db = await this.getDatabase();
+    return await db.query<IAuditRow>(query, params);
   }
 }

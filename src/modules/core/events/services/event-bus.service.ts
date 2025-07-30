@@ -13,7 +13,7 @@ export class EventBusService implements IEventBus {
   private readonly emitter: EventEmitter;
   private readonly logger: ILogger;
   private readonly handlerMap: Map<Function, Function>;
-  private db: DatabaseService | null = null;
+  private readonly db: DatabaseService | null = null;
   private persistEvents = true;
 
   private constructor() {
@@ -57,12 +57,12 @@ export class EventBusService implements IEventBus {
   }
 
   /**
-   * Persist event to database
+   * Persist event to database.
    * @param eventName
    * @param data
    */
   private async persistEvent(eventName: string, data: unknown): Promise<void> {
-    if (!this.db) return;
+    if (!this.db) { return; }
 
     try {
       await this.db.execute(
@@ -87,8 +87,9 @@ export class EventBusService implements IEventBus {
    * Subscribe to an event.
    * @param event
    * @param handler
+   * @returns Unsubscribe function.
    */
-  on<T = unknown>(event: string, handler: IEventHandler): void {
+  on<T = unknown>(event: string, handler: IEventHandler): () => void {
     const wrappedHandler = async (data: T) => {
       try {
         await handler(data);
@@ -103,6 +104,8 @@ export class EventBusService implements IEventBus {
 
     this.emitter.on(event, wrappedHandler);
     this.logger.debug(LogSource.MODULES, `Event handler registered: ${event}`);
+
+    return () => { this.off(event, handler); };
   }
 
   /**

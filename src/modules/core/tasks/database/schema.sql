@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS task (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type VARCHAR(100) NOT NULL,
   module_id VARCHAR(100) NOT NULL,
-  instructions JSON,
+  instructions TEXT, -- Serialized instructions
   priority INTEGER DEFAULT 0,
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'completed', 'failed', 'cancelled', 'stopped')),
   retry_count INTEGER DEFAULT 0,
@@ -20,8 +20,18 @@ CREATE TABLE IF NOT EXISTS task (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP, -- Task completion timestamp (optional)
-  created_by VARCHAR(255),
-  metadata JSON
+  created_by VARCHAR(255)
+);
+
+-- Task metadata table for structured storage
+CREATE TABLE IF NOT EXISTS task_metadata (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id INTEGER NOT NULL,
+  key VARCHAR(255) NOT NULL,
+  value TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES task(id) ON DELETE CASCADE,
+  UNIQUE(task_id, key)
 );
 
 -- Indexes for performance
@@ -30,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_task_type ON task(type);
 CREATE INDEX IF NOT EXISTS idx_task_module_id ON task(module_id);
 CREATE INDEX IF NOT EXISTS idx_task_scheduled_at ON task(scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_task_created_at ON task(created_at);
+CREATE INDEX IF NOT EXISTS idx_task_metadata_task_id ON task_metadata(task_id);
 
 -- Trigger for updated_at
 CREATE TRIGGER IF NOT EXISTS task_updated_at

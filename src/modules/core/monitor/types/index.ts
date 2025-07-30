@@ -141,7 +141,7 @@ export interface MonitorModuleDependencies {
     debug: (message: string) => void;
   };
   database: {
-    getAdapter: (name: string) => unknown;
+    createModuleAdapter: (name: string) => Promise<unknown>;
   };
 }
 

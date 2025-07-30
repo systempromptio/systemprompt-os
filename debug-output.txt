@@ -1,0 +1,618 @@
+[2025-07-29T21:49:15.015Z] [INFO] [logger] Logger module initialized successfully
+[2025-07-29T21:49:15.015Z] [INFO] [logger] Logger module started
+[2025-07-29T21:49:15.015Z] [INFO] [bootstrap][startup] Starting bootstrap process
+[2025-07-29T21:49:15.015Z] [INFO] [bootstrap][phase] Starting core modules phase
+[2025-07-29T21:49:15.015Z] [DEBUG] [bootstrap][modules] Loading essential core modules
+[2025-07-29T21:49:15.015Z] [DEBUG] [bootstrap][modules] Processing essential modules
+[2025-07-29T21:49:15.062Z] [DEBUG] [bootstrap][modules] Loaded module: database
+[2025-07-29T21:49:15.062Z] [INFO] [database] Discovering module schemas
+[2025-07-29T21:49:15.090Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.090Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [DEBUG] [database] Discovered schema
+[2025-07-29T21:49:15.091Z] [INFO] [database] Schema discovery complete
+[2025-07-29T21:49:15.095Z] [INFO] [database] Database connection established
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [WARN] [database] Schema file changed after import
+[2025-07-29T21:49:15.096Z] [INFO] [database] Schema import complete
+[2025-07-29T21:49:15.097Z] [INFO] [database][initialization] Database module initialized successfully
+[2025-07-29T21:49:15.097Z] [DEBUG] [bootstrap][modules] Initialized module: database
+[2025-07-29T21:49:15.097Z] [INFO] [database][startup] Database module started
+[2025-07-29T21:49:15.097Z] [DEBUG] [bootstrap][modules] Started critical module: database
+[2025-07-29T21:49:15.098Z] [DEBUG] [bootstrap][modules] Loaded module: modules
+[2025-07-29T21:49:15.098Z] [INFO] [modules] Initializing modules module
+[2025-07-29T21:49:15.098Z] [DEBUG] [modules] Module registry initialized
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Module manager service initialized
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Modules module initialized successfully
+[2025-07-29T21:49:15.099Z] [DEBUG] [bootstrap][modules] Initialized module: modules
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Starting modules module
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Starting module loading process
+[2025-07-29T21:49:15.099Z] [WARN] [modules] Module config not found at /var/www/html/systemprompt-os/config/modules.json, using defaults
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Module loading completed successfully
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Starting all registered modules
+[2025-07-29T21:49:15.099Z] [INFO] [modules] All modules started successfully
+[2025-07-29T21:49:15.099Z] [INFO] [modules] Modules module started successfully
+[2025-07-29T21:49:15.099Z] [DEBUG] [bootstrap][modules] Started critical module: modules
+[2025-07-29T21:49:15.100Z] [DEBUG] [modules] Registered module: logger (core)
+[2025-07-29T21:49:15.100Z] [DEBUG] [modules] Registered module: database (core)
+[2025-07-29T21:49:15.100Z] [DEBUG] [modules] Loading module: auth
+[2025-07-29T21:49:15.185Z] [DEBUG] [modules] Event handler registered: user.data.request
+[2025-07-29T21:49:15.185Z] [INFO] [auth] Looking for providers in: /var/www/html/systemprompt-os/src/modules/core/auth/providers
+[2025-07-29T21:49:15.194Z] [INFO] [auth] Loaded provider config: github
+[2025-07-29T21:49:15.195Z] [INFO] [auth] Loaded provider config: google
+[2025-07-29T21:49:15.196Z] [INFO] [auth] Instantiated provider: github
+[2025-07-29T21:49:15.196Z] [INFO] [auth] Instantiated provider: google
+[2025-07-29T21:49:15.196Z] [INFO] [auth] Auth module initialized
+[2025-07-29T21:49:15.196Z] [DEBUG] [modules] Registered module: auth (core)
+[2025-07-29T21:49:15.196Z] [INFO] [auth] Auth database schema updated
+[2025-07-29T21:49:15.197Z] [INFO] [auth] Auth module started
+[2025-07-29T21:49:15.197Z] [INFO] [modules] Successfully loaded module: auth
+[2025-07-29T21:49:15.197Z] [DEBUG] [modules] Loading module: cli
+[2025-07-29T21:49:15.207Z] [DEBUG] [cli][init] CLI service initialized
+[2025-07-29T21:49:15.207Z] [INFO] [cli] CLI module initialized
+[2025-07-29T21:49:15.207Z] [DEBUG] [modules] Registered module: cli (core)
+[2025-07-29T21:49:15.207Z] [INFO] [cli] CLI module started
+[2025-07-29T21:49:15.207Z] [INFO] [modules] Successfully loaded module: cli
+[2025-07-29T21:49:15.207Z] [INFO] [cli] CLI module started
+[2025-07-29T21:49:15.207Z] [DEBUG] [modules] Loading module: config
+[2025-07-29T21:49:15.211Z] [INFO] [modules] Config module initialized
+[2025-07-29T21:49:15.211Z] [DEBUG] [modules] Registered module: config (core)
+[2025-07-29T21:49:15.211Z] [INFO] [modules] Successfully loaded module: config
+[2025-07-29T21:49:15.211Z] [DEBUG] [modules] Loading module: permissions
+[2025-07-29T21:49:15.219Z] [INFO] [auth] Permissions module initialized
+[2025-07-29T21:49:15.219Z] [DEBUG] [modules] Registered module: permissions (core)
+[2025-07-29T21:49:15.219Z] [INFO] [modules] Successfully loaded module: permissions
+[2025-07-29T21:49:15.220Z] [DEBUG] [modules] Loading module: users
+[2025-07-29T21:49:15.227Z] [DEBUG] [modules] Event handler registered: user.data.request
+[2025-07-29T21:49:15.227Z] [INFO] [auth] Users module initialized
+[2025-07-29T21:49:15.227Z] [DEBUG] [modules] Registered module: users (core)
+[2025-07-29T21:49:15.227Z] [INFO] [modules] Successfully loaded module: users
+[2025-07-29T21:49:15.228Z] [DEBUG] [modules] Loading module: events
+[2025-07-29T21:49:15.237Z] [INFO] [modules] Events module initialized
+[2025-07-29T21:49:15.238Z] [DEBUG] [modules] Registered module: events (core)
+[2025-07-29T21:49:15.238Z] [INFO] [modules] Successfully loaded module: events
+[2025-07-29T21:49:15.238Z] [DEBUG] [modules] Loading module: agents
+[2025-07-29T21:49:15.245Z] [INFO] [modules] Agents module initialized
+[2025-07-29T21:49:15.245Z] [DEBUG] [modules] Registered module: agents (core)
+[2025-07-29T21:49:15.245Z] [INFO] [modules] Successfully loaded module: agents
+[2025-07-29T21:49:15.245Z] [DEBUG] [modules] Loading module: system
+[2025-07-29T21:49:15.253Z] [INFO] [system] System module initialized
+[2025-07-29T21:49:15.253Z] [DEBUG] [modules] Registered module: system (core)
+[2025-07-29T21:49:15.253Z] [INFO] [modules] Successfully loaded module: system
+[2025-07-29T21:49:15.253Z] [DEBUG] [modules] Loading module: tasks
+[2025-07-29T21:49:15.259Z] [INFO] [modules] TaskService initialized
+[2025-07-29T21:49:15.259Z] [INFO] [modules] Tasks module initialized
+[2025-07-29T21:49:15.259Z] [DEBUG] [modules] Registered module: tasks (core)
+[2025-07-29T21:49:15.259Z] [INFO] [modules] Successfully loaded module: tasks
+[2025-07-29T21:49:15.259Z] [DEBUG] [modules] Loading module: mcp
+[2025-07-29T21:49:15.260Z] [INFO] [mcp] MCP module initialized
+[2025-07-29T21:49:15.260Z] [DEBUG] [modules] Registered module: mcp (core)
+[2025-07-29T21:49:15.260Z] [INFO] [modules] Successfully loaded module: mcp
+[2025-07-29T21:49:15.260Z] [DEBUG] [modules] Loading module: webhooks
+[2025-07-29T21:49:15.262Z] [INFO] [system] Webhooks module initialized
+[2025-07-29T21:49:15.263Z] [DEBUG] [modules] Registered module: webhooks (core)
+[2025-07-29T21:49:15.263Z] [INFO] [modules] Successfully loaded module: webhooks
+[2025-07-29T21:49:15.263Z] [DEBUG] [modules] Loading module: dev
+[2025-07-29T21:49:15.268Z] [INFO] [dev] DevRepository initialized
+[2025-07-29T21:49:15.268Z] [INFO] [system] Dev module initialized
+[2025-07-29T21:49:15.268Z] [DEBUG] [modules] Registered module: dev (core)
+[2025-07-29T21:49:15.268Z] [INFO] [modules] Successfully loaded module: dev
+[2025-07-29T21:49:15.268Z] [DEBUG] [modules] Loading module: monitor
+[2025-07-29T21:49:15.281Z] [ERROR] [bootstrap][modules] Failed to load module monitor
+[2025-07-29T21:49:15.281Z] [INFO] [modules] Config module started
+[2025-07-29T21:49:15.281Z] [INFO] [auth] Permissions module started
+[2025-07-29T21:49:15.281Z] [INFO] [auth] Users module started
+[2025-07-29T21:49:15.281Z] [INFO] [modules] Events module started
+[2025-07-29T21:49:15.281Z] [INFO] [agent] Agent monitoring started
+[2025-07-29T21:49:15.282Z] [INFO] [modules] Agents module started
+[2025-07-29T21:49:15.282Z] [INFO] [system] System module started
+[2025-07-29T21:49:15.282Z] [INFO] [modules] Tasks module started
+[2025-07-29T21:49:15.282Z] [INFO] [mcp] MCP module started
+[2025-07-29T21:49:15.282Z] [INFO] [system] Webhooks module started
+[2025-07-29T21:49:15.282Z] [INFO] [system] Dev module started
+[2025-07-29T21:49:15.282Z] [DEBUG] [bootstrap][modules] Core modules loading completed, validation will occur after registration
+[2025-07-29T21:49:15.282Z] [DEBUG] [bootstrap][modules] Core modules phase completed
+[2025-07-29T21:49:15.282Z] [INFO] [bootstrap][phase] Core modules phase completed
+[2025-07-29T21:49:15.282Z] [INFO] [bootstrap][phase] Starting module discovery phase
+[2025-07-29T21:49:15.282Z] [DEBUG] [bootstrap][discovery] Starting module autodiscovery
+[2025-07-29T21:49:15.282Z] [WARN] [modules] Injectable modules path does not exist: /var/www/html/systemprompt-os/injectable
+[2025-07-29T21:49:15.283Z] [WARN] [bootstrap][discovery] No extension modules discovered
+[2025-07-29T21:49:15.283Z] [DEBUG] [bootstrap][discovery] Module autodiscovery completed
+[2025-07-29T21:49:15.283Z] [INFO] [bootstrap][phase] Module discovery phase completed
+[2025-07-29T21:49:15.283Z] [INFO] [bootstrap][phase] Starting registration phase
+[2025-07-29T21:49:15.283Z] [DEBUG] [bootstrap][database] Registering core modules in database
+[2025-07-29T21:49:15.283Z] [DEBUG] [bootstrap][database] Skipping core module registration to prevent circular imports
+[2025-07-29T21:49:15.283Z] [DEBUG] [bootstrap][cli] Registering CLI commands
+[2025-07-29T21:49:15.295Z] [DEBUG] [cli][commands] Scanning 15 modules for CLI commands
+[2025-07-29T21:49:15.295Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/logger/module.yaml
+[2025-07-29T21:49:15.295Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/database/module.yaml
+[2025-07-29T21:49:15.295Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/auth/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/cli/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/modules/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/config/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/permissions/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/users/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/events/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/agents/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/system/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/tasks/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/mcp/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/webhooks/module.yaml
+[2025-07-29T21:49:15.296Z] [DEBUG] [cli][commands] Checking for module.yaml at: src/modules/core/dev/module.yaml
+[2025-07-29T21:49:15.300Z] [DEBUG] [cli][commands] Found 3 CLI commands in logger module
+[2025-07-29T21:49:15.300Z] [DEBUG] [cli][commands] Registering command: logger:status -> src/modules/core/logger/cli/status.ts
+[2025-07-29T21:49:15.312Z] [DEBUG] [cli][commands] Found 16 CLI commands in database module
+[2025-07-29T21:49:15.312Z] [DEBUG] [cli][commands] Registering command: database:status -> src/modules/core/database/cli/status.ts
+[2025-07-29T21:49:15.315Z] [DEBUG] [cli][commands] Found 5 CLI commands in auth module
+[2025-07-29T21:49:15.315Z] [DEBUG] [cli][commands] Registering command: auth:status -> src/modules/core/auth/cli/status.ts
+[2025-07-29T21:49:15.317Z] [DEBUG] [cli][commands] Found 3 CLI commands in cli module
+[2025-07-29T21:49:15.317Z] [DEBUG] [cli][commands] Registering command: cli:help -> src/modules/core/cli/cli/help.ts
+[2025-07-29T21:49:15.325Z] [DEBUG] [cli][commands] Found 13 CLI commands in modules module
+[2025-07-29T21:49:15.325Z] [DEBUG] [cli][commands] Registering command: modules:status -> src/modules/core/modules/cli/status.ts
+[2025-07-29T21:49:15.326Z] [DEBUG] [cli][commands] Found 5 CLI commands in config module
+[2025-07-29T21:49:15.326Z] [DEBUG] [cli][commands] Registering command: config:status -> src/modules/core/config/cli/status.ts
+[2025-07-29T21:49:15.328Z] [DEBUG] [cli][commands] Found 4 CLI commands in permissions module
+[2025-07-29T21:49:15.328Z] [DEBUG] [cli][commands] Registering command: permissions:status -> src/modules/core/permissions/cli/status.ts
+[2025-07-29T21:49:15.330Z] [DEBUG] [cli][commands] Found 6 CLI commands in users module
+[2025-07-29T21:49:15.330Z] [DEBUG] [cli][commands] Registering command: users:status -> src/modules/core/users/cli/status.ts
+[2025-07-29T21:49:15.331Z] [DEBUG] [cli][commands] Found 0 CLI commands in events module
+[2025-07-29T21:49:15.334Z] [DEBUG] [cli][commands] Found 6 CLI commands in agents module
+[2025-07-29T21:49:15.334Z] [DEBUG] [cli][commands] Registering command: agents:status -> src/modules/core/agents/cli/status.ts
+[2025-07-29T21:49:15.335Z] [DEBUG] [cli][commands] Found 4 CLI commands in system module
+[2025-07-29T21:49:15.335Z] [DEBUG] [cli][commands] Registering command: system:status -> src/modules/core/system/cli/status.ts
+[2025-07-29T21:49:15.338Z] [DEBUG] [cli][commands] Found 6 CLI commands in tasks module
+[2025-07-29T21:49:15.338Z] [DEBUG] [cli][commands] Registering command: tasks:status -> src/modules/core/tasks/cli/status.ts
+[2025-07-29T21:49:15.339Z] [DEBUG] [cli][commands] Found 4 CLI commands in mcp module
+[2025-07-29T21:49:15.339Z] [DEBUG] [cli][commands] Registering command: mcp:status -> src/modules/core/mcp/cli/status.ts
+[2025-07-29T21:49:15.340Z] [DEBUG] [cli][commands] Found 1 CLI commands in webhooks module
+[2025-07-29T21:49:15.340Z] [DEBUG] [cli][commands] Registering command: webhooks:status -> src/modules/core/webhooks/cli/status.ts
+[2025-07-29T21:49:15.342Z] [DEBUG] [cli][commands] Found 8 CLI commands in dev module
+[2025-07-29T21:49:15.342Z] [DEBUG] [cli][commands] Registering command: dev:debug -> src/modules/core/dev/cli/debug.ts
+[2025-07-29T21:49:15.344Z] [DEBUG] [cli][commands] Successfully registered command: logger:status
+[2025-07-29T21:49:15.344Z] [DEBUG] [cli][commands] Successfully registered command: database:status
+[2025-07-29T21:49:15.344Z] [DEBUG] [cli][commands] Successfully registered command: auth:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: modules:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: config:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: permissions:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: users:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: agents:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: system:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: tasks:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: mcp:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: webhooks:status
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Successfully registered command: dev:debug
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: logger:show -> src/modules/core/logger/cli/show.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: database:summary -> src/modules/core/database/cli/summary.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: auth:generatekey -> src/modules/core/auth/cli/generatekey.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: modules:list -> src/modules/core/modules/cli/list.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: config:get -> src/modules/core/config/cli/get.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: permissions:permissions:list -> src/modules/core/permissions/cli/permissions/list.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: users:list -> src/modules/core/users/cli/list.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: agents:create -> src/modules/core/agents/cli/create.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: system:system:info -> src/modules/core/system/cli/system/info.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: tasks:list -> src/modules/core/tasks/cli/list.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: mcp:list -> src/modules/core/mcp/cli/list.ts
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registered 1 commands from module: webhooks
+[2025-07-29T21:49:15.345Z] [DEBUG] [cli][commands] Registering command: dev:lint -> src/modules/core/dev/cli/lint.ts
+[2025-07-29T21:49:15.347Z] [DEBUG] [cli][commands] Successfully registered command: cli:help
+[2025-07-29T21:49:15.347Z] [DEBUG] [cli][commands] Registering command: cli:status -> src/modules/core/cli/cli/status.ts
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: config:get
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: permissions:permissions:list
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: users:list
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: system:system:info
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: mcp:list
+[2025-07-29T21:49:15.348Z] [DEBUG] [cli][commands] Successfully registered command: dev:lint
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: config:set -> src/modules/core/config/cli/set.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: permissions:permissions:roles -> src/modules/core/permissions/cli/permissions/roles.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: users:create -> src/modules/core/users/cli/create.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: system:system:config -> src/modules/core/system/cli/system/config.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: mcp:create -> src/modules/core/mcp/cli/create.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Registering command: dev:typecheck -> src/modules/core/dev/cli/typecheck.ts
+[2025-07-29T21:49:15.349Z] [DEBUG] [cli][commands] Successfully registered command: modules:list
+[2025-07-29T21:49:15.350Z] [DEBUG] [cli][commands] Registering command: modules:install -> src/modules/core/modules/cli/install.ts
+[2025-07-29T21:49:15.350Z] [DEBUG] [cli][commands] Successfully registered command: database:summary
+[2025-07-29T21:49:15.350Z] [DEBUG] [cli][commands] Successfully registered command: tasks:list
+[2025-07-29T21:49:15.350Z] [DEBUG] [cli][commands] Registering command: database:view -> src/modules/core/database/cli/view.ts
+[2025-07-29T21:49:15.350Z] [DEBUG] [cli][commands] Registering command: tasks:add -> src/modules/core/tasks/cli/add.ts
+[2025-07-29T21:49:15.351Z] [DEBUG] [cli][commands] Successfully registered command: auth:generatekey
+[2025-07-29T21:49:15.351Z] [DEBUG] [cli][commands] Registering command: auth:providers -> src/modules/core/auth/cli/providers.ts
+[2025-07-29T21:49:15.351Z] [DEBUG] [cli][commands] Successfully registered command: cli:status
+[2025-07-29T21:49:15.351Z] [DEBUG] [cli][commands] Registering command: cli:refresh -> src/modules/core/cli/cli/refresh.ts
+[2025-07-29T21:49:15.352Z] [DEBUG] [cli][commands] Successfully registered command: logger:show
+[2025-07-29T21:49:15.352Z] [DEBUG] [cli][commands] Registering command: logger:clear -> src/modules/core/logger/cli/clear.ts
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Successfully registered command: dev:typecheck
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Registering command: dev:test -> src/modules/core/dev/cli/test.ts
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Successfully registered command: config:set
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Successfully registered command: permissions:permissions:roles
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Successfully registered command: mcp:create
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Registering command: config:list -> src/modules/core/config/cli/list.ts
+[2025-07-29T21:49:15.353Z] [DEBUG] [cli][commands] Registering command: permissions:permissions:grant -> src/modules/core/permissions/cli/permissions/grant.ts
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Successfully registered command: agents:create
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Registering command: mcp:delete -> src/modules/core/mcp/cli/delete.ts
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Registering command: agents:list -> src/modules/core/agents/cli/list.ts
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Successfully registered command: auth:providers
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Successfully registered command: system:system:config
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Registering command: auth:db -> src/modules/core/auth/cli/db.ts
+[2025-07-29T21:49:15.354Z] [DEBUG] [cli][commands] Registering command: system:system:health -> src/modules/core/system/cli/system/health.ts
+[2025-07-29T21:49:15.355Z] [DEBUG] [cli][commands] Successfully registered command: modules:install
+[2025-07-29T21:49:15.355Z] [DEBUG] [cli][commands] Registering command: modules:remove -> src/modules/core/modules/cli/remove.ts
+[2025-07-29T21:49:15.355Z] [DEBUG] [cli][commands] Successfully registered command: cli:refresh
+[2025-07-29T21:49:15.356Z] [DEBUG] [cli][commands] Successfully registered command: users:create
+[2025-07-29T21:49:15.356Z] [DEBUG] [cli][commands] Registered 3 commands from module: cli
+[2025-07-29T21:49:15.356Z] [DEBUG] [cli][commands] Registering command: users:get -> src/modules/core/users/cli/get.ts
+[2025-07-29T21:49:15.356Z] [DEBUG] [cli][commands] Successfully registered command: config:list
+[2025-07-29T21:49:15.356Z] [DEBUG] [cli][commands] Successfully registered command: dev:test
+[2025-07-29T21:49:15.357Z] [DEBUG] [cli][commands] Registering command: config:validate -> src/modules/core/config/cli/validate.ts
+[2025-07-29T21:49:15.357Z] [DEBUG] [cli][commands] Registering command: dev:create-module -> src/modules/core/dev/cli/create-module.ts
+[2025-07-29T21:49:15.357Z] [DEBUG] [cli][commands] Successfully registered command: auth:db
+[2025-07-29T21:49:15.357Z] [DEBUG] [cli][commands] Successfully registered command: mcp:delete
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registering command: auth:role -> src/modules/core/auth/cli/role.ts
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registered 4 commands from module: mcp
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Successfully registered command: permissions:permissions:grant
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Successfully registered command: system:system:health
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Successfully registered command: logger:clear
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registered 4 commands from module: permissions
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registered 4 commands from module: system
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Successfully registered command: tasks:add
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registered 3 commands from module: logger
+[2025-07-29T21:49:15.358Z] [DEBUG] [cli][commands] Registering command: tasks:update -> src/modules/core/tasks/cli/update.ts
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Successfully registered command: database:view
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Successfully registered command: agents:list
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Registering command: database:clear -> src/modules/core/database/cli/clear.ts
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Registering command: agents:show -> src/modules/core/agents/cli/show.ts
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Successfully registered command: modules:remove
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Registering command: modules:validate -> src/modules/core/modules/cli/validate.ts
+[2025-07-29T21:49:15.359Z] [DEBUG] [cli][commands] Successfully registered command: config:validate
+[2025-07-29T21:49:15.360Z] [DEBUG] [cli][commands] Registered 5 commands from module: config
+[2025-07-29T21:49:15.360Z] [DEBUG] [cli][commands] Successfully registered command: auth:role
+[2025-07-29T21:49:15.360Z] [DEBUG] [cli][commands] Registered 5 commands from module: auth
+[2025-07-29T21:49:15.360Z] [DEBUG] [cli][commands] Successfully registered command: users:get
+[2025-07-29T21:49:15.360Z] [DEBUG] [cli][commands] Registering command: users:update -> src/modules/core/users/cli/update.ts
+[2025-07-29T21:49:15.361Z] [DEBUG] [cli][commands] Successfully registered command: database:clear
+[2025-07-29T21:49:15.361Z] [DEBUG] [cli][commands] Registering command: database:rebuild -> src/modules/core/database/cli/rebuild.ts
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Successfully registered command: dev:create-module
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Successfully registered command: agents:show
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Registering command: dev:profile-create -> src/modules/core/dev/cli/profile-create.ts
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Registering command: agents:update -> src/modules/core/agents/cli/update.ts
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Successfully registered command: modules:validate
+[2025-07-29T21:49:15.362Z] [DEBUG] [cli][commands] Registering command: modules:info -> src/modules/core/modules/cli/info.ts
+[2025-07-29T21:49:15.363Z] [DEBUG] [cli][commands] Successfully registered command: users:update
+[2025-07-29T21:49:15.363Z] [DEBUG] [cli][commands] Registering command: users:delete -> src/modules/core/users/cli/delete.ts
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Successfully registered command: database:rebuild
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Registering command: database:migrate -> src/modules/core/database/cli/migrate.ts
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Successfully registered command: dev:profile-create
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Registering command: dev:profile-list -> src/modules/core/dev/cli/profile-list.ts
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Successfully registered command: tasks:update
+[2025-07-29T21:49:15.364Z] [DEBUG] [cli][commands] Successfully registered command: modules:info
+[2025-07-29T21:49:15.365Z] [DEBUG] [cli][commands] Registering command: tasks:cancel -> src/modules/core/tasks/cli/cancel.ts
+[2025-07-29T21:49:15.365Z] [DEBUG] [cli][commands] Registering command: modules:create -> src/modules/core/modules/cli/create.ts
+[2025-07-29T21:49:15.365Z] [DEBUG] [cli][commands] Successfully registered command: users:delete
+[2025-07-29T21:49:15.365Z] [DEBUG] [cli][commands] Registered 6 commands from module: users
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Successfully registered command: dev:profile-list
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Registering command: dev:session-start -> src/modules/core/dev/cli/session-start.ts
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Successfully registered command: database:migrate
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Registering command: database:rollback -> src/modules/core/database/cli/rollback.ts
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Successfully registered command: tasks:cancel
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Registering command: tasks:delete -> src/modules/core/tasks/cli/delete.ts
+[2025-07-29T21:49:15.366Z] [DEBUG] [cli][commands] Successfully registered command: agents:update
+[2025-07-29T21:49:15.367Z] [DEBUG] [cli][commands] Registering command: agents:delete -> src/modules/core/agents/cli/delete.ts
+[2025-07-29T21:49:15.367Z] [DEBUG] [cli][commands] Successfully registered command: dev:session-start
+[2025-07-29T21:49:15.367Z] [DEBUG] [cli][commands] Successfully registered command: modules:create
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Registered 8 commands from module: dev
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Registering command: modules:enable -> src/modules/core/modules/cli/enable.ts
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Successfully registered command: tasks:delete
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Registered 6 commands from module: tasks
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Successfully registered command: database:rollback
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Registering command: database:schema -> src/modules/core/database/cli/schema.ts
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Successfully registered command: agents:delete
+[2025-07-29T21:49:15.368Z] [DEBUG] [cli][commands] Registered 6 commands from module: agents
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Successfully registered command: modules:enable
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Registering command: modules:disable -> src/modules/core/modules/cli/disable.ts
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Successfully registered command: database:schema
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Registering command: database:query -> src/modules/core/database/cli/query.ts
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Successfully registered command: modules:disable
+[2025-07-29T21:49:15.369Z] [DEBUG] [cli][commands] Registering command: modules:restart -> src/modules/core/modules/cli/restart.ts
+[2025-07-29T21:49:15.370Z] [DEBUG] [cli][commands] Successfully registered command: database:query
+[2025-07-29T21:49:15.370Z] [DEBUG] [cli][commands] Registering command: database:data:export -> src/modules/core/database/cli/data/export.ts
+[2025-07-29T21:49:15.370Z] [DEBUG] [cli][commands] Successfully registered command: modules:restart
+[2025-07-29T21:49:15.370Z] [DEBUG] [cli][commands] Registering command: modules:logs -> src/modules/core/modules/cli/logs.ts
+[2025-07-29T21:49:15.376Z] [DEBUG] [cli][commands] Successfully registered command: database:data:export
+[2025-07-29T21:49:15.376Z] [DEBUG] [cli][commands] Registering command: database:data:import -> src/modules/core/database/cli/data/import.ts
+[2025-07-29T21:49:15.376Z] [DEBUG] [cli][commands] Successfully registered command: modules:logs
+[2025-07-29T21:49:15.376Z] [DEBUG] [cli][commands] Registering command: modules:config -> src/modules/core/modules/cli/config.ts
+[2025-07-29T21:49:15.377Z] [DEBUG] [cli][commands] Successfully registered command: database:data:import
+[2025-07-29T21:49:15.377Z] [DEBUG] [cli][commands] Registering command: database:data:backup -> src/modules/core/database/cli/data/backup.ts
+[2025-07-29T21:49:15.377Z] [DEBUG] [cli][commands] Successfully registered command: modules:config
+[2025-07-29T21:49:15.377Z] [DEBUG] [cli][commands] Registering command: modules:health -> src/modules/core/modules/cli/health.ts
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Successfully registered command: database:data:backup
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Registering command: database:data:restore -> src/modules/core/database/cli/data/restore.ts
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Successfully registered command: modules:health
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Registered 13 commands from module: modules
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Successfully registered command: database:data:restore
+[2025-07-29T21:49:15.378Z] [DEBUG] [cli][commands] Registering command: database:data:validate -> src/modules/core/database/cli/data/validate.ts
+[2025-07-29T21:49:15.379Z] [DEBUG] [cli][commands] Successfully registered command: database:data:validate
+[2025-07-29T21:49:15.379Z] [DEBUG] [cli][commands] Registering command: database:data:clean -> src/modules/core/database/cli/data/clean.ts
+[2025-07-29T21:49:15.379Z] [DEBUG] [cli][commands] Successfully registered command: database:data:clean
+[2025-07-29T21:49:15.379Z] [DEBUG] [cli][commands] Registering command: database:data:migrate -> src/modules/core/database/cli/data/migrate.ts
+[2025-07-29T21:49:15.380Z] [DEBUG] [cli][commands] Successfully registered command: database:data:migrate
+[2025-07-29T21:49:15.380Z] [DEBUG] [cli][commands] Registered 16 commands from module: database
+[2025-07-29T21:49:15.380Z] [DEBUG] [bootstrap][cli] CLI commands registered
+[2025-07-29T21:49:15.380Z] [INFO] [bootstrap][phase] Registration phase completed
+[2025-07-29T21:49:15.380Z] [INFO] [bootstrap][startup] Bootstrap completed - 15 modules
+[2025-07-29T21:49:15.380Z] [DEBUG] [bootstrap][bootstrap] Registering modules with loader
+[2025-07-29T21:49:15.380Z] [WARN] [modules] Module 'logger' is already registered, replacing
+[2025-07-29T21:49:15.380Z] [DEBUG] [modules] Registered module: logger (service)
+[2025-07-29T21:49:15.380Z] [DEBUG] [bootstrap][bootstrap] Registered module logger with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'database' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: database (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module database with loader
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: modules (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module modules with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'auth' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: auth (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module auth with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'cli' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: cli (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module cli with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'config' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: config (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module config with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'permissions' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: permissions (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module permissions with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'users' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: users (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module users with loader
+[2025-07-29T21:49:15.381Z] [WARN] [modules] Module 'events' is already registered, replacing
+[2025-07-29T21:49:15.381Z] [DEBUG] [modules] Registered module: events (service)
+[2025-07-29T21:49:15.381Z] [DEBUG] [bootstrap][bootstrap] Registered module events with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'agents' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: agents (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module agents with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'system' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: system (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module system with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'tasks' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: tasks (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module tasks with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'mcp' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: mcp (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module mcp with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'webhooks' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: webhooks (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module webhooks with loader
+[2025-07-29T21:49:15.382Z] [WARN] [modules] Module 'dev' is already registered, replacing
+[2025-07-29T21:49:15.382Z] [DEBUG] [modules] Registered module: dev (service)
+[2025-07-29T21:49:15.382Z] [DEBUG] [bootstrap][bootstrap] Registered module dev with loader
+[2025-07-29T21:49:15.382Z] [INFO] [bootstrap][bootstrap] All modules registered with loader
+Total commands in database: 84
+
+Agent create command:
+Command: agents:create
+Options: [
+  {
+    "name": "capabilities",
+    "type": "string",
+    "description": "Agent capabilities (comma-separated)",
+    "required": 0
+  },
+  {
+    "name": "config",
+    "type": "string",
+    "description": "Agent configuration (JSON format)",
+    "required": 0
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Agent description",
+    "required": 1
+  },
+  {
+    "name": "format",
+    "type": "string",
+    "description": "Output format (table or json)",
+    "required": 0,
+    "default": "table"
+  },
+  {
+    "name": "instructions",
+    "type": "string",
+    "description": "Agent instructions",
+    "required": 1
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Agent name",
+    "required": 1
+  },
+  {
+    "name": "tools",
+    "type": "string",
+    "description": "Agent tools (comma-separated)",
+    "required": 0
+  },
+  {
+    "name": "type",
+    "type": "string",
+    "description": "Agent type (worker, monitor, coordinator)",
+    "required": 1
+  }
+]
+
+Agent update command:
+Command: agents:update
+Options: [
+  {
+    "name": "capabilities",
+    "type": "string",
+    "description": "Agent capabilities (comma-separated)",
+    "required": 0
+  },
+  {
+    "name": "config",
+    "type": "string",
+    "description": "Agent configuration (JSON format)",
+    "required": 0
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Agent description",
+    "required": 0
+  },
+  {
+    "name": "format",
+    "type": "string",
+    "description": "Output format (table or json)",
+    "required": 0,
+    "default": "table"
+  },
+  {
+    "name": "id",
+    "type": "string",
+    "description": "Agent ID",
+    "required": 1
+  },
+  {
+    "name": "instructions",
+    "type": "string",
+    "description": "Agent instructions",
+    "required": 0
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Agent name",
+    "required": 0
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Agent status",
+    "required": 0
+  },
+  {
+    "name": "tools",
+    "type": "string",
+    "description": "Agent tools (comma-separated)",
+    "required": 0
+  }
+]
+[2025-07-29T21:49:15.389Z] [INFO] [bootstrap][shutdown] Shutting down system
+[2025-07-29T21:49:15.389Z] [INFO] [bootstrap][shutdown] Shutting down autodiscovered modules
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: dev
+[2025-07-29T21:49:15.389Z] [INFO] [system] Dev module stopped
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: webhooks
+[2025-07-29T21:49:15.389Z] [INFO] [system] Webhooks module stopped
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: mcp
+[2025-07-29T21:49:15.389Z] [INFO] [mcp] MCP module stopped
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: tasks
+[2025-07-29T21:49:15.389Z] [INFO] [modules] Tasks module stopped
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: system
+[2025-07-29T21:49:15.389Z] [INFO] [system] System module stopped
+[2025-07-29T21:49:15.389Z] [DEBUG] [bootstrap] Stopping module: agents
+[2025-07-29T21:49:15.390Z] [INFO] [agent] Agent monitoring stopped
+[2025-07-29T21:49:15.390Z] [INFO] [modules] Agents module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: events
+[2025-07-29T21:49:15.390Z] [INFO] [modules] Events module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: users
+[2025-07-29T21:49:15.390Z] [INFO] [auth] Users module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: permissions
+[2025-07-29T21:49:15.390Z] [INFO] [auth] Permissions module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: config
+[2025-07-29T21:49:15.390Z] [INFO] [modules] Config module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: cli
+[2025-07-29T21:49:15.390Z] [INFO] [cli] CLI module stopped
+[2025-07-29T21:49:15.390Z] [DEBUG] [bootstrap] Stopping module: auth
+[2025-07-29T21:49:15.391Z] [INFO] [auth] Auth module stopped
+[2025-07-29T21:49:15.391Z] [DEBUG] [bootstrap] Stopping module: modules
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Stopping modules module
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Stopping all registered modules
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: modules
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Stopping modules module
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Stopping all registered modules
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Module 'modules' is not running
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: dev
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: dev
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: webhooks
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: webhooks
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: mcp
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: mcp
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: tasks
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: tasks
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: system
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: system
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: agents
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Agents module stopped
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Successfully stopped module: agents
+[2025-07-29T21:49:15.391Z] [DEBUG] [modules] Stopping module: events
+[2025-07-29T21:49:15.391Z] [INFO] [modules] Events module stopped
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: events
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: users
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: users
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: permissions
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: permissions
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: config
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: config
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: cli
+[2025-07-29T21:49:15.392Z] [INFO] [cli] CLI module stopped
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: cli
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: auth
+[2025-07-29T21:49:15.392Z] [INFO] [auth] Auth module stopped
+[2025-07-29T21:49:15.392Z] [INFO] [modules] Successfully stopped module: auth
+[2025-07-29T21:49:15.392Z] [DEBUG] [modules] Stopping module: database
+[2025-07-29T21:49:15.392Z] [INFO] [database][shutdown] Database module stopping
+[2025-07-29T21:49:15.396Z] [INFO] [database][shutdown] Database connection closed
+[2025-07-29T21:49:15.397Z] [INFO] [database][shutdown] Database module stopped
+[2025-07-29T21:49:15.397Z] [INFO] [modules] Successfully stopped module: database
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'logger' is not running
+[2025-07-29T21:49:15.397Z] [INFO] [modules] All modules stopped
+[2025-07-29T21:49:15.397Z] [INFO] [modules] Modules module stopped successfully
+[2025-07-29T21:49:15.397Z] [INFO] [modules] Successfully stopped module: modules
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'dev' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'webhooks' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'mcp' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'tasks' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'system' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'agents' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'events' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'users' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'permissions' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'config' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'cli' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'auth' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'database' is not running
+[2025-07-29T21:49:15.397Z] [DEBUG] [modules] Module 'logger' is not running
+[2025-07-29T21:49:15.397Z] [INFO] [modules] All modules stopped
+[2025-07-29T21:49:15.397Z] [INFO] [modules] Modules module stopped successfully
+[2025-07-29T21:49:15.397Z] [DEBUG] [bootstrap] Stopping module: database
+[2025-07-29T21:49:15.397Z] [DEBUG] [bootstrap] Stopping module: logger
+[2025-07-29T21:49:15.397Z] [INFO] [logger] Logger module stopping
+[2025-07-29T21:49:15.397Z] [INFO] [bootstrap][shutdown] All modules shut down

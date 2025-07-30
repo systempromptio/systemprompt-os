@@ -16,7 +16,7 @@ interface LayoutConfig {
 /**
  * Identity provider configuration for OAuth authentication.
  */
-interface IdentityProvider {
+export interface IdentityProvider {
   name: string;
 }
 

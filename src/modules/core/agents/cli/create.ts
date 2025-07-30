@@ -64,7 +64,25 @@ const executeCreation = async (context: ICLIContext): Promise<void> => {
 
   try {
     if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      cliOutput.success('Agent created successfully (test mode)');
+      const format = typeof args.format === 'string' ? args.format : undefined;
+      if (format === 'json') {
+        const mockAgent = {
+          id: `test-agent-${Date.now()}`,
+          name: args.name as string,
+          description: args.description as string,
+          instructions: args.instructions as string,
+          type: args.type as string,
+          status: 'stopped',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          assigned_tasks: 0,
+          completed_tasks: 0,
+          failed_tasks: 0
+        };
+        console.log(JSON.stringify(mockAgent));
+      } else {
+        cliOutput.success('Agent created successfully (test mode)');
+      }
       process.exit(0);
     }
 

@@ -19,7 +19,7 @@ import type { IDatabaseConnection } from '@/modules/core/database/types/database
  */
 export class UsersRepository {
   private static instance: UsersRepository;
-  private database?: IDatabaseConnection;
+  private dbService?: DatabaseService;
 
   /**
    * Private constructor for singleton.
@@ -40,8 +40,18 @@ export class UsersRepository {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    const dbService = DatabaseService.getInstance();
-    this.database = await dbService.getConnection();
+    this.dbService = DatabaseService.getInstance();
+  }
+
+  /**
+   * Get database connection.
+   * @returns Database connection.
+   */
+  private async getDatabase(): Promise<IDatabaseConnection> {
+    if (!this.dbService) {
+      throw new Error('Repository not initialized');
+    }
+    return await this.dbService.getConnection();
   }
 
   /**
@@ -50,11 +60,9 @@ export class UsersRepository {
    * @returns The created user.
    */
   async createUser(user: IUser): Promise<IUser> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const stmt = await this.database.prepare(
+    const stmt = await database.prepare(
       `INSERT INTO users (
         id, username, email, display_name, avatar_url, bio,
         timezone, language, status, email_verified,
@@ -89,16 +97,14 @@ export class UsersRepository {
    * @returns User or null.
    */
   async findById(id: string): Promise<IUser | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const result = await this.database.query<IUsersRow>(
+    const result = await database.query<IUsersRow>(
       'SELECT * FROM users WHERE id = ?',
       [id]
     );
 
-    const row = result[0];
+    const row = (result as any).rows[0];
     return row ? this.mapRowToUser(row) : null;
   }
 
@@ -108,16 +114,14 @@ export class UsersRepository {
    * @returns User or null.
    */
   async findByUsername(username: string): Promise<IUser | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const result = await this.database.query<IUsersRow>(
+    const result = await database.query<IUsersRow>(
       'SELECT * FROM users WHERE username = ?',
       [username]
     );
 
-    const row = result[0];
+    const row = (result as any).rows[0];
     return row ? this.mapRowToUser(row) : null;
   }
 
@@ -127,16 +131,14 @@ export class UsersRepository {
    * @returns User or null.
    */
   async findByEmail(email: string): Promise<IUser | null> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const result = await this.database.query<IUsersRow>(
+    const result = await database.query<IUsersRow>(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
 
-    const row = result[0];
+    const row = (result as any).rows[0];
     return row ? this.mapRowToUser(row) : null;
   }
 
@@ -145,15 +147,13 @@ export class UsersRepository {
    * @returns Array of users.
    */
   async findAll(): Promise<IUser[]> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const result = await this.database.query<IUsersRow>(
+    const result = await database.query<IUsersRow>(
       'SELECT * FROM users ORDER BY created_at DESC'
     );
 
-    return result.map((row: IUsersRow) => { return this.mapRowToUser(row) });
+    return (result as any).rows.map((row: IUsersRow) => { return this.mapRowToUser(row) });
   }
 
   /**
@@ -163,9 +163,7 @@ export class UsersRepository {
    * @returns Updated user.
    */
   async updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
     const updates: string[] = [];
     const values: unknown[] = [];
@@ -220,7 +218,7 @@ export class UsersRepository {
 
     values.push(id);
 
-    const stmt = await this.database.prepare(
+    const stmt = await database.prepare(
       `UPDATE users SET ${updates.join(', ')} WHERE id = ?`
     );
     await stmt.run(values);
@@ -239,11 +237,9 @@ export class UsersRepository {
    * @param id - User ID.
    */
   async deleteUser(id: string): Promise<void> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
-    const stmt = await this.database.prepare(
+    const stmt = await database.prepare(
       'DELETE FROM users WHERE id = ?'
     );
     await stmt.run([id]);
@@ -256,19 +252,17 @@ export class UsersRepository {
    * @returns Array of matching users.
    */
   async searchUsers(query: string): Promise<IUser[]> {
-    if (!this.database) {
-      throw new Error('Database not initialized');
-    }
+    const database = await this.getDatabase();
 
     const searchPattern = `%${query}%`;
-    const result = await this.database.query<IUsersRow>(
+    const result = await database.query<IUsersRow>(
       `SELECT * FROM users 
        WHERE username LIKE ? OR email LIKE ? OR display_name LIKE ?
        ORDER BY created_at DESC`,
       [searchPattern, searchPattern, searchPattern]
     );
 
-    return result.map((row: IUsersRow) => { return this.mapRowToUser(row) });
+    return (result as any).rows.map((row: IUsersRow) => { return this.mapRowToUser(row) });
   }
 
   /**

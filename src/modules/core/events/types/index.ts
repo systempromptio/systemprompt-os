@@ -5,7 +5,7 @@ import type { IEventSubscriptionsRow, IEventsRow } from '@/modules/core/events/t
  */
 export interface IEventBus {
     emit(event: string, data: unknown): void;
-    on(event: string, handler: (data: unknown) => void | Promise<void>): void;
+    on(event: string, handler: (data: unknown) => void | Promise<void>): () => void;
     off(event: string, handler: (data: unknown) => void | Promise<void>): void;
     once(event: string, handler: (data: unknown) => void | Promise<void>): void;
 }
@@ -27,6 +27,9 @@ export enum EventNames {
   TASK_STARTED = 'task.started',
   TASK_COMPLETED = 'task.completed',
   TASK_FAILED = 'task.failed',
+  TASK_STATUS_CHANGED = 'task.status.changed',
+  TASK_UPDATED = 'task.updated',
+  TASK_CANCELLED = 'task.cancelled',
 
   // Agent Events
   AGENT_CREATED = 'agent.created',
@@ -110,6 +113,27 @@ export interface UserDataResponseEvent {
   } | null;
 }
 
+export interface UserCreateOAuthRequestEvent {
+  requestId: string;
+  provider: string;
+  providerId: string;
+  email: string;
+  name?: string;
+  avatar?: string;
+}
+
+export interface UserCreateOAuthResponseEvent {
+  requestId: string;
+  success: boolean;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    roles: string[];
+  };
+  error?: string;
+}
+
 // Auth event payloads
 export interface LoginSuccessEvent {
   userId: string;
@@ -171,6 +195,8 @@ export enum UserEvents {
   USER_STATUS_CHANGED = 'user.status.changed',
   USER_DATA_REQUEST = 'user.data.request',
   USER_DATA_RESPONSE = 'user.data.response',
+  USER_CREATE_OAUTH_REQUEST = 'user.create.oauth.request',
+  USER_CREATE_OAUTH_RESPONSE = 'user.create.oauth.response',
 }
 
 // Auth Events enum

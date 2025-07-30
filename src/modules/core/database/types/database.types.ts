@@ -61,7 +61,7 @@ export interface ITransaction {
  * Database connection.
  */
 export interface IDatabaseConnection {
-  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<IQueryResult<T>>;
   execute(sql: string, params?: unknown[]): Promise<void>;
   prepare(sql: string): Promise<IPreparedStatement>;
   transaction<T>(fn: (tx: ITransaction) => Promise<T>): Promise<T>;

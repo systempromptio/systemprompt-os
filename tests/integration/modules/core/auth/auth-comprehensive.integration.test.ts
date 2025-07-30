@@ -21,7 +21,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import type { AuthService } from '@/modules/core/auth/services/auth.service';
 import type { TokenService } from '@/modules/core/auth/services/token.service';
-import type { UserService } from '@/modules/core/auth/services/user.service';
+import type { UserEventService } from '@/modules/core/auth/services/user-event.service';
 import type { MFAService } from '@/modules/core/auth/services/mfa.service';
 import type { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
@@ -35,11 +35,12 @@ describe('Auth Module Integration Tests', () => {
   let bootstrap: Bootstrap;
   let authService: AuthService;
   let tokenService: TokenService;
-  let userService: UserService;
+  let userService: UserEventService;
   let mfaService: MFAService;
   let auditService: AuthAuditService;
   let dbService: DatabaseService;
   let authModule: any;
+  let usersModule: any;
   
   const testSessionId = `auth-integration-${createTestId()}`;
   const testDir = join(process.cwd(), '.test-integration', testSessionId);
@@ -48,6 +49,28 @@ describe('Auth Module Integration Tests', () => {
   beforeAll(async () => {
     console.log(`🚀 Setting up auth integration test (session: ${testSessionId})...`);
     
+    // Reset any existing singletons first
+    try {
+      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+      await DatabaseService.reset();
+    } catch (error) {
+      // Ignore
+    }
+    
+    try {
+      const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+      (LoggerService as any).instance = null;
+    } catch (error) {
+      // Ignore
+    }
+    
+    try {
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      ModulesModuleService.reset();
+    } catch (error) {
+      // Ignore
+    }
+    
     // Create test directory
     if (!existsSync(testDir)) {
       mkdirSync(testDir, { recursive: true });
@@ -55,6 +78,7 @@ describe('Auth Module Integration Tests', () => {
     
     // Set test database path and environment
     process.env.DATABASE_PATH = testDbPath;
+    process.env.DATABASE_FILE = testDbPath;
     process.env.LOG_LEVEL = 'error';
     process.env.DISABLE_TELEMETRY = 'true';
     process.env.NODE_ENV = 'test';
@@ -70,6 +94,7 @@ describe('Auth Module Integration Tests', () => {
     // Get required services
     const authModuleRef = modules.get('auth');
     const dbModule = modules.get('database');
+    const usersModuleRef = modules.get('users');
     
     if (!authModuleRef || !('exports' in authModuleRef) || !authModuleRef.exports) {
       throw new Error('Auth module not loaded');
@@ -79,7 +104,12 @@ describe('Auth Module Integration Tests', () => {
       throw new Error('Database module not loaded');
     }
     
+    if (!usersModuleRef || !('exports' in usersModuleRef) || !usersModuleRef.exports) {
+      throw new Error('Users module not loaded');
+    }
+    
     authModule = authModuleRef;
+    usersModule = usersModuleRef;
     dbService = (dbModule as any).exports.service();
     
     const authExports = authModuleRef.exports as IAuthModuleExports;
@@ -89,53 +119,128 @@ describe('Auth Module Integration Tests', () => {
     mfaService = authExports.mfaService();
     auditService = authExports.auditService();
     
+    // Give event handlers time to set up
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     console.log('✅ Auth integration test environment ready');
   }, 60000);
 
   afterAll(async () => {
     console.log('🧹 Cleaning up auth integration test environment...');
     
-    // Shutdown bootstrap
-    if (bootstrap) {
-      await bootstrap.shutdown();
-    }
+    // Set a timeout for cleanup
+    const cleanupTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Cleanup timeout')), 10000)
+    );
     
-    // Clean up singletons
     try {
-      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-      await DatabaseService.reset();
-    } catch (error) {
-      // Service might not be loaded
-    }
+      await Promise.race([
+        (async () => {
+          // Shutdown bootstrap
+          if (bootstrap) {
+            try {
+              await bootstrap.shutdown();
+            } catch (error) {
+              console.warn('Bootstrap shutdown error:', error);
+            }
+          }
+          
+          // Clean up singletons
+          try {
+            const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+            await DatabaseService.reset();
+            (DatabaseService as any).instance = null;
+          } catch (error) {
+            // Service might not be loaded
+          }
 
-    try {
-      const { AuthService } = await import('@/modules/core/auth/services/auth.service');
-      await AuthService.reset();
-    } catch (error) {
-      // Service might not be loaded
-    }
-    
-    // Clean up test files
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
+          try {
+            const { AuthService } = await import('@/modules/core/auth/services/auth.service');
+            // AuthService doesn't have a reset method, so just clear the instance
+            (AuthService as any).instance = null;
+          } catch (error) {
+            // Service might not be loaded
+          }
+          
+          try {
+            const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+            (LoggerService as any).instance = null;
+          } catch (error) {
+            // Ignore
+          }
+          
+          try {
+            const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+            ModulesModuleService.reset();
+          } catch (error) {
+            // Ignore
+          }
+          
+          // Clean up test files
+          if (existsSync(testDir)) {
+            rmSync(testDir, { recursive: true, force: true });
+          }
 
-    // Force garbage collection
-    if (typeof global.gc === 'function') {
-      global.gc();
+          // Force garbage collection
+          if (typeof global.gc === 'function') {
+            global.gc();
+          }
+        })(),
+        cleanupTimeout
+      ]);
+    } catch (error) {
+      console.error('Cleanup timeout or error:', error);
+      // Force cleanup on timeout
+      bootstrap = null as any;
+      (authService as any) = null;
+      (tokenService as any) = null;
+      (userService as any) = null;
+      (mfaService as any) = null;
+      (auditService as any) = null;
+      (dbService as any) = null;
     }
-  });
+  }, 15000);
 
   beforeEach(async () => {
     // Clear auth data before each test - order matters for foreign keys
     try {
-      await dbService.execute('DELETE FROM auth_token_scopes');
-      await dbService.execute('DELETE FROM auth_tokens');
-      await dbService.execute('DELETE FROM auth_mfa_backup_codes');
-      await dbService.execute('DELETE FROM auth_mfa_devices');
-      await dbService.execute('DELETE FROM auth_audit_logs');
-      await dbService.execute('DELETE FROM auth_oauth_codes');
-      await dbService.execute('DELETE FROM users');
+      // Check if tables exist before trying to clear them
+      const tables = await dbService.query<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'auth_%'"
+      );
+      
+      const tableNames = tables.map(t => t.name);
+      
+      // Clear tables in proper order to respect foreign key constraints
+      const tablesToClear = [
+        'auth_token_scopes',
+        'auth_tokens',
+        'auth_mfa_backup_codes',
+        'auth_mfa',
+        'auth_audit_log',
+        'auth_authorization_codes',
+        'auth_password_reset_tokens',
+        'auth_sessions',
+        'auth_role_permissions',
+        'auth_user_roles',
+        'auth_oauth_identities',
+        'auth_credentials'
+      ];
+      
+      for (const table of tablesToClear) {
+        if (tableNames.includes(table)) {
+          await dbService.execute(`DELETE FROM ${table}`);
+        }
+      }
+      
+      // Also clear users table if it exists
+      const userTable = await dbService.query<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+      );
+      
+      if (userTable.length > 0) {
+        await dbService.execute('DELETE FROM users');
+      }
       
       // Small delay to ensure cleanup completes
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -176,7 +281,7 @@ describe('Auth Module Integration Tests', () => {
       expect(tableNames).toContain('auth_token_scopes');
       expect(tableNames).toContain('auth_mfa_backup_codes');
       expect(tableNames).toContain('auth_tokens');
-      expect(tableNames).toContain('auth_audit_logs');
+      expect(tableNames).toContain('auth_audit_log');
     });
   });
 
@@ -215,11 +320,11 @@ describe('Auth Module Integration Tests', () => {
     
     beforeEach(async () => {
       // Create a test user for token operations
-      const user = await userService.createUser({
-        username: 'tokentest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-token-user',
         email: 'tokentest@example.com',
-        displayName: 'Token Test',
-        status: 'active'
+        name: 'Token Test'
       });
       testUserId = user.id;
     });
@@ -321,11 +426,11 @@ describe('Auth Module Integration Tests', () => {
 
   describe('User Authentication', () => {
     it('should authenticate user with credentials', async () => {
-      const user = await userService.createUser({
-        username: 'authtest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-auth-user',
         email: 'authtest@example.com',
-        displayName: 'Auth Test',
-        status: 'active'
+        name: 'Auth Test'
       });
 
       expect(user.id).toBeDefined();
@@ -335,11 +440,11 @@ describe('Auth Module Integration Tests', () => {
     });
     
     it('should create user session', async () => {
-      const user = await userService.createUser({
-        username: 'sessiontest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-session-user',
         email: 'sessiontest@example.com',
-        displayName: 'Session Test',
-        status: 'active'
+        name: 'Session Test'
       });
       
       const sessionToken = await tokenService.createToken({
@@ -356,21 +461,21 @@ describe('Auth Module Integration Tests', () => {
     
     it('should handle failed authentication', async () => {
       // Try to get non-existent user
-      const user = await userService.getUser('non-existent-id');
+      const user = await userService.getUserById('non-existent-id');
       expect(user).toBeNull();
       
       // Try to validate invalid token
       const validation = await tokenService.validateToken('invalid-token');
       expect(validation.valid).toBe(false);
-      expect(validation.error).toBeDefined();
+      expect(validation.reason).toBeDefined();
     });
     
     it('should track authentication attempts', async () => {
-      const user = await userService.createUser({
-        username: 'tracktest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-track-user',
         email: 'tracktest@example.com',
-        displayName: 'Track Test',
-        status: 'active'
+        name: 'Track Test'
       });
       
       // Create token (simulates successful auth)
@@ -382,7 +487,7 @@ describe('Auth Module Integration Tests', () => {
       });
       
       // Verify user can be retrieved (authentication tracked)
-      const retrievedUser = await userService.getUser(user.id);
+      const retrievedUser = await userService.getUserById(user.id);
       expect(retrievedUser).toBeDefined();
       expect(retrievedUser?.id).toBe(user.id);
     });
@@ -418,11 +523,11 @@ describe('Auth Module Integration Tests', () => {
     let testUserId: string;
     
     beforeEach(async () => {
-      const user = await userService.createUser({
-        username: 'mfatest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-mfa-user',
         email: 'mfatest@example.com',
-        displayName: 'MFA Test',
-        status: 'active'
+        name: 'MFA Test'
       });
       testUserId = user.id;
     });
@@ -455,11 +560,11 @@ describe('Auth Module Integration Tests', () => {
     let testUserId: string;
     
     beforeEach(async () => {
-      const user = await userService.createUser({
-        username: 'audittest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-audit-user',
         email: 'audittest@example.com',
-        displayName: 'Audit Test',
-        status: 'active'
+        name: 'Audit Test'
       });
       testUserId = user.id;
     });
@@ -541,11 +646,11 @@ describe('Auth Module Integration Tests', () => {
 
   describe('Database Normalization', () => {
     it('should store token scopes in normalized table', async () => {
-      const user = await userService.createUser({
-        username: 'normaltest',
+      const user = await userService.createOrUpdateUserFromOauth({
+        provider: 'test',
+        providerId: 'test-normal-user',
         email: 'normaltest@example.com',
-        displayName: 'Normal Test',
-        status: 'active'
+        name: 'Normal Test'
       });
       
       const token = await tokenService.createToken({
@@ -578,7 +683,7 @@ describe('Auth Module Integration Tests', () => {
       expect(tokenColumnNames).toContain('id');
       expect(tokenColumnNames).toContain('user_id');
       expect(tokenColumnNames).toContain('type');
-      expect(tokenColumnNames).toContain('token');
+      expect(tokenColumnNames).toContain('token_hash'); // Stored as hash for security
     });
   });
 

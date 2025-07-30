@@ -7,9 +7,9 @@ import {
  createHash, randomBytes, randomUUID
 } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import type { LoggerService } from '@/modules/core/logger/services/logger.service';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
   AuthEvents,
   type LoginFailedEvent,
@@ -53,18 +53,76 @@ interface IUserBasicInfo {
  */
 export class AuthenticationService {
   private static instance: AuthenticationService;
-  private readonly db: DatabaseService;
-  private readonly eventBus: EventBusService;
-  private readonly logger: ILogger;
+  private dbService?: DatabaseService;
+  private eventBusService?: EventBusService;
+  private loggerService?: ILogger;
+  private eventHandlersSetup = false;
 
   /**
    * Private constructor for singleton.
    */
   private constructor() {
-    this.db = DatabaseService.getInstance();
-    this.eventBus = EventBusService.getInstance();
-    this.logger = LoggerService.getInstance();
-    this.setupEventHandlers();
+    // Event handlers will be set up lazily when needed
+  }
+
+  /**
+   * Get database connection (lazy initialization).
+   * @returns Database connection.
+   */
+  private getDb(): DatabaseService {
+    if (!this.dbService) {
+      try {
+        // Try to get from module registry first
+        const { getDatabaseModule } = require('@/modules/core/database/index');
+        const databaseModule = getDatabaseModule();
+        this.dbService = databaseModule.exports.service();
+      } catch (error) {
+        // Fallback to direct import if module not available in registry
+        const { DatabaseService } = require('@/modules/core/database/services/database.service');
+        this.dbService = DatabaseService.getInstance();
+      }
+    }
+    return this.dbService;
+  }
+
+  /**
+   * Get event bus (lazy initialization).
+   * @returns Event bus instance.
+   */
+  private getEventBus(): EventBusService {
+    if (!this.eventBusService) {
+      try {
+        // Try to get from module registry first
+        const { getEventsModule } = require('@/modules/core/events/index');
+        const eventsModule = getEventsModule();
+        this.eventBusService = eventsModule.exports.eventBus();
+      } catch (error) {
+        // Fallback to direct import if module not available in registry
+        const { EventBusService } = require('@/modules/core/events/services/event-bus.service');
+        this.eventBusService = EventBusService.getInstance();
+      }
+    }
+    return this.eventBusService;
+  }
+
+  /**
+   * Get logger (lazy initialization).
+   * @returns Logger instance.
+   */
+  private getLogger(): ILogger {
+    if (!this.loggerService) {
+      try {
+        // Try to get from module registry first
+        const { getLoggerModule } = require('@/modules/core/logger/index');
+        const loggerModule = getLoggerModule();
+        this.loggerService = loggerModule.exports.service();
+      } catch (error) {
+        // Fallback to direct import if module not available in registry
+        const { LoggerService } = require('@/modules/core/logger/services/logger.service');
+        this.loggerService = LoggerService.getInstance();
+      }
+    }
+    return this.loggerService;
   }
 
   /**
@@ -80,15 +138,34 @@ export class AuthenticationService {
    * Setup event handlers for user data requests.
    */
   private setupEventHandlers(): void {
-    this.eventBus.on<UserDataRequestEvent>(UserEvents.USER_DATA_REQUEST, async (data: unknown) => {
-      const event = data as UserDataRequestEvent;
-      const user = await this.fetchUserData(event);
-      const response: UserDataResponseEvent = {
-        requestId: event.requestId,
-        user
-      };
-      this.eventBus.emit(UserEvents.USER_DATA_RESPONSE, response);
-    });
+    if (this.eventHandlersSetup) {
+      return;
+    }
+    
+    try {
+      this.getEventBus().on<UserDataRequestEvent>(UserEvents.USER_DATA_REQUEST, async (data: unknown) => {
+        const event = data as UserDataRequestEvent;
+        const user = await this.fetchUserData(event);
+        const response: UserDataResponseEvent = {
+          requestId: event.requestId,
+          user
+        };
+        this.getEventBus().emit(UserEvents.USER_DATA_RESPONSE, response);
+      });
+      
+      this.eventHandlersSetup = true;
+    } catch (error) {
+      // Event bus not available yet, will be set up later
+    }
+  }
+
+  /**
+   * Ensure service is initialized.
+   */
+  private ensureInitialized(): void {
+    if (!this.eventHandlersSetup) {
+      this.setupEventHandlers();
+    }
   }
 
   /**
@@ -105,6 +182,7 @@ export class AuthenticationService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<IAuthResult> {
+    this.ensureInitialized();
     try {
       const user = await this.requestUserData(username);
 
@@ -142,7 +220,7 @@ export class AuthenticationService {
         userAgent: userAgent || '',
         timestamp: new Date()
       };
-      this.eventBus.emit(AuthEvents.LOGIN_SUCCESS, event);
+      this.getEventBus().emit(AuthEvents.LOGIN_SUCCESS, event);
 
       return {
         success: true,
@@ -172,6 +250,7 @@ export class AuthenticationService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<{ id: string; token: string; refreshToken: string }> {
+    this.ensureInitialized();
     const sessionId = randomUUID();
     const token = this.generateToken();
     const refreshToken = this.generateToken();

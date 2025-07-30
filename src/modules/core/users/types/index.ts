@@ -31,6 +31,7 @@ export interface IUserCreateData {
   bio?: string;
   timezone?: string;
   language?: string;
+  emailVerified?: boolean;
 }
 
 /**

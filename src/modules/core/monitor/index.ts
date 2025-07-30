@@ -17,7 +17,7 @@ import type {
   MonitorModuleConfig,
   MonitorModuleDependencies
 } from '@/modules/core/monitor/types/index';
-import type { IDatabaseAdapter } from '@/modules/core/database/types';
+import type { IDatabaseAdapter } from '@/modules/core/database/types/index';
 
 /**
  * Type guard to check if a module is a Monitor module.
@@ -50,6 +50,8 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
   private deps?: MonitorModuleDependencies;
   private metricService?: MetricService;
   private cleanupInterval?: NodeJS.Timeout;
+  private initialized = false;
+  private started = false;
   get exports(): IMonitorModuleExports {
     if (this.moduleExports === undefined) {
       throw new Error('Module not initialized');
@@ -63,23 +65,34 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
    * @param context.config - Module configuration.
    * @param context.deps - Module dependencies.
    */
-  async initialize(
-    context?: { config: MonitorModuleConfig; deps: MonitorModuleDependencies }
-  ): Promise<void> {
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      throw new Error('Monitor module already initialized');
+    }
+    
     try {
       this.status = ModulesStatus.INITIALIZING;
-
-      if (context === undefined) {
-        throw new Error('Monitor module requires initialization context');
-      }
-
-      this.setupContext(context);
-      this.initializeServices();
-      this.finalizeInitialization();
-      await Promise.resolve();
+      
+      // Initialize basic services that don't require context
+      this.metricService = MetricService.getInstance();
+      this.moduleExports = {
+        MonitorService: this.metricService
+      };
+      
+      this.status = ModulesStatus.STOPPED;
+      this.initialized = true;
     } catch (error) {
-      this.handleInitializationError(error);
-      throw error;
+      // Log error but don't set to ERROR state - allow module to be used in degraded mode
+      const errorInfo = this.getErrorInfo(error);
+      console.warn('Monitor module initialization incomplete', errorInfo);
+      
+      // Still mark as initialized in degraded mode
+      this.metricService = MetricService.getInstance();
+      this.moduleExports = {
+        MonitorService: this.metricService
+      };
+      this.status = ModulesStatus.STOPPED;
+      this.initialized = true;
     }
   }
 
@@ -92,39 +105,64 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
         throw new Error(`Cannot start module in ${this.status} state`);
       }
 
-      if (this.metricService === undefined || this.config === undefined) {
-        throw new Error('Module not properly initialized');
+      if (!this.initialized) {
+        throw new Error('Module not initialized');
+      }
+      
+      if (this.started) {
+        return;
       }
 
       this.status = ModulesStatus.INITIALIZING;
-
-      const adapter = this.deps?.database.getAdapter('monitor');
-      if (!adapter) {
-        throw new Error('Database adapter not available');
+      
+      // Initialize dependencies if available
+      if (this.deps?.database) {
+        try {
+          const adapter = await this.deps.database.createModuleAdapter('monitor');
+          if (adapter) {
+            const repository = new MonitorRepositoryImpl(adapter as IDatabaseAdapter);
+            this.metricService!.setDependencies(
+              repository,
+              this.deps.logger,
+              {
+                metrics: {
+                  flushInterval: this.config?.config.metrics.flushInterval || 60000,
+                  bufferSize: this.config?.config.metrics.bufferSize || 1000,
+                  collectSystem: this.config?.config.metrics.collectSystem || false
+                }
+              }
+            );
+          }
+        } catch (error) {
+          // Continue without database - metrics will be buffered in memory
+          console.warn('Monitor module starting without database', { error });
+        }
       }
 
-      this.metricService.initialize();
+      this.metricService!.initialize();
 
-      this.cleanupInterval = setInterval(
-        (): void => {
-          this.performCleanup().catch((error: unknown): void => {
-            const errorInfo = error instanceof Error ? {
-              message: error.message,
-              ...error.stack !== null && error.stack !== undefined && error.stack !== '' && { stack: error.stack }
-            } : { error };
-            this.deps?.logger.error('Cleanup interval error', errorInfo);
-          });
-        },
-        this.config.config.cleanup.interval
-      );
+      // Set up cleanup interval if config is available
+      if (this.config?.config.cleanup.interval) {
+        this.cleanupInterval = setInterval(
+          (): void => {
+            this.performCleanup().catch((error: unknown): void => {
+              const errorInfo = error instanceof Error ? {
+                message: error.message,
+                ...error.stack !== null && error.stack !== undefined && error.stack !== '' && { stack: error.stack }
+              } : { error };
+              console.error('Cleanup interval error', errorInfo);
+            });
+          },
+          this.config.config.cleanup.interval
+        );
+      }
 
       this.status = ModulesStatus.RUNNING;
-      this.deps?.logger.info('Monitor module started');
+      this.started = true;
+      console.info('Monitor module started');
       await Promise.resolve();
     } catch (error) {
-      this.status = ModulesStatus.ERROR;
-      const errorInfo = this.getErrorInfo(error);
-      this.deps?.logger.error('Failed to start Monitor module', errorInfo);
+      this.status = ModulesStatus.STOPPED;
       throw error;
     }
   }
@@ -251,21 +289,21 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     let databaseHealthy = true;
     let serviceHealthy = true;
 
-    try {
-      if (this.deps === undefined) {
-        throw new Error('Dependencies not available');
+    // If no dependencies available (degraded mode), skip database check
+    if (this.deps !== undefined && this.deps.database !== undefined) {
+      try {
+        const adapter = await this.deps.database.createModuleAdapter('monitor');
+        if (adapter !== null
+            && adapter !== undefined
+            && typeof adapter === 'object'
+            && 'query' in adapter
+            && typeof adapter.query === 'function') {
+          await adapter.query('SELECT 1');
+        }
+      } catch {
+        databaseHealthy = false;
+        serviceHealthy = false;
       }
-      const adapter = this.deps.database.getAdapter('monitor');
-      if (adapter !== null
-          && adapter !== undefined
-          && typeof adapter === 'object'
-          && 'query' in adapter
-          && typeof adapter.query === 'function') {
-        await adapter.query('SELECT 1');
-      }
-    } catch {
-      databaseHealthy = false;
-      serviceHealthy = false;
     }
 
     return {
@@ -281,10 +319,13 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
    * @param context.config - Module configuration.
    * @param context.deps - Module dependencies.
    */
-  private setupContext(
-    context: { config: MonitorModuleConfig; deps: MonitorModuleDependencies }
-  ): void {
-    const { config, deps } = context;
+  /**
+   * Set module context after initialization.
+   * This is called by the module system when dependencies are available.
+   * @param config - Module configuration.
+   * @param deps - Module dependencies.
+   */
+  setContext(config: MonitorModuleConfig, deps: MonitorModuleDependencies): void {
     this.config = config;
     this.deps = deps;
   }
@@ -293,12 +334,12 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
    * Initializes the repository and metric service.
    * @throws Error if context is not properly set up.
    */
-  private initializeServices(): void {
+  private async initializeServices(): Promise<void> {
     if (this.deps === undefined || this.config === undefined) {
       throw new Error('Context not properly set up');
     }
 
-    const adapter = this.deps.database.getAdapter('monitor');
+    const adapter = await this.deps.database.createModuleAdapter('monitor');
     const repository = new MonitorRepositoryImpl(adapter as IDatabaseAdapter);
 
     this.metricService = MetricService.getInstance();

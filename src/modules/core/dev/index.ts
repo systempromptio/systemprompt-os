@@ -156,16 +156,14 @@ export const getDevModule = (): IModule<IDevModuleExports> => {
     return devModuleInstance;
   }
 
-  if (!devModuleInstance) {
-    devModuleInstance = new DevModule();
-  }
+  devModuleInstance ||= new DevModule();
 
-  // Initialize synchronously if not already initialized
   if (!initializationPromise && devModuleInstance.status === ModulesStatus.PENDING) {
     initializationPromise = devModuleInstance.initialize().then(() => {
       initializationPromise = null;
       return devModuleInstance!;
-    }).catch((error) => {
+    })
+.catch((error) => {
       initializationPromise = null;
       throw error;
     });
@@ -189,20 +187,17 @@ export const getDevModuleAsync = async (): Promise<IModule<IDevModuleExports>> =
     return devModuleInstance;
   }
 
-  if (!devModuleInstance) {
-    devModuleInstance = new DevModule();
-  }
+  devModuleInstance ||= new DevModule();
 
   if (devModuleInstance.status === ModulesStatus.PENDING) {
-    if (!initializationPromise) {
-      initializationPromise = devModuleInstance.initialize().then(() => {
+    initializationPromise ||= devModuleInstance.initialize().then(() => {
         initializationPromise = null;
         return devModuleInstance!;
-      }).catch((error) => {
+      })
+.catch((error) => {
         initializationPromise = null;
         throw error;
       });
-    }
     await initializationPromise;
   }
 

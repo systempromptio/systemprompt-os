@@ -21,10 +21,10 @@ export default defineConfig({
       }
     },
     sequence: {
-      concurrent: true,
+      concurrent: false,
       shuffle: false
     },
-    bail: 1,
+    bail: 0,
     environment: 'node',
     setupFiles: ['tests/integration/setup.ts'],
     globals: true,

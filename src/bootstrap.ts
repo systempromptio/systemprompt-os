@@ -20,8 +20,7 @@ import { executeMcpServersPhase } from './bootstrap/phases/mcp-servers-phase';
 import { executeModuleDiscoveryPhase } from './bootstrap/phases/module-discovery-phase';
 import {
   registerCliCommands,
-  registerCoreModulesInDatabase,
-  registerModulesWithLoader
+  registerCoreModulesInDatabase
 } from './bootstrap/phases/module-registration-phase';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -173,7 +172,6 @@ export class Bootstrap {
       { category: 'startup' }
     );
 
-    await this.registerModulesWithLoader();
   }
 
   /**
@@ -263,15 +261,6 @@ export class Bootstrap {
   private async loadLoggerModule(): Promise<void> {
     const loggerModule = await createLoggerModuleForBootstrap();
     this.modules.set('logger', loggerModule);
-  }
-  /**
-   * Registers bootstrap modules with the global ModuleLoader.
-   */
-  private async registerModulesWithLoader(): Promise<void> {
-    registerModulesWithLoader({
-      modules: this.modules,
-      coreModules: this.coreModules
-    });
   }
 }
 

@@ -100,8 +100,17 @@ const verifyDependencies = (
  */
 const initializeModule = async (moduleInstance: IModule, moduleName: string): Promise<void> => {
   if (typeof moduleInstance.initialize === 'function') {
-    await moduleInstance.initialize();
     const logger = LoggerService.getInstance();
+    const context = {
+      logger,
+      config: {}
+    };
+
+    if (moduleInstance.initialize.length > 0) {
+      await (moduleInstance.initialize as (context: any) => Promise<void>)(context);
+    } else {
+      await (moduleInstance.initialize as () => Promise<void>)();
+    }
     logger.debug(LogSource.BOOTSTRAP, `Initialized module: ${moduleName}`, {
       category: 'modules',
       persistToDb: false,
@@ -203,6 +212,11 @@ const registerPreLoadedModules = (
   if (databaseModule !== undefined) {
     moduleExports.registerPreLoadedModule('database', databaseModule);
   }
+
+  const eventsModule = modules.get('events');
+  if (eventsModule !== undefined) {
+    moduleExports.registerPreLoadedModule('events', eventsModule);
+  }
 };
 
 /**
@@ -284,7 +298,7 @@ const loadRemainingCoreModules = async (
   coreModules: ICoreModuleDefinition[],
   moduleExports: IModulesModuleExports,
 ): Promise<void> => {
-  const essentialModules = ['database', 'modules'];
+  const essentialModules = ['database', 'modules', 'events'];
   const remainingModules = filterRemainingModules(coreModules, essentialModules);
 
   for (const definition of remainingModules) {
@@ -378,7 +392,7 @@ export const executeCoreModulesPhase = async (context: CoreModulesPhaseContext):
     persistToDb: false,
   });
 
-  const essentialModules = ['database', 'modules'];
+  const essentialModules = ['database', 'modules', 'events'];
 
   await loadEssentialModules(modules, coreModules, essentialModules);
 

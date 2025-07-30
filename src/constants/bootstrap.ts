@@ -29,9 +29,17 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     type: 'self-contained',
   },
   {
+    name: 'events',
+    path: './src/modules/core/events/index.ts',
+    dependencies: ['logger'],
+    critical: true,
+    description: 'Event bus for inter-module communication',
+    type: 'self-contained',
+  },
+  {
     name: 'auth',
     path: './src/modules/core/auth/index.ts',
-    dependencies: ['logger', 'database'],
+    dependencies: ['logger', 'database', 'events'],
     critical: true,
     description: 'Authentication, authorization, and JWT management',
     type: 'self-contained',
@@ -74,14 +82,6 @@ export const CORE_MODULES: ICoreModuleDefinition[] = [
     dependencies: ['logger', 'database', 'auth'],
     critical: false,
     description: 'User management system',
-    type: 'self-contained',
-  },
-  {
-    name: 'events',
-    path: './src/modules/core/events/index.ts',
-    dependencies: ['logger'],
-    critical: false,
-    description: 'Event bus for inter-module communication',
     type: 'self-contained',
   },
   {

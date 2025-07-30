@@ -44,7 +44,7 @@ export const command: ICLICommand = {
             );
             return {
               name,
-              count: (countResult[0] as any).count.toString()
+              count: ((countResult as any)[0] as { count: number }).count.toString()
             };
           })
         );

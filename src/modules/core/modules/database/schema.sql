@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS modules (
   auto_start BOOLEAN DEFAULT 0,
   dependencies TEXT, -- JSON array of dependency names (simple list)
   config TEXT, -- JSON object for module configuration
+  metadata TEXT, -- JSON object for module metadata
   status TEXT CHECK(status IN ('pending', 'initializing', 'running', 'stopping', 'stopped', 'error', 'installed', 'loading')) DEFAULT 'installed',
   last_error TEXT,
   discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

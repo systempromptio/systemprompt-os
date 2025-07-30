@@ -25,6 +25,17 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
 /**
+ * Type guard to check if data has the expected summary structure.
+ * @param data
+ */
+const isSummaryData = (data: any): data is NonNullable<ISummaryResult['data']> => {
+  return data && typeof data === 'object'
+         && 'timestamp' in data && 'totalTables' in data
+         && 'totalRows' in data && 'averageRowsPerTable' in data
+         && 'tables' in data && Array.isArray(data.tables);
+};
+
+/**
  * Display summary statistics.
  * @param data - Summary data to display.
  * @param cliOutput - CLI output service instance.
@@ -33,11 +44,11 @@ const displaySummaryStats = (
   data: NonNullable<ISummaryResult['data']>,
   cliOutput: CliOutputService,
 ): void => {
-  cliOutput.section('Database Summary', `Generated at ${data.timestamp}`);
+  cliOutput.section('Database Summary', `Generated at ${(data as any).timestamp}`);
   cliOutput.keyValue({
-    'Total Tables': data.totalTables,
-    'Total Rows': data.totalRows.toLocaleString(),
-    'Average Rows/Table': data.averageRowsPerTable.toLocaleString(),
+    'Total Tables': (data as any).totalTables,
+    'Total Rows': (data as any).totalRows.toLocaleString(),
+    'Average Rows/Table': (data as any).averageRowsPerTable.toLocaleString(),
   });
 };
 
@@ -104,30 +115,31 @@ const processSummaryResult = (
   params: ISummaryParams,
   cliOutput: CliOutputService,
 ): void => {
-  if (typeof result.data === 'undefined' || result.data === null) {
-    cliOutput.warning('No summary data received');
+  if (!isSummaryData(result.data)) {
+    cliOutput.warning('No summary data received or data is malformed');
     process.exit(1);
     return;
   }
 
+  const {data} = result;
   const { format = 'table' } = params;
 
   if (format === 'json') {
-    cliOutput.output(result.data, { format: 'json' });
+    cliOutput.output(data, { format: 'json' });
     return;
   }
 
-  displaySummaryStats(result.data, cliOutput);
+  displaySummaryStats(data, cliOutput);
 
-  if (result.data.tables.length === 0) {
+  if ((data as any).tables.length === 0) {
     cliOutput.info('No tables found in the database.');
     return;
   }
 
   if (format === 'table') {
-    displayTablesAsTable(result.data.tables, cliOutput);
+    displayTablesAsTable((data as any).tables, cliOutput);
   } else {
-    displayTablesAsText(result.data.tables, cliOutput);
+    displayTablesAsText((data as any).tables, cliOutput);
   }
 };
 
@@ -143,7 +155,19 @@ const handleSummaryExecution = async (
   logger: LoggerService,
 ): Promise<void> => {
   const summaryService = DatabaseSummaryService.getInstance();
-  const result = await summaryService.handleSummary(params, cliOutput);
+
+  const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+  const databaseService = DatabaseService.getInstance();
+  const databaseConnection = await databaseService.getConnection();
+
+  const connectionAdapter = {
+    query: async <T = unknown>(sql: string, params?: unknown[]): Promise<T[]> => {
+      const result = await databaseConnection.query<T>(sql, params);
+      return (result as any).rows;
+    }
+  };
+
+  const result = await summaryService.handleSummary(params, connectionAdapter);
 
   if (!result.success) {
     const errorMessage = result.message ?? 'Unknown error';

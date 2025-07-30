@@ -9,7 +9,6 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
 import type { ILogger } from '@/modules/core/logger/types';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types';
 import type { IModule } from '@/modules/core/modules/types';
 import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/database.generated';
@@ -27,17 +26,33 @@ import { ModuleManagerService } from '@/modules/core/modules/services/module-man
 import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
 
 export class ModulesModuleService implements IModule<IModulesModuleExports> {
-  private static readonly instance: ModulesModuleService;
+  private static instance: ModulesModuleService;
   public readonly name = 'modules';
   public readonly version = '1.0.0';
   public readonly type = ModulesType.CORE;
   public status: ModulesStatus = ModulesStatus.PENDING;
-  private readonly logger: ILogger;
+  private logger!: ILogger;
   private moduleLoaderService?: ModuleLoaderService;
   private moduleRegistryService?: ModuleRegistryService;
   private moduleManagerService?: ModuleManagerService;
   private initialized = false;
   private started = false;
+  
+  /**
+   * Private constructor for singleton pattern.
+   */
+  private constructor() {}
+  
+  /**
+   * Get the singleton instance.
+   * @returns The ModulesModuleService instance.
+   */
+  public static getInstance(): ModulesModuleService {
+    if (!ModulesModuleService.instance) {
+      ModulesModuleService.instance = new ModulesModuleService();
+    }
+    return ModulesModuleService.instance;
+  }
   get exports(): IModulesModuleExports {
     if (!this.initialized) {
       throw new Error('Modules module not initialized');
@@ -191,6 +206,8 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
    * @param context
    */
   async initialize(context?: IModuleContext): Promise<void> {
+    this.logger = context?.logger || console;
+
     if (this.initialized) {
       this.logger.warn(LogSource.MODULES, 'Modules module already initialized');
       return;
@@ -476,5 +493,12 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+  
+  /**
+   * Reset the singleton instance (for testing).
+   */
+  public static reset(): void {
+    ModulesModuleService.instance = undefined as any;
   }
 }

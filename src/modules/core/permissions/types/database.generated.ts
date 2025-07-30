@@ -1,5 +1,5 @@
 // Auto-generated database types for permissions module
-// Generated on: 2025-07-29T15:52:59.252Z
+// Generated on: 2025-07-30T07:22:50.906Z
 // Do not modify this file manually - it will be overwritten
 
 /**

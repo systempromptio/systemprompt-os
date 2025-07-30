@@ -254,7 +254,7 @@ import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
 export type { ITunnelStatus };
 import type { AuthService } from '@/modules/core/auth/services/auth.service';
 import type { TokenService } from '@/modules/core/auth/services/token.service';
-import type { UserService } from '@/modules/core/auth/services/user.service';
+import type { UserEventService } from '@/modules/core/auth/services/user-event.service';
 import type { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
 import type { MFAService } from '@/modules/core/auth/services/mfa.service';
 import type { AuthAuditService } from '@/modules/core/auth/services/audit.service';
@@ -269,7 +269,7 @@ export type IdentityProvider = unknown;
 export interface IAuthModuleExports {
   service: () => AuthService;
   tokenService: () => TokenService;
-  userService: () => UserService;
+  userService: () => UserEventService;
   authCodeService: () => AuthCodeService;
   mfaService: () => MFAService;
   auditService: () => AuthAuditService;

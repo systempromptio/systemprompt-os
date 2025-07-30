@@ -15,7 +15,7 @@ import { LogSource } from '@/modules/core/logger/types/index';
  * @param filteredModules - Array of modules to display.
  * @param logger - Logger service instance.
  */
-const displayModulesAsText = (filteredModules: IModulesRow[], logger: LoggerService): void => {
+const displayModulesAsText = (filteredModules: IModulesRow[]): void => {
   console.log('\nInstalled Modules:');
   console.log('═════════════════\n');
 
@@ -62,7 +62,7 @@ const executeListModules = (config: {
     modules,
     typeFilter,
     format,
-    logger
+    logger: _logger
   } = config;
   let filteredModules = modules;
   if (typeFilter !== 'all') {
@@ -74,7 +74,7 @@ const executeListModules = (config: {
   if (format === 'json') {
     console.log(JSON.stringify(filteredModules, null, 2));
   } else {
-    displayModulesAsText(filteredModules, logger);
+    displayModulesAsText(filteredModules);
   }
 };
 

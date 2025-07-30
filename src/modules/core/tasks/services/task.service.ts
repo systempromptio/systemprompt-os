@@ -7,12 +7,12 @@
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import {
-  type ITask,
+  type ITaskRow,
   type ITaskFilter,
   type ITaskHandler,
   type ITaskService,
   type ITaskStatistics,
-  TaskStatusEnum
+  TaskStatus
 } from '@/modules/core/tasks/types/index';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { EventNames } from '@/modules/core/events/types/index';
@@ -49,14 +49,13 @@ export class TaskService implements ITaskService {
   }
 
   /**
-   * Initializes the TaskService with required dependencies.
-   * @param logger - Logger instance for service logging.
-   * @param taskRepository - Task repository for data persistence.
-   * @throws {Error} If already initialized.
+   * Initialize the task service with dependencies.
+   * @param logger - Logger instance.
+   * @param taskRepository - Task repository instance.
    */
   public initialize(logger: ILogger, taskRepository: TaskRepository): void {
     if (this.initialized) {
-      throw new Error('TaskService already initialized');
+      return;
     }
 
     this.logger = logger;
@@ -64,375 +63,249 @@ export class TaskService implements ITaskService {
     this.eventBus = EventBusService.getInstance();
     this.initialized = true;
 
-    this.logger.info(LogSource.MODULES, 'TaskService initialized');
+    this.logger.info(LogSource.TASKS, 'Task service initialized');
   }
 
   /**
-   * Adds a new task to the queue.
-   * @param task - Partial task object with required fields.
+   * Add a new task to the queue.
+   * @param task - Task data to add.
    * @returns Promise resolving to the created task.
-   * @throws {Error} If service not initialized or task creation fails.
    */
-  public async addTask(task: Partial<ITask>): Promise<ITask> {
+  async addTask(task: Partial<ITaskRow>): Promise<ITaskRow> {
     this.ensureInitialized();
-    this.validateTaskInput(task);
 
-    const newTask = await this.taskRepository.create(task);
-    this.logger.info(
-      LogSource.MODULES,
-      `Task added: ${String(newTask.id)} (${newTask.type})`
-    );
+    const createdTask = await this.taskRepository.create(task);
+    
+    this.logger.info(LogSource.TASKS, `Task created: ${createdTask.id} (${createdTask.type})`);
+    
+    await this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
 
-    this.eventBus.emit(EventNames.TASK_CREATED, {
-      taskId: newTask.id!,
-      type: newTask.type,
-      moduleId: newTask.moduleId,
-      priority: newTask.priority
-    });
-
-    return newTask;
+    return createdTask;
   }
 
   /**
-   * Receives the next available task from the queue.
-   * @param types - Optional array of task types to filter by.
-   * @returns Promise resolving to the next task or null if none available.
-   * @throws {Error} If service not initialized.
+   * Receive a task for processing.
+   * @param types - Optional task types to filter by.
+   * @returns Promise resolving to next available task or null.
    */
-  public async receiveTask(types?: string[]): Promise<ITask | null> {
+  async receiveTask(types?: string[]): Promise<ITaskRow | null> {
     this.ensureInitialized();
 
     const task = await this.taskRepository.findNextAvailable(types);
-    if (task === null) {
-      return null;
+    
+    if (task) {
+      await this.updateTaskStatus(task.id, TaskStatus.ASSIGNED);
+      this.logger.info(LogSource.TASKS, `Task assigned: ${task.id} (${task.type})`);
     }
 
-    const { id: taskId } = task;
-    if (taskId !== undefined) {
-      await this.markTaskInProgress(taskId);
-    }
-    const updatedTask = {
-      ...task,
-      status: TaskStatusEnum.IN_PROGRESS
-    };
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task received: ${String(updatedTask.id)} (${updatedTask.type})`
-    );
-    return updatedTask;
+    return task;
   }
 
   /**
-   * Updates the status of a specific task.
-   * @param taskId - ID of the task to update.
-   * @param status - New status for the task.
-   * @throws {Error} If service not initialized.
+   * Update task status.
+   * @param taskId - Task ID to update.
+   * @param status - New status.
+   * @returns Promise that resolves when update is complete.
    */
-  public async updateTaskStatus(taskId: number, status: TaskStatusEnum): Promise<void> {
+  async updateTaskStatus(taskId: number, status: TaskStatus): Promise<void> {
     this.ensureInitialized();
 
     await this.taskRepository.updateStatus(taskId, status);
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${String(taskId)} status updated to ${status}`
-    );
+    
+    this.logger.info(LogSource.TASKS, `Task ${taskId} status updated to ${status}`);
+    
+    await this.eventBus.emit(EventNames.TASK_STATUS_CHANGED, { taskId, status });
   }
 
   /**
-   * Updates a task with partial data.
-   * @param taskId - ID of the task to update.
+   * Update task with partial data.
+   * @param taskId - Task ID to update.
    * @param updates - Partial task data to update.
    * @returns Promise resolving to the updated task.
-   * @throws {Error} If service not initialized.
    */
-  public async updateTask(taskId: number, updates: Partial<ITask>): Promise<ITask> {
+  async updateTask(taskId: number, updates: Partial<ITaskRow>): Promise<ITaskRow> {
     this.ensureInitialized();
 
     const updatedTask = await this.taskRepository.update(taskId, updates);
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${String(taskId)} updated`
-    );
+    
+    this.logger.info(LogSource.TASKS, `Task ${taskId} updated`);
+    
+    await this.eventBus.emit(EventNames.TASK_UPDATED, { task: updatedTask });
 
     return updatedTask;
   }
 
   /**
-   * Retrieves a task by its ID.
-   * @param taskId - ID of the task to retrieve.
-   * @returns Promise resolving to the task or null if not found.
-   * @throws {Error} If service not initialized.
+   * Get task by ID.
+   * @param taskId - Task ID to retrieve.
+   * @returns Promise resolving to task or null.
    */
-  public async getTaskById(taskId: number): Promise<ITask | null> {
+  async getTaskById(taskId: number): Promise<ITaskRow | null> {
     this.ensureInitialized();
     return await this.taskRepository.findById(taskId);
   }
 
   /**
-   * Lists tasks based on optional filter criteria.
-   * @param filter - Optional filter criteria for tasks.
-   * @returns Promise resolving to array of filtered tasks.
-   * @throws {Error} If service not initialized.
+   * List tasks with optional filtering.
+   * @param filter - Optional filter criteria.
+   * @returns Promise resolving to array of tasks.
    */
-  public async listTasks(filter?: ITaskFilter): Promise<ITask[]> {
+  async listTasks(filter?: ITaskFilter): Promise<ITaskRow[]> {
     this.ensureInitialized();
     return await this.taskRepository.findWithFilter(filter);
   }
 
   /**
-   * Cancels a task by updating its status to cancelled.
-   * @param taskId - ID of the task to cancel.
+   * Cancel a task.
+   * @param taskId - Task ID to cancel.
+   * @returns Promise that resolves when task is cancelled.
    */
-  public async cancelTask(taskId: number): Promise<void> {
-    await this.updateTaskStatus(taskId, TaskStatusEnum.CANCELLED);
+  async cancelTask(taskId: number): Promise<void> {
+    this.ensureInitialized();
+    
+    await this.updateTaskStatus(taskId, TaskStatus.CANCELLED);
+    
+    await this.eventBus.emit(EventNames.TASK_CANCELLED, { taskId });
   }
 
   /**
-   * Registers a task handler for a specific task type.
+   * Register a task handler.
    * @param handler - Task handler to register.
-   * @throws {Error} If service not initialized or handler already registered.
+   * @returns Promise that resolves when handler is registered.
    */
-  public async registerHandler(handler: ITaskHandler): Promise<void> {
+  async registerHandler(handler: ITaskHandler): Promise<void> {
     this.ensureInitialized();
-
-    if (this.handlers.has(handler.type)) {
-      throw new Error(`Handler for task type '${handler.type}' already registered`);
-    }
-
+    
     this.handlers.set(handler.type, handler);
-    this.logger.info(LogSource.MODULES, `Task handler registered: ${handler.type}`);
+    
+    this.logger.info(LogSource.TASKS, `Handler registered for task type: ${handler.type}`);
   }
 
   /**
-   * Unregisters a task handler for a specific task type.
+   * Unregister a task handler.
    * @param type - Task type to unregister handler for.
-   * @throws {Error} If service not initialized.
+   * @returns Promise that resolves when handler is unregistered.
    */
-  public async unregisterHandler(type: string): Promise<void> {
+  async unregisterHandler(type: string): Promise<void> {
     this.ensureInitialized();
+    
     this.handlers.delete(type);
-    this.logger.info(LogSource.MODULES, `Task handler unregistered: ${type}`);
+    
+    this.logger.info(LogSource.TASKS, `Handler unregistered for task type: ${type}`);
   }
 
   /**
-   * Retrieves task statistics including counts by status and type.
+   * Get task statistics.
    * @returns Promise resolving to task statistics.
-   * @throws {Error} If service not initialized.
    */
-  public async getStatistics(): Promise<ITaskStatistics> {
+  async getStatistics(): Promise<ITaskStatistics> {
     this.ensureInitialized();
     return await this.taskRepository.getStatistics();
   }
 
   /**
-   * Gets a copy of all registered task handlers.
-   * @returns Map of task type to handler.
-   */
-  public getHandlers(): Map<string, ITaskHandler> {
-    return new Map(this.handlers);
-  }
-
-  /**
-   * Ensures the service is initialized.
-   * @throws {Error} If service not initialized.
-   */
-  private ensureInitialized(): void {
-    if (!this.initialized) {
-      throw new Error('TaskService not initialized');
-    }
-  }
-
-  /**
-   * Validates task input parameters.
-   * @param task - Task to validate.
-   * @throws {Error} If validation fails.
-   */
-  private validateTaskInput(task: Partial<ITask>): void {
-    if (task.type === undefined) {
-      throw new Error('Task type is required');
-    }
-    if (task.moduleId === undefined) {
-      throw new Error('Task moduleId is required');
-    }
-  }
-
-  /**
-   * Marks a task as in progress.
-   * @param taskId - Task ID to mark.
-   * @returns Promise that resolves when marking is complete.
-   */
-  private async markTaskInProgress(taskId: number): Promise<void> {
-    await this.taskRepository.updateStatus(taskId, TaskStatusEnum.IN_PROGRESS);
-  }
-
-  /**
-   * Assigns a task to an agent.
-   * @param taskId - ID of the task to assign.
-   * @param agentId - ID of the agent to assign to.
+   * Assign task to an agent.
+   * @param taskId - Task ID to assign.
+   * @param agentId - Agent ID to assign to.
    * @returns Promise that resolves when assignment is complete.
-   * @throws {Error} If task not found or already assigned.
    */
-  public async assignTaskToAgent(taskId: number, agentId: string): Promise<void> {
+  async assignTaskToAgent(taskId: number, agentId: string): Promise<void> {
     this.ensureInitialized();
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      throw new Error(`Task ${taskId} not found`);
-    }
-
-    if (task.assignedAgentId) {
-      throw new Error(`Task ${taskId} already assigned to agent ${task.assignedAgentId}`);
-    }
-
-    await this.taskRepository.update(taskId, {
-      assignedAgentId: agentId,
-      status: TaskStatusEnum.ASSIGNED
+    
+    await this.taskRepository.update(taskId, { 
+      assigned_agent_id: agentId,
+      status: TaskStatus.ASSIGNED
     });
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${taskId} assigned to agent ${agentId}`
-    );
-
-    this.eventBus.emit(EventNames.TASK_ASSIGNED, {
-      taskId,
-      agentId,
-      assignedAt: new Date()
-    });
+    
+    this.logger.info(LogSource.TASKS, `Task ${taskId} assigned to agent ${agentId}`);
+    
+    await this.eventBus.emit(EventNames.TASK_ASSIGNED, { taskId, agentId });
   }
 
   /**
-   * Unassigns a task from an agent.
-   * @param taskId - ID of the task to unassign.
+   * Unassign task from agent.
+   * @param taskId - Task ID to unassign.
    * @returns Promise that resolves when unassignment is complete.
    */
-  public async unassignTask(taskId: number): Promise<void> {
+  async unassignTask(taskId: number): Promise<void> {
     this.ensureInitialized();
-
-    await this.taskRepository.update(taskId, {
-      status: TaskStatusEnum.PENDING
+    
+    await this.taskRepository.update(taskId, { 
+      assigned_agent_id: null,
+      status: TaskStatus.PENDING
     });
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${taskId} unassigned`
-    );
+    
+    this.logger.info(LogSource.TASKS, `Task ${taskId} unassigned`);
   }
 
   /**
-   * Gets all tasks assigned to a specific agent.
-   * @param agentId - ID of the agent.
+   * Get tasks assigned to an agent.
+   * @param agentId - Agent ID to get tasks for.
    * @returns Promise resolving to array of tasks.
    */
-  public async getTasksByAgent(agentId: string): Promise<ITask[]> {
+  async getTasksByAgent(agentId: string): Promise<ITaskRow[]> {
     this.ensureInitialized();
     return await this.taskRepository.findByAgent(agentId);
   }
 
   /**
-   * Gets all tasks with a specific status.
+   * Get tasks by status.
    * @param status - Task status to filter by.
    * @returns Promise resolving to array of tasks.
    */
-  public async getTasksByStatus(status: TaskStatusEnum): Promise<ITask[]> {
+  async getTasksByStatus(status: TaskStatus): Promise<ITaskRow[]> {
     this.ensureInitialized();
     return await this.taskRepository.findByStatus(status);
   }
 
   /**
-   * Updates task progress.
-   * @param taskId - ID of the task.
-   * @param progress - Progress percentage (0-100).
-   * @returns Promise that resolves when update is complete.
+   * Update task progress.
+   * @param taskId - Task ID to update progress for.
+   * @param progress - Progress value (0-100).
+   * @returns Promise that resolves when progress is updated.
    */
-  public async updateTaskProgress(taskId: number, progress: number): Promise<void> {
+  async updateTaskProgress(taskId: number, progress: number): Promise<void> {
     this.ensureInitialized();
-
+    
     if (progress < 0 || progress > 100) {
       throw new Error('Progress must be between 0 and 100');
     }
-
+    
     await this.taskRepository.update(taskId, { progress });
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${taskId} progress updated to ${progress}%`
-    );
+    
+    this.logger.info(LogSource.TASKS, `Task ${taskId} progress updated to ${progress}%`);
   }
 
   /**
-   * Get task by ID (alias for getTaskById for consistency).
-   * @param taskId - Task ID to retrieve.
-   * @returns Promise resolving to the task or null.
+   * Get metadata for a task.
+   * @param taskId - Task ID.
+   * @returns Promise resolving to metadata key-value pairs.
    */
-  public async getTask(taskId: number): Promise<ITask | null> {
-    return await this.getTaskById(taskId);
-  }
-
-  /**
-   * Complete a task with result.
-   * @param taskId - ID of the task to complete.
-   * @param result - Result data.
-   * @returns Promise that resolves when task is completed.
-   */
-  public async completeTask(taskId: number, result: any): Promise<void> {
+  async getTaskMetadata(taskId: number): Promise<Record<string, string>> {
     this.ensureInitialized();
-
-    const task = await this.getTask(taskId);
-    if (!task) { throw new Error('Task not found'); }
-
-    await this.taskRepository.update(taskId, {
-      status: TaskStatusEnum.COMPLETED,
-      result: typeof result === 'string' ? result : JSON.stringify(result),
-      completedAt: new Date(),
-      progress: 100
-    });
-
-    this.logger.info(
-      LogSource.MODULES,
-      `Task ${taskId} completed successfully`
-    );
-
-    this.eventBus.emit(EventNames.TASK_COMPLETED, {
-      taskId,
-      agentId: task.assignedAgentId!,
-      result,
-      completedAt: new Date()
-    });
+    return await this.taskRepository.getMetadata(taskId);
   }
 
   /**
-   * Fail a task with error.
-   * @param taskId - ID of the task to fail.
-   * @param error - Error message.
-   * @returns Promise that resolves when task is failed.
+   * Set metadata for a task.
+   * @param taskId - Task ID.
+   * @param key - Metadata key.
+   * @param value - Metadata value.
+   * @returns Promise that resolves when metadata is set.
    */
-  public async failTask(taskId: number, error: string): Promise<void> {
+  async setTaskMetadata(taskId: number, key: string, value: string): Promise<void> {
     this.ensureInitialized();
+    await this.taskRepository.setMetadata(taskId, key, value);
+    this.logger.debug(LogSource.TASKS, `Metadata set for task ${taskId}: ${key}`);
+  }
 
-    const task = await this.getTask(taskId);
-    if (!task) { throw new Error('Task not found'); }
-
-    await this.taskRepository.update(taskId, {
-      status: TaskStatusEnum.FAILED,
-      error,
-      completedAt: new Date()
-    });
-
-    this.logger.error(
-      LogSource.MODULES,
-      `Task ${taskId} failed`,
-      { error }
-    );
-
-    this.eventBus.emit(EventNames.TASK_FAILED, {
-      taskId,
-      agentId: task.assignedAgentId!,
-      error,
-      failedAt: new Date()
-    });
+  /**
+   * Ensure service is initialized.
+   * @throws Error if service not initialized.
+   */
+  private ensureInitialized(): void {
+    if (!this.initialized) {
+      throw new Error('TaskService not initialized. Call initialize() first.');
+    }
   }
 }

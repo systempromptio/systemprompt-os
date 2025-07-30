@@ -23,7 +23,7 @@ export const statusCommand: ICLICommand = {
       alias: 'l',
       type: 'number',
       description: 'Number of recent events to show',
-      defaultValue: 10,
+      default: 10,
     },
   ],
 
@@ -40,7 +40,7 @@ export const statusCommand: ICLICommand = {
 
       console.log(chalk.cyan('\n📡 Event Bus Status\n'));
 
-      const statsResult = await db.query<{ total_events: number }[]>(
+      const statsResult = await db.query<{ total_events: number }>(
         'SELECT COUNT(*) as total_events FROM events'
       );
       const stats = statsResult[0];
@@ -50,7 +50,7 @@ export const statusCommand: ICLICommand = {
         emitted_at: string;
         module_source: string | null;
         event_data: string | null;
-      }[]>(
+      }>(
         'SELECT event_name, emitted_at, module_source, event_data FROM events ORDER BY emitted_at DESC LIMIT ?',
         [limit]
       );
@@ -58,7 +58,7 @@ export const statusCommand: ICLICommand = {
       const subscriptions = await db.query<{
         event_name: string;
         subscriber_count: number;
-      }[]>(
+      }>(
         `SELECT event_name, COUNT(*) as subscriber_count 
          FROM event_subscriptions 
          WHERE active = TRUE 

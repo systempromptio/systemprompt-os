@@ -1,5 +1,5 @@
 // Auto-generated database types for users module
-// Generated on: 2025-07-29T15:52:59.250Z
+// Generated on: 2025-07-30T07:22:50.904Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints

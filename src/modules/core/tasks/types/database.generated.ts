@@ -1,5 +1,5 @@
 // Auto-generated database types for tasks module
-// Generated on: 2025-07-29T15:52:59.251Z
+// Generated on: 2025-07-30T07:22:50.905Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints
@@ -21,7 +21,7 @@ export interface ITaskRow {
   id: number;
   type: string;
   module_id: string;
-  instructions: string | null; // JSON string, requires parsing
+  instructions: string | null;
   priority: number | null;
   status: TaskStatus | null;
   retry_count: number | null;
@@ -36,17 +36,29 @@ export interface ITaskRow {
   updated_at: string | null;
   completed_at: string | null;
   created_by: string | null;
-  metadata: string | null; // JSON string, requires parsing
+}
+
+/**
+ * Generated from database table: task_metadata
+ * Do not modify this file manually - it will be overwritten
+ */
+export interface ITaskMetadataRow {
+  id: number;
+  task_id: number;
+  key: string;
+  value: string | null;
+  created_at: string | null;
 }
 
 /**
  * Union type of all database row types in this module
  */
-export type TasksDatabaseRow = ITaskRow;
+export type TasksDatabaseRow = ITaskRow | ITaskMetadataRow;
 
 /**
  * Database table names for this module
  */
 export const TASKS_TABLES = {
   TASK: 'task',
+  TASKMETADATA: 'task_metadata',
 } as const;

@@ -187,8 +187,8 @@ describe('Monitor Module Integration Tests', () => {
   describe('Metric Queries', () => {
     beforeEach(async () => {
       // Create the metrics table if it doesn't exist
-      const adapter = dbService.getAdapter('monitor');
-      await adapter.execute(`
+      // Create the metrics table if it doesn't exist
+      await dbService.execute(`
         CREATE TABLE IF NOT EXISTS metric (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name VARCHAR(255) NOT NULL,
@@ -200,7 +200,7 @@ describe('Monitor Module Integration Tests', () => {
         )
       `);
       
-      await adapter.execute(`
+      await dbService.execute(`
         CREATE TABLE IF NOT EXISTS metric_label (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           metric_id INTEGER NOT NULL,
@@ -216,8 +216,7 @@ describe('Monitor Module Integration Tests', () => {
       expect(metricService).toBeDefined();
       
       // Insert a test metric directly
-      const adapter = dbService.getAdapter('monitor');
-      await adapter.execute(
+      await dbService.execute(
         'INSERT INTO metric (name, value, type, timestamp) VALUES (?, ?, ?, ?)',
         ['test.query.metric', 123, 'gauge', new Date().toISOString()]
       );
@@ -277,8 +276,14 @@ describe('Monitor Module Integration Tests', () => {
     it('should have monitor database adapter', async () => {
       expect(dbService).toBeDefined();
       
-      const adapter = dbService.getAdapter('monitor');
-      expect(adapter).toBeDefined();
+      // Database module exports createModuleAdapter function
+      const dbModule = bootstrap.getModules().get('database');
+      expect(dbModule).toBeDefined();
+      if (dbModule && 'exports' in dbModule && dbModule.exports) {
+        expect(dbModule.exports.createModuleAdapter).toBeDefined();
+        const adapter = await dbModule.exports.createModuleAdapter('monitor');
+        expect(adapter).toBeDefined();
+      }
     });
     
     it('should handle database operations for monitoring', async () => {

@@ -3,7 +3,7 @@ import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/
 /**
  * Development session types - from database enum values.
  */
-export const enum DevSessionType {
+export enum DevSessionType {
   REPL = 'repl',
   PROFILE = 'profile',
   TEST = 'test',
@@ -15,7 +15,7 @@ export const enum DevSessionType {
 /**
  * Development session status types - from database enum values.
  */
-export const enum DevSessionStatus {
+export enum DevSessionStatus {
   ACTIVE = 'active',
   COMPLETED = 'completed',
   FAILED = 'failed',

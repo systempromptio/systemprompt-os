@@ -38,7 +38,10 @@ export const shutdownModule = async (
 
   try {
     logger.debug(LogSource.BOOTSTRAP, `Stopping module: ${name}`);
-    await moduleInstance.stop();
+    const stopPromise = moduleInstance.stop();
+    const timeoutPromise = new Promise<void>((_, reject) =>
+      { return setTimeout(() => { reject(new Error(`Module ${name} stop timeout`)); }, 3000) });
+    await Promise.race([stopPromise, timeoutPromise]);
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Error stopping module ${name}:`, {
       error: error instanceof Error ? error : new Error(String(error))
@@ -98,9 +101,21 @@ export const shutdownAllModules = async (
   logger: ILogger,
 ): Promise<void> => {
   const moduleNames = Array.from(modules.keys()).reverse();
-  await shutdownModulesSequentially({
+
+  const shutdownPromise = shutdownModulesSequentially({
     moduleNames,
     modules,
     logger
   });
+
+  const globalTimeoutPromise = new Promise<void>((_, reject) =>
+    { return setTimeout(() => { reject(new Error('Global shutdown timeout')); }, 10000) });
+
+  try {
+    await Promise.race([shutdownPromise, globalTimeoutPromise]);
+  } catch (error) {
+    logger.error(LogSource.BOOTSTRAP, 'Shutdown timeout exceeded', {
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+  }
 };

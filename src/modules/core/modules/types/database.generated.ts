@@ -1,5 +1,5 @@
 // Auto-generated database types for modules module
-// Generated on: 2025-07-29T15:52:59.253Z
+// Generated on: 2025-07-30T07:22:50.906Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints
@@ -55,6 +55,7 @@ export interface IModulesRow {
   auto_start: boolean | null;
   dependencies: string | null;
   config: string | null;
+  metadata: string | null;
   status: ModulesStatus | null;
   last_error: string | null;
   discovered_at: string | null;

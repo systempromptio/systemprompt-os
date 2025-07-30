@@ -12,7 +12,7 @@ import { getDevModuleAsync } from '@/modules/core/dev/index';
 
 export const command: ICLICommand = {
   description: 'List all development profiles',
-  execute: async (context: ICLIContext): Promise<void> => {
+  execute: async (_context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
@@ -40,7 +40,20 @@ export const command: ICLICommand = {
         Created: new Date(profile.created_at ?? '').toLocaleDateString()
       } });
 
-      cliOutput.table(tableData);
+      cliOutput.table(tableData, [
+        {
+ key: 'Name',
+header: 'Name'
+},
+        {
+ key: 'Description',
+header: 'Description'
+},
+        {
+ key: 'Created',
+header: 'Created'
+}
+      ]);
 
       process.exit(0);
     } catch (error) {

@@ -8,8 +8,6 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MetricService } from '@/modules/core/monitor/services/metric.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-// import { getModuleRegistry } from '@/modules/loader';
-import { ModuleName } from '@/modules/types/module-names.types';
 import { LogSource } from '@/modules/core/logger/types/index';
 
 export const command: ICLICommand = {
@@ -18,8 +16,6 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const logger = LoggerService.getInstance();
-      
       cliOutput.section('Monitor Module Status');
       cliOutput.keyValue({
         Module: 'Monitor',
@@ -41,6 +37,7 @@ export const command: ICLICommand = {
 
       process.exit(0);
     } catch (error) {
+      const logger = LoggerService.getInstance();
       cliOutput.error('Error getting monitor status');
       logger.error(
         LogSource.MONITOR,

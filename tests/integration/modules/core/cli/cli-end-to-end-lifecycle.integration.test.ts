@@ -89,67 +89,28 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       }
     });
 
-    // Initialize database - initialize directly instead of using CLI
-    console.log('🗄️  Initializing database...');
+    // Bootstrap the system to register CLI commands
+    console.log('🗄️  Bootstrapping system...');
     try {
-      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-      const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+      // Set up environment variables for test mode - MUST be set before bootstrap
+      Object.assign(process.env, TEST_CONFIG.envVars);
       
-      // Initialize logger first
-      const { LoggerMode, LogOutput } = await import('@/modules/core/logger/types/index');
-      const logger = LoggerService.getInstance();
-      logger.initialize({
-        stateDir: TEST_CONFIG.envVars.STATE_PATH,
-        logLevel: 'error',
-        mode: LoggerMode.CLI,
-        maxSize: '10MB',
-        maxFiles: 3,
-        outputs: [LogOutput.CONSOLE],
-        files: {
-          system: 'system.log',
-          error: 'error.log',
-          access: 'access.log'
-        }
+      const { Bootstrap } = await import('@/bootstrap');
+      const bootstrap = new Bootstrap({
+        skipMcp: true,
+        environment: 'test',
+        cliMode: true,
       });
+
+      // Run bootstrap to register CLI commands in database
+      await bootstrap.bootstrap();
       
-      // Initialize database
-      const dbConfig = {
-        type: 'sqlite' as const,
-        sqlite: {
-          filename: TEST_CONFIG.dbPath
-        }
-      };
-      await DatabaseService.initialize(dbConfig, logger);
-      const database = DatabaseService.getInstance();
+      // Clean shutdown to ensure database is properly closed
+      await bootstrap.shutdown();
       
-      // Create tables manually instead of using CLI
-      await database.execute(`
-        CREATE TABLE IF NOT EXISTS agents (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          description TEXT,
-          instructions TEXT,
-          type TEXT NOT NULL,
-          status TEXT DEFAULT 'stopped',
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      
-      await database.execute(`
-        CREATE TABLE IF NOT EXISTS tasks (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          type TEXT NOT NULL,
-          module_id TEXT NOT NULL,
-          instructions TEXT,
-          status TEXT DEFAULT 'pending',
-          priority INTEGER DEFAULT 5,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      
-      console.log('✅ Database initialized directly');
+      console.log('✅ System bootstrapped with CLI commands registered');
     } catch (error) {
-      console.error('Failed to initialize database directly:', error);
+      console.error('Failed to bootstrap system:', error);
       throw error;
     }
     
@@ -176,11 +137,11 @@ describe('Agent-Task Lifecycle Integration Test', () => {
     it('should create an agent', async () => {
       const result = await execCLI([
         'agents', 'create',
-        `--name=test-worker-${TEST_SESSION_ID}`,
-        '--description=Test worker agent for integration testing',
-        '--instructions=Process tasks and report results',
-        '--type=worker',
-        '--format=json'
+        '--name', `test-worker-${TEST_SESSION_ID}`,
+        '--description', 'Test worker agent for integration testing',
+        '--instructions', 'Process tasks and report results',
+        '--type', 'worker',
+        '--format', 'json'
       ]);
       
       if (result.code !== 0) {
@@ -189,11 +150,8 @@ describe('Agent-Task Lifecycle Integration Test', () => {
           stderr: result.stderr,
           code: result.code
         });
-        
-        // Try to get more details about the error
-        const logResult = await execCLI(['logs', 'tail']);
-        console.error('Recent logs:', logResult.stdout);
       }
+      
       expect(result.code).toBe(0);
       expect(result.stderr).toBe('');
       
@@ -209,9 +167,18 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       const result = await execCLI([
         'agents', 'update',
         '--id', createdAgentId,
-        '--status=active',
-        '--format=json'
+        '--status', 'active',
+        '--format', 'json'
       ]);
+      
+      if (result.code !== 0) {
+        console.error('Agent start failed:', {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          code: result.code,
+          createdAgentId
+        });
+      }
       
       expect(result.code).toBe(0);
       
@@ -222,11 +189,11 @@ describe('Agent-Task Lifecycle Integration Test', () => {
     it('should create a task', async () => {
       const result = await execCLI([
         'tasks', 'add',
-        '--type=data-processing',
-        '--module-id=test-module',
-        '--instructions={"action": "process", "data": "test-data"}',
-        '--priority=8',
-        '--format=json'
+        '--type', 'data-processing',
+        '--module-id', 'test-module',
+        '--instructions', '{"action": "process", "data": "test-data"}',
+        '--priority', '8',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -244,9 +211,17 @@ describe('Agent-Task Lifecycle Integration Test', () => {
     it('should show task in pending state', async () => {
       const result = await execCLI([
         'tasks', 'list',
-        '--status=pending',
-        '--format=json'
+        '--status', 'pending',
+        '--format', 'json'
       ]);
+      
+      if (result.code !== 0) {
+        console.error('Task list failed:', {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          code: result.code
+        });
+      }
       
       expect(result.code).toBe(0);
       
@@ -260,11 +235,21 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // First update to assign
       const assignResult = await execCLI([
         'tasks', 'update',
-        `--id=${createdTaskId}`,
-        '--status=assigned',
-        `--assigned-agent-id=${createdAgentId}`,
-        '--format=json'
+        '--id', `${createdTaskId}`,
+        '--status', 'assigned',
+        '--assigned-agent-id', createdAgentId,
+        '--format', 'json'
       ]);
+      
+      if (assignResult.code !== 0) {
+        console.error('Task assignment failed:', {
+          stdout: assignResult.stdout,
+          stderr: assignResult.stderr,
+          code: assignResult.code,
+          createdTaskId,
+          createdAgentId
+        });
+      }
       
       expect(assignResult.code).toBe(0);
       
@@ -276,11 +261,20 @@ describe('Agent-Task Lifecycle Integration Test', () => {
     it('should update task to in_progress', async () => {
       const result = await execCLI([
         'tasks', 'update',
-        `--id=${createdTaskId}`,
-        '--status=in_progress',
-        '--progress=25',
-        '--format=json'
+        '--id', `${createdTaskId}`,
+        '--status', 'in_progress',
+        '--progress', '25',
+        '--format', 'json'
       ]);
+      
+      if (result.code !== 0) {
+        console.error('Task update to in_progress failed:', {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          code: result.code,
+          createdTaskId
+        });
+      }
       
       expect(result.code).toBe(0);
       
@@ -293,9 +287,9 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // Update to 50%
       let result = await execCLI([
         'tasks', 'update',
-        `--id=${createdTaskId}`,
-        '--progress=50',
-        '--format=json'
+        '--id', `${createdTaskId}`,
+        '--progress', '50',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -305,9 +299,9 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // Update to 75%
       result = await execCLI([
         'tasks', 'update',
-        `--id=${createdTaskId}`,
-        '--progress=75',
-        '--format=json'
+        '--id', `${createdTaskId}`,
+        '--progress', '75',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -318,11 +312,11 @@ describe('Agent-Task Lifecycle Integration Test', () => {
     it('should complete the task', async () => {
       const result = await execCLI([
         'tasks', 'update',
-        `--id=${createdTaskId}`,
-        '--status=completed',
-        '--progress=100',
-        '--result=Task completed successfully with processed data',
-        '--format=json'
+        '--id', `${createdTaskId}`,
+        '--status', 'completed',
+        '--progress', '100',
+        '--result', 'Task completed successfully with processed data',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -338,8 +332,8 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // List completed tasks to verify our task
       const result = await execCLI([
         'tasks', 'list',
-        '--status=completed',
-        '--format=json'
+        '--status', 'completed',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -355,10 +349,10 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // Create a new task
       const createResult = await execCLI([
         'tasks', 'add',
-        '--type=failing-task',
-        '--module-id=test-module',
-        '--priority=10',
-        '--format=json'
+        '--type', 'failing-task',
+        '--module-id', 'test-module',
+        '--priority', '10',
+        '--format', 'json'
       ]);
       
       const failingTask = JSON.parse(createResult.stdout);
@@ -366,25 +360,25 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // Assign to agent
       await execCLI([
         'tasks', 'update',
-        `--id=${failingTask.id}`,
-        '--status=assigned',
-        `--assigned-agent-id=${createdAgentId}`
+        '--id', `${failingTask.id}`,
+        '--status', 'assigned',
+        '--assigned-agent-id', createdAgentId
       ]);
       
       // Start processing
       await execCLI([
         'tasks', 'update',
-        `--id=${failingTask.id}`,
-        '--status=in_progress'
+        '--id', `${failingTask.id}`,
+        '--status', 'in_progress'
       ]);
       
       // Fail the task
       const failResult = await execCLI([
         'tasks', 'update',
-        `--id=${failingTask.id}`,
-        '--status=failed',
-        '--error=Simulated task failure',
-        '--format=json'
+        '--id', `${failingTask.id}`,
+        '--status', 'failed',
+        '--error', 'Simulated task failure',
+        '--format', 'json'
       ]);
       
       expect(failResult.code).toBe(0);
@@ -406,8 +400,8 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       const result = await execCLI([
         'agents', 'update',
         '--id', createdAgentId,
-        '--status=stopped',
-        '--format=json'
+        '--status', 'stopped',
+        '--format', 'json'
       ]);
       
       expect(result.code).toBe(0);
@@ -431,10 +425,10 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       const taskPromises = Array(3).fill(null).map((_, i) => 
         execCLI([
           'tasks', 'add',
-          `--type=concurrent-task-${i}`,
-          '--module-id=test-module',
-          `--priority=${10 - i}`,
-          '--format=json'
+          '--type', `concurrent-task-${i}`,
+          '--module-id', 'test-module',
+          '--priority', `${10 - i}`,
+          '--format', 'json'
         ])
       );
       
@@ -450,8 +444,8 @@ describe('Agent-Task Lifecycle Integration Test', () => {
       // List all pending tasks
       const listResult = await execCLI([
         'tasks', 'list',
-        '--status=pending',
-        '--format=json'
+        '--status', 'pending',
+        '--format', 'json'
       ]);
       
       const pendingTasks = JSON.parse(listResult.stdout);
