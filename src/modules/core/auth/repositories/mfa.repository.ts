@@ -10,51 +10,11 @@ import type { IUserMFAData } from '@/modules/core/auth/types';
  * MFARepository class for handling MFA data operations.
  */
 export class MFARepository {
-  private static instance: MFARepository;
-  private dbService?: DatabaseService;
-
   /**
-   * Private constructor for singleton pattern.
+   * Constructor for MFARepository.
+   * @param database - Database service instance.
    */
-  private constructor() {}
-
-  /**
-   * Get singleton instance.
-   * @returns MFARepository instance.
-   */
-  public static getInstance(): MFARepository {
-    MFARepository.instance ||= new MFARepository();
-    return MFARepository.instance;
-  }
-
-  /**
-   * Initialize repository.
-   * @returns Promise that resolves when initialized.
-   */
-  async initialize(): Promise<void> {
-    // Database will be fetched lazily via getDatabase()
-    this.dbService = undefined;
-  }
-
-  /**
-   * Get database connection.
-   * @returns Database connection.
-   */
-  private async getDatabase(): Promise<DatabaseService> {
-    if (!this.dbService) {
-      try {
-        // Try to get from module registry first
-        const { getDatabaseModule } = await import('@/modules/core/database/index');
-        const databaseModule = getDatabaseModule();
-        this.dbService = databaseModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-        this.dbService = DatabaseService.getInstance();
-      }
-    }
-    return this.dbService;
-  }
+  constructor(private readonly database: DatabaseService) {}
 
   /**
    * Get user MFA data by user ID.
@@ -62,8 +22,7 @@ export class MFARepository {
    * @returns Promise resolving to user MFA data or null.
    */
   async getUserMFAData(userId: string): Promise<IUserMFAData | null> {
-    const db = await this.getDatabase();
-    const users = await db.query<IUserMFAData>(
+    const users = await this.database.query<IUserMFAData>(
       'SELECT id, mfa_secret, mfa_enabled, mfa_backup_codes FROM auth_users WHERE id = ?',
       [userId]
     );
@@ -82,8 +41,7 @@ export class MFARepository {
     secret: string,
     backupCodes: string
   ): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       'UPDATE auth_users SET mfa_secret = ?, mfa_backup_codes = ? WHERE id = ?',
       [secret, backupCodes, userId]
     );
@@ -95,8 +53,7 @@ export class MFARepository {
    * @returns Promise resolving when update is complete.
    */
   async enableMFA(userId: string): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       'UPDATE auth_users SET mfa_enabled = ? WHERE id = ?',
       [1, userId]
     );
@@ -108,8 +65,7 @@ export class MFARepository {
    * @returns Promise resolving when update is complete.
    */
   async disableMFA(userId: string): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       'UPDATE auth_users SET mfa_enabled = ?, mfa_secret = ?, mfa_backup_codes = ? WHERE id = ?',
       [0, null, null, userId]
     );
@@ -122,8 +78,7 @@ export class MFARepository {
    * @returns Promise resolving when update is complete.
    */
   async updateBackupCodes(userId: string, backupCodes: string): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       'UPDATE auth_users SET mfa_backup_codes = ? WHERE id = ?',
       [backupCodes, userId]
     );
@@ -135,8 +90,7 @@ export class MFARepository {
    * @returns Promise resolving to boolean indicating if MFA is enabled.
    */
   async isEnabled(userId: string): Promise<boolean> {
-    const db = await this.getDatabase();
-    const users = await db.query<{ mfa_enabled: number }>(
+    const users = await this.database.query<{ mfa_enabled: number }>(
       'SELECT mfa_enabled FROM auth_users WHERE id = ?',
       [userId]
     );

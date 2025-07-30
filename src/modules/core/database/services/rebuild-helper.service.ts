@@ -33,11 +33,19 @@ export class RebuildHelperService {
 
     const dbService = DatabaseService.getInstance();
     await dbService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
+      // Disable foreign key constraints to allow dropping tables in any order
       await conn.execute('PRAGMA foreign_keys = OFF');
 
-      for (const table of tables) {
+      // Get fresh list of tables in case some were already dropped
+      const tablesResult = await conn.query<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' 
+         AND name NOT LIKE 'sqlite_%' ORDER BY name`
+      );
+      const currentTables = tablesResult.rows;
+
+      for (const table of currentTables) {
         try {
-          await conn.execute(`DROP TABLE IF EXISTS \`${table.name}\``);
+          await conn.execute(`DROP TABLE IF EXISTS "${table.name}"`);
           if (logger) {
             logger.info(LogSource.DATABASE, `Dropped table: ${table.name}`);
           }
@@ -45,12 +53,26 @@ export class RebuildHelperService {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           if (logger) {
-            logger.debug(LogSource.DATABASE, `Could not drop ${table.name}: ${errorMessage}`);
+            logger.error(LogSource.DATABASE, `Could not drop ${table.name}: ${errorMessage}`);
           }
           failedDrops.push(table.name);
         }
       }
 
+      // Clear the schema import tracking table specifically if it exists
+      try {
+        await conn.execute('DELETE FROM _imported_schemas WHERE 1=1');
+        if (logger) {
+          logger.info(LogSource.DATABASE, 'Cleared schema import tracking');
+        }
+      } catch (error) {
+        // Table might not exist or already be dropped - that's OK
+        if (logger) {
+          logger.debug(LogSource.DATABASE, 'Schema import tracking table not found or already cleared');
+        }
+      }
+
+      // Re-enable foreign key constraints
       await conn.execute('PRAGMA foreign_keys = ON');
     });
 

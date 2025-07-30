@@ -12,51 +12,11 @@ import { ONE_HUNDRED } from '@/constants/numbers';
  * AuditRepository class for handling audit data operations.
  */
 export class AuditRepository {
-  private static instance: AuditRepository;
-  private dbService?: DatabaseService;
-
   /**
-   * Private constructor for singleton pattern.
+   * Constructor for AuditRepository.
+   * @param database - Database service instance.
    */
-  private constructor() {}
-
-  /**
-   * Get singleton instance.
-   * @returns AuditRepository instance.
-   */
-  public static getInstance(): AuditRepository {
-    AuditRepository.instance ||= new AuditRepository();
-    return AuditRepository.instance;
-  }
-
-  /**
-   * Initialize repository.
-   * @returns Promise that resolves when initialized.
-   */
-  async initialize(): Promise<void> {
-    // Database will be fetched lazily via getDatabase()
-    this.dbService = undefined;
-  }
-
-  /**
-   * Get database connection.
-   * @returns Database connection.
-   */
-  private async getDatabase(): Promise<DatabaseService> {
-    if (!this.dbService) {
-      try {
-        // Try to get from module registry first
-        const { getDatabaseModule } = await import('@/modules/core/database/index');
-        const databaseModule = getDatabaseModule();
-        this.dbService = databaseModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-        this.dbService = DatabaseService.getInstance();
-      }
-    }
-    return this.dbService;
-  }
+  constructor(private readonly database: DatabaseService) {}
 
   /**
    * Insert an audit event into the database.
@@ -81,8 +41,7 @@ export class AuditRepository {
     userAgent: string | null,
   ): Promise<void> {
     const id = randomUUID();
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       `INSERT INTO auth_audit_log (id, user_id, action, resource, success, error_message, metadata, ip_address, user_agent, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [id, userId, action, resource, success ? 1 : 0, errorMessage, metadata, ipAddress, userAgent],
@@ -107,7 +66,6 @@ export class AuditRepository {
     query += ' ORDER BY timestamp DESC LIMIT ?';
     params.push(String(limit));
 
-    const db = await this.getDatabase();
-    return await db.query<IAuditRow>(query, params);
+    return await this.database.query<IAuditRow>(query, params);
   }
 }

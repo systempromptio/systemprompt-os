@@ -24,3 +24,43 @@ dependencies:
 apis:
   - name: MonitorService
     description: Main metric service for recording and querying metrics
+cli:
+  commands:
+    - name: status
+      description: Show monitor module status
+    - name: list
+      description: List recorded metrics
+      options:
+        - name: format
+          type: string
+          description: Output format (table or json)
+          default: table
+        - name: type
+          type: string
+          description: Filter by metric type (counter, gauge, histogram)
+        - name: limit
+          type: number
+          description: Limit number of results
+          default: 10
+    - name: record
+      description: Record a metric
+      options:
+        - name: name
+          type: string
+          description: Metric name
+          required: true
+        - name: value
+          type: number
+          description: Metric value
+          required: true
+        - name: type
+          type: string
+          description: Metric type (counter, gauge, histogram)
+          required: true
+          choices: ['counter', 'gauge', 'histogram']
+        - name: unit
+          type: string
+          description: Unit of measurement
+        - name: labels
+          type: string
+          description: Metric labels (JSON format)

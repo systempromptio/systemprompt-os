@@ -5,6 +5,8 @@
 
 import { randomBytes } from 'crypto';
 import { AuthCodeRepository } from '@/modules/core/auth/repositories/auth-code.repository';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
   IAuthorizationCodeData,
 } from '@/modules/core/auth/types/auth-code.types';
@@ -18,17 +20,33 @@ export class AuthCodeService {
 
   /**
    * Creates a new AuthCodeService instance.
+   * @param database - Database service instance.
+   * @param logger - Logger instance.
    */
-  private constructor() {
-    this.repository = AuthCodeRepository.getInstance();
+  private constructor(database: DatabaseService, logger: ILogger) {
+    this.repository = new AuthCodeRepository(database, logger);
+  }
+
+  /**
+   * Initialize AuthCodeService.
+   * @param database - Database service instance.
+   * @param logger - Logger instance.
+   * @returns AuthCodeService instance.
+   */
+  public static initialize(database: DatabaseService, logger: ILogger): AuthCodeService {
+    AuthCodeService.instance ??= new AuthCodeService(database, logger);
+    return AuthCodeService.instance;
   }
 
   /**
    * Gets the singleton instance of AuthCodeService.
    * @returns AuthCodeService instance.
+   * @throws Error if service not initialized.
    */
   public static getInstance(): AuthCodeService {
-    AuthCodeService.instance ??= new AuthCodeService();
+    if (AuthCodeService.instance === undefined) {
+      throw new Error('AuthCodeService must be initialized with database and logger first');
+    }
     return AuthCodeService.instance;
   }
 

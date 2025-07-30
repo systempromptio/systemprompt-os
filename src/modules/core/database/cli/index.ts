@@ -6,6 +6,7 @@ export { command as summary } from '@/modules/core/database/cli/summary';
 export { command as view } from '@/modules/core/database/cli/view';
 export { command as clear } from '@/modules/core/database/cli/clear';
 export { command as rebuild } from '@/modules/core/database/cli/rebuild';
+export { command as reset } from '@/modules/core/database/cli/reset';
 export { command as query } from '@/modules/core/database/cli/query';
 export { command as schema } from '@/modules/core/database/cli/schema';
 
@@ -41,6 +42,11 @@ export const databaseCommands = {
       name: 'rebuild',
       description: 'Rebuild database - drop all tables and recreate from schema files',
       handler: 'database:rebuild'
+    },
+    {
+      name: 'reset',
+      description: 'Reset database - completely remove and recreate database file',
+      handler: 'database:reset'
     },
     {
       name: 'migrate',

@@ -11,7 +11,8 @@ import type {
 } from '@/modules/core/auth/types/index';
 import type { IAuthTokensRow } from '@/modules/core/auth/types/database.generated';
 import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource, LoggerService } from '@/modules/core/logger/index';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import { LogSource } from '@/modules/core/logger/types/index';
 import { TokenRepository } from '@/modules/core/auth/repositories/token.repository';
 import {
   MILLISECONDS_PER_SECOND,
@@ -36,6 +37,19 @@ export class TokenService {
    * @private
    */
   private constructor() {
+  }
+
+  /**
+   * Initialize TokenService with database and logger.
+   * @param database - Database service instance.
+   * @param logger - Logger instance.
+   * @returns TokenService instance.
+   */
+  public static initialize(database: DatabaseService, logger: ILogger): TokenService {
+    const instance = TokenService.getInstance();
+    instance.logger = logger;
+    instance.tokenRepository = new TokenRepository(database);
+    return instance;
   }
 
   /**
@@ -201,9 +215,12 @@ export class TokenService {
   /**
    * Get token repository instance.
    * @returns Token repository instance.
+   * @throws Error if repository not initialized.
    */
   private getTokenRepository(): TokenRepository {
-    this.tokenRepository ??= TokenRepository.getInstance();
+    if (!this.tokenRepository) {
+      throw new Error('TokenService not properly initialized with database');
+    }
     return this.tokenRepository;
   }
 

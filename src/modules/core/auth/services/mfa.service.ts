@@ -4,6 +4,7 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import * as speakeasy from 'speakeasy';
 import * as qrcode from 'qrcode';
 import * as cryptoModule from 'crypto';
@@ -31,10 +32,11 @@ export class MFAService {
 
   /**
    * Private constructor for singleton pattern.
+   * @param database - Database service instance.
    * @private
    */
-  private constructor() {
-    this.repository = MFARepository.getInstance();
+  private constructor(database: DatabaseService) {
+    this.repository = new MFARepository(database);
   }
 
   /**
@@ -44,7 +46,7 @@ export class MFAService {
    */
   public static getInstance(): MFAService {
     if (MFAService.instance === undefined) {
-      throw new Error('MFAService must be initialized with config and logger first');
+      throw new Error('MFAService must be initialized with config, database, and logger first');
     }
     return MFAService.instance;
   }
@@ -52,11 +54,12 @@ export class MFAService {
   /**
    * Initialize MFAService with configuration.
    * @param config - MFA configuration.
+   * @param database - Database service instance.
    * @param logger - Logger instance.
    * @returns Initialized MFAService instance.
    */
-  public static initialize(config: IMFAConfig, logger: ILogger): MFAService {
-    MFAService.instance ??= new MFAService();
+  public static initialize(config: IMFAConfig, database: DatabaseService, logger: ILogger): MFAService {
+    MFAService.instance ??= new MFAService(database);
     MFAService.instance.config = config;
     MFAService.instance.logger = logger;
     return MFAService.instance;

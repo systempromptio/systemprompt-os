@@ -173,16 +173,16 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    * Initialize all auth services.
    */
   private initializeServices(): void {
-    this.tokenService = TokenService.getInstance();
+    this.tokenService = TokenService.initialize(this.database, this.logger);
     this.userEventService = UserEventService.getInstance();
-    this.authCodeService = AuthCodeService.getInstance();
+    this.authCodeService = AuthCodeService.initialize(this.database, this.logger);
 
     const mfaConfig = {
       appName: this.config.mfa?.appName ?? 'SystemPrompt OS',
       backupCodeCount: this.config.mfa?.backupCodeCount ?? 10,
       windowSize: this.config.mfa?.windowSize ?? 2
     };
-    this.mfaService = MFAService.initialize(mfaConfig, this.logger);
+    this.mfaService = MFAService.initialize(mfaConfig, this.database, this.logger);
 
     const loggerAdapter = this.createLoggerAdapter();
     this.auditService = AuthAuditService.getInstance(
@@ -190,6 +190,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
         enabled: true,
         retentionDays: 90
       },
+      this.database,
       loggerAdapter
     );
     this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();

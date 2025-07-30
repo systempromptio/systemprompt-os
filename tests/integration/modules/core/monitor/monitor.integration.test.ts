@@ -303,6 +303,11 @@ describe('Monitor Module Integration Tests', () => {
       
       expect(monitorModule).toBeDefined();
       
+      // Stop the module if it's running (from bootstrap)
+      if (monitorModule?.getInfo().status === 'running') {
+        await monitorModule.stop();
+      }
+      
       // Module should be in stopped state after init
       let info = monitorModule?.getInfo();
       expect(info?.status).toBe('stopped');
@@ -323,6 +328,11 @@ describe('Monitor Module Integration Tests', () => {
       const monitorModule = modules.get('monitor');
       
       expect(monitorModule).toBeDefined();
+      
+      // Stop the module if it's running (from bootstrap)
+      if (monitorModule?.getInfo().status === 'running') {
+        await monitorModule.stop();
+      }
       
       // Start module to enable cleanup timer
       await monitorModule?.start();
@@ -364,10 +374,10 @@ describe('Monitor Module Integration Tests', () => {
     it('should record metrics via CLI', async () => {
       const result = await runCLICommand([
         'monitor', 'record',
-        '-n', 'test.cli.metric',
-        '-v', '100',
-        '-t', 'counter',
-        '-u', 'requests'
+        '--name', 'test.cli.metric',
+        '--value', '100',
+        '--type', 'counter',
+        '--unit', 'requests'
       ]);
       
       expect(result.exitCode).toBe(0);
@@ -381,9 +391,9 @@ describe('Monitor Module Integration Tests', () => {
     it('should handle invalid metric types', async () => {
       const result = await runCLICommand([
         'monitor', 'record',
-        '-n', 'test.invalid',
-        '-v', '50',
-        '-t', 'invalid_type'
+        '--name', 'test.invalid',
+        '--value', '50',
+        '--type', 'invalid_type'
       ]);
       
       expect(result.exitCode).toBe(1);

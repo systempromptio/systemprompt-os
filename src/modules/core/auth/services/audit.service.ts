@@ -4,6 +4,7 @@
  */
 
 import { AuditRepository } from '@/modules/core/auth/repositories/audit.repository';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type {
   AuthAuditAction,
   IAuthAuditEntry
@@ -30,31 +31,34 @@ export class AuthAuditService {
   /**
    * Private constructor for singleton pattern.
    * @param config - Audit configuration.
+   * @param database - Database service instance.
    * @param logger - Logger instance.
    */
-  private constructor(config: IAuditConfig, logger: ILogger) {
+  private constructor(config: IAuditConfig, database: DatabaseService, logger: ILogger) {
     this.config = config;
     this.logger = logger;
-    this.repository = AuditRepository.getInstance();
+    this.repository = new AuditRepository(database);
   }
 
   /**
    * Get singleton instance of AuthAuditService.
    * @param config - Audit configuration.
+   * @param database - Database service instance.
    * @param logger - Logger instance.
    * @returns AuthAuditService instance.
    */
   public static getInstance(
     config?: IAuditConfig,
+    database?: DatabaseService,
     logger?: ILogger
   ): AuthAuditService {
     if (AuthAuditService.instance === undefined) {
-      if (config === undefined || logger === undefined) {
+      if (config === undefined || database === undefined || logger === undefined) {
         throw new Error(
-          'Config and logger required for first initialization'
+          'Config, database, and logger required for first initialization'
         );
       }
-      AuthAuditService.instance = new AuthAuditService(config, logger);
+      AuthAuditService.instance = new AuthAuditService(config, database, logger);
     }
     return AuthAuditService.instance;
   }

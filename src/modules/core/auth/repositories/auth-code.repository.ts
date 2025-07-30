@@ -4,7 +4,6 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
@@ -17,63 +16,15 @@ import { ZERO } from '@/constants/numbers';
  * Repository class for authorization code persistence operations.
  */
 export class AuthCodeRepository {
-  private static instance: AuthCodeRepository;
-  private logger?: ILogger;
-  private dbService?: DatabaseService;
-
   /**
-   * Creates a new AuthCodeRepository instance.
+   * Constructor for AuthCodeRepository.
+   * @param database - Database service instance.
+   * @param logger - Logger instance.
    */
-  private constructor() {}
-
-  /**
-   * Gets the singleton instance of AuthCodeRepository.
-   * @returns AuthCodeRepository instance.
-   */
-  public static getInstance(): AuthCodeRepository {
-    AuthCodeRepository.instance ||= new AuthCodeRepository();
-    return AuthCodeRepository.instance;
-  }
-
-  /**
-   * Get logger instance (lazy initialization).
-   * @returns Logger instance.
-   */
-  private getLogger(): ILogger {
-    if (!this.logger) {
-      try {
-        // Try to get from module registry first
-        const { getLoggerModule } = require('@/modules/core/logger/index');
-        const loggerModule = getLoggerModule();
-        this.logger = loggerModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { LoggerService } = require('@/modules/core/logger/services/logger.service');
-        this.logger = LoggerService.getInstance();
-      }
-    }
-    return this.logger;
-  }
-
-  /**
-   * Get database connection (lazy initialization).
-   * @returns Database connection.
-   */
-  private async getDatabase(): Promise<DatabaseService> {
-    if (!this.dbService) {
-      try {
-        // Try to get from module registry first
-        const { getDatabaseModule } = await import('@/modules/core/database/index');
-        const databaseModule = getDatabaseModule();
-        this.dbService = databaseModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-        this.dbService = DatabaseService.getInstance();
-      }
-    }
-    return this.dbService;
-  }
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly logger: ILogger
+  ) {}
 
   /**
    * Stores an authorization code in the database.
@@ -85,8 +36,7 @@ export class AuthCodeRepository {
     authCode: string,
     authData: IAuthorizationCodeData,
   ): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       `INSERT INTO auth_authorization_codes
        (code, client_id, redirect_uri, scope, user_id, user_email,
         provider, provider_tokens, code_challenge, code_challenge_method, expires_at)
@@ -106,7 +56,7 @@ export class AuthCodeRepository {
       ],
     );
 
-    this.getLogger().info(LogSource.AUTH, 'Authorization code stored', {
+    this.logger.info(LogSource.AUTH, 'Authorization code stored', {
       code: `${authCode.substring(ZERO, 8)}...`,
       clientId: authData.clientId,
     });
@@ -118,8 +68,7 @@ export class AuthCodeRepository {
    * @returns Promise that resolves to the authorization code data or null if not found/expired.
    */
   public async getAuthorizationCode(authCode: string): Promise<IAuthorizationCodeData | null> {
-    const db = await this.getDatabase();
-    const rows = await db.query<IAuthAuthorizationCodesRow>(
+    const rows = await this.database.query<IAuthAuthorizationCodesRow>(
       `SELECT * FROM auth_authorization_codes
        WHERE code = ? AND datetime(expires_at) > datetime('now')`,
       [authCode],
@@ -147,8 +96,7 @@ export class AuthCodeRepository {
    * @returns Promise that resolves when the code is deleted.
    */
   public async deleteAuthorizationCode(authCode: string): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       'DELETE FROM auth_authorization_codes WHERE code = ?',
       [authCode],
     );
@@ -159,8 +107,7 @@ export class AuthCodeRepository {
    * @returns Promise that resolves when cleanup is complete.
    */
   public async cleanupExpiredCodes(): Promise<void> {
-    const db = await this.getDatabase();
-    await db.execute(
+    await this.database.execute(
       `DELETE FROM auth_authorization_codes
        WHERE datetime(expires_at) < datetime('now')`,
     );

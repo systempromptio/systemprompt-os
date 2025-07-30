@@ -274,11 +274,9 @@ export class SchemaImportService {
    * @returns Checksum string.
    */
   private calculateChecksum(content: string): string {
-    const CHECKSUM_LENGTH = 16;
     return createHash('sha256')
       .update(content.trim())
-      .digest('hex')
-      .substring(0, CHECKSUM_LENGTH);
+      .digest('hex');
   }
 
   /**

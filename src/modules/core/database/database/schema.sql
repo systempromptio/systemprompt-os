@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS database_health_checks (
 );
 
 -- Indexes
-CREATE INDEX idx_schema_versions_module ON database_schema_versions(module_name);
-CREATE INDEX idx_migrations_module ON database_migrations(module_name);
-CREATE INDEX idx_operations_type ON database_operations(operation_type);
-CREATE INDEX idx_operations_created ON database_operations(created_at);
-CREATE INDEX idx_health_checks_type ON database_health_checks(check_type);
-CREATE INDEX idx_health_checks_checked ON database_health_checks(checked_at);
+CREATE INDEX IF NOT EXISTS idx_schema_versions_module ON database_schema_versions(module_name);
+CREATE INDEX IF NOT EXISTS idx_migrations_module ON database_migrations(module_name);
+CREATE INDEX IF NOT EXISTS idx_operations_type ON database_operations(operation_type);
+CREATE INDEX IF NOT EXISTS idx_operations_created ON database_operations(created_at);
+CREATE INDEX IF NOT EXISTS idx_health_checks_type ON database_health_checks(check_type);
+CREATE INDEX IF NOT EXISTS idx_health_checks_checked ON database_health_checks(checked_at);

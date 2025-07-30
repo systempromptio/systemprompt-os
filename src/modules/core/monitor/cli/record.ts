@@ -46,7 +46,7 @@ export const command: ICLICommand = {
     try {
       const {
  name, value, type, unit
-} = context.options as {
+} = context.args as {
         name: string;
         value: number;
         type: string;
@@ -61,8 +61,11 @@ export const command: ICLICommand = {
       }
 
       const metricService = MetricService.getInstance();
+      
+      // Initialize the service (safe to call multiple times)
+      metricService.initialize();
 
-      metricService.recordMetric({
+      await metricService.recordMetric({
         name,
         value,
         type: type as MetricType,
@@ -73,7 +76,8 @@ export const command: ICLICommand = {
 
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error recording metric');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      cliOutput.error(`Error recording metric: ${errorMessage}`);
       process.exit(1);
     }
   },

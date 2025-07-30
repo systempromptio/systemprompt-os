@@ -7,9 +7,9 @@ import {
  createHash, randomBytes, randomUUID
 } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
   AuthEvents,
   type LoginFailedEvent,
@@ -71,16 +71,7 @@ export class AuthenticationService {
    */
   private getDb(): DatabaseService {
     if (!this.dbService) {
-      try {
-        // Try to get from module registry first
-        const { getDatabaseModule } = require('@/modules/core/database/index');
-        const databaseModule = getDatabaseModule();
-        this.dbService = databaseModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { DatabaseService } = require('@/modules/core/database/services/database.service');
-        this.dbService = DatabaseService.getInstance();
-      }
+      this.dbService = DatabaseService.getInstance();
     }
     return this.dbService;
   }
@@ -91,16 +82,7 @@ export class AuthenticationService {
    */
   private getEventBus(): EventBusService {
     if (!this.eventBusService) {
-      try {
-        // Try to get from module registry first
-        const { getEventsModule } = require('@/modules/core/events/index');
-        const eventsModule = getEventsModule();
-        this.eventBusService = eventsModule.exports.eventBus();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { EventBusService } = require('@/modules/core/events/services/event-bus.service');
-        this.eventBusService = EventBusService.getInstance();
-      }
+      this.eventBusService = EventBusService.getInstance();
     }
     return this.eventBusService;
   }
@@ -111,16 +93,7 @@ export class AuthenticationService {
    */
   private getLogger(): ILogger {
     if (!this.loggerService) {
-      try {
-        // Try to get from module registry first
-        const { getLoggerModule } = require('@/modules/core/logger/index');
-        const loggerModule = getLoggerModule();
-        this.loggerService = loggerModule.exports.service();
-      } catch (error) {
-        // Fallback to direct import if module not available in registry
-        const { LoggerService } = require('@/modules/core/logger/services/logger.service');
-        this.loggerService = LoggerService.getInstance();
-      }
+      this.loggerService = LoggerService.getInstance();
     }
     return this.loggerService;
   }
@@ -230,7 +203,7 @@ export class AuthenticationService {
         refreshToken: session.refreshToken
       };
     } catch (error) {
-      this.logger.error(LogSource.AUTH, 'Authentication error', { error: error instanceof Error ? error.message : String(error) });
+      this.getLogger().error(LogSource.AUTH, 'Authentication error', { error: error instanceof Error ? error.message : String(error) });
       return {
         success: false,
         reason: 'Authentication failed'
@@ -261,7 +234,7 @@ export class AuthenticationService {
     const expiresAt = new Date(now.getTime() + SESSION_EXPIRY_HOURS * 60 * 60 * 1000);
     const refreshExpiresAt = new Date(now.getTime() + REFRESH_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-    await this.db.execute(
+    await this.getDb().execute(
       `INSERT INTO auth_sessions 
        (id, user_id, token_hash, refresh_token_hash, type, ip_address, user_agent, 
         expires_at, refresh_expires_at, created_at, last_activity_at)
@@ -281,7 +254,7 @@ export class AuthenticationService {
       expiresAt,
       timestamp: now
     };
-    this.eventBus.emit(AuthEvents.SESSION_CREATED, event);
+    this.getEventBus().emit(AuthEvents.SESSION_CREATED, event);
 
     return {
  id: sessionId,
@@ -298,7 +271,7 @@ refreshToken
   async validateSession(token: string): Promise<string | null> {
     const tokenHash = this.hashToken(token);
 
-    const sessions = await this.db.query<IAuthSessionsRow>(
+    const sessions = await this.getDb().query<IAuthSessionsRow>(
       `SELECT * FROM auth_sessions 
        WHERE token_hash = ? AND revoked_at IS NULL 
        AND datetime(expires_at) > datetime('now')`,
@@ -314,7 +287,7 @@ refreshToken
       return null;
     }
 
-    await this.db.execute(
+    await this.getDb().execute(
       `UPDATE auth_sessions SET last_activity_at = datetime('now') WHERE id = ?`,
       [session.id]
     );
@@ -345,7 +318,7 @@ refreshToken
       ? new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000)
       : null;
 
-    await this.db.execute(
+    await this.getDb().execute(
       `INSERT INTO auth_tokens 
        (id, user_id, name, token_hash, type, scope, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -365,7 +338,7 @@ refreshToken
       expiresAt: expiresAt || new Date(),
       timestamp: now
     };
-    this.eventBus.emit(AuthEvents.TOKEN_CREATED, event);
+    this.getEventBus().emit(AuthEvents.TOKEN_CREATED, event);
 
     return {
  id: tokenId,
@@ -381,7 +354,7 @@ token
   async validateApiToken(token: string): Promise<string | null> {
     const tokenHash = this.hashToken(token);
 
-    const tokens = await this.db.query<IAuthTokensRow>(
+    const tokens = await this.getDb().query<IAuthTokensRow>(
       `SELECT * FROM auth_tokens 
        WHERE token_hash = ? AND is_revoked = 0 
        AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))`,
@@ -397,7 +370,7 @@ token
       return null;
     }
 
-    await this.db.execute(
+    await this.getDb().execute(
       `UPDATE auth_tokens SET last_used_at = datetime('now') WHERE id = ?`,
       [apiToken.id]
     );
@@ -410,12 +383,12 @@ token
    * @param sessionId - Session ID.
    */
   async revokeSession(sessionId: string): Promise<void> {
-    await this.db.execute(
+    await this.getDb().execute(
       `UPDATE auth_sessions SET revoked_at = datetime('now') WHERE id = ?`,
       [sessionId]
     );
 
-    this.eventBus.emit(AuthEvents.SESSION_REVOKED, {
+    this.getEventBus().emit(AuthEvents.SESSION_REVOKED, {
       sessionId,
       timestamp: new Date()
     });
@@ -432,22 +405,22 @@ token
 
       const handler = (event: UserDataResponseEvent) => {
         if (event.requestId === requestId) {
-          this.eventBus.off(UserEvents.USER_DATA_RESPONSE, handler);
+          this.getEventBus().off(UserEvents.USER_DATA_RESPONSE, handler);
           resolve(event.user);
         }
       };
 
-      this.eventBus.on(UserEvents.USER_DATA_RESPONSE, handler as (data: unknown) => void);
+      this.getEventBus().on(UserEvents.USER_DATA_RESPONSE, handler as (data: unknown) => void);
 
       const request: UserDataRequestEvent = {
         requestId,
         username: username.includes('@') ? '' : username,
         email: username.includes('@') ? username : ''
       };
-      this.eventBus.emit(UserEvents.USER_DATA_REQUEST, request);
+      this.getEventBus().emit(UserEvents.USER_DATA_REQUEST, request);
 
       setTimeout(() => {
-        this.eventBus.off(UserEvents.USER_DATA_RESPONSE, handler);
+        this.getEventBus().off(UserEvents.USER_DATA_RESPONSE, handler);
         resolve(null);
       }, 5000);
     });
@@ -469,7 +442,7 @@ token
    * @returns Credentials or null.
    */
   private async getCredentials(userId: string): Promise<IAuthCredentialsRow | null> {
-    const results = await this.db.query<IAuthCredentialsRow>(
+    const results = await this.getDb().query<IAuthCredentialsRow>(
       'SELECT * FROM auth_credentials WHERE user_id = ?',
       [userId]
     );
@@ -495,7 +468,7 @@ token
       ipAddress: ipAddress || '',
       timestamp: new Date()
     };
-    this.eventBus.emit(AuthEvents.LOGIN_FAILED, event);
+    this.getEventBus().emit(AuthEvents.LOGIN_FAILED, event);
 
     return {
       success: false,
@@ -518,7 +491,7 @@ token
       lockedUntil = lockDate.toISOString();
     }
 
-    await this.db.execute(
+    await this.getDb().execute(
       `UPDATE auth_credentials 
        SET login_attempts = ?, locked_until = ? 
        WHERE user_id = ?`,
@@ -531,7 +504,7 @@ token
    * @param userId - User ID.
    */
   private async updateLastLogin(userId: string): Promise<void> {
-    await this.db.execute(
+    await this.getDb().execute(
       `UPDATE auth_credentials 
        SET last_login_at = datetime('now'), login_attempts = 0, locked_until = NULL 
        WHERE user_id = ?`,
