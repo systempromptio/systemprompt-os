@@ -286,10 +286,10 @@ export class SessionService {
 
     this.getLogger().info(LogSource.AUTH, 'All user sessions revoked', {
       userId,
-      count: (result as any).changes || 0
+      count: result.changes || 0
     });
 
-    return (result as any).changes || 0;
+    return result.changes || 0;
   }
 
   /**
@@ -317,7 +317,7 @@ export class SessionService {
             OR datetime(refresh_expires_at) <= datetime('now'))`
     );
 
-    const count = (result as any)?.changes || 0;
+    const count = result?.changes || 0;
     if (count > 0) {
       this.getLogger().info(LogSource.AUTH, 'Expired sessions cleaned up', { count });
     }

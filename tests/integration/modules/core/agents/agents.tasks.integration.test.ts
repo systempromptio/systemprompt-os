@@ -292,7 +292,7 @@ describe('Agent-Task Integration Tests', () => {
       // Check event
       const event = capturedEvents.find(e => 
         e.event === EventNames.TASK_CREATED && 
-        e.data.taskId === task.id
+        e.data.task.id === task.id
       );
       expect(event).toBeDefined();
     });

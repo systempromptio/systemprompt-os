@@ -29,14 +29,12 @@ export const command = {
         "Service": 'AuthService initialized',
       });
 
-      // Check if providers are initialized
       let providersCount = 0;
       try {
         await providersService.initialize();
         const providers = providersService.getAllProviderInstances();
         providersCount = providers.length;
       } catch (error) {
-        // Providers might not be initialized
       }
 
       cliOutput.section('Components');

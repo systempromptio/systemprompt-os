@@ -325,7 +325,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     this.deps = deps;
   }
 
-
   /**
    * Get error information from unknown error.
    * @param error - Unknown error.

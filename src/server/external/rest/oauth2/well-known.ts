@@ -23,9 +23,9 @@ export class WellKnownEndpoint {
       return res.json(config);
     } catch (error) {
       console.error('OAuth2 well-known metadata error:', error);
-      return res.status(500).json({ 
-        error: 'internal_server_error', 
-        error_description: error instanceof Error ? error.message : 'Unable to retrieve OAuth2 server metadata' 
+      return res.status(500).json({
+        error: 'internal_server_error',
+        error_description: error instanceof Error ? error.message : 'Unable to retrieve OAuth2 server metadata'
       });
     }
   };

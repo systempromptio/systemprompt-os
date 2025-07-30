@@ -1,5 +1,5 @@
 // Auto-generated database types for events module
-// Generated on: 2025-07-30T17:51:34.143Z
+// Generated on: 2025-07-30T22:16:41.628Z
 // Do not modify this file manually - it will be overwritten
 
 /**

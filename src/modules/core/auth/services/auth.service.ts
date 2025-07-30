@@ -224,15 +224,15 @@ export class AuthService {
         userId: user.id,
         type: 'web',
       };
-      
+
       if (input.ipAddress) {
         sessionInput.ipAddress = input.ipAddress;
       }
-      
+
       if (input.userAgent) {
         sessionInput.userAgent = input.userAgent;
       }
-      
+
       const session = await this.getSessionService().createSession(sessionInput);
       await this.updateLastLogin(user.id);
 
@@ -252,11 +252,11 @@ export class AuthService {
         accessToken: session.token_hash,
         session,
       };
-      
+
       if (session.refresh_token_hash) {
         result.refreshToken = session.refresh_token_hash;
       }
-      
+
       return result;
     } catch (error) {
       this.getLogger().error(LogSource.AUTH, 'Authentication error', {
@@ -311,7 +311,6 @@ export class AuthService {
     const tokenHash = this.hashToken(token);
 
     const now = new Date();
-    // Handle expires_in or expires_at
     let expires_at: string | null = null;
     if (input.expires_at) {
       expires_at = input.expires_at.toISOString();
@@ -326,7 +325,7 @@ export class AuthService {
       name: input.name,
       token_hash: tokenHash,
       type: input.type,
-      expires_at: expires_at,
+      expires_at,
       last_used_at: null,
       is_revoked: 0,
       created_at: now.toISOString(),
@@ -354,7 +353,10 @@ export class AuthService {
       );
     }
 
-    return { token, row: tokenRow };
+    return {
+ token,
+row: tokenRow
+};
   }
 
   /**
@@ -440,7 +442,7 @@ export class AuthService {
 
     await this.getSessionService().cleanupExpiredSessions();
 
-    return (result as any)?.changes || 0;
+    return result?.changes || 0;
   }
 
   /**
@@ -469,15 +471,15 @@ export class AuthService {
               id: event.user.id,
               email: event.user.email,
             };
-            
+
             if (event.user.username) {
               userResult.name = event.user.username;
             }
-            
+
             if (event.user.avatarUrl) {
               userResult.avatarUrl = event.user.avatarUrl;
             }
-            
+
             resolve(userResult);
           } else {
             this.getLogger().error(LogSource.AUTH, 'OAuth user creation failed', {
@@ -499,11 +501,11 @@ export class AuthService {
         providerId,
         email: profile.email,
       };
-      
+
       if (profile.name) {
         request.name = profile.name;
       }
-      
+
       if (profile.avatar) {
         request.avatar = profile.avatar;
       }

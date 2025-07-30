@@ -45,7 +45,6 @@ interface IAuthConfig {
   };
 }
 
-
 interface IJwtCreateParams {
   userId: string;
   email?: string;
@@ -55,7 +54,7 @@ interface IJwtCreateParams {
 }
 
 interface JwtPayload {
-  sub?: string;  // Standard JWT subject claim
+  sub?: string; // Standard JWT subject claim
   userId: string;
   sessionId?: string;
   type?: string;
@@ -63,12 +62,10 @@ interface JwtPayload {
   name?: string;
   roles?: string[];
   scope?: string[];
-  jti?: string;  // JWT ID
+  jti?: string; // JWT ID
   iat?: number;
   exp?: number;
 }
-
-type TokenType = 'api' | 'personal' | 'service' | 'access' | 'refresh';
 
 /**
  * Token management service.
@@ -173,9 +170,9 @@ export class TokenService {
     const payload: JwtPayload = {
       sub: params.userId,
       userId: params.userId,
-      email: params.email,
-      name: params.name,
-      roles: params.roles,
+      ...params.email && { email: params.email },
+      ...params.name && { name: params.name },
+      ...params.roles && { roles: params.roles },
       scope: params.scope ?? [],
       iat: now,
       exp: now + config.jwt.accessTokenTTL,
@@ -260,9 +257,7 @@ export class TokenService {
    * @returns Logger instance.
    */
   private getLogger(): ILogger {
-    if (!this.logger) {
-      this.logger = getLoggerService();
-    }
+    this.logger ||= getLoggerService();
     return this.logger;
   }
 
@@ -411,8 +406,8 @@ export class TokenService {
 
       return {
         valid: true,
-        userId: payload.sub,
-        scopes: payload.scope,
+        ...payload.sub && { userId: payload.sub },
+        ...payload.scope && { scopes: payload.scope },
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid JWT';
@@ -449,6 +444,7 @@ export class TokenService {
 
     const result: JwtPayload = {
       sub: String(obj.sub),
+      userId: String(obj.sub),
       email: String(obj.email),
       name: String(obj.name),
       roles: this.filterStringArray(Array.isArray(obj.roles) ? obj.roles : []),
@@ -487,33 +483,6 @@ export class TokenService {
   }
 
   /**
-   * Parse token type from string.
-   * @param type - Token type string.
-   * @returns Parsed token type.
-   */
-  private parseTokenType(type: string): TokenType {
-    switch (type) {
-      case 'access':
-      case 'refresh':
-      case 'api':
-      case 'personal':
-      case 'service':
-        return type;
-      default:
-        return 'api';
-    }
-  }
-
-  /**
-   * Parse last used at timestamp.
-   * @param lastUsedAt - Last used timestamp string.
-   * @returns Parsed date or null.
-   */
-  private parseLastUsedAt(lastUsedAt: string | null): Date | null {
-    return lastUsedAt === null ? null : new Date(lastUsedAt);
-  }
-
-  /**
    * Generate a unique token ID.
    * @returns Random token ID as hex string.
    */
@@ -542,26 +511,23 @@ export class TokenService {
 
   /**
    * Create access and refresh token pair.
-   * @param userId - User ID.
-   * @param user_id
-   * @param sessionId - Session ID.
+   * @param user_id - User ID.
    * @returns Promise resolving to token pair.
    */
   async createTokenPair(
-    user_id: string,
-    sessionId?: string
+    user_id: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessTokenResult = await this.createToken({
       user_id,
       name: 'access_token',
-      type: 'api' as const,  // Using api type for access tokens
+      type: 'api' as const,
       scopes: ['read', 'write'],
     });
 
     const refreshTokenResult = await this.createToken({
       user_id,
       name: 'refresh_token',
-      type: 'api' as const,  // Using api type for refresh tokens
+      type: 'api' as const,
       scopes: ['refresh'],
       expires_in: this.getConfig().jwt.refreshTokenTTL
     });

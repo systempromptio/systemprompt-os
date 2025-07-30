@@ -45,7 +45,6 @@ export class ProviderFactoryService {
       this.urlConfigService = UrlConfigService.getInstance();
       await this.urlConfigService.initialize();
     } catch (error) {
-      // UrlConfigService might not be available in some test scenarios
       this.logger.warn(LogSource.AUTH, 'UrlConfigService not available, using defaults', {
         error: error instanceof Error ? error.message : String(error)
       });
@@ -60,15 +59,12 @@ export class ProviderFactoryService {
    */
   async createProvider(config: IAuthProvidersRow): Promise<IIdentityProvider | null> {
     try {
-      // Build the base IDP configuration
       const idpConfig = await this.buildIdpConfig(config);
 
-      // For OIDC providers with discovery, fetch configuration
       if (config.type === 'oidc' && config.discovery_endpoint) {
         return await this.createOidcProviderWithDiscovery(config, idpConfig);
       }
 
-      // Create generic OAuth2/OIDC provider
       return await this.createGenericProvider(config, idpConfig);
     } catch (error) {
       this.logger.error(LogSource.AUTH, `Failed to create provider ${config.id}`, {
@@ -84,14 +80,12 @@ export class ProviderFactoryService {
    * @returns Promise resolving to IDP configuration.
    */
   private async buildIdpConfig(config: IAuthProvidersRow): Promise<IDPConfig> {
-    // Get the redirect URI, using system URL if not specified
     let redirectUri = config.redirect_uri;
     if (!redirectUri && this.urlConfigService) {
       try {
         const baseUrl = await this.urlConfigService.getOAuthCallbackBaseUrl();
         redirectUri = `${baseUrl}/oauth2/callback/${config.id}`;
       } catch (error) {
-        // Fall back to default if URL config service fails
         redirectUri = `http://localhost:3000/oauth2/callback/${config.id}`;
       }
     }
@@ -117,9 +111,8 @@ export class ProviderFactoryService {
     this.logger.info(LogSource.AUTH, `Discovering OIDC configuration for ${config.id}`);
 
     let discovered: Partial<IGenericOAuth2Config> = {};
-    
+
     try {
-      // Try to discover OIDC configuration
       discovered = await discoverOidcConfiguration(config.discovery_endpoint!);
     } catch (error) {
       this.logger.warn(LogSource.AUTH, `Failed to discover OIDC configuration for ${config.id}, using database config`, {
@@ -127,7 +120,6 @@ export class ProviderFactoryService {
       });
     }
 
-    // Merge discovered config with database config (database takes precedence for explicit values)
     const genericConfig: IGenericOAuth2Config = {
       id: config.id,
       name: config.name,
@@ -136,14 +128,32 @@ export class ProviderFactoryService {
       redirectUri: idpConfig.redirectUri,
       authorizationEndpoint: config.authorization_endpoint || discovered.authorizationEndpoint!,
       tokenEndpoint: config.token_endpoint || discovered.tokenEndpoint!,
-      userinfoEndpoint: config.userinfo_endpoint || discovered.userinfoEndpoint,
-      jwksUri: config.jwks_uri || discovered.jwksUri,
-      issuer: config.issuer || discovered.issuer || config.discovery_endpoint, // Use discovery endpoint as issuer if not set
       scope: idpConfig.scope || 'openid email profile',
-      userinfoMapping: config.userinfo_mapping ? JSON.parse(config.userinfo_mapping) : undefined,
     };
 
-    // Add any metadata as authorization params
+    const userinfoEndpoint = config.userinfo_endpoint || discovered.userinfoEndpoint;
+    if (userinfoEndpoint) {
+      genericConfig.userinfoEndpoint = userinfoEndpoint;
+    }
+
+    const jwksUri = config.jwks_uri || discovered.jwksUri;
+    if (jwksUri) {
+      genericConfig.jwksUri = jwksUri;
+    }
+
+    const issuer = config.issuer || discovered.issuer || config.discovery_endpoint;
+    if (issuer) {
+      genericConfig.issuer = issuer;
+    }
+
+    if (config.userinfo_mapping) {
+      try {
+        genericConfig.userinfoMapping = JSON.parse(config.userinfo_mapping);
+      } catch (error) {
+        this.logger.warn(LogSource.AUTH, `Invalid userinfo mapping for ${config.id}`);
+      }
+    }
+
     if (config.metadata) {
       const metadata = JSON.parse(config.metadata);
       if (metadata && typeof metadata === 'object') {
@@ -175,7 +185,6 @@ export class ProviderFactoryService {
       scope: idpConfig.scope || 'openid email profile',
     };
 
-    // Add optional fields if present
     if (config.userinfo_endpoint) {
       genericConfig.userinfoEndpoint = config.userinfo_endpoint;
     }
@@ -185,11 +194,9 @@ export class ProviderFactoryService {
     if (config.issuer) {
       genericConfig.issuer = config.issuer;
     } else if (config.type === 'oidc') {
-      // For OIDC providers without explicit issuer, derive from discovery endpoint or authorization endpoint
       if (config.discovery_endpoint) {
         genericConfig.issuer = config.discovery_endpoint.replace('/.well-known/openid-configuration', '');
       } else if (config.authorization_endpoint) {
-        // Extract base URL as issuer
         const url = new URL(config.authorization_endpoint);
         genericConfig.issuer = url.origin;
       }
@@ -202,15 +209,14 @@ export class ProviderFactoryService {
       }
     }
 
-    // Parse metadata for additional parameters
     if (config.metadata) {
       try {
         const metadata = JSON.parse(config.metadata);
         if (metadata && typeof metadata === 'object') {
-          // Extract known OAuth2 parameters
-          const { response_type, grant_type, token_method, token_auth, ...authParams } = metadata;
-          
-          // Add authorization parameters
+          const {
+ response_type, grant_type, token_method, token_auth, ...authParams
+} = metadata;
+
           if (Object.keys(authParams).length > 0) {
             genericConfig.authorizationParams = authParams;
           }
@@ -230,13 +236,11 @@ export class ProviderFactoryService {
    * @returns True if valid, false otherwise.
    */
   validateProviderConfig(config: IAuthProvidersRow): boolean {
-    // Required fields for all providers
     if (!config.id || !config.name || !config.type || !config.client_id || !config.client_secret) {
       this.logger.error(LogSource.AUTH, 'Provider missing required fields', { id: config.id });
       return false;
     }
 
-    // OAuth2 providers need authorization and token endpoints
     if (config.type === 'oauth2') {
       if (!config.authorization_endpoint || !config.token_endpoint) {
         this.logger.error(LogSource.AUTH, 'OAuth2 provider missing endpoints', { id: config.id });
@@ -244,7 +248,6 @@ export class ProviderFactoryService {
       }
     }
 
-    // OIDC providers need either discovery or explicit endpoints
     if (config.type === 'oidc') {
       if (!config.discovery_endpoint && (!config.authorization_endpoint || !config.token_endpoint)) {
         this.logger.error(LogSource.AUTH, 'OIDC provider needs discovery or endpoints', { id: config.id });

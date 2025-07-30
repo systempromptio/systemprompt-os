@@ -108,7 +108,7 @@ export class DatabaseService implements IDatabaseService {
    */
   public async execute(sql: string, params?: unknown[]): Promise<any> {
     const connection = await this.getConnection();
-    return await connection.execute(sql, params);
+    await connection.execute(sql, params);
   }
 
   /**

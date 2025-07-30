@@ -55,9 +55,8 @@ export class SqliteConnection implements IDatabaseConnection {
     if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
       return stmt.run(...params);
-    } else {
-      return this.db.exec(sql);
     }
+      return this.db.exec(sql);
   }
 
   /**

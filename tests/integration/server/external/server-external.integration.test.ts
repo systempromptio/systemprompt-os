@@ -105,7 +105,7 @@ describe('Server External API Integration Tests', () => {
         .expect(200)
         .expect('Content-Type', /json/);
       
-      expect(response.body).toHaveProperty('status', 'healthy');
+      expect(response.body).toHaveProperty('status', 'ok');
       expect(response.body).toHaveProperty('timestamp');
     });
 

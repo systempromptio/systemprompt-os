@@ -5,10 +5,9 @@
  */
 
 import {
- existsSync, mkdirSync, readFileSync
+ existsSync, mkdirSync
 } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/database.generated';
 import type { IModule } from '@/modules/core/modules/types';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
@@ -33,7 +32,6 @@ import type {
 import {
   type IAuthTokensRow,
 } from '@/modules/core/auth/types/database.generated';
-
 
 /**
  * AuthModule provides authentication and authorization.
@@ -68,13 +66,12 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       hasProvider: (id: string) => { return this.hasProvider(id) },
       getProvidersService: () => { return this.providersService },
       getProviderRegistry: () => {
-        // Return a provider registry interface that the server can use
         return {
-          get: (providerId: string) => this.providersService.getProviderInstance(providerId),
-          getProvider: (providerId: string) => this.providersService.getProviderInstance(providerId),
-          list: () => this.providersService.getAllProviderInstances(),
-          getAllProviders: () => this.providersService.getAllProviderInstances(),
-          has: (providerId: string) => this.providersService.hasProvider(providerId),
+          get: (providerId: string) => { return this.providersService.getProviderInstance(providerId) },
+          getProvider: (providerId: string) => { return this.providersService.getProviderInstance(providerId) },
+          list: () => { return this.providersService.getAllProviderInstances() },
+          getAllProviders: () => { return this.providersService.getAllProviderInstances() },
+          has: (providerId: string) => { return this.providersService.hasProvider(providerId) },
           register: () => {
             console.warn('Provider registration is managed by auth module configuration');
           }
@@ -227,19 +224,19 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     const validationResult: TokenValidationResult = {
       valid: result !== null
     };
-    
+
     if (result?.userId) {
       validationResult.userId = result.userId;
     }
-    
+
     if (result?.scopes) {
       validationResult.scopes = result.scopes;
     }
-    
+
     if (result === null) {
       validationResult.reason = 'Invalid or expired token';
     }
-    
+
     return validationResult;
   }
 
@@ -343,7 +340,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     return await this.providersService.deleteProvider(id);
   }
 
-
   /**
    * Setup JWT keys for token signing.
    */
@@ -422,7 +418,7 @@ export const initialize = async (): Promise<AuthModule> => {
  * @throws {Error} If Auth module is not available or missing required exports.
  */
 export const getAuthModule = (): IModule<IAuthModuleExports> => {
-  const { getModuleRegistry } = require('@/modules/core/modules/index');
+  const { getModuleRegistry } = require('@/modules/loader');
   const { ModuleName } = require('@/modules/types/module-names.types');
 
   const registry = getModuleRegistry();

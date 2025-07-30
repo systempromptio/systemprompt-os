@@ -79,8 +79,10 @@ export class DatabaseResetService {
         const dbPath = this.getDatabasePath();
         
         if (existsSync(dbPath)) {
-          // Note: DatabaseService doesn't have a close method
-          // Connections will be closed when the process exits
+          /*
+           * Note: DatabaseService doesn't have a close method
+           * Connections will be closed when the process exits
+           */
 
           await unlink(dbPath);
           databaseRemoved = true;

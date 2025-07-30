@@ -356,7 +356,7 @@ export class TokenEndpoint {
     const now = Math.floor(Date.now() / 1000);
 
     let userData: IUserData | null = null;
-    let userRoles: string[] = [];
+    const userRoles: string[] = [];
     try {
       const authRepo = AuthRepository.getInstance();
       const user = await authRepo.getIUserById(userId);
@@ -368,7 +368,6 @@ export class TokenEndpoint {
           avatar: user.avatarUrl ?? undefined,
           roles: []
         };
-        // Roles are handled by permissions module, not auth
         if (userData !== null) {
           userData.roles = [];
         }

@@ -9,7 +9,7 @@
 
 import { Command } from 'commander';
 import { SystemService } from '@/modules/core/system/services/system.service';
-import { SystemConfigType } from '@/modules/core/system/types/index';
+import type { SystemConfigType } from '@/modules/core/system/types/index';
 
 const ERROR_EXIT_CODE = 1;
 

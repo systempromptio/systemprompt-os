@@ -57,7 +57,7 @@ export const command: ICLICommand = {
         command,
         scope: scope || 'local',
         transport: transport || 'stdio',
-        ...(description && { description })
+        ...description && { description }
       };
 
       if (argsString) {

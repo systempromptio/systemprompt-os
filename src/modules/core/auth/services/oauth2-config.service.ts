@@ -29,8 +29,6 @@ export class OAuth2ConfigurationService {
    * @returns Promise that resolves to the current base URL.
    */
   async getBaseUrl(): Promise<string> {
-    // For now, use environment variables directly to avoid circular dependencies
-    // The system module integration will be improved in a future update
     return process.env.BASE_URL || process.env.OAUTH_BASE_URL || 'https://democontainer.systemprompt.io';
   }
 

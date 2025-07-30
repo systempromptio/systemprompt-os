@@ -132,17 +132,17 @@ export class AuthRepository {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      
+
       if (user.name !== null && user.name !== undefined) {
         result.name = user.name;
       }
-      
+
       if (user.avatarUrl !== null && user.avatarUrl !== undefined) {
         result.avatarUrl = user.avatarUrl;
       }
-      
+
       result.lastLoginAt = new Date().toISOString();
-      
+
       return result;
     } catch (error) {
       throw new Error(`Failed to upsert OAuth user: ${error instanceof Error ? error.message : String(error)}`);

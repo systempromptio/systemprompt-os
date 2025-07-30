@@ -26,7 +26,7 @@ export interface IUrlConfig {
  */
 export enum UrlSource {
   TUNNEL = 'tunnel',
-  ENVIRONMENT = 'environment', 
+  ENVIRONMENT = 'environment',
   CONFIG = 'config',
   DEFAULT = 'default'
 }
@@ -43,10 +43,6 @@ export class UrlConfigService {
   private cachedConfig?: IUrlConfig;
   private cacheExpiry?: Date;
   private readonly cacheTimeoutMs = 30000; // 30 seconds
-
-  /**
-   * Configuration keys used in system configuration.
-   */
   private static readonly CONFIG_KEYS = {
     BASE_URL: 'system.url.base',
     TUNNEL_URL: 'system.url.tunnel',
@@ -64,9 +60,7 @@ export class UrlConfigService {
    * @returns The URL configuration service instance.
    */
   static getInstance(): UrlConfigService {
-    if (!UrlConfigService.instance) {
-      UrlConfigService.instance = new UrlConfigService();
-    }
+    UrlConfigService.instance ||= new UrlConfigService();
     return UrlConfigService.instance;
   }
 
@@ -89,13 +83,12 @@ export class UrlConfigService {
 
   /**
    * Get the current URL configuration with priority-based resolution.
-   * Priority: 1. Tunnel URL, 2. Environment variables, 3. System config, 4. Defaults
+   * Priority: 1. Tunnel URL, 2. Environment variables, 3. System config, 4. Defaults.
    * @returns Promise that resolves to the current URL configuration.
    */
   async getUrlConfig(): Promise<IUrlConfig> {
     await this.ensureInitialized();
 
-    // Return cached config if still valid
     if (this.cachedConfig && this.cacheExpiry && new Date() < this.cacheExpiry) {
       return this.cachedConfig;
     }
@@ -157,7 +150,6 @@ export class UrlConfigService {
       );
     }
 
-    // Clear cache to force refresh
     this.clearCache();
 
     this.logger?.info(LogSource.SYSTEM, `Tunnel URL updated: ${tunnelUrl}`, {
@@ -234,25 +226,21 @@ export class UrlConfigService {
   private async resolveUrlConfig(): Promise<IUrlConfig> {
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
-    // Priority 1: Check for tunnel URL (highest priority)
     const tunnelUrl = await this.getTunnelUrl();
     if (tunnelUrl) {
       return this.buildConfig(tunnelUrl, UrlSource.TUNNEL, isDevelopment);
     }
 
-    // Priority 2: Environment variables
     const envUrl = process.env.BASE_URL || process.env.OAUTH_BASE_URL;
-    if (envUrl) {
+    if (envUrl?.trim() && envUrl.trim() !== '/') {
       return this.buildConfig(envUrl, UrlSource.ENVIRONMENT, isDevelopment);
     }
 
-    // Priority 3: System configuration
     const configUrl = await this.systemService!.getConfig(UrlConfigService.CONFIG_KEYS.BASE_URL);
-    if (configUrl) {
+    if (configUrl && configUrl.trim()) {
       return this.buildConfig(configUrl, UrlSource.CONFIG, isDevelopment);
     }
 
-    // Priority 4: Default values
     const defaultUrl = isDevelopment ? 'http://localhost:3000' : 'https://democontainer.systemprompt.io';
     return this.buildConfig(defaultUrl, UrlSource.DEFAULT, isDevelopment);
   }
@@ -262,15 +250,13 @@ export class UrlConfigService {
    * @returns Promise that resolves to the tunnel URL or null.
    */
   private async getTunnelUrl(): Promise<string | null> {
-    // Check system configuration first
     const configTunnelUrl = await this.systemService!.getConfig(UrlConfigService.CONFIG_KEYS.TUNNEL_URL);
-    if (configTunnelUrl) {
+    if (configTunnelUrl && configTunnelUrl.trim()) {
       return configTunnelUrl;
     }
 
-    // Check environment variables
     const envTunnelUrl = process.env.TUNNEL_URL || process.env.CLOUDFLARE_TUNNEL_URL;
-    if (envTunnelUrl) {
+    if (envTunnelUrl?.trim()) {
       return envTunnelUrl;
     }
 
@@ -297,7 +283,7 @@ export class UrlConfigService {
 
     return {
       baseUrl: normalizedUrl,
-      ...(source === UrlSource.TUNNEL && { tunnelUrl: normalizedUrl }),
+      ...source === UrlSource.TUNNEL && { tunnelUrl: normalizedUrl },
       oauthCallbackBaseUrl: normalizedUrl,
       isSecure,
       isDevelopment
@@ -312,12 +298,14 @@ export class UrlConfigService {
   private normalizeUrl(url: string): string {
     let normalized = url.trim();
 
-    // Add protocol if missing
+    if (!normalized) {
+      return normalized;
+    }
+
     if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
       normalized = `https://${normalized}`;
     }
 
-    // Remove trailing slash
     if (normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
@@ -333,7 +321,6 @@ export class UrlConfigService {
     const isDevelopment = process.env.NODE_ENV !== 'production';
     const defaultBaseUrl = isDevelopment ? 'http://localhost:3000' : 'https://democontainer.systemprompt.io';
 
-    // Only set if not already configured
     const existingBaseUrl = await this.systemService!.getConfig(UrlConfigService.CONFIG_KEYS.BASE_URL);
     if (!existingBaseUrl) {
       await this.systemService!.setConfig(

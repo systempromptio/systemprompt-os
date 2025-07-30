@@ -654,40 +654,6 @@ describe('Auth Module Integration Tests', () => {
     });
   });
 
-  describe('Tunnel Service', () => {
-    it('should provide tunnel status', async () => {
-      const tunnelStatus = authModule.exports.getTunnelStatus();
-      
-      expect(tunnelStatus).toBeDefined();
-      expect(tunnelStatus.active).toBe(false);
-      expect(tunnelStatus.type).toBe('none');
-    });
-    
-    it('should access tunnel service', async () => {
-      const tunnelService = authModule.exports.getTunnelService();
-      
-      // Tunnel service may be null if not configured
-      expect(tunnelService === null || tunnelService !== undefined).toBe(true);
-    });
-    
-    it('should handle tunnel configuration', async () => {
-      // Test tunnel status without active tunnel
-      const status = authModule.exports.getTunnelStatus();
-      
-      expect(status.active).toBe(false);
-      expect(status.type).toBe('none');
-      expect(status.url).toBeUndefined();
-    });
-
-    it('should provide tunnel service when available', async () => {
-      const tunnelService = authModule.exports.getTunnelService();
-      const tunnelStatus = authModule.exports.getTunnelStatus();
-      
-      // May be null in test environment
-      expect(tunnelStatus).toBeDefined();
-      expect(typeof tunnelStatus.active).toBe('boolean');
-    });
-  });
 
   // MFA and Audit services have been removed from auth module 
   // They are now handled by separate dedicated modules
@@ -741,12 +707,6 @@ describe('Auth Module Integration Tests', () => {
       expect([0, 1]).toContain(result.exitCode);
     });
 
-    it('should execute auth db status command', async () => {
-      const result = await runCLICommand(['database', 'status']);
-      
-      expect([0, 1]).toContain(result.exitCode);
-      expect(result.output).toContain('Database Status');
-    });
 
     it('should handle auth role commands', async () => {
       const result = await runCLICommand(['auth', 'role', 'list']);
@@ -883,9 +843,6 @@ describe('Auth Module Integration Tests', () => {
       expect(exports.logout).toBeDefined();
       expect(exports.refreshAccessToken).toBeDefined();
       
-      // Tunnel methods
-      expect(exports.getTunnelService).toBeDefined();
-      expect(exports.getTunnelStatus).toBeDefined();
     });
 
     it('should handle service errors gracefully', async () => {

@@ -444,6 +444,15 @@ export const getModuleLoader = (configPath?: string): ModuleLoader => {
 };
 
 /**
+ * Gets the module registry from the singleton module loader instance.
+ * @returns The module registry instance.
+ * @public
+ */
+export const getModuleRegistry = () => {
+  return getModuleLoader().getRegistry();
+};
+
+/**
  * Resets the singleton module loader instance.
  * This is primarily used for testing purposes to ensure clean state.
  * @public

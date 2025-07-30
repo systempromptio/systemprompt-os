@@ -85,7 +85,6 @@ export class ProvidersService {
    * Initialize the service and load enabled providers.
    */
   async initialize(): Promise<void> {
-    // Initialize provider factory lazily
     this.providerFactory = ProviderFactoryService.getInstance();
     await this.providerFactory.initialize();
     await this.loadEnabledProviders();
@@ -245,18 +244,19 @@ export class ProvidersService {
    * @param id
    */
   async deleteProvider(id: string): Promise<boolean> {
-    const result = await this.database.execute(
+    const existing = await this.getProvider(id);
+    if (!existing) {
+      return false;
+    }
+
+    await this.database.execute(
       'DELETE FROM auth_providers WHERE id = ?',
       [id]
     );
 
     this.providerInstances.delete(id);
-
-    if ((result as any).changes && (result as any).changes > 0) {
-      this.logger.info(LogSource.AUTH, `Deleted provider: ${id}`);
-      return true;
-    }
-    return false;
+    this.logger.info(LogSource.AUTH, `Deleted provider: ${id}`);
+    return true;
   }
 
   /**
@@ -353,19 +353,16 @@ export class ProvidersService {
    * @param config
    */
   private async instantiateProvider(config: IAuthProvidersRow): Promise<void> {
-    // Ensure factory is initialized
     if (!this.providerFactory) {
       this.providerFactory = ProviderFactoryService.getInstance();
       await this.providerFactory.initialize();
     }
 
-    // Validate configuration
     if (!this.providerFactory.validateProviderConfig(config)) {
       this.logger.error(LogSource.AUTH, `Invalid provider configuration for ${config.id}`);
       return;
     }
 
-    // Use factory to create provider
     const provider = await this.providerFactory.createProvider(config);
 
     if (provider) {
@@ -375,5 +372,4 @@ export class ProvidersService {
       this.logger.error(LogSource.AUTH, `Failed to instantiate provider: ${config.id}`);
     }
   }
-
 }

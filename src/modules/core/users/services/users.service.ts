@@ -339,7 +339,7 @@ export class UsersService implements IUsersService {
             id: user.id,
             username: user.username,
             email: user.email,
-            ...(user.avatarUrl && { avatarUrl: user.avatarUrl }),
+            ...user.avatarUrl && { avatarUrl: user.avatarUrl },
             roles: []
           }
         };

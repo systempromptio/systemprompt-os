@@ -12,6 +12,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
+import { UrlConfigService } from '@/modules/core/system/services/url-config.service';
 import type { Server } from 'http';
 
 const logger = LoggerService.getInstance();
@@ -120,20 +121,32 @@ export const startServer = async function startServer(
   const app = await createApp();
   const serverPort = port ?? parseInt(CONFIG.PORT, 10);
 
-  const server = app.listen(serverPort, '0.0.0.0', (): void => {
-    logger.info(LogSource.SERVER, `🚀 systemprompt-os running on port ${String(serverPort)}`);
-    logger.info(LogSource.SERVER, `📡 API endpoint: http://localhost:${String(serverPort)}`);
-    logger.info(
-      LogSource.SERVER,
-      `🔐 OAuth2 discovery: http://localhost:${String(serverPort)}`
-        + '/.well-known/oauth-protected-resource',
-    );
+  const urlConfigService = UrlConfigService.getInstance();
+  await urlConfigService.initialize();
 
-    const AUTH_STATUS_DELAY = 2000;
-    setTimeout((): void => {
-      const registryDelayed = getModuleRegistry();
-      const authModuleDelayed = registryDelayed.get(ModuleName.AUTH);
-    }, AUTH_STATUS_DELAY);
+  const server = app.listen(serverPort, '0.0.0.0', async (): Promise<void> => {
+    try {
+      const urlConfig = await urlConfigService.getUrlConfig();
+      const {baseUrl} = urlConfig;
+      const isTunnel = Boolean(urlConfig.tunnelUrl);
+
+      logger.info(LogSource.SERVER, `🚀 systemprompt-os running on port ${String(serverPort)}`);
+
+      if (isTunnel) {
+        logger.info(LogSource.SERVER, `🌐 Public URL (tunnel): ${baseUrl}`);
+        logger.info(LogSource.SERVER, `📡 API endpoint: ${baseUrl}`);
+        logger.info(LogSource.SERVER, `🔐 OAuth2 discovery: ${baseUrl}/.well-known/oauth-protected-resource`);
+      } else {
+        logger.info(LogSource.SERVER, `📡 Local endpoint: http://localhost:${String(serverPort)}`);
+        logger.info(LogSource.SERVER, `🌐 Public URL: ${baseUrl}`);
+        logger.info(LogSource.SERVER, `🔐 OAuth2 discovery: ${baseUrl}/.well-known/oauth-protected-resource`);
+      }
+    } catch (error) {
+      logger.warn(LogSource.SERVER, 'Failed to get URL configuration, using localhost', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      logger.info(LogSource.SERVER, `📡 Local endpoint: http://localhost:${String(serverPort)}`);
+    }
   });
 
   return server;

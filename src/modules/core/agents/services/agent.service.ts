@@ -264,7 +264,7 @@ status
     }
 
     await this.repository.updateAgent(agentId, {
-      status: AgentsStatusEnum.IDLE
+      status: AgentsStatusEnum.ACTIVE
     });
 
     this.eventBus.emit(EventNames.AGENT_IDLE, {
