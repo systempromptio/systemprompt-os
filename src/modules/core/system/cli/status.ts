@@ -36,7 +36,7 @@ export const command = {
         'Platform': info.platform,
         'Hostname': info.hostname,
         'Architecture': info.architecture,
-        'Node Version': info.nodeVersion,
+        'Node Version': info.node_version,
         'Environment': info.environment,
         'Uptime': `${Math.floor(info.uptime / 60)} minutes`,
       });

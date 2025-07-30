@@ -51,12 +51,12 @@ export class SqliteConnection implements IDatabaseConnection {
    * @param params - Optional parameters for the statement.
    * @returns Promise that resolves when complete.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<void> {
+  public async execute(sql: string, params?: unknown[]): Promise<any> {
     if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
-      stmt.run(...params);
+      return stmt.run(...params);
     } else {
-      this.db.exec(sql);
+      return this.db.exec(sql);
     }
   }
 

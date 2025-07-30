@@ -4,24 +4,33 @@
 CREATE TABLE IF NOT EXISTS system_config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('string', 'number', 'boolean', 'json')),
+    type TEXT NOT NULL CHECK (type IN ('string', 'number', 'boolean')),
     description TEXT,
-    is_secret BOOLEAN DEFAULT FALSE,
-    is_readonly BOOLEAN DEFAULT FALSE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    is_secret INTEGER DEFAULT 0,
+    is_readonly INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS system_modules (
     name TEXT PRIMARY KEY,
     version TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('active', 'inactive', 'error')),
-    enabled BOOLEAN DEFAULT TRUE,
-    metadata TEXT, -- JSON metadata
-    initialized_at DATETIME,
-    last_health_check DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    enabled INTEGER DEFAULT 1,
+    initialized_at TEXT,
+    last_health_check TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Normalized table for module metadata
+CREATE TABLE IF NOT EXISTS system_module_metadata (
+    module_name TEXT NOT NULL,
+    metadata_key TEXT NOT NULL,
+    metadata_value TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (module_name, metadata_key),
+    FOREIGN KEY (module_name) REFERENCES system_modules(name) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS system_events (
@@ -30,16 +39,24 @@ CREATE TABLE IF NOT EXISTS system_events (
     source TEXT NOT NULL,
     severity TEXT NOT NULL CHECK (severity IN ('debug', 'info', 'warning', 'error', 'critical')),
     message TEXT NOT NULL,
-    metadata TEXT, -- JSON metadata
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Normalized table for event metadata
+CREATE TABLE IF NOT EXISTS system_event_metadata (
+    event_id INTEGER NOT NULL,
+    metadata_key TEXT NOT NULL,
+    metadata_value TEXT NOT NULL,
+    PRIMARY KEY (event_id, metadata_key),
+    FOREIGN KEY (event_id) REFERENCES system_events(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS system_maintenance (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL CHECK (type IN ('scheduled', 'emergency')),
     reason TEXT NOT NULL,
-    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    ended_at DATETIME,
+    started_at TEXT DEFAULT (datetime('now')),
+    ended_at TEXT,
     created_by TEXT,
     notes TEXT
 );

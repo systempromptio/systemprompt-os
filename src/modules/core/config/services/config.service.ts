@@ -7,7 +7,7 @@ import type {
  ConfigValue, IConfigEntry, IConfigService, IMcpServerConfig, IMcpServerEntry
 } from '@/modules/core/config/types/index';
 import type {
- IConfigsRow, IMcpServersRow, McpServersScope, McpServersStatus, McpServersTransport
+ IConfigsRow, IMcpServersRow, McpServersStatus
 } from '@/modules/core/config/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 

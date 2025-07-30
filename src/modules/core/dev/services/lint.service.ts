@@ -152,7 +152,7 @@ export class LintService {
             result.totalFiles++;
           }
 
-          currentFile = fileMatch[1];
+          currentFile = fileMatch[1]!;
           currentFileErrors = 0;
           currentFileWarnings = 0;
           currentMessages.length = 0;
@@ -172,9 +172,9 @@ export class LintService {
           }
 
           currentMessages.push({
-            line: parseInt(lineNum, 10),
-            column: parseInt(column, 10),
-            message,
+            line: parseInt(lineNum!, 10),
+            column: parseInt(column!, 10),
+            message: message!,
             ruleId: ruleId || 'unknown',
             severity: severityNum
           });
@@ -195,8 +195,8 @@ export class LintService {
     if (result.results.length === 0) {
       const summaryMatch = (stdout + stderr).match(/(\d+)\s+errors?\s+and\s+(\d+)\s+warnings?/);
       if (summaryMatch) {
-        result.totalErrors = parseInt(summaryMatch[1], 10);
-        result.totalWarnings = parseInt(summaryMatch[2], 10);
+        result.totalErrors = parseInt(summaryMatch[1]!, 10);
+        result.totalWarnings = parseInt(summaryMatch[2]!, 10);
       }
 
       if (exitCode === 0 && result.totalErrors === 0 && result.totalWarnings === 0) {

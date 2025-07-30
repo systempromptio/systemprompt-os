@@ -2,9 +2,9 @@
  * Database reset CLI service wrapper.
  * Provides a clean interface for CLI commands to perform complete database reset operations.
  */
-import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { RebuildHelperService } from '@/modules/core/database/services/rebuild-helper.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/index';
 import { unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
@@ -71,7 +71,6 @@ export class DatabaseResetService {
         };
       }
 
-      const dbService = DatabaseService.getInstance();
       let databaseRemoved = false;
 
       // Step 1: Remove the database file completely
@@ -80,20 +79,16 @@ export class DatabaseResetService {
         const dbPath = this.getDatabasePath();
         
         if (existsSync(dbPath)) {
-          // Close any existing connections first
-          try {
-            await dbService.close();
-          } catch (error) {
-            // Connection might already be closed, that's OK
-          }
+          // Note: DatabaseService doesn't have a close method
+          // Connections will be closed when the process exits
 
           await unlink(dbPath);
           databaseRemoved = true;
           if (logger) {
-            logger.info('DATABASE_RESET', `Database file removed: ${dbPath}`);
+            logger.info(LogSource.CLI, `Database file removed: ${dbPath}`);
           }
         } else if (logger) {
-            logger.info('DATABASE_RESET', 'Database file does not exist, nothing to remove');
+            logger.info(LogSource.CLI, 'Database file does not exist, nothing to remove');
           }
 
         // Also remove WAL and SHM files if they exist
@@ -103,14 +98,14 @@ export class DatabaseResetService {
         if (existsSync(walPath)) {
           await unlink(walPath);
           if (logger) {
-            logger.info('DATABASE_RESET', `WAL file removed: ${walPath}`);
+            logger.info(LogSource.CLI, `WAL file removed: ${walPath}`);
           }
         }
         
         if (existsSync(shmPath)) {
           await unlink(shmPath);
           if (logger) {
-            logger.info('DATABASE_RESET', `SHM file removed: ${shmPath}`);
+            logger.info(LogSource.CLI, `SHM file removed: ${shmPath}`);
           }
         }
       } catch (error) {
@@ -127,24 +122,9 @@ export class DatabaseResetService {
         };
       }
 
-      // Step 2: Reinitialize the database service
-      try {
-        await dbService.initialize();
-        if (logger) {
-          logger.info('DATABASE_RESET', 'Database service reinitialized');
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          success: false,
-          message: `Failed to reinitialize database: ${errorMessage}`,
-          details: {
-            databaseRemoved,
-            schemasFound: 0,
-            filesImported: 0,
-            errors: [errorMessage]
-          }
-        };
+      // Database service will be reinitialized when needed
+      if (logger) {
+        logger.info(LogSource.CLI, 'Database files removed successfully');
       }
 
       // Step 3: Discover and import schemas

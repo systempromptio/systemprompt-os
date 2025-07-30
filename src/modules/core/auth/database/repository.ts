@@ -125,16 +125,25 @@ export class AuthRepository {
         throw new Error('Failed to create/update OAuth user');
       }
 
-      return {
+      const result: IUser = {
         id: user.id,
         email: user.email,
-        name: user.name ?? undefined,
-        avatarUrl: user.avatarUrl ?? undefined,
         isActive: true,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
+      
+      if (user.name !== null && user.name !== undefined) {
+        result.name = user.name;
+      }
+      
+      if (user.avatarUrl !== null && user.avatarUrl !== undefined) {
+        result.avatarUrl = user.avatarUrl;
+      }
+      
+      result.lastLoginAt = new Date().toISOString();
+      
+      return result;
     } catch (error) {
       throw new Error(`Failed to upsert OAuth user: ${error instanceof Error ? error.message : String(error)}`);
     }

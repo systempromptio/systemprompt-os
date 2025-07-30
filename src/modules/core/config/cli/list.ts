@@ -134,7 +134,6 @@ export const command = {
           }, {})
         : configList;
 
-      const logger = LoggerService.getInstance();
       const cliOutput = CliOutputService.getInstance();
 
       if (!configData || typeof configData === 'object'

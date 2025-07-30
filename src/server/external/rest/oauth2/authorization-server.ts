@@ -21,17 +21,17 @@ export class AuthorizationServerEndpoint {
    * Sets appropriate headers and returns metadata regardless of request method.
    * @param req - Express request object.
    * @param res - Express response object.
-   * @returns Express response with JSON metadata.
+   * @returns Promise that resolves to Express response with JSON metadata.
    */
-  getAuthorizationServerMetadata = (
+  getAuthorizationServerMetadata = async (
     req: ExpressRequest,
     res: ExpressResponse
-  ): ExpressResponse => {
+  ): Promise<ExpressResponse> => {
     try {
       if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' });
       }
-      const metadata = this.getMetadata();
+      const metadata = await this.getMetadata();
       return res.json(metadata);
     } catch (error) {
       console.error('OAuth2 authorization server metadata error:', error);
@@ -44,13 +44,13 @@ export class AuthorizationServerEndpoint {
 
   /**
    * Retrieves OAuth 2.0 authorization server metadata.
-   * @returns The authorization server metadata conforming to RFC 8414.
+   * @returns Promise that resolves to the authorization server metadata conforming to RFC 8414.
    */
-  private getMetadata(): IOAuth2ServerMetadataInternal {
+  private async getMetadata(): Promise<IOAuth2ServerMetadataInternal> {
     const authModule = getAuthModule();
     const oauth2ConfigService = authModule.exports.oauth2ConfigService();
     const metadata: IOAuth2ServerMetadataInternal
-      = oauth2ConfigService.getAuthorizationServerMetadata();
+      = await oauth2ConfigService.getAuthorizationServerMetadata();
     return metadata;
   }
 }

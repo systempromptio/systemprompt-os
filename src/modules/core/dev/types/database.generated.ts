@@ -1,5 +1,5 @@
 // Auto-generated database types for dev module
-// Generated on: 2025-07-30T14:04:58.741Z
+// Generated on: 2025-07-30T17:51:34.144Z
 // Do not modify this file manually - it will be overwritten
 
 /**

@@ -38,7 +38,7 @@ const logger = LoggerService.getInstance();
  * @returns {void} Nothing.
  */
 const setupPublicRoutes = (publicRouter: Router): void => {
-  publicRouter.get('/debug', (req: Request, res: Response): void => {
+  publicRouter.get('/debug', (_req: Request, res: Response): void => {
     res.json({
  message: 'Debug route working',
 timestamp: new Date().toISOString()
@@ -165,7 +165,7 @@ export const configureRoutes = (app: Express): void => {
     }
   });
 
-  app.use((req: Request, res: Response): void => {
+  app.use((_req: Request, res: Response): void => {
     res.status(404).send(`
       <!DOCTYPE html>
       <html lang="en">

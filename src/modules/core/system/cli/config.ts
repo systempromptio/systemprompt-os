@@ -9,7 +9,7 @@
 
 import { Command } from 'commander';
 import { SystemService } from '@/modules/core/system/services/system.service';
-import type { ConfigTypeEnum } from '@/modules/core/system/types/index';
+import { SystemConfigType } from '@/modules/core/system/types/index';
 
 const ERROR_EXIT_CODE = 1;
 
@@ -37,7 +37,7 @@ export const createConfigCommand = (): Command => {
             console.log(value);
           }
         } else if (options.set && options.value) {
-          const type = options.type as ConfigTypeEnum;
+          const type = options.type as SystemConfigType;
           await service.setConfig(options.set, options.value, type);
           console.log(`Configuration set: ${options.set} = ${options.value}`);
         } else {

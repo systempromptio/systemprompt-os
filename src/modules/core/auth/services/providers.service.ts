@@ -4,19 +4,14 @@
  * @module auth/services
  */
 
-import { randomUUID } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { type IAuthProvidersRow } from '@/modules/core/auth/types/database.generated';
-import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
-import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
-import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
+import { ProviderFactoryService } from '@/modules/core/auth/services/provider-factory.service';
 import type {
-  IdpConfig as IDPConfig,
   IIdentityProvider
 } from '@/modules/core/auth/types/provider-interface';
-import type { IGenericOAuth2Config } from '@/modules/core/auth/types/oauth2.types';
 
 /**
  * Input for creating a new provider.
@@ -68,6 +63,7 @@ export class ProvidersService {
   private static instance: ProvidersService | null = null;
   private readonly logger: ILogger;
   private readonly database: DatabaseService;
+  private providerFactory?: ProviderFactoryService;
   private readonly providerInstances = new Map<string, IIdentityProvider>();
 
   private constructor() {
@@ -89,6 +85,9 @@ export class ProvidersService {
    * Initialize the service and load enabled providers.
    */
   async initialize(): Promise<void> {
+    // Initialize provider factory lazily
+    this.providerFactory = ProviderFactoryService.getInstance();
+    await this.providerFactory.initialize();
     await this.loadEnabledProviders();
     this.logger.info(LogSource.AUTH, 'ProvidersService initialized');
   }
@@ -98,7 +97,6 @@ export class ProvidersService {
    * @param input
    */
   async createProvider(input: IProviderCreateInput): Promise<IAuthProvidersRow> {
-    const id = randomUUID();
     const now = new Date().toISOString();
 
     const row: IAuthProvidersRow = {
@@ -254,7 +252,7 @@ export class ProvidersService {
 
     this.providerInstances.delete(id);
 
-    if (result.changes && result.changes > 0) {
+    if ((result as any).changes && (result as any).changes > 0) {
       this.logger.info(LogSource.AUTH, `Deleted provider: ${id}`);
       return true;
     }
@@ -355,64 +353,27 @@ export class ProvidersService {
    * @param config
    */
   private async instantiateProvider(config: IAuthProvidersRow): Promise<void> {
-    const idpConfig: IDPConfig = {
-      clientId: config.client_id,
-      clientSecret: config.client_secret,
-      redirectUri: config.redirect_uri || undefined,
-      scope: config.scopes ? JSON.parse(config.scopes).join(' ') : undefined,
-    };
-
-    let provider: IIdentityProvider | null = null;
-
-    switch (config.id) {
-      case 'google':
-        provider = new GoogleProvider(idpConfig);
-        break;
-
-      case 'github':
-        provider = new GitHubProvider(idpConfig);
-        break;
-
-      default:
-        provider = await this.createGenericProvider(config, idpConfig);
-        break;
+    // Ensure factory is initialized
+    if (!this.providerFactory) {
+      this.providerFactory = ProviderFactoryService.getInstance();
+      await this.providerFactory.initialize();
     }
+
+    // Validate configuration
+    if (!this.providerFactory.validateProviderConfig(config)) {
+      this.logger.error(LogSource.AUTH, `Invalid provider configuration for ${config.id}`);
+      return;
+    }
+
+    // Use factory to create provider
+    const provider = await this.providerFactory.createProvider(config);
 
     if (provider) {
       this.providerInstances.set(config.id, provider);
       this.logger.info(LogSource.AUTH, `Instantiated provider: ${config.id}`);
+    } else {
+      this.logger.error(LogSource.AUTH, `Failed to instantiate provider: ${config.id}`);
     }
   }
 
-  /**
-   * Create a generic OAuth2/OIDC provider instance.
-   * @param config
-   * @param idpConfig
-   */
-  private async createGenericProvider(
-    config: IAuthProvidersRow,
-    idpConfig: IDPConfig
-  ): Promise<IIdentityProvider | null> {
-    if (config.type !== 'oauth2' && config.type !== 'oidc') {
-      this.logger.warn(LogSource.AUTH, `Unsupported provider type ${config.type} for ${config.id}`);
-      return null;
-    }
-
-    const genericConfig: IGenericOAuth2Config = {
-      id: config.id,
-      name: config.name,
-      clientId: idpConfig.clientId,
-      clientSecret: idpConfig.clientSecret,
-      redirectUri: idpConfig.redirectUri,
-      authorizationEndpoint: config.authorization_endpoint,
-      tokenEndpoint: config.token_endpoint,
-      scope: idpConfig.scope,
-      userinfoEndpoint: config.userinfo_endpoint || undefined,
-      jwksUri: config.jwks_uri || undefined,
-      issuer: config.issuer || undefined,
-      userinfoMapping: config.userinfo_mapping ? JSON.parse(config.userinfo_mapping) : undefined,
-    };
-
-    return new GenericOAuth2Provider(genericConfig);
-  }
 }

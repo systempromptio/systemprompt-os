@@ -1,13 +1,12 @@
 // Auto-generated database types for system module
-// Generated on: 2025-07-30T14:04:58.738Z
+// Generated on: 2025-07-30T17:51:34.141Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints
 export enum SystemConfigType {
   STRING = 'string',
   NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  JSON = 'json'
+  BOOLEAN = 'boolean'
 }
 
 export enum SystemModulesStatus {
@@ -38,8 +37,8 @@ export interface ISystemConfigRow {
   value: string;
   type: SystemConfigType;
   description: string | null;
-  is_secret: boolean | null;
-  is_readonly: boolean | null;
+  is_secret: number | null;
+  is_readonly: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -52,12 +51,22 @@ export interface ISystemModulesRow {
   name: string;
   version: string;
   status: SystemModulesStatus;
-  enabled: boolean | null;
-  metadata: string | null;
+  enabled: number | null;
   initialized_at: string | null;
   last_health_check: string | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+/**
+ * Generated from database table: system_module_metadata
+ * Do not modify this file manually - it will be overwritten
+ */
+export interface ISystemModuleMetadataRow {
+  module_name: string;
+  metadata_key: string;
+  metadata_value: string;
+  created_at: string | null;
 }
 
 /**
@@ -70,8 +79,17 @@ export interface ISystemEventsRow {
   source: string;
   severity: SystemEventsSeverity;
   message: string;
-  metadata: string | null;
   created_at: string | null;
+}
+
+/**
+ * Generated from database table: system_event_metadata
+ * Do not modify this file manually - it will be overwritten
+ */
+export interface ISystemEventMetadataRow {
+  event_id: number;
+  metadata_key: string;
+  metadata_value: string;
 }
 
 /**
@@ -91,7 +109,7 @@ export interface ISystemMaintenanceRow {
 /**
  * Union type of all database row types in this module
  */
-export type SystemDatabaseRow = ISystemConfigRow | ISystemModulesRow | ISystemEventsRow | ISystemMaintenanceRow;
+export type SystemDatabaseRow = ISystemConfigRow | ISystemModulesRow | ISystemModuleMetadataRow | ISystemEventsRow | ISystemEventMetadataRow | ISystemMaintenanceRow;
 
 /**
  * Database table names for this module
@@ -99,6 +117,8 @@ export type SystemDatabaseRow = ISystemConfigRow | ISystemModulesRow | ISystemEv
 export const SYSTEM_TABLES = {
   SYSTEMCONFIG: 'system_config',
   SYSTEMMODULES: 'system_modules',
+  SYSTEMMODULEMETADATA: 'system_module_metadata',
   SYSTEMEVENTS: 'system_events',
+  SYSTEMEVENTMETADATA: 'system_event_metadata',
   SYSTEMMAINTENANCE: 'system_maintenance',
 } as const;

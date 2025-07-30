@@ -5,11 +5,11 @@
  */
 
 import {
- createHash, randomBytes, randomUUID 
+ createHash, randomBytes, randomUUID
 } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
   AuthEvents,
@@ -57,6 +57,8 @@ export class SessionService {
 
   /**
    * Initialize with database and logger.
+   * @param database
+   * @param logger
    */
   static initialize(database: DatabaseService, logger: ILogger): SessionService {
     const instance = SessionService.getInstance();
@@ -284,10 +286,10 @@ export class SessionService {
 
     this.getLogger().info(LogSource.AUTH, 'All user sessions revoked', {
       userId,
-      count: result.changes || 0
+      count: (result as any).changes || 0
     });
 
-    return result.changes || 0;
+    return (result as any).changes || 0;
   }
 
   /**
@@ -315,7 +317,7 @@ export class SessionService {
             OR datetime(refresh_expires_at) <= datetime('now'))`
     );
 
-    const count = result?.changes || 0;
+    const count = (result as any)?.changes || 0;
     if (count > 0) {
       this.getLogger().info(LogSource.AUTH, 'Expired sessions cleaned up', { count });
     }

@@ -12,59 +12,9 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
-import type { ITunnelStatus } from '@/modules/core/auth/types/tunnel.types';
 import type { Server } from 'http';
 
 const logger = LoggerService.getInstance();
-
-/**
- * Type guard to check if module has getTunnelStatus method.
- * @param moduleInstance - Module instance to check.
- * @returns True if module has getTunnelStatus method.
- */
-const hasGetTunnelStatus = function hasGetTunnelStatus(
-  moduleInstance: unknown
-): moduleInstance is { getTunnelStatus: () => ITunnelStatus } {
-  if (
-    moduleInstance === null
-    || moduleInstance === undefined
-    || typeof moduleInstance !== 'object'
-    || !('getTunnelStatus' in moduleInstance)
-  ) {
-    return false;
-  }
-
-  const mod = moduleInstance as object & { getTunnelStatus?: unknown };
-  return typeof mod.getTunnelStatus === 'function';
-}
-
-/**
- * Logs OAuth tunnel status information.
- * @param tunnelUrl - The tunnel URL if active.
- */
-const logActiveTunnelStatus = function logActiveTunnelStatus(tunnelUrl: string): void {
-  logger.info(LogSource.AUTH, '');
-  logger.info(LogSource.AUTH, '🚇 OAuth Tunnel Active');
-  logger.info(LogSource.AUTH, `📍 Public URL: ${tunnelUrl}`);
-  logger.info(LogSource.AUTH, `🔗 OAuth Redirect Base: ${tunnelUrl}/oauth2/callback`);
-  logger.info(LogSource.AUTH, '');
-  logger.info(LogSource.AUTH, 'Configure your OAuth providers with:');
-  logger.info(LogSource.AUTH, `  Google: ${tunnelUrl}/oauth2/callback/google`);
-  logger.info(LogSource.AUTH, `  GitHub: ${tunnelUrl}/oauth2/callback/github`);
-}
-
-/**
- * Logs OAuth configuration warnings when tunnel is not active.
- */
-const logInactiveTunnelWarning = function logInactiveTunnelWarning(): void {
-  logger.info(LogSource.AUTH, '');
-  logger.info(LogSource.AUTH, '⚠️  OAuth providers configured but no tunnel active');
-  logger.info(LogSource.AUTH, '💡 Set ENABLE_OAUTH_TUNNEL=true to auto-create tunnel');
-  logger.info(
-    LogSource.AUTH,
-    '💡 Or set OAUTH_DOMAIN=https://yourdomain.com for permanent URL',
-  );
-}
 
 /**
  * Creates and configures the Express application.
@@ -74,11 +24,11 @@ export const createApp = async function createApp(): Promise<express.Application
   console.log('Creating Express app... UPDATED!!!');
   const app = express();
 
-  app.get('/immediate-test', (req, res) => {
+  app.get('/immediate-test', (_req, res) => {
     res.json({ message: 'Immediate test route working' });
   });
 
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     console.log(`[DEBUG] ${req.method} ${req.url}`);
     next();
   });
@@ -128,14 +78,14 @@ limit: '50mb'
     throw error;
   }
 
-  app.get('/test', (req, res) => {
+  app.get('/test', (_req, res) => {
     res.json({
  status: 'ok',
 message: 'Test route working'
 });
   });
 
-  app.get('/debug/routes', (req, res) => {
+  app.get('/debug/routes', (_req, res) => {
     const routes: any[] = [];
     app._router.stack.forEach((middleware: any) => {
       if (middleware.route) {
@@ -183,16 +133,6 @@ export const startServer = async function startServer(
     setTimeout((): void => {
       const registryDelayed = getModuleRegistry();
       const authModuleDelayed = registryDelayed.get(ModuleName.AUTH);
-
-      if (authModuleDelayed && hasGetTunnelStatus(authModuleDelayed)) {
-        const tunnelStatus = authModuleDelayed.getTunnelStatus();
-
-        if (tunnelStatus.active && tunnelStatus.url !== null && tunnelStatus.url !== undefined) {
-          logActiveTunnelStatus(tunnelStatus.url);
-        } else if ((process.env.GOOGLE_CLIENT_ID ?? process.env.GITHUB_CLIENT_ID) !== undefined) {
-          logInactiveTunnelWarning();
-        }
-      }
     }, AUTH_STATUS_DELAY);
   });
 

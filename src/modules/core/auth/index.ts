@@ -15,7 +15,6 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { ProvidersService } from '@/modules/core/auth/services/providers.service';
-import type { TunnelService } from '@/modules/core/auth/services/tunnel.service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
 import { SessionService } from '@/modules/core/auth/services/session.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
@@ -25,7 +24,6 @@ import { generateKeyPairSync } from 'crypto';
 import { writeFileSync } from 'fs';
 import type {
   IAuthModuleExports,
-  ITunnelStatus,
   IdentityProvider,
   LoginInput,
   LoginResult,
@@ -36,8 +34,6 @@ import {
   type IAuthTokensRow,
 } from '@/modules/core/auth/types/database.generated';
 
-const filename = fileURLToPath(import.meta.url);
-const currentDirname = dirname(filename);
 
 /**
  * AuthModule provides authentication and authorization.
@@ -51,7 +47,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
   public readonly dependencies = ['logger', 'database', 'events'];
   public status: ModulesStatus = ModulesStatus.PENDING;
   private providersService!: ProvidersService;
-  private readonly tunnelService: TunnelService | null = null;
   private tokenService!: TokenService;
   private sessionService!: SessionService;
   private authService!: AuthService;
@@ -69,15 +64,26 @@ export class AuthModule implements IModule<IAuthModuleExports> {
       oauth2ConfigService: () => { return this.oauth2ConfigService },
       authCodeService: () => { return this.authCodeService },
       getProvider: (id: string) => { return this.getProvider(id) },
-      getAllProviders: () => { return this.getAllProviders(); },
+      getAllProviders: async () => { return await this.getAllProviders(); },
       hasProvider: (id: string) => { return this.hasProvider(id) },
       getProvidersService: () => { return this.providersService },
+      getProviderRegistry: () => {
+        // Return a provider registry interface that the server can use
+        return {
+          get: (providerId: string) => this.providersService.getProviderInstance(providerId),
+          getProvider: (providerId: string) => this.providersService.getProviderInstance(providerId),
+          list: () => this.providersService.getAllProviderInstances(),
+          getAllProviders: () => this.providersService.getAllProviderInstances(),
+          has: (providerId: string) => this.providersService.hasProvider(providerId),
+          register: () => {
+            console.warn('Provider registration is managed by auth module configuration');
+          }
+        };
+      },
       reloadProviders: async () => { await this.reloadProviders(); },
       createProvider: async (input: any) => { return await this.createProvider(input) },
       updateProvider: async (id: string, input: any) => { return await this.updateProvider(id, input) },
       deleteProvider: async (id: string) => { return await this.deleteProvider(id) },
-      getTunnelService: () => { return this.tunnelService },
-      getTunnelStatus: () => { return this.getTunnelStatus() },
       createToken: async (input: TokenCreateInput) => { return await this.createToken(input) },
       validateToken: async (token: string) => { return await this.validateToken(token) },
       listUserTokens: async (userId: string) => { return await this.listUserTokens(userId) },
@@ -134,7 +140,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     }
 
     try {
-      await this.initializeDatabase();
       this.status = ModulesStatus.RUNNING;
       this.started = true;
       this.logger.info(LogSource.AUTH, 'Auth module started');
@@ -148,9 +153,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    * Stop the auth module.
    */
   async stop(): Promise<void> {
-    if (this.tunnelService !== null) {
-      this.tunnelService.stop();
-    }
     this.status = ModulesStatus.STOPPED;
     this.started = false;
     this.logger.info(LogSource.AUTH, 'Auth module stopped');
@@ -212,7 +214,7 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    * Create authentication token.
    * @param input
    */
-  async createToken(input: TokenCreateInput): Promise<IAuthTokensRow> {
+  async createToken(input: TokenCreateInput): Promise<{ token: string; row: IAuthTokensRow }> {
     return await this.authService.createApiToken(input);
   }
 
@@ -222,12 +224,23 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    */
   async validateToken(token: string): Promise<TokenValidationResult> {
     const result = await this.authService.validateApiToken(token);
-    return {
-      valid: result !== null,
-      userId: result?.userId ?? undefined,
-      scopes: result?.scopes ?? undefined,
-      reason: result === null ? 'Invalid or expired token' : undefined,
+    const validationResult: TokenValidationResult = {
+      valid: result !== null
     };
+    
+    if (result?.userId) {
+      validationResult.userId = result.userId;
+    }
+    
+    if (result?.scopes) {
+      validationResult.scopes = result.scopes;
+    }
+    
+    if (result === null) {
+      validationResult.reason = 'Invalid or expired token';
+    }
+    
+    return validationResult;
   }
 
   /**
@@ -275,12 +288,12 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    */
   async getAllProviders(): Promise<IdentityProvider[]> {
     const dbProviders = await this.providersService.getAllProviders();
-    return dbProviders.map(provider => ({
+    return dbProviders.map(provider => { return {
       id: provider.id,
       name: provider.name,
       enabled: Boolean(provider.enabled),
       config: provider.metadata ? JSON.parse(provider.metadata) : {} as Record<string, unknown>
-    }));
+    } });
   }
 
   /**
@@ -330,31 +343,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
     return await this.providersService.deleteProvider(id);
   }
 
-  /**
-   * Get tunnel service.
-   */
-  getTunnelService(): TunnelService | null {
-    return this.tunnelService;
-  }
-
-  /**
-   * Get tunnel status.
-   */
-  getTunnelStatus(): ITunnelStatus {
-    if (this.tunnelService === null) {
-      return {
-        active: false,
-        type: 'none',
-      };
-    }
-    const status = this.tunnelService.getStatus();
-    return {
-      active: status.active,
-      type: status.type,
-      url: status.url ?? undefined,
-      error: status.error ?? undefined
-    };
-  }
 
   /**
    * Setup JWT keys for token signing.
@@ -409,35 +397,6 @@ export class AuthModule implements IModule<IAuthModuleExports> {
    */
   private async initializeProviders(): Promise<void> {
     await this.providersService.initialize();
-  }
-
-  /**
-   * Initialize database schema.
-   */
-  private async initializeDatabase(): Promise<void> {
-    const schemaPath = join(currentDirname, 'database', 'schema.sql');
-    if (!existsSync(schemaPath)) {
-      return;
-    }
-
-    const schema = readFileSync(schemaPath, 'utf8');
-    const statements = schema.split(';').filter((statement) => { return statement.trim() !== '' });
-
-    for (const statement of statements) {
-      if (statement.trim() !== '') {
-        try {
-          await this.database.execute(statement);
-        } catch (error) {
-          if (error instanceof Error && !error.message.includes('duplicate column')) {
-            this.logger.warn(LogSource.AUTH, 'Schema statement warning', {
-              error: error.message,
-            });
-          }
-        }
-      }
-    }
-
-    this.logger.info(LogSource.AUTH, 'Auth database schema updated');
   }
 }
 

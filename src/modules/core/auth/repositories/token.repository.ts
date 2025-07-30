@@ -120,7 +120,7 @@ export class TokenRepository {
    */
   async revokeToken(tokenId: string): Promise<void> {
     await this.database.execute(
-      'UPDATE auth_tokens SET is_revoked = true WHERE id = ?',
+      'UPDATE auth_tokens SET is_revoked = 1 WHERE id = ?',
       [tokenId],
     );
   }
@@ -132,7 +132,7 @@ export class TokenRepository {
    * @returns Promise that resolves when revocation is complete.
    */
   async revokeUserTokens(userId: string, type?: string): Promise<void> {
-    let sql = 'UPDATE auth_tokens SET is_revoked = true WHERE user_id = ?';
+    let sql = 'UPDATE auth_tokens SET is_revoked = 1 WHERE user_id = ?';
     const params: unknown[] = [userId];
 
     if (type !== undefined && type !== null) {

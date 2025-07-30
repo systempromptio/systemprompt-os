@@ -1,17 +1,13 @@
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import type {
-  IAuthConfig,
-  IJwtParams,
-  JwtPayload,
   TokenCreateInput,
-  TokenType,
   TokenValidationResult,
 } from '@/modules/core/auth/types/index';
 import type { IAuthTokensRow } from '@/modules/core/auth/types/database.generated';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource, getLoggerService } from '@/modules/core/logger/index';
 import { TokenRepository } from '@/modules/core/auth/repositories/token.repository';
 import {
   MILLISECONDS_PER_SECOND,
@@ -20,6 +16,59 @@ import {
   TWO,
   ZERO,
 } from '@/constants/numbers';
+
+// Internal types for JWT handling
+interface IAuthConfig {
+  jwt: {
+    accessTokenTTL: number;
+    refreshTokenTTL: number;
+    algorithm: string;
+    issuer: string;
+    audience: string;
+    keyStorePath: string;
+    privateKey: string;
+    publicKey: string;
+  };
+  session: {
+    maxConcurrent: number;
+    absoluteTimeout: number;
+    inactivityTimeout: number;
+  };
+  security: {
+    maxLoginAttempts: number;
+    lockoutDuration: number;
+    passwordMinLength: number;
+    requirePasswordChange: boolean;
+  };
+  api?: {
+    tokenTTL: number;
+  };
+}
+
+
+interface IJwtCreateParams {
+  userId: string;
+  email?: string;
+  name?: string;
+  roles?: string[];
+  scope?: string[];
+}
+
+interface JwtPayload {
+  sub?: string;  // Standard JWT subject claim
+  userId: string;
+  sessionId?: string;
+  type?: string;
+  email?: string;
+  name?: string;
+  roles?: string[];
+  scope?: string[];
+  jti?: string;  // JWT ID
+  iat?: number;
+  exp?: number;
+}
+
+type TokenType = 'api' | 'personal' | 'service' | 'access' | 'refresh';
 
 /**
  * Token management service.
@@ -118,11 +167,12 @@ export class TokenService {
    * @returns JWT token string.
    * @throws Error when JWT creation fails.
    */
-  public createJwt(params: IJwtParams): string {
+  public createJwt(params: IJwtCreateParams): string {
     const config = this.getConfig();
     const now = Math.floor(Date.now() / MILLISECONDS_PER_SECOND);
     const payload: JwtPayload = {
       sub: params.userId,
+      userId: params.userId,
       email: params.email,
       name: params.name,
       roles: params.roles,
@@ -210,7 +260,9 @@ export class TokenService {
    * @returns Logger instance.
    */
   private getLogger(): ILogger {
-    this.logger ??= LoggerService.getInstance();
+    if (!this.logger) {
+      this.logger = getLoggerService();
+    }
     return this.logger;
   }
 
@@ -502,21 +554,21 @@ export class TokenService {
     const accessTokenResult = await this.createToken({
       user_id,
       name: 'access_token',
-      type: 'access',
+      type: 'api' as const,  // Using api type for access tokens
       scopes: ['read', 'write'],
     });
 
     const refreshTokenResult = await this.createToken({
       user_id,
       name: 'refresh_token',
-      type: 'refresh',
+      type: 'api' as const,  // Using api type for refresh tokens
       scopes: ['refresh'],
-      expiresIn: this.getConfig().jwt.refreshTokenTTL
+      expires_in: this.getConfig().jwt.refreshTokenTTL
     });
 
     return {
-      accessToken: accessToken.token,
-      refreshToken: refreshToken.token
+      accessToken: accessTokenResult.token,
+      refreshToken: refreshTokenResult.token
     };
   }
 

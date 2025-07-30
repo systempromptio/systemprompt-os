@@ -28,7 +28,7 @@ export const createHealthCommand = (): Command => {
         const health = await service.checkHealth();
 
         console.log(`System Health: ${health.status.toUpperCase()}`);
-        console.log(`Timestamp: ${health.timestamp.toISOString()}`);
+        console.log(`Timestamp: ${health.timestamp}`);
 
         if (options.detailed || health.status !== 'healthy') {
           console.log('');

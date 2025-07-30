@@ -323,7 +323,7 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should provide OAuth2 server metadata', async () => {
-      const metadata = oauth2ConfigService.getAuthorizationServerMetadata();
+      const metadata = await oauth2ConfigService.getAuthorizationServerMetadata();
       
       expect(metadata).toBeDefined();
       expect(metadata.issuer).toBeDefined();
@@ -337,7 +337,7 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should provide protected resource metadata', async () => {
-      const metadata = oauth2ConfigService.getProtectedResourceMetadata();
+      const metadata = await oauth2ConfigService.getProtectedResourceMetadata();
       
       expect(metadata).toBeDefined();
       expect(metadata.resource).toBeDefined();
@@ -346,7 +346,7 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should generate provider callback URLs', async () => {
-      const callbackUrl = oauth2ConfigService.getProviderCallbackUrl('google');
+      const callbackUrl = await oauth2ConfigService.getProviderCallbackUrl('google');
       
       expect(callbackUrl).toBeDefined();
       expect(callbackUrl).toMatch(/\/oauth2\/callback\/google$/);
@@ -465,14 +465,14 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should list user tokens using module exports', async () => {
-      await authModule.exports.createToken({
+      const token1 = await authModule.exports.createToken({
         user_id: testUserId,
         type: 'api',
         name: 'test-token',
         scopes: ['read']
       });
       
-      await authModule.exports.createToken({
+      const token2 = await authModule.exports.createToken({
         user_id: testUserId,
         type: 'personal',
         name: 'test-token-rw',
@@ -527,24 +527,26 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should clean up expired tokens', async () => {
-      // Create a normal token first
-      const normalToken = await authModule.exports.createToken({
+      // Create a normal token using auth module exports for consistency
+      const normalTokenResult = await authModule.exports.createToken({
         user_id: testUserId,
         type: 'api',
         name: 'test-token',
         scopes: ['read'],
-        expires_in: 3600
+        expires_in: 86400 // 24 hours to ensure it doesn't expire during test
       });
 
       // Verify token exists
-      expect(normalToken).toBeDefined();
+      expect(normalTokenResult).toBeDefined();
+      expect(normalTokenResult.token).toBeDefined();
+      expect(normalTokenResult.row).toBeDefined();
 
       // Run cleanup (may return 0 if no expired tokens)
       const cleanedCount = await authModule.exports.cleanupExpiredTokens();
       expect(cleanedCount).toBeGreaterThanOrEqual(0);
 
       // Normal token should still be valid
-      const validation = await authModule.exports.validateToken(normalToken.token);
+      const validation = await authModule.exports.validateToken(normalTokenResult.token);
       expect(validation.valid).toBe(true);
     });
   });

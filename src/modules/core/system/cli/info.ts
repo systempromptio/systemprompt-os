@@ -39,7 +39,7 @@ export const createInfoCommand = (): Command => {
         console.log(`  Hostname: ${info.hostname}`);
         console.log(`  Platform: ${info.platform}`);
         console.log(`  Architecture: ${info.architecture}`);
-        console.log(`  Node Version: ${info.nodeVersion}`);
+        console.log(`  Node Version: ${info.node_version}`);
         console.log('');
         console.log('Modules:');
         console.log(`  Total: ${info.modules.total}`);

@@ -179,15 +179,25 @@ export async function getConfigModule(): Promise<IModule<IConfigModuleExports>> 
   const registry = getModuleRegistry();
   const configModule = registry.get(ModuleName.CONFIG);
 
-  if (!configModule.exports?.service || typeof configModule.exports.service !== 'function') {
+  if (!configModule) {
+    throw new Error('Config module not found');
+  }
+
+  if (!configModule.exports || typeof configModule.exports !== 'object') {
+    throw new Error('Config module exports not found');
+  }
+
+  const exports = configModule.exports as any;
+
+  if (!exports.service || typeof exports.service !== 'function') {
     throw new Error('Config module missing required service export');
   }
 
-  if (!configModule.exports?.get || typeof configModule.exports.get !== 'function') {
+  if (!exports.get || typeof exports.get !== 'function') {
     throw new Error('Config module missing required get export');
   }
 
-  if (!configModule.exports?.set || typeof configModule.exports.set !== 'function') {
+  if (!exports.set || typeof exports.set !== 'function') {
     throw new Error('Config module missing required set export');
   }
 

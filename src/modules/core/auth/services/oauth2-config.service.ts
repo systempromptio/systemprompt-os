@@ -2,20 +2,16 @@
  * OAuth2 Configuration Service.
  * Manages OAuth2 endpoints and metadata configuration following RFC standards.
  * Provides singleton access to OAuth2 server metadata, protected resource metadata,
- * Handles dynamic base URL resolution through
- * tunnel status integration.
+ * Handles dynamic base URL resolution through environment configuration.
  */
 export class OAuth2ConfigurationService {
   private static instance: OAuth2ConfigurationService;
-  private readonly baseUrl: string;
 
   /**
    * Creates a new OAuth2ConfigurationService instance.
    * Private constructor enforces singleton pattern.
    */
-  private constructor() {
-    this.baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
-  }
+  private constructor() {}
 
   /**
    * Gets the singleton instance of OAuth2ConfigurationService.
@@ -29,11 +25,12 @@ export class OAuth2ConfigurationService {
   }
 
   /**
-   * Gets the current base URL, considering tunnel status.
-   * @returns The current base URL with tunnel status considered.
+   * Gets the current base URL using centralized URL configuration.
+   * @returns Promise that resolves to the current base URL.
    */
-  getBaseUrl(): string {
-    // Priority: 1. Environment variable, 2. Base URL from process.env, 3. Default
+  async getBaseUrl(): Promise<string> {
+    // For now, use environment variables directly to avoid circular dependencies
+    // The system module integration will be improved in a future update
     return process.env.BASE_URL || process.env.OAUTH_BASE_URL || 'https://democontainer.systemprompt.io';
   }
 
@@ -42,10 +39,10 @@ export class OAuth2ConfigurationService {
    * Provides complete authorization server metadata including all required
    * and optional endpoints, supported grant types, response types, and
    * authentication methods as defined in the OAuth2 specification.
-   * @returns The OAuth2 authorization server metadata.
+   * @returns Promise that resolves to the OAuth2 authorization server metadata.
    */
-  getAuthorizationServerMetadata() {
-    const baseUrl = this.getBaseUrl();
+  async getAuthorizationServerMetadata() {
+    const baseUrl = await this.getBaseUrl();
     return this.buildServerMetadata(baseUrl);
   }
 
@@ -54,10 +51,10 @@ export class OAuth2ConfigurationService {
    * Provides metadata about the protected resource including supported
    * authorization servers, bearer token methods, and scopes as defined
    * in the OAuth2 Protected Resource Metadata specification.
-   * @returns The OAuth2 protected resource metadata.
+   * @returns Promise that resolves to the OAuth2 protected resource metadata.
    */
-  getProtectedResourceMetadata() {
-    const baseUrl = this.getBaseUrl();
+  async getProtectedResourceMetadata() {
+    const baseUrl = await this.getBaseUrl();
     return this.buildResourceMetadata(baseUrl);
   }
 
@@ -68,10 +65,10 @@ export class OAuth2ConfigurationService {
    * of /oauth2/callback/{provider} where provider is the specific
    * OAuth2 provider identifier.
    * @param provider - The OAuth2 provider identifier.
-   * @returns The complete callback URL for the specified provider.
+   * @returns Promise that resolves to the complete callback URL for the specified provider.
    */
-  getProviderCallbackUrl(provider: string): string {
-    const baseUrl = this.getBaseUrl();
+  async getProviderCallbackUrl(provider: string): Promise<string> {
+    const baseUrl = await this.getBaseUrl();
     return `${baseUrl}/oauth2/callback/${provider}`;
   }
 

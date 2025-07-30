@@ -142,16 +142,16 @@ export class TestService {
       const suiteMatch = line.match(/([✓×])\s+\|integration\|\s+([^(]+)\s+\((\d+)\s+tests?\)\s+(\d+)ms/);
       if (suiteMatch) {
         const [, status, suiteName, testCount, duration] = suiteMatch;
-        const tests = parseInt(testCount, 10);
+        const tests = parseInt(testCount!, 10);
         const isPassed = status === '✓';
 
         result.suites.push({
-          name: suiteName.trim(),
+          name: suiteName!.trim(),
           status: isPassed ? 'passed' : 'failed',
           tests,
           passed: isPassed ? tests : 0,
           failed: isPassed ? 0 : tests,
-          duration: parseInt(duration, 10)
+          duration: parseInt(duration!, 10)
         });
 
         result.totalTestSuites++;
@@ -165,32 +165,32 @@ export class TestService {
 
     const testFilesMatch = output.match(/Test Files\s+(\d+)\s+passed\s+\((\d+)\)/);
     if (testFilesMatch) {
-      result.passedTestSuites = parseInt(testFilesMatch[1], 10);
-      result.totalTestSuites = parseInt(testFilesMatch[2], 10);
+      result.passedTestSuites = parseInt(testFilesMatch[1]!, 10);
+      result.totalTestSuites = parseInt(testFilesMatch[2]!, 10);
       result.failedTestSuites = result.totalTestSuites - result.passedTestSuites;
     }
 
     const testsMatch = output.match(/Tests\s+(\d+)\s+passed\s+\((\d+)\)/);
     if (testsMatch) {
-      result.passedTests = parseInt(testsMatch[1], 10);
-      result.totalTests = parseInt(testsMatch[2], 10);
+      result.passedTests = parseInt(testsMatch[1]!, 10);
+      result.totalTests = parseInt(testsMatch[2]!, 10);
       result.failedTests = result.totalTests - result.passedTests;
     }
 
     const failedTestsMatch = output.match(/Tests\s+(\d+)\s+failed\s+\|\s+(\d+)\s+passed\s+\((\d+)\)/);
     if (failedTestsMatch) {
-      result.failedTests = parseInt(failedTestsMatch[1], 10);
-      result.passedTests = parseInt(failedTestsMatch[2], 10);
-      result.totalTests = parseInt(failedTestsMatch[3], 10);
+      result.failedTests = parseInt(failedTestsMatch[1]!, 10);
+      result.passedTests = parseInt(failedTestsMatch[2]!, 10);
+      result.totalTests = parseInt(failedTestsMatch[3]!, 10);
     }
 
     const coverageMatch = output.match(/All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)/);
     if (coverageMatch) {
       result.coverage = {
-        statements: parseFloat(coverageMatch[1]),
-        branches: parseFloat(coverageMatch[2]),
-        functions: parseFloat(coverageMatch[3]),
-        lines: parseFloat(coverageMatch[4])
+        statements: parseFloat(coverageMatch[1]!),
+        branches: parseFloat(coverageMatch[2]!),
+        functions: parseFloat(coverageMatch[3]!),
+        lines: parseFloat(coverageMatch[4]!)
       };
     }
 

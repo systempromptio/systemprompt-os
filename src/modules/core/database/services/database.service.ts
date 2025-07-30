@@ -106,9 +106,9 @@ export class DatabaseService implements IDatabaseService {
    * @param params - Statement parameters.
    * @returns Promise that resolves when complete.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<void> {
+  public async execute(sql: string, params?: unknown[]): Promise<any> {
     const connection = await this.getConnection();
-    await connection.execute(sql, params);
+    return await connection.execute(sql, params);
   }
 
   /**

@@ -9,10 +9,11 @@ import {
   initialize,
   getSystemModule,
   ConfigTypeEnum,
-  ModuleStatusEnum,
   EventSeverityEnum,
-  MaintenanceTypeEnum
+  MaintenanceTypeEnum,
+  ModulesStatus
 } from '../../../../../src/modules/core/system/index.js';
+import { ModulesType } from '../../../../../src/modules/core/modules/types/database.generated.js';
 import { SystemService } from '../../../../../src/modules/core/system/services/system.service.js';
 import { LoggerService } from '../../../../../src/modules/core/logger/services/logger.service.js';
 import { LogSource } from '../../../../../src/modules/core/logger/types/index.js';

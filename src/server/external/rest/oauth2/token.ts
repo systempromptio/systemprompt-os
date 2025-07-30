@@ -368,10 +368,9 @@ export class TokenEndpoint {
           avatar: user.avatarUrl ?? undefined,
           roles: []
         };
-        const roles = await authRepo.getIUserIRoles(userId);
-        userRoles = roles.map((role: { name: string }): string => { return role.name });
+        // Roles are handled by permissions module, not auth
         if (userData !== null) {
-          userData.roles = userRoles;
+          userData.roles = [];
         }
       }
     } catch (error) {

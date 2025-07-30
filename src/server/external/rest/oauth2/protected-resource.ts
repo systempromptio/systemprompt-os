@@ -32,22 +32,30 @@ export class ProtectedResourceEndpoint {
    * The request object is not used as this endpoint returns static metadata.
    * @param request - The Express request object.
    * @param response - The Express response object.
-   * @returns The Express response with protected resource metadata.
+   * @returns Promise that resolves to the Express response with protected resource metadata.
    * @throws {Error} If the auth module or OAuth2 config service is not available.
    */
-  getProtectedResourceMetadata = (
+  getProtectedResourceMetadata = async (
     request: ExpressRequest,
     response: ExpressResponse
-  ): ExpressResponse => {
-    if (request.method !== 'GET') {
-      return response.status(405).json({ error: 'Method not allowed' });
+  ): Promise<ExpressResponse> => {
+    try {
+      if (request.method !== 'GET') {
+        return response.status(405).json({ error: 'Method not allowed' });
+      }
+
+      const authModule = getAuthModule();
+      const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+      const metadata: IOAuth2ProtectedResourceMetadataInternal
+        = await oauth2ConfigService.getProtectedResourceMetadata();
+
+      return response.json(metadata);
+    } catch (error) {
+      console.error('OAuth2 protected resource metadata error:', error);
+      return response.status(500).json({
+        error: 'internal_server_error',
+        error_description: error instanceof Error ? error.message : 'Unable to retrieve protected resource metadata'
+      });
     }
-
-    const authModule = getAuthModule();
-    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const metadata: IOAuth2ProtectedResourceMetadataInternal
-      = oauth2ConfigService.getProtectedResourceMetadata();
-
-    return response.json(metadata);
   };
 }

@@ -9,7 +9,6 @@ import { z } from 'zod';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getAuthModule } from '@/modules/core/auth/index';
-import { AuthRepository } from '@/modules/core/auth/database/repository';
 import type {
   IAuthCodeService,
   IAuthenticatedUser,

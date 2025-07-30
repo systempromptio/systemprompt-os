@@ -35,13 +35,13 @@ export const setupExternalEndpoints = (app: Express): void => {
   app.use(securityHeaders);
   app.use(cookieParser());
 
-  app.get('/setup-test', (req: Request, res: ExpressResponse) => {
+  app.get('/setup-test', (_req: Request, res: ExpressResponse) => {
     res.json({ message: 'Setup test route working' });
   });
 
   configureRoutes(app);
 
-  app.use((err: unknown, req: Request, res: ExpressResponse, next: NextFunction): void => {
+  app.use((err: unknown, _req: Request, res: ExpressResponse, next: NextFunction): void => {
     if (err instanceof SyntaxError && 'body' in err) {
       res.status(400).json({
         error: 'Bad Request',

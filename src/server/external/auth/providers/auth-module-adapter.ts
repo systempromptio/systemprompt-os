@@ -5,63 +5,8 @@
  * while maintaining the existing provider registry interface
  */
 
-import type { IdentityProvider } from '@/modules/core/auth/types/provider-interface';
 import type { IIdentityProvider } from '@/server/external/rest/oauth2/types/authorize.types';
 import { getAuthModule } from '@/modules/core/auth/index';
-
-/**
- * Adapter that wraps auth module providers to match server interface.
- */
-class ProviderAdapter implements IIdentityProvider {
-  constructor(private readonly authProvider: IdentityProvider) {}
-
-  get name(): string {
-    return this.authProvider.id;
-  }
-
-  getAuthorizationUrl(state: string): string {
-    return this.authProvider.getAuthorizationUrl(state);
-  }
-
-  async exchangeCodeForTokens(code: string): Promise<{ accessToken: string }> {
-    const tokens = await this.authProvider.exchangeCodeForTokens(code);
-    return { accessToken: tokens.accessToken };
-  }
-
-  async getUserInfo(token: string): Promise<{
-    id: string;
-    email?: string;
-    name?: string;
-    picture?: string;
-    raw?: Record<string, unknown>;
-  }> {
-    const userInfo = await this.authProvider.getUserInfo(token);
-    const result: {
-      id: string;
-      email?: string;
-      name?: string;
-      picture?: string;
-      raw?: Record<string, unknown>;
-    } = {
-      id: userInfo.id
-    };
-
-    if (userInfo.email !== undefined) {
-      result.email = userInfo.email;
-    }
-    if (userInfo.name !== undefined) {
-      result.name = userInfo.name;
-    }
-    if (userInfo.picture !== undefined) {
-      result.picture = userInfo.picture;
-    }
-    if (userInfo.raw !== undefined) {
-      result.raw = userInfo.raw;
-    }
-
-    return result;
-  }
-}
 
 export class AuthModuleProviderRegistry {
   /**
@@ -70,8 +15,8 @@ export class AuthModuleProviderRegistry {
    */
   get(providerId: string): IIdentityProvider | undefined {
     const authModule = getAuthModule();
-    const provider = authModule.exports.getProvider(providerId);
-    return provider ? new ProviderAdapter(provider as IdentityProvider) : undefined;
+    const providerService = authModule.exports.getProvidersService();
+    return providerService.getProviderInstance(providerId);
   }
 
   /**
@@ -87,15 +32,17 @@ export class AuthModuleProviderRegistry {
    */
   list(): IIdentityProvider[] {
     const authModule = getAuthModule();
-    const providers = authModule.exports.getAllProviders();
-    return providers.map((provider) => { return new ProviderAdapter(provider as IdentityProvider) });
+    const providerService = authModule.exports.getProvidersService();
+    return providerService.getAllProviderInstances();
   }
 
   /**
    * Get all providers (alias for compatibility).
    */
   getAllProviders(): IIdentityProvider[] {
-    return this.list();
+    const authModule = getAuthModule();
+    const providerService = authModule.exports.getProvidersService();
+    return providerService.getAllProviderInstances();
   }
 
   /**

@@ -108,7 +108,7 @@ export class HealthEndpoint {
     const usedMem = totalMem - freeMem;
     const cpus = os.cpus();
     const warnings: string[] = [];
-    let status: 'healthy' | 'degraded' | 'error' = 'healthy';
+    let status: 'ok' | 'degraded' | 'error' = 'ok';
 
     const heartbeat = this.readHeartbeat();
     if (heartbeat !== null) {

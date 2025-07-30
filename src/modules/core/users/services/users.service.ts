@@ -314,7 +314,7 @@ export class UsersService implements IUsersService {
 
         if (!user) {
           const baseUsername = event.name?.toLowerCase().replace(/\s+/g, '')
-                            || event.email.split('@')[0].toLowerCase();
+                            || event.email?.split('@')[0]?.toLowerCase() || 'user';
           let username = baseUsername;
           let counter = 1;
 
@@ -339,7 +339,7 @@ export class UsersService implements IUsersService {
             id: user.id,
             username: user.username,
             email: user.email,
-            avatarUrl: user.avatarUrl,
+            ...(user.avatarUrl && { avatarUrl: user.avatarUrl }),
             roles: []
           }
         };

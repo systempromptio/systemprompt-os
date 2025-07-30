@@ -124,7 +124,7 @@ category: 'config'
    * @returns Void.
    * @throws {Error} When provider registry is not initialized.
    */
-  private renderInitialSetup(res: ExpressResponse): void {
+  private async renderInitialSetup(res: ExpressResponse): Promise<void> {
     const authModule = getAuthModule();
     const providerRegistry = authModule.exports.getProviderRegistry();
 
@@ -132,10 +132,9 @@ category: 'config'
       throw new Error('Provider registry not initialized');
     }
 
-    const providers = authModule.exports.getAllProviders();
-    const templateProviders = providers.map((p: unknown) => {
-      const provider = p as { name: string };
-      return { name: provider.name };
+    const providers = await authModule.exports.getAllProviders();
+    const templateProviders = providers.map((p) => {
+      return { name: p.name };
     });
     const content = renderInitialSetup(templateProviders);
     const html = renderLayout({

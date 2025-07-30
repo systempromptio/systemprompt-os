@@ -17,7 +17,6 @@ import type {
   MonitorModuleConfig,
   MonitorModuleDependencies
 } from '@/modules/core/monitor/types/index';
-import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
@@ -119,7 +118,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
         try {
           const adapter = await this.deps.database.createModuleAdapter('monitor');
           if (adapter) {
-            const repository = new MonitorRepositoryImpl(adapter);
+            const repository = new MonitorRepositoryImpl(adapter as any);
             this.metricService!.setDependencies(
               repository,
               this.deps.logger,
@@ -134,7 +133,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
           }
         } catch (error) {
           const logger = LoggerService.getInstance();
-          logger.warn(LogSource.MODULES, 'Monitor module starting without database', { error });
+          logger.warn(LogSource.MODULES, 'Monitor module starting without database', { error: error instanceof Error ? error : new Error(String(error)) });
         }
       }
 
@@ -149,7 +148,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
                 ...error.stack !== null && error.stack !== undefined && error.stack !== '' && { stack: error.stack }
               } : { error };
               const logger = LoggerService.getInstance();
-              logger.error(LogSource.MODULES, 'Cleanup interval error', errorInfo);
+              logger.error(LogSource.MODULES, 'Cleanup interval error', errorInfo as any);
             });
           },
           this.config.config.cleanup.interval
@@ -176,7 +175,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
 
       if (this.cleanupInterval !== undefined) {
         clearInterval(this.cleanupInterval);
-        this.cleanupInterval = undefined;
+        this.cleanupInterval = undefined as any;
       }
 
       if (this.metricService !== undefined) {
@@ -191,7 +190,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
       this.status = ModulesStatus.ERROR;
       const errorInfo = this.getErrorInfo(error);
       const logger = LoggerService.getInstance();
-      logger.error(LogSource.MODULES, 'Failed to stop Monitor module', errorInfo);
+      logger.error(LogSource.MODULES, 'Failed to stop Monitor module', errorInfo as any);
       throw error;
     }
   }
@@ -326,26 +325,20 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     this.deps = deps;
   }
 
-  /**
-   * Handles initialization errors.
-   * @param error - The error that occurred during initialization.
-   */
-  private handleInitializationError(error: unknown): void {
-    this.status = ModulesStatus.ERROR;
-    const errorInfo = this.getErrorInfo(error);
-    this.deps?.logger.error('Failed to initialize Monitor module', errorInfo);
-  }
 
   /**
    * Get error information from unknown error.
    * @param error - Unknown error.
    * @returns Error information object.
    */
-  private getErrorInfo(error: unknown): { message: string; stack?: string } | { error: unknown } {
-    return error instanceof Error ? {
-      message: error.message,
-      ...error.stack !== null && error.stack !== undefined && error.stack !== '' && { stack: error.stack }
-    } : { error };
+  private getErrorInfo(error: unknown): { message: string; stack?: string } {
+    if (error instanceof Error) {
+      return {
+        message: error.message,
+        ...error.stack !== null && error.stack !== undefined && error.stack !== '' && { stack: error.stack }
+      };
+    }
+    return { message: String(error) };
   }
 }
 

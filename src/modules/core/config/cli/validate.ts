@@ -419,7 +419,7 @@ const loadCurrentConfig = async (logger: ILogger): Promise<IConfigStructure> => 
   logger.info(LogSource.CLI, 'Validating Configuration...');
   logger.info(LogSource.CLI, 'Validating current configuration');
 
-  const configModule = getConfigModule();
+  const configModule = await getConfigModule();
   const rawConfig = await configModule.exports.get();
 
   if (hasRequiredStructure(rawConfig)) {

@@ -15,11 +15,19 @@ export type OpenIDConfiguration = IOAuth2ServerMetadataInternal;
 
 export class WellKnownEndpoint {
   private readonly publicKeyJWK: any | null = null;
-  getOpenIDConfiguration = (_req: Request, res: Response): Response => {
-    const authModule = getAuthModule();
-    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const config = oauth2ConfigService.getAuthorizationServerMetadata();
-    return res.json(config);
+  getOpenIDConfiguration = async (_req: Request, res: Response): Promise<Response> => {
+    try {
+      const authModule = getAuthModule();
+      const oauth2ConfigService = authModule.exports.oauth2ConfigService();
+      const config = await oauth2ConfigService.getAuthorizationServerMetadata();
+      return res.json(config);
+    } catch (error) {
+      console.error('OAuth2 well-known metadata error:', error);
+      return res.status(500).json({ 
+        error: 'internal_server_error', 
+        error_description: error instanceof Error ? error.message : 'Unable to retrieve OAuth2 server metadata' 
+      });
+    }
   };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
     const jwks = {

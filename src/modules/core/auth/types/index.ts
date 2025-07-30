@@ -56,6 +56,9 @@ export interface LoginResult {
   session?: IAuthSessionsRow;
 }
 
+// Import database types
+import type { IAuthSessionsRow, IAuthTokensRow } from './database.generated';
+
 /**
  * Token creation input.
  */
@@ -87,15 +90,7 @@ export interface IdentityProvider {
   config: Record<string, unknown>;
 }
 
-/**
- * Tunnel status interface.
- */
-export interface ITunnelStatus {
-  active: boolean;
-  type: 'cloudflared' | 'permanent' | 'none';
-  url?: string;
-  error?: string;
-}
+
 
 /**
  * Auth module exports interface.
@@ -110,13 +105,12 @@ export interface IAuthModuleExports {
   getAllProviders: () => Promise<IdentityProvider[]>;
   hasProvider: (id: string) => boolean;
   getProvidersService: () => import('@/modules/core/auth/services/providers.service').ProvidersService;
+  getProviderRegistry: () => import('@/server/external/auth/providers/auth-module-adapter').AuthModuleProviderRegistry;
   reloadProviders: () => Promise<void>;
   createProvider: (input: any) => Promise<any>;
   updateProvider: (id: string, input: any) => Promise<any>;
   deleteProvider: (id: string) => Promise<boolean>;
-  getTunnelService: () => import('@/modules/core/auth/services/tunnel.service').TunnelService | null;
-  getTunnelStatus: () => ITunnelStatus;
-  createToken: (input: TokenCreateInput) => Promise<IAuthTokensRow>;
+  createToken: (input: TokenCreateInput) => Promise<{ token: string; row: IAuthTokensRow }>;
   validateToken: (token: string) => Promise<TokenValidationResult>;
   listUserTokens: (userId: string) => Promise<IAuthTokensRow[]>;
   revokeToken: (tokenId: string) => Promise<void>;

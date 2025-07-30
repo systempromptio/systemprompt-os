@@ -217,6 +217,16 @@ const registerPreLoadedModules = (
   if (eventsModule !== undefined) {
     moduleExports.registerPreLoadedModule('events', eventsModule);
   }
+
+  const systemModule = modules.get('system');
+  if (systemModule !== undefined) {
+    moduleExports.registerPreLoadedModule('system', systemModule);
+  }
+
+  const configModule = modules.get('config');
+  if (configModule !== undefined) {
+    moduleExports.registerPreLoadedModule('config', configModule);
+  }
 };
 
 /**
@@ -298,7 +308,7 @@ const loadRemainingCoreModules = async (
   coreModules: ICoreModuleDefinition[],
   moduleExports: IModulesModuleExports,
 ): Promise<void> => {
-  const essentialModules = ['database', 'modules', 'events'];
+  const essentialModules = ['database', 'modules', 'events', 'system', 'config'];
   const remainingModules = filterRemainingModules(coreModules, essentialModules);
 
   for (const definition of remainingModules) {
@@ -392,7 +402,7 @@ export const executeCoreModulesPhase = async (context: CoreModulesPhaseContext):
     persistToDb: false,
   });
 
-  const essentialModules = ['database', 'modules', 'events'];
+  const essentialModules = ['database', 'modules', 'events', 'system', 'config'];
 
   await loadEssentialModules(modules, coreModules, essentialModules);
 

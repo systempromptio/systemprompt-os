@@ -35,7 +35,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
           }
         }
 
-        const token = await authModule.createToken({
+        await authModule.createToken({
           user_id: options.user as string,
           name: `CLI Token - ${new Date().toISOString()}`,
           type: options.type as 'api' | 'personal' | 'service',
@@ -45,10 +45,6 @@ export function createTokenCommand(authModule: AuthModule): Command {
 
         const logger = getLoggerService();
         logger.info(LogSource.AUTH, '\n✓ Token created successfully!', {});
-        logger.info(LogSource.AUTH, `Token ID: ${token.id}`, {});
-        logger.info(LogSource.AUTH, `Type: ${token.type}`, {});
-        logger.info(LogSource.AUTH, `Name: ${token.name}`, {});
-        logger.info(LogSource.AUTH, `Expires: ${token.expires_at || 'Never'}`, {});
         logger.info(LogSource.AUTH, '\nNote: The actual token value is not displayed for security reasons.', {});
       } catch (error) {
         const logger = getLoggerService();
@@ -81,7 +77,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
           tokens.forEach((token): void => {
             const id = token.id.substring(0, 32);
             const type = token.type.padEnd(10);
-            const scopes = 'N/A'.padEnd(18); // Scopes are in separate table
+            const scopes = 'N/A'.padEnd(18)
             const expires = token.expires_at !== null ? token.expires_at : 'Never'.padEnd(24);
             const lastUsed = token.last_used_at !== null && token.last_used_at !== undefined ? token.last_used_at : 'Never'.padEnd(24);
 
