@@ -15,9 +15,10 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false,
+        singleFork: true,
         isolate: true,
-        execArgv: ['--max-old-space-size=8192', '--expose-gc']
+        execArgv: ['--max-old-space-size=2048', '--expose-gc'],
+        maxForks: 2
       }
     },
     sequence: {

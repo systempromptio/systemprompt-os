@@ -17,9 +17,10 @@ services:
       - CONFIG_PATH=/data/config
       - LOG_LEVEL=debug
       
-      # URLs and domains
-      - BASE_URL=http://localhost:3001
-      - OAUTH_DOMAIN=http://localhost:3001
+      # URLs and domains - use environment variable if cloudflare tunnel is enabled
+      - BASE_URL=${BASE_URL:-http://localhost:3001}
+      - OAUTH_DOMAIN=${OAUTH_DOMAIN:-http://localhost:3001}
+      - TUNNEL_URL=${TUNNEL_URL:-}
       
       # File system settings
       - FILE_ROOT=/workspace
@@ -35,8 +36,9 @@ services:
       - GITHUB_CLIENT_ID=test-github-client
       - GITHUB_CLIENT_SECRET=test-github-secret
       
-      # Disable tunnel for tests
-      - ENABLE_OAUTH_TUNNEL=false
+      # Tunnel configuration
+      - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
       
       # MCP Settings
       - MCP_AUTH_REQUIRED=true

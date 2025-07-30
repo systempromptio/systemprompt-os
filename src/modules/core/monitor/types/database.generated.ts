@@ -1,5 +1,5 @@
 // Auto-generated database types for monitor module
-// Generated on: 2025-07-30T07:52:14.635Z
+// Generated on: 2025-07-30T11:19:39.299Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints

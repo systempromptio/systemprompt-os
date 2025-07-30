@@ -4,6 +4,7 @@ import { writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import http from 'http';
+import https from 'https';
 
 const execAsync = promisify(exec);
 
@@ -92,6 +93,9 @@ export class DockerTestEnvironment {
     }
     
     // Create a temporary docker-compose file that uses the pre-built image
+    const containerPort = this.config.envVars?.PORT || '3000';
+    const hostPort = this.config.envVars?.CLOUDFLARE_TUNNEL_TOKEN ? '3000' : '3001';
+    
     const tempComposeContent = `
 version: '3.8'
 
@@ -99,7 +103,7 @@ services:
   mcp-server:
     image: systemprompt-test:latest
     ports:
-      - "${this.config.envVars?.PORT || 3001}:${this.config.envVars?.PORT || 3001}"
+      - "${hostPort}:${containerPort}"
     environment:
 ${envVarsList.map(env => `      - ${env}`).join('\n')}
     volumes:
@@ -107,7 +111,7 @@ ${envVarsList.map(env => `      - ${env}`).join('\n')}
       - ${this.config.envVars?.HOST_FILE_ROOT || '/var/www/html/systemprompt-os'}:/workspace:rw
     restart: "no"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${this.config.envVars?.PORT || 3001}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${containerPort}/health"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -231,6 +235,24 @@ volumes:
     } catch (error) {
       console.warn('⚠️  CLI check failed, continuing anyway:', error);
     }
+    
+    // If using cloudflared, wait for tunnel to be established
+    if (this.config.envVars?.CLOUDFLARE_TUNNEL_TOKEN) {
+      console.log('⏳ Waiting for Cloudflare tunnel to establish...');
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Extra wait for tunnel
+      
+      // Check cloudflared logs
+      try {
+        const logs = await this.getContainerLogs();
+        if (logs.includes('Tunnel started')) {
+          console.log('✅ Cloudflare tunnel established');
+        } else {
+          console.warn('⚠️  Cloudflare tunnel may not be fully established yet');
+        }
+      } catch (error) {
+        console.warn('⚠️  Could not check cloudflared status:', error);
+      }
+    }
   }
 
   private async waitForHealthCheck(): Promise<void> {
@@ -243,15 +265,23 @@ volumes:
     const checkHealth = (): Promise<boolean> => {
       return new Promise((resolve) => {
         const url = new URL(this.config.healthEndpoint!);
-        const options = {
+        const isHttps = url.protocol === 'https:';
+        const httpModule = isHttps ? https : http;
+        
+        const options: any = {
           hostname: url.hostname,
-          port: url.port || 80,
+          port: url.port || (isHttps ? 443 : 80),
           path: url.pathname,
           method: 'GET',
           timeout: 5000
         };
         
-        const req = http.request(options, (res) => {
+        // For HTTPS, ignore certificate errors in test environment
+        if (isHttps) {
+          options.rejectUnauthorized = false;
+        }
+        
+        const req = httpModule.request(options, (res) => {
           resolve(res.statusCode === 200);
         });
         

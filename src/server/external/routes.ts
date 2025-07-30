@@ -38,6 +38,11 @@ const logger = LoggerService.getInstance();
  * @returns {void} Nothing.
  */
 const setupPublicRoutes = (publicRouter: Router): void => {
+  // Debug route
+  publicRouter.get('/debug', (req: Request, res: Response): void => {
+    res.json({ message: 'Debug route working', timestamp: new Date().toISOString() });
+  });
+
   const healthEndpoint = new HealthEndpoint();
   const statusEndpoint = new StatusEndpoint();
 
@@ -92,7 +97,8 @@ const setupProtectedWebRoutes = (webRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupProtectedApiRoutes = (apiRouter: Router): void => {
-  apiRouter.use('/api', createAuthMiddleware({ redirectToLogin: false }));
+  // Apply auth middleware to all routes in this router
+  apiRouter.use(createAuthMiddleware({ redirectToLogin: false }));
   usersApiSetup(apiRouter);
   terminalApiSetup(apiRouter);
 };
@@ -139,6 +145,7 @@ export const configureRoutes = (app: Express): void => {
   app.use(apiRouter);
   app.use(adminRouter);
 
+  // 404 handler for API routes
   app.use((req: Request, res: Response, next: Function): void => {
     if (req.path.startsWith('/api/')) {
       res.status(404).json({
@@ -149,6 +156,24 @@ export const configureRoutes = (app: Express): void => {
     } else {
       next();
     }
+  });
+
+  // Final catch-all 404 handler
+  app.use((req: Request, res: Response): void => {
+    res.status(404).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>404 - Not Found</title>
+      </head>
+      <body>
+        <h1>404 - Not Found</h1>
+        <p>The requested page does not exist.</p>
+        <p><a href="/">Go to homepage</a></p>
+      </body>
+      </html>
+    `);
   });
 
   logger.info(LogSource.SERVER, 'Routes configured successfully', {

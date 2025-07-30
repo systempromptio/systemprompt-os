@@ -103,9 +103,6 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
    * @returns {DatabaseService} Database service.
    */
   getService(): DatabaseService {
-    if (!this.initialized) {
-      throw new Error('Database module not initialized');
-    }
     return DatabaseService.getInstance();
   }
 
@@ -233,6 +230,11 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       this.logger.info(LogSource.DATABASE, 'Database module initialized successfully', {
         category: 'initialization',
       });
+      this.logger.debug(LogSource.DATABASE, 'Database module state after init', {
+        initialized: this.initialized,
+        started: this.started,
+        category: 'initialization',
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(LogSource.DATABASE, 'Database module initialization failed', {
@@ -259,6 +261,12 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
     this.status = ModulesStatus.RUNNING;
     this.started = true;
     this.logger.info(LogSource.DATABASE, 'Database module started', { category: 'startup' });
+    this.logger.debug(LogSource.DATABASE, 'Database module state after start', {
+      initialized: this.initialized,
+      started: this.started,
+      status: this.status,
+      category: 'startup',
+    });
   }
 
   /**
@@ -301,6 +309,13 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
    * @returns {Promise<{ healthy: boolean; message?: string }>} Health check result.
    */
   private async performHealthCheck(): Promise<{ healthy: boolean; message?: string }> {
+    this.logger.debug(LogSource.DATABASE, 'Health check called', {
+      initialized: this.initialized,
+      started: this.started,
+      status: this.status,
+      category: 'health',
+    });
+    
     if (!this.initialized) {
       return {
         healthy: false,

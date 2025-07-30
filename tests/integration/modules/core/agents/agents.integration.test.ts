@@ -308,13 +308,22 @@ describe('Agents Module Integration Tests', () => {
 
   describe('CLI Commands', () => {
     it('should create agent with all required fields', async () => {
+      // Use a unique name to avoid conflicts
+      const uniqueName = `cli-test-agent-${Date.now()}`;
+      
       const result = await runCLICommand([
         'agents', 'create',
-        '--name', 'cli-test-agent',
+        '--name', uniqueName,
         '--description', 'Test agent description',
         '--instructions', 'Process data and generate reports',
         '--type', 'worker'
       ]);
+      
+      // Debug output
+      if (result.exitCode !== 0) {
+        console.log('Command failed with output:', result.output);
+        console.log('Command failed with errors:', result.errors);
+      }
       
       expect(result.exitCode).toBe(0);
       expect(result.output).toMatch(/created|success/i);
@@ -384,9 +393,9 @@ describe('Agents Module Integration Tests', () => {
   });
 
   async function runCLICommand(args: string[]): Promise<{ output: string; errors: string; exitCode: number | null }> {
-    const cliProcess = spawn('npm', ['run', 'cli', '--', ...args], {
+    const cliPath = join(process.cwd(), 'src', 'modules', 'core', 'cli', 'cli', 'main.ts');
+    const cliProcess = spawn('npx', ['tsx', cliPath, ...args], {
       cwd: process.cwd(),
-      shell: true,
     });
 
     const output: string[] = [];
@@ -400,8 +409,9 @@ describe('Agents Module Integration Tests', () => {
       errors.push(data.toString());
     });
 
-    const exitCode = await new Promise<number | null>((resolve) => {
-      cliProcess.on('close', (code) => {
+    const exitCode = await new Promise<number | null>((resolve, reject) => {
+      cliProcess.on('error', reject);
+      cliProcess.on('exit', (code) => {
         resolve(code);
       });
     });

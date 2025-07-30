@@ -341,16 +341,10 @@ Update the server startup to initialize new services:
 export async function startServer(port?: number): Promise<Server> {
   const app = await createApp();
   const serverPort = port || parseInt(CONFIG.PORT, 10);
-  
-  // NEW: Initialize services before starting
   await initializeServices();
   
   const server = app.listen(serverPort, '0.0.0.0', async () => {
     logger.info(`🚀 systemprompt-os running on port ${serverPort}`);
-    
-    // ... existing logs ...
-    
-    // NEW: Container service status
     logger.info('🐳 Docker service: Connected');
     logger.info('☁️  Cloudflare API: Connected');
     logger.info('🔐 Permission system: Initialized');

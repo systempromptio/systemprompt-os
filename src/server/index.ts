@@ -71,9 +71,28 @@ const logInactiveTunnelWarning = function logInactiveTunnelWarning(): void {
  * @returns Promise that resolves to Express application.
  */
 export const createApp = async function createApp(): Promise<express.Application> {
+  console.log('Creating Express app... UPDATED!!!');
   const app = express();
 
-  const registry = getModuleRegistry();
+  // Immediate test route
+  app.get('/immediate-test', (req, res) => {
+    res.json({ message: 'Immediate test route working' });
+  });
+
+  // Debug middleware - first middleware to run
+  app.use((req, res, next) => {
+    console.log(`[DEBUG] ${req.method} ${req.url}`);
+    next();
+  });
+
+  let registry;
+  try {
+    registry = getModuleRegistry();
+    console.log('Module registry obtained');
+  } catch (error) {
+    console.error('Error getting module registry:', error);
+    throw error;
+  }
 
   const authModule = registry.get(ModuleName.AUTH);
   if (authModule && 'start' in authModule && 'initialized' in authModule
@@ -104,7 +123,17 @@ export const createApp = async function createApp(): Promise<express.Application
 limit: '50mb'
 }));
 
-  await setupExternalEndpoints(app);
+  try {
+    await setupExternalEndpoints(app);
+  } catch (error) {
+    console.error('Error setting up external endpoints:', error);
+    throw error;
+  }
+
+  // Add a test route to verify the app is working
+  app.get('/test', (req, res) => {
+    res.json({ status: 'ok', message: 'Test route working' });
+  });
 
   return app;
 };

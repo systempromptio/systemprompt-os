@@ -9,7 +9,7 @@ import type {
   IAgentLogsRow,
   IAgentsRow
 } from '@/modules/core/agents/types/agent.types';
-import { AgentsStatus as AgentsStatusEnum } from '@/modules/core/agents/types/database.generated';
+import { AgentsStatus as AgentsStatusEnum, AgentsType } from '@/modules/core/agents/types/database.generated';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -69,7 +69,7 @@ export class AgentService {
     try {
       const agent = await this.repository.createAgentExtended({
         ...createAgentDto,
-        type: createAgentDto.type as an
+        type: createAgentDto.type as AgentsType
       });
 
       this.logger.info(LogSource.AGENT, 'Agent created', {

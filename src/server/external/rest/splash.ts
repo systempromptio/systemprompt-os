@@ -20,8 +20,15 @@ export class SplashEndpoint {
    * @returns Promise that resolves when response is sent.
    */
   public async handleSplashPage(_req: Request, res: Response): Promise<void> {
-    const html = renderSplashPage();
-    res.type('html').send(html);
+    try {
+      console.log('Rendering splash page...');
+      const html = renderSplashPage();
+      console.log('HTML generated, length:', html.length);
+      res.type('html').send(html);
+    } catch (error) {
+      console.error('Error in handleSplashPage:', error);
+      throw error;
+    }
   }
 }
 
@@ -32,10 +39,18 @@ export class SplashEndpoint {
 export function setupRoutes(router: Router): void {
   const splashEndpoint = new SplashEndpoint();
 
-  router.get('/', (req, res, next) => {
-    if (req.query.code) {
-      next(); return;
+  router.get('/', async (req, res, next) => {
+    console.log('GET / route hit, query:', req.query);
+    try {
+      if (req.query.code) {
+        console.log('Has code query param, passing to next handler');
+        next(); return;
+      }
+      console.log('Calling handleSplashPage...');
+      await splashEndpoint.handleSplashPage(req, res);
+    } catch (error) {
+      console.error('Error in splash route:', error);
+      next(error);
     }
-    splashEndpoint.handleSplashPage(req, res);
   });
 }

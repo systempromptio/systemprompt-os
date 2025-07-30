@@ -1,5 +1,5 @@
 // Auto-generated database types for auth module
-// Generated on: 2025-07-30T07:52:14.638Z
+// Generated on: 2025-07-30T11:19:39.303Z
 // Do not modify this file manually - it will be overwritten
 
 /**

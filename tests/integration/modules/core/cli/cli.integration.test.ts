@@ -87,7 +87,8 @@ describe('CLI Module Integration Tests', () => {
     const commandCount = await database.query<{ count: number }>(
       'SELECT COUNT(*) as count FROM cli_commands'
     );
-    console.log(`Commands registered: ${commandCount.rows[0].count}`);
+    const count = commandCount.rows?.[0]?.count || 0;
+    console.log(`Commands registered: ${count}`);
   }, 60000);
 
   afterAll(async () => {
