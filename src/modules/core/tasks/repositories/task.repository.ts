@@ -7,10 +7,10 @@
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import {
   type ITaskFilter,
+  type ITaskMetadataRow,
   type ITaskStatistics,
   TaskPriority,
-  TaskStatus,
-  type ITaskMetadataRow
+  TaskStatus
 } from '@/modules/core/tasks/types/index';
 import type { ITaskRow } from '@/modules/core/tasks/types/database.generated';
 
@@ -70,7 +70,7 @@ export class TaskRepository {
     const params: unknown[] = [TaskStatus.PENDING, now];
 
     if (types !== undefined && types.length > 0) {
-      const placeholders = types.map(() => '?').join(',');
+      const placeholders = types.map(() => { return '?' }).join(',');
       sql += ` AND type IN (${placeholders})`;
       params.push(...types);
     }
@@ -125,12 +125,12 @@ export class TaskRepository {
     }
 
     await this.executeUpdateQuery(updateFields, updateValues, taskId);
-    
+
     const updatedTask = await this.findById(taskId);
     if (!updatedTask) {
       throw new Error('Task not found after update');
     }
-    
+
     return updatedTask;
   }
 
@@ -144,7 +144,7 @@ export class TaskRepository {
       this.getTypeCounts()
     ]);
 
-    const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+    const total = Object.values(statusCounts).reduce((sum, count) => { return sum + count }, 0);
 
     return {
       total,
@@ -165,14 +165,14 @@ export class TaskRepository {
   async getMetadata(taskId: number): Promise<Record<string, string>> {
     const sql = 'SELECT key, value FROM task_metadata WHERE task_id = ?';
     const result = await this.database.query<ITaskMetadataRow>(sql, [taskId]);
-    
+
     const metadata: Record<string, string> = {};
     for (const row of result) {
       if (row.value !== null) {
         metadata[row.key] = row.value;
       }
     }
-    
+
     return metadata;
   }
 
@@ -239,7 +239,10 @@ export class TaskRepository {
       params.push(filter.offset);
     }
 
-    return { sql, params };
+    return {
+ sql,
+params
+};
   }
 
   /**

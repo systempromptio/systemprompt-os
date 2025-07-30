@@ -7,9 +7,9 @@
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import type { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import {
-  type ITaskRow,
   type ITaskFilter,
   type ITaskHandler,
+  type ITaskRow,
   type ITaskService,
   type ITaskStatistics,
   TaskStatus
@@ -75,9 +75,9 @@ export class TaskService implements ITaskService {
     this.ensureInitialized();
 
     const createdTask = await this.taskRepository.create(task);
-    
+
     this.logger.info(LogSource.TASKS, `Task created: ${createdTask.id} (${createdTask.type})`);
-    
+
     await this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
 
     return createdTask;
@@ -92,7 +92,7 @@ export class TaskService implements ITaskService {
     this.ensureInitialized();
 
     const task = await this.taskRepository.findNextAvailable(types);
-    
+
     if (task) {
       await this.updateTaskStatus(task.id, TaskStatus.ASSIGNED);
       this.logger.info(LogSource.TASKS, `Task assigned: ${task.id} (${task.type})`);
@@ -111,10 +111,13 @@ export class TaskService implements ITaskService {
     this.ensureInitialized();
 
     await this.taskRepository.updateStatus(taskId, status);
-    
+
     this.logger.info(LogSource.TASKS, `Task ${taskId} status updated to ${status}`);
-    
-    await this.eventBus.emit(EventNames.TASK_STATUS_CHANGED, { taskId, status });
+
+    await this.eventBus.emit(EventNames.TASK_STATUS_CHANGED, {
+ taskId,
+status
+});
   }
 
   /**
@@ -127,9 +130,9 @@ export class TaskService implements ITaskService {
     this.ensureInitialized();
 
     const updatedTask = await this.taskRepository.update(taskId, updates);
-    
+
     this.logger.info(LogSource.TASKS, `Task ${taskId} updated`);
-    
+
     await this.eventBus.emit(EventNames.TASK_UPDATED, { task: updatedTask });
 
     return updatedTask;
@@ -162,9 +165,9 @@ export class TaskService implements ITaskService {
    */
   async cancelTask(taskId: number): Promise<void> {
     this.ensureInitialized();
-    
+
     await this.updateTaskStatus(taskId, TaskStatus.CANCELLED);
-    
+
     await this.eventBus.emit(EventNames.TASK_CANCELLED, { taskId });
   }
 
@@ -175,9 +178,9 @@ export class TaskService implements ITaskService {
    */
   async registerHandler(handler: ITaskHandler): Promise<void> {
     this.ensureInitialized();
-    
+
     this.handlers.set(handler.type, handler);
-    
+
     this.logger.info(LogSource.TASKS, `Handler registered for task type: ${handler.type}`);
   }
 
@@ -188,9 +191,9 @@ export class TaskService implements ITaskService {
    */
   async unregisterHandler(type: string): Promise<void> {
     this.ensureInitialized();
-    
+
     this.handlers.delete(type);
-    
+
     this.logger.info(LogSource.TASKS, `Handler unregistered for task type: ${type}`);
   }
 
@@ -211,15 +214,18 @@ export class TaskService implements ITaskService {
    */
   async assignTaskToAgent(taskId: number, agentId: string): Promise<void> {
     this.ensureInitialized();
-    
-    await this.taskRepository.update(taskId, { 
+
+    await this.taskRepository.update(taskId, {
       assigned_agent_id: agentId,
       status: TaskStatus.ASSIGNED
     });
-    
+
     this.logger.info(LogSource.TASKS, `Task ${taskId} assigned to agent ${agentId}`);
-    
-    await this.eventBus.emit(EventNames.TASK_ASSIGNED, { taskId, agentId });
+
+    await this.eventBus.emit(EventNames.TASK_ASSIGNED, {
+ taskId,
+agentId
+});
   }
 
   /**
@@ -229,12 +235,12 @@ export class TaskService implements ITaskService {
    */
   async unassignTask(taskId: number): Promise<void> {
     this.ensureInitialized();
-    
-    await this.taskRepository.update(taskId, { 
+
+    await this.taskRepository.update(taskId, {
       assigned_agent_id: null,
       status: TaskStatus.PENDING
     });
-    
+
     this.logger.info(LogSource.TASKS, `Task ${taskId} unassigned`);
   }
 
@@ -266,13 +272,13 @@ export class TaskService implements ITaskService {
    */
   async updateTaskProgress(taskId: number, progress: number): Promise<void> {
     this.ensureInitialized();
-    
+
     if (progress < 0 || progress > 100) {
       throw new Error('Progress must be between 0 and 100');
     }
-    
+
     await this.taskRepository.update(taskId, { progress });
-    
+
     this.logger.info(LogSource.TASKS, `Task ${taskId} progress updated to ${progress}%`);
   }
 

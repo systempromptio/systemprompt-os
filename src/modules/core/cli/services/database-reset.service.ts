@@ -92,11 +92,9 @@ export class DatabaseResetService {
           if (logger) {
             logger.info('DATABASE_RESET', `Database file removed: ${dbPath}`);
           }
-        } else {
-          if (logger) {
+        } else if (logger) {
             logger.info('DATABASE_RESET', 'Database file does not exist, nothing to remove');
           }
-        }
 
         // Also remove WAL and SHM files if they exist
         const walPath = `${dbPath}-wal`;
@@ -215,8 +213,10 @@ export class DatabaseResetService {
    * @returns Database file path.
    */
   private getDatabasePath(): string {
-    // This should ideally come from configuration
-    // For now, using a reasonable default that matches the project structure
+    /*
+     * This should ideally come from configuration
+     * For now, using a reasonable default that matches the project structure
+     */
     return './state/database.db';
   }
 }

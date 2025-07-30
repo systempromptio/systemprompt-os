@@ -82,6 +82,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   private initialized = false;
   private started = false;
   private logger!: ILogger;
+  private databaseService?: DatabaseService;
   get exports(): IDatabaseModuleExports {
     return {
       service: (): IDatabaseService => { return this.getService() },
@@ -94,9 +95,16 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
         { return DatabaseCLIHandlerService.getInstance() },
       createModuleAdapter: async (
         moduleName: string
-      ): Promise<IModuleDatabaseAdapter> => { 
+      ): Promise<IModuleDatabaseAdapter> => {
         const dbService = this.getService();
         const connection = await dbService.getConnection();
+
+        if (dbService.getDatabaseType() !== 'sqlite') {
+          throw new Error(
+            `Module adapter currently only supports SQLite database. Module: ${moduleName}`
+          );
+        }
+
         return new (await import('@/modules/core/database/adapters/module.adapter')).SqliteModuleAdapter(connection);
       },
     };
@@ -107,6 +115,9 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
    * @returns {DatabaseService} Database service.
    */
   getService(): DatabaseService {
+    if (this.databaseService) {
+      return this.databaseService;
+    }
     return DatabaseService.getInstance();
   }
 
@@ -210,7 +221,8 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
     try {
       const config = this.buildConfig();
 
-      const dbService = DatabaseService.initialize(config, this.logger);
+      this.databaseService = DatabaseService.initialize(config, this.logger);
+      const dbService = this.databaseService;
       const sqlParser = SQLParserService.initialize(this.logger);
 
       const dbAdapter = this.createDatabaseAdapter(dbService);
@@ -319,7 +331,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       status: this.status,
       category: 'health',
     });
-    
+
     if (!this.initialized) {
       return {
         healthy: false,

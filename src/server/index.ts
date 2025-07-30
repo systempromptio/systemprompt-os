@@ -74,12 +74,10 @@ export const createApp = async function createApp(): Promise<express.Application
   console.log('Creating Express app... UPDATED!!!');
   const app = express();
 
-  // Immediate test route
   app.get('/immediate-test', (req, res) => {
     res.json({ message: 'Immediate test route working' });
   });
 
-  // Debug middleware - first middleware to run
   app.use((req, res, next) => {
     console.log(`[DEBUG] ${req.method} ${req.url}`);
     next();
@@ -130,31 +128,32 @@ limit: '50mb'
     throw error;
   }
 
-  // TODO: Fix MCP setup - currently breaks app creation
-  // try {
-  //   console.log('Setting up MCP servers...');
-  //   await setupMcpServers(app);
-  //   console.log('MCP servers set up successfully');
-  // } catch (error) {
-  //   console.error('Error setting up MCP servers:', error);
-  // }
-
-  // Add a test route to verify the app is working
   app.get('/test', (req, res) => {
-    res.json({ status: 'ok', message: 'Test route working' });
+    res.json({
+ status: 'ok',
+message: 'Test route working'
+});
   });
 
-  // Add debug route to check what routes are available
   app.get('/debug/routes', (req, res) => {
     const routes: any[] = [];
     app._router.stack.forEach((middleware: any) => {
       if (middleware.route) {
-        routes.push({ path: middleware.route.path, methods: middleware.route.methods });
+        routes.push({
+ path: middleware.route.path,
+methods: middleware.route.methods
+});
       } else if (middleware.name === 'router') {
-        routes.push({ type: 'router', regexp: middleware.regexp.toString() });
+        routes.push({
+ type: 'router',
+regexp: middleware.regexp.toString()
+});
       }
     });
-    res.json({ routes, message: 'Available routes' });
+    res.json({
+ routes,
+message: 'Available routes'
+});
   });
 
   return app;

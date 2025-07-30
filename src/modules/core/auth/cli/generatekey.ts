@@ -5,7 +5,9 @@
 
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
+import { generateKeyPairSync } from 'crypto';
+import { writeFileSync } from 'fs';
+import { join } from 'path';
 import { ONE } from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
 
@@ -48,12 +50,20 @@ export const command = {
 
       console.log(`Generating ${args.algorithm ?? 'default'} keys in ${args.format ?? 'default'} format...`);
 
-      await generateJwtKeyPair({
-        type: args.type,
-        algorithm: (args.algorithm as "RS256" | "RS512" | "ES256" | "ES512") || "RS256",
-        outputDir,
-        format: (args.format as "pem" | "jwk") || "pem",
+      const keyPair = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+          type: 'spki',
+          format: 'pem',
+        },
+        privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem',
+        },
       });
+
+      writeFileSync(join(outputDir, 'private.key'), keyPair.privateKey);
+      writeFileSync(join(outputDir, 'public.key'), keyPair.publicKey);
 
       console.log(`✓ Keys generated successfully in: ${outputDir}`);
 

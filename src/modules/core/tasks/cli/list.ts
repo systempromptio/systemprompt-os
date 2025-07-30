@@ -7,8 +7,8 @@
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
 import {
-  type ITaskRow,
   type ITaskFilter,
+  type ITaskRow,
   TaskStatus
 } from '@/modules/core/tasks/types/index';
 

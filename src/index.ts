@@ -9,94 +9,14 @@
 import { type Bootstrap, runBootstrap } from './bootstrap';
 import { type Server } from 'http';
 import { startServer } from './server/index';
-import { tunnelStatus } from './modules/core/auth/tunnel-status';
 import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants';
 import { type ILogger, LogSource } from './modules/core/logger/types/index';
+import { getLoggerService } from './modules/core/logger';
 
 /**
  * Bootstrap instance for shutdown handling.
  */
 let bootstrapInstance: Bootstrap | null = null;
-
-/**
- * Type guard for logger module exports.
- * @param moduleExports - Module exports to check.
- * @returns True if exports contains service property.
- */
-const hasLoggerService = (
-  moduleExports: unknown
-): moduleExports is { service: ILogger | (() => ILogger) } => {
-  return typeof moduleExports === 'object' && moduleExports !== null && 'service' in moduleExports;
-};
-
-/**
- * Console fallback logger that implements ILogger interface.
- */
-const consoleFallback: ILogger = {
-  debug: (source: LogSource, message: string, args?: unknown): void => {
-    console.debug(`[${source}] ${message}`, args);
-  },
-  info: (source: LogSource, message: string, args?: unknown): void => {
-    console.info(`[${source}] ${message}`, args);
-  },
-  warn: (source: LogSource, message: string, args?: unknown): void => {
-    console.warn(`[${source}] ${message}`, args);
-  },
-  error: (source: LogSource, message: string, args?: unknown): void => {
-    console.error(`[${source}] ${message}`, args);
-  },
-  log: (level: string, source: LogSource, message: string): void => {
-    console.log(`[${level}] [${source}] ${message}`);
-  },
-  access: (message: string): void => { console.log(message); },
-  clearLogs: async (): Promise<void> => {
-    await Promise.resolve();
-  },
-  getLogs: async (): Promise<string[]> => {
-    return await Promise.resolve([]);
-  }
-};
-
-/**
- * Gets the logger service from the bootstrap modules.
- * @param modules - Map of loaded modules.
- * @returns Logger service or console fallback.
- */
-const getLoggerService = (modules: Map<string, unknown>): ILogger => {
-  const loggerModule = modules.get('logger');
-
-  if (
-    typeof loggerModule === 'object'
-    && loggerModule !== null
-    && 'exports' in loggerModule
-    && hasLoggerService(loggerModule.exports)
-  ) {
-    try {
-      const {exports: loggerExports} = loggerModule;
-      const {service} = loggerExports;
-      return typeof service === 'function' ? service() : service;
-    } catch {
-      return consoleFallback;
-    }
-  }
-
-  return consoleFallback;
-};
-
-/**
- * Initializes tunnel status from environment variables.
- * @param logger - Logger service instance.
- */
-const initializeTunnelStatus = (logger: ILogger): void => {
-  const { env } = process;
-  const { BASE_URL: baseUrl } = env;
-  const BASE_URL_EMPTY = 0;
-
-  if (typeof baseUrl === 'string' && baseUrl.length > BASE_URL_EMPTY) {
-    tunnelStatus.setBaseUrl(baseUrl);
-    logger.info(LogSource.BOOTSTRAP, `Initialized tunnel status with BASE_URL: ${baseUrl}`);
-  }
-};
 
 /**
  * Handles graceful shutdown of the application.
@@ -165,7 +85,7 @@ const handleStartupError = (error: unknown): void => {
       console.error('Stack trace:', error.stack);
     }
   } else {
-    const logger = getLoggerService(bootstrapInstance.getModules());
+    const logger = getLoggerService();
     logger.error(LogSource.BOOTSTRAP, '💥 Failed to start SystemPrompt OS:', {
       error: error instanceof Error ? error : new Error(String(error))
     });
@@ -186,10 +106,7 @@ const main = async (): Promise<void> => {
 
     bootstrapInstance = await runBootstrap();
 
-    const logger = getLoggerService(bootstrapInstance.getModules());
-
-    initializeTunnelStatus(logger);
-
+    const logger = getLoggerService();
     const server = await startServer();
 
     const shutdownHandler = createShutdownHandler(server, logger);

@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import type {
-  AuthToken,
   IAuthConfig,
   IJwtParams,
   JwtPayload,
@@ -66,43 +65,46 @@ export class TokenService {
    * @param input - Token creation parameters.
    * @returns Promise resolving to the created token.
    */
-  public async createToken(input: TokenCreateInput): Promise<AuthToken> {
+  public async createToken(input: TokenCreateInput): Promise<{ token: string; row: IAuthTokensRow }> {
     const id = this.generateTokenId();
     const tokenValue = this.generateTokenValue();
     const hashedToken = this.hashToken(tokenValue);
 
-    const ttl = input.expiresIn ?? this.getDefaultTtl(input.type);
+    const ttl = input.expires_in ?? this.getDefaultTtl(input.type);
     const expiresAt = new Date(Date.now() + ttl * MILLISECONDS_PER_SECOND);
 
     await this.getTokenRepository().insertToken(
       id,
-      input.userId,
+      input.user_id,
       hashedToken,
       input.type,
       input.name || `${input.type} token`,
-      input.scope,
+      input.scopes,
       expiresAt.toISOString(),
     );
 
-    const token: AuthToken = {
+    const tokenRow: IAuthTokensRow = {
       id,
-      userId: input.userId,
-      token: `${id}.${tokenValue}`,
+      user_id: input.user_id,
+      name: input.name || `${input.type} token`,
+      token_hash: hashedToken,
       type: input.type,
-      scope: input.scope,
-      expiresAt,
-      createdAt: new Date(),
-      isRevoked: false,
-      ...input.metadata ? { metadata: input.metadata } : {},
+      expires_at: expiresAt.toISOString(),
+      last_used_at: null,
+      is_revoked: 0,
+      created_at: new Date().toISOString(),
     };
 
     this.getLogger().info(LogSource.AUTH, 'Token created', {
       tokenId: id,
-      userId: input.userId,
+      user_id: input.user_id,
       type: input.type,
     });
 
-    return token;
+    return {
+      token: `${id}.${tokenValue}`,
+      row: tokenRow
+    };
   }
 
   /**
@@ -163,28 +165,28 @@ export class TokenService {
 
   /**
    * Revoke all tokens for a specific user.
-   * @param userId - ID of the user whose tokens to revoke.
+   * @param user_id - ID of the user whose tokens to revoke.
    * @param type - Optional token type filter.
    * @returns Promise that resolves when tokens are revoked.
    */
-  public async revokeUserTokens(userId: string, type?: string): Promise<void> {
-    await this.getTokenRepository().revokeUserTokens(userId, type);
+  public async revokeUserTokens(user_id: string, type?: string): Promise<void> {
+    await this.getTokenRepository().revokeUserTokens(user_id, type);
 
     this.getLogger().info(LogSource.AUTH, 'User tokens revoked', {
-      userId,
+      user_id,
       type,
     });
   }
 
   /**
    * List all active tokens for a user.
-   * @param userId - ID of the user whose tokens to list.
+   * @param user_id - ID of the user whose tokens to list.
    * @returns Promise resolving to array of user tokens.
    */
-  public async listUserTokens(userId: string): Promise<AuthToken[]> {
-    const result = await this.getTokenRepository().findTokensByUserId(userId);
+  public async listUserTokens(user_id: string): Promise<IAuthTokensRow[]> {
+    const result = await this.getTokenRepository().findTokensByUserId(user_id);
 
-    return await this.mapRowsToTokens(result);
+    return result;
   }
 
   /**
@@ -285,13 +287,12 @@ export class TokenService {
     }
 
     await this.getTokenRepository().updateTokenUsage(tokenId!);
-    const token = await this.mapRowToToken(tokenData!, tokenString);
+    const scopes = await this.getTokenRepository().getTokenScopes(tokenData!.id);
 
     return {
       valid: true,
-      userId: token.userId,
-      scope: token.scope,
-      token,
+      userId: tokenData!.user_id,
+      scopes,
     };
   }
 
@@ -359,7 +360,7 @@ export class TokenService {
       return {
         valid: true,
         userId: payload.sub,
-        scope: payload.scope,
+        scopes: payload.scope,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Invalid JWT';
@@ -434,55 +435,6 @@ export class TokenService {
   }
 
   /**
-   * Map database row to AuthToken object.
-   * @param row - Database row.
-   * @param tokenString - Token string.
-   * @returns AuthToken object.
-   */
-  private async mapRowToToken(row: IAuthTokensRow, tokenString: string): Promise<AuthToken> {
-    const scopes = await this.getTokenRepository().getTokenScopes(row.id);
-    const lastUsedAt = this.parseLastUsedAt(row.last_used_at);
-
-    const token: AuthToken = {
-      id: row.id,
-      userId: row.user_id,
-      token: tokenString,
-      type: this.parseTokenType(row.type),
-      scope: scopes,
-      expiresAt: new Date(row.expires_at ?? new Date().toISOString()),
-      createdAt: new Date(row.created_at ?? new Date().toISOString()),
-      isRevoked: Boolean(row.is_revoked),
-      ...lastUsedAt === null ? {} : { lastUsedAt },
-    };
-
-    return token;
-  }
-
-  /**
-   * Map database rows to AuthToken array.
-   * @param rows - Database rows.
-   * @returns Array of AuthToken objects.
-   */
-  private async mapRowsToTokens(rows: IAuthTokensRow[]): Promise<AuthToken[]> {
-    return await Promise.all(rows.map(async (row): Promise<AuthToken> => {
-      const scopes = await this.getTokenRepository().getTokenScopes(row.id);
-      const lastUsedAt = this.parseLastUsedAt(row.last_used_at);
-
-      return {
-        id: row.id,
-        userId: row.user_id,
-        token: `${row.id}.***`,
-        type: this.parseTokenType(row.type),
-        scope: scopes,
-        expiresAt: new Date(row.expires_at ?? new Date().toISOString()),
-        createdAt: new Date(row.created_at ?? new Date().toISOString()),
-        isRevoked: Boolean(row.is_revoked),
-        ...lastUsedAt === null ? {} : { lastUsedAt },
-      };
-    }));
-  }
-
-  /**
    * Parse token type from string.
    * @param type - Token type string.
    * @returns Parsed token type.
@@ -539,25 +491,26 @@ export class TokenService {
   /**
    * Create access and refresh token pair.
    * @param userId - User ID.
+   * @param user_id
    * @param sessionId - Session ID.
    * @returns Promise resolving to token pair.
    */
   async createTokenPair(
-    userId: string,
+    user_id: string,
     sessionId?: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = await this.createToken({
-      userId,
+    const accessTokenResult = await this.createToken({
+      user_id,
+      name: 'access_token',
       type: 'access',
-      scope: ['read', 'write'],
-      ...sessionId && { metadata: { sessionId } }
+      scopes: ['read', 'write'],
     });
 
-    const refreshToken = await this.createToken({
-      userId,
+    const refreshTokenResult = await this.createToken({
+      user_id,
+      name: 'refresh_token',
       type: 'refresh',
-      scope: ['refresh'],
-      ...sessionId && { metadata: { sessionId } },
+      scopes: ['refresh'],
       expiresIn: this.getConfig().jwt.refreshTokenTTL
     });
 

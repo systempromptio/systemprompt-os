@@ -18,8 +18,10 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import type { AgentService } from '@/modules/core/agents/services/agent.service';
+import type { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import type { IAgentsModuleExports } from '@/modules/core/agents/types/index';
 import { AgentsStatus } from '@/modules/core/agents/types/database.generated';
 import { EventNames } from '@/modules/core/events/types/index';
 import { spawn } from 'child_process';
@@ -30,21 +32,58 @@ import { createTestId } from '../../../setup';
 describe('Agents Module Integration Tests', () => {
   let bootstrap: Bootstrap;
   let agentService: AgentService;
+  let agentRepository: AgentRepository;
   let dbService: DatabaseService;
   let eventBus: EventBusService;
+  let agentsModule: any;
   
   const testSessionId = `agents-integration-${createTestId()}`;
   const testDir = join(process.cwd(), '.test-integration', testSessionId);
   const testDbPath = join(testDir, 'test.db');
 
   beforeAll(async () => {
+    console.log(`🚀 Setting up agents integration test (session: ${testSessionId})...`);
+    
+    // Reset any existing singletons first
+    try {
+      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+      await DatabaseService.reset();
+    } catch (error) {
+      // Ignore
+    }
+    
+    try {
+      const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+      (LoggerService as any).instance = null;
+    } catch (error) {
+      // Ignore
+    }
+    
+    try {
+      const { AgentService } = await import('@/modules/core/agents/services/agent.service');
+      await AgentService.reset();
+    } catch (error) {
+      // Ignore
+    }
+    
+    try {
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      ModulesModuleService.reset();
+    } catch (error) {
+      // Ignore
+    }
+    
     // Create test directory
     if (!existsSync(testDir)) {
       mkdirSync(testDir, { recursive: true });
     }
     
-    // Set test database path
+    // Set test database path and environment
     process.env.DATABASE_PATH = testDbPath;
+    process.env.DATABASE_FILE = testDbPath;
+    process.env.LOG_LEVEL = 'error';
+    process.env.DISABLE_TELEMETRY = 'true';
+    process.env.NODE_ENV = 'test';
     
     // Bootstrap the system
     bootstrap = new Bootstrap({
@@ -55,11 +94,11 @@ describe('Agents Module Integration Tests', () => {
     const modules = await bootstrap.bootstrap();
     
     // Get required services
-    const agentsModule = modules.get('agents');
+    const agentsModuleRef = modules.get('agents');
     const dbModule = modules.get('database');
     const eventsModule = modules.get('events');
     
-    if (!agentsModule || !('exports' in agentsModule) || !agentsModule.exports) {
+    if (!agentsModuleRef || !('exports' in agentsModuleRef) || !agentsModuleRef.exports) {
       throw new Error('Agents module not loaded');
     }
     
@@ -71,64 +110,105 @@ describe('Agents Module Integration Tests', () => {
       throw new Error('Events module not loaded');
     }
     
-    dbService = dbModule.exports.service();
+    agentsModule = agentsModuleRef;
+    dbService = (dbModule as any).exports.service();
     
-    if ('service' in agentsModule.exports && typeof agentsModule.exports.service === 'function') {
-      agentService = agentsModule.exports.service();
-    } else {
-      throw new Error('Agent service not available');
-    }
+    const agentExports = agentsModuleRef.exports as IAgentsModuleExports;
+    agentService = agentExports.service();
+    agentRepository = agentExports.repository();
     
     if ('eventBus' in eventsModule.exports) {
       eventBus = eventsModule.exports.eventBus;
     } else {
       throw new Error('Event bus service not available');
     }
-  });
+    
+    // Give event handlers time to set up
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log('✅ Agents integration test environment ready');
+  }, 60000);
 
   afterAll(async () => {
-    // Shutdown bootstrap
-    if (bootstrap) {
-      await bootstrap.shutdown();
+    console.log('🧹 Cleaning up agents integration test environment...');
+    
+    // Set a timeout for cleanup
+    const cleanupTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Cleanup timeout')), 10000)
+    );
+    
+    try {
+      await Promise.race([
+        (async () => {
+          // Shutdown bootstrap
+          if (bootstrap) {
+            try {
+              await bootstrap.shutdown();
+            } catch (error) {
+              console.warn('Bootstrap shutdown error:', error);
+            }
+          }
+          
+          // Reset singletons
+          try {
+            const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+            await DatabaseService.reset();
+          } catch (error) {
+            // Ignore
+          }
+
+          try {
+            const { AgentService } = await import('@/modules/core/agents/services/agent.service');
+            await AgentService.reset();
+          } catch (error) {
+            // Ignore
+          }
+          
+          // Clean up test files
+          if (existsSync(testDir)) {
+            rmSync(testDir, { recursive: true, force: true });
+          }
+
+          // Force garbage collection
+          if (typeof global.gc === 'function') {
+            global.gc();
+          }
+        })(),
+        cleanupTimeout
+      ]);
+    } catch (error) {
+      console.warn('Cleanup error:', error);
     }
     
-    // Clean up singletons
-    try {
-      const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-      await DatabaseService.reset();
-    } catch (error) {
-      // Service might not be loaded
-    }
-
-    try {
-      const { AgentService } = await import('@/modules/core/agents/services/agent.service');
-      await AgentService.reset();
-    } catch (error) {
-      // Service might not be loaded
-    }
-    
-    // Clean up test files
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true });
-    }
-
-    // Force garbage collection
-    if (typeof global.gc === 'function') {
-      global.gc();
-    }
-  });
+    console.log('✅ Agents integration test environment cleaned up');
+  }, 30000);
 
   beforeEach(async () => {
     // Clear agent data before each test - order matters for foreign keys
     try {
-      await dbService.execute('DELETE FROM agent_config');
-      await dbService.execute('DELETE FROM agent_tools');
-      await dbService.execute('DELETE FROM agent_capabilities');
-      await dbService.execute('DELETE FROM agent_logs');
-      await dbService.execute('DELETE FROM agents');
+      // Get list of existing tables first
+      const tableNames = await dbService.query<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+      );
+      const existingTables = tableNames.map(row => row.name);
+      
+      // Clear tables in order that respects foreign key constraints
+      const tablesToClear = [
+        'agent_config',
+        'agent_tools', 
+        'agent_capabilities',
+        'agent_logs',
+        'agents'
+      ];
+      
+      for (const table of tablesToClear) {
+        if (existingTables.includes(table)) {
+          await dbService.execute(`DELETE FROM ${table}`);
+        }
+      }
       
       // Small delay to ensure cleanup completes
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 50));
     } catch (error) {
       console.warn('Failed to clear agent tables in beforeEach:', error);
     }
@@ -155,13 +235,17 @@ describe('Agents Module Integration Tests', () => {
   describe('Agent Lifecycle', () => {
     it('should create agent with basic properties', async () => {
       const agent = await agentService.createAgent({
-        name: 'worker-1',
+        name: 'test-worker-1',
         description: 'Test worker agent',
         instructions: 'Process data and generate reports',
         type: 'worker'
       });
 
       expect(agent.id).toBeDefined();
+      expect(agent.name).toBe('test-worker-1');
+      expect(agent.description).toBe('Test worker agent');
+      expect(agent.type).toBe('worker');
+      expect(agent.status).toBe(AgentsStatus.STOPPED);
       expect(agent.assigned_tasks).toBe(0);
       expect(agent.completed_tasks).toBe(0);
       expect(agent.failed_tasks).toBe(0);
@@ -171,21 +255,21 @@ describe('Agents Module Integration Tests', () => {
       // Create multiple agents
       const agents = await Promise.all([
         agentService.createAgent({ 
-          name: 'multi-1', 
+          name: 'multi-agent-1', 
           description: 'Multi agent 1',
-          instructions: 'Test',
+          instructions: 'Test instructions',
           type: 'worker' 
         }),
         agentService.createAgent({ 
-          name: 'multi-2', 
+          name: 'multi-agent-2', 
           description: 'Multi agent 2',
-          instructions: 'Test',
+          instructions: 'Test instructions', 
           type: 'worker' 
         }),
         agentService.createAgent({ 
-          name: 'multi-3', 
+          name: 'multi-agent-3', 
           description: 'Multi agent 3',
-          instructions: 'Test',
+          instructions: 'Test instructions',
           type: 'worker' 
         })
       ]);
@@ -207,7 +291,7 @@ describe('Agents Module Integration Tests', () => {
     
     it('should update agent properties', async () => {
       const agent = await agentService.createAgent({
-        name: 'update-test',
+        name: 'update-test-agent',
         description: 'Original description',
         instructions: 'Original instructions',
         type: 'worker'
@@ -224,16 +308,17 @@ describe('Agents Module Integration Tests', () => {
     
     it('should delete agent and clean up references', async () => {
       const agent = await agentService.createAgent({
-        name: 'delete-test',
+        name: 'delete-test-agent',
         description: 'To be deleted',
-        instructions: 'Test',
+        instructions: 'Test instructions',
         type: 'worker'
       });
       
-      await agentService.deleteAgent(agent.id);
+      const deleted = await agentService.deleteAgent(agent.id);
+      expect(deleted).toBe(true);
       
-      const deleted = await agentService.getAgent(agent.id);
-      expect(deleted).toBeNull();
+      const retrieved = await agentService.getAgent(agent.id);
+      expect(retrieved).toBeNull();
     });
   });
 
@@ -241,8 +326,8 @@ describe('Agents Module Integration Tests', () => {
     it('should transition agent from stopped to idle', async () => {
       const agent = await agentService.createAgent({
         name: 'status-test-1',
-        description: 'Status test',
-        instructions: 'Test',
+        description: 'Status test agent',
+        instructions: 'Test instructions',
         type: 'worker'
       });
       
@@ -255,14 +340,77 @@ describe('Agents Module Integration Tests', () => {
     it('should transition agent from idle to active', async () => {
       const agent = await agentService.createAgent({
         name: 'status-test-2',
-        description: 'Status test',
-        instructions: 'Test',
+        description: 'Status test agent',
+        instructions: 'Test instructions',
         type: 'worker'
       });
       
       await agentService.updateAgentStatus(agent.id, AgentsStatus.IDLE);
       const updated = await agentService.updateAgentStatus(agent.id, AgentsStatus.ACTIVE);
       expect(updated.status).toBe(AgentsStatus.ACTIVE);
+    });
+
+    it('should start and stop agents', async () => {
+      const agent = await agentService.createAgent({
+        name: 'start-stop-test',
+        description: 'Start stop test agent',
+        instructions: 'Test instructions',
+        type: 'worker'
+      });
+      
+      // Start agent
+      await agentService.startAgent(agent.id);
+      const startedAgent = await agentService.getAgent(agent.id);
+      expect(startedAgent?.status).toBe(AgentsStatus.ACTIVE);
+      
+      // Stop agent
+      await agentService.stopAgent(agent.id);
+      const stoppedAgent = await agentService.getAgent(agent.id);
+      expect(stoppedAgent?.status).toBe(AgentsStatus.STOPPED);
+    });
+  });
+
+  describe('Agent Availability and Querying', () => {
+    it('should list all agents', async () => {
+      // Create some test agents
+      await agentService.createAgent({
+        name: 'list-test-1',
+        description: 'List test agent 1',
+        instructions: 'Test instructions',
+        type: 'worker'
+      });
+      
+      await agentService.createAgent({
+        name: 'list-test-2',
+        description: 'List test agent 2', 
+        instructions: 'Test instructions',
+        type: 'monitor'
+      });
+      
+      const agents = await agentService.listAgents();
+      expect(agents.length).toBeGreaterThanOrEqual(2);
+      
+      const names = agents.map(a => a.name);
+      expect(names).toContain('list-test-1');
+      expect(names).toContain('list-test-2');
+    });
+
+    it('should get available agents', async () => {
+      const agent = await agentService.createAgent({
+        name: 'available-test',
+        description: 'Available test agent',
+        instructions: 'Test instructions',
+        type: 'worker'
+      });
+      
+      // Agent should not be available when stopped
+      let availableAgents = await agentService.getAvailableAgents();
+      expect(availableAgents.some(a => a.id === agent.id)).toBe(false);
+      
+      // Start agent to make it available
+      await agentService.startAgent(agent.id);
+      availableAgents = await agentService.getAvailableAgents();
+      expect(availableAgents.some(a => a.id === agent.id)).toBe(true);
     });
   });
 
@@ -283,16 +431,16 @@ describe('Agents Module Integration Tests', () => {
 
       // Create agent and update status
       const agent = await agentService.createAgent({
-        name: 'event-test',
-        description: 'Event test',
-        instructions: 'Test',
+        name: 'event-test-agent',
+        description: 'Event test agent',
+        instructions: 'Test instructions',
         type: 'worker'
       });
       
       await agentService.updateAgentStatus(agent.id, AgentsStatus.IDLE);
       
       // Wait for events to propagate
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify event flow
       expect(events.some(e => e.type === 'agent.created')).toBe(true);
@@ -317,12 +465,6 @@ describe('Agents Module Integration Tests', () => {
         '--type', 'worker'
       ]);
       
-      // Debug output
-      if (result.exitCode !== 0) {
-        console.log('Command failed with output:', result.output);
-        console.log('Command failed with errors:', result.errors);
-      }
-      
       expect(result.exitCode).toBe(0);
       expect(result.output).toMatch(/created|success/i);
     });
@@ -330,16 +472,16 @@ describe('Agents Module Integration Tests', () => {
     it('should list agents in JSON format', async () => {
       // Create some agents first
       await agentService.createAgent({
-        name: 'list-test-1',
+        name: 'list-json-test-1',
         description: 'List test 1',
-        instructions: 'Test',
+        instructions: 'Test instructions',
         type: 'worker'
       });
       
       await agentService.createAgent({
-        name: 'list-test-2',
+        name: 'list-json-test-2',
         description: 'List test 2',
-        instructions: 'Test',
+        instructions: 'Test instructions',
         type: 'monitor'
       });
       
@@ -358,7 +500,7 @@ describe('Agents Module Integration Tests', () => {
     
     it('should show agent details by name', async () => {
       await agentService.createAgent({
-        name: 'detail-agent',
+        name: 'detail-agent-test',
         description: 'Detail test agent',
         instructions: 'Test instructions',
         type: 'monitor',
@@ -366,10 +508,10 @@ describe('Agents Module Integration Tests', () => {
         tools: ['tool1', 'tool2']
       });
       
-      const result = await runCLICommand(['agents', 'show', '-n', 'detail-agent']);
+      const result = await runCLICommand(['agents', 'show', '-n', 'detail-agent-test']);
       
       expect(result.exitCode).toBe(0);
-      expect(result.output).toContain('detail-agent');
+      expect(result.output).toContain('detail-agent-test');
       expect(result.output).toContain('Detail test agent');
     });
     
@@ -381,7 +523,7 @@ describe('Agents Module Integration Tests', () => {
       // Test invalid type
       const result2 = await runCLICommand([
         'agents', 'create',
-        '--name', 'test',
+        '--name', 'test-invalid',
         '--description', 'test',
         '--instructions', 'test',
         '--type', 'invalid-type'

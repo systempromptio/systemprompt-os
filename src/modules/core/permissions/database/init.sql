@@ -1,10 +1,13 @@
+-- Initialize default roles and permissions
+-- This should only run after the permissions schema has been created
+
 -- Initialize default roles
-INSERT OR IGNORE INTO auth_roles (id, name, description, is_system) VALUES
+INSERT OR IGNORE INTO roles (id, name, description, is_system) VALUES
   ('role_admin', 'admin', 'System administrator with full access', 1),
   ('role_user', 'user', 'Regular user with basic access', 1);
 
 -- Initialize default permissions
-INSERT OR IGNORE INTO auth_permissions (id, name, resource, action, description) VALUES
+INSERT OR IGNORE INTO permissions (id, name, resource, action, description) VALUES
   -- Admin permissions
   ('perm_admin_all', 'admin.all', '*', '*', 'Full system access'),
   
@@ -29,11 +32,11 @@ INSERT OR IGNORE INTO auth_permissions (id, name, resource, action, description)
 
 -- Assign permissions to roles
 -- Admin gets all permissions
-INSERT OR IGNORE INTO auth_role_permissions (role_id, permission_id) VALUES
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES
   ('role_admin', 'perm_admin_all');
 
 -- Regular user permissions
-INSERT OR IGNORE INTO auth_role_permissions (role_id, permission_id) VALUES
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES
   ('role_user', 'perm_profile_read'),
   ('role_user', 'perm_profile_write'),
   ('role_user', 'perm_containers_read'),

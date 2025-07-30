@@ -54,7 +54,7 @@ export const command: ICLICommand = {
     }
 
     try {
-      const configModule = getConfigModule();
+      const configModule = await getConfigModule();
       const parsedValue = parseValue(value);
 
       await configModule.exports.set(key, parsedValue);

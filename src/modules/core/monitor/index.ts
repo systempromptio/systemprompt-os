@@ -71,25 +71,22 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     if (this.initialized) {
       throw new Error('Monitor module already initialized');
     }
-    
+
     try {
       this.status = ModulesStatus.INITIALIZING;
-      
-      // Initialize basic services that don't require context
+
       this.metricService = MetricService.getInstance();
       this.moduleExports = {
         MonitorService: this.metricService
       };
-      
+
       this.status = ModulesStatus.STOPPED;
       this.initialized = true;
     } catch (error) {
-      // Log error but don't set to ERROR state - allow module to be used in degraded mode
       const errorInfo = this.getErrorInfo(error);
       const logger = LoggerService.getInstance();
       logger.warn(LogSource.MODULES, 'Monitor module initialization incomplete', errorInfo);
-      
-      // Still mark as initialized in degraded mode
+
       this.metricService = MetricService.getInstance();
       this.moduleExports = {
         MonitorService: this.metricService
@@ -111,14 +108,13 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
       if (!this.initialized) {
         throw new Error('Module not initialized');
       }
-      
+
       if (this.started) {
         return;
       }
 
       this.status = ModulesStatus.INITIALIZING;
-      
-      // Initialize dependencies if available
+
       if (this.deps?.database) {
         try {
           const adapter = await this.deps.database.createModuleAdapter('monitor');
@@ -137,7 +133,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
             );
           }
         } catch (error) {
-          // Continue without database - metrics will be buffered in memory
           const logger = LoggerService.getInstance();
           logger.warn(LogSource.MODULES, 'Monitor module starting without database', { error });
         }
@@ -145,7 +140,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
 
       this.metricService!.initialize();
 
-      // Set up cleanup interval if config is available
       if (this.config?.config.cleanup.interval) {
         this.cleanupInterval = setInterval(
           (): void => {
@@ -298,7 +292,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     let databaseHealthy = true;
     let serviceHealthy = true;
 
-    // If no dependencies available (degraded mode), skip database check
     if (this.deps !== undefined && this.deps.database !== undefined) {
       try {
         const adapter = await this.deps.database.createModuleAdapter('monitor');
@@ -323,12 +316,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
   }
 
   /**
-   * Sets up the module context during initialization.
-   * @param context - Initialization context containing config and dependencies.
-   * @param context.config - Module configuration.
-   * @param context.deps - Module dependencies.
-   */
-  /**
    * Set module context after initialization.
    * This is called by the module system when dependencies are available.
    * @param config - Module configuration.
@@ -338,16 +325,6 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
     this.config = config;
     this.deps = deps;
   }
-
-  /**
-   * Initializes the repository and metric service.
-   * @throws Error if context is not properly set up.
-   */
-
-  /**
-   * Finalizes the initialization process.
-   * @throws Error if services are not properly initialized.
-   */
 
   /**
    * Handles initialization errors.

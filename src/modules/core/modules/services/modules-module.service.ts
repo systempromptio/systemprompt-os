@@ -37,22 +37,6 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
   private moduleManagerService?: ModuleManagerService;
   private initialized = false;
   private started = false;
-  
-  /**
-   * Private constructor for singleton pattern.
-   */
-  private constructor() {}
-  
-  /**
-   * Get the singleton instance.
-   * @returns The ModulesModuleService instance.
-   */
-  public static getInstance(): ModulesModuleService {
-    if (!ModulesModuleService.instance) {
-      ModulesModuleService.instance = new ModulesModuleService();
-    }
-    return ModulesModuleService.instance;
-  }
   get exports(): IModulesModuleExports {
     if (!this.initialized) {
       throw new Error('Modules module not initialized');
@@ -494,7 +478,15 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
       });
     }
   }
-  
+
+  /**
+   * Get singleton instance.
+   */
+  public static getInstance(): ModulesModuleService {
+    ModulesModuleService.instance ||= new ModulesModuleService();
+    return ModulesModuleService.instance;
+  }
+
   /**
    * Reset the singleton instance (for testing).
    */

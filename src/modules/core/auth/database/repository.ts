@@ -1,16 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
-import { UserEventService } from '@/modules/core/auth/services/user-event.service';
+import { getAuthModule } from '@/modules/core/auth/index';
 import type {
- IPermission, IRole, IUser
+ IUser
 } from '@/modules/core/auth/types';
+import type { OAuthProfile } from '@/modules/core/auth/types/repository.types';
 import type {
- IAuthPermissionsRow,
- IAuthRolesRow
-} from '@/modules/core/auth/types/database.generated';
-import type {
- OAuthProfile,
  SessionMetadata
 } from '@/modules/core/auth/types/repository.types';
 import {
@@ -19,12 +14,11 @@ import {
 
 /**
  * Repository for authentication-related database operations.
- * Provides methods for user management, role/permission verification,
- * and session handling in the authentication system.
+ * Provides methods for OAuth user management and session handling.
+ * Authorization (roles/permissions) is handled by the permissions module.
  */
 export class AuthRepository {
   private static instance: AuthRepository | undefined;
-  private userEventService?: UserEventService;
   private dbService?: DatabaseService;
 
   /**
@@ -48,7 +42,6 @@ export class AuthRepository {
    */
   async initialize(): Promise<void> {
     this.dbService = DatabaseService.getInstance();
-    this.userEventService = UserEventService.getInstance();
   }
 
   /**
@@ -56,192 +49,8 @@ export class AuthRepository {
    * @returns Database connection.
    */
   private async getDatabase(): Promise<DatabaseService> {
-    if (!this.dbService) {
-      this.dbService = DatabaseService.getInstance();
-    }
+    this.dbService ||= DatabaseService.getInstance();
     return this.dbService;
-  }
-
-  /**
-   * Get user event service.
-   * @returns User event service.
-   */
-  private getUserEventService(): UserEventService {
-    if (!this.userEventService) {
-      this.userEventService = UserEventService.getInstance();
-    }
-    return this.userEventService;
-  }
-
-  /**
-   * Creates or updates a user from OAuth authentication.
-   * Delegates to any which properly handles first-user detection.
-   * Outside of the transaction to avoid race conditions.
-   * @param provider - OAuth provider identifier (e.g., 'google', 'github').
-   * @param providerId - IUser's unique ID from the OAuth provider.
-   * @param profile - IUser profile data from OAuth provider.
-   * @returns Complete user object with roles and permissions.
-   * @throws {Error} If user creation or retrieval fails.
-   */
-  async upsertIUserFromOAuth(
-    provider: string,
-    providerId: string,
-    profile: OAuthProfile,
-  ): Promise<IUser> {
-    const user = await this.getUserEventService().createOrUpdateUserFromOauth({
-      provider,
-      providerId,
-      email: profile.email,
-      ...profile.name !== undefined && { name: profile.name },
-      ...profile.avatar !== undefined && { avatar: profile.avatar },
-    });
-
-    const roles = await this.getIUserIRoles(user.id);
-    const permissions = await this.getIUserIPermissions(user.id);
-
-    return {
-      id: user.id,
-      email: user.email,
-      ...user.name !== null && { name: user.name },
-      ...user.avatarurl !== null && { avatarUrl: user.avatarurl },
-      isActive: true,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      lastLoginAt: new Date().toISOString(),
-      roles,
-      permissions,
-    };
-  }
-
-  /**
-   * Retrieves a user by their unique identifier.
-   * Fetches the user record along with their associated roles and permissions.
-   * @param userId - IUser's unique identifier.
-   * @returns IUser object with roles and permissions, or null if not found.
-   */
-  async getIUserById(userId: string): Promise<IUser | null> {
-    const userWithRoles = await this.getUserEventService().getUserById(userId);
-    
-    if (!userWithRoles) {
-      return null;
-    }
-
-    const roles = await this.getIUserIRoles(userId);
-    const permissions = await this.getIUserIPermissions(userId);
-
-    return {
-      id: userWithRoles.id,
-      email: userWithRoles.email,
-      ...userWithRoles.name && { name: userWithRoles.name },
-      ...userWithRoles.avatarurl && { avatarUrl: userWithRoles.avatarurl },
-      isActive: userWithRoles.status === 'active',
-      createdAt: userWithRoles.createdAt ?? new Date().toISOString(),
-      updatedAt: userWithRoles.updatedAt ?? new Date().toISOString(),
-      roles,
-      permissions,
-    };
-  }
-
-  /**
-   * Retrieves a user by their email address.
-   * @param email - IUser's email address.
-   * @returns IUser object with roles and permissions, or null if not found.
-   */
-  async getIUserByEmail(email: string): Promise<IUser | null> {
-    const userWithRoles = await this.getUserEventService().getUserByEmail(email);
-    
-    if (!userWithRoles) {
-      return null;
-    }
-
-    return await this.getIUserById(userWithRoles.id);
-  }
-
-  /**
-   * Retrieves all roles assigned to a user.
-   * @param userId - IUser's unique identifier.
-   * @returns Array of role objects assigned to the user.
-   */
-  async getIUserIRoles(userId: string): Promise<IRole[]> {
-    const db = await this.getDatabase();
-    const rows = await db.query<IAuthRolesRow>(
-      `SELECT r.* FROM auth_roles r
-       JOIN auth_user_roles ur ON r.id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId],
-    );
-
-    return rows.map((row: IAuthRolesRow): IRole => { return {
-      id: row.id,
-      name: row.name,
-      ...row.description !== null && { description: row.description },
-      isSystem: Boolean(row.is_system),
-    } });
-  }
-
-  /**
-   * Retrieves all permissions granted to a user through their roles.
-   * IPermissions are deduplicated using DISTINCT to handle cases where
-   * multiple roles grant the same permission.
-   * @param userId - IUser's unique identifier.
-   * @returns Array of unique permission objects granted to the user.
-   */
-  async getIUserIPermissions(userId: string): Promise<IPermission[]> {
-    const db = await this.getDatabase();
-    const rows = await db.query<IAuthPermissionsRow>(
-      `SELECT DISTINCT p.* FROM auth_permissions p
-       JOIN auth_role_permissions rp ON p.id = rp.permission_id
-       JOIN auth_user_roles ur ON rp.role_id = ur.role_id
-       WHERE ur.user_id = ?`,
-      [userId],
-    );
-
-    return rows.map((row: IAuthPermissionsRow): IPermission => { return {
-      id: row.id,
-      name: row.name,
-      resource: row.resource,
-      action: row.action,
-      ...row.description !== null && { description: row.description },
-    } });
-  }
-
-  /**
-   * Checks if a user has a specific permission.
-   * Verifies permission through the user's assigned roles.
-   * @param userId - IUser's unique identifier.
-   * @param resource - Resource the permission applies to.
-   * @param action - Action the permission allows.
-   * @returns True if user has the permission, false otherwise.
-   */
-  async hasIPermission(userId: string, resource: string, action: string): Promise<boolean> {
-    const db = await this.getDatabase();
-    const result = await db.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM auth_permissions p
-       JOIN auth_role_permissions rp ON p.id = rp.permission_id
-       JOIN auth_user_roles ur ON rp.role_id = ur.role_id
-       WHERE ur.user_id = ? AND p.resource = ? AND p.action = ?`,
-      [userId, resource, action],
-    );
-
-    return (result[ZERO]?.count ?? ZERO) > ZERO;
-  }
-
-  /**
-   * Checks if a user has a specific role.
-   * @param userId - IUser's unique identifier.
-   * @param roleName - Name of the role to check.
-   * @returns True if user has the role, false otherwise.
-   */
-  async hasIRole(userId: string, roleName: string): Promise<boolean> {
-    const db = await this.getDatabase();
-    const result = await db.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM auth_user_roles ur
-       JOIN auth_roles r ON ur.role_id = r.id
-       WHERE ur.user_id = ? AND r.name = ?`,
-      [userId, roleName],
-    );
-
-    return (result[ZERO]?.count ?? ZERO) > ZERO;
   }
 
   /**
@@ -292,5 +101,70 @@ export class AuthRepository {
     await db.execute(`DELETE FROM auth_sessions WHERE expires_at < datetime('now')`);
 
     return ZERO;
+  }
+
+  /**
+   * Creates or updates a user from OAuth authentication using event-based communication.
+   * Delegates to auth service which handles the user creation via events.
+   * @param provider
+   * @param providerId
+   * @param profile
+   */
+  async upsertIUserFromOAuth(
+    provider: string,
+    providerId: string,
+    profile: OAuthProfile,
+  ): Promise<IUser> {
+    try {
+      const authModule = getAuthModule();
+      const authService = authModule.exports.service();
+
+      const user = await authService.createOrUpdateUserFromOAuth(provider, providerId, profile);
+
+      if (!user) {
+        throw new Error('Failed to create/update OAuth user');
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? undefined,
+        avatarUrl: user.avatarUrl ?? undefined,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      throw new Error(`Failed to upsert OAuth user: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Retrieves a user by their unique identifier using event-based communication.
+   * Fetches minimal user data via events and combines with roles/permissions.
+   * @param userId
+   */
+  async getIUserById(userId: string): Promise<IUser | null> {
+    try {
+      const authModule = getAuthModule();
+      const authService = authModule.exports.service();
+
+      const userInfo = await authService.requestUserData(userId);
+
+      if (!userInfo) {
+        return null;
+      }
+
+      return {
+        id: userInfo.id,
+        email: userId,
+        isActive: userInfo.status === 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      return null;
+    }
   }
 }

@@ -42,9 +42,9 @@ export class TasksModule implements IModule<ITasksModuleExports> {
       service: (): ITaskService => {
         return this.getService();
       },
-      TaskStatus: TaskStatus,
-      TaskExecutionStatus: TaskExecutionStatus,
-      TaskPriority: TaskPriority
+      TaskStatus,
+      TaskExecutionStatus,
+      TaskPriority
     };
   }
 

@@ -42,7 +42,7 @@ describe('Logger Module Integration Tests', () => {
     }
     
     // Set test database path
-    process.env.DATABASE_PATH = testDbPath;
+    process.env.SQLITE_FILENAME = testDbPath;
     
     // Bootstrap the system
     bootstrap = new Bootstrap({

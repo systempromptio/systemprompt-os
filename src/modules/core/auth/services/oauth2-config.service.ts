@@ -1,21 +1,5 @@
 /**
  * OAuth2 Configuration Service.
- * Centralized OAuth2 URL and configuration management that provides
- * RFC-compliant OAuth2 server metadata and protected resource metadata.
- * This service ensures all OAuth2 endpoints and configuration follow
- * the specifications defined in RFC 8414 and RFC 9728.
- * @file OAuth2 Configuration Service.
- * @module modules/core/auth/services/oauth2-config
- */
-
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
-import type {
-  IOAuth2ProtectedResourceMetadataInternal,
-  IOAuth2ServerMetadataInternal,
-} from '@/modules/core/auth/types';
-
-/**
- * OAuth2 Configuration Service.
  * Manages OAuth2 endpoints and metadata configuration following RFC standards.
  * Provides singleton access to OAuth2 server metadata, protected resource metadata,
  * Handles dynamic base URL resolution through
@@ -49,7 +33,8 @@ export class OAuth2ConfigurationService {
    * @returns The current base URL with tunnel status considered.
    */
   getBaseUrl(): string {
-    return tunnelStatus.getBaseUrlOrDefault(this.baseUrl);
+    // Priority: 1. Environment variable, 2. Base URL from process.env, 3. Default
+    return process.env.BASE_URL || process.env.OAUTH_BASE_URL || 'https://democontainer.systemprompt.io';
   }
 
   /**
@@ -59,7 +44,7 @@ export class OAuth2ConfigurationService {
    * authentication methods as defined in the OAuth2 specification.
    * @returns The OAuth2 authorization server metadata.
    */
-  getAuthorizationServerMetadata(): IOAuth2ServerMetadataInternal {
+  getAuthorizationServerMetadata() {
     const baseUrl = this.getBaseUrl();
     return this.buildServerMetadata(baseUrl);
   }
@@ -71,7 +56,7 @@ export class OAuth2ConfigurationService {
    * in the OAuth2 Protected Resource Metadata specification.
    * @returns The OAuth2 protected resource metadata.
    */
-  getProtectedResourceMetadata(): IOAuth2ProtectedResourceMetadataInternal {
+  getProtectedResourceMetadata() {
     const baseUrl = this.getBaseUrl();
     return this.buildResourceMetadata(baseUrl);
   }
@@ -95,7 +80,7 @@ export class OAuth2ConfigurationService {
    * @param baseUrl - The base URL for the server.
    * @returns Server metadata with snake_case properties as required by RFC.
    */
-  private buildServerMetadata(baseUrl: string): IOAuth2ServerMetadataInternal {
+  private buildServerMetadata(baseUrl: string) {
     const scopes = ['profile', 'email', 'offline_access', 'agent'];
     const responseTypes = ['code', 'code id_token'];
     const responseModes = ['query', 'fragment'];
@@ -109,7 +94,7 @@ export class OAuth2ConfigurationService {
       'email', 'email_verified', 'agent_id', 'agent_type',
     ];
 
-    const result: IOAuth2ServerMetadataInternal = {
+    const result = {
       issuer: baseUrl,
       authorization_endpoint: `${baseUrl}/oauth2/authorize`,
       token_endpoint: `${baseUrl}/oauth2/token`,
@@ -138,12 +123,12 @@ export class OAuth2ConfigurationService {
    */
   private buildResourceMetadata(
     baseUrl: string,
-  ): IOAuth2ProtectedResourceMetadataInternal {
+  ) {
     const authServers = [baseUrl];
     const bearerMethods = ['header'];
     const scopes = ['profile', 'email', 'offline_access', 'agent'];
 
-    const result: IOAuth2ProtectedResourceMetadataInternal = {
+    const result = {
       resource: `${baseUrl}/mcp`,
       authorization_servers: authServers,
       bearer_methods_supported: bearerMethods,

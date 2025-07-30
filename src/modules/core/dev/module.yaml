@@ -12,18 +12,8 @@ dependencies:
 
 cli:
   commands:
-    - name: debug
-      description: Start a debug session (placeholder command)
     - name: lint
-      description: Analyze code for common issues and display a formatted summary
-      options:
-        - name: max
-          alias: m
-          type: string
-          description: Maximum number of files to display
-          default: '10'
-    - name: typecheck
-      description: Analyze TypeScript code for type issues and display a formatted summary
+      description: Run linter and display a formatted summary of issues
       options:
         - name: max
           alias: m
@@ -31,7 +21,7 @@ cli:
           description: Maximum number of files to display
           default: '10'
     - name: test
-      description: Analyze test files and display test coverage summary
+      description: Run integration tests and display test coverage summary
       options:
         - name: max
           alias: m
@@ -62,32 +52,6 @@ cli:
         - name: deps
           type: array
           description: Module dependencies
-    - name: profile-create
-      description: Create a new development profile
-      options:
-        - name: name
-          alias: n
-          type: string
-          required: true
-          description: Profile name
-        - name: description
-          alias: d
-          type: string
-          description: Profile description
-    - name: profile-list
-      description: List all development profiles
-    - name: session-start
-      description: Start a new development session
-      options:
-        - name: type
-          alias: t
-          type: string
-          required: true
-          description: Session type (development, testing, debugging)
-        - name: profile
-          alias: p
-          type: string
-          description: Profile name to use
 
 database:
   schema: ./database/schema.sql

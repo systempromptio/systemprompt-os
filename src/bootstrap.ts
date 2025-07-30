@@ -171,7 +171,6 @@ export class Bootstrap {
       `Bootstrap completed - ${this.modules.size.toString()} modules`,
       { category: 'startup' }
     );
-
   }
 
   /**

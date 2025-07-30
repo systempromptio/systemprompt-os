@@ -7,11 +7,7 @@
  */
 
 import { getAuthModule } from '@/modules/core/auth/index';
-import {
- ONE, ZERO
-} from '@/constants/numbers';
 import type { ICliContext } from '@/modules/core/auth/types/cli.types';
-import type { IIdentityProvider } from '@/modules/core/auth/types/provider-interface';
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',
@@ -20,9 +16,9 @@ export const command = {
       execute: async (_context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
-          const providers = authModule.exports.getAllProviders() as IIdentityProvider[];
+          const providers = await authModule.exports.getAllProviders();
 
-          if (providers.length === ZERO) {
+          if (providers.length === 0) {
             console.log('No OAuth2/OIDC providers are currently configured.');
             console.log('\nTo enable providers, set the following environment variables:');
             console.log('  - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google');
@@ -36,13 +32,13 @@ export const command = {
           for (const provider of providers) {
             console.log(`  ${provider.id}:`);
             console.log(`    Name: ${provider.name}`);
-            console.log(`    Type: ${provider.type}`);
-            console.log(`    Status: Enabled`);
+            console.log(`    Enabled: ${provider.enabled}`);
+            console.log(`    Status: ${provider.enabled ? 'Enabled' : 'Disabled'}`);
             console.log();
           }
         } catch (error) {
           console.error('Error listing providers:', error);
-          process.exit(ONE);
+          process.exit(1);
         }
       },
     },
@@ -55,10 +51,10 @@ export const command = {
           console.log('Reloading provider configurations...');
           await authModule.exports.reloadProviders();
 
-          const providers = authModule.exports.getAllProviders() as IIdentityProvider[];
+          const providers = await authModule.exports.getAllProviders();
           console.log(`✓ Reloaded successfully. ${providers.length} provider(s) available.`);
 
-          if (providers.length > ZERO) {
+          if (providers.length > 0) {
             console.log('\nActive providers:');
             for (const provider of providers) {
               console.log(`  - ${provider.id} (${provider.name})`);
@@ -66,7 +62,7 @@ export const command = {
           }
         } catch (error) {
           console.error('Error reloading providers:', error);
-          process.exit(ONE);
+          process.exit(1);
         }
       },
     },

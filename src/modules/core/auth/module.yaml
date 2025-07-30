@@ -1,7 +1,7 @@
 name: auth
 type: core
 version: 2.0.0
-description: Enhanced authentication with MFA, tokens, and audit logging
+description: Authentication and authorization with tokens and OAuth2/OIDC providers
 author: SystemPrompt OS Team <team@systemprompt-os.com>
 config:
   keyStorePath: ./state/auth/keys

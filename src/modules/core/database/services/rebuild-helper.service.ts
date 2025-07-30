@@ -33,10 +33,8 @@ export class RebuildHelperService {
 
     const dbService = DatabaseService.getInstance();
     await dbService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
-      // Disable foreign key constraints to allow dropping tables in any order
       await conn.execute('PRAGMA foreign_keys = OFF');
 
-      // Get fresh list of tables in case some were already dropped
       const tablesResult = await conn.query<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' 
          AND name NOT LIKE 'sqlite_%' ORDER BY name`
@@ -59,20 +57,17 @@ export class RebuildHelperService {
         }
       }
 
-      // Clear the schema import tracking table specifically if it exists
       try {
         await conn.execute('DELETE FROM _imported_schemas WHERE 1=1');
         if (logger) {
           logger.info(LogSource.DATABASE, 'Cleared schema import tracking');
         }
       } catch (error) {
-        // Table might not exist or already be dropped - that's OK
         if (logger) {
           logger.debug(LogSource.DATABASE, 'Schema import tracking table not found or already cleared');
         }
       }
 
-      // Re-enable foreign key constraints
       await conn.execute('PRAGMA foreign_keys = ON');
     });
 

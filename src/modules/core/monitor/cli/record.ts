@@ -61,8 +61,7 @@ export const command: ICLICommand = {
       }
 
       const metricService = MetricService.getInstance();
-      
-      // Initialize the service (safe to call multiple times)
+
       metricService.initialize();
 
       metricService.recordMetric({
@@ -72,7 +71,6 @@ export const command: ICLICommand = {
         ...unit && { unit },
       });
 
-      // Force flush to ensure metric is persisted immediately for CLI
       await metricService.shutdown();
 
       cliOutput.success(`Metric recorded: ${name} = ${value} (${type})${unit ? ` ${unit}` : ''}`);

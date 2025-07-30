@@ -28,7 +28,6 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { LogSource, LoggerService } from '@/modules/core/logger/index';
-import { HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND } from '@/modules/core/auth/constants/index';
 import type { IServerConfig, ISessionInfo } from '@/server/mcp/remote/types';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
 import { handleGetPrompt, handleListPrompts } from '@/server/mcp/core/handlers/prompt-handlers';
@@ -366,7 +365,7 @@ export class CoreMcpServer {
     const sessionInfo = this.sessions.get(sessionId);
 
     if (sessionInfo === undefined) {
-      res.status(HTTP_NOT_FOUND).json({
+      res.status(404).json({
         jsonrpc: '2.0',
         error: {
           code: -32001,
@@ -435,7 +434,7 @@ export class CoreMcpServer {
    */
   private sendErrorResponse(res: ExpressResponse, error: unknown): void {
     if (!res.headersSent) {
-      res.status(HTTP_INTERNAL_SERVER_ERROR).json({
+      res.status(500).json({
         jsonrpc: '2.0',
         error: {
           code: -32603,

@@ -11,6 +11,38 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import type { Express } from 'express';
+
+// Mock the logger service before importing modules that use it
+vi.mock('@/modules/core/logger/services/logger.service', () => ({
+  LoggerService: {
+    getInstance: () => ({
+      info: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+      log: vi.fn(),
+      checkInitialized: vi.fn(),
+      initialize: vi.fn().mockResolvedValue(undefined)
+    })
+  }
+}));
+
+// Mock the database service before importing modules that use it
+vi.mock('@/modules/core/database/services/database.service', () => ({
+  DatabaseService: {
+    getInstance: () => ({
+      query: vi.fn().mockResolvedValue([]),
+      execute: vi.fn().mockResolvedValue(undefined),
+      initialize: vi.fn().mockResolvedValue(undefined)
+    }),
+    create: () => ({
+      query: vi.fn().mockResolvedValue([]),
+      execute: vi.fn().mockResolvedValue(undefined),
+      initialize: vi.fn().mockResolvedValue(undefined)
+    })
+  }
+}));
+
 import { setupMcpServers } from '@/server/mcp/index';
 import { initializeMcpServerRegistry } from '@/server/mcp/registry';
 import { createRemoteMcpServer } from '@/server/mcp/remote/index';
@@ -21,6 +53,7 @@ describe('Server MCP Integration Tests', () => {
   let mockAccessToken: string;
 
   beforeAll(async () => {
+
     // Create minimal Express app for testing
     app = express();
     app.use(express.json());

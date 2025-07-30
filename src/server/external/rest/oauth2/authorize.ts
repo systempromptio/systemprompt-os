@@ -429,11 +429,9 @@ export class AuthorizeEndpoint {
   ): ExpressResponse | void => {
     try {
       const params = authorizeRequestSchema.parse(req.query);
-      
-      // Check if user is authenticated when no provider is specified
+
       const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
       if (params.provider === undefined && !extendedReq.user) {
-        // Redirect to login page
         const loginParams = new URLSearchParams({
           redirect_uri: `/oauth2/authorize?${new URLSearchParams(req.query as any).toString()}`
         });
@@ -597,7 +595,6 @@ export class AuthorizeEndpoint {
       const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
       const { user } = extendedReq;
       if (user === undefined) {
-        // Redirect to login page for non-authenticated users
         const loginParams = new URLSearchParams({
           redirect_uri: `/oauth2/authorize`
         });
@@ -755,7 +752,6 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      const authRepo = AuthRepository.getInstance();
       const avatarUrl = extractAvatarUrl(userInfo);
 
       const userData: IOAuthUserData = {
@@ -770,11 +766,16 @@ export class AuthorizeEndpoint {
         userData.avatar = avatarUrl;
       }
 
-      const user = await authRepo.upsertIUserFromOAuth(
+      const authService = authModule.exports.service();
+      const user = await authService.createOrUpdateUserFromOAuth(
         providerName,
         userInfo.id,
         userData
       );
+
+      if (!user) {
+        throw new Error('Failed to create or update user');
+      }
 
       logger.info(LogSource.AUTH, 'User upserted in database', {
         category: 'oauth2',

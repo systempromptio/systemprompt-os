@@ -5,10 +5,6 @@
 
 import { Command } from 'commander';
 import type { AuthModule } from '@/modules/core/auth/index';
-import type { TokenType } from '@/modules/core/auth/types/index';
-import {
- ONE, TEN, TWO, ZERO
-} from '@/constants/numbers';
 import { LogSource, getLoggerService } from '@/modules/core/logger/index';
 
 /**
@@ -29,37 +25,36 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .option('-m, --metadata <json>', 'Token metadata as JSON')
     .action(async (options): Promise<void> => {
       try {
-        let metadata;
         if (options.metadata !== undefined && options.metadata !== null && options.metadata !== '') {
           try {
-            metadata = JSON.parse(options.metadata as string);
+            JSON.parse(options.metadata as string);
           } catch {
             const logger = getLoggerService();
             logger.error(LogSource.AUTH, 'Error: Invalid JSON for metadata', {});
-            process.exit(ONE);
+            process.exit(1);
           }
         }
 
         const token = await authModule.createToken({
-          userId: options.user as string,
-          type: options.type as TokenType,
-          scope: options.scope as string[],
-          ...options.expires !== undefined && options.expires !== null && options.expires !== '' ? { expiresIn: parseInt(options.expires as string, TEN) } : {},
-          ...metadata !== undefined ? { metadata } : {}
+          user_id: options.user as string,
+          name: `CLI Token - ${new Date().toISOString()}`,
+          type: options.type as 'api' | 'personal' | 'service',
+          scopes: options.scope as string[],
+          ...options.expires !== undefined && options.expires !== null && options.expires !== '' ? { expires_in: parseInt(options.expires as string, 10) } : {}
         });
 
         const logger = getLoggerService();
         logger.info(LogSource.AUTH, '\n✓ Token created successfully!', {});
-        logger.info(LogSource.AUTH, `Token: ${token.token}`, {});
+        logger.info(LogSource.AUTH, `Token ID: ${token.id}`, {});
         logger.info(LogSource.AUTH, `Type: ${token.type}`, {});
-        logger.info(LogSource.AUTH, `Scopes: ${token.scope.join(', ')}`, {});
-        logger.info(LogSource.AUTH, `Expires: ${token.expiresAt.toISOString()}`, {});
-        logger.info(LogSource.AUTH, '\nStore this token securely - it cannot be retrieved again.', {});
+        logger.info(LogSource.AUTH, `Name: ${token.name}`, {});
+        logger.info(LogSource.AUTH, `Expires: ${token.expires_at || 'Never'}`, {});
+        logger.info(LogSource.AUTH, '\nNote: The actual token value is not displayed for security reasons.', {});
       } catch (error) {
         const logger = getLoggerService();
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(LogSource.AUTH, 'Error creating token:', { error: errorMessage });
-        process.exit(ONE);
+        process.exit(1);
       }
     });
 
@@ -72,9 +67,9 @@ export function createTokenCommand(authModule: AuthModule): Command {
         const logger = getLoggerService();
 
         if (options.json === true) {
-          logger.info(LogSource.AUTH, JSON.stringify(tokens, null, TWO), {});
+          logger.info(LogSource.AUTH, JSON.stringify(tokens, null, 2), {});
         } else {
-          if (tokens.length === ZERO) {
+          if (tokens.length === 0) {
             logger.info(LogSource.AUTH, 'No tokens found', {});
             return;
           }
@@ -84,12 +79,11 @@ export function createTokenCommand(authModule: AuthModule): Command {
           logger.info(LogSource.AUTH, '--------------------------------  ----------  ------------------  ------------------------  ------------------------', {});
 
           tokens.forEach((token): void => {
-            const id = token.id.substring(ZERO, 32);
-            const type = token.type.padEnd(TEN);
-            const scopes = token.scope.join(',').substring(ZERO, 18)
-.padEnd(18);
-            const expires = token.expiresAt !== null ? token.expiresAt.toISOString() : 'Never'.padEnd(24);
-            const lastUsed = token.lastUsedAt !== null && token.lastUsedAt !== undefined ? token.lastUsedAt.toISOString() : 'Never'.padEnd(24);
+            const id = token.id.substring(0, 32);
+            const type = token.type.padEnd(10);
+            const scopes = 'N/A'.padEnd(18); // Scopes are in separate table
+            const expires = token.expires_at !== null ? token.expires_at : 'Never'.padEnd(24);
+            const lastUsed = token.last_used_at !== null && token.last_used_at !== undefined ? token.last_used_at : 'Never'.padEnd(24);
 
             logger.info(LogSource.AUTH, `${id}  ${type}  ${scopes}  ${expires}  ${lastUsed}`, {});
           });
@@ -100,7 +94,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
         const logger = getLoggerService();
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(LogSource.AUTH, 'Error listing tokens:', { error: errorMessage });
-        process.exit(ONE);
+        process.exit(1);
       }
     });
 
@@ -115,7 +109,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
         const logger = getLoggerService();
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(LogSource.AUTH, 'Error revoking token:', { error: errorMessage });
-        process.exit(ONE);
+        process.exit(1);
       }
     });
 
@@ -132,7 +126,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
         const logger = getLoggerService();
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(LogSource.AUTH, 'Error revoking tokens:', { error: errorMessage });
-        process.exit(ONE);
+        process.exit(1);
       }
     });
 
@@ -147,7 +141,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
         const logger = getLoggerService();
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error(LogSource.AUTH, 'Error cleaning up tokens:', { error: errorMessage });
-        process.exit(ONE);
+        process.exit(1);
       }
     });
 

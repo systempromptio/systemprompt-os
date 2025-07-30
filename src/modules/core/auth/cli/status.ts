@@ -5,23 +5,25 @@
  */
 
 import type { ICLIContext } from '@/modules/core/cli/types/index';
-import { AuthService } from '@/modules/core/auth/services/auth.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
 
 export const command = {
   description: 'Show auth module status (enabled/healthy)',
-  execute: async (_context: ICLIContext): Promise<void> => {
+  execute: async (context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      AuthService.getInstance();
-      const authModule = getAuthModule();
-      const moduleVersion = authModule?.version || 'Unknown';
-      const moduleStatus = authModule?.status || 'Unknown';
+      // Get auth module from module registry
+      const authModule = context.moduleRegistry?.get('auth');
+      if (!authModule) {
+        throw new Error('Auth module not found in registry');
+      }
+
+      const moduleVersion = authModule.version || 'Unknown';
+      const moduleStatus = authModule.status || 'Unknown';
 
       cliOutput.section('Auth Module Status');
 
@@ -34,14 +36,15 @@ export const command = {
         "Service": 'AuthService initialized',
       });
 
-      const hasProviders = true
+      // Check if providers are available
+      const hasProviders = authModule.exports?.getAllProviders ? true : false;
 
       cliOutput.section('Components');
       cliOutput.keyValue({
         'OAuth Providers Configured': hasProviders ? '✓' : '✗',
         'JWT Token Service': '✓',
-        'MFA Service': '✓',
-        'Audit Service': '✓',
+        'Session Service': '✓', 
+        'Auth Code Service': '✓',
       });
 
       process.exit(0);

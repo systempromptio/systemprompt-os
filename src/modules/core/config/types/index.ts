@@ -42,6 +42,48 @@ export interface IConfigEntry {
 }
 
 /**
+ * MCP Server configuration interface.
+ */
+export interface IMcpServerConfig {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  scope?: 'local' | 'project' | 'user';
+  transport?: 'stdio' | 'sse' | 'http';
+  description?: string;
+  metadata?: Record<string, unknown>;
+  oauthConfig?: {
+    clientId: string;
+    clientSecret: string;
+    authUrl: string;
+    tokenUrl: string;
+    scope?: string;
+  };
+}
+
+/**
+ * MCP Server entry interface.
+ */
+export interface IMcpServerEntry {
+  id: number;
+  name: string;
+  command: string;
+  args: string[] | null;
+  env: Record<string, string> | null;
+  scope: 'local' | 'project' | 'user';
+  transport: 'stdio' | 'sse' | 'http';
+  status: 'active' | 'inactive' | 'error' | 'starting' | 'stopping';
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  oauthConfig: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+  lastStartedAt: Date | null;
+  lastError: string | null;
+}
+
+/**
  * Configuration service interface.
  */
 export interface IConfigService {
@@ -56,6 +98,13 @@ export interface IConfigService {
     list(): Promise<IConfigEntry[]>;
 
     validate(): Promise<{ valid: boolean; errors?: string[] }>;
+
+    // MCP Server management methods
+    addMcpServer(config: IMcpServerConfig): Promise<void>;
+    deleteMcpServer(name: string): Promise<void>;
+    getMcpServer(name: string): Promise<IMcpServerEntry | null>;
+    listMcpServers(): Promise<IMcpServerEntry[]>;
+    updateMcpServerStatus(name: string, status: 'active' | 'inactive' | 'error' | 'starting' | 'stopping', error?: string): Promise<void>;
 }
 
 /**

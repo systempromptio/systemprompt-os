@@ -17,7 +17,6 @@ import type { ProviderRegistry } from '@/modules/core/auth/providers/registry';
 import {
  type AuthPageConfig, type IdentityProvider, renderAuthPage
 } from '@/server/external/templates/auth';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 import type {
   TokenResponse
 } from '@/server/external/auth/types/auth.types';
@@ -254,10 +253,7 @@ export class AuthEndpoint {
    * @returns Promise that resolves when authentication is complete.
    */
   private async completeAuthentication(code: string, res: ExpressResponse): Promise<void> {
-    const baseUrl = tunnelStatus.getBaseUrlOrDefault(
-      process.env.BASE_URL ?? 'http://localhost:3000'
-    );
-
+    const baseUrl = 'http://localhost:3000'
     const tokens = await this.exchangeCodeForTokens(code, baseUrl);
     this.setAuthCookies(tokens, res);
     res.redirect('/dashboard');

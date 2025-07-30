@@ -17,7 +17,6 @@ import {
  type ChildProcess, spawn, spawnSync
 } from 'child_process';
 import { EventEmitter } from 'events';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 import { ZERO } from '@/constants/numbers';
 import type {
   ITunnelConfig,
@@ -29,9 +28,9 @@ import type {
  * TunnelService class.
  */
 export class TunnelService extends EventEmitter {
-  private static instance: TunnelService;
-  private config: ITunnelConfig;
-  private logger: ITunnelLogger | undefined;
+  private static readonly instance: TunnelService;
+  private readonly config: ITunnelConfig;
+  private readonly logger: ITunnelLogger | undefined;
   private tunnelProcess?: ChildProcess;
   private tunnelUrl?: string;
   private status: ITunnelStatus = {
@@ -49,23 +48,6 @@ export class TunnelService extends EventEmitter {
       enableInDevelopment: true
     };
     this.logger = undefined;
-  }
-
-  /**
-   * Gets or creates a singleton instance of TunnelService.
-   * @param config - Optional tunnel configuration.
-   * @param logger - Optional logger instance.
-   * @returns The TunnelService instance.
-   */
-  public static getInstance(config?: ITunnelConfig, logger?: ITunnelLogger): TunnelService {
-    if (TunnelService.instance === undefined) {
-      TunnelService.instance = new TunnelService();
-      if (config !== null && config !== undefined) {
-        TunnelService.instance.config = config;
-        TunnelService.instance.logger = logger;
-      }
-    }
-    return TunnelService.instance;
   }
 
   /**
@@ -189,9 +171,6 @@ export class TunnelService extends EventEmitter {
   private updateOAuthProviders(url: string): void {
     process.env.BASE_URL = url;
     process.env.OAUTH_REDIRECT_URI = `${url}/oauth2/callback`;
-
-    tunnelStatus.setBaseUrl(url);
-
     this.logger?.info(`Updated OAuth configuration with tunnel URL: ${url}`);
     this.emit('oauth-updated', {
       baseUrl: url,

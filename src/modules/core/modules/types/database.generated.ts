@@ -1,5 +1,5 @@
 // Auto-generated database types for modules module
-// Generated on: 2025-07-30T11:19:39.300Z
+// Generated on: 2025-07-30T14:04:58.740Z
 // Do not modify this file manually - it will be overwritten
 
 // Enums generated from CHECK constraints

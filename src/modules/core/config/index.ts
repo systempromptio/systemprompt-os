@@ -172,9 +172,9 @@ export const initialize = async (): Promise<ConfigModule> => {
  * @returns The Config module with guaranteed typed exports.
  * @throws {Error} If Config module is not available or missing required exports.
  */
-export function getConfigModule(): IModule<IConfigModuleExports> {
-  const { getModuleRegistry } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+export async function getConfigModule(): Promise<IModule<IConfigModuleExports>> {
+  const { getModuleRegistry } = await import('@/modules/core/modules/index');
+  const { ModuleName } = await import('@/modules/types/index');
 
   const registry = getModuleRegistry();
   const configModule = registry.get(ModuleName.CONFIG);

@@ -6,7 +6,7 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { TaskStatus, type ITaskRow } from '@/modules/core/tasks/types/index';
+import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/index';
 
 /**
  * Extract and validate task ID from arguments.

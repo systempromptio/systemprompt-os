@@ -38,9 +38,11 @@ const logger = LoggerService.getInstance();
  * @returns {void} Nothing.
  */
 const setupPublicRoutes = (publicRouter: Router): void => {
-  // Debug route
   publicRouter.get('/debug', (req: Request, res: Response): void => {
-    res.json({ message: 'Debug route working', timestamp: new Date().toISOString() });
+    res.json({
+ message: 'Debug route working',
+timestamp: new Date().toISOString()
+});
   });
 
   const healthEndpoint = new HealthEndpoint();
@@ -86,14 +88,11 @@ const setupPublicRoutes = (publicRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupProtectedWebRoutes = (webRouter: Router): void => {
-  // Apply auth middleware only to specific routes
   const authMiddleware = createAuthMiddleware({ redirectToLogin: true });
-  
-  // Apply middleware to dashboard routes
+
   webRouter.use('/dashboard', authMiddleware);
   dashboardSetup(webRouter);
-  
-  // Apply middleware to config routes
+
   webRouter.use('/config', authMiddleware);
   configSetup(webRouter);
 };
@@ -104,14 +103,11 @@ const setupProtectedWebRoutes = (webRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupProtectedApiRoutes = (apiRouter: Router): void => {
-  // Create auth middleware for API routes
   const apiAuthMiddleware = createAuthMiddleware({ redirectToLogin: false });
-  
-  // Apply auth middleware to specific API route patterns
+
   apiRouter.use('/api/users', apiAuthMiddleware);
   apiRouter.use('/api/terminal', apiAuthMiddleware);
-  
-  // Setup the routes
+
   usersApiSetup(apiRouter);
   terminalApiSetup(apiRouter);
 };
@@ -122,16 +118,12 @@ const setupProtectedApiRoutes = (apiRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupAdminRoutes = (adminRouter: Router): void => {
-  // Apply auth middleware specifically to /admin routes
   const adminAuthMiddleware = createAuthMiddleware({
     redirectToLogin: true,
     requiredRoles: ['admin'],
   });
-  
-  // Apply middleware to all /admin routes
+
   adminRouter.use('/admin', adminAuthMiddleware);
-  
-  // Add admin routes here if needed
 };
 
 /**
@@ -161,7 +153,6 @@ export const configureRoutes = (app: Express): void => {
   app.use(apiRouter);
   app.use(adminRouter);
 
-  // 404 handler for API routes
   app.use((req: Request, res: Response, next: Function): void => {
     if (req.path.startsWith('/api/')) {
       res.status(404).json({
@@ -174,7 +165,6 @@ export const configureRoutes = (app: Express): void => {
     }
   });
 
-  // Final catch-all 404 handler
   app.use((req: Request, res: Response): void => {
     res.status(404).send(`
       <!DOCTYPE html>

@@ -49,11 +49,8 @@ beforeAll(() => {
 
 // Run after each test to clean up resources
 afterEach(async () => {
-  // Clear all active timers and intervals
-  activeResources.timers.forEach(timer => clearTimeout(timer));
-  activeResources.intervals.forEach(interval => clearInterval(interval));
-  activeResources.timers.clear();
-  activeResources.intervals.clear();
+  // DO NOT clear timers here - it breaks waitForEvent() and other test utilities
+  // Timer cleanup is handled in afterAll to avoid interfering with test execution
   
   // Force close any open database connections
   try {

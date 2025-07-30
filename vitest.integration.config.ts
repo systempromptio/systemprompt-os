@@ -22,7 +22,7 @@ export default defineConfig({
       }
     },
     sequence: {
-      concurrent: true,
+      concurrent: false,
       shuffle: true
     },
     bail: 0,

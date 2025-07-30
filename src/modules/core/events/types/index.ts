@@ -129,6 +129,7 @@ export interface UserCreateOAuthResponseEvent {
     id: string;
     username: string;
     email: string;
+    avatarUrl?: string;
     roles: string[];
   };
   error?: string;

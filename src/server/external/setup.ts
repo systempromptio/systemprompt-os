@@ -8,9 +8,9 @@
 
 import type {
   Express,
-  Request,
   Response as ExpressResponse,
-  NextFunction
+  NextFunction,
+  Request
 } from 'express';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -32,18 +32,15 @@ const logger = LoggerService.getInstance();
 export const setupExternalEndpoints = (app: Express): void => {
   logger.info(LogSource.SERVER, 'Setting up external REST endpoints');
 
-  // Apply middleware
   app.use(securityHeaders);
   app.use(cookieParser());
 
-  // Add a simple test route first
   app.get('/setup-test', (req: Request, res: ExpressResponse) => {
     res.json({ message: 'Setup test route working' });
   });
 
   configureRoutes(app);
 
-  // JSON syntax error handler
   app.use((err: unknown, req: Request, res: ExpressResponse, next: NextFunction): void => {
     if (err instanceof SyntaxError && 'body' in err) {
       res.status(400).json({
@@ -56,22 +53,21 @@ export const setupExternalEndpoints = (app: Express): void => {
     next(err);
   });
 
-  // Global error handler - must be last
   app.use((err: unknown, req: Request, res: ExpressResponse, next: NextFunction): void => {
     console.error('ERROR CAUGHT:', err);
     console.error('Stack:', err instanceof Error ? err.stack : 'No stack');
-    
+
     logger.error(LogSource.SERVER, 'Unhandled error', {
       error: err instanceof Error ? err : new Error(String(err)),
       path: req.path,
       method: req.method,
       stack: err instanceof Error ? err.stack : undefined
     });
-    
+
     if (res.headersSent) {
-      return next(err);
+      next(err); return;
     }
-    
+
     res.status(500).json({
       error: 'Internal Server Error',
       message: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : 'An unexpected error occurred',

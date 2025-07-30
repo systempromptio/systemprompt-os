@@ -4,7 +4,9 @@
  */
 
 import { getConfigModule } from '@/modules/core/config/index';
-import { LogSource, getLoggerModule } from '@/modules/core/logger/index';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 
 /**
  * Options for the list command.
@@ -120,7 +122,7 @@ export const command = {
    */
   async execute(options: IListCommandOptions = {}): Promise<void> {
     try {
-      const configModule = getConfigModule();
+      const configModule = await getConfigModule();
       const configList = await configModule.exports.get();
 
       const configData = Array.isArray(configList)
@@ -132,12 +134,12 @@ export const command = {
           }, {})
         : configList;
 
-      const loggerModule = getLoggerModule();
-      const logger = loggerModule.exports.service();
+      const logger = LoggerService.getInstance();
+      const cliOutput = CliOutputService.getInstance();
 
       if (!configData || typeof configData === 'object'
           && Object.keys(configData).length === 0) {
-        logger.info(LogSource.CLI, 'No configuration values found.');
+        cliOutput.info('No configuration values found.');
         process.exit(0);
         return;
       }
@@ -146,22 +148,23 @@ export const command = {
 
       switch (format) {
         case 'json':
-          logger.info(LogSource.CLI, JSON.stringify(configData, null, 2));
+          cliOutput.info(JSON.stringify(configData, null, 2));
           break;
 
         case 'yaml':
-          logger.info(LogSource.CLI, formatYaml(configData));
+          cliOutput.info(formatYaml(configData));
           break;
 
         case 'tree':
-          logger.info(LogSource.CLI, '\nConfiguration Values:');
-          logger.info(LogSource.CLI, '====================\n');
-          logger.info(LogSource.CLI, formatTree(configData));
+          cliOutput.info('\nConfiguration Values:');
+          cliOutput.info('====================\n');
+          cliOutput.info(formatTree(configData));
           break;
       }
     } catch (error) {
-      const loggerModule = getLoggerModule();
-      const logger = loggerModule.exports.service();
+      const logger = LoggerService.getInstance();
+      const cliOutput = CliOutputService.getInstance();
+      cliOutput.error('Failed to list configuration');
       logger.error(LogSource.CLI, 'Failed to list configuration', {
         error: error instanceof Error ? error : new Error(String(error))
       });

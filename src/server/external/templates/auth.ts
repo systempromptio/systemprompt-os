@@ -4,8 +4,6 @@
  * - These types need to be moved to a types/ folder per project standards
  */
 
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
-
 /**
  * Configuration interface for rendering layout components.
  */
@@ -52,7 +50,6 @@ const renderLayout = (config: LayoutConfig): string => {
   `;
 };
 
-
 /**
  * Renders an OAuth provider button.
  * @param provider - The identity provider configuration.
@@ -62,14 +59,13 @@ const renderProviderButton = (provider: IdentityProvider): string => {
   const providerName = provider.name.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  const baseUrl = tunnelStatus.getBaseUrlOrDefault('http://localhost:3000');
+  const baseUrl = 'http://localhost:3000';
 
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'auth-client',
-    redirect_uri: `${baseUrl}/oauth2/callback`,
+    redirect_uri: `${baseUrl}/oauth2/callback/${providerName}`,
     scope: 'profile email',
-    state: 'auth-flow',
     provider: providerName,
   });
 

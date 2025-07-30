@@ -1,0 +1,95 @@
+# Generic OAuth2/OIDC Provider Template
+# Copy this file and customize for your provider
+
+# Unique identifier for this provider
+id: custom-provider
+
+# Display name
+name: Custom Provider
+
+# Type: oauth2, oidc, or saml
+type: oauth2
+
+# Enable/disable this provider
+enabled: false
+
+# OAuth2/OIDC endpoints
+endpoints:
+  # Required endpoints
+  authorization: https://provider.example.com/oauth/authorize
+  token: https://provider.example.com/oauth/token
+  
+  # Optional endpoints
+  userinfo: https://provider.example.com/oauth/userinfo
+  revocation: https://provider.example.com/oauth/revoke
+  
+  # For OIDC providers, discovery URL (optional)
+  # If provided, endpoints will be auto-discovered
+  discovery: https://provider.example.com/.well-known/openid-configuration
+  
+  # JWKS URI for token validation (OIDC)
+  jwks: https://provider.example.com/.well-known/jwks.json
+
+# Scopes to request
+scopes:
+  - openid
+  - email
+  - profile
+
+# Additional authorization parameters
+parameters:
+  # Example parameters (provider-specific)
+  # prompt: consent
+  # access_type: offline
+  # response_mode: query
+
+# Token endpoint authentication method
+# Options: client_secret_post (default), client_secret_basic, private_key_jwt
+token_endpoint_auth_method: client_secret_post
+
+# User info field mapping
+# Map provider fields to standard fields
+userinfo_mapping:
+  # Required field
+  id: sub  # or user_id, id, etc.
+  
+  # Optional fields
+  email: email
+  email_verified: email_verified
+  name: name
+  picture: picture
+  locale: locale
+  
+  # Custom field mapping using dot notation for nested fields
+  # organization: company.name
+
+# Features and customizations
+features:
+  # Provider-specific features
+  refresh_token_support: true
+  revoke_token_support: true
+  
+  # Custom token handling
+  token_response_mapping:
+    access_token: access_token
+    token_type: token_type
+    expires_in: expires_in
+    refresh_token: refresh_token
+    id_token: id_token
+
+# Client credentials
+credentials:
+  # Use environment variable substitution
+  client_id: ${CUSTOM_PROVIDER_CLIENT_ID}
+  client_secret: ${CUSTOM_PROVIDER_CLIENT_SECRET}
+  
+  # Or use absolute values (not recommended for secrets)
+  # client_id: your-client-id
+  # client_secret: your-client-secret
+  
+  # Redirect URI (usually includes BASE_URL)
+  redirect_uri: ${BASE_URL}/oauth2/callback/custom-provider
+  
+  # For private_key_jwt auth method
+  # private_key_path: ./keys/provider-private.key
+  # kid: key-id

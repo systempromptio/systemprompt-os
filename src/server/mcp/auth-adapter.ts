@@ -21,7 +21,6 @@ import type {
 } from 'express';
 import { authMiddleware } from '@/server/external/middleware/auth';
 import { CONFIG } from '@/server/config';
-import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
 import { HTTP_STATUS } from '@/server/external/constants/http.constants';
 
 /**
@@ -114,7 +113,7 @@ const handleMcpAuthError = (
   context: AuthContext,
   res: ExpressResponse
 ): ExpressResponse => {
-  const baseUrl = tunnelStatus.getBaseUrlOrDefault(CONFIG.BASEURL);
+  const baseUrl = CONFIG.BASEURL;
   setMcpAuthHeaders(res, baseUrl);
 
   const errorDescription = safeStringExtract(context.body, 'error_description');
