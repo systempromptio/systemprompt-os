@@ -5,7 +5,6 @@
  * - Module bootstrap and initialization
  * - Agent creation, update, deletion
  * - Agent status management
- * - Agent-task assignment integration
  * - Repository and service interactions
  * - CLI command execution
  * 
@@ -154,7 +153,7 @@ describe('Agents Module Integration Tests', () => {
   });
 
   describe('Agent Lifecycle', () => {
-    it('should create agent without knowing about tasks', async () => {
+    it('should create agent with basic properties', async () => {
       const agent = await agentService.createAgent({
         name: 'worker-1',
         description: 'Test worker agent',
@@ -168,7 +167,7 @@ describe('Agents Module Integration Tests', () => {
       expect(agent.failed_tasks).toBe(0);
     });
     
-    it('should handle multiple agents and tasks independently', async () => {
+    it('should handle multiple agents independently', async () => {
       // Create multiple agents
       const agents = await Promise.all([
         agentService.createAgent({ 
@@ -265,11 +264,10 @@ describe('Agents Module Integration Tests', () => {
       const updated = await agentService.updateAgentStatus(agent.id, AgentsStatus.ACTIVE);
       expect(updated.status).toBe(AgentsStatus.ACTIVE);
     });
-    
   });
 
-  describe('Agent-Task Integration', () => {
-    it('should communicate through events without direct coupling', async () => {
+  describe('Agent Events', () => {
+    it('should emit events for agent lifecycle', async () => {
       const events: any[] = [];
       
       // Track all events

@@ -399,7 +399,12 @@ export class CliService {
       throw new Error('Database not initialized');
     }
 
-    const commandPath = `${moduleName}:${command.name ?? 'unknown'}`;
+    // Validate command name
+    if (!command.name || command.name.trim() === '') {
+      throw new Error('Command name cannot be empty');
+    }
+
+    const commandPath = `${moduleName}:${command.name}`;
 
     // Insert the main command record
     await this.database.execute(
@@ -408,7 +413,7 @@ export class CliService {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         commandPath,
-        command.name ?? 'unknown',
+        command.name,
         command.description,
         moduleName,
         executorPath,

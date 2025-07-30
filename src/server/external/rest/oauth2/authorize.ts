@@ -429,6 +429,17 @@ export class AuthorizeEndpoint {
   ): ExpressResponse | void => {
     try {
       const params = authorizeRequestSchema.parse(req.query);
+      
+      // Check if user is authenticated when no provider is specified
+      const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
+      if (params.provider === undefined && !extendedReq.user) {
+        // Redirect to login page
+        const loginParams = new URLSearchParams({
+          redirect_uri: `/oauth2/authorize?${new URLSearchParams(req.query as any).toString()}`
+        });
+        res.redirect(`/auth?${loginParams.toString()}`);
+        return;
+      }
 
       const authModule = getAuthModule();
       const providerRegistryExport = authModule.exports.getProviderRegistry();
@@ -586,7 +597,12 @@ export class AuthorizeEndpoint {
       const extendedReq = req as ExpressRequest & { user?: IAuthenticatedUser };
       const { user } = extendedReq;
       if (user === undefined) {
-        throw new Error('User not authenticated');
+        // Redirect to login page for non-authenticated users
+        const loginParams = new URLSearchParams({
+          redirect_uri: `/oauth2/authorize`
+        });
+        res.redirect(`/auth?${loginParams.toString()}`);
+        return;
       }
 
       const authCodeServiceInstance = getAuthCodeService();

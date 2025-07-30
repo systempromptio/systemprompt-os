@@ -30,14 +30,14 @@ services:
       # JWT Configuration (keys auto-generated on first run)
       - JWT_KEY_PATH=/data/state/auth/keys
       
-      # Test OAuth Providers
-      - GOOGLE_CLIENT_ID=test-google-client
-      - GOOGLE_CLIENT_SECRET=test-google-secret
-      - GITHUB_CLIENT_ID=test-github-client
-      - GITHUB_CLIENT_SECRET=test-github-secret
+      # OAuth Providers - use real credentials if available
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-test-google-client}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-test-google-secret}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-test-github-client}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-test-github-secret}
       
       # Tunnel configuration
-      - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-false}
+      - ENABLE_OAUTH_TUNNEL=${ENABLE_OAUTH_TUNNEL:-true}
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
       
       # MCP Settings

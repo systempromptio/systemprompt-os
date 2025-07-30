@@ -17,7 +17,7 @@ import type {
   MonitorModuleConfig,
   MonitorModuleDependencies
 } from '@/modules/core/monitor/types/index';
-import type { IDatabaseAdapter } from '@/modules/core/database/types/index';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
@@ -123,7 +123,7 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
         try {
           const adapter = await this.deps.database.createModuleAdapter('monitor');
           if (adapter) {
-            const repository = new MonitorRepositoryImpl(adapter as IDatabaseAdapter);
+            const repository = new MonitorRepositoryImpl(adapter);
             this.metricService!.setDependencies(
               repository,
               this.deps.logger,

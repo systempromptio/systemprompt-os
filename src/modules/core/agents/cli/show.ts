@@ -56,11 +56,6 @@ const executeShow = async (context: ICLIContext): Promise<void> => {
   const cliOutput = CliOutputService.getInstance();
 
   try {
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      cliOutput.success('detail-agent\nDetail test agent shown successfully (test mode)');
-      process.exit(0);
-    }
-
     const identifier = validateAgentIdentifier(context);
     if (identifier === null) {
       process.exit(1);

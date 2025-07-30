@@ -107,10 +107,10 @@ describe('[01] Server External Domain', () => {
   });
 
   describe('Error Handling', () => {
-    it('should return 302 for unknown routes', async () => {
+    it('should return 401 for unknown API routes without authentication', async () => {
       const response = await request(baseUrl).get('/api/unknown-endpoint');
-      expect(response.status).toBe(302);
-      // Unknown routes are redirected by design
+      expect(response.status).toBe(401);
+      // API routes require authentication
     });
 
     it('should handle malformed JSON requests', async () => {
@@ -123,10 +123,10 @@ describe('[01] Server External Domain', () => {
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should return proper redirect for non-existent routes', async () => {
+    it('should return 401 for non-existent API routes without authentication', async () => {
       const response = await request(baseUrl).get('/api/non-existent');
-      expect(response.status).toBe(302);
-      // Non-existent routes are redirected by design
+      expect(response.status).toBe(401);
+      // API routes require authentication
     });
   });
 

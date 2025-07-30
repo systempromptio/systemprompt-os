@@ -263,8 +263,4 @@ export const setupRoutes = (router: Router): void => {
   router.get('/dashboard', (req: ExpressRequest, res: ExpressResponse): void => {
     dashboardEndpoint.handleDashboard(req, res);
   });
-
-  router.get('/', (req: ExpressRequest, res: ExpressResponse): void => {
-    dashboardEndpoint.handleDashboard(req, res);
-  });
 };

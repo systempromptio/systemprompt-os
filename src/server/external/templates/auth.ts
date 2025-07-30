@@ -4,6 +4,8 @@
  * - These types need to be moved to a types/ folder per project standards
  */
 
+import { tunnelStatus } from '@/modules/core/auth/tunnel-status';
+
 /**
  * Configuration interface for rendering layout components.
  */
@@ -50,17 +52,6 @@ const renderLayout = (config: LayoutConfig): string => {
   `;
 };
 
-/**
- * Mock tunnel status service for URL resolution.
- */
-const tunnelStatus = {
-  /**
-   * Gets the base URL or returns a default fallback.
-   * @param fallback - Default URL to use.
-   * @returns The base URL string.
-   */
-  getBaseUrlOrDefault: (fallback: string): string => { return fallback; }
-};
 
 /**
  * Renders an OAuth provider button.
@@ -76,7 +67,7 @@ const renderProviderButton = (provider: IdentityProvider): string => {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: 'auth-client',
-    redirect_uri: `${baseUrl}/auth/callback`,
+    redirect_uri: `${baseUrl}/oauth2/callback`,
     scope: 'profile email',
     state: 'auth-flow',
     provider: providerName,

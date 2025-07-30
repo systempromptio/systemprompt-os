@@ -11,22 +11,20 @@ import type {
   IMetricRow,
   MonitorRepository
 } from '@/modules/core/monitor/types';
-import type { IDatabaseAdapter } from '@/modules/core/database/types';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 
 /**
  * Repository implementation for monitor data using SQLite.
  */
 export class MonitorRepositoryImpl implements MonitorRepository {
-  constructor(private readonly db: IDatabaseAdapter) {}
+  constructor(private readonly db: IModuleDatabaseAdapter) {}
 
   /**
    * Records a metric data point.
    * @param data - Metric data to record.
    */
   async recordMetric(data: IMetricData): Promise<void> {
-    await this.db.execute('BEGIN TRANSACTION');
-
-    try {
+    await this.db.transaction(async () => {
       const result = await this.db.execute(
         `INSERT INTO metric (name, value, type, unit, timestamp) 
          VALUES (?, ?, ?, ?, ?)`,
@@ -50,12 +48,7 @@ export class MonitorRepositoryImpl implements MonitorRepository {
           );
         }
       }
-
-      await this.db.execute('COMMIT');
-    } catch (error) {
-      await this.db.execute('ROLLBACK');
-      throw error;
-    }
+    });
   }
 
   /**

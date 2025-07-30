@@ -66,6 +66,24 @@ export class ProgressLogger {
   }
 
   /**
+   * Update method for compatibility.
+   * @param text - New text to display.
+   * @returns This logger instance.
+   */
+  update(text: string): this {
+    return this.updateText(text);
+  }
+
+  /**
+   * Complete method for compatibility.
+   * @param text - Optional completion text.
+   * @returns This logger instance.
+   */
+  complete(text?: string): this {
+    return this.succeed(text);
+  }
+
+  /**
    * Stop the logger.
    * @returns This logger instance.
    */

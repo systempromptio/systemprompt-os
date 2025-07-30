@@ -17,10 +17,6 @@ const extractTaskId = (args: Record<string, unknown>): number => {
   const { id } = args;
   const taskId = Number(id);
 
-  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-    console.error(`DEBUG: extractTaskId called with id=${id}, type=${typeof id}, taskId=${taskId}, isNaN=${Number.isNaN(taskId)}, <= 0=${taskId <= 0}`);
-  }
-
   if (Number.isNaN(taskId) || taskId <= 0) {
     process.stderr.write('Error: Task ID is required and must be a positive number\n');
     process.exit(1);
@@ -307,31 +303,6 @@ const executeUpdate = async (options: CLIContext): Promise<void> => {
   const params = extractUpdateParams(options);
 
   try {
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      const mockTask: ITaskRow = {
-        id: params.taskId,
-        type: 'test-task',
-        module_id: 'test-module',
-        status: (params.updates.status as TaskStatus) || TaskStatus.PENDING,
-        priority: (params.updates.priority as number) ?? 5,
-        progress: (params.updates.progress as number) ?? 0,
-        result: (params.updates.result as string) ?? null,
-        error: (params.updates.error as string) ?? null,
-        assigned_agent_id: (params.updates.assigned_agent_id as string) ?? null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        completed_at: params.updates.status === TaskStatus.COMPLETED ? new Date().toISOString() : null,
-        instructions: null,
-        retry_count: 0,
-        max_executions: 3,
-        max_time: null,
-        scheduled_at: null,
-        created_by: null
-      };
-      outputResult(mockTask, params.format);
-      return;
-    }
-
     const tasksModule = getTasksModule();
     const taskService = tasksModule.exports.service();
     const updatedTask = await taskService.updateTask(params.taskId, params.updates);

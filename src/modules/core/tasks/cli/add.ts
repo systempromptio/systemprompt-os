@@ -113,41 +113,6 @@ const executeAddTask = async (options: CLIContext): Promise<void> => {
   validateStatus(params.status);
 
   try {
-    if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
-      let mockId = 100001;
-      if (params.type === 'data-processing') {
-        mockId = 100001;
-      } else if (params.type.startsWith('concurrent-task-')) {
-        const taskIndex = parseInt(params.type.split('-')[2] || '0');
-        mockId = 100002 + taskIndex;
-      } else if (params.type === 'failing-task') {
-        mockId = 100010;
-      }
-
-      const mockTask: ITaskRow = {
-        id: mockId,
-        type: params.type,
-        module_id: params.module_id,
-        instructions: params.instructions,
-        priority: params.priority,
-        status: params.status as TaskStatus,
-        max_executions: params.max_executions,
-        retry_count: 0,
-        max_time: null,
-        result: null,
-        error: null,
-        progress: null,
-        assigned_agent_id: null,
-        scheduled_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        completed_at: null,
-        created_by: null
-      };
-      outputResult(mockTask, params.format);
-      return;
-    }
-
     const tasksModule = getTasksModule();
     const taskService = tasksModule.exports.service();
 

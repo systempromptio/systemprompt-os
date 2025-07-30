@@ -94,7 +94,11 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
         { return DatabaseCLIHandlerService.getInstance() },
       createModuleAdapter: async (
         moduleName: string
-      ): Promise<IModuleDatabaseAdapter> => { return await createModuleAdapter(moduleName) },
+      ): Promise<IModuleDatabaseAdapter> => { 
+        const dbService = this.getService();
+        const connection = await dbService.getConnection();
+        return new (await import('@/modules/core/database/adapters/module.adapter')).SqliteModuleAdapter(connection);
+      },
     };
   }
 

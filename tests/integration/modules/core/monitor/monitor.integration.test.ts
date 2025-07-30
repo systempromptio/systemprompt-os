@@ -39,7 +39,7 @@ describe('Monitor Module Integration Tests', () => {
     }
     
     // Set test database path
-    process.env.DATABASE_PATH = testDbPath;
+    process.env.SQLITE_FILENAME = testDbPath;
     
     // Bootstrap the system
     bootstrap = new Bootstrap({
@@ -397,8 +397,9 @@ describe('Monitor Module Integration Tests', () => {
       ]);
       
       expect(result.exitCode).toBe(1);
-      expect(result.output).toContain('Invalid metric type');
-      expect(result.output).toContain('counter, gauge, histogram');
+      const combinedOutput = result.output + result.errors;
+      expect(combinedOutput).toContain('Invalid metric type');
+      expect(combinedOutput).toContain('counter, gauge, histogram');
     });
     
     it('should display help for monitor commands', async () => {

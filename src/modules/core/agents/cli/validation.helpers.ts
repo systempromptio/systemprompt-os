@@ -22,9 +22,6 @@ export const validateCreateAgentArgs = (context: ICLIContext): boolean => {
   const hasInstructions = Boolean(args.instructions || args.i);
   const hasType = Boolean(args.type || args.t);
 
-  console.error('DEBUG - CLI args received:', JSON.stringify(args, null, 2));
-  console.error('DEBUG - hasName:', hasName, 'hasDescription:', hasDescription, 'hasInstructions:', hasInstructions, 'hasType:', hasType);
-
   if (!hasName || !hasDescription || !hasInstructions || !hasType) {
     cliOutput.error('Name, description, instructions, and type are required');
     cliOutput.info('Missing arguments:');

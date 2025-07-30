@@ -137,10 +137,10 @@ export class CliOutputService {
   /**
    * Output a table with proper formatting.
    * @param data - Array of data objects.
-   * @param columns - Column definitions.
+   * @param columns - Column definitions (optional).
    * @param options - Output options.
    */
-  public table(data: unknown[], columns: ITableColumn[], options: IOutputOptions = {}): void {
+  public table(data: unknown[], columns?: ITableColumn[], options: IOutputOptions = {}): void {
     if (options.format === 'json') {
       this.outputJson(data, options);
       return;
@@ -151,23 +151,37 @@ export class CliOutputService {
       return;
     }
 
-    this.outputTable(data, columns, options);
+    this.outputTable(data, columns || [], options);
   }
 
   /**
    * Output key-value pairs.
-   * @param data - Object with key-value pairs.
-   * @param options - Output options.
+   * @param data - Object with key-value pairs or key string.
+   * @param valueOrOptions - Value string or output options.
+   * @param options - Output options (when first overload is used).
    */
-  public keyValue(data: Record<string, unknown>, options: IOutputOptions = {}): void {
-    if (options.format === 'json') {
-      this.outputJson(data, options);
+  public keyValue(data: Record<string, unknown> | string, valueOrOptions?: unknown | IOutputOptions, options: IOutputOptions = {}): void {
+    // Handle string key-value pair
+    if (typeof data === 'string' && valueOrOptions !== undefined && typeof valueOrOptions !== 'object') {
+      const key = data;
+      const value = valueOrOptions;
+      const formattedValue = this.formatValue(value);
+      console.log(`  ${chalk.gray(key)} : ${formattedValue}`);
       return;
     }
 
-    const maxKeyLength = Math.max(...Object.keys(data).map(k => k.length));
+    // Handle object key-value pairs
+    const actualData = data as Record<string, unknown>;
+    const actualOptions = (typeof valueOrOptions === 'object' && valueOrOptions !== null) ? valueOrOptions as IOutputOptions : options;
+
+    if (actualOptions.format === 'json') {
+      this.outputJson(actualData, actualOptions);
+      return;
+    }
+
+    const maxKeyLength = Math.max(...Object.keys(actualData).map(k => k.length));
     
-    Object.entries(data).forEach(([key, value]) => {
+    Object.entries(actualData).forEach(([key, value]) => {
       const paddedKey = key.padEnd(maxKeyLength);
       const formattedValue = this.formatValue(value);
       console.log(`  ${chalk.gray(paddedKey)} : ${formattedValue}`);

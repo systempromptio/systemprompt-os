@@ -22,8 +22,8 @@ export default defineConfig({
       }
     },
     sequence: {
-      concurrent: false,
-      shuffle: false
+      concurrent: true,
+      shuffle: true
     },
     bail: 0,
     environment: 'node',
@@ -33,7 +33,7 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
     coverage: {
-      enabled: true,
+      enabled: false,
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       reportsDirectory: 'tests/integration/coverage',

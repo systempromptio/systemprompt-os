@@ -65,12 +65,15 @@ export const command: ICLICommand = {
       // Initialize the service (safe to call multiple times)
       metricService.initialize();
 
-      await metricService.recordMetric({
+      metricService.recordMetric({
         name,
         value,
         type: type as MetricType,
         ...unit && { unit },
       });
+
+      // Force flush to ensure metric is persisted immediately for CLI
+      await metricService.shutdown();
 
       cliOutput.success(`Metric recorded: ${name} = ${value} (${type})${unit ? ` ${unit}` : ''}`);
 

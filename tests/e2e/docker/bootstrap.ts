@@ -86,7 +86,8 @@ export async function bootstrapDockerTestEnvironment(): Promise<void> {
   writeTestState({
     projectName: DOCKER_TEST_CONFIG.projectName,
     baseUrl: baseUrl,
-    isReady: true
+    isReady: true,
+    dockerEnvInitialized: true
   });
   
   console.log('✅ Docker E2E test environment ready!');
@@ -109,7 +110,19 @@ export async function cleanupDockerTestEnvironment(): Promise<void> {
 // Export utility function for getting container logs
 export async function getContainerLogs(): Promise<string> {
   if (!dockerEnv) {
-    throw new Error('Docker environment not initialized');
+    // Try to recreate dockerEnv from test state
+    const testState = readTestState();
+    if (testState.dockerEnvInitialized) {
+      dockerEnv = new DockerTestEnvironment(testState.projectName, {
+        serviceName: 'mcp-server',
+        composeFile: 'docker-compose.test.yml',
+        envVars: DOCKER_TEST_CONFIG.envVars
+      });
+      // Mark as running since it's already set up
+      (dockerEnv as any).isRunning = true;
+    } else {
+      throw new Error('Docker environment not initialized');
+    }
   }
   return dockerEnv.getContainerLogs();
 }

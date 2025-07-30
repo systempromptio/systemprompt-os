@@ -22,12 +22,8 @@ export class WellKnownEndpoint {
     return res.json(config);
   };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
-    if (!this.publicKeyJWK) {
-      return res.status(500).json({ error: 'Keys not initialized' });
-    }
-
     const jwks = {
-      keys: [this.publicKeyJWK],
+      keys: this.publicKeyJWK ? [this.publicKeyJWK] : [],
     };
 
     return res.json(jwks);

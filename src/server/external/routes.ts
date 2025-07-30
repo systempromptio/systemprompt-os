@@ -86,8 +86,15 @@ const setupPublicRoutes = (publicRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupProtectedWebRoutes = (webRouter: Router): void => {
-  webRouter.use(createAuthMiddleware({ redirectToLogin: true }));
+  // Apply auth middleware only to specific routes
+  const authMiddleware = createAuthMiddleware({ redirectToLogin: true });
+  
+  // Apply middleware to dashboard routes
+  webRouter.use('/dashboard', authMiddleware);
   dashboardSetup(webRouter);
+  
+  // Apply middleware to config routes
+  webRouter.use('/config', authMiddleware);
   configSetup(webRouter);
 };
 
@@ -97,8 +104,14 @@ const setupProtectedWebRoutes = (webRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupProtectedApiRoutes = (apiRouter: Router): void => {
-  // Apply auth middleware to all routes in this router
-  apiRouter.use(createAuthMiddleware({ redirectToLogin: false }));
+  // Create auth middleware for API routes
+  const apiAuthMiddleware = createAuthMiddleware({ redirectToLogin: false });
+  
+  // Apply auth middleware to specific API route patterns
+  apiRouter.use('/api/users', apiAuthMiddleware);
+  apiRouter.use('/api/terminal', apiAuthMiddleware);
+  
+  // Setup the routes
   usersApiSetup(apiRouter);
   terminalApiSetup(apiRouter);
 };
@@ -109,13 +122,16 @@ const setupProtectedApiRoutes = (apiRouter: Router): void => {
  * @returns {void} Nothing.
  */
 const setupAdminRoutes = (adminRouter: Router): void => {
-  adminRouter.use(
-    '/admin',
-    createAuthMiddleware({
-      redirectToLogin: true,
-      requiredRoles: ['admin'],
-    }),
-  );
+  // Apply auth middleware specifically to /admin routes
+  const adminAuthMiddleware = createAuthMiddleware({
+    redirectToLogin: true,
+    requiredRoles: ['admin'],
+  });
+  
+  // Apply middleware to all /admin routes
+  adminRouter.use('/admin', adminAuthMiddleware);
+  
+  // Add admin routes here if needed
 };
 
 /**
