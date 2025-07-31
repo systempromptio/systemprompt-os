@@ -1,11 +1,10 @@
 // Auto-generated service schemas for system module
-// Generated on: 2025-07-31T11:41:30.547Z
+// Generated on: 2025-07-31T13:04:45.444Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/index';
-import { SystemSchema, SystemCreateDataSchema, SystemUpdateDataSchema } from './system.module.generated';
 
 // Zod schema for SystemService
 export const SystemServiceSchema = z.object({

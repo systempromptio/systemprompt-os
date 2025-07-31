@@ -78,12 +78,11 @@ values
       const columnName = checkMatch[1];
       const checkColumnName = checkMatch[2];
       const valuesList = checkMatch[3];
-      
-      // Only process if the column name in CHECK matches the column definition
-      if (columnName !== checkColumnName) {
+
+      if (!columnName || !checkColumnName || columnName.toLowerCase() !== checkColumnName.toLowerCase()) {
         continue;
       }
-      
+
       const values = valuesList ? valuesList.split(',').map(v => { return v.trim().replace(/'/g, '') }) : [];
       const tableName = this.findTableNameForConstraint(sql, checkMatch.index);
 
@@ -111,8 +110,12 @@ values
    */
   private findTableNameForConstraint(sql: string, position: number): string | null {
     const beforeConstraint = sql.substring(0, position);
-    const tableMatch = beforeConstraint.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\([^)]*$/i);
-    return tableMatch?.[1] ? tableMatch[1] : null;
+    const tableMatches = [...beforeConstraint.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\(/gi)];
+    if (tableMatches.length > 0) {
+      const lastMatch = tableMatches[tableMatches.length - 1];
+      return lastMatch?.[1] || null;
+    }
+    return null;
   }
 
   /**
@@ -131,12 +134,10 @@ values
     const columnsSeen = new Set<string>();
 
     for (const line of lines) {
-      // Skip table constraints but not column definitions with inline CHECK
       if (line.match(/^\s*(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|INDEX)/i)) {
         continue;
       }
-      
-      // Skip standalone CHECK constraints
+
       if (line.match(/^\s*CHECK\s*\(/i)) {
         continue;
       }

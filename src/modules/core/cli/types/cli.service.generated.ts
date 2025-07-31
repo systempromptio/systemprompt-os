@@ -1,11 +1,10 @@
 // Auto-generated service schemas for cli module
-// Generated on: 2025-07-31T11:41:33.118Z
+// Generated on: 2025-07-31T13:04:42.960Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/index';
-import { CliSchema, CliCreateDataSchema, CliUpdateDataSchema } from './cli.module.generated';
 
 // Zod schema for CliService
 export const CliServiceSchema = z.object({

@@ -1,10 +1,9 @@
 // Auto-generated Zod schemas for users module
-// Generated on: 2025-07-31T11:41:29.480Z
+// Generated on: 2025-07-31T13:04:45.452Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { UsersStatusSchema } from './database.generated';
-import { UsersRowSchema } from './database.generated';
+import { UsersStatusSchema, UsersRowSchema } from './database.generated';
 
 // User schema - directly use database row schema
 export const UserSchema = UsersRowSchema;

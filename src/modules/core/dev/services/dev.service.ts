@@ -19,6 +19,7 @@ import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/
 import { DevRepository } from '@/modules/core/dev/repositories/dev.repository';
 import { TypeGenerationService } from '@/modules/core/dev/services/type-generation';
 import { RulesSyncService } from '@/modules/core/dev/services/rules-sync.service';
+import { ReportWriterService } from '@/modules/core/dev/services/report-writer.service';
 
 /**
  * Service for managing development tools - placeholder implementation.
@@ -65,6 +66,7 @@ export class DevService implements IDevService {
       this.typeGenerator = TypeGenerationService.getInstance(this.logger);
       this.rulesSyncService = RulesSyncService.getInstance();
       this.rulesSyncService.setLogger(this.logger);
+      ReportWriterService.getInstance();
       this.logger.info(LogSource.DEV, 'Dev services initialized');
       return;
     }
@@ -81,6 +83,8 @@ export class DevService implements IDevService {
       this.rulesSyncService = RulesSyncService.getInstance();
       this.rulesSyncService.setLogger(this.logger);
     }
+
+    ReportWriterService.getInstance();
 
     this.initialized = true;
     this.logger?.info(LogSource.DEV, 'DevService initialized');

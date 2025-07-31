@@ -1,9 +1,8 @@
 // Auto-generated Zod schemas for system module
-// Generated on: 2025-07-31T11:41:30.111Z
+// Generated on: 2025-07-31T13:04:45.118Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { SystemConfigTypeSchema, SystemModulesStatusSchema, SystemEventsSeveritySchema, SystemMaintenanceTypeSchema } from './database.generated';
 import { SystemConfigRowSchema } from './database.generated';
 
 // System schema - directly use database row schema

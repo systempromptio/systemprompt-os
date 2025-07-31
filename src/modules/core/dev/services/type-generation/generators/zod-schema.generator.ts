@@ -37,10 +37,15 @@ export class ZodSchemaGenerator {
     const outputPath = join(process.cwd(), `src/modules/core/${moduleName}/types/${moduleName}.module.generated.ts`);
     const entityName = this.stringUtils.getEntityName(moduleName);
 
+    const usedSchemas = new Set<string>();
+
     let content = this.generateHeader(moduleName);
-    content += this.generateImports(moduleName);
-    content += this.generateMainSchema(entityName, moduleName);
-    content += await this.generateCreateUpdateSchemas(entityName, moduleName);
+    const mainSchema = this.generateMainSchema(entityName, moduleName, usedSchemas);
+    const createUpdateSchemas = await this.generateCreateUpdateSchemas(entityName, moduleName, usedSchemas);
+
+    content += this.generateImports(moduleName, usedSchemas);
+    content += mainSchema;
+    content += createUpdateSchemas;
     content += this.generateTypeExports(entityName);
 
     writeFileSync(outputPath, content);
@@ -63,29 +68,32 @@ export class ZodSchemaGenerator {
   /**
    * Generate imports.
    * @param moduleName - Module name.
+   * @param usedSchemas - Set of actually used schemas.
    * @returns Import statements.
    */
-  private generateImports(moduleName: string): string {
+  private generateImports(moduleName: string, usedSchemas: Set<string>): string {
     let imports = `import { z } from 'zod';\n`;
 
     const databaseTypesPath = join(process.cwd(), `src/modules/core/${moduleName}/types/database.generated.ts`);
     if (existsSync(databaseTypesPath)) {
       const dbContent = readFileSync(databaseTypesPath, 'utf-8');
 
-      const enumMatches = dbContent.matchAll(/export enum (\w+)/g);
-      const enums = Array.from(enumMatches).map(m => { return m[1] });
+      const enumSchemaMatches = Array.from(dbContent.matchAll(/export const (\w+Schema) = z\.nativeEnum/g));
+      const availableEnumSchemas = enumSchemaMatches.map(match => { return match[1] });
 
-      if (enums.length > 0) {
-        imports += `import { ${enums.map(e => { return `${e}Schema` }).join(', ')} } from './database.generated';\n`;
-      }
+      const rowSchemaMatches = Array.from(dbContent.matchAll(/export const (\w+RowSchema) = /g));
+      const availableRowSchemas = rowSchemaMatches.map(match => { return match[1] });
 
-      const schemaMatches = Array.from(dbContent.matchAll(/export const (\w+RowSchema) = /g));
-      const schemas = schemaMatches.map(match => { return match[1] });
+      const usedEnumSchemas = Array.from(usedSchemas).filter(schema =>
+        { return availableEnumSchemas.includes(schema) });
 
-      const moduleSchema = schemas.find(s => { return s?.toLowerCase().includes(moduleName.toLowerCase()) }) || schemas[0];
+      const usedRowSchemas = Array.from(usedSchemas).filter(schema =>
+        { return availableRowSchemas.includes(schema) });
 
-      if (moduleSchema) {
-        imports += `import { ${moduleSchema} } from './database.generated';\n`;
+      const schemasToImport = [...usedEnumSchemas, ...usedRowSchemas];
+
+      if (schemasToImport.length > 0) {
+        imports += `import { ${schemasToImport.join(', ')} } from './database.generated';\n`;
       }
     }
 
@@ -96,9 +104,10 @@ export class ZodSchemaGenerator {
    * Generate main schema.
    * @param entityName - Entity name.
    * @param moduleName - Module name.
+   * @param usedSchemas - Set to track used schemas.
    * @returns Main schema definition.
    */
-  private generateMainSchema(entityName: string, moduleName: string): string {
+  private generateMainSchema(entityName: string, moduleName: string, usedSchemas: Set<string>): string {
     const databaseTypesPath = join(process.cwd(), `src/modules/core/${moduleName}/types/database.generated.ts`);
 
     if (!existsSync(databaseTypesPath)) {
@@ -124,6 +133,8 @@ export const ${entityName}Schema = z.object({});
 `;
     }
 
+    usedSchemas.add(moduleSchema);
+
     return `
 // ${entityName} schema - directly use database row schema
 export const ${entityName}Schema = ${moduleSchema};
@@ -135,9 +146,10 @@ export const ${entityName}Schema = ${moduleSchema};
    * Generate create/update schemas.
    * @param entityName - Entity name.
    * @param moduleName - Module name.
+   * @param usedSchemas - Set to track used schemas.
    * @returns Schema definitions.
    */
-  private async generateCreateUpdateSchemas(entityName: string, moduleName: string): Promise<string> {
+  private async generateCreateUpdateSchemas(entityName: string, moduleName: string, usedSchemas: Set<string>): Promise<string> {
     const databaseTypesPath = join(process.cwd(), `src/modules/core/${moduleName}/types/database.generated.ts`);
 
     if (!existsSync(databaseTypesPath)) {
@@ -169,13 +181,13 @@ export const ${entityName}Schema = ${moduleSchema};
 
     let schemas = '';
 
-    schemas += this.generateZodObjectSchema(`${entityName}CreateDataSchema`, createFields, moduleName);
+    schemas += this.generateZodObjectSchema(`${entityName}CreateDataSchema`, createFields, moduleName, usedSchemas);
 
     const updateFieldsOptional = updateFields.map(f => { return {
  ...f,
 optional: true
 } });
-    schemas += this.generateZodObjectSchema(`${entityName}UpdateDataSchema`, updateFieldsOptional, moduleName);
+    schemas += this.generateZodObjectSchema(`${entityName}UpdateDataSchema`, updateFieldsOptional, moduleName, usedSchemas);
 
     return schemas;
   }
@@ -185,13 +197,18 @@ optional: true
    * @param schemaName - Schema name.
    * @param fields - Interface fields.
    * @param moduleName - Module name.
+   * @param usedSchemas - Set to track used schemas.
    * @returns Schema definition.
    */
-  private generateZodObjectSchema(schemaName: string, fields: InterfaceField[], moduleName: string): string {
+  private generateZodObjectSchema(schemaName: string, fields: InterfaceField[], moduleName: string, usedSchemas: Set<string>): string {
     let schema = `export const ${schemaName} = z.object({\n`;
 
     fields.forEach(field => {
       let zodType = this.typeConverter.typeToZodType(field.type, field.name, moduleName);
+
+      if (zodType.endsWith('Schema') && !zodType.startsWith('z.')) {
+        usedSchemas.add(zodType);
+      }
 
       if (field.nullable && !field.optional) {
         zodType += '.nullable()';

@@ -11,7 +11,6 @@ import { randomBytes } from 'crypto';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { type OAuthStateData, ServerAuthAdapter } from '@/server/services/auth-adapter.service';
-import { renderAuthPage } from '@/server/external/templates/auth';
 
 const logger = LoggerService.getInstance();
 
@@ -73,7 +72,7 @@ export class UnifiedAuthorizeEndpoint {
       const authAdapter = ServerAuthAdapter.getInstance();
 
       try {
-        authAdapter.ensureInitialized();
+        authAdapter.initialize();
       } catch (error) {
         logger.error(LogSource.AUTH, 'Auth adapter not initialized', { error: error instanceof Error ? error.message : String(error) });
         this.sendError(res, params, {
@@ -98,9 +97,9 @@ export class UnifiedAuthorizeEndpoint {
         redirectUri: params.redirect_uri,
         scope: params.scope,
         provider: providerId,
-        codeChallenge: params.code_challenge,
-        codeChallengeMethod: params.code_challenge_method,
-        originalState: params.state
+        ...params.code_challenge !== undefined && { codeChallenge: params.code_challenge },
+        ...params.code_challenge_method !== undefined && { codeChallengeMethod: params.code_challenge_method },
+        ...params.state !== undefined && { originalState: params.state }
       };
 
       const stateNonce = await authAdapter.createAuthorizationState(stateData);
@@ -151,22 +150,21 @@ export class UnifiedAuthorizeEndpoint {
 
       const authAdapter = ServerAuthAdapter.getInstance();
 
-      if (!authAdapter.initialized) {
-        try {
-          authAdapter.initialize();
-        } catch (error) {
-          logger.error(LogSource.AUTH, 'Auth adapter initialization failed', { error: error instanceof Error ? error.message : String(error) });
-          return res.status(400).json({
-            error: 'invalid_request',
-            error_description: 'Missing state parameter'
-          });
-        }
+      try {
+        authAdapter.initialize();
+      } catch (error) {
+        logger.error(LogSource.AUTH, 'Auth adapter initialization failed', { error: error instanceof Error ? error.message : String(error) });
+        res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Missing state parameter'
+        });
+        return;
       }
 
       if (error) {
         logger.error(LogSource.AUTH, 'Provider returned error', {
-          error,
-          error_description
+          error: error instanceof Error ? error : String(error),
+          error_description: error_description instanceof Error ? error_description : String(error_description)
         });
 
         if (state && typeof state === 'string') {
@@ -175,38 +173,43 @@ export class UnifiedAuthorizeEndpoint {
             this.sendError(res, null, {
               error: error as string,
               error_description: error_description as string,
-              state: stateData.originalState
-            }, stateData.redirectUri); return;
+              ...stateData.originalState && { state: stateData.originalState }
+            }, stateData.redirectUri);
+            return;
           }
         }
 
-        return res.status(400).send(this.renderErrorPage(
+        res.status(400).send(this.renderErrorPage(
           error as string,
           error_description as string
         ));
+        return;
       }
 
       if (!state || typeof state !== 'string') {
-        return res.status(400).send(this.renderErrorPage(
+        res.status(400).send(this.renderErrorPage(
           'invalid_request',
           'Missing state parameter'
         ));
+        return;
       }
 
       const stateData = await authAdapter.validateAuthorizationState(state);
       if (!stateData) {
-        return res.status(400).send(this.renderErrorPage(
+        res.status(400).send(this.renderErrorPage(
           'invalid_request',
           'Invalid or expired state'
         ));
+        return;
       }
 
       if (!code || typeof code !== 'string') {
         this.sendError(res, null, {
           error: 'invalid_request',
           error_description: 'Missing authorization code',
-          state: stateData.originalState
-        }, stateData.redirectUri); return;
+          ...stateData.originalState && { state: stateData.originalState }
+        }, stateData.redirectUri);
+        return;
       }
 
       const provider = await authAdapter.getProvider(stateData.provider);
@@ -214,8 +217,9 @@ export class UnifiedAuthorizeEndpoint {
         this.sendError(res, null, {
           error: 'server_error',
           error_description: 'Provider configuration error',
-          state: stateData.originalState
-        }, stateData.redirectUri); return;
+          ...stateData.originalState && { state: stateData.originalState }
+        }, stateData.redirectUri);
+        return;
       }
 
       const callbackUrl = await authAdapter.getProviderCallbackUrl(stateData.provider);
@@ -243,8 +247,8 @@ export class UnifiedAuthorizeEndpoint {
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,
         scope: stateData.scope,
-        codeChallenge: stateData.codeChallenge,
-        codeChallengeMethod: stateData.codeChallengeMethod
+        ...stateData.codeChallenge && { codeChallenge: stateData.codeChallenge },
+        ...stateData.codeChallengeMethod && { codeChallengeMethod: stateData.codeChallengeMethod }
       });
 
       const redirectUrl = new URL(stateData.redirectUri);
@@ -274,16 +278,15 @@ export class UnifiedAuthorizeEndpoint {
       if (state && typeof state === 'string') {
         const authAdapter = ServerAuthAdapter.getInstance();
         try {
-          if (!authAdapter.initialized) {
-            authAdapter.initialize();
-          }
+          authAdapter.initialize();
           const stateData = await authAdapter.validateAuthorizationState(state);
           if (stateData) {
             this.sendError(res, null, {
               error: 'server_error',
               error_description: 'Authentication failed',
-              state: stateData.originalState
-            }, stateData.redirectUri); return;
+              ...stateData.originalState && { state: stateData.originalState }
+            }, stateData.redirectUri);
+        return;
           }
         } catch (err) {
           logger.error(LogSource.AUTH, 'Failed to recover state', { error: err instanceof Error ? err.message : String(err) });
@@ -308,52 +311,6 @@ export class UnifiedAuthorizeEndpoint {
     };
 
     return authorizeRequestSchema.parse(params);
-  }
-
-  /**
-   * Render provider selection page.
-   * @param req
-   * @param res
-   * @param params
-   */
-  private async renderProviderSelection(
-    req: ExpressRequest,
-    res: ExpressResponse,
-    params: AuthorizeRequest
-  ): Promise<void> {
-    try {
-      const authAdapter = ServerAuthAdapter.getInstance();
-      const providers = await authAdapter.getAllProviders();
-
-      const providerLinks = await Promise.all(
-        providers.map(async (provider: any) => {
-          const url = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`);
-          url.searchParams.set('provider', provider.id);
-          return {
-            id: provider.id,
-            name: provider.name,
-            url: url.toString()
-          };
-        })
-      );
-
-      const html = renderAuthPage({
-        providers: providerLinks,
-        isAuthenticated: false,
-        authorizationRequest: {
-          client_id: params.client_id,
-          scope: params.scope
-        }
-      });
-
-      res.type('html').send(html);
-    } catch (error) {
-      logger.error(LogSource.AUTH, 'Failed to render provider selection', { error: error instanceof Error ? error.message : String(error) });
-      res.status(500).send(this.renderErrorPage(
-        'server_error',
-        'Failed to load authentication providers'
-      ));
-    }
   }
 
   /**

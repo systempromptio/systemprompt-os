@@ -261,7 +261,7 @@ export class ConfigService implements IConfigService {
       command: row.command,
       args: row.args ? JSON.parse(row.args) : null,
       env: row.env ? JSON.parse(row.env) : null,
-      scope: row.scope,
+      scope: row.scope as 'local' | 'project' | 'user',
       transport: row.transport as 'stdio' | 'sse' | 'http',
       status: row.status as 'active' | 'inactive' | 'error' | 'starting' | 'stopping',
       description: row.description,

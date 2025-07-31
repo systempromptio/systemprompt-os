@@ -1,18 +1,27 @@
 // Auto-generated database types for config module
-// Generated on: 2025-07-31T11:41:32.422Z
+// Generated on: 2025-07-31T13:04:42.965Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 
 // Enums generated from CHECK constraints
-export enum McpServersScope {
-  LOCAL = 'local',
-  PROJECT = 'project',
-  USER = 'user'
+export enum McpServersTransport {
+  STDIO = 'stdio',
+  SSE = 'sse',
+  HTTP = 'http'
+}
+
+export enum McpServersStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  ERROR = 'error',
+  STARTING = 'starting',
+  STOPPING = 'stopping'
 }
 
 // Zod schemas for enums
-export const McpServersScopeSchema = z.nativeEnum(McpServersScope);
+export const McpServersTransportSchema = z.nativeEnum(McpServersTransport);
+export const McpServersStatusSchema = z.nativeEnum(McpServersStatus);
 
 /**
  * Generated from database table: configs
@@ -37,9 +46,9 @@ export interface IMcpServersRow {
   command: string;
   args: string | null;
   env: string | null;
-  scope: McpServersScope;
-  transport: string;
-  status: string;
+  scope: string;
+  transport: McpServersTransport;
+  status: McpServersStatus;
   description: string | null;
   metadata: string | null;
   oauth_config: string | null;
@@ -65,9 +74,9 @@ export const McpServersRowSchema = z.object({
   command: z.string(),
   args: z.string().nullable(),
   env: z.string().nullable(),
-  scope: z.nativeEnum(McpServersScope),
-  transport: z.string(),
-  status: z.string(),
+  scope: z.string(),
+  transport: z.nativeEnum(McpServersTransport),
+  status: z.nativeEnum(McpServersStatus),
   description: z.string().nullable(),
   metadata: z.string().nullable(),
   oauth_config: z.string().nullable(),

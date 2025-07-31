@@ -2,12 +2,15 @@
  * Lint command - runs ESLint and displays formatted summary.
  */
 
+import { randomUUID } from 'crypto';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LintService } from '@/modules/core/dev/services/lint.service';
 import type { LintResult } from '@/modules/core/dev/services/lint.service';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { DevEvents } from '@/modules/core/events/types/index';
 
 /**
  * Display lint results in a formatted table.
@@ -90,13 +93,13 @@ const executeLintCheck = async (context: ICLIContext): Promise<void> => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
   const logger = LoggerService.getInstance();
+  const startTime = Date.now();
 
   try {
     const module = args.module as string | undefined;
     let target = args.target as string | undefined;
     const fix = Boolean(args.fix);
 
-    // If module is specified, convert to target path
     if (module && !target) {
       target = `src/modules/core/${module}`;
     }
@@ -110,7 +113,38 @@ const executeLintCheck = async (context: ICLIContext): Promise<void> => {
     lintService.initialize();
 
     const result = await lintService.runLint(target, { fix });
+    const duration = Date.now() - startTime;
+
     displayLintResults(result, args, cliOutput);
+
+    const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
+    const reportWriter = ReportWriterService.getInstance();
+
+    const report = {
+      timestamp: new Date().toISOString(),
+      command: 'lint' as const,
+      ...module !== undefined && { module },
+      ...target !== undefined && { target },
+      success: result.success,
+      duration,
+      totalErrors: result.totalErrors,
+      totalWarnings: result.totalWarnings,
+      totalFiles: result.totalFiles,
+      results: result.results.map(fileResult => { return {
+        filePath: fileResult.filePath,
+        errorCount: fileResult.errorCount,
+        warningCount: fileResult.warningCount,
+        messages: fileResult.messages || []
+      } })
+    };
+
+    await reportWriter.writeReport(report);
+
+    const eventBus = EventBusService.getInstance();
+    eventBus.emit(DevEvents.REPORT_WRITE_REQUEST, {
+      requestId: randomUUID(),
+      report
+    });
 
     if (!result.success && result.totalErrors > 0) {
       process.exit(1);
@@ -130,7 +164,7 @@ export const command: ICLICommand = {
   options: [
     {
       name: 'module',
-      alias: 'm', 
+      alias: 'm',
       type: 'string',
       description: 'Module name to lint (e.g., users, auth, logger)'
     },

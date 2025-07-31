@@ -186,7 +186,7 @@ const handleAuthError = (
   const errorForLogging = error instanceof Error ? error : String(error);
   logger.error(LogSource.AUTH, 'Auth middleware error', { error: errorForLogging });
 
-  const errorDescription = getErrorDescription(error);
+  const errorDescription = error instanceof Error ? error.message : String(error);
 
   handleAuthFailure({
     res,
@@ -215,14 +215,12 @@ export const createAuthMiddleware = (
     next: NextFunction,
   ): Promise<void> => {
     try {
-      if (!authAdapter.initialized) {
-        try {
-          authAdapter.initialize();
-        } catch (error) {
-          logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, treating as unauthenticated', { error });
-          handleMissingToken(res, options);
-          return;
-        }
+      try {
+        authAdapter.initialize();
+      } catch (error) {
+        logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, treating as unauthenticated', { error: error instanceof Error ? error : String(error) });
+        handleMissingToken(res, options);
+        return;
       }
 
       const token = extractToken(req);

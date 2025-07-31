@@ -1,5 +1,5 @@
 // Auto-generated database types for cli module
-// Generated on: 2025-07-31T10:03:21.448Z
+// Generated on: 2025-07-31T13:04:42.543Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -106,7 +106,7 @@ export const CliDatabaseRowSchema = z.union([CliCommandsRowSchema, CliCommandOpt
  * Database table names for this module
  */
 export const CLI_TABLES = {
-  CLICOMMANDS: 'cli_commands',
-  CLICOMMANDOPTIONS: 'cli_command_options',
-  CLICOMMANDALIASES: 'cli_command_aliases',
+  CLI_COMMANDS: 'cli_commands',
+  CLI_COMMAND_OPTIONS: 'cli_command_options',
+  CLI_COMMAND_ALIASES: 'cli_command_aliases',
 } as const;

@@ -1,11 +1,10 @@
 // Auto-generated service schemas for dev module
-// Generated on: 2025-07-31T11:41:32.076Z
+// Generated on: 2025-07-31T13:04:44.052Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/index';
-import { DevSchema, DevCreateDataSchema, DevUpdateDataSchema } from './dev.module.generated';
 
 // Zod schema for DevService
 export const DevServiceSchema = z.object({

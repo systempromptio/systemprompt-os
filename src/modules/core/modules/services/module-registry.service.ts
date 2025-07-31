@@ -61,7 +61,7 @@ export class ModuleRegistryService {
    * Unregister a module from the registry.
    * @param moduleName
    */
-  unregister(moduleName: string): boolean {
+  async unregister(moduleName: string): Promise<boolean> {
     const module = this.modules.get(moduleName);
     if (!module) {
       this.logger.warn(LogSource.MODULES, `Cannot unregister non-existent module: ${moduleName}`);
@@ -70,9 +70,16 @@ export class ModuleRegistryService {
 
     if (module.status === ModulesStatus.RUNNING) {
       this.logger.info(LogSource.MODULES, `Stopping module before unregistering: ${moduleName}`);
-      (module as any).stop().catch((error: any) => {
-        this.logger.error(LogSource.MODULES, `Failed to stop module '${moduleName}':`, { error });
-      });
+      try {
+        if (typeof (module as any).stop === 'function') {
+          await (module as any).stop();
+          this.logger.debug(LogSource.MODULES, `Successfully stopped module during unregistration: ${moduleName}`);
+        } else {
+          this.logger.debug(LogSource.MODULES, `Module ${moduleName} has no stop method, skipping graceful shutdown`);
+        }
+      } catch (error: any) {
+        this.logger.warn(LogSource.MODULES, `Non-critical error stopping module '${moduleName}' during unregistration:`, { error });
+      }
     }
 
     this.modules.delete(moduleName);
@@ -255,7 +262,7 @@ export class ModuleRegistryService {
           this.logger.info(LogSource.MODULES, `Successfully stopped module: ${moduleName}`);
         } catch (error) {
           module.status = ModulesStatus.ERROR;
-          this.logger.error(LogSource.MODULES, `Failed to stop module '${moduleName}':`, { error: error instanceof Error ? error.message : String(error) });
+          this.logger.warn(LogSource.MODULES, `Non-critical error stopping module '${moduleName}':`, { error: error instanceof Error ? error.message : String(error) });
         }
       }
 

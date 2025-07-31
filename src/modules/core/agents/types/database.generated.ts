@@ -1,5 +1,5 @@
 // Auto-generated database types for agents module
-// Generated on: 2025-07-31T11:50:19.496Z
+// Generated on: 2025-07-31T13:04:41.865Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -11,11 +11,27 @@ export enum AgentsType {
   COORDINATOR = 'coordinator'
 }
 
+export enum AgentsStatus {
+  IDLE = 'idle',
+  ACTIVE = 'active',
+  STOPPED = 'stopped',
+  ERROR = 'error'
+}
+
 export enum AgentTasksPriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
   CRITICAL = 'critical'
+}
+
+export enum AgentTasksStatus {
+  PENDING = 'pending',
+  ASSIGNED = 'assigned',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled'
 }
 
 export enum AgentLogsLevel {
@@ -27,7 +43,9 @@ export enum AgentLogsLevel {
 
 // Zod schemas for enums
 export const AgentsTypeSchema = z.nativeEnum(AgentsType);
+export const AgentsStatusSchema = z.nativeEnum(AgentsStatus);
 export const AgentTasksPrioritySchema = z.nativeEnum(AgentTasksPriority);
+export const AgentTasksStatusSchema = z.nativeEnum(AgentTasksStatus);
 export const AgentLogsLevelSchema = z.nativeEnum(AgentLogsLevel);
 
 /**
@@ -40,7 +58,7 @@ export interface IAgentsRow {
   description: string;
   instructions: string;
   type: AgentsType;
-  status: string;
+  status: AgentsStatus;
   created_at: string | null;
   updated_at: string | null;
   assigned_tasks: number | null;
@@ -85,7 +103,7 @@ export interface IAgentTasksRow {
   agent_id: string;
   name: string;
   priority: AgentTasksPriority;
-  status: string;
+  status: AgentTasksStatus;
   payload: string;
   created_at: string | null;
   assigned_at: string | null;
@@ -128,7 +146,7 @@ export const AgentsRowSchema = z.object({
   description: z.string(),
   instructions: z.string(),
   type: z.nativeEnum(AgentsType),
-  status: z.string(),
+  status: z.nativeEnum(AgentsStatus),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
   assigned_tasks: z.number().nullable(),
@@ -157,7 +175,7 @@ export const AgentTasksRowSchema = z.object({
   agent_id: z.string(),
   name: z.string(),
   priority: z.nativeEnum(AgentTasksPriority),
-  status: z.string(),
+  status: z.nativeEnum(AgentTasksStatus),
   payload: z.string(),
   created_at: z.string().datetime().nullable(),
   assigned_at: z.string().datetime().nullable(),

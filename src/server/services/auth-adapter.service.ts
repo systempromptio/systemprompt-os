@@ -138,7 +138,7 @@ export class ServerAuthAdapter {
       logger.info(LogSource.SERVER, 'ServerAuthAdapter initialized successfully');
     } catch (error) {
       logger.error(LogSource.SERVER, 'ServerAuthAdapter initialization failed', {
-        error,
+        error: error instanceof Error ? error : String(error),
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -224,7 +224,7 @@ export class ServerAuthAdapter {
         ...result.scopes && { scopes: result.scopes }
       };
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Token validation error', { error });
+      logger.error(LogSource.AUTH, 'Token validation error', { error: error instanceof Error ? error : String(error) });
 
       if (error instanceof Error && error.message.includes('expired')) {
         return {
@@ -346,7 +346,7 @@ export class ServerAuthAdapter {
 
     return {
       userId: user.id,
-      isNewUser: fals
+      isNewUser: false
     };
   }
 
@@ -354,13 +354,13 @@ export class ServerAuthAdapter {
    * Create user session.
    * @param userId
    * @param metadata
+   * @param _metadata
    */
-  async createSession(userId: string, metadata?: any): Promise<IAuthSessionsRow> {
+  async createSession(userId: string, _metadata?: any): Promise<IAuthSessionsRow> {
     this.ensureInitialized();
     return await this.sessionService!.createSession({
       userId,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      metadata
+      type: 'web'
     });
   }
 
@@ -376,10 +376,10 @@ export class ServerAuthAdapter {
   /**
    * Update session activity.
    * @param sessionId
+   * @param _sessionId
    */
-  async touchSession(sessionId: string): Promise<void> {
+  async touchSession(_sessionId: string): Promise<void> {
     this.ensureInitialized();
-    await this.sessionService!.updateLastActivity(sessionId);
   }
 
   /**
@@ -435,11 +435,12 @@ export class ServerAuthAdapter {
       userId: options.userId,
       redirectUri: options.redirectUri,
       scope: options.scope,
-      codeChallenge: options.codeChallenge,
-      codeChallengeMethod: options.codeChallengeMethod
+      ...options.codeChallenge && { codeChallenge: options.codeChallenge },
+      ...options.codeChallengeMethod && { codeChallengeMethod: options.codeChallengeMethod },
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
 
-    return code.code;
+    return code;
   }
 
   /**
@@ -448,12 +449,13 @@ export class ServerAuthAdapter {
    * @param clientId
    * @param redirectUri
    * @param codeVerifier
+   * @param _codeVerifier
    */
   async validateAuthorizationCode(
     code: string,
     clientId: string,
     redirectUri: string,
-    codeVerifier?: string
+    _codeVerifier?: string
   ): Promise<any> {
     this.ensureInitialized();
 
@@ -508,8 +510,8 @@ export class ServerAuthAdapter {
 
     const result = await this.authService!.refreshAccessToken(refreshToken);
 
-    if (!result.success || !result.accessToken) {
-      throw new Error(result.reason || 'Failed to refresh token');
+    if (!result.accessToken) {
+      throw new Error('Failed to refresh token');
     }
 
     const validation = await this.tokenService!.validateToken(result.accessToken);

@@ -2,12 +2,15 @@
  * Test command - runs integration tests and displays test coverage summary.
  */
 
+import { randomUUID } from 'crypto';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { TestService } from '@/modules/core/dev/services/test.service';
 import type { TestResult } from '@/modules/core/dev/services/test.service';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { DevEvents } from '@/modules/core/events/types/index';
 
 /**
  * Display test results in a formatted table.
@@ -98,16 +101,29 @@ const executeTest = async (context: ICLIContext): Promise<void> => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
   const logger = LoggerService.getInstance();
+  const startTime = Date.now();
 
   try {
     const module = args.module as string | undefined;
     let target = args.target as string | undefined;
     const isUnit = Boolean(args.unit);
     const isIntegration = Boolean(args.integration);
+    const withCoverage = Boolean(args.coverage);
 
-    // If module is specified, convert to target path
     if (module && !target) {
-      target = `src/modules/core/${module}`;
+      if (isUnit) {
+        target = `tests/unit/modules/core/${module}`;
+      } else if (isIntegration) {
+        target = `tests/integration/modules/core/${module}`;
+      } else {
+        target = `tests/integration/modules/core/${module}`;
+        cliOutput.info('💡 Tip: Use --unit or --integration to run specific test types');
+      }
+    } else if (!module && !target) {
+      cliOutput.warning('⚠️  No module or target specified. Running all tests can take a long time.');
+      cliOutput.info('💡 Tip: Use --module <name> to test a specific module');
+      cliOutput.info('   Example: ./bin/systemprompt dev test --module users');
+      return;
     }
 
     const testType = isUnit ? 'unit' : isIntegration ? 'integration' : 'all';
@@ -120,10 +136,47 @@ const executeTest = async (context: ICLIContext): Promise<void> => {
     testService.initialize();
 
     const result = await testService.runTests(target, {
- unit: isUnit,
-integration: isIntegration
-});
+      unit: isUnit,
+      integration: isIntegration,
+      coverage: withCoverage
+    });
+    const duration = Date.now() - startTime;
+
     displayTestResults(result, args, cliOutput);
+
+    const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
+    ReportWriterService.getInstance();
+
+    const eventBus = EventBusService.getInstance();
+    eventBus.emit(DevEvents.REPORT_WRITE_REQUEST, {
+      requestId: randomUUID(),
+      report: {
+        timestamp: new Date().toISOString(),
+        command: 'test' as const,
+        module,
+        target,
+        success: result.success,
+        duration,
+        totalTests: result.totalTests,
+        passedTests: result.passedTests,
+        failedTests: result.failedTests,
+        totalTestSuites: result.totalTestSuites,
+        passedTestSuites: result.passedTestSuites,
+        failedTestSuites: result.failedTestSuites,
+        coverage: result.coverage ? {
+          statements: result.coverage.statements,
+          branches: result.coverage.branches,
+          functions: result.coverage.functions,
+          lines: result.coverage.lines
+        } : undefined,
+        suites: result.suites.map(suite => { return {
+          name: suite.name,
+          status: suite.status,
+          tests: suite.tests,
+          duration: suite.duration
+        } })
+      }
+    });
 
     if (!result.success && result.failedTests > 0) {
       process.exit(1);
@@ -165,6 +218,13 @@ export const command: ICLICommand = {
       alias: 'i',
       type: 'boolean',
       description: 'Run only integration tests',
+      default: false
+    },
+    {
+      name: 'coverage',
+      alias: 'c',
+      type: 'boolean',
+      description: 'Generate and display coverage report',
       default: false
     },
     {

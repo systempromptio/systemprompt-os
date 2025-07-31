@@ -240,7 +240,8 @@ export class TokenEndpoint {
     ) {
       try {
         const authModule = await getAuthModule();
-        const provider = authModule.exports.getProvider(codeData.provider) as {
+        const providersService = authModule.exports.providersService();
+        const provider = await providersService.getProvider(codeData.provider) as {
           exchangeCodeForTokens?: (code: string) => Promise<unknown>;
         } | undefined;
         const tokenData = codeData.providerTokens as IProviderTokens;

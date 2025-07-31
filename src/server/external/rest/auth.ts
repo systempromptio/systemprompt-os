@@ -12,10 +12,8 @@ import type {
 import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-// Import type { IdentityProvider } from '@/modules/core/auth/types/index';
-import type { ProviderRegistry } from '@/modules/core/auth/providers/registry';
 import {
- type AuthPageConfig, type IdentityProvider, renderAuthPage
+ type AuthPageConfig, renderAuthPage
 } from '@/server/external/templates/auth';
 import type {
   TokenResponse
@@ -40,14 +38,8 @@ export class AuthEndpoint {
 
       try {
         const authModule = getAuthModule();
-        const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry() as unknown as ProviderRegistry | null;
-
-        if (providerRegistry === null) {
-          throw new Error('Provider registry not initialized');
-        }
-
-        const allProviders = providerRegistry.getAllProviders();
-        const providers = allProviders as IdentityProvider[];
+        const providersService = authModule.exports.providersService();
+        const providers = providersService.getAllProviderInstances();
 
         const authPageConfig: AuthPageConfig = {
           providers,

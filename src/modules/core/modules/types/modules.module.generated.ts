@@ -1,10 +1,9 @@
 // Auto-generated Zod schemas for modules module
-// Generated on: 2025-07-31T11:41:30.914Z
+// Generated on: 2025-07-31T13:04:44.786Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { ModulesTypeSchema, ModuleEventsEventTypeSchema } from './database.generated';
-import { ModulesRowSchema } from './database.generated';
+import { ModulesHealthStatusSchema, ModulesRowSchema } from './database.generated';
 
 // Module schema - directly use database row schema
 export const ModuleSchema = ModulesRowSchema;
@@ -26,7 +25,7 @@ export const ModuleCreateDataSchema = z.object({
   discovered_at: z.string().nullable(),
   last_started_at: z.string().nullable(),
   last_stopped_at: z.string().nullable(),
-  health_status: z.string().nullable(),
+  health_status: ModulesHealthStatusSchema.nullable(),
   health_message: z.string().nullable(),
   last_health_check: z.string().nullable(),
 });
@@ -48,7 +47,7 @@ export const ModuleUpdateDataSchema = z.object({
   discovered_at: z.string().nullable().optional(),
   last_started_at: z.string().nullable().optional(),
   last_stopped_at: z.string().nullable().optional(),
-  health_status: z.string().nullable().optional(),
+  health_status: ModulesHealthStatusSchema.nullable().optional(),
   health_message: z.string().nullable().optional(),
   last_health_check: z.string().nullable().optional(),
 });

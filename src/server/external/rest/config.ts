@@ -126,14 +126,10 @@ category: 'config'
    */
   private async renderInitialSetup(res: ExpressResponse): Promise<void> {
     const authModule = getAuthModule();
-    const providerRegistry = authModule.exports.getProviderRegistry();
+    const providersService = authModule.exports.providersService();
 
-    if (providerRegistry === null || providerRegistry === undefined) {
-      throw new Error('Provider registry not initialized');
-    }
-
-    const providers = await authModule.exports.getAllProviders();
-    const templateProviders = providers.map((p) => {
+    const providers = await providersService.getAllProviders();
+    const templateProviders = providers.map((p: any) => {
       return { name: p.name };
     });
     const content = renderInitialSetup(templateProviders);

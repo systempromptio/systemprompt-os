@@ -4,7 +4,9 @@
  * @module dev/services/type-generation/generators
  */
 
-import { existsSync, writeFileSync } from 'fs';
+import {
+ existsSync, writeFileSync
+} from 'fs';
 import { join } from 'path';
 import type { ILogger } from '@/modules/core/logger/types';
 import { LogSource } from '@/modules/core/logger/types';
@@ -60,13 +62,22 @@ export class ServiceSchemaGenerator {
    */
   private generateContent(serviceInfo: ServiceInfo, moduleName: string): string {
     const entityName = this.stringUtils.getEntityName(moduleName);
+    const usedSchemas = new Set<string>();
 
     let content = this.generateHeader(moduleName);
-    content += this.generateImports(moduleName, entityName);
-    content += this.generateServiceSchema(serviceInfo, moduleName);
-    content += this.generateModuleExportsSchema(moduleName, serviceInfo.name);
-    content += this.generateModuleSchema(moduleName);
-    content += this.generateTypeExports(moduleName, serviceInfo.name);
+    const serviceSchema = this.generateServiceSchema(serviceInfo, moduleName, usedSchemas);
+    const moduleExportsSchema = this.generateModuleExportsSchema(moduleName, serviceInfo.name);
+    const moduleSchema = this.generateModuleSchema(moduleName);
+    const typeExports = this.generateTypeExports(moduleName, serviceInfo.name);
+
+    const moduleSchemaPath = join(process.cwd(), `src/modules/core/${moduleName}/types/${moduleName}.module.generated.ts`);
+    const hasModuleSchemas = existsSync(moduleSchemaPath);
+
+    content += this.generateImports(moduleName, entityName, usedSchemas, hasModuleSchemas);
+    content += serviceSchema;
+    content += moduleExportsSchema;
+    content += moduleSchema;
+    content += typeExports;
 
     return content;
   }
@@ -88,24 +99,39 @@ export class ServiceSchemaGenerator {
    * Generate imports.
    * @param moduleName - Module name.
    * @param entityName - Entity name.
+   * @param usedSchemas - Set of actually used schemas.
+   * @param hasModuleSchemas
    * @returns Import statements.
    */
-  private generateImports(moduleName: string, entityName: string): string {
-    return `import { z } from 'zod';
+  private generateImports(moduleName: string, entityName: string, usedSchemas: Set<string>, hasModuleSchemas: boolean): string {
+    let imports = `import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/index';
-import { ${entityName}Schema, ${entityName}CreateDataSchema, ${entityName}UpdateDataSchema } from './${moduleName}.module.generated';
-
 `;
+
+    if (hasModuleSchemas && usedSchemas.size > 0) {
+      const schemasToImport = [];
+      if (usedSchemas.has(`${entityName}Schema`)) { schemasToImport.push(`${entityName}Schema`); }
+      if (usedSchemas.has(`${entityName}CreateDataSchema`)) { schemasToImport.push(`${entityName}CreateDataSchema`); }
+      if (usedSchemas.has(`${entityName}UpdateDataSchema`)) { schemasToImport.push(`${entityName}UpdateDataSchema`); }
+
+      if (schemasToImport.length > 0) {
+        imports += `import { ${schemasToImport.join(', ')} } from './${moduleName}.module.generated';\n`;
+      }
+    }
+
+    imports += '\n';
+    return imports;
   }
 
   /**
    * Generate service schema.
    * @param serviceInfo - Service information.
    * @param moduleName - Module name.
+   * @param usedSchemas - Set to track used schemas.
    * @returns Service schema definition.
    */
-  private generateServiceSchema(serviceInfo: ServiceInfo, moduleName: string): string {
+  private generateServiceSchema(serviceInfo: ServiceInfo, moduleName: string, usedSchemas: Set<string>): string {
     let schema = `// Zod schema for ${serviceInfo.name}
 export const ${serviceInfo.name}Schema = z.object({
 `;
@@ -115,8 +141,14 @@ export const ${serviceInfo.name}Schema = z.object({
 
       if (method.params.length > 0) {
         schema += '\n    .args(';
-        const paramSchemas = method.params.map(param =>
-          { return this.typeConverter.typeToZodSchema(param.type, param.name, moduleName) });
+        const paramSchemas = method.params.map(param => {
+          const paramSchema = this.typeConverter.typeToZodSchema(param.type, param.name, moduleName);
+          const entityName = this.stringUtils.getEntityName(moduleName);
+          if (paramSchema === `${entityName}Schema`) { usedSchemas.add(`${entityName}Schema`); }
+          if (paramSchema === `${entityName}CreateDataSchema`) { usedSchemas.add(`${entityName}CreateDataSchema`); }
+          if (paramSchema === `${entityName}UpdateDataSchema`) { usedSchemas.add(`${entityName}UpdateDataSchema`); }
+          return paramSchema;
+        });
         schema += paramSchemas.join(', ');
         schema += ')';
       } else {
@@ -124,6 +156,11 @@ export const ${serviceInfo.name}Schema = z.object({
       }
 
       const returnSchema = this.typeConverter.typeToZodSchema(method.returnType, 'return', moduleName);
+      const entityName = this.stringUtils.getEntityName(moduleName);
+      if (returnSchema.includes(`${entityName}Schema`)) { usedSchemas.add(`${entityName}Schema`); }
+      if (returnSchema.includes(`${entityName}CreateDataSchema`)) { usedSchemas.add(`${entityName}CreateDataSchema`); }
+      if (returnSchema.includes(`${entityName}UpdateDataSchema`)) { usedSchemas.add(`${entityName}UpdateDataSchema`); }
+
       schema += `\n    .returns(${returnSchema}),\n`;
     });
 

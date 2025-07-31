@@ -1,5 +1,5 @@
 // Auto-generated database types for mcp module
-// Generated on: 2025-07-31T11:41:30.914Z
+// Generated on: 2025-07-31T13:04:44.428Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -106,6 +106,7 @@ export interface IMcpResourcesRow {
   tags: string | null;
   author: string | null;
   version: string | null;
+  checksum: string | null;
   created_at: string | null;
   updated_at: string | null;
   last_synced_at: string | null;
@@ -229,6 +230,7 @@ export const McpResourcesRowSchema = z.object({
   tags: z.string().nullable(),
   author: z.string().nullable(),
   version: z.string().nullable(),
+  checksum: z.string().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
   last_synced_at: z.string().datetime().nullable(),

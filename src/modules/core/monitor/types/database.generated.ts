@@ -1,8 +1,18 @@
 // Auto-generated database types for monitor module
-// Generated on: 2025-07-31T11:41:30.912Z
+// Generated on: 2025-07-31T13:04:44.790Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
+
+// Enums generated from CHECK constraints
+export enum MetricType {
+  COUNTER = 'counter',
+  GAUGE = 'gauge',
+  HISTOGRAM = 'histogram'
+}
+
+// Zod schemas for enums
+export const MetricTypeSchema = z.nativeEnum(MetricType);
 
 /**
  * Generated from database table: metric
@@ -12,7 +22,7 @@ export interface IMetricRow {
   id: number;
   name: string;
   value: number;
-  type: string;
+  type: MetricType;
   unit: string | null;
   timestamp: string;
   created_at: string | null;
@@ -56,7 +66,7 @@ export const MetricRowSchema = z.object({
   id: z.number(),
   name: z.string(),
   value: z.number(),
-  type: z.string(),
+  type: z.nativeEnum(MetricType),
   unit: z.string().nullable(),
   timestamp: z.string().datetime(),
   created_at: z.string().datetime().nullable(),

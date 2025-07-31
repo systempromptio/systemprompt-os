@@ -1,9 +1,8 @@
 // Auto-generated Zod schemas for mcp module
-// Generated on: 2025-07-31T11:41:30.915Z
+// Generated on: 2025-07-31T13:04:44.428Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { McpSessionsStatusSchema, McpMessagesRoleSchema, McpResourcesContentTypeSchema, McpPromptMessagesRoleSchema } from './database.generated';
 import { McpContextsRowSchema } from './database.generated';
 
 // Mcp schema - directly use database row schema

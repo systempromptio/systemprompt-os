@@ -53,6 +53,9 @@ coverage/
 .test-temp/
 html/
 
+# Reports
+reports/
+
 # Temporary files
 *.tmp
 *.temp

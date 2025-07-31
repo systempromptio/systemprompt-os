@@ -77,28 +77,38 @@ export class TestService {
    * @param options - Test options.
    * @param options.unit
    * @param options.integration
+   * @param options.coverage
    * @returns Promise resolving to test results.
    */
-  public async runTests(target?: string, options: { unit?: boolean; integration?: boolean } = {}): Promise<TestResult> {
+  public async runTests(target?: string, options: { unit?: boolean; integration?: boolean; coverage?: boolean } = {}): Promise<TestResult> {
     const testType = options.unit ? 'unit' : options.integration ? 'integration' : 'all';
     const targetInfo = target ? ` for ${target}` : '';
+    const withCoverage = options.coverage ? ' with coverage' : '';
 
-    this.logger.info(LogSource.CLI, `Running ${testType} tests${targetInfo}`);
+    this.logger.info(LogSource.CLI, `Running ${testType} tests${targetInfo}${withCoverage}`);
 
     return await new Promise((resolve, reject) => {
       const testCommand = 'npm';
       const testArgs: string[] = ['run'];
 
       if (testType === 'unit') {
-        testArgs.push('test:unit');
+        testArgs.push(options.coverage ? 'test:coverage' : 'test:unit');
       } else if (testType === 'integration') {
-        testArgs.push('test:integration');
+        testArgs.push(options.coverage ? 'test:integration:report' : 'test:integration');
       } else {
         testArgs.push('test');
       }
 
+      if (options.coverage) {
+        testArgs.push('--');
+        testArgs.push('--coverage');
+      }
+
       if (target) {
-        testArgs.push('--', target);
+        if (!options.coverage) {
+          testArgs.push('--');
+        }
+        testArgs.push(target);
       }
 
       const testProcess = spawn(testCommand, testArgs, {
@@ -206,14 +216,33 @@ export class TestService {
       result.totalTests = parseInt(failedTestsMatch[3]!, 10);
     }
 
-    const coverageMatch = output.match(/All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)/);
-    if (coverageMatch) {
-      result.coverage = {
-        statements: parseFloat(coverageMatch[1]!),
-        branches: parseFloat(coverageMatch[2]!),
-        functions: parseFloat(coverageMatch[3]!),
-        lines: parseFloat(coverageMatch[4]!)
-      };
+    const coverageTableRegex = /^(.+?)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|/gm;
+    let match;
+    let hasCoverage = false;
+
+    while ((match = coverageTableRegex.exec(output)) !== null) {
+      const filename = match[1]!.trim();
+      if (filename === 'All files' || filename.includes('All files')) {
+        result.coverage = {
+          statements: parseFloat(match[2]!),
+          branches: parseFloat(match[3]!),
+          functions: parseFloat(match[4]!),
+          lines: parseFloat(match[5]!)
+        };
+        hasCoverage = true;
+      }
+    }
+
+    if (!hasCoverage) {
+      const altCoverageMatch = output.match(/Coverage summary[\s\S]*?Statements\s*:\s*([\d.]+)%[\s\S]*?Branches\s*:\s*([\d.]+)%[\s\S]*?Functions\s*:\s*([\d.]+)%[\s\S]*?Lines\s*:\s*([\d.]+)%/);
+      if (altCoverageMatch) {
+        result.coverage = {
+          statements: parseFloat(altCoverageMatch[1]!),
+          branches: parseFloat(altCoverageMatch[2]!),
+          functions: parseFloat(altCoverageMatch[3]!),
+          lines: parseFloat(altCoverageMatch[4]!)
+        };
+      }
     }
 
     if (result.suites.length === 0 && result.totalTestSuites > 0) {

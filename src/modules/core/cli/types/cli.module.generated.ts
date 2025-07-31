@@ -1,9 +1,8 @@
 // Auto-generated Zod schemas for cli module
-// Generated on: 2025-07-31T11:41:32.754Z
+// Generated on: 2025-07-31T13:04:42.543Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { CliCommandOptionsOptionTypeSchema } from './database.generated';
 import { CliCommandsRowSchema } from './database.generated';
 
 // Cli schema - directly use database row schema

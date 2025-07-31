@@ -1,5 +1,5 @@
 // Auto-generated database types for auth module
-// Generated on: 2025-07-31T10:03:21.448Z
+// Generated on: 2025-07-31T13:04:41.874Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -109,7 +109,7 @@ export interface IAuthProvidersRow {
 
 // Zod schemas for database row validation
 export const AuthOauthIdentitiesRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   user_id: z.string(),
   provider: z.string(),
   provider_user_id: z.string(),
@@ -120,7 +120,7 @@ export const AuthOauthIdentitiesRowSchema = z.object({
 });
 
 export const AuthSessionsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   user_id: z.string(),
   token_hash: z.string(),
   refresh_token_hash: z.string().nullable(),
@@ -135,7 +135,7 @@ export const AuthSessionsRowSchema = z.object({
 });
 
 export const AuthTokensRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   user_id: z.string(),
   name: z.string(),
   token_hash: z.string(),
@@ -152,7 +152,7 @@ export const AuthTokenScopesRowSchema = z.object({
 });
 
 export const AuthAuthorizationCodesRowSchema = z.object({
-  code: z.string().uuid(),
+  code: z.string(),
   client_id: z.string(),
   redirect_uri: z.string(),
   scope: z.string(),
@@ -167,7 +167,7 @@ export const AuthAuthorizationCodesRowSchema = z.object({
 });
 
 export const AuthProvidersRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   type: z.string(),
   enabled: z.number().nullable(),
@@ -201,10 +201,10 @@ export const AuthDatabaseRowSchema = z.union([AuthOauthIdentitiesRowSchema, Auth
  * Database table names for this module
  */
 export const AUTH_TABLES = {
-  AUTHOAUTHIDENTITIES: 'auth_oauth_identities',
-  AUTHSESSIONS: 'auth_sessions',
-  AUTHTOKENS: 'auth_tokens',
-  AUTHTOKENSCOPES: 'auth_token_scopes',
-  AUTHAUTHORIZATIONCODES: 'auth_authorization_codes',
-  AUTHPROVIDERS: 'auth_providers',
+  AUTH_OAUTH_IDENTITIES: 'auth_oauth_identities',
+  AUTH_SESSIONS: 'auth_sessions',
+  AUTH_TOKENS: 'auth_tokens',
+  AUTH_TOKEN_SCOPES: 'auth_token_scopes',
+  AUTH_AUTHORIZATION_CODES: 'auth_authorization_codes',
+  AUTH_PROVIDERS: 'auth_providers',
 } as const;

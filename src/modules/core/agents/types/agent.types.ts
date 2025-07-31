@@ -7,6 +7,8 @@
 import type {
   AgentLogsLevel,
   AgentTasksPriority,
+  AgentTasksStatus,
+  AgentsStatus,
   AgentsType,
   IAgentCapabilitiesRow,
   IAgentConfigRow,
@@ -16,10 +18,6 @@ import type {
   IAgentToolsRow,
   IAgentsRow
 } from '@/modules/core/agents/types/database.generated';
-
-// Type aliases for status fields (these are string literals in the schema, not enums)
-export type AgentsStatus = 'idle' | 'active' | 'stopped' | 'error';
-export type AgentTasksStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 // Re-export all database types
 export type {

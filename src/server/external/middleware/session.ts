@@ -78,7 +78,7 @@ const isSessionExpired = (session: IAuthSessionsRow): boolean => {
  * @param session
  */
 const isSessionActive = (session: IAuthSessionsRow): boolean => {
-  if (session.is_active === false || session.is_active === 0) {
+  if (session.revoked_at) {
     return false;
   }
 
@@ -130,14 +130,12 @@ export const createSessionMiddleware = (
     next: NextFunction
   ): Promise<void> => {
     try {
-      if (!authAdapter.initialized) {
-        try {
-          authAdapter.initialize();
-        } catch (error) {
-          logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, continuing without session support', { error });
-          next();
-          return;
-        }
+      try {
+        authAdapter.initialize();
+      } catch (error) {
+        logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, continuing without session support', { error: error instanceof Error ? error : String(error) });
+        next();
+        return;
       }
       const sessionId = extractSessionId(req, cookieName);
 
@@ -178,7 +176,7 @@ export const createSessionMiddleware = (
           sessionId,
           userId: session.user_id,
           expired: isSessionExpired(session),
-          revoked: !session.is_active
+          revoked: Boolean(session.revoked_at)
         });
 
         next();
@@ -195,7 +193,7 @@ export const createSessionMiddleware = (
         } catch (error) {
           logger.error(LogSource.AUTH, 'Failed to refresh session', {
             sessionId,
-            error
+            error: error instanceof Error ? error : String(error)
           });
         }
       }
@@ -204,7 +202,7 @@ export const createSessionMiddleware = (
 
       next();
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Session middleware error', { error });
+      logger.error(LogSource.AUTH, 'Session middleware error', { error: error instanceof Error ? error : String(error) });
 
       res.clearCookie(cookieName);
 

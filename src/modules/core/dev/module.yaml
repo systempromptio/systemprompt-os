@@ -53,6 +53,11 @@ cli:
           type: boolean
           description: Run only integration tests
           default: false
+        - name: coverage
+          alias: c
+          type: boolean
+          description: Generate and display coverage report
+          default: false
         - name: max
           type: string
           description: Maximum number of test suites to display
@@ -104,6 +109,11 @@ cli:
     - name: generate-types
       description: Generate comprehensive types for a module (database types, interfaces, Zod schemas, type guards)
       options:
+        - name: all
+          alias: a
+          type: boolean
+          description: Regenerate types for all modules
+          default: false
         - name: module
           alias: m
           type: string

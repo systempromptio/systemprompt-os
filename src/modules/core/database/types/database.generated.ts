@@ -1,5 +1,5 @@
 // Auto-generated database types for database module
-// Generated on: 2025-07-31T10:03:21.447Z
+// Generated on: 2025-07-31T13:04:43.347Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -151,8 +151,8 @@ export const DatabaseDatabaseRowSchema = z.union([DatabaseSchemaVersionsRowSchem
  * Database table names for this module
  */
 export const DATABASE_TABLES = {
-  DATABASESCHEMAVERSIONS: 'database_schema_versions',
-  DATABASEMIGRATIONS: 'database_migrations',
-  DATABASEOPERATIONS: 'database_operations',
-  DATABASEHEALTHCHECKS: 'database_health_checks',
+  DATABASE_SCHEMA_VERSIONS: 'database_schema_versions',
+  DATABASE_MIGRATIONS: 'database_migrations',
+  DATABASE_OPERATIONS: 'database_operations',
+  DATABASE_HEALTH_CHECKS: 'database_health_checks',
 } as const;

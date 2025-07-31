@@ -83,9 +83,9 @@ export class UnifiedTokenEndpoint {
       const authAdapter = ServerAuthAdapter.getInstance();
 
       try {
-        authAdapter.ensureInitialized();
+        authAdapter.initialize();
       } catch (error) {
-        logger.error(LogSource.AUTH, 'Auth adapter not initialized', { error });
+        logger.error(LogSource.AUTH, 'Auth adapter initialization failed', { error: error instanceof Error ? error : String(error) });
         if (params.grant_type === 'client_credentials') {
           this.sendError(res, {
             error: 'unsupported_grant_type',
@@ -107,7 +107,7 @@ export class UnifiedTokenEndpoint {
           { await this.handleClientCredentials(params, res, authAdapter); }
       }
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Token request error', { error });
+      logger.error(LogSource.AUTH, 'Token request error', { error: error instanceof Error ? error : String(error) });
 
       if (error instanceof z.ZodError) {
         this.sendError(res, {

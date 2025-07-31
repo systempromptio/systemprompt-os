@@ -47,7 +47,6 @@ export class ProtectedResourceEndpoint {
         resource: 'http://localhost:8000',
         resource_documentation: 'http://localhost:8000/docs',
         authorization_servers: ['http://localhost:8000'],
-        jwks_uri: 'http://localhost:8000/.well-known/jwks.json',
         scopes_supported: ['read', 'write', 'admin']
       };
       return response.json(fallbackMetadata);

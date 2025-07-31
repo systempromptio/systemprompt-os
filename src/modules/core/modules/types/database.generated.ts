@@ -1,5 +1,5 @@
 // Auto-generated database types for modules module
-// Generated on: 2025-07-31T10:03:21.445Z
+// Generated on: 2025-07-31T13:04:44.786Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -139,5 +139,5 @@ export const ModulesDatabaseRowSchema = z.union([ModulesRowSchema, ModuleEventsR
  */
 export const MODULES_TABLES = {
   MODULES: 'modules',
-  MODULEEVENTS: 'module_events',
+  MODULE_EVENTS: 'module_events',
 } as const;

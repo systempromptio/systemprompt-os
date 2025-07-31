@@ -408,7 +408,7 @@ export class CliService {
 
     // Insert the main command record
     await this.database.execute(
-      `INSERT OR REPLACE INTO ${CLI_TABLES.CLICOMMANDS}
+      `INSERT OR REPLACE INTO ${CLI_TABLES.CLI_COMMANDS}
        (command_path, command_name, description, module_name, executor_path, active)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
@@ -423,7 +423,7 @@ export class CliService {
 
     // Get the command ID (for INSERT OR REPLACE, we need to query it)
     const commandRecord = await this.database.query<ICliCommandsRow>(
-      `SELECT id FROM ${CLI_TABLES.CLICOMMANDS} WHERE command_path = ?`,
+      `SELECT id FROM ${CLI_TABLES.CLI_COMMANDS} WHERE command_path = ?`,
       [commandPath],
     );
 
@@ -438,11 +438,11 @@ export class CliService {
 
     // Clear existing options and aliases for this command
     await this.database.execute(
-      `DELETE FROM ${CLI_TABLES.CLICOMMANDOPTIONS} WHERE command_id = ?`,
+      `DELETE FROM ${CLI_TABLES.CLI_COMMAND_OPTIONS} WHERE command_id = ?`,
       [commandId],
     );
     await this.database.execute(
-      `DELETE FROM ${CLI_TABLES.CLICOMMANDALIASES} WHERE command_id = ?`,
+      `DELETE FROM ${CLI_TABLES.CLI_COMMAND_ALIASES} WHERE command_id = ?`,
       [commandId],
     );
 
@@ -450,7 +450,7 @@ export class CliService {
     if (command.options && command.options.length > 0) {
       for (const option of command.options) {
         await this.database.execute(
-          `INSERT INTO ${CLI_TABLES.CLICOMMANDOPTIONS}
+          `INSERT INTO ${CLI_TABLES.CLI_COMMAND_OPTIONS}
            (command_id, option_name, option_type, description, alias, default_value, required, choices)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
@@ -471,7 +471,7 @@ export class CliService {
     if (command.aliases && command.aliases.length > 0) {
       for (const alias of command.aliases) {
         await this.database.execute(
-          `INSERT INTO ${CLI_TABLES.CLICOMMANDALIASES}
+          `INSERT INTO ${CLI_TABLES.CLI_COMMAND_ALIASES}
            (command_id, alias)
            VALUES (?, ?)`,
           [commandId, alias],
@@ -490,7 +490,7 @@ export class CliService {
     }
 
     const commands = await this.database.query<ICliCommandsRow>(
-      `SELECT * FROM ${CLI_TABLES.CLICOMMANDS} WHERE active = 1 ORDER BY command_path`,
+      `SELECT * FROM ${CLI_TABLES.CLI_COMMANDS} WHERE active = 1 ORDER BY command_path`,
     );
 
     const result: ICompleteCommand[] = [];
@@ -520,7 +520,7 @@ export class CliService {
     }
 
     const options = await this.database.query<ICliCommandOptionsRow>(
-      `SELECT * FROM ${CLI_TABLES.CLICOMMANDOPTIONS} WHERE command_id = ? ORDER BY option_name`,
+      `SELECT * FROM ${CLI_TABLES.CLI_COMMAND_OPTIONS} WHERE command_id = ? ORDER BY option_name`,
       [commandId],
     );
 
@@ -559,7 +559,7 @@ export class CliService {
     }
 
     const aliases = await this.database.query<ICliCommandAliasesRow>(
-      `SELECT * FROM ${CLI_TABLES.CLICOMMANDALIASES} WHERE command_id = ? ORDER BY alias`,
+      `SELECT * FROM ${CLI_TABLES.CLI_COMMAND_ALIASES} WHERE command_id = ? ORDER BY alias`,
       [commandId],
     );
 
@@ -604,9 +604,9 @@ export class CliService {
     }
 
     // Delete from child tables first (foreign key constraints)
-    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDOPTIONS}`);
-    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDALIASES}`);
-    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLICOMMANDS}`);
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLI_COMMAND_OPTIONS}`);
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLI_COMMAND_ALIASES}`);
+    await this.database.execute(`DELETE FROM ${CLI_TABLES.CLI_COMMANDS}`);
   }
 
   /**

@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for monitor module
-// Generated on: 2025-07-31T11:41:30.913Z
+// Generated on: 2025-07-31T13:04:44.790Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -11,7 +11,7 @@ export const MonitorSchema = MonitorDatabaseRowSchema;
 export const MonitorCreateDataSchema = z.object({
   name: z.string(),
   value: z.number(),
-  type: z.string(),
+  type: z.unknown(),
   unit: z.string().nullable(),
   timestamp: z.string().datetime(),
 });
@@ -19,7 +19,7 @@ export const MonitorCreateDataSchema = z.object({
 export const MonitorUpdateDataSchema = z.object({
   name: z.string().optional(),
   value: z.number().optional(),
-  type: z.string().optional(),
+  type: z.unknown().optional(),
   unit: z.string().nullable().optional(),
   timestamp: z.string().datetime().optional(),
 });

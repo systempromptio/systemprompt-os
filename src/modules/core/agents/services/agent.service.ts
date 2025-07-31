@@ -4,13 +4,11 @@
  */
 
 import type {
-  AgentsStatus,
   IAgent,
   IAgentLogsRow,
   IAgentsRow
 } from '@/modules/core/agents/types/agent.types';
-import type { AgentsType } from '@/modules/core/agents/types/database.generated';
-// AgentsStatus type is defined in agent.types.ts
+import { AgentsStatus, type AgentsType } from '@/modules/core/agents/types/database.generated';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -108,11 +106,11 @@ export class AgentService {
       throw new Error('Agent not found');
     }
 
-    if (agent.status === AgentsStatusEnum.ACTIVE) {
+    if (agent.status === AgentsStatus.ACTIVE) {
       throw new Error('Agent already active');
     }
 
-    await this.repository.updateAgent(agentId, { status: AgentsStatusEnum.ACTIVE });
+    await this.repository.updateAgent(agentId, { status: AgentsStatus.ACTIVE });
 
     this.logger.info(LogSource.AGENT, 'Agent started', { metadata: { agentId } });
 
@@ -143,14 +141,14 @@ export class AgentService {
       throw new Error('Agent not found');
     }
 
-    if (agent.status === AgentsStatusEnum.STOPPED) {
+    if (agent.status === AgentsStatus.STOPPED) {
       this.logger.info(LogSource.AGENT, 'Agent already stopped', {
         metadata: { agentId }
       });
       return;
     }
 
-    await this.repository.updateAgent(agentId, { status: AgentsStatusEnum.STOPPED });
+    await this.repository.updateAgent(agentId, { status: AgentsStatus.STOPPED });
 
     this.logger.info(LogSource.AGENT, 'Agent stopped', {
       metadata: {
@@ -242,7 +240,7 @@ status
    */
   async reportAgentBusy(agentId: string, taskId: number): Promise<void> {
     await this.repository.updateAgent(agentId, {
-      status: AgentsStatusEnum.ACTIVE
+      status: AgentsStatus.ACTIVE
     });
 
     this.eventBus.emit(EventNames.AGENT_BUSY, {
@@ -264,7 +262,7 @@ status
     }
 
     await this.repository.updateAgent(agentId, {
-      status: AgentsStatusEnum.ACTIVE
+      status: AgentsStatus.ACTIVE
     });
 
     this.eventBus.emit(EventNames.AGENT_IDLE, {
@@ -431,8 +429,8 @@ status
    * @returns Promise resolving to array of available agents.
    */
   async getAvailableAgents(capability?: string): Promise<IAgentsRow[]> {
-    const activeAgents = await this.repository.listAgents(AgentsStatusEnum.ACTIVE);
-    const idleAgents = await this.repository.listAgents(AgentsStatusEnum.IDLE);
+    const activeAgents = await this.repository.listAgents(AgentsStatus.ACTIVE);
+    const idleAgents = await this.repository.listAgents(AgentsStatus.IDLE);
     const agents = [...activeAgents, ...idleAgents];
 
     if (capability === undefined || capability === '') {
@@ -447,12 +445,12 @@ status
    * @returns Promise.
    */
   private async performMonitoringCycle(): Promise<void> {
-    const activeAgents = await this.repository.listAgents(AgentsStatusEnum.ACTIVE);
+    const activeAgents = await this.repository.listAgents(AgentsStatus.ACTIVE);
 
     await Promise.all(
       activeAgents.map(async (agent): Promise<void> => {
         try {
-          await this.repository.updateAgent(agent.id, { status: AgentsStatusEnum.ACTIVE });
+          await this.repository.updateAgent(agent.id, { status: AgentsStatus.ACTIVE });
         } catch (error) {
           this.logger.error(LogSource.AGENT, 'Failed to monitor agent', {
             metadata: { agentId: agent.id },

@@ -262,6 +262,36 @@ export class {Module}Service {
 }
 ```
 
+### Circular Dependency Resolution Hierarchy
+
+**PREFERRED ORDER** (use the highest applicable option):
+
+1. **Constructor Injection** (Best - follows dependency injection pattern)
+   ```typescript
+   private constructor() {
+     this.someService = SomeService.getInstance();
+   }
+   ```
+
+2. **Event-Based Communication** (Good - loose coupling, async-friendly)
+   ```typescript
+   this.eventBus.emit(SomeEvents.REQUEST, data);
+   ```
+
+3. **Lazy Import Pattern** (Last Resort - only for bootstrap circular dependencies)
+   ```typescript
+   const { SomeService } = await import('@/path/to/some.service');
+   await SomeService.getInstance().doWork();
+   ```
+
+**DECISION MATRIX**:
+- **Use Constructor Injection** when no circular dependency exists
+- **Use Events** when loose coupling is appropriate and async is acceptable
+- **Use Lazy Import** ONLY when:
+  - Constructor injection would create bootstrap circular dependency
+  - Events are not appropriate (need synchronous completion)
+  - Service is only needed in specific method execution contexts
+
 ### Dependency Best Practices
 
 #### Constructor Injection Pattern
@@ -292,6 +322,9 @@ export class {Module}Service {
 ```
 
 #### Circular Dependency Prevention
+
+**Primary Rule**: Use event-based communication to break circular dependencies.
+
 ```typescript
 // ❌ NEVER create circular dependencies
 // users.service.ts imports auth.service.ts
@@ -301,6 +334,51 @@ export class {Module}Service {
 // users.service.ts emits USER_CREATED event
 // auth.service.ts listens to USER_CREATED event
 ```
+
+#### Lazy Import Pattern for Bootstrap Circular Dependencies
+
+**WHEN TO USE**: Only when a service is needed during CLI/bootstrap execution but would create a circular dependency during module loading.
+
+**CRITERIA FOR LAZY IMPORTS**:
+1. Service is NOT needed during constructor/initialization
+2. Service is only needed during specific method execution
+3. Direct import would create circular dependency during bootstrap
+4. Method execution must complete before process exits (requires `await`)
+
+**PATTERN**:
+```typescript
+// ✅ Lazy import pattern for bootstrap-safe dependencies
+async someMethod(): Promise<void> {
+  // Import only when needed, not at module load time
+  const { SomeService } = await import('@/path/to/some.service');
+  const service = SomeService.getInstance();
+  
+  // Use service synchronously - MUST await completion
+  await service.doWork();
+}
+```
+
+**EXAMPLE USAGE** (CLI commands that need reporting):
+```typescript
+// CLI command execution
+async executeLintCheck(context: ICLIContext): Promise<void> {
+  // ... main command logic ...
+  
+  // Lazy import to avoid bootstrap circular dependency
+  const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
+  const reportWriter = ReportWriterService.getInstance();
+  
+  // MUST await - report must complete before CLI exits
+  await reportWriter.writeReport(report);
+}
+```
+
+**WHEN NOT TO USE LAZY IMPORTS**:
+- ❌ In service constructors (breaks dependency injection)
+- ❌ For core infrastructure services (logger, database, events)
+- ❌ When service is needed for initialization
+- ❌ In high-frequency method calls (performance impact)
+- ❌ When event-based communication is possible and appropriate
 
 #### Optional Dependencies
 ```typescript

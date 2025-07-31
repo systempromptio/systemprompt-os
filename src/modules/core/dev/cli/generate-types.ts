@@ -12,6 +12,37 @@ import { LogSource } from '@/modules/core/logger/types/index';
 export const command: ICLICommand = {
   description: 'Generate comprehensive types for a module (database types, interfaces, Zod schemas)',
 
+  options: [
+    {
+      name: 'all',
+      alias: 'a',
+      type: 'boolean',
+      description: 'Regenerate types for all modules',
+      required: false
+    },
+    {
+      name: 'module',
+      alias: 'm',
+      type: 'string',
+      description: 'Module name to generate types for',
+      required: false
+    },
+    {
+      name: 'pattern',
+      alias: 'p',
+      type: 'string',
+      description: 'Glob pattern for files to process',
+      required: false
+    },
+    {
+      name: 'types',
+      alias: 't',
+      type: 'string',
+      description: 'Comma-separated list of types to generate (database,interfaces,schemas,service-schemas,type-guards,all)',
+      required: false
+    }
+  ],
+
   async execute(context: ICLIContext): Promise<void> {
     const { args } = context;
     const options = {
@@ -27,14 +58,43 @@ export const command: ICLICommand = {
     await devService.initialize();
 
     try {
+      if (args.all || args.a) {
+        output.info('🔄 Generating types for all modules...');
+
+        const modules = [
+          'agents', 'auth', 'cli', 'config', 'database', 'dev',
+          'events', 'logger', 'mcp', 'modules', 'monitor',
+          'permissions', 'system', 'tasks', 'users', 'webhooks'
+        ];
+
+        for (const module of modules) {
+          output.info(`\n📦 Processing module: ${module}`);
+          try {
+            await devService.generateTypes({
+              module,
+              types: ['all']
+            });
+            output.success(`  ✅ Generated types for ${module}`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            output.error(`  ❌ Failed to generate types for ${module}: ${errorMessage}`);
+          }
+        }
+
+        output.success('\n✅ Completed type generation for all modules');
+        return;
+      }
+
       if (!options.module && !options.pattern) {
-        output.error('Either --module or --pattern is required');
+        output.error('Either --module, --pattern, or --all is required');
         output.info('Usage:');
         output.info('  dev generate-types --module <module-name>');
         output.info('  dev generate-types --pattern <glob-pattern>');
+        output.info('  dev generate-types --all');
         output.info('  dev generate-types --module users --types database,interfaces');
         output.info('');
         output.info('Examples:');
+        output.info('  dev generate-types --all                    # Regenerate all modules');
         output.info('  dev generate-types --module users');
         output.info('  dev generate-types --pattern "src/modules/core/*/**.ts"');
         output.info('  dev generate-types --module users --types all');

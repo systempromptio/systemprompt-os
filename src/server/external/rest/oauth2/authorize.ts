@@ -16,7 +16,6 @@ import type {
   IIdentityProvider,
   IOAuth2Error,
   IOAuthUserData,
-  IProviderRegistry,
   IStateData
 } from '@/server/external/rest/oauth2/types/authorize.types';
 import type { IAuthorizationCodeData } from '@/modules/core/auth/types/auth-code.types';
@@ -439,12 +438,7 @@ export class AuthorizeEndpoint {
       }
 
       const authModule = await getAuthModule();
-      const providerRegistryExport = authModule.exports.getProviderRegistry();
-      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
-
-      if (providerRegistry === null) {
-        throw new Error('Provider registry not initialized');
-      }
+      const providersService = authModule.exports.providersService();
 
       if (params.provider !== undefined) {
         logger.info(LogSource.AUTH, 'Redirecting to OAuth provider', {
@@ -453,10 +447,10 @@ export class AuthorizeEndpoint {
           persistToDb: false
         });
 
-        const provider = providerRegistry.getProvider(
+        const providerInstance = providersService.getProviderInstance(
           params.provider.toLowerCase()
         );
-        if (provider === undefined) {
+        if (providerInstance === undefined) {
           throw new Error(`Unknown provider: ${params.provider}`);
         }
 
@@ -480,13 +474,13 @@ export class AuthorizeEndpoint {
           JSON.stringify(stateData)
         ).toString('base64url');
 
-        const providerAuthUrl = provider.getAuthorizationUrl(providerState);
+        const providerAuthUrl = providerInstance.getAuthorizationUrl(providerState);
 
         res.redirect(providerAuthUrl);
         return;
       }
 
-      const availableProviders = providerRegistry.getAllProviders();
+      const availableProviders = providersService.getAllProviderInstances();
       const html = generateConsentPageHtml(params, availableProviders);
       res.type('html').send(html);
     } catch (error: unknown) {
@@ -551,17 +545,12 @@ export class AuthorizeEndpoint {
 
       if (params.provider !== undefined) {
         const authModule = await getAuthModule();
-        const providerRegistryExport = authModule.exports.getProviderRegistry();
-      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
+        const providersService = authModule.exports.providersService();
 
-        if (providerRegistry === null) {
-          throw new Error('Provider registry not initialized');
-        }
-
-        const provider = providerRegistry.getProvider(
+        const providerInstance = providersService.getProviderInstance(
           params.provider.toLowerCase()
         );
-        if (provider === undefined) {
+        if (providerInstance === undefined) {
           throw new Error(`Unknown provider: ${params.provider}`);
         }
 
@@ -585,7 +574,7 @@ export class AuthorizeEndpoint {
           JSON.stringify(stateData)
         ).toString('base64url');
 
-        const providerAuthUrl = provider.getAuthorizationUrl(providerState);
+        const providerAuthUrl = providerInstance.getAuthorizationUrl(providerState);
 
         res.redirect(providerAuthUrl);
         return;
@@ -726,16 +715,11 @@ export class AuthorizeEndpoint {
       }
 
       const authModule = await getAuthModule();
-      const providerRegistryExport = authModule.exports.getProviderRegistry();
-      const providerRegistry = providerRegistryExport as IProviderRegistry | null;
+      const providersService = authModule.exports.providersService();
 
-      if (providerRegistry === null) {
-        throw new Error('Provider registry not initialized');
-      }
+      const providerInstance = providersService.getProviderInstance(providerName);
 
-      const providerInstance = providerRegistry.getProvider(providerName);
-
-      if (providerInstance === undefined) {
+      if (providerInstance === undefined || providerInstance === null) {
         throw new Error(`Unknown provider: ${provider}`);
       }
 
@@ -765,7 +749,7 @@ export class AuthorizeEndpoint {
         userData.avatar = avatarUrl;
       }
 
-      const authService = authModule.exports.service();
+      const authService = authModule.exports.authService();
       const user = await authService.createOrUpdateUserFromOAuth(
         providerName,
         userInfo.id,

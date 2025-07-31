@@ -2,12 +2,15 @@
  * Typecheck command - runs TypeScript type checking and displays formatted summary.
  */
 
+import { randomUUID } from 'crypto';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { TypecheckService } from '@/modules/core/dev/services/typecheck.service';
 import type { TypecheckResult } from '@/modules/core/dev/services/typecheck.service';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { DevEvents } from '@/modules/core/events/types/index';
 
 /**
  * Display typecheck results in a formatted table.
@@ -97,13 +100,13 @@ const executeTypecheck = async (context: ICLIContext): Promise<void> => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
   const logger = LoggerService.getInstance();
+  const startTime = Date.now();
 
   try {
     const module = args.module as string | undefined;
     let target = args.target as string | undefined;
     const strict = Boolean(args.strict);
 
-    // If module is specified, convert to target path
     if (module && !target) {
       target = `src/modules/core/${module}`;
     }
@@ -117,9 +120,37 @@ const executeTypecheck = async (context: ICLIContext): Promise<void> => {
     typecheckService.initialize();
 
     const result = await typecheckService.runTypecheck(target, { strict });
+    const duration = Date.now() - startTime;
+
     displayTypecheckResults(result, args, cliOutput);
 
-    if (!result.success && result.totalErrors > 0) {
+    const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
+    ReportWriterService.getInstance();
+
+    const eventBus = EventBusService.getInstance();
+    eventBus.emit(DevEvents.REPORT_WRITE_REQUEST, {
+      requestId: randomUUID(),
+      report: {
+        timestamp: new Date().toISOString(),
+        command: 'typecheck' as const,
+        module,
+        target,
+        success: result.totalErrors === 0,
+        duration,
+        totalErrors: result.totalErrors,
+        files: result.files.map(file => { return {
+          filePath: file.filePath,
+          errors: file.errors.map(error => { return {
+            line: error.line,
+            column: error.column,
+            code: error.code,
+            message: error.message
+          } })
+        } })
+      }
+    });
+
+    if (result.totalErrors > 0) {
       process.exit(1);
     }
   } catch (error) {

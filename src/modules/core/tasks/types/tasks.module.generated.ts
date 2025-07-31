@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for tasks module
-// Generated on: 2025-07-31T11:41:30.110Z
+// Generated on: 2025-07-31T13:04:45.448Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -13,7 +13,7 @@ export const TaskCreateDataSchema = z.object({
   module_id: z.string(),
   instructions: z.string().nullable(),
   priority: z.number().nullable(),
-  status: z.string().nullable(),
+  status: z.unknown().nullable(),
   retry_count: z.number().nullable(),
   max_executions: z.number().nullable(),
   max_time: z.number().nullable(),
@@ -31,7 +31,7 @@ export const TaskUpdateDataSchema = z.object({
   module_id: z.string().optional(),
   instructions: z.string().nullable().optional(),
   priority: z.number().nullable().optional(),
-  status: z.string().nullable().optional(),
+  status: z.unknown().nullable().optional(),
   retry_count: z.number().nullable().optional(),
   max_executions: z.number().nullable().optional(),
   max_time: z.number().nullable().optional(),

@@ -1,5 +1,5 @@
 // Auto-generated database types for logger module
-// Generated on: 2025-07-31T10:03:21.446Z
+// Generated on: 2025-07-31T13:04:44.062Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -73,6 +73,6 @@ export const LoggerDatabaseRowSchema = z.union([SystemLogsRowSchema, AccessLogsR
  * Database table names for this module
  */
 export const LOGGER_TABLES = {
-  SYSTEMLOGS: 'system_logs',
-  ACCESSLOGS: 'access_logs',
+  SYSTEM_LOGS: 'system_logs',
+  ACCESS_LOGS: 'access_logs',
 } as const;

@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for permissions module
-// Generated on: 2025-07-31T11:41:30.548Z
+// Generated on: 2025-07-31T13:04:44.794Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
