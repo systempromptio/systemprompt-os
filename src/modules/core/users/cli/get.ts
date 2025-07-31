@@ -31,10 +31,10 @@ const validateLookupArgs = (
 
   const result: { id?: string | undefined; username?: string | undefined } = {};
   if (hasId) {
-    result.id = args.id as string;
+    result.id = typeof args.id === 'string' ? args.id : undefined;
   }
   if (hasUsername) {
-    result.username = args.username as string;
+    result.username = typeof args.username === 'string' ? args.username : undefined;
   }
 
   return result;
@@ -43,19 +43,19 @@ const validateLookupArgs = (
 /**
  * Retrieves user by ID or username.
  * @param lookupArgs - Validated lookup parameters.
- * @param lookupArgs.id
+ * @param lookupArgs.id - User ID to look up.
+ * @param lookupArgs.username - Username to look up.
  * @param usersService - Users service instance.
- * @param lookupArgs.username
  * @returns User if found, null otherwise.
  */
 const retrieveUser = async (
   lookupArgs: { id?: string | undefined; username?: string | undefined },
   usersService: UsersService
 ): Promise<IUser | null> => {
-  if (lookupArgs.id) {
+  if (lookupArgs.id !== undefined && lookupArgs.id.length > 0) {
     return await usersService.getUser(lookupArgs.id);
   }
-  if (lookupArgs.username) {
+  if (lookupArgs.username !== undefined && lookupArgs.username.length > 0) {
     return await usersService.getUserByUsername(lookupArgs.username);
   }
   return null;
@@ -64,17 +64,18 @@ const retrieveUser = async (
 /**
  * Displays user information.
  * @param user - User to display.
- * @param args - CLI arguments for format options.
- * @param logger - Logger service instance.
- * @param cliOutput - CLI output service instance.
+ * @param isJsonFormat - Whether to use JSON format.
+ * @param services - Service instances.
+ * @param services.logger - Logger service instance.
+ * @param services.cliOutput - CLI output service instance.
  */
 const displayUser = (
   user: IUser,
-  args: Record<string, unknown>,
-  logger: LoggerService,
-  cliOutput: CliOutputService
+  isJsonFormat: boolean,
+  services: { logger: LoggerService; cliOutput: CliOutputService }
 ): void => {
-  if (args.format === 'json') {
+  const { logger, cliOutput } = services;
+  if (isJsonFormat) {
     logger.info(LogSource.USERS, 'User retrieved', { user });
   } else {
     cliOutput.section('User Information');
@@ -90,6 +91,54 @@ const displayUser = (
   }
 };
 
+/**
+ * Handles user retrieval errors.
+ * @param error - The error that occurred.
+ * @param cliOutput - CLI output service.
+ * @param logger - Logger service.
+ */
+const handleRetrievalError = (
+  error: unknown,
+  cliOutput: CliOutputService,
+  logger: LoggerService
+): void => {
+  cliOutput.error('Error getting user');
+  const logError = error instanceof Error ? error : new Error(String(error));
+  logger.error(LogSource.USERS, 'Error getting user', { error: logError });
+  process.exit(1);
+};
+
+/**
+ * Processes user retrieval and display.
+ * @param retrievalData - Object containing retrieval parameters.
+ * @param retrievalData.args - CLI arguments.
+ * @param retrievalData.usersService - Users service instance.
+ * @param retrievalData.logger - Logger service.
+ * @param retrievalData.cliOutput - CLI output service.
+ */
+const processUserRetrieval = async (retrievalData: {
+  args: Record<string, unknown>;
+  usersService: UsersService;
+  logger: LoggerService;
+  cliOutput: CliOutputService;
+}): Promise<void> => {
+  const {
+ args, usersService, logger, cliOutput
+} = retrievalData;
+  const lookupArgs = validateLookupArgs(args, cliOutput);
+  const user = await retrieveUser(lookupArgs, usersService);
+
+  if (user === null) {
+    cliOutput.error('User not found');
+    process.exit(1);
+  }
+
+  displayUser(user, args.format === 'json', {
+ logger,
+cliOutput
+});
+};
+
 export const command: ICLICommand = {
   description: 'Get user information by ID or username',
   execute: async (context: ICLIContext): Promise<void> => {
@@ -99,21 +148,15 @@ export const command: ICLICommand = {
 
     try {
       const usersService = UsersService.getInstance();
-      const lookupArgs = validateLookupArgs(args, cliOutput);
-      const user = await retrieveUser(lookupArgs, usersService);
-
-      if (user === null) {
-        cliOutput.error('User not found');
-        process.exit(1);
-      }
-
-      displayUser(user, args, logger, cliOutput);
+      await processUserRetrieval({
+ args,
+usersService,
+logger,
+cliOutput
+});
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error getting user');
-      const logError = error instanceof Error ? error : new Error(String(error));
-      logger.error(LogSource.USERS, 'Error getting user', { error: logError });
-      process.exit(1);
+      handleRetrievalError(error, cliOutput, logger);
     }
   },
 };

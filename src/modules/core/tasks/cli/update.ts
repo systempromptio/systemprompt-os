@@ -6,7 +6,8 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
+import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
+import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
 
 /**
  * Extract and validate task ID from arguments.
@@ -278,19 +279,24 @@ const extractUpdateParams = (options: CLIContext): {
  * @param task.result - Task result.
  * @param format - Output format.
  */
-const outputResult = (task: ITaskRow, format: string): void => {
+const outputResult = (task: ITask, format: string): void => {
   if (format === 'json') {
     process.stdout.write(`${JSON.stringify(task, null, 2)}\n`);
     return;
   }
 
-  process.stdout.write('\nTask updated successfully!\n');
-  process.stdout.write(`ID: ${String(task.id)}\n`);
-  process.stdout.write(`Type: ${task.type}\n`);
-  process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
+  if ('type' in task && 'module_id' in task) {
+    process.stdout.write('\nTask updated successfully!\n');
+    process.stdout.write(`ID: ${String(task.id)}\n`);
+    process.stdout.write(`Type: ${task.type}\n`);
+    process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
 
-  if (task.result !== null && task.result !== '') {
-    process.stdout.write(`Result: ${task.result}\n`);
+    if (task.result !== null && task.result !== '') {
+      process.stdout.write(`Result: ${task.result}\n`);
+    }
+  } else {
+    process.stderr.write('Error: Invalid task data returned\n');
+    process.exit(1);
   }
 };
 

@@ -15,11 +15,10 @@ import {
   type IUserUpdateData
 } from '@/modules/core/users/types/users.module.generated';
 import type { IUsersService } from '@/modules/core/users/types/users.service.generated';
-import { UsersStatus, type IUsersRow } from '@/modules/core/users/types/database.generated';
+import { type IUsersRow, UsersStatus } from '@/modules/core/users/types/database.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
   type UserCreateOAuthRequestEvent,
-  type UserCreateOAuthResponseEvent,
   type UserCreatedEvent,
   type UserDataRequestEvent,
   type UserDataResponseEvent,
@@ -27,6 +26,8 @@ import {
   UserEvents,
   type UserUpdatedEvent
 } from '@/modules/core/events/types/index';
+import { UserValidationHelper } from '@/modules/core/users/utils/user-validation.helper';
+import { OAuthUserHelper } from '@/modules/core/users/utils/oauth-user.helper';
 
 /**
  * Service for managing users.
@@ -85,7 +86,11 @@ export class UsersService implements IUsersService {
    * @param now - Current timestamp.
    * @returns Repository user data.
    */
-  private buildUserForRepository(data: IUserCreateData, id: string, now: Date): Omit<IUsersRow, 'id'> & { id: string } {
+  private buildUserForRepository(
+    data: IUserCreateData,
+    id: string,
+    now: Date
+  ): Omit<IUsersRow, 'id'> & { id: string } {
     return {
       id,
       username: data.username,
@@ -111,6 +116,7 @@ export class UsersService implements IUsersService {
    */
   public async createUser(data: IUserCreateData): Promise<IUser> {
     await this.ensureInitialized();
+    await UserValidationHelper.validateUserData(data);
     await this.validateUserData(data);
 
     const id = randomUUID();
@@ -139,11 +145,6 @@ export class UsersService implements IUsersService {
    * @returns Promise that resolves when validation passes.
    */
   private async validateUserData(data: IUserCreateData): Promise<void> {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
-    if (!emailRegex.test(data.email)) {
-      throw new Error(`Invalid email format: ${data.email}`);
-    }
-
     const existingUsername = await this.repository.findByUsername(data.username);
     if (existingUsername !== null) {
       throw new Error(`Username already exists: ${data.username}`);
@@ -208,7 +209,7 @@ export class UsersService implements IUsersService {
       throw new Error(`User not found: ${id}`);
     }
 
-    await this.validateUpdateData(data, user);
+    await UserValidationHelper.validateUpdateData(data, user);
 
     this.logger?.info(LogSource.USERS, `Updating user: ${id}`);
 
@@ -222,35 +223,13 @@ export class UsersService implements IUsersService {
   }
 
   /**
-   * Validate update data against existing users.
-   * @param data - The update data.
-   * @param currentUser - The current user being updated.
-   * @returns Promise that resolves when validation passes.
-   */
-  private async validateUpdateData(data: IUserUpdateData, currentUser: IUser): Promise<void> {
-    if (data.email !== undefined && data.email !== currentUser.email) {
-      const existingEmail = await this.repository.findByEmail(data.email);
-      if (existingEmail !== null) {
-        throw new Error(`Email already exists: ${data.email}`);
-      }
-    }
-
-    if (data.username !== undefined && data.username !== currentUser.username) {
-      const existingUsername = await this.repository.findByUsername(data.username);
-      if (existingUsername !== null) {
-        throw new Error(`Username already exists: ${data.username}`);
-      }
-    }
-  }
-
-  /**
    * Build clean update data for repository.
    * @param data - The update data.
    * @returns Clean data for repository update.
    */
   private buildCleanUpdateData(
     data: IUserUpdateData
-  ): Partial<Omit<import('@/modules/core/users/types/database.generated').IUsersRow, 'id' | 'created_at' | 'updated_at'>> {
+  ): Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>> {
     const cleanData: Record<string, unknown> = {};
     const {
       username,
@@ -278,7 +257,7 @@ export class UsersService implements IUsersService {
     if (preferences !== undefined) { cleanData.preferences = preferences; }
     if (metadata !== undefined) { cleanData.metadata = metadata; }
 
-    return cleanData as Partial<Omit<import('@/modules/core/users/types/database.generated').IUsersRow, 'id' | 'created_at' | 'updated_at'>>;
+    return cleanData as Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>;
   }
 
   /**
@@ -288,7 +267,11 @@ export class UsersService implements IUsersService {
    * @param data - The update data.
    * @returns Promise that resolves when events are emitted.
    */
-  private async emitUpdateEvents(originalUser: IUser, updatedUser: IUser, data: IUserUpdateData): Promise<void> {
+  private emitUpdateEvents(
+    originalUser: IUser,
+    updatedUser: IUser,
+    data: IUserUpdateData
+  ): void {
     const event: UserUpdatedEvent = {
       userId: updatedUser.id,
       changes: data as Record<string, unknown>,
@@ -362,7 +345,13 @@ export class UsersService implements IUsersService {
 
           const response: UserDataResponseEvent = {
             requestId: event.requestId,
-            user: user ? this.buildUserDataResponse(user) : null
+            user: user ? {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              status: user.status,
+              emailVerified: user.email_verified || false
+            } : null
           };
 
           this.eventBus.emit(UserEvents.USER_DATA_RESPONSE, response);
@@ -392,27 +381,6 @@ export class UsersService implements IUsersService {
   }
 
   /**
-   * Build user data response.
-   * @param user - The user data.
-   * @returns User data response.
-   */
-  private buildUserDataResponse(user: IUser): {
-    id: string;
-    username: string;
-    email: string;
-    status: string;
-    emailVerified: boolean;
-  } {
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      status: user.status as string,
-      emailVerified: user.email_verified ?? false
-    };
-  }
-
-  /**
    * Handle user data request error.
    * @param event - The original request event.
    * @param error - The error that occurred.
@@ -439,10 +407,15 @@ export class UsersService implements IUsersService {
         try {
           const event = data as UserCreateOAuthRequestEvent;
           const user = await this.findOrCreateOAuthUser(event);
-          const response = this.buildOAuthSuccessResponse(event.requestId, user);
+          const response = OAuthUserHelper.buildOAuthSuccessResponse(event.requestId, user);
           this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
         } catch (error) {
-          this.handleOAuthUserCreationError(data as UserCreateOAuthRequestEvent, error);
+          this.logger?.error(LogSource.USERS, 'Error handling OAuth user creation', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        const event = data as UserCreateOAuthRequestEvent;
+        const response = OAuthUserHelper.buildOAuthErrorResponse(event.requestId, error);
+        this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
         }
       }
     );
@@ -457,7 +430,13 @@ export class UsersService implements IUsersService {
     let user = await this.getUserByEmail(event.email);
 
     if (user === null) {
-      const username = await this.generateUniqueUsername(event);
+      const username = await OAuthUserHelper.generateUniqueUsername(
+        event,
+        async (username: string) => {
+          const existing = await this.repository.findByUsername(username);
+          return existing !== null;
+        }
+      );
       user = await this.createUser({
         username,
         email: event.email,
@@ -474,64 +453,6 @@ export class UsersService implements IUsersService {
     }
 
     return user;
-  }
-
-  /**
-   * Generate unique username for OAuth user.
-   * @param event - The OAuth user creation request.
-   * @returns Promise that resolves to unique username.
-   */
-  private async generateUniqueUsername(event: UserCreateOAuthRequestEvent): Promise<string> {
-    const baseUsername = (event.name?.toLowerCase().replace(/\s+/gu, '') ?? '')
-                      || (event.email?.split('@')[0]?.toLowerCase() ?? '') || 'user';
-    let username = baseUsername;
-    let counter = 1;
-
-    while (await this.getUserByUsername(username) !== null) {
-      username = `${baseUsername}${counter}`;
-      counter += 1;
-    }
-
-    return username;
-  }
-
-  /**
-   * Build OAuth success response.
-   * @param requestId - The request ID.
-   * @param user - The user data.
-   * @returns OAuth success response.
-   */
-  private buildOAuthSuccessResponse(requestId: string, user: IUser): UserCreateOAuthResponseEvent {
-    return {
-      requestId,
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        ...user.avatar_url && user.avatar_url.length > 0 && { avatarUrl: user.avatar_url },
-        roles: []
-      }
-    };
-  }
-
-  /**
-   * Handle OAuth user creation error.
-   * @param event - The original request event.
-   * @param error - The error that occurred.
-   */
-  private handleOAuthUserCreationError(event: UserCreateOAuthRequestEvent, error: unknown): void {
-    this.logger?.error(LogSource.USERS, 'Error handling OAuth user creation', {
-      error: error instanceof Error ? error.message : String(error)
-    });
-
-    const response: UserCreateOAuthResponseEvent = {
-      requestId: event.requestId,
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to create OAuth user'
-    };
-
-    this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
   }
 
   /**

@@ -1,12 +1,18 @@
 // Auto-generated Zod schemas for permissions module
-// Generated on: 2025-07-31T13:04:44.794Z
+// Generated on: 2025-07-31T14:59:32.165Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { PermissionsRowSchema } from './database.generated';
+import { PermissionsRowSchema, RolesRowSchema, UserRolesRowSchema } from './database.generated';
 
 // Permission schema - directly use database row schema
 export const PermissionSchema = PermissionsRowSchema;
+
+// Role schema - directly use database row schema
+export const RoleSchema = RolesRowSchema;
+
+// UserRole schema - directly use database row schema
+export const UserRoleSchema = UserRolesRowSchema;
 
 export const PermissionCreateDataSchema = z.object({
   name: z.string(),
@@ -26,8 +32,12 @@ export const PermissionUpdateDataSchema = z.object({
 export type Permission = z.infer<typeof PermissionSchema>;
 export type PermissionCreateData = z.infer<typeof PermissionCreateDataSchema>;
 export type PermissionUpdateData = z.infer<typeof PermissionUpdateDataSchema>;
+export type Role = z.infer<typeof RoleSchema>;
+export type UserRole = z.infer<typeof UserRoleSchema>;
 
 // Domain type aliases for easier imports
 export type IPermission = Permission;
 export type IPermissionCreateData = PermissionCreateData;
 export type IPermissionUpdateData = PermissionUpdateData;
+export type IRole = Role;
+export type IUserRole = UserRole;

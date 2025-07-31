@@ -4,7 +4,7 @@
  * @module modules/core/config/cli/mcp
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -15,33 +15,38 @@ import { LogSource } from '@/modules/core/logger/types/index';
  * @param server - MCP server entry.
  * @returns Formatted display object.
  */
-function formatMcpServer(server: any): Record<string, unknown> {
+function formatMcpServer(server: unknown): Record<string, unknown> {
+  const typedServer = server as { name: string; command: string; scope: string; transport: string; status: string; description?: string; args?: string[]; env?: Record<string, string>; };
   const formatted: Record<string, unknown> = {
-    Name: server.name,
-    Command: server.command,
-    Scope: server.scope,
-    Transport: server.transport,
-    Status: server.status,
+    Name: typedServer.name,
+    Command: typedServer.command,
+    Scope: typedServer.scope,
+    Transport: typedServer.transport,
+    Status: typedServer.status,
   };
 
-  if (server.description) {
-    formatted.Description = server.description;
+  if (typedServer.description) {
+    formatted.Description = typedServer.description;
   }
 
-  if (server.args && server.args.length > 0) {
-    formatted.Arguments = JSON.stringify(server.args);
+  if (typedServer.args && typedServer.args.length > 0) {
+    formatted.Arguments = JSON.stringify(typedServer.args);
   }
 
-  if (server.env && Object.keys(server.env).length > 0) {
-    formatted.Environment = JSON.stringify(server.env);
+  if (typedServer.env && Object.keys(typedServer.env).length > 0) {
+    formatted.Environment = JSON.stringify(typedServer.env);
   }
 
-  if (server.lastError) {
-    formatted['Last Error'] = server.lastError;
+  if ('lastError' in typedServer && typedServer.lastError) {
+    formatted['Last Error'] = typedServer.lastError;
   }
 
-  formatted.Created = new Date(server.createdAt).toLocaleString();
-  formatted.Updated = new Date(server.updatedAt).toLocaleString();
+  if ('createdAt' in typedServer) {
+    formatted.Created = new Date(typedServer.createdAt as string).toLocaleString();
+  }
+  if ('updatedAt' in typedServer) {
+    formatted.Updated = new Date(typedServer.updatedAt as string).toLocaleString();
+  }
 
   return formatted;
 }
@@ -57,7 +62,7 @@ export const command: ICLICommand = {
     const name = args.name as string | undefined;
 
     try {
-      const configModule = await getConfigModule();
+      await configModule.initialize();
       const configService = configModule.exports.service();
 
       if (!action || action === 'list') {
@@ -71,8 +76,9 @@ export const command: ICLICommand = {
         cliOutput.success(`Found ${servers.length} MCP server(s):`);
         cliOutput.info('');
 
-        servers.forEach((server, index) => {
-          cliOutput.info(`${index + 1}. ${server.name}`);
+        servers.forEach((server: unknown, index: number) => {
+          const typedServer = server as { name: string };
+          cliOutput.info(`${index + 1}. ${typedServer.name}`);
           cliOutput.keyValue(formatMcpServer(server));
           if (index < servers.length - 1) {
             cliOutput.info('');

@@ -4,7 +4,7 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import type { IErrorReport } from '@/modules/core/tasks/types/manual';
 import {
   existsSync,
@@ -105,7 +105,7 @@ const displayTaskDeletionPlaceholder = (): void => {
  * Execute delete command.
  * @param options - CLI context options.
  */
-const executeDelete = async (options: CLIContext): Promise<void> => {
+const executeDelete = async (options: ICLIContext): Promise<void> => {
   const { args } = options;
   const { type } = args;
 
@@ -124,7 +124,7 @@ const executeDelete = async (options: CLIContext): Promise<void> => {
 /**
  * Tasks delete command.
  */
-export const delete_cmd: CLICommand = {
+export const delete_cmd: ICLICommand = {
   name: 'delete',
   description: 'Delete tasks by type',
   options: [

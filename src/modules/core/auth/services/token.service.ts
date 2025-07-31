@@ -1,10 +1,12 @@
 import { createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import type {
+  IAuthTokensRow
+} from '@/modules/core/auth/types/database.generated';
+import type {
   TokenCreateInput,
-  TokenValidationResult,
-} from '@/modules/core/auth/types/index';
-import type { IAuthTokensRow } from '@/modules/core/auth/types/database.generated';
+  TokenValidationResult
+} from '@/modules/core/auth/types/manual';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LogSource, getLoggerService } from '@/modules/core/logger/index';

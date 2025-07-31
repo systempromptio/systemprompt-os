@@ -4,9 +4,12 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import type { ITaskStatistics } from '@/modules/core/tasks/types/manual';
+import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
+
+// Extract statistics type from service interface
+type TaskStatistics = Awaited<ReturnType<ITasksService['getStatistics']>>;
 
 /**
  * Display module status information.
@@ -24,7 +27,7 @@ const displayModuleStatus = (): void => {
  * Display queue statistics.
  * @param stats - Task statistics to display.
  */
-const displayQueueStatistics = (stats: ITaskStatistics): void => {
+const displayQueueStatistics = (stats: TaskStatistics): void => {
   process.stdout.write('\nQueue Statistics\n');
   process.stdout.write('================\n\n');
   process.stdout.write(`Total tasks: ${String(stats.total)}\n`);
@@ -39,7 +42,7 @@ const displayQueueStatistics = (stats: ITaskStatistics): void => {
  * Display JSON output format.
  * @param stats - Task statistics to display.
  */
-const displayJsonOutput = (stats: ITaskStatistics): void => {
+const displayJsonOutput = (stats: TaskStatistics): void => {
   process.stdout.write('\n');
   process.stdout.write(JSON.stringify({
     module: 'tasks',
@@ -55,11 +58,11 @@ const displayJsonOutput = (stats: ITaskStatistics): void => {
  * @param context - CLI context.
  * @returns Promise that resolves when status is displayed.
  */
-const executeStatus = async (context: CLIContext): Promise<void> => {
+const executeStatus = async (context: ICLIContext): Promise<void> => {
   try {
     const tasksModule = getTasksModule();
     const taskService = tasksModule.exports.service();
-    const stats = await taskService.getStatistics() as ITaskStatistics;
+    const stats = await taskService.getStatistics();
 
     displayModuleStatus();
     displayQueueStatistics(stats);
@@ -77,7 +80,7 @@ const executeStatus = async (context: CLIContext): Promise<void> => {
 /**
  * Tasks status command.
  */
-export const status: CLICommand = {
+export const status: ICLICommand = {
   name: 'status',
   description: 'Show task module status and queue statistics',
   options: [

@@ -13,6 +13,8 @@ export type {
 
 // Export enum as value (not type)
 export { MetricType } from '@/modules/core/monitor/types/database.generated';
+// Import as type for interfaces
+import type { MetricType } from '@/modules/core/monitor/types/database.generated';
 
 /**
  * Configuration for metric service.
@@ -166,7 +168,7 @@ export interface MetricService {
   recordMetric(options: {
     name: string;
     value: number;
-    type?: import('./database.generated').MetricType;
+    type?: MetricType;
     labels?: Record<string, string>;
     unit?: string;
   }): void;

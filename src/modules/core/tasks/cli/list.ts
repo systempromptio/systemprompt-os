@@ -6,13 +6,9 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import {
-  type ITaskRow,
-  TaskStatus
-} from '@/modules/core/tasks/types/database.generated';
-import {
-  type ITaskFilter
-} from '@/modules/core/tasks/types/manual';
+import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
+import { type ITaskFilter } from '@/modules/core/tasks/types/manual';
+import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
 
 /**
  * Type guard to check if string is a valid TaskStatus.
@@ -20,8 +16,22 @@ import {
  * @returns True if value is a valid TaskStatus.
  */
 const isValidTaskStatus = (value: string): value is TaskStatus => {
-  const validValues: string[] = Object.values(TaskStatus as Record<string, string>);
-  return validValues.includes(value);
+  const validValues = Object.values(TaskStatus);
+  return validValues.includes(value as TaskStatus);
+};
+
+/**
+ * Type guard to check if ITask is a task row (not task metadata).
+ * @param task - Task to check.
+ * @returns True if task is a task row.
+ */
+const isTaskRow = (task: ITask): task is ITask & {
+  type: string;
+  module_id: string;
+  status: TaskStatus | null;
+  priority: number | null;
+} => {
+  return 'type' in task && 'module_id' in task;
 };
 
 /**
@@ -30,70 +40,71 @@ const isValidTaskStatus = (value: string): value is TaskStatus => {
  * @returns Task filter object.
  */
 const buildTaskFilter = (args: CLIContext['args']): ITaskFilter => {
+  const {
+    status,
+    type,
+    moduleId,
+    'module-id': moduleIdKebab,
+    limit,
+    offset
+  } = args;
+
   const filter: ITaskFilter = {};
 
-  if (args.status !== undefined && typeof args.status === 'string') {
-    filter.status = args.status as TaskStatus;
+  if (status !== undefined && typeof status === 'string') {
+    filter.status = status as TaskStatus;
   }
 
-  if (args.type !== undefined && typeof args.type === 'string') {
-    filter.type = args.type;
+  if (type !== undefined && typeof type === 'string') {
+    filter.type = type;
   }
 
-  if (args.moduleId !== undefined && typeof args.moduleId === 'string') {
-    filter.module_id = args.moduleId;
-  } else if (args['module-id'] !== undefined && typeof args['module-id'] === 'string') {
-    filter.module_id = args['module-id'];
+  const moduleIdValue = moduleId || moduleIdKebab;
+  if (moduleIdValue !== undefined && typeof moduleIdValue === 'string') {
+    filter.module_id = moduleIdValue;
   }
 
-  if (args.limit !== undefined && typeof args.limit === 'number') {
-    filter.limit = args.limit;
+  if (limit !== undefined && typeof limit === 'number') {
+    filter.limit = limit;
   }
 
-  if (args.offset !== undefined && typeof args.offset === 'number') {
-    filter.offset = args.offset;
+  if (offset !== undefined && typeof offset === 'number') {
+    filter.offset = offset;
   }
 
   return filter;
 };
 
 /**
- * Display tasks in table format.
- * @param tasks - Array of tasks to display.
+ * Truncates a string to the specified maximum length.
+ * @param str - String to truncate.
+ * @param maxLength - Maximum allowed length.
+ * @returns Truncated string.
  */
-const displayTableOutput = (tasks: ITaskRow[]): void => {
-  if (tasks.length === 0) {
-    process.stdout.write('No tasks found\n');
-    return;
+const truncateString = (str: string, maxLength: number): string => {
+  if (str.length > maxLength) {
+    return `${str.substring(0, maxLength - 3)}...`;
   }
-
-  process.stdout.write('ID\tType\tModule\tStatus\tPriority\n');
-  process.stdout.write('--\t----\t------\t------\t--------\n');
-
-  for (const task of tasks) {
-    displayTaskRow(task);
-  }
+  return str;
 };
 
 /**
  * Display a single task row.
  * @param task - Task to display.
  */
-const displayTaskRow = (task: ITaskRow): void => {
+const displayTaskRow = (task: ITask): void => {
+  if (!isTaskRow(task)) {
+    return;
+  }
+
+  const taskRow = task
   const {
     id,
     type,
     module_id,
     status = TaskStatus.PENDING,
     priority = 0
-  } = task;
-
-  const truncateString = (str: string, maxLength: number): string => {
-    if (str.length > maxLength) {
-      return `${str.substring(0, maxLength - 3)}...`;
-    }
-    return str;
-  };
+  } = taskRow;
 
   const idStr = String(id);
   const typeStr = truncateString(type, 20);
@@ -106,10 +117,30 @@ const displayTaskRow = (task: ITaskRow): void => {
 };
 
 /**
+ * Display tasks in table format.
+ * @param tasks - Array of tasks to display.
+ */
+const displayTableOutput = (tasks: ITask[]): void => {
+  const taskRows = tasks.filter(isTaskRow);
+
+  if (taskRows.length === 0) {
+    process.stdout.write('No tasks found\n');
+    return;
+  }
+
+  process.stdout.write('ID\tType\tModule\tStatus\tPriority\n');
+  process.stdout.write('--\t----\t------\t------\t--------\n');
+
+  for (const task of taskRows) {
+    displayTaskRow(task);
+  }
+};
+
+/**
  * Display tasks in JSON format.
  * @param tasks - Array of tasks to display.
  */
-const displayJsonOutput = (tasks: ITaskRow[]): void => {
+const displayJsonOutput = (tasks: ITask[]): void => {
   const output = JSON.stringify(tasks, null, 2);
   process.stdout.write(`${output}\n`);
 };
@@ -163,7 +194,7 @@ export const list: CLICommand = {
       name: 'status',
       description: 'Filter by task status',
       type: 'string',
-      choices: Object.values(TaskStatus as Record<string, string>)
+      choices: Object.values(TaskStatus)
     },
     {
       name: 'type',

@@ -4,7 +4,7 @@
  * @module modules/core/config/cli/get
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -88,8 +88,9 @@ export const command = {
     const key = extractKey(context);
 
     try {
-      const configModule = await getConfigModule();
-      const value = await configModule.exports.get(key);
+      await configModule.initialize();
+      const configService = configModule.exports.service();
+      const value = key ? await configService.get(key) : await configService.list();
 
       if (key !== undefined && key !== '') {
         handleSpecificKey(key, value, logger, cliOutput);

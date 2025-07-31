@@ -32,7 +32,11 @@ const validateUserId = (args: Record<string, unknown>, cliOutput: CliOutputServi
  * @param user - User to be deleted.
  * @param cliOutput - CLI output service instance.
  */
-const confirmDeletion = (args: Record<string, unknown>, user: IUser, cliOutput: CliOutputService): void => {
+const confirmDeletion = (
+  args: Record<string, unknown>,
+  user: IUser,
+  cliOutput: CliOutputService
+): void => {
   const { force } = args;
   if (typeof force !== 'boolean' || !force) {
     cliOutput.section('Warning');
@@ -56,6 +60,53 @@ const displayUserInfo = (user: IUser, cliOutput: CliOutputService): void => {
   });
 };
 
+/**
+ * Handles deletion errors.
+ * @param error - The error that occurred.
+ * @param cliOutput - CLI output service.
+ * @param logger - Logger service.
+ */
+const handleDeletionError = (
+  error: unknown,
+  cliOutput: CliOutputService,
+  logger: LoggerService
+): void => {
+  cliOutput.error('Error deleting user');
+  const logError = error instanceof Error ? error : new Error(String(error));
+  logger.error(LogSource.USERS, 'Error deleting user', { error: logError });
+  process.exit(1);
+};
+
+/**
+ * Processes user deletion after validation.
+ * @param deletionData - Object containing deletion parameters.
+ * @param deletionData.userId - User ID to delete.
+ * @param deletionData.args - CLI arguments.
+ * @param deletionData.usersService - Users service instance.
+ * @param deletionData.cliOutput - CLI output service.
+ */
+const processUserDeletion = async (deletionData: {
+  userId: string;
+  args: Record<string, unknown>;
+  usersService: UsersService;
+  cliOutput: CliOutputService;
+}): Promise<void> => {
+  const {
+ userId, args, usersService, cliOutput
+} = deletionData;
+  const user = await usersService.getUser(userId);
+  if (user === null) {
+    cliOutput.error(`User not found: ${userId}`);
+    process.exit(1);
+  }
+
+  confirmDeletion(args, user, cliOutput);
+  displayUserInfo(user, cliOutput);
+
+  await usersService.deleteUser(userId);
+  cliOutput.success('User deleted successfully');
+};
+
 export const command: ICLICommand = {
   description: 'Delete a user',
   execute: async (context: ICLIContext): Promise<void> => {
@@ -67,24 +118,15 @@ export const command: ICLICommand = {
       const usersService = UsersService.getInstance();
       const userId = validateUserId(args, cliOutput);
 
-      const user = await usersService.getUser(userId);
-      if (user === null) {
-        cliOutput.error(`User not found: ${userId}`);
-        process.exit(1);
-      }
-
-      confirmDeletion(args, user, cliOutput);
-      displayUserInfo(user, cliOutput);
-
-      await usersService.deleteUser(userId);
-      cliOutput.success('User deleted successfully');
-
+      await processUserDeletion({
+ userId,
+args,
+usersService,
+cliOutput
+});
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error deleting user');
-      const logError = error instanceof Error ? error : new Error(String(error));
-      logger.error(LogSource.USERS, 'Error deleting user', { error: logError });
-      process.exit(1);
+      handleDeletionError(error, cliOutput, logger);
     }
   },
 };

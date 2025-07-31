@@ -4,6 +4,15 @@
  * @module modules/core/tasks
  */
 
+declare global {
+
+  var __MODULE_LOADER__: {
+    getModuleRegistry(): Map<string, unknown>;
+  };
+}
+
+/**/
+
 import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { TaskService } from '@/modules/core/tasks/services/tasks.service';
 import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
@@ -13,7 +22,9 @@ import {
 } from '@/modules/core/tasks/types/manual';
 import {
   type ITasksModuleExports,
-  TasksModuleExportsSchema
+  type ITasksService,
+  TasksModuleExportsSchema,
+  TasksServiceSchema
 } from '@/modules/core/tasks/types/tasks.service.generated';
 import type { ZodSchema } from 'zod';
 
@@ -32,7 +43,11 @@ export class TasksModule extends BaseModule<ITasksModuleExports> {
     return {
       service: () => {
         this.ensureInitialized();
-        return this.taskService as any;
+        return this.validateServiceStructure(
+          this.taskService,
+          TasksServiceSchema,
+          'TaskService'
+        ) as ITasksService;
       },
       TaskStatus,
       TaskExecutionStatus,
@@ -80,35 +95,55 @@ export const initialize = async (): Promise<void> => {
 };
 
 /**
+ * Validates that the module has all required exports.
+ * @param module - Module to validate.
+ * @returns True if module has all required exports.
+ */
+const hasRequiredExports = (module: unknown): module is TasksModule => {
+  if (!module || typeof module !== 'object') {
+    return false;
+  }
+
+  const moduleObj = module as Record<string, unknown>;
+  const exports = moduleObj.exports as Record<string, unknown> | undefined;
+
+  if (!exports) {
+    return false;
+  }
+
+  return (
+    typeof exports.service === 'function'
+    && exports.TaskStatus !== undefined
+    && exports.TaskExecutionStatus !== undefined
+    && exports.TaskPriority !== undefined
+  );
+};
+
+/**
  * Gets the Tasks module with type safety and validation.
  * This should only be used after bootstrap when the module loader is available.
  * @returns The Tasks module with guaranteed typed exports.
  * @throws {Error} If Tasks module is not available or missing required exports.
  */
-export function getTasksModule(): TasksModule {
-  const { getModuleRegistry } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+export const getTasksModule = (): TasksModule => {
+  try {
+    const moduleLoader = globalThis.__MODULE_LOADER__;
+    if (!moduleLoader) {
+      throw new Error('Module loader not available');
+    }
 
-  const registry = getModuleRegistry();
-  const tasksModule = registry.get(ModuleName.TASKS);
+    const registry = moduleLoader.getModuleRegistry();
+    const tasksModuleInstance = registry.get('TASKS');
 
-  if (!tasksModule.exports?.service || typeof tasksModule.exports.service !== 'function') {
-    throw new Error('Tasks module missing required service export');
+    if (!hasRequiredExports(tasksModuleInstance)) {
+      throw new Error('Tasks module missing required exports');
+    }
+
+    return tasksModuleInstance;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to get Tasks module: ${errorMessage}`);
   }
-
-  if (!tasksModule.exports?.TaskStatus) {
-    throw new Error('Tasks module missing required TaskStatus export');
-  }
-
-  if (!tasksModule.exports?.TaskExecutionStatus) {
-    throw new Error('Tasks module missing required TaskExecutionStatus export');
-  }
-
-  if (!tasksModule.exports?.TaskPriority) {
-    throw new Error('Tasks module missing required TaskPriority export');
-  }
-
-  return tasksModule as TasksModule;
-}
+};
 
 export default TasksModule;

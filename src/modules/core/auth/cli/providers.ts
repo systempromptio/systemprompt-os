@@ -7,13 +7,13 @@
  */
 
 import { getAuthModule } from '@/modules/core/auth/index';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import type { IAuthCliTypes } from '@/modules/core/auth/types/manual';
 
 export const command = {
   description: 'List configured OAuth2/OIDC providers',
   subcommands: {
     list: {
-      execute: async (_context: ICliContext): Promise<void> => {
+      execute: async (_context: IAuthCliTypes): Promise<void> => {
         try {
           const authModule = getAuthModule();
           const providersService = authModule.exports.providersService();
@@ -45,7 +45,7 @@ export const command = {
     },
 
     reload: {
-      execute: async (_context: ICliContext): Promise<void> => {
+      execute: async (_context: IAuthCliTypes): Promise<void> => {
         try {
           const authModule = getAuthModule();
 

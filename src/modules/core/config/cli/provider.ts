@@ -25,7 +25,7 @@ import type {
   IGenerationConfig,
   IModelConfig,
   ITool
-} from '@/modules/core/config/types/model.types';
+} from '@/modules/core/config/types/manual';
 import type {
   ICommandOptions,
   IProviderWithVersion

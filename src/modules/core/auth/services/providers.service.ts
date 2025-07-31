@@ -11,7 +11,7 @@ import { type IAuthProvidersRow } from '@/modules/core/auth/types/database.gener
 import { ProviderFactoryService } from '@/modules/core/auth/services/provider-factory.service';
 import type {
   IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface';
+} from '@/modules/core/auth/types/manual';
 
 /**
  * Input for creating a new provider.

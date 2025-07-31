@@ -11,7 +11,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { validateCreateAgentArgs } from '@/modules/core/agents/cli/validation.helpers';
 import { buildAgentData, displayCreatedAgent } from '@/modules/core/agents/cli/create.helpers';
-import type { IAgent } from '@/modules/core/agents/types/manual';
+import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
 
 /**
  * Handles success case for agent creation.

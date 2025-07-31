@@ -1,212 +1,77 @@
 /**
- * Core config module - provides configuration management.
- * @file Core config module - provides configuration management.
+ * Config module - Auto-generated type-safe implementation.
+ * @file Config module entry point with full Zod validation.
  * @module modules/core/config
  */
 
-import {
- type IModule, ModulesStatus, ModulesType
-} from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { ConfigService } from '@/modules/core/config/services/config.service';
-import type {
- ConfigValue, IConfigEntry, IConfigModuleExports, IConfigService
-} from '@/modules/core/config/types/index';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import {
+  ConfigModuleExportsSchema,
+  ConfigServiceSchema,
+  type IConfigModuleExports,
+  type IConfigService
+} from '@/modules/core/config/types/config.service.generated';
+import type { ZodSchema } from 'zod';
 
 /**
- * Config module implementation.
- * @class ConfigModule
+ * Config module implementation using BaseModule.
+ * Provides configuration management services with full Zod validation.
  */
-export class ConfigModule implements IModule<IConfigModuleExports> {
-  public readonly name = 'config';
+export class ConfigModule extends BaseModule<IConfigModuleExports> {
+  public readonly name = 'config' as const;
   public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Configuration management module for SystemPrompt OS';
-  public readonly dependencies = ['database', 'logger'] as const;
-  public status: ModulesStatus = ModulesStatus.PENDING;
+  public readonly dependencies = ['logger', 'database'] as const;
   private configService!: ConfigService;
-  private logger!: ILogger;
-  private initialized = false;
-  private started = false;
   get exports(): IConfigModuleExports {
     return {
-      service: (): IConfigService => { return this.configService; },
-      get: async (key?: string): Promise<ConfigValue | IConfigEntry[]> => {
-        return await this.get(key);
+      service: (): IConfigService => {
+        this.ensureInitialized();
+        return this.validateServiceStructure(
+          this.configService,
+          ConfigServiceSchema,
+          'ConfigService'
+        ) as IConfigService;
       },
-      set: async (key: string, value: ConfigValue): Promise<void> => {
-        await this.set(key, value);
-      }
     };
   }
 
   /**
-   * Initialize the config module.
-   * @returns {Promise<void>} Promise that resolves when initialized.
+   * Get the Zod schema for this module's exports.
+   * @returns The Zod schema for validating module exports.
    */
-  async initialize(): Promise<void> {
-    this.logger = LoggerService.getInstance();
-    if (this.initialized) {
-      throw new Error('Config module already initialized');
-    }
-
-    try {
-      this.logger = LoggerService.getInstance();
-
-      this.configService = ConfigService.getInstance();
-      await this.configService.initialize();
-
-      this.initialized = true;
-      this.logger.info(LogSource.MODULES, 'Config module initialized');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to initialize config module: ${errorMessage}`);
-    }
+  protected getExportsSchema(): ZodSchema {
+    return ConfigModuleExportsSchema;
   }
 
   /**
-   * Start the config module.
-   * @returns {void} Synchronously starts the module.
-   * @throws {Error} If module not initialized or already started.
+   * Initialize the module.
    */
-  async start(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('Config module not initialized');
-    }
-
-    if (this.started) {
-      return;
-    }
-
-    this.status = ModulesStatus.RUNNING;
-    this.started = true;
-    this.logger.info(LogSource.MODULES, 'Config module started');
-  }
-
-  /**
-   * Stop the config module.
-   * @returns {void} Synchronously stops the module.
-   */
-  async stop(): Promise<void> {
-    if (this.started) {
-      this.status = ModulesStatus.STOPPED;
-      this.started = false;
-      this.logger.info(LogSource.MODULES, 'Config module stopped');
-    }
-  }
-
-  /**
-   * Perform health check on the config module.
-   * @returns {{ healthy: boolean; message?: string }} Health check result.
-   */
-  async healthCheck(): Promise<{
-    healthy: boolean;
-    message?: string;
-  }> {
-    if (!this.initialized) {
-      return {
-        healthy: false,
-        message: 'Config module not initialized',
-      };
-    }
-    if (!this.started) {
-      return {
-        healthy: false,
-        message: 'Config module not started',
-      };
-    }
-    return {
-      healthy: true,
-      message: 'Config module is healthy',
-    };
-  }
-
-  /**
-   * Get configuration value(s).
-   * @param {string | undefined} key - Configuration key. If undefined, returns all configuration.
-   * @returns {Promise<ConfigValue | IConfigEntry[]>} Configuration value or all configuration.
-   * @throws {Error} If module not initialized.
-   */
-  async get(key?: string): Promise<ConfigValue | IConfigEntry[]> {
-    if (key === undefined) {
-      return await this.configService.list();
-    }
-
-    return await this.configService.get(key);
-  }
-
-  /**
-   * Set configuration value.
-   * @param {string} key - Configuration key.
-   * @param {ConfigValue} value - Configuration value.
-   * @returns {Promise<void>} Promise that resolves when value is set.
-   * @throws {Error} If module not initialized.
-   */
-  async set(key: string, value: ConfigValue): Promise<void> {
-    await this.configService.set(key, value);
+  protected async initializeModule(): Promise<void> {
+    this.configService = ConfigService.getInstance();
+    await this.configService.initialize();
   }
 }
 
 /**
- * Factory function for creating the module.
- * @returns {ConfigModule} Config module instance.
+ * Create and return a new config module instance.
+ * @returns A new config module instance.
  */
 export const createModule = (): ConfigModule => {
   return new ConfigModule();
 };
 
 /**
- * Initialize module.
- * @returns {Promise<ConfigModule>} Initialized module.
+ * Export module instance.
  */
-export const initialize = async (): Promise<ConfigModule> => {
-  const configModule = new ConfigModule();
+export const configModule = new ConfigModule();
+
+/**
+ * Initialize the config module.
+ * @returns Promise that resolves when the module is initialized.
+ */
+export const initialize = async (): Promise<void> => {
   await configModule.initialize();
-  return configModule;
 };
-
-/**
- * Gets the Config module with type safety and validation.
- * This should only be used after bootstrap when the module loader is available.
- * @returns The Config module with guaranteed typed exports.
- * @throws {Error} If Config module is not available or missing required exports.
- */
-export async function getConfigModule(): Promise<IModule<IConfigModuleExports>> {
-  const { getModuleRegistry } = await import('@/modules/core/modules/index');
-  const { ModuleName } = await import('@/modules/types/index');
-
-  const registry = getModuleRegistry();
-  const configModule = registry.get(ModuleName.CONFIG);
-
-  if (!configModule) {
-    throw new Error('Config module not found');
-  }
-
-  if (!configModule.exports || typeof configModule.exports !== 'object') {
-    throw new Error('Config module exports not found');
-  }
-
-  const exports = configModule.exports as any;
-
-  if (!exports.service || typeof exports.service !== 'function') {
-    throw new Error('Config module missing required service export');
-  }
-
-  if (!exports.get || typeof exports.get !== 'function') {
-    throw new Error('Config module missing required get export');
-  }
-
-  if (!exports.set || typeof exports.set !== 'function') {
-    throw new Error('Config module missing required set export');
-  }
-
-  return configModule as IModule<IConfigModuleExports>;
-}
-
-/**
- * Re-export ConfigService.
- */
-export { ConfigService };
-
-export default ConfigModule;

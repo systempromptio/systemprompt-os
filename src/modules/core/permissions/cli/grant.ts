@@ -9,6 +9,7 @@
 
 import { Command } from 'commander';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
+import type { GrantCommandOptions } from '@/modules/core/permissions/types/manual';
 
 const ERROR_EXIT_CODE = 1;
 
@@ -21,13 +22,15 @@ export const createGrantCommand = (): Command => {
     .description('Grant permissions to a role')
     .requiredOption('-r, --role <role>', 'Role ID')
     .requiredOption('-p, --permission <permission>', 'Permission ID')
-    .action(async (options): Promise<void> => {
+    .action(async (options: GrantCommandOptions): Promise<void> => {
       try {
         const service = PermissionsService.getInstance();
         await service.initialize();
 
         await service.grantPermission(options.role, options.permission);
-        console.log(`Granted permission ${options.permission} to role ${options.role}`);
+        console.log(
+          `Granted permission ${options.permission} to role ${options.role}`
+        );
       } catch (error) {
         console.error('Error granting permission:', error);
         process.exit(ERROR_EXIT_CODE);

@@ -17,7 +17,7 @@ import {
 } from '@/constants/numbers';
 
 const EIGHTY = 80;
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import type { IAuthCliTypes } from '@/modules/core/auth/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -138,7 +138,7 @@ const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Prom
  * @param _context
  * @returns Promise that resolves when reset is complete.
  */
-const resetDatabase = async (_context: ICliContext): Promise<void> => {
+const resetDatabase = async (_context: IAuthCliTypes): Promise<void> => {
   const logger = getLogger();
   const answer = await askConfirmation(
     '\n⚠️  This will delete ALL users, roles, and sessions. Are you sure? (yes/no): '
@@ -184,7 +184,7 @@ const displayAllUsers = (users: IUserListQueryResult[], logger: ILogger): void =
  * @param _context
  * @returns Promise that resolves when listing is complete.
  */
-const listUsers = async (_context: ICliContext): Promise<void> => {
+const listUsers = async (_context: IAuthCliTypes): Promise<void> => {
   const logger = getLogger();
   try {
     const authModule = getAuthModule();

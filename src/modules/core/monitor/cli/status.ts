@@ -6,7 +6,7 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import { MetricService } from '@/modules/core/monitor/services/metric.service';
+import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
@@ -23,16 +23,16 @@ export const command: ICLICommand = {
         Description: 'System monitoring and metrics collection',
       });
 
-      const metricService = MetricService.getInstance();
-      const systemMetrics = await metricService.getSystemMetrics();
+      const monitorService = MonitorService.getInstance();
+      const systemMetrics = await monitorService.getSystemMetrics();
 
       cliOutput.section('System Metrics');
       cliOutput.keyValue({
         'CPU Cores': systemMetrics.cpu.cores.toString(),
-        'Memory Total': `${Math.round(systemMetrics.memory.total / 1024 / 1024)} MB`,
-        'Memory Free': `${Math.round(systemMetrics.memory.free / 1024 / 1024)} MB`,
-        'Memory Used': `${Math.round(systemMetrics.memory.used / 1024 / 1024)} MB`,
-        'Uptime': `${Math.round(systemMetrics.uptime)} seconds`,
+        'Memory Total': `${String(Math.round(systemMetrics.memory.total / 1024 / 1024))} MB`,
+        'Memory Free': `${String(Math.round(systemMetrics.memory.free / 1024 / 1024))} MB`,
+        'Memory Used': `${String(Math.round(systemMetrics.memory.used / 1024 / 1024))} MB`,
+        'Uptime': `${String(Math.round(systemMetrics.uptime))} seconds`,
       });
 
       process.exit(0);

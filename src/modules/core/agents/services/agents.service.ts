@@ -6,7 +6,7 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
+import { AgentsRepository } from '@/modules/core/agents/repositories/agents.repository';
 import {
   type IAgent,
   type IAgentCreateData,
@@ -26,7 +26,7 @@ import { EventNames } from '@/modules/core/events/types/index';
  */
 export class AgentsService implements IAgentsService {
   private static instance: AgentsService;
-  private readonly repository: AgentRepository;
+  private readonly repository: AgentsRepository;
   private readonly eventBus: EventBusService;
   private logger?: ILogger;
   private initialized = false;
@@ -38,7 +38,7 @@ export class AgentsService implements IAgentsService {
    * Private constructor for singleton pattern.
    */
   private constructor() {
-    this.repository = AgentRepository.getInstance();
+    this.repository = AgentsRepository.getInstance();
     this.eventBus = EventBusService.getInstance();
     this.setupEventHandlers();
   }
@@ -50,6 +50,17 @@ export class AgentsService implements IAgentsService {
   static getInstance(): AgentsService {
     AgentsService.instance ||= new AgentsService();
     return AgentsService.instance;
+  }
+
+  /**
+   * Reset service state for testing purposes.
+   * @returns Promise.
+   */
+  static async reset(): Promise<void> {
+    if (AgentsService.instance) {
+      await AgentsService.instance.reset();
+      AgentsService.instance = undefined as any;
+    }
   }
 
   /**

@@ -6,7 +6,8 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
+import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
+import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
 
 /**
  * Extracts and validates CLI arguments for task creation.
@@ -68,15 +69,18 @@ const validateRequiredParameters = (type: string, module_id: string): void => {
 /**
  * Validates task status against allowed values.
  * @param status - Status to validate.
+ * @returns True if status is valid.
  */
-const validateStatus = (status: string): void => {
+const validateStatus = (status: string): status is TaskStatus => {
   const validStatuses = Object.values(TaskStatus);
-  const hasValidStatus = validStatuses.includes(status as TaskStatus);
+  const hasValidStatus = validStatuses.some(validStatus => { return validStatus === status });
 
   if (!hasValidStatus) {
     process.stderr.write(`Error: Invalid status. Valid values are: ${validStatuses.join(', ')}\n`);
     process.exit(1);
   }
+
+  return hasValidStatus;
 };
 
 /**
@@ -84,19 +88,24 @@ const validateStatus = (status: string): void => {
  * @param task - Created task.
  * @param format - Output format.
  */
-const outputResult = (task: ITaskRow, format: string): void => {
+const outputResult = (task: ITask, format: string): void => {
   if (format === 'json') {
     process.stdout.write(`${JSON.stringify(task, null, 2)}\n`);
     return;
   }
 
-  process.stdout.write('\nTask added successfully!\n');
-  process.stdout.write(`ID: ${String(task.id)}\n`);
-  process.stdout.write(`Type: ${task.type}\n`);
-  process.stdout.write(`Module: ${task.module_id}\n`);
-  process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
-  process.stdout.write(`Priority: ${String(task.priority ?? 0)}\n`);
-  process.stdout.write(`Max Executions: ${String(task.max_executions ?? 3)}\n`);
+  if ('type' in task && 'module_id' in task) {
+    process.stdout.write('\nTask added successfully!\n');
+    process.stdout.write(`ID: ${String(task.id)}\n`);
+    process.stdout.write(`Type: ${task.type}\n`);
+    process.stdout.write(`Module: ${task.module_id}\n`);
+    process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
+    process.stdout.write(`Priority: ${String(task.priority ?? 0)}\n`);
+    process.stdout.write(`Max Executions: ${String(task.max_executions ?? 3)}\n`);
+  } else {
+    process.stderr.write('Error: Invalid task data returned\n');
+    process.exit(1);
+  }
 };
 
 /**
@@ -108,7 +117,10 @@ const executeAddTask = async (options: CLIContext): Promise<void> => {
   const params = extractTaskParameters(options);
 
   validateRequiredParameters(params.type, params.module_id);
-  validateStatus(params.status);
+
+  if (!validateStatus(params.status)) {
+    return
+  }
 
   try {
     const tasksModule = getTasksModule();
@@ -119,7 +131,7 @@ const executeAddTask = async (options: CLIContext): Promise<void> => {
       module_id: params.module_id,
       instructions: params.instructions,
       priority: params.priority,
-      status: params.status as TaskStatus,
+      status: params.status,
       max_executions: params.max_executions
     });
 
@@ -170,7 +182,7 @@ export const add: CLICommand = {
       type: 'string',
       description: 'Initial task status',
       default: 'pending',
-      choices: Object.values(TaskStatus as Record<string, string>)
+      choices: Object.values(TaskStatus)
     },
     {
       name: 'max-executions',

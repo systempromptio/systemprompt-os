@@ -10,7 +10,7 @@ import { LogSource } from '@/modules/core/logger/types';
 import type {
   IModelParams,
   IProviderConfig
-} from '@/modules/core/config/types/model.types';
+} from '@/modules/core/config/types/manual';
 
 const logger = getLoggerService();
 

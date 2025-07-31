@@ -6,8 +6,8 @@
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
+import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
 import {
   type ITaskFilter,
@@ -16,9 +16,9 @@ import {
 } from '@/modules/core/tasks/types/manual';
 import {
   type ITask,
-  type ITaskCreateData,
   type ITaskUpdateData
 } from '@/modules/core/tasks/types/tasks.module.generated';
+import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { EventNames } from '@/modules/core/events/types/index';
 
@@ -26,7 +26,7 @@ import { EventNames } from '@/modules/core/events/types/index';
  * Task service implementation providing task management capabilities.
  * Handles task creation, execution, status updates, and statistics.
  */
-export class TaskService {
+export class TaskService implements ITasksService {
   private static instance: TaskService | null = null;
   private readonly handlers: Map<string, ITaskHandler> = new Map();
   private logger!: ILogger;
@@ -63,7 +63,16 @@ export class TaskService {
     }
 
     this.logger = LoggerService.getInstance();
-    this.taskRepository = new TaskRepository(DatabaseService.getInstance());
+
+    const { getModuleRegistry } = await import('@/modules/loader');
+    const registry = getModuleRegistry();
+    const databaseModule = registry.get('DATABASE');
+    if (!databaseModule) {
+      throw new Error('Database module not found');
+    }
+    const databaseService = (databaseModule as unknown as { exports: { service: () => unknown } }).exports.service();
+
+    this.taskRepository = new TaskRepository(databaseService as DatabaseService);
     this.eventBus = EventBusService.getInstance();
     this.initialized = true;
 
@@ -73,18 +82,31 @@ export class TaskService {
   /**
    * Add a new task to the queue.
    * @param task - Task data to add.
+   * @param {...any} args
+   * @param {...any} _args
    * @returns Promise resolving to the created task.
    */
-  async addTask(task: Partial<ITaskCreateData>): Promise<ITask> {
+  async addTask(task: any, ..._args: unknown[]): Promise<ITask> {
     this.ensureInitialized();
 
-    const createdTask = await this.taskRepository.create(task as Partial<ITaskRow>);
+    const taskData: Partial<ITaskRow> = {
+      ...task.type !== undefined && { type: task.type },
+      ...task.module_id !== undefined && { module_id: task.module_id },
+      ...task.instructions !== undefined && { instructions: task.instructions },
+      ...task.priority !== undefined && { priority: task.priority },
+      ...task.status !== undefined && { status: task.status as TaskStatus | null },
+      ...task.max_executions !== undefined && { max_executions: task.max_executions }
+    };
 
-    this.logger.info(LogSource.TASKS, `Task created: ${createdTask.id} (${createdTask.type})`);
+    const createdTask = await this.taskRepository.create(taskData);
 
-    await this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
+    const taskId = String(createdTask.id);
+    const taskType = createdTask.type;
+    this.logger.info(LogSource.TASKS, `Task created: ${taskId} (${taskType})`);
 
-    return createdTask as ITask;
+    this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
+
+    return createdTask;
   }
 
   /**
@@ -97,12 +119,14 @@ export class TaskService {
 
     const task = await this.taskRepository.findNextAvailable(types);
 
-    if (task) {
+    if (task !== null && task !== undefined) {
       await this.updateTaskStatus(task.id, TaskStatus.ASSIGNED);
-      this.logger.info(LogSource.TASKS, `Task assigned: ${task.id} (${task.type})`);
+      const taskId = String(task.id);
+      const taskType = task.type;
+      this.logger.info(LogSource.TASKS, `Task assigned: ${taskId} (${taskType})`);
     }
 
-    return task as ITask | null;
+    return task;
   }
 
   /**
@@ -114,11 +138,17 @@ export class TaskService {
   async updateTaskStatus(taskId: number, status: unknown): Promise<void> {
     this.ensureInitialized();
 
+    if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
+      throw new Error(`Invalid task status: ${String(status)}`);
+    }
+
     await this.taskRepository.updateStatus(taskId, status as TaskStatus);
 
-    this.logger.info(LogSource.TASKS, `Task ${taskId} status updated to ${status}`);
+    const taskIdStr = String(taskId);
+    const statusStr = String(status);
+    this.logger.info(LogSource.TASKS, `Task ${taskIdStr} status updated to ${statusStr}`);
 
-    await this.eventBus.emit(EventNames.TASK_STATUS_CHANGED, {
+    this.eventBus.emit(EventNames.TASK_STATUS_CHANGED, {
  taskId,
 status
 });
@@ -133,13 +163,23 @@ status
   async updateTask(taskId: number, updates: Partial<ITaskUpdateData>): Promise<ITask> {
     this.ensureInitialized();
 
-    const updatedTask = await this.taskRepository.update(taskId, updates as Partial<ITaskRow>);
+    const updateData: Partial<ITaskRow> = {
+      ...updates.instructions !== undefined && { instructions: updates.instructions },
+      ...updates.priority !== undefined && { priority: updates.priority },
+      ...updates.status !== undefined && { status: updates.status as TaskStatus | null },
+      ...updates.progress !== undefined && { progress: updates.progress },
+      ...updates.result !== undefined && { result: updates.result },
+      ...updates.error !== undefined && { error: updates.error }
+    };
 
-    this.logger.info(LogSource.TASKS, `Task ${taskId} updated`);
+    const updatedTask = await this.taskRepository.update(taskId, updateData);
 
-    await this.eventBus.emit(EventNames.TASK_UPDATED, { task: updatedTask });
+    const taskIdStr = String(taskId);
+    this.logger.info(LogSource.TASKS, `Task ${taskIdStr} updated`);
 
-    return updatedTask as ITask;
+    this.eventBus.emit(EventNames.TASK_UPDATED, { task: updatedTask });
+
+    return updatedTask;
   }
 
   /**
@@ -149,7 +189,7 @@ status
    */
   async getTaskById(taskId: number): Promise<ITask | null> {
     this.ensureInitialized();
-    return await this.taskRepository.findById(taskId) as ITask | null;
+    return await this.taskRepository.findById(taskId);
   }
 
   /**
@@ -159,7 +199,7 @@ status
    */
   async listTasks(filter?: ITaskFilter): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findWithFilter(filter) as ITask[];
+    return await this.taskRepository.findWithFilter(filter);
   }
 
   /**
@@ -172,7 +212,7 @@ status
 
     await this.updateTaskStatus(taskId, TaskStatus.CANCELLED);
 
-    await this.eventBus.emit(EventNames.TASK_CANCELLED, { taskId });
+    this.eventBus.emit(EventNames.TASK_CANCELLED, { taskId });
   }
 
   /**
@@ -180,7 +220,7 @@ status
    * @param handler - Task handler to register.
    * @returns Promise that resolves when handler is registered.
    */
-  async registerHandler(handler: ITaskHandler): Promise<void> {
+  registerHandler(handler: ITaskHandler): void {
     this.ensureInitialized();
 
     this.handlers.set(handler.type, handler);
@@ -193,7 +233,7 @@ status
    * @param type - Task type to unregister handler for.
    * @returns Promise that resolves when handler is unregistered.
    */
-  async unregisterHandler(type: string): Promise<void> {
+  unregisterHandler(type: string): void {
     this.ensureInitialized();
 
     this.handlers.delete(type);
@@ -224,9 +264,10 @@ status
       status: TaskStatus.ASSIGNED
     });
 
-    this.logger.info(LogSource.TASKS, `Task ${taskId} assigned to agent ${agentId}`);
+    const taskIdStr = String(taskId);
+    this.logger.info(LogSource.TASKS, `Task ${taskIdStr} assigned to agent ${agentId}`);
 
-    await this.eventBus.emit(EventNames.TASK_ASSIGNED, {
+    this.eventBus.emit(EventNames.TASK_ASSIGNED, {
  taskId,
 agentId
 });
@@ -245,7 +286,8 @@ agentId
       status: TaskStatus.PENDING
     });
 
-    this.logger.info(LogSource.TASKS, `Task ${taskId} unassigned`);
+    const taskIdStr = String(taskId);
+    this.logger.info(LogSource.TASKS, `Task ${taskIdStr} unassigned`);
   }
 
   /**
@@ -255,7 +297,7 @@ agentId
    */
   async getTasksByAgent(agentId: string): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findByAgent(agentId) as ITask[];
+    return await this.taskRepository.findByAgent(agentId);
   }
 
   /**
@@ -265,7 +307,7 @@ agentId
    */
   async getTasksByStatus(status: TaskStatus): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findByStatus(status) as ITask[];
+    return await this.taskRepository.findByStatus(status);
   }
 
   /**
@@ -283,7 +325,9 @@ agentId
 
     await this.taskRepository.update(taskId, { progress });
 
-    this.logger.info(LogSource.TASKS, `Task ${taskId} progress updated to ${progress}%`);
+    const taskIdStr = String(taskId);
+    const progressStr = String(progress);
+    this.logger.info(LogSource.TASKS, `Task ${taskIdStr} progress updated to ${progressStr}%`);
   }
 
   /**
@@ -306,7 +350,8 @@ agentId
   async setTaskMetadata(taskId: number, key: string, value: string): Promise<void> {
     this.ensureInitialized();
     await this.taskRepository.setMetadata(taskId, key, value);
-    this.logger.debug(LogSource.TASKS, `Metadata set for task ${taskId}: ${key}`);
+    const taskIdStr = String(taskId);
+    this.logger.debug(LogSource.TASKS, `Metadata set for task ${taskIdStr}: ${key}`);
   }
 
   /**

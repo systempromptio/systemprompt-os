@@ -1,179 +1,95 @@
 /**
- * Auth Module - Authentication and authorization system.
- * Clean singleton implementation following module standards.
- * @module auth
+ * Auth module - Auto-generated type-safe implementation.
+ * @file Auth module entry point with full Zod validation.
+ * @module modules/core/auth
  */
 
-import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/database.generated';
-import type { IModule } from '@/modules/core/modules/types';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { ProvidersService } from '@/modules/core/auth/services/providers.service';
-import { TokenService } from '@/modules/core/auth/services/token.service';
-import { SessionService } from '@/modules/core/auth/services/session.service';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
-import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
-import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
-import { JwtKeyService } from '@/modules/core/auth/services/jwt-key.service';
-import type { IAuthModuleExports } from '@/modules/core/auth/types/index';
-import { getModuleRegistry } from '@/modules/loader';
-import { ModuleName } from '@/modules/types/module-names.types';
+import { TokenService } from '@/modules/core/auth/services/token.service';
+import { ProvidersService } from '@/modules/core/auth/services/providers.service';
+import {
+  AuthModuleExportsSchema,
+  AuthServiceSchema,
+  type IAuthModuleExports
+} from '@/modules/core/auth/types/auth.service.generated';
+import type { IAuthModuleExportsExtended } from '@/modules/core/auth/types/manual';
+import type { ZodSchema } from 'zod';
 
 /**
- * AuthModule provides authentication and authorization.
- * Clean singleton implementation focused on service exposure.
+ * Auth module implementation using BaseModule.
+ * Provides authentication services with full Zod validation.
  */
-export class AuthModule implements IModule<IAuthModuleExports> {
-  public readonly name = 'auth';
-  public readonly version = '2.0.0';
+export class AuthModule extends BaseModule<IAuthModuleExportsExtended> {
+  public readonly name = 'auth' as const;
   public readonly type = ModulesType.CORE;
+  public readonly version = '1.0.0';
   public readonly description = 'Authentication and authorization system';
-  public readonly dependencies = ['logger', 'database', 'events'];
-  public status: ModulesStatus = ModulesStatus.PENDING;
-  private providersService!: ProvidersService;
-  private tokenService!: TokenService;
-  private sessionService!: SessionService;
+  public readonly dependencies = ['logger', 'database', 'events'] as const;
   private authService!: AuthService;
-  private authCodeService!: AuthCodeService;
-  private oauth2ConfigService!: OAuth2ConfigurationService;
-  private jwtKeyService!: JwtKeyService;
-  private logger!: ILogger;
-  private database!: DatabaseService;
-  private initialized = false;
-  private started = false;
-  get exports(): IAuthModuleExports {
+  private tokenService!: TokenService;
+  private providersService!: ProvidersService;
+  get exports(): IAuthModuleExportsExtended {
     return {
-      authService: () => { return this.authService },
-      sessionService: () => { return this.sessionService },
-      tokenService: () => { return this.tokenService },
-      providersService: () => { return this.providersService },
-      oauth2ConfigService: () => { return this.oauth2ConfigService },
-      authCodeService: () => { return this.authCodeService }
+      service: (): AuthService => {
+        this.ensureInitialized();
+        return this.validateServiceStructure(
+          this.authService,
+          AuthServiceSchema,
+          'AuthService'
+        );
+      },
+      tokenService: (): TokenService => {
+        this.ensureInitialized();
+        return this.tokenService;
+      },
+      providersService: (): ProvidersService => {
+        this.ensureInitialized();
+        return this.providersService;
+      },
     };
   }
 
   /**
-   * Initialize the auth module.
+   * Get the Zod schema for this module's exports.
+   * @returns The Zod schema for validating module exports.
    */
-  async initialize(): Promise<void> {
-    this.database = DatabaseService.getInstance();
-    this.logger = LoggerService.getInstance();
-    if (this.initialized) {
-      throw new Error('Auth module already initialized');
-    }
-
-    try {
-      this.logger = LoggerService.getInstance();
-      this.database = DatabaseService.getInstance();
-
-      this.initializeServices();
-      await this.initializeProviders();
-
-      this.initialized = true;
-      this.logger.info(LogSource.AUTH, 'Auth module initialized', { version: this.version });
-    } catch (error) {
-      throw new Error(
-        `Failed to initialize auth module: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+  protected getExportsSchema(): ZodSchema {
+    return AuthModuleExportsSchema;
   }
 
   /**
-   * Start the auth module.
+   * Initialize the module.
    */
-  async start(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('Auth module not initialized');
-    }
+  protected async initializeModule(): Promise<void> {
+    this.authService = AuthService.getInstance();
+    await this.authService.initialize();
 
-    if (this.started) {
-      return;
-    }
-
-    try {
-      this.status = ModulesStatus.RUNNING;
-      this.started = true;
-      this.logger.info(LogSource.AUTH, 'Auth module started');
-    } catch (error) {
-      this.status = ModulesStatus.STOPPED;
-      throw error;
-    }
-  }
-
-  /**
-   * Stop the auth module.
-   */
-  async stop(): Promise<void> {
-    this.status = ModulesStatus.STOPPED;
-    this.started = false;
-    this.logger.info(LogSource.AUTH, 'Auth module stopped');
-  }
-
-  /**
-   * Health check.
-   */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
-    try {
-      const providers = this.providersService.getAllProviderInstances();
-      return {
-        healthy: true,
-        message: `Auth module healthy. ${providers.length} provider(s) loaded.`,
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        message: `Auth module unhealthy: ${String(error)}`,
-      };
-    }
-  }
-
-  /**
-   * Get logger instance.
-   */
-  getLogger(): ILogger {
-    return this.logger;
-  }
-
-  /**
-   * Initialize core auth services.
-   */
-  private initializeServices(): void {
-    this.jwtKeyService = JwtKeyService.getInstance();
-    this.jwtKeyService.initialize(this.logger);
-
-    this.tokenService = TokenService.initialize(this.database, this.logger);
-    this.sessionService = SessionService.initialize(this.database, this.logger);
-    this.authCodeService = AuthCodeService.initialize(this.database, this.logger);
-    this.oauth2ConfigService = OAuth2ConfigurationService.getInstance();
-    this.authService = AuthService.initialize(this.database, this.logger);
-    this.providersService = ProvidersService.getInstance();
-  }
-
-  /**
-   * Initialize auth providers.
-   */
-  private async initializeProviders(): Promise<void> {
+    this.tokenService = TokenService.getInstance();
+    this.providersService = new ProvidersService();
     await this.providersService.initialize();
   }
 }
 
 /**
- * Create a new AuthModule instance.
+ * Create and return a new auth module instance.
+ * @returns A new auth module instance.
  */
 export const createModule = (): AuthModule => {
   return new AuthModule();
 };
 
 /**
- * Create and initialize a new AuthModule instance.
+ * Export module instance.
  */
-export const initialize = async (): Promise<AuthModule> => {
-  const authModule = new AuthModule();
+export const authModule = new AuthModule();
+
+/**
+ * Initialize the auth module.
+ * @returns Promise that resolves when the module is initialized.
+ */
+export const initialize = async (): Promise<void> => {
   await authModule.initialize();
-  return authModule;
 };
 
 /**
@@ -181,19 +97,6 @@ export const initialize = async (): Promise<AuthModule> => {
  * @returns The Auth module with guaranteed typed exports.
  * @throws {Error} If Auth module is not available or missing required exports.
  */
-export const getAuthModule = (): IModule<IAuthModuleExports> => {
-  const registry = getModuleRegistry();
-  const authModule = registry.get(ModuleName.AUTH) as unknown as IModule<IAuthModuleExports>;
-
-  if (!authModule) {
-    throw new Error('Auth module not found in registry');
-  }
-
-  if (!authModule.exports) {
-    throw new Error('Auth module not properly initialized');
-  }
-
+export const getAuthModule = (): AuthModule => {
   return authModule;
 };
-
-export default AuthModule;

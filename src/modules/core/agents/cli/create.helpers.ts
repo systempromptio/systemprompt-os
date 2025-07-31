@@ -8,8 +8,8 @@ import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import type {
   IAgent,
-  ICreateAgentDto
-} from '@/modules/core/agents/types/manual';
+  IAgentCreateData
+} from '@/modules/core/agents/types/agents.module.generated';
 import type { AgentsType } from '@/modules/core/agents/types/database.generated';
 
 /**
@@ -90,7 +90,7 @@ const convertToStringArray = (value: unknown): string[] => {
  * @param context - CLI context.
  * @returns Agent data transfer object.
  */
-export const buildAgentData = (context: ICLIContext): ICreateAgentDto => {
+export const buildAgentData = (context: ICLIContext): IAgentCreateData => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
 
@@ -102,7 +102,7 @@ export const buildAgentData = (context: ICLIContext): ICreateAgentDto => {
     process.exit(1);
   }
 
-  const agentData: ICreateAgentDto = {
+  const agentData: IAgentCreateData = {
     name: String(args.name),
     description: String(args.description),
     instructions: String(args.instructions),

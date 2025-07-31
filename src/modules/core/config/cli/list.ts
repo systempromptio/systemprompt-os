@@ -3,7 +3,7 @@
  * @module modules/core/config/cli/list
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
@@ -122,8 +122,8 @@ export const command = {
    */
   async execute(options: IListCommandOptions = {}): Promise<void> {
     try {
-      const configModule = await getConfigModule();
-      const configList = await configModule.exports.get();
+      await configModule.initialize();
+      const configList = await configModule.exports.service().list();
 
       const configData = Array.isArray(configList)
         ? configList.reduce<Record<string, unknown>>((acc, entry) => {

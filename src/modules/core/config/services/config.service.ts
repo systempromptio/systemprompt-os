@@ -5,7 +5,7 @@
 
 import type {
  ConfigValue, IConfigEntry, IConfigService, IMcpServerConfig, IMcpServerEntry
-} from '@/modules/core/config/types/index';
+} from '@/modules/core/config/types/manual';
 import type {
  IConfigsRow, IMcpServersRow
 } from '@/modules/core/config/types/database.generated';

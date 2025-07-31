@@ -11,8 +11,8 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
   IAgent,
-  IUpdateAgentDto
-} from '@/modules/core/agents/types/manual';
+  IAgentUpdateData
+} from '@/modules/core/agents/types/agents.module.generated';
 import type { AgentsStatus } from '@/modules/core/agents/types/database.generated';
 
 /**
@@ -163,11 +163,11 @@ const processConfigField = (
  * @param args - CLI arguments.
  * @returns Object with basic fields.
  */
-const getBasicFields = (args: Record<string, unknown>): Partial<IUpdateAgentDto> => {
+const getBasicFields = (args: Record<string, unknown>): Partial<IAgentUpdateData> => {
   const {
     name, description, instructions
   } = args;
-  const result: Partial<IUpdateAgentDto> = {};
+  const result: Partial<IAgentUpdateData> = {};
 
   if (typeof name === 'string' && name.length > 0) {
     result.name = name;
@@ -193,7 +193,7 @@ const getBasicFields = (args: Record<string, unknown>): Partial<IUpdateAgentDto>
 const buildUpdateData = (
   args: Record<string, unknown>,
   cliOutput: CliOutputService
-): IUpdateAgentDto => {
+): IAgentUpdateData => {
   const basicFields = getBasicFields(args);
 
   const status = validateStatusField(args.status, cliOutput);
@@ -264,7 +264,7 @@ const displayUpdatedAgent = (
  * @param cliOutput - CLI output service.
  */
 const validateUpdateData = (
-  updateData: IUpdateAgentDto,
+  updateData: IAgentUpdateData,
   cliOutput: CliOutputService
 ): void => {
   if (Object.keys(updateData).length === 0) {

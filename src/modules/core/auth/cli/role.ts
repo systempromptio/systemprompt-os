@@ -8,7 +8,7 @@
 
 import { getDatabase } from '@/modules/core/database/index';
 import { ONE, ZERO } from '@/constants/numbers';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import type { ICliContext } from '@/modules/core/auth/types/manual';
 
 export const command = {
   description: 'Role management commands',

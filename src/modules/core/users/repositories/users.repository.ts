@@ -33,19 +33,8 @@ export class UsersRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     this.dbService = DatabaseService.getInstance();
-  }
-
-  /**
-   * Get database connection.
-   * @returns Promise resolving to database connection.
-   */
-  private async getDatabase(): Promise<IDatabaseConnection> {
-    if (this.dbService === undefined) {
-      throw new Error('Repository not initialized');
-    }
-    return await this.dbService.getConnection();
   }
 
   /**
@@ -55,52 +44,11 @@ export class UsersRepository {
    */
   public async createUser(userData: Omit<IUsersRow, 'id'> & { id: string }): Promise<IUsersRow> {
     const database = await this.getDatabase();
+    const insertValues = this.buildInsertValues(userData);
 
-    const stmt = await database.prepare(
-      `INSERT INTO users (
-        id, username, email, display_name, avatar_url, bio,
-        timezone, language, status, email_verified, preferences,
-        metadata, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
+    await this.executeInsert(database, insertValues);
 
-    const insertValues = [
-      userData.id,
-      userData.username,
-      userData.email,
-      userData.display_name ?? null,
-      userData.avatar_url ?? null,
-      userData.bio ?? null,
-      userData.timezone ?? null,
-      userData.language ?? null,
-      userData.status,
-      userData.email_verified ?? null,
-      userData.preferences ?? null,
-      userData.metadata ?? null,
-      userData.created_at,
-      userData.updated_at
-    ];
-
-    await stmt.run(insertValues);
-
-    await stmt.finalize();
-
-    return {
-      id: userData.id,
-      username: userData.username,
-      email: userData.email,
-      display_name: userData.display_name ?? null,
-      avatar_url: userData.avatar_url ?? null,
-      bio: userData.bio ?? null,
-      timezone: userData.timezone ?? null,
-      language: userData.language ?? null,
-      status: userData.status,
-      email_verified: userData.email_verified ?? null,
-      preferences: userData.preferences ?? null,
-      metadata: userData.metadata ?? null,
-      created_at: userData.created_at,
-      updated_at: userData.updated_at
-    };
+    return this.buildUserResult(userData);
   }
 
   /**
@@ -169,78 +117,6 @@ export class UsersRepository {
   }
 
   /**
-   * Builds update query components from data.
-   * @param data - Update data.
-   * @returns Object with updates and values arrays.
-   */
-  private buildUpdateQuery(data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>): { updates: string[]; values: unknown[] } {
-    const updates: string[] = [];
-    const values: unknown[] = [];
-
-    const fieldMappings: Array<{ field: keyof typeof data; column: string; transform?: (value: unknown) => unknown }> = [
-      {
- field: 'username',
-column: 'username'
-},
-      {
- field: 'email',
-column: 'email'
-},
-      {
- field: 'display_name',
-column: 'display_name'
-},
-      {
- field: 'avatar_url',
-column: 'avatar_url'
-},
-      {
- field: 'bio',
-column: 'bio'
-},
-      {
- field: 'timezone',
-column: 'timezone'
-},
-      {
- field: 'language',
-column: 'language'
-},
-      {
- field: 'status',
-column: 'status'
-},
-      {
- field: 'email_verified',
-column: 'email_verified',
-transform: (value: unknown) => { return value ? 1 : 0 }
-},
-      {
- field: 'preferences',
-column: 'preferences'
-},
-      {
- field: 'metadata',
-column: 'metadata'
-}
-    ];
-
-    fieldMappings.forEach(({
- field, column, transform
-}) => {
-      if (data[field] !== undefined) {
-        updates.push(`${column} = ?`);
-        values.push(transform ? transform(data[field]) : data[field]);
-      }
-    });
-
-    return {
- updates,
-values
-};
-  }
-
-  /**
    * Update user.
    * @param id - User ID to update.
    * @param data - Partial user data to update.
@@ -302,5 +178,191 @@ values
     );
 
     return result.rows;
+  }
+
+  /**
+   * Get database connection.
+   * @returns Promise resolving to database connection.
+   */
+  private async getDatabase(): Promise<IDatabaseConnection> {
+    if (this.dbService === undefined) {
+      throw new Error('Repository not initialized');
+    }
+    return await this.dbService.getConnection();
+  }
+
+  /**
+   * Build insert values array from user data.
+   * @param userData - User data to process.
+   * @returns Array of values for database insert.
+   */
+  private buildInsertValues(userData: Omit<IUsersRow, 'id'> & { id: string }): unknown[] {
+    return [
+      userData.id,
+      userData.username,
+      userData.email,
+      userData.display_name ?? null,
+      userData.avatar_url ?? null,
+      userData.bio ?? null,
+      userData.timezone ?? null,
+      userData.language ?? null,
+      userData.status,
+      userData.email_verified ?? null,
+      userData.preferences ?? null,
+      userData.metadata ?? null,
+      userData.created_at,
+      userData.updated_at
+    ];
+  }
+
+  /**
+   * Execute database insert for user.
+   * @param database - Database connection.
+   * @param insertValues - Values to insert.
+   */
+  private async executeInsert(
+    database: IDatabaseConnection,
+    insertValues: unknown[]
+  ): Promise<void> {
+    const stmt = await database.prepare(
+      `INSERT INTO users (
+        id, username, email, display_name, avatar_url, bio,
+        timezone, language, status, email_verified, preferences,
+        metadata, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    await stmt.run(insertValues);
+    await stmt.finalize();
+  }
+
+  /**
+   * Build user result object from input data.
+   * @param userData - Input user data.
+   * @returns Formatted user result.
+   */
+  private buildUserResult(userData: Omit<IUsersRow, 'id'> & { id: string }): IUsersRow {
+    return {
+      id: userData.id,
+      username: userData.username,
+      email: userData.email,
+      display_name: userData.display_name ?? null,
+      avatar_url: userData.avatar_url ?? null,
+      bio: userData.bio ?? null,
+      timezone: userData.timezone ?? null,
+      language: userData.language ?? null,
+      status: userData.status,
+      email_verified: userData.email_verified ?? null,
+      preferences: userData.preferences ?? null,
+      metadata: userData.metadata ?? null,
+      created_at: userData.created_at,
+      updated_at: userData.updated_at
+    };
+  }
+
+  /**
+   * Gets field mappings for database operations.
+   * @returns Array of field mapping configurations.
+   */
+  private getFieldMappings(): Array<{
+    field: string;
+    column: string;
+    transform?: (value: unknown) => unknown;
+  }> {
+    return [
+      {
+ field: 'username',
+column: 'username'
+},
+      {
+ field: 'email',
+column: 'email'
+},
+      {
+ field: 'display_name',
+column: 'display_name'
+},
+      {
+ field: 'avatar_url',
+column: 'avatar_url'
+},
+      {
+ field: 'bio',
+column: 'bio'
+},
+      {
+ field: 'timezone',
+column: 'timezone'
+},
+      {
+ field: 'language',
+column: 'language'
+},
+      {
+ field: 'status',
+column: 'status'
+},
+      {
+        field: 'email_verified',
+        column: 'email_verified',
+        transform: (value: unknown): number => { return value ? 1 : 0 }
+      },
+      {
+ field: 'preferences',
+column: 'preferences'
+},
+      {
+ field: 'metadata',
+column: 'metadata'
+}
+    ];
+  }
+
+  /**
+   * Processes a single field mapping for updates.
+   * @param mapping - Field mapping configuration.
+   * @param mapping.field
+   * @param data - Update data.
+   * @param mapping.column
+   * @param updates - Updates array to populate.
+   * @param mapping.transform
+   * @param values - Values array to populate.
+   */
+  private processFieldMapping(
+    mapping: { field: string; column: string; transform?: (value: unknown) => unknown },
+    data: Record<string, unknown>,
+    updates: string[],
+    values: unknown[]
+  ): void {
+    const {
+ field, column, transform
+} = mapping;
+    if (data[field] !== undefined) {
+      updates.push(`${column} = ?`);
+      const transformedValue = transform ? transform(data[field]) : data[field];
+      values.push(transformedValue);
+    }
+  }
+
+  /**
+   * Builds update query components from data.
+   * @param data - Update data.
+   * @returns Object with updates and values arrays.
+   */
+  private buildUpdateQuery(
+    data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>
+  ): { updates: string[]; values: unknown[] } {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    const fieldMappings = this.getFieldMappings();
+
+    fieldMappings.forEach((mapping) => {
+      this.processFieldMapping(mapping, data as Record<string, unknown>, updates, values);
+    });
+
+    return {
+ updates,
+values
+};
   }
 }

@@ -52,7 +52,7 @@ export class TaskRepository {
       task.created_by ?? null
     ]);
 
-    if (result.length === 0 || !result[0]) {
+    if (result.length === 0 || result[0] === null || result[0] === undefined) {
       throw new Error('Failed to create task');
     }
 
@@ -70,7 +70,7 @@ export class TaskRepository {
     const params: unknown[] = [TaskStatus.PENDING, now];
 
     if (types !== undefined && types.length > 0) {
-      const placeholders = types.map(() => { return '?' }).join(',');
+      const placeholders = types.map((): string => { return '?' }).join(',');
       sql += ` AND type IN (${placeholders})`;
       params.push(...types);
     }
@@ -78,7 +78,7 @@ export class TaskRepository {
     sql += ' ORDER BY priority DESC, created_at ASC LIMIT 1';
     const result = await this.database.query<ITaskRow>(sql, params);
 
-    return result.length > 0 && result[0] ? result[0] : null;
+    return result.length > 0 && result[0] !== null && result[0] !== undefined ? result[0] : null;
   }
 
   /**
@@ -98,7 +98,7 @@ export class TaskRepository {
    */
   async findById(taskId: number): Promise<ITaskRow | null> {
     const result = await this.database.query<ITaskRow>('SELECT * FROM task WHERE id = ?', [taskId]);
-    return result.length > 0 && result[0] ? result[0] : null;
+    return result.length > 0 && result[0] !== null && result[0] !== undefined ? result[0] : null;
   }
 
   /**
@@ -127,7 +127,7 @@ export class TaskRepository {
     await this.executeUpdateQuery(updateFields, updateValues, taskId);
 
     const updatedTask = await this.findById(taskId);
-    if (!updatedTask) {
+    if (updatedTask === null || updatedTask === undefined) {
       throw new Error('Task not found after update');
     }
 
@@ -144,7 +144,7 @@ export class TaskRepository {
       this.getTypeCounts()
     ]);
 
-    const total = Object.values(statusCounts).reduce((sum, count) => { return sum + count }, 0);
+    const total = Object.values(statusCounts).reduce((sum: number, count: number): number => { return sum + count }, 0);
 
     const stats: ITaskStatistics = {
       total,
@@ -171,8 +171,9 @@ export class TaskRepository {
 
     const metadata: Record<string, string> = {};
     for (const row of result) {
-      if (row.value !== null) {
-        metadata[row.key] = row.value;
+      const { key, value } = row;
+      if (value !== null) {
+        metadata[key] = value;
       }
     }
 
@@ -195,6 +196,26 @@ export class TaskRepository {
   }
 
   /**
+   * Find tasks by assigned agent.
+   * @param agentId - ID of the agent.
+   * @returns Promise resolving to array of tasks.
+   */
+  async findByAgent(agentId: string): Promise<ITaskRow[]> {
+    const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? ORDER BY priority DESC, created_at ASC';
+    return await this.database.query<ITaskRow>(sql, [agentId]);
+  }
+
+  /**
+   * Find tasks by status.
+   * @param status - Task status to filter by.
+   * @returns Promise resolving to array of tasks.
+   */
+  async findByStatus(status: TaskStatus): Promise<ITaskRow[]> {
+    const sql = 'SELECT * FROM task WHERE status = ? ORDER BY priority DESC, created_at ASC';
+    return await this.database.query<ITaskRow>(sql, [status]);
+  }
+
+  /**
    * Validate required task fields.
    * @param task - Task data to validate.
    * @throws Error if validation fails.
@@ -214,29 +235,35 @@ export class TaskRepository {
    * @returns Object containing SQL query and parameters.
    */
   private buildFilterQuery(filter?: ITaskFilter): { sql: string; params: unknown[] } {
-    let sql = 'SELECT * FROM task WHERE 1=1';
+    const baseSql = 'SELECT * FROM task WHERE 1=1';
     const params: unknown[] = [];
+    const conditions: string[] = [];
 
     if (filter?.status !== undefined) {
-      sql += ' AND status = ?';
+      conditions.push('status = ?');
       params.push(filter.status);
     }
+
     if (filter?.type !== undefined) {
-      sql += ' AND type = ?';
+      conditions.push('type = ?');
       params.push(filter.type);
     }
+
     if (filter?.module_id !== undefined) {
-      sql += ' AND module_id = ?';
+      conditions.push('module_id = ?');
       params.push(filter.module_id);
     }
 
+    let sql = baseSql;
+    if (conditions.length > 0) {
+      sql += ` AND ${conditions.join(' AND ')}`;
+    }
     sql += ' ORDER BY priority DESC, created_at ASC';
 
     if (filter?.limit !== undefined) {
       sql += ' LIMIT ?';
       params.push(filter.limit);
     }
-
     if (filter?.offset !== undefined) {
       sql += ' OFFSET ?';
       params.push(filter.offset);
@@ -246,6 +273,52 @@ export class TaskRepository {
  sql,
 params
 };
+  }
+
+  /**
+   * Add status-related update fields.
+   * @param updates - Partial task data to update.
+   * @param updateFields - Array to push update field strings.
+   * @param updateValues - Array to push update values.
+   */
+  private addStatusUpdates(
+    updates: Partial<ITaskRow>,
+    updateFields: string[],
+    updateValues: unknown[]
+  ): void {
+    if (updates.status === undefined) { return; }
+
+    updateFields.push('status = ?');
+    updateValues.push(updates.status);
+
+    if (updates.status === TaskStatus.COMPLETED || updates.status === TaskStatus.FAILED) {
+      updateFields.push('completed_at = ?');
+      updateValues.push(new Date().toISOString());
+    }
+  }
+
+  /**
+   * Add basic field updates.
+   * @param updates - Partial task data to update.
+   * @param updateFields - Array to push update field strings.
+   * @param updateValues - Array to push update values.
+   */
+  private addBasicFieldUpdates(
+    updates: Partial<ITaskRow>,
+    updateFields: string[],
+    updateValues: unknown[]
+  ): void {
+    const basicFields = [
+      'instructions', 'priority', 'max_executions', 'max_time',
+      'result', 'error', 'progress', 'assigned_agent_id', 'completed_at'
+    ] as const;
+
+    for (const field of basicFields) {
+      if (updates[field] !== undefined) {
+        updateFields.push(`${field} = ?`);
+        updateValues.push(updates[field]);
+      }
+    }
   }
 
   /**
@@ -260,65 +333,13 @@ params
     const updateFields: string[] = [];
     const updateValues: unknown[] = [];
 
-    if (updates.status !== undefined) {
-      updateFields.push('status = ?');
-      updateValues.push(updates.status);
-
-      if (updates.status === TaskStatus.COMPLETED || updates.status === TaskStatus.FAILED) {
-        updateFields.push('completed_at = ?');
-        updateValues.push(new Date().toISOString());
-      }
-    }
-
-    if (updates.instructions !== undefined) {
-      updateFields.push('instructions = ?');
-      updateValues.push(updates.instructions);
-    }
-
-    if (updates.priority !== undefined) {
-      updateFields.push('priority = ?');
-      updateValues.push(updates.priority);
-    }
-
-    if (updates.max_executions !== undefined) {
-      updateFields.push('max_executions = ?');
-      updateValues.push(updates.max_executions);
-    }
-
-    if (updates.max_time !== undefined) {
-      updateFields.push('max_time = ?');
-      updateValues.push(updates.max_time);
-    }
-
-    if (updates.result !== undefined) {
-      updateFields.push('result = ?');
-      updateValues.push(updates.result);
-    }
-
-    if (updates.error !== undefined) {
-      updateFields.push('error = ?');
-      updateValues.push(updates.error);
-    }
-
-    if (updates.progress !== undefined) {
-      updateFields.push('progress = ?');
-      updateValues.push(updates.progress);
-    }
-
-    if (updates.assigned_agent_id !== undefined) {
-      updateFields.push('assigned_agent_id = ?');
-      updateValues.push(updates.assigned_agent_id);
-    }
-
-    if (updates.completed_at !== undefined) {
-      updateFields.push('completed_at = ?');
-      updateValues.push(updates.completed_at);
-    }
+    this.addStatusUpdates(updates, updateFields, updateValues);
+    this.addBasicFieldUpdates(updates, updateFields, updateValues);
 
     return {
-      updateFields,
-      updateValues
-    };
+ updateFields,
+updateValues
+};
   }
 
   /**
@@ -334,7 +355,8 @@ params
     taskId: number
   ): Promise<void> {
     updateValues.push(taskId);
-    await this.database.execute(`UPDATE task SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
+    const updateQuery = `UPDATE task SET ${updateFields.join(', ')} WHERE id = ?`;
+    await this.database.execute(updateQuery, updateValues);
   }
 
   /**
@@ -365,29 +387,10 @@ params
 
     const tasksByType: Record<string, number> = {};
     for (const row of result) {
-      tasksByType[row.type] = row.count;
+      const { type, count } = row;
+      tasksByType[type] = count;
     }
 
     return tasksByType;
-  }
-
-  /**
-   * Find tasks by assigned agent.
-   * @param agentId - ID of the agent.
-   * @returns Promise resolving to array of tasks.
-   */
-  async findByAgent(agentId: string): Promise<ITaskRow[]> {
-    const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? ORDER BY priority DESC, created_at ASC';
-    return await this.database.query<ITaskRow>(sql, [agentId]);
-  }
-
-  /**
-   * Find tasks by status.
-   * @param status - Task status to filter by.
-   * @returns Promise resolving to array of tasks.
-   */
-  async findByStatus(status: TaskStatus): Promise<ITaskRow[]> {
-    const sql = 'SELECT * FROM task WHERE status = ? ORDER BY priority DESC, created_at ASC';
-    return await this.database.query<ITaskRow>(sql, [status]);
   }
 }

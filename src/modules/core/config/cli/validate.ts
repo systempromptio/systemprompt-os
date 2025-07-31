@@ -7,14 +7,14 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import type {
   IConfigStructure,
   IDefaultsConfig,
   IProvidersConfig,
   ISystemDefaults,
   IValidateCommandContext
-} from '@/modules/core/config/types/index';
+} from '@/modules/core/config/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 
@@ -419,8 +419,8 @@ const loadCurrentConfig = async (logger: ILogger): Promise<IConfigStructure> => 
   logger.info(LogSource.CLI, 'Validating Configuration...');
   logger.info(LogSource.CLI, 'Validating current configuration');
 
-  const configModule = await getConfigModule();
-  const rawConfig = await configModule.exports.get();
+  await configModule.initialize();
+  const rawConfig = await configModule.exports.service().list();
 
   if (hasRequiredStructure(rawConfig)) {
     const config = rawConfig as IConfigStructure;

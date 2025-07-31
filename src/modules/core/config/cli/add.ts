@@ -4,9 +4,9 @@
  * @module modules/core/config/cli/add
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import type { IMcpServerConfig } from '@/modules/core/config/types/index';
+import type { IMcpServerConfig } from '@/modules/core/config/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -16,13 +16,13 @@ import { LogSource } from '@/modules/core/logger/types/index';
  * @param {string} jsonString - JSON string to parse.
  * @returns {unknown} Parsed JSON or null if invalid.
  */
-function parseJsonSafely(jsonString: string): unknown {
+const parseJsonSafely = (jsonString: string): unknown => {
   try {
     return JSON.parse(jsonString);
   } catch {
     return null;
   }
-}
+};
 
 export const command: ICLICommand = {
   description: 'Add MCP server configuration',
@@ -78,7 +78,7 @@ export const command: ICLICommand = {
         config.env = parsedEnv as Record<string, string>;
       }
 
-      const configModule = await getConfigModule();
+      await configModule.initialize();
       await configModule.exports.service().addMcpServer(config);
 
       cliOutput.success(`MCP server '${name}' added successfully!`);

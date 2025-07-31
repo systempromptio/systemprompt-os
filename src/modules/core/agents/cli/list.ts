@@ -9,7 +9,7 @@ import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IAgent } from '@/modules/core/agents/types/manual';
+import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
 
 /**
  * Type guard to check if value is a string.

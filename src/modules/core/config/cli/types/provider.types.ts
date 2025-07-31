@@ -4,7 +4,7 @@
  * @module modules/core/config/cli/types/provider
  */
 
-import type { IProviderConfig } from '@/modules/core/config/types/model.types';
+import type { IProviderConfig } from '@/modules/core/config/types/manual';
 
 /**
  * Extended provider interface with version and typed config.

@@ -9,29 +9,24 @@ import type {
   IAgentCreateData,
   IAgentUpdateData
 } from '@/modules/core/agents/types/agents.module.generated';
-import type {AgentsType} from '@/modules/core/agents/types/database.generated';
 import {
   AgentsStatus,
+  type AgentsType,
   type IAgentLogsRow,
   type IAgentsRow
 } from '@/modules/core/agents/types/database.generated';
+import type {
+  CreateAgentInput,
+  UpdateAgentInput
+} from '@/modules/core/agents/types/manual';
 import { AgentBaseRepository } from '@/modules/core/agents/repositories/agent-base.repository';
-
-// Minimal DTOs for input only
-interface CreateAgentInput extends IAgentCreateData {
-  id?: string | undefined;
-}
-
-interface UpdateAgentInput extends IAgentUpdateData {
-  // Additional repository-specific fields if needed
-}
 
 /**
  * Repository class for agent-related database operations.
  * Provides methods for managing agents.
  */
-export class AgentRepository extends AgentBaseRepository {
-  private static instance: AgentRepository | null = null;
+export class AgentsRepository extends AgentBaseRepository {
+  private static instance: AgentsRepository | null = null;
 
   /**
    * Private constructor for singleton pattern.
@@ -44,9 +39,9 @@ export class AgentRepository extends AgentBaseRepository {
    * Get singleton instance of AgentRepository.
    * @returns The AgentRepository instance.
    */
-  static getInstance(): AgentRepository {
-    AgentRepository.instance ??= new AgentRepository();
-    return AgentRepository.instance;
+  static getInstance(): AgentsRepository {
+    AgentsRepository.instance ??= new AgentsRepository();
+    return AgentsRepository.instance;
   }
 
   /**

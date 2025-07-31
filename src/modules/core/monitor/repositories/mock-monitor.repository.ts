@@ -8,7 +8,7 @@ import type {
   IMetricData,
   IMetricQuery,
   MonitorRepository
-} from '@/modules/core/monitor/types';
+} from '@/modules/core/monitor/types/manual';
 
 /**
  * Mock repository implementation for monitor data.

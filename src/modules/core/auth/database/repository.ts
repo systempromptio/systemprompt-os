@@ -1,13 +1,32 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { getAuthModule } from '@/modules/core/auth/index';
-import type {
- IUser
-} from '@/modules/core/auth/types';
-import type { OAuthProfile } from '@/modules/core/auth/types/repository.types';
-import type {
- SessionMetadata
-} from '@/modules/core/auth/types/repository.types';
+
+// Auth-specific user interface - different from the main IUser interface
+interface IAuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
+}
+
+interface OAuthProfile {
+  provider: string;
+  providerId: string;
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
+interface SessionMetadata {
+  userAgent?: string;
+  ipAddress?: string;
+  lastActivity?: Date;
+}
 import {
  ZERO
 } from '@/constants/numbers';
@@ -114,10 +133,10 @@ export class AuthRepository {
     provider: string,
     providerId: string,
     profile: OAuthProfile,
-  ): Promise<IUser> {
+  ): Promise<IAuthUser> {
     try {
       const authModule = getAuthModule();
-      const authService = authModule.exports.authService();
+      const authService = authModule.exports.service();
 
       const user = await authService.createOrUpdateUserFromOAuth(provider, providerId, profile);
 
@@ -125,7 +144,7 @@ export class AuthRepository {
         throw new Error('Failed to create/update OAuth user');
       }
 
-      const result: IUser = {
+      const result: IAuthUser = {
         id: user.id,
         email: user.email,
         isActive: true,
@@ -154,10 +173,10 @@ export class AuthRepository {
    * Fetches minimal user data via events and combines with roles/permissions.
    * @param userId
    */
-  async getIUserById(userId: string): Promise<IUser | null> {
+  async getIUserById(userId: string): Promise<IAuthUser | null> {
     try {
       const authModule = getAuthModule();
-      const authService = authModule.exports.authService();
+      const authService = authModule.exports.service();
 
       const userInfo = await authService.requestUserData(userId);
 

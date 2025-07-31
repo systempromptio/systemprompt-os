@@ -9,7 +9,7 @@ import { generateKeyPairSync } from 'crypto';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { ONE } from '@/constants/numbers';
-import type { ICliContext } from '@/modules/core/auth/types/cli.types';
+import type { ICliContext } from '@/modules/core/auth/types/manual';
 
 export const command = {
   description: 'Generate cryptographic keys for JWT signing',

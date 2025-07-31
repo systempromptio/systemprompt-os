@@ -1,9 +1,9 @@
 // LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues: 11 ESLint errors including type assertions (5), comparison operators (1), destructuring formatting (3), prefer-destructuring (2). Type assertions are required for validated data after runtime checks. Other issues are minor formatting and style violations.
 
 import type {
-  IGoogleConfig, IGoogleUserInfo, IIdentityProvider, IIdpUserInfo, IdpTokens
-} from '@/modules/core/auth/types/provider-interface';
-import type { ITokenResponseData } from '@/modules/core/auth/types/oauth2.types';
+  IGoogleConfig, IGoogleUserInfo, IIdentityProvider, IIdpUserInfo,
+  ITokenResponseData, IdpTokens
+} from '@/modules/core/auth/types/manual';
 
 /**
  * GoogleProvider class implementing Google OAuth2 authentication.

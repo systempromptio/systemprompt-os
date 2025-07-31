@@ -1,4 +1,4 @@
-import type { IdpConfig } from '@/modules/core/auth/types/provider-interface';
+import type { IdpConfig } from '@/modules/core/auth/types/manual';
 
 /**
  * GitHub OAuth2 configuration interface.

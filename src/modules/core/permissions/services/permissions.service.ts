@@ -12,20 +12,20 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { PermissionsRepository } from '@/modules/core/permissions/repositories/permissions-repository';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import {
+  PermissionsRepository
+} from '@/modules/core/permissions/repositories/permissions.repository';
 import {
   type IPermission,
-  type IPermissionCheck,
-  type IPermissionsService,
   type IRole
-} from '@/modules/core/permissions/types/index';
+} from '@/modules/core/permissions/types/permissions.module.generated';
+import type { IPermissionCheck } from '@/modules/core/permissions/types/manual';
 
 /**
  * Service for managing permissions and roles.
  */
-export class PermissionsService implements IPermissionsService {
+export class PermissionsService {
   private static instance: PermissionsService;
   private readonly repository: PermissionsRepository;
   private logger?: ILogger;
@@ -80,33 +80,28 @@ export class PermissionsService implements IPermissionsService {
    * @param description - Optional description.
    * @returns Promise that resolves to the created permission.
    */
+  // eslint-disable-next-line max-params -- Required for permission creation API
   async createPermission(
     name: string,
     resource: string,
     action: string,
-    description?: string
+    description: string
   ): Promise<IPermission> {
     await this.ensureInitialized();
 
     const id = randomUUID();
-    this.logger?.info(LogSource.PERMISSIONS, `Creating permission: ${name} (${resource}:${action})`);
-
-    const permission = await this.repository.createPermission(
-      description !== undefined
-        ? {
- id,
-name,
-resource,
-action,
-description
-}
-        : {
- id,
-name,
-resource,
-action
-}
+    this.logger?.info(
+      LogSource.PERMISSIONS,
+      `Creating permission: ${name} (${resource}:${action})`
     );
+
+    const permission = this.repository.createPermission({
+      id,
+      name,
+      resource,
+      action,
+      description
+    });
     this.logger?.info(LogSource.PERMISSIONS, `Created permission: ${id}`);
 
     return permission;
@@ -137,26 +132,18 @@ action
    * @param description - Optional description.
    * @returns Promise that resolves to the created role.
    */
-  async createRole(name: string, description?: string): Promise<IRole> {
+  async createRole(name: string, description: string): Promise<IRole> {
     await this.ensureInitialized();
 
     const id = randomUUID();
     this.logger?.info(LogSource.PERMISSIONS, `Creating role: ${name}`);
 
-    const role = await this.repository.createRole(
-      description !== undefined
-        ? {
- id,
-name,
-description,
-isSystem: false
-}
-        : {
- id,
-name,
-isSystem: false
-}
-    );
+    const role = this.repository.createRole({
+      id,
+      name,
+      description,
+      isSystem: false
+    });
     this.logger?.info(LogSource.PERMISSIONS, `Created role: ${id}`);
 
     return role;
@@ -200,7 +187,10 @@ isSystem: false
       throw new Error(`Permission not found: ${permissionId}`);
     }
 
-    this.logger?.info(LogSource.PERMISSIONS, `Granting permission ${permissionId} to role ${roleId}`);
+    this.logger?.info(
+      LogSource.PERMISSIONS,
+      `Granting permission ${permissionId} to role ${roleId}`
+    );
     await this.repository.grantPermissionToRole(roleId, permissionId);
   }
 
@@ -213,7 +203,10 @@ isSystem: false
   async revokePermission(roleId: string, permissionId: string): Promise<void> {
     await this.ensureInitialized();
 
-    this.logger?.info(LogSource.PERMISSIONS, `Revoking permission ${permissionId} from role ${roleId}`);
+    this.logger?.info(
+      LogSource.PERMISSIONS,
+      `Revoking permission ${permissionId} from role ${roleId}`
+    );
     await this.repository.revokePermissionFromRole(roleId, permissionId);
   }
 
@@ -224,7 +217,7 @@ isSystem: false
    * @param expiresAt - Optional expiration date.
    * @returns Promise that resolves when assigned.
    */
-  async assignRole(userId: string, roleId: string, expiresAt?: Date): Promise<void> {
+  async assignRole(userId: string, roleId: string, expiresAt: Date | null): Promise<void> {
     await this.ensureInitialized();
 
     const role = await this.repository.findRoleById(roleId);
@@ -233,18 +226,18 @@ isSystem: false
     }
 
     this.logger?.info(LogSource.PERMISSIONS, `Assigning role ${roleId} to user ${userId}`);
-    await this.repository.assignRoleToUser(
-      expiresAt !== undefined
-        ? {
- userId,
-roleId,
-expiresAt
-}
-        : {
- userId,
-roleId
-}
-    );
+    if (expiresAt) {
+      await this.repository.assignRoleToUser({
+        userId,
+        roleId,
+        expiresAt
+      });
+    } else {
+      await this.repository.assignRoleToUser({
+        userId,
+        roleId
+      });
+    }
   }
 
   /**
@@ -262,6 +255,7 @@ roleId
 
   /**
    * Check if user has permission.
+   * Sequential processing is required for permission checking logic.
    * @param userId - The user ID.
    * @param resource - The resource identifier.
    * @param action - The action identifier.
@@ -277,13 +271,13 @@ roleId
     const userRoles = await this.repository.findUserRoles(userId);
 
     for (const userRole of userRoles) {
-      const permissions = await this.repository.findRolePermissions(userRole.roleId);
+      const permissions = await this.repository.findRolePermissions(userRole.role_id);
 
       for (const permission of permissions) {
         if (permission.resource === resource && permission.action === action) {
           return {
             allowed: true,
-            role: userRole.roleId,
+            role: userRole.role_id,
             permission: permission.id
           };
         }
@@ -305,14 +299,15 @@ roleId
     await this.ensureInitialized();
 
     const userRoles = await this.repository.findUserRoles(userId);
-    const roles: IRole[] = [];
 
-    for (const userRole of userRoles) {
-      const role = await this.repository.findRoleById(userRole.roleId);
-      if (role !== null) {
-        roles.push(role);
-      }
-    }
+    const rolePromises = userRoles.map(async (userRole): Promise<IRole | null> => {
+      return await this.repository.findRoleById(userRole.role_id);
+    });
+
+    const roleResults = await Promise.all(rolePromises);
+    const roles = roleResults.filter((role): role is IRole => {
+      return role !== null;
+    });
 
     return roles;
   }
@@ -334,7 +329,7 @@ roleId
   private async initializeDefaultRoles(): Promise<void> {
     const adminRole = await this.repository.findRoleByName('admin');
     if (adminRole === null) {
-      await this.repository.createRole({
+      this.repository.createRole({
         id: randomUUID(),
         name: 'admin',
         description: 'System administrator role',
@@ -344,7 +339,7 @@ roleId
 
     const userRole = await this.repository.findRoleByName('user');
     if (userRole === null) {
-      await this.repository.createRole({
+      this.repository.createRole({
         id: randomUUID(),
         name: 'user',
         description: 'Default user role',

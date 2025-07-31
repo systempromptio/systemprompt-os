@@ -17,11 +17,10 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
-import type { AgentService } from '@/modules/core/agents/services/agent.service';
-import type { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
+import type { AgentsService } from '@/modules/core/agents/services/agents.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
-import type { IAgentsModuleExports } from '@/modules/core/agents/types/index';
+import type { IAgentsModuleExports } from '@/modules/core/agents/types/agents.service.generated';
 import { AgentsStatus } from '@/modules/core/agents/types/database.generated';
 import { EventNames } from '@/modules/core/events/types/index';
 import { spawn } from 'child_process';
@@ -31,8 +30,7 @@ import { createTestId } from '../../../setup';
 
 describe('Agents Module Integration Tests', () => {
   let bootstrap: Bootstrap;
-  let agentService: AgentService;
-  let agentRepository: AgentRepository;
+  let agentService: AgentsService;
   let dbService: DatabaseService;
   let eventBus: EventBusService;
   let agentsModule: any;
@@ -60,8 +58,8 @@ describe('Agents Module Integration Tests', () => {
     }
     
     try {
-      const { AgentService } = await import('@/modules/core/agents/services/agent.service');
-      await AgentService.reset();
+      const { AgentsService } = await import('@/modules/core/agents/services/agents.service');
+      await AgentsService.reset();
     } catch (error) {
       // Ignore
     }
@@ -115,7 +113,6 @@ describe('Agents Module Integration Tests', () => {
     
     const agentExports = agentsModuleRef.exports as IAgentsModuleExports;
     agentService = agentExports.service();
-    agentRepository = agentExports.repository();
     
     if ('eventBus' in eventsModule.exports) {
       eventBus = eventsModule.exports.eventBus;
@@ -158,8 +155,8 @@ describe('Agents Module Integration Tests', () => {
           }
 
           try {
-            const { AgentService } = await import('@/modules/core/agents/services/agent.service');
-            await AgentService.reset();
+            const { AgentsService } = await import('@/modules/core/agents/services/agents.service');
+            await AgentsService.reset();
           } catch (error) {
             // Ignore
           }

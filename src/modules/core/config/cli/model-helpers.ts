@@ -10,7 +10,7 @@ import type {
   IProviderConfig,
   ISafetySetting,
   ITool
-} from '@/modules/core/config/types/model.types';
+} from '@/modules/core/config/types/manual';
 
 const logger = getLoggerService();
 

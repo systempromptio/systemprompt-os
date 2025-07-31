@@ -6,8 +6,8 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import { MetricService } from '@/modules/core/monitor/services/metric.service';
-import { MetricType } from '@/modules/core/monitor/types';
+import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
+import { MetricType } from '@/modules/core/monitor/types/manual';
 
 export const command: ICLICommand = {
   description: 'Record a metric value',
@@ -44,36 +44,35 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const {
- name, value, type, unit
-} = context.args as {
-        name: string;
-        value: number;
-        type: string;
-        unit?: string;
-      };
+      const {args} = context;
+      const name = args.name as string;
+      const value = args.value as number;
+      const type = args.type as string;
+      const unit = args.unit as string | undefined;
 
       const validTypes: MetricType[] = [MetricType.COUNTER, MetricType.GAUGE, MetricType.HISTOGRAM];
-      if (!validTypes.includes(type as MetricType)) {
+      const metricType = type as MetricType;
+      if (!validTypes.includes(metricType)) {
         cliOutput.error(`Invalid metric type: ${type}. Must be one of: ${validTypes.join(', ')}`);
         process.exit(1);
         return;
       }
 
-      const metricService = MetricService.getInstance();
+      const monitorService = MonitorService.getInstance();
+      monitorService.initialize();
 
-      metricService.initialize();
-
-      metricService.recordMetric({
+      const recordOptions = {
         name,
         value,
-        type: type as MetricType,
-        ...unit && { unit },
-      });
+        type: metricType,
+        ...unit && { unit }
+      };
+      monitorService.recordMetric(recordOptions);
 
-      await metricService.shutdown();
+      await monitorService.shutdown();
 
-      cliOutput.success(`Metric recorded: ${name} = ${value} (${type})${unit ? ` ${unit}` : ''}`);
+      const unitDisplay = unit ? ` ${unit}` : '';
+      cliOutput.success(`Metric recorded: ${name} = ${String(value)} (${type})${unitDisplay}`);
 
       process.exit(0);
     } catch (error) {

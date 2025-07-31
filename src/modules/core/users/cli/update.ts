@@ -60,7 +60,7 @@ const validateStatus = (
   ];
 
   const matchedStatus = validStatuses.find((statusValue): boolean => {
-    return statusValue === status as UsersStatus;
+    return statusValue.toString() === status;
   });
   if (matchedStatus === undefined) {
     cliOutput.error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
@@ -164,6 +164,45 @@ const createDisplayOptions = (format?: string): IDisplayOptions => {
   return displayOptions;
 };
 
+/**
+ * Handles user update errors.
+ * @param error - The error that occurred.
+ * @param cliOutput - CLI output service.
+ * @param logger - Logger service.
+ */
+const handleUpdateError = (
+  error: unknown,
+  cliOutput: CliOutputService,
+  logger: LoggerService
+): void => {
+  cliOutput.error('Error updating user');
+  const logError = error instanceof Error ? error : new Error(String(error));
+  logger.error(LogSource.USERS, 'Error updating user', { error: logError });
+  process.exit(1);
+};
+
+/**
+ * Processes user update operation.
+ * @param args - Validated CLI arguments.
+ * @param usersService - Users service instance.
+ * @param cliOutput - CLI output service.
+ */
+const processUserUpdate = async (
+  args: IUpdateUserArgs,
+  usersService: UsersService,
+  cliOutput: CliOutputService
+): Promise<void> => {
+  const userId = validateUserId(args, cliOutput);
+  const updateData = buildUpdateData(args, cliOutput);
+
+  cliOutput.section('Updating User');
+  const user = await usersService.updateUser(userId, updateData);
+  cliOutput.success('User updated successfully');
+
+  const displayOptions = createDisplayOptions(args.format);
+  displayUserInfo(user, displayOptions, cliOutput);
+};
+
 export const command: ICLICommand = {
   description: 'Update user information',
   execute: async (context: ICLIContext): Promise<void> => {
@@ -173,21 +212,10 @@ export const command: ICLICommand = {
 
     try {
       const usersService = UsersService.getInstance();
-      const userId = validateUserId(args, cliOutput);
-      const updateData = buildUpdateData(args, cliOutput);
-
-      cliOutput.section('Updating User');
-      const user = await usersService.updateUser(userId, updateData);
-      cliOutput.success('User updated successfully');
-
-      const displayOptions = createDisplayOptions(args.format);
-      displayUserInfo(user, displayOptions, cliOutput);
+      await processUserUpdate(args, usersService, cliOutput);
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error updating user');
-      const logError = error instanceof Error ? error : new Error(String(error));
-      logger.error(LogSource.USERS, 'Error updating user', { error: logError });
-      process.exit(1);
+      handleUpdateError(error, cliOutput, logger);
     }
   },
 };

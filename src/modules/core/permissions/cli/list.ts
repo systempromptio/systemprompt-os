@@ -9,6 +9,7 @@
 
 import { Command } from 'commander';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
+import type { ListCommandOptions } from '@/modules/core/permissions/types/manual';
 
 const NO_PERMISSIONS = 0;
 const ERROR_EXIT_CODE = 1;
@@ -21,7 +22,7 @@ export const createListCommand = (): Command => {
   return new Command('permissions:list')
     .description('List all permissions')
     .option('-f, --format <format>', 'Output format', 'table')
-    .action(async (options): Promise<void> => {
+    .action(async (options: ListCommandOptions): Promise<void> => {
       try {
         const service = PermissionsService.getInstance();
         await service.initialize();
@@ -33,15 +34,16 @@ export const createListCommand = (): Command => {
           return;
         }
 
-        if (options.format === 'json') {
+        if (typeof options.format === 'string' && options.format === 'json') {
           console.log(JSON.stringify(permissions, null, 2));
           return;
         }
 
         console.log('Permissions:');
         permissions.forEach((permission): void => {
-          console.log(`- ${permission.name} (${permission.resource}:${permission.action})`);
-          if (permission.description) {
+          const resourceAction = `${permission.resource}:${permission.action}`;
+          console.log(`- ${permission.name} (${resourceAction})`);
+          if (permission.description !== null && permission.description.length > 0) {
             console.log(`  ${permission.description}`);
           }
         });

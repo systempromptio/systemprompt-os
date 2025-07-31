@@ -3,8 +3,8 @@
  * @module modules/core/config/cli/set
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
-import type { ConfigValue } from '@/modules/core/config/types/index';
+import { configModule } from '@/modules/core/config/index';
+import type { ConfigValue } from '@/modules/core/config/types/manual';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -54,10 +54,10 @@ export const command: ICLICommand = {
     }
 
     try {
-      const configModule = await getConfigModule();
+      await configModule.initialize();
       const parsedValue = parseValue(value);
 
-      await configModule.exports.set(key, parsedValue);
+      await configModule.exports.service().set(key, parsedValue);
 
       cliOutput.success('Configuration updated:');
       cliOutput.keyValue({

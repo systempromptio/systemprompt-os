@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
-import type { MetricService } from '@/modules/core/monitor/services/metric.service';
+import type { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { spawn } from 'child_process';
 import { join } from 'path';
@@ -25,7 +25,7 @@ import { createTestId } from '../../../setup';
 
 describe('Monitor Module Integration Tests', () => {
   let bootstrap: Bootstrap;
-  let metricService: MetricService | undefined;
+  let monitorService: MonitorService | undefined;
   let dbService: DatabaseService;
   
   const testSessionId = `monitor-integration-${createTestId()}`;
@@ -61,8 +61,8 @@ describe('Monitor Module Integration Tests', () => {
     
     // Monitor module might not be loaded by default, that's ok
     if (monitorModule && 'exports' in monitorModule && monitorModule.exports) {
-      if ('MonitorService' in monitorModule.exports) {
-        metricService = monitorModule.exports.MonitorService as MetricService;
+      if ('service' in monitorModule.exports) {
+        monitorService = monitorModule.exports.service();
       }
     }
   });
@@ -100,7 +100,7 @@ describe('Monitor Module Integration Tests', () => {
       expect(monitorModule).toBeDefined();
       expect(monitorModule?.name).toBe('monitor');
       expect(monitorModule?.version).toBe('1.0.0');
-      expect(monitorModule?.type).toBe('daemon');
+      expect(monitorModule?.type).toBe('core');
     });
 
     it('should have monitor module exports available', async () => {
@@ -110,19 +110,19 @@ describe('Monitor Module Integration Tests', () => {
       expect(monitorModule).toBeDefined();
       if (monitorModule && 'exports' in monitorModule) {
         expect(monitorModule.exports).toBeDefined();
-        expect(monitorModule.exports?.MonitorService).toBeDefined();
-        metricService = monitorModule.exports.MonitorService as MetricService;
-        expect(metricService).toBeDefined();
+        expect(monitorModule.exports?.service).toBeDefined();
+        monitorService = monitorModule.exports.service();
+        expect(monitorService).toBeDefined();
       }
     });
   });
 
   describe('Metrics Collection', () => {
     it('should record metrics successfully', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
       // Record a test metric
-      metricService?.recordMetric({
+      monitorService?.recordMetric({
         name: 'test.metric',
         value: 42,
         type: 'gauge',
@@ -135,9 +135,9 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should collect system metrics', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
-      const systemMetrics = await metricService?.getSystemMetrics();
+      const systemMetrics = await monitorService?.getSystemMetrics();
       expect(systemMetrics).toBeDefined();
       expect(systemMetrics?.cpu.cores).toBeGreaterThan(0);
       expect(systemMetrics?.memory.total).toBeGreaterThan(0);
@@ -146,9 +146,9 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should increment counter metrics', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
-      metricService?.incrementCounter({
+      monitorService?.incrementCounter({
         name: 'test.counter',
         labels: { action: 'test' },
         value: 1
@@ -158,9 +158,9 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should set gauge metrics', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
-      metricService?.setGauge({
+      monitorService?.setGauge({
         name: 'test.gauge',
         value: 100,
         labels: { type: 'memory' },
@@ -171,9 +171,9 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should record histogram metrics', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
-      metricService?.recordHistogram({
+      monitorService?.recordHistogram({
         name: 'test.histogram',
         value: 250,
         labels: { endpoint: '/api/test' },
@@ -213,7 +213,7 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should query metrics by name', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
       // Insert a test metric directly
       await dbService.execute(
@@ -221,7 +221,7 @@ describe('Monitor Module Integration Tests', () => {
         ['test.query.metric', 123, 'gauge', new Date().toISOString()]
       );
       
-      const results = await metricService?.queryMetrics({
+      const results = await monitorService?.queryMetrics({
         metric: 'test.query.metric'
       });
       
@@ -231,9 +231,9 @@ describe('Monitor Module Integration Tests', () => {
     });
     
     it('should get metric names', async () => {
-      expect(metricService).toBeDefined();
+      expect(monitorService).toBeDefined();
       
-      const names = await metricService?.getMetricNames();
+      const names = await monitorService?.getMetricNames();
       expect(names).toBeDefined();
       expect(Array.isArray(names)).toBe(true);
     });
@@ -266,9 +266,8 @@ describe('Monitor Module Integration Tests', () => {
       expect(info).toBeDefined();
       expect(info?.name).toBe('monitor');
       expect(info?.version).toBe('1.0.0');
-      expect(info?.type).toBe('daemon');
-      expect(info?.description).toBe('System monitoring and observability');
-      expect(info?.author).toBe('SystemPrompt OS Team');
+      expect(info?.type).toBe('core');
+      expect(info?.description).toBe('System monitoring and metrics collection');
     });
   });
 
@@ -338,8 +337,8 @@ describe('Monitor Module Integration Tests', () => {
       await monitorModule?.start();
       
       // Cleanup should work without errors
-      if (metricService) {
-        await metricService.cleanupOldMetrics(30);
+      if (monitorService) {
+        await monitorService.cleanupOldMetrics(30);
       }
       
       await monitorModule?.stop();

@@ -6,11 +6,13 @@
 
 import type {
   IMetricData,
-  IMetricLabelRow,
   IMetricQuery,
-  IMetricRow,
   MonitorRepository
-} from '@/modules/core/monitor/types';
+} from '@/modules/core/monitor/types/manual';
+import type {
+  IMetricLabelRow,
+  IMetricRow
+} from '@/modules/core/monitor/types/database.generated';
 import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
 
 /**

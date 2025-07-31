@@ -10,7 +10,7 @@ import {
   type IPermission,
   type IRole,
   type IUserRole
-} from '@/modules/core/permissions/types/index';
+} from '@/modules/core/permissions/types/permissions.module.generated';
 
 /**
  * Repository for permissions data operations.
@@ -72,9 +72,9 @@ export class PermissionsRepository {
       name: data.name,
       resource: data.resource,
       action: data.action,
-      description: data.description ?? '',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      description: data.description ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     this.permissions.set(data.id, permission);
@@ -118,10 +118,10 @@ export class PermissionsRepository {
     const role: IRole = {
       id: data.id,
       name: data.name,
-      description: data.description ?? '',
-      isSystem: data.isSystem ?? false,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      description: data.description ?? null,
+      is_system: data.isSystem ?? false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     this.roles.set(data.id, role);
@@ -244,25 +244,29 @@ export class PermissionsRepository {
 
     const existingIndex = userRoles.findIndex(
       (ur): boolean => {
-        return ur.roleId === data.roleId;
+        return ur.role_id === data.roleId;
       }
     );
     const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
-    const defaultExpiry = new Date(Date.now() + oneYearInMs);
+    const defaultExpiry = data.expiresAt === undefined
+      ? new Date(Date.now() + oneYearInMs).toISOString()
+      : data.expiresAt.toISOString();
 
     if (existingIndex >= 0) {
       userRoles[existingIndex] = {
-        userId: data.userId,
-        roleId: data.roleId,
-        assignedAt: new Date(),
-        expiresAt: data.expiresAt ?? defaultExpiry
+        user_id: data.userId,
+        role_id: data.roleId,
+        assigned_at: new Date().toISOString(),
+        assigned_by: null,
+        expires_at: defaultExpiry
       };
     } else {
       userRoles.push({
-        userId: data.userId,
-        roleId: data.roleId,
-        assignedAt: new Date(),
-        expiresAt: data.expiresAt ?? defaultExpiry
+        user_id: data.userId,
+        role_id: data.roleId,
+        assigned_at: new Date().toISOString(),
+        assigned_by: null,
+        expires_at: defaultExpiry
       });
     }
   }
@@ -282,7 +286,7 @@ export class PermissionsRepository {
     if (userRoles !== undefined) {
       const index = userRoles.findIndex(
         (ur): boolean => {
-          return ur.roleId === roleId;
+          return ur.role_id === roleId;
         }
       );
       if (index >= 0) {

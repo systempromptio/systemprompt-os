@@ -8,10 +8,10 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { GenericOAuth2Provider, discoverOidcConfiguration } from '@/modules/core/auth/providers/core/oauth2';
 import type {
-  IdpConfig as IDPConfig,
+  IDPConfig,
+  IGenericOAuth2Config,
   IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface';
-import type { IGenericOAuth2Config } from '@/modules/core/auth/types/oauth2.types';
+} from '@/modules/core/auth/types/manual';
 import type { IAuthProvidersRow } from '@/modules/core/auth/types/database.generated';
 import { UrlConfigService } from '@/modules/core/system/services/url-config.service';
 

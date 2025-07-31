@@ -4,7 +4,7 @@
  * @module modules/core/config/cli/delete
  */
 
-import { getConfigModule } from '@/modules/core/config/index';
+import { configModule } from '@/modules/core/config/index';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -26,7 +26,7 @@ export const command: ICLICommand = {
     }
 
     try {
-      const configModule = await getConfigModule();
+      await configModule.initialize();
       const configService = configModule.exports.service();
 
       const existingServer = await configService.getMcpServer(name);

@@ -15,8 +15,8 @@ import { LogSource } from '@/modules/core/logger/types';
 import type {
   IModelCommandOptions,
   IProviderConfig
-} from '@/modules/core/config/types/model.types';
-import type { IProvider } from '@/modules/core/config/types/provider.types';
+} from '@/modules/core/config/types/manual';
+import type { IProvider } from '@/modules/core/config/types/manual';
 import { executeModelTest } from '@/modules/core/config/cli/model-commands';
 import {
   formatTools,

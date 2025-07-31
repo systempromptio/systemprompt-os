@@ -1,9 +1,9 @@
 /**
- * Metric service for collecting, buffering, and managing application metrics.
+ * Monitor service for collecting, buffering, and managing application metrics.
  * This service provides functionality for recording various metric types,
  * querying historical data, and managing system metrics collection.
  * Implements singleton pattern for core module compliance.
- * @file Metric service for collecting, buffering, and managing application metrics.
+ * @file Monitor service for collecting, buffering, and managing application metrics.
  * @module modules/core/monitor/services
  */
 
@@ -17,22 +17,22 @@ import type {
   IMetricQueryResult,
   ISystemMetrics,
   MonitorRepository
-} from '@/modules/core/monitor/types';
-import { MetricType } from '@/modules/core/monitor/types';
+} from '@/modules/core/monitor/types/manual';
+import { MetricType } from '@/modules/core/monitor/types/database.generated';
 
 /**
- * Metric service for collecting, buffering, and managing application metrics.
+ * Monitor service for collecting, buffering, and managing application metrics.
  * Provides functionality for recording various metric types, querying historical data,
  * and managing system metrics collection.
  * Implements singleton pattern for core module compliance.
  */
-export class MetricService extends EventEmitter {
-  private static instance: MetricService | null = null;
+export class MonitorService extends EventEmitter {
+  private static instance: MonitorService | null = null;
   private repository: MonitorRepository;
   private logger: ILogger;
   private config: IMetricConfig;
   private buffer: IMetricData[] = [];
-  private flushTimer?: NodeJS.Timeout;
+  private flushTimer?: NodeJS.Timeout | undefined;
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -45,12 +45,12 @@ export class MetricService extends EventEmitter {
   }
 
   /**
-   * Gets the singleton instance of MetricService.
-   * @returns The MetricService instance.
+   * Gets the singleton instance of MonitorService.
+   * @returns The MonitorService instance.
    */
-  public static getInstance(): MetricService {
-    MetricService.instance ??= new MetricService();
-    return MetricService.instance;
+  public static getInstance(): MonitorService {
+    MonitorService.instance ??= new MonitorService();
+    return MonitorService.instance;
   }
 
   /**
@@ -72,7 +72,7 @@ export class MetricService extends EventEmitter {
   /**
    * Initialize the metric service and start periodic flushing.
    */
-  public initialize(): void {
+  private initialize(): void {
     this.logger.info('Metric service initialized');
 
     this.flushTimer = setInterval(
@@ -284,7 +284,7 @@ export class MetricService extends EventEmitter {
   public async shutdown(): Promise<void> {
     if (this.flushTimer !== undefined) {
       clearInterval(this.flushTimer);
-      this.flushTimer = null as any;
+      this.flushTimer = undefined as NodeJS.Timeout | undefined;
     }
 
     await this.flushMetrics();

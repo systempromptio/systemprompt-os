@@ -1,5 +1,5 @@
 // Auto-generated service schemas for auth module
-// Generated on: 2025-07-31T13:04:42.537Z
+// Generated on: 2025-07-31T15:11:42.129Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -8,42 +8,21 @@ import { ModulesType } from '@/modules/core/modules/types/index';
 
 // Zod schema for AuthService
 export const AuthServiceSchema = z.object({
-  login: z.function()
-    .args(z.unknown())
+  authenticate: z.function()
+    .args(z.string(), z.string())
     .returns(z.promise(z.unknown())),
-  logout: z.function()
+  createSession: z.function()
     .args(z.string())
-    .returns(z.promise(z.void())),
-  refreshAccessToken: z.function()
-    .args(z.string())
-    .returns(z.promise(z.unknown())),
+    .returns(z.promise(z.string())),
   validateSession: z.function()
     .args(z.string())
-    .returns(z.promise(z.string().nullable())),
-  createApiToken: z.function()
-    .args(z.unknown())
     .returns(z.promise(z.unknown())),
-  validateApiToken: z.function()
-    .args(z.string())
-    .returns(z.promise(z.unknown())),
-  listUserTokens: z.function()
-    .args(z.string())
-    .returns(z.promise(z.array(z.unknown()))),
-  revokeToken: z.function()
+  revokeSession: z.function()
     .args(z.string())
     .returns(z.promise(z.void())),
-  revokeUserTokens: z.function()
-    .args(z.string(), z.string())
-    .returns(z.promise(z.void())),
-  cleanupExpiredTokens: z.function()
-    .args()
-    .returns(z.promise(z.number())),
-  createOrUpdateUserFromOAuth: z.function()
-    .args(z.string(), z.string(), z.unknown())
-    .returns(z.promise(z.unknown().nullable())),
-  requestUserData: z.function()
+  listSessions: z.function()
     .args(z.string())
-    .returns(z.promise(z.unknown().nullable())),
+    .returns(z.promise(z.array(z.string()))),
 });
 
 // Zod schema for IAuthModuleExports

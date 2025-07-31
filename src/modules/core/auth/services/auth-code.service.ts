@@ -8,8 +8,8 @@ import { AuthCodeRepository } from '@/modules/core/auth/repositories/auth-code.r
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
-  IAuthorizationCodeData,
-} from '@/modules/core/auth/types/auth-code.types';
+  IAuthCodeCreate as IAuthorizationCodeData,
+} from '@/modules/core/auth/types/manual';
 
 /**
  * AuthCodeService class for managing authorization codes.
