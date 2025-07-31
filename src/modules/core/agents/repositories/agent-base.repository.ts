@@ -4,13 +4,14 @@
  * @module src/modules/core/agents/repositories/agent-base
  */
 
-import type {
-  AgentStatus,
-  AgentType,
-  IAgent,
-  TaskPriority,
-  TaskStatus
-} from '@/modules/core/agents/types/agent.types';
+import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
+import type { AgentsStatus, AgentsType } from '@/modules/core/agents/types/database.generated';
+
+// Type aliases for backward compatibility
+type AgentType = AgentsType;
+type AgentStatus = AgentsStatus;
+type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
 import type { IAgentsRow } from '@/modules/core/agents/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';

@@ -1,3 +1,10 @@
+---
+name: Module-developer
+description: When working on systemprompt-os core modules
+model: sonnet
+color: blue
+---
+
 # Module Development AGENT
 
 ## Context
@@ -10,12 +17,6 @@ Before starting module development, familiarize yourself with the module structu
 ## Development Workflow
 
 When developing a module, follow this iterative development cycle:
-
-### Setup: Create Fresh Branch
-Start development on a fresh branch:
-```bash
-git checkout -b module-agent-{{modulename}}-$(date +%s)
-```
 
 ### Status Monitoring
 Before starting development, check the module status:

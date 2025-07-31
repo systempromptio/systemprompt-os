@@ -5,7 +5,7 @@
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -36,7 +36,7 @@ const validateDeleteArgs = (
  * @returns Promise resolving to success status.
  */
 const performDeletion = async (
-  agentService: AgentService,
+  agentService: AgentsService,
   identifier: string,
   cliOutput: CliOutputService
 ): Promise<boolean> => {
@@ -82,7 +82,7 @@ export const command: ICLICommand = {
         process.exit(1);
       }
 
-      const agentService = AgentService.getInstance();
+      const agentService = AgentsService.getInstance();
       const success = await performDeletion(agentService, identifier, cliOutput);
 
       process.exit(success ? 0 : 1);

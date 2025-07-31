@@ -9,11 +9,11 @@
 import {
  type IModule, ModulesStatus, ModulesType
 } from '@/modules/core/modules/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { AgentRepository } from '@/modules/core/agents/repositories/agent.repository';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { type IAgentsModuleExports } from '@/modules/core/agents/types/index';
+import { type IAgentsModuleExports } from '@/modules/core/agents/types/manual';
 /**
  * Agents module provides agent management and task execution functionality.
  */
@@ -24,14 +24,14 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
   public readonly description = 'Agent management and task execution system';
   public readonly dependencies = ['database', 'logger', 'auth', 'events'] as const;
   public status: ModulesStatus = ModulesStatus.PENDING;
-  private agentService!: AgentService;
+  private agentService!: AgentsService;
   private agentRepository!: AgentRepository;
   private logger!: ILogger;
   private initialized = false;
   private started = false;
   get exports(): IAgentsModuleExports {
     return {
-      service: (): AgentService => {
+      service: (): AgentsService => {
         return this.agentService;
       },
       repository: (): AgentRepository => {
@@ -53,7 +53,7 @@ export class AgentsModule implements IModule<IAgentsModuleExports> {
 
     try {
       this.agentRepository = AgentRepository.getInstance();
-      this.agentService = AgentService.getInstance();
+      this.agentService = AgentsService.getInstance();
 
       this.initialized = true;
       this.logger.info(LogSource.MODULES, 'Agents module initialized');

@@ -6,7 +6,7 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { TaskStatus } from '@/modules/core/tasks/types/index';
+import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
 
 /**
  * Tasks cancel command.

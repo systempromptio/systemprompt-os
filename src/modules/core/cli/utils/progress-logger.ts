@@ -3,7 +3,14 @@
  */
 export interface IProgressConfig {
   text?: string;
+  spinner?: boolean;
+  interval?: number;
 }
+
+/**
+ * Spinner frames for animated progress indication.
+ */
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 /**
  * Simple progress logger class.
@@ -11,10 +18,90 @@ export interface IProgressConfig {
 export class ProgressLogger {
   private text: string;
   private readonly startTime: number;
+  private readonly useSpinner: boolean;
+  private readonly interval: number;
+  private spinnerTimer?: NodeJS.Timeout | undefined;
+  private currentFrame: number = 0;
+  private isActive: boolean = false;
+  private static readonly activeSpinners = new Set<ProgressLogger>();
 
   constructor(config: IProgressConfig = {}) {
     this.text = config.text ?? 'Processing...';
     this.startTime = Date.now();
+    this.useSpinner = config.spinner ?? false;
+    this.interval = config.interval ?? 120;
+    
+    // Cleanup on process exit
+    if (ProgressLogger.activeSpinners.size === 0) {
+      process.on('exit', ProgressLogger.cleanupAll);
+      process.on('SIGINT', ProgressLogger.cleanupAll);
+      process.on('SIGTERM', ProgressLogger.cleanupAll);
+    }
+  }
+
+  /**
+   * Cleanup all active spinners.
+   */
+  private static cleanupAll(): void {
+    ProgressLogger.activeSpinners.forEach(spinner => {
+      spinner.stopSpinner();
+    });
+    ProgressLogger.activeSpinners.clear();
+  }
+
+  /**
+   * Start the spinner animation.
+   */
+  private startSpinner(): void {
+    if (!this.useSpinner || this.isActive) {
+      return;
+    }
+
+    // Stop any other active spinners first
+    ProgressLogger.activeSpinners.forEach(spinner => {
+      if (spinner !== this && spinner.isActive) {
+        spinner.stopSpinner();
+      }
+    });
+
+    this.isActive = true;
+    ProgressLogger.activeSpinners.add(this);
+    
+    // Hide cursor
+    process.stdout.write('\x1B[?25l');
+    
+    this.spinnerTimer = setInterval(() => {
+      const frame = SPINNER_FRAMES[this.currentFrame % SPINNER_FRAMES.length];
+      // Clear the entire line and move cursor to beginning
+      process.stdout.write(`\r\x1B[K${frame ?? '⠋'} ${this.text}`);
+      this.currentFrame += 1;
+    }, this.interval);
+  }
+
+  /**
+   * Stop the spinner animation.
+   */
+  private stopSpinner(): void {
+    if (this.spinnerTimer) {
+      clearInterval(this.spinnerTimer);
+      this.spinnerTimer = undefined;
+    }
+    if (this.isActive) {
+      ProgressLogger.activeSpinners.delete(this);
+      this.isActive = false;
+      // Show cursor again
+      process.stdout.write('\x1B[?25h');
+    }
+  }
+
+  /**
+   * Clear the current line.
+   */
+  private clearLine(): void {
+    if (this.useSpinner) {
+      // Clear the entire line and move cursor to beginning
+      process.stdout.write('\r\x1B[K');
+    }
   }
 
   /**
@@ -26,7 +113,12 @@ export class ProgressLogger {
     if (text) {
       this.text = text;
     }
-    process.stdout.write(`⏳ ${this.text}\n`);
+    
+    if (this.useSpinner) {
+      this.startSpinner();
+    } else {
+      process.stdout.write(`⏳ ${this.text}\n`);
+    }
     return this;
   }
 
@@ -36,6 +128,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   succeed(text?: string): this {
+    this.stopSpinner();
+    this.clearLine();
     const message = text ?? this.text;
     const elapsed = this.getElapsedTime();
     process.stdout.write(`✅ ${message} (${String(elapsed)}ms)\n`);
@@ -48,6 +142,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   fail(text?: string): this {
+    this.stopSpinner();
+    this.clearLine();
     const message = text ?? this.text;
     const elapsed = this.getElapsedTime();
     process.stdout.write(`❌ ${message} (${String(elapsed)}ms)\n`);
@@ -61,7 +157,9 @@ export class ProgressLogger {
    */
   updateText(text: string): this {
     this.text = text;
-    process.stdout.write(`⏳ ${text}\n`);
+    if (!this.useSpinner) {
+      process.stdout.write(`⏳ ${text}\n`);
+    }
     return this;
   }
 
@@ -88,9 +186,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   stop(): this {
-    /**
-     * No-op for compatibility.
-     */
+    this.stopSpinner();
+    this.clearLine();
     return this;
   }
 
@@ -108,6 +205,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   warn(text?: string): this {
+    this.stopSpinner();
+    this.clearLine();
     const message = text ?? this.text;
     process.stdout.write(`⚠️  ${message}\n`);
     return this;
@@ -119,6 +218,8 @@ export class ProgressLogger {
    * @returns This logger instance.
    */
   info(text?: string): this {
+    this.stopSpinner();
+    this.clearLine();
     const message = text ?? this.text;
     process.stdout.write(`ℹ️  ${message}\n`);
     return this;
@@ -129,12 +230,20 @@ export class ProgressLogger {
  * Progress logger presets.
  */
 export const PROGRESS_PRESETS = {
-  loading: { text: 'Loading...' },
-  processing: { text: 'Processing...' },
-  connecting: { text: 'Connecting...' },
-  saving: { text: 'Saving...' },
-  analyzing: { text: 'Analyzing...' },
-  building: { text: 'Building...' }
+  loading: { text: 'Loading...',
+spinner: true },
+  processing: { text: 'Processing...',
+spinner: true },
+  connecting: { text: 'Connecting...',
+spinner: true },
+  saving: { text: 'Saving...',
+spinner: true },
+  analyzing: { text: 'Analyzing...',
+spinner: true },
+  building: { text: 'Building...',
+spinner: true },
+  static: { text: 'Processing...',
+spinner: false }
 };
 
 /**

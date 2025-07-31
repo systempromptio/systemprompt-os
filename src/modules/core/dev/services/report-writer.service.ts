@@ -202,6 +202,7 @@ export class ReportWriterService {
   /**
    * Get the report directory path for a given command and module/target.
    * @param command - The command type.
+   * @param _command
    * @param module - Optional module name.
    * @param target - Optional target path.
    * @returns The directory path where reports should be stored.

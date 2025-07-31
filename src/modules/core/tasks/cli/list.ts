@@ -7,10 +7,12 @@
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
 import {
-  type ITaskFilter,
   type ITaskRow,
   TaskStatus
-} from '@/modules/core/tasks/types/index';
+} from '@/modules/core/tasks/types/database.generated';
+import {
+  type ITaskFilter
+} from '@/modules/core/tasks/types/manual';
 
 /**
  * Type guard to check if string is a valid TaskStatus.

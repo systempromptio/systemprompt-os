@@ -17,7 +17,8 @@ export class UsersRepository {
   /**
    * Private constructor for singleton.
    */
-  private constructor() {}
+  private constructor() {
+  }
 
   /**
    * Get singleton instance.
@@ -32,15 +33,16 @@ export class UsersRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  async initialize() {
+  async initialize(): Promise<void> {
     this.dbService = DatabaseService.getInstance();
   }
 
   /**
    * Get database connection.
+   * @returns Promise resolving to database connection.
    */
   private async getDatabase(): Promise<IDatabaseConnection> {
-    if (!this.dbService) {
+    if (this.dbService === undefined) {
       throw new Error('Repository not initialized');
     }
     return await this.dbService.getConnection();
@@ -48,9 +50,10 @@ export class UsersRepository {
 
   /**
    * Create a new user.
-   * @param userData
+   * @param userData - User data to create.
+   * @returns Promise resolving to created user.
    */
-  async createUser(userData: Omit<IUsersRow, 'id'> & { id: string }): Promise<IUsersRow> {
+  public async createUser(userData: Omit<IUsersRow, 'id'> & { id: string }): Promise<IUsersRow> {
     const database = await this.getDatabase();
 
     const stmt = await database.prepare(
@@ -61,22 +64,24 @@ export class UsersRepository {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
-    await stmt.run([
+    const insertValues = [
       userData.id,
       userData.username,
       userData.email,
-      userData.display_name || null,
-      userData.avatar_url || null,
-      userData.bio || null,
-      userData.timezone || null,
-      userData.language || null,
+      userData.display_name ?? null,
+      userData.avatar_url ?? null,
+      userData.bio ?? null,
+      userData.timezone ?? null,
+      userData.language ?? null,
       userData.status,
-      userData.email_verified || null,
-      userData.preferences || null,
-      userData.metadata || null,
+      userData.email_verified ?? null,
+      userData.preferences ?? null,
+      userData.metadata ?? null,
       userData.created_at,
       userData.updated_at
-    ]);
+    ];
+
+    await stmt.run(insertValues);
 
     await stmt.finalize();
 
@@ -84,15 +89,15 @@ export class UsersRepository {
       id: userData.id,
       username: userData.username,
       email: userData.email,
-      display_name: userData.display_name || null,
-      avatar_url: userData.avatar_url || null,
-      bio: userData.bio || null,
-      timezone: userData.timezone || null,
-      language: userData.language || null,
+      display_name: userData.display_name ?? null,
+      avatar_url: userData.avatar_url ?? null,
+      bio: userData.bio ?? null,
+      timezone: userData.timezone ?? null,
+      language: userData.language ?? null,
       status: userData.status,
-      email_verified: userData.email_verified || null,
-      preferences: userData.preferences || null,
-      metadata: userData.metadata || null,
+      email_verified: userData.email_verified ?? null,
+      preferences: userData.preferences ?? null,
+      metadata: userData.metadata ?? null,
       created_at: userData.created_at,
       updated_at: userData.updated_at
     };
@@ -100,9 +105,10 @@ export class UsersRepository {
 
   /**
    * Find user by ID.
-   * @param id
+   * @param id - User ID to find.
+   * @returns Promise resolving to user or null if not found.
    */
-  async findById(id: string): Promise<IUsersRow | null> {
+  public async findById(id: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -110,15 +116,16 @@ export class UsersRepository {
       [id]
     );
 
-    const row = result.rows[0];
-    return row || null;
+    const { rows } = result;
+    return rows[0] ?? null;
   }
 
   /**
    * Find user by username.
-   * @param username
+   * @param username - Username to find.
+   * @returns Promise resolving to user or null if not found.
    */
-  async findByUsername(username: string): Promise<IUsersRow | null> {
+  public async findByUsername(username: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -126,15 +133,16 @@ export class UsersRepository {
       [username]
     );
 
-    const row = result.rows[0];
-    return row || null;
+    const { rows } = result;
+    return rows[0] ?? null;
   }
 
   /**
    * Find user by email.
-   * @param email
+   * @param email - Email to find.
+   * @returns Promise resolving to user or null if not found.
    */
-  async findByEmail(email: string): Promise<IUsersRow | null> {
+  public async findByEmail(email: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -142,14 +150,15 @@ export class UsersRepository {
       [email]
     );
 
-    const row = result.rows[0];
-    return row || null;
+    const { rows } = result;
+    return rows[0] ?? null;
   }
 
   /**
    * Find all users.
+   * @returns Promise resolving to array of all users.
    */
-  async findAll(): Promise<IUsersRow[]> {
+  public async findAll(): Promise<IUsersRow[]> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -160,64 +169,92 @@ export class UsersRepository {
   }
 
   /**
-   * Update user.
-   * @param id
-   * @param data
+   * Builds update query components from data.
+   * @param data - Update data.
+   * @returns Object with updates and values arrays.
    */
-  async updateUser(id: string, data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>): Promise<IUsersRow> {
+  private buildUpdateQuery(data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>): { updates: string[]; values: unknown[] } {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    const fieldMappings: Array<{ field: keyof typeof data; column: string; transform?: (value: unknown) => unknown }> = [
+      {
+ field: 'username',
+column: 'username'
+},
+      {
+ field: 'email',
+column: 'email'
+},
+      {
+ field: 'display_name',
+column: 'display_name'
+},
+      {
+ field: 'avatar_url',
+column: 'avatar_url'
+},
+      {
+ field: 'bio',
+column: 'bio'
+},
+      {
+ field: 'timezone',
+column: 'timezone'
+},
+      {
+ field: 'language',
+column: 'language'
+},
+      {
+ field: 'status',
+column: 'status'
+},
+      {
+ field: 'email_verified',
+column: 'email_verified',
+transform: (value: unknown) => { return value ? 1 : 0 }
+},
+      {
+ field: 'preferences',
+column: 'preferences'
+},
+      {
+ field: 'metadata',
+column: 'metadata'
+}
+    ];
+
+    fieldMappings.forEach(({
+ field, column, transform
+}) => {
+      if (data[field] !== undefined) {
+        updates.push(`${column} = ?`);
+        values.push(transform ? transform(data[field]) : data[field]);
+      }
+    });
+
+    return {
+ updates,
+values
+};
+  }
+
+  /**
+   * Update user.
+   * @param id - User ID to update.
+   * @param data - Partial user data to update.
+   * @returns Promise resolving to updated user.
+   */
+  public async updateUser(
+    id: string,
+    data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>
+  ): Promise<IUsersRow> {
     const database = await this.getDatabase();
-
-    const updates = [];
-    const values = [];
-
-    if (data.username !== undefined) {
-      updates.push('username = ?');
-      values.push(data.username);
-    }
-    if (data.email !== undefined) {
-      updates.push('email = ?');
-      values.push(data.email);
-    }
-    if (data.display_name !== undefined) {
-      updates.push('display_name = ?');
-      values.push(data.display_name);
-    }
-    if (data.avatar_url !== undefined) {
-      updates.push('avatar_url = ?');
-      values.push(data.avatar_url);
-    }
-    if (data.bio !== undefined) {
-      updates.push('bio = ?');
-      values.push(data.bio);
-    }
-    if (data.timezone !== undefined) {
-      updates.push('timezone = ?');
-      values.push(data.timezone);
-    }
-    if (data.language !== undefined) {
-      updates.push('language = ?');
-      values.push(data.language);
-    }
-    if (data.status !== undefined) {
-      updates.push('status = ?');
-      values.push(data.status);
-    }
-    if (data.email_verified !== undefined) {
-      updates.push('email_verified = ?');
-      values.push(data.email_verified ? 1 : 0);
-    }
-    if (data.preferences !== undefined) {
-      updates.push('preferences = ?');
-      values.push(data.preferences);
-    }
-    if (data.metadata !== undefined) {
-      updates.push('metadata = ?');
-      values.push(data.metadata);
-    }
+    const { updates, values } = this.buildUpdateQuery(data);
 
     updates.push('updated_at = ?');
     values.push(new Date().toISOString());
-
     values.push(id);
 
     const stmt = await database.prepare(
@@ -227,7 +264,7 @@ export class UsersRepository {
     await stmt.finalize();
 
     const user = await this.findById(id);
-    if (!user) {
+    if (user === null) {
       throw new Error(`User not found after update: ${id}`);
     }
 
@@ -238,7 +275,7 @@ export class UsersRepository {
    * Delete user.
    * @param id - User ID.
    */
-  async deleteUser(id: string): Promise<void> {
+  public async deleteUser(id: string): Promise<void> {
     const database = await this.getDatabase();
 
     const stmt = await database.prepare(
@@ -253,7 +290,7 @@ export class UsersRepository {
    * @param query - Search query.
    * @returns Array of matching users.
    */
-  async searchUsers(query: string): Promise<IUsersRow[]> {
+  public async searchUsers(query: string): Promise<IUsersRow[]> {
     const database = await this.getDatabase();
 
     const searchPattern = `%${query}%`;

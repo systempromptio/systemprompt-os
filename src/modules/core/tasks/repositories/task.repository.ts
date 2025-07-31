@@ -6,13 +6,13 @@
 
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import {
+ type ITaskMetadataRow, type ITaskRow, TaskStatus
+} from '@/modules/core/tasks/types/database.generated';
+import {
   type ITaskFilter,
-  type ITaskMetadataRow,
   type ITaskStatistics,
-  TaskPriority,
-  TaskStatus
-} from '@/modules/core/tasks/types/index';
-import type { ITaskRow } from '@/modules/core/tasks/types/database.generated';
+  TaskPriority
+} from '@/modules/core/tasks/types/manual';
 
 /**
  * Task repository for database operations.
@@ -146,15 +146,18 @@ export class TaskRepository {
 
     const total = Object.values(statusCounts).reduce((sum, count) => { return sum + count }, 0);
 
-    return {
+    const stats: ITaskStatistics = {
       total,
       pending: statusCounts[TaskStatus.PENDING] ?? 0,
       inProgress: statusCounts[TaskStatus.IN_PROGRESS] ?? 0,
       completed: statusCounts[TaskStatus.COMPLETED] ?? 0,
       failed: statusCounts[TaskStatus.FAILED] ?? 0,
       cancelled: statusCounts[TaskStatus.CANCELLED] ?? 0,
+      averageExecutionTime: undefined,
       tasksByType
     };
+
+    return stats;
   }
 
   /**

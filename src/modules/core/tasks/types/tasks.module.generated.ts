@@ -1,12 +1,12 @@
 // Auto-generated Zod schemas for tasks module
-// Generated on: 2025-07-31T13:04:45.448Z
+// Generated on: 2025-07-31T14:37:49.085Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { TasksDatabaseRowSchema } from './database.generated';
+import { TaskRowSchema } from './database.generated';
 
-// Task schema - directly use database row schema
-export const TaskSchema = TasksDatabaseRowSchema;
+// Task schema - use task row schema specifically (not union type)
+export const TaskSchema = TaskRowSchema;
 
 export const TaskCreateDataSchema = z.object({
   type: z.string(),

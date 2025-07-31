@@ -5,13 +5,13 @@
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { validateAgentIdentifier } from '@/modules/core/agents/cli/validation.helpers';
 import { displayAgentDetails } from '@/modules/core/agents/cli/show.helpers';
-import type { IAgent } from '@/modules/core/agents/types/agent.types';
+import type { IAgent } from '@/modules/core/agents/types/manual';
 
 /**
  * Handles success case for agent display.
@@ -61,7 +61,7 @@ const executeShow = async (context: ICLIContext): Promise<void> => {
       process.exit(1);
     }
 
-    const agentService = AgentService.getInstance();
+    const agentService = AgentsService.getInstance();
     const agent = await agentService.getAgent(identifier);
 
     if (agent === null) {

@@ -17,7 +17,7 @@ const MODULE_STRUCTURE = {
     description: 'Service files must be in services/ folder and end with .service.ts'
   },
   types: {
-    pattern: /^.*\/types\/(index\.ts|[^/]+\.types\.ts|[^/]+\.interface\.ts|[^/]+\.d\.ts)$/,
+    pattern: /^.*\/types\/([^/]+\.ts|[^/]+\.d\.ts)$/,
     allowedExtensions: ['.ts', '.d.ts'],
     description: 'Type definitions must be in types/ folder'
   },

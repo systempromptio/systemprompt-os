@@ -4,7 +4,7 @@
  * @module modules/core/agents/cli/show-helpers
  */
 
-import type { IAgent } from '@/modules/core/agents/types/agent.types';
+import type { IAgent } from '@/modules/core/agents/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 
 /**

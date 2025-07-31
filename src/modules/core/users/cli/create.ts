@@ -12,6 +12,63 @@ import { LogSource } from '@/modules/core/logger/types/index';
 import type { IUserCreateData } from '@/modules/core/users/types/users.module.generated';
 import { UsersStatus } from '@/modules/core/users/types/database.generated';
 
+/**
+ * Validates required CLI arguments for user creation.
+ * @param args - CLI arguments object.
+ * @param cliOutput - CLI output service instance.
+ * @returns Validated username and email.
+ */
+const validateRequiredArgs = (
+  args: Record<string, unknown>,
+  cliOutput: CliOutputService
+): { username: string; email: string } => {
+  if (
+    typeof args.username !== 'string'
+    || typeof args.email !== 'string'
+    || args.username.trim() === ''
+    || args.email.trim() === ''
+  ) {
+    cliOutput.error('Username and email are required');
+    process.exit(1);
+  }
+
+  return {
+    username: args.username,
+    email: args.email
+  };
+};
+
+/**
+ * Validates and normalizes a string argument.
+ * @param value - The argument value to validate.
+ * @param defaultValue - The default value to use if invalid.
+ * @returns The validated string or default value.
+ */
+const validateStringArg = (value: unknown, defaultValue: string | null = null): string | null => {
+  return typeof value === 'string' && value.trim() !== '' ? value : defaultValue;
+};
+
+const buildUserData = (
+  args: Record<string, unknown>,
+  validatedArgs: { username: string; email: string }
+): IUserCreateData => {
+  const { username, email } = validatedArgs;
+
+  return {
+    username,
+    email,
+    display_name: validateStringArg(args.displayName),
+    avatar_url: validateStringArg(args.avatarUrl),
+    bio: validateStringArg(args.bio),
+    timezone: validateStringArg(args.timezone, 'UTC'),
+    language: validateStringArg(args.language, 'en'),
+    status: UsersStatus.ACTIVE,
+    email_verified: args.emailVerified === 'true',
+    preferences: null,
+    metadata: null
+  };
+};
+
 export const command: ICLICommand = {
   description: 'Create a new user',
   execute: async (context: ICLIContext): Promise<void> => {
@@ -21,51 +78,32 @@ export const command: ICLICommand = {
 
     try {
       const usersService = UsersService.getInstance();
-
-      if (!args.username || !args.email) {
-        cliOutput.error('Username and email are required');
-        process.exit(1);
-      }
-
-      const userData: IUserCreateData = {
-        username: args.username as string,
-        email: args.email as string,
-        display_name: (args.displayName as string) || null,
-        avatar_url: (args.avatarUrl as string) || null,
-        bio: (args.bio as string) || null,
-        timezone: (args.timezone as string) || 'UTC',
-        language: (args.language as string) || 'en',
-        status: UsersStatus.ACTIVE,
-        email_verified: args.emailVerified === 'true' || false,
-        preferences: null,
-        metadata: null
-      };
+      const validatedArgs = validateRequiredArgs(args, cliOutput);
+      const userData = buildUserData(args, validatedArgs);
 
       cliOutput.section('Creating User');
-
       const user = await usersService.createUser(userData);
-
-      cliOutput.success(`User created successfully`);
+      cliOutput.success('User created successfully');
 
       if (args.format === 'json') {
-        console.log(JSON.stringify(user, null, 2));
+        logger.info(LogSource.USERS, 'User created', { user });
       } else {
-        cliOutput.keyValue({
+        const userDisplay = {
           "ID": user.id,
           "Username": user.username,
           "Email": user.email,
           "Status": user.status,
-          'Created At': user.created_at || 'N/A'
-        });
+          'Created At': user.created_at ?? 'N/A'
+        };
+        cliOutput.keyValue(userDisplay);
       }
 
       process.exit(0);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       cliOutput.error(`Error creating user: ${errorMessage}`);
-      logger.error(LogSource.USERS, 'Error creating user', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
+      const logError = error instanceof Error ? error : new Error(String(error));
+      logger.error(LogSource.USERS, 'Error creating user', { error: logError });
       process.exit(1);
     }
   },

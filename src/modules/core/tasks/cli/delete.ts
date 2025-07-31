@@ -5,7 +5,7 @@
  */
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
-import type { IErrorReport } from '@/modules/core/tasks/types/index';
+import type { IErrorReport } from '@/modules/core/tasks/types/manual';
 import {
   existsSync,
   readFileSync,

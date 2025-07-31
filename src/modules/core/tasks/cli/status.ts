@@ -6,7 +6,7 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import type { ITaskStatistics } from '@/modules/core/tasks/types/index';
+import type { ITaskStatistics } from '@/modules/core/tasks/types/manual';
 
 /**
  * Display module status information.
@@ -59,7 +59,7 @@ const executeStatus = async (context: CLIContext): Promise<void> => {
   try {
     const tasksModule = getTasksModule();
     const taskService = tasksModule.exports.service();
-    const stats = await taskService.getStatistics();
+    const stats = await taskService.getStatistics() as ITaskStatistics;
 
     displayModuleStatus();
     displayQueueStatistics(stats);

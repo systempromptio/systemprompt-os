@@ -6,7 +6,6 @@
 
 import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import type { AgentType } from '@/modules/core/agents/types/agent.types';
 
 /**
  * Validates required arguments for agent creation.
@@ -41,7 +40,7 @@ export const validateCreateAgentArgs = (context: ICLIContext): boolean => {
  * @param type - Agent type to validate.
  * @returns True if valid, false otherwise.
  */
-export const validateAgentType = (type: string): type is AgentType => {
+export const validateAgentType = (type: string): boolean => {
   const validTypes: readonly string[] = ['worker', 'monitor', 'coordinator'];
   return validTypes.includes(type);
 }

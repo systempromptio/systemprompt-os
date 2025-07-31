@@ -6,8 +6,11 @@
 
 import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { UsersService } from '@/modules/core/users/services/users.service';
-import type { IUsersModuleExports } from '@/modules/core/users/types/users.service.generated';
-import { UsersModuleExportsSchema, UsersServiceSchema } from '@/modules/core/users/types/users.service.generated';
+import {
+  type IUsersModuleExports,
+  UsersModuleExportsSchema,
+  UsersServiceSchema
+} from '@/modules/core/users/types/users.service.generated';
 import type { ZodSchema } from 'zod';
 
 /**
@@ -36,6 +39,7 @@ export class UsersModule extends BaseModule<IUsersModuleExports> {
 
   /**
    * Get the Zod schema for this module's exports.
+   * @returns The Zod schema for validating module exports.
    */
   protected getExportsSchema(): ZodSchema {
     return UsersModuleExportsSchema;
@@ -49,7 +53,25 @@ export class UsersModule extends BaseModule<IUsersModuleExports> {
 
     await this.usersService.initialize();
   }
-  }
+}
 
-// Export module instance
+/**
+ * Create and return a new users module instance.
+ * @returns A new users module instance.
+ */
+export const createModule = (): UsersModule => {
+  return new UsersModule();
+};
+
+/**
+ * Export module instance.
+ */
 export const usersModule = new UsersModule();
+
+/**
+ * Initialize the users module.
+ * @returns Promise that resolves when the module is initialized.
+ */
+export const initialize = async (): Promise<void> => {
+  await usersModule.initialize();
+};

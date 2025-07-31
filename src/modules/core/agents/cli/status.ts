@@ -8,7 +8,7 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 
 export const command: ICLICommand = {
   description: 'Show agents module status (enabled/healthy)',
@@ -19,7 +19,7 @@ export const command: ICLICommand = {
     logger.debug(LogSource.AGENT, 'Executing agents status command', { context });
 
     try {
-      const agentService = AgentService.getInstance();
+      const agentService = AgentsService.getInstance();
 
       const isHealthy = agentService.isHealthy();
 
@@ -41,7 +41,7 @@ export const command: ICLICommand = {
       });
 
       try {
-        const agents = await agentService.listAgents();
+        const agents = await agentService.listAgents('');
         cliOutput.section('Statistics');
         cliOutput.keyValue({
           'Total agents': agents.length.toString(),

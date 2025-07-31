@@ -4,7 +4,7 @@
  * @module modules/core/users/cli/status
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand } from '@/modules/core/cli/types/index';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -12,7 +12,7 @@ import { LogSource } from '@/modules/core/logger/types/index';
 
 export const command: ICLICommand = {
   description: 'Show users module status (enabled/healthy)',
-  execute: async (_context: ICLIContext): Promise<void> => {
+  execute: async (): Promise<void> => {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 

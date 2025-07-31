@@ -6,7 +6,7 @@
 
 import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/index';
+import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
 
 /**
  * Extracts and validates CLI arguments for task creation.
@@ -28,13 +28,13 @@ const extractTaskParameters = (options: CLIContext): {
   const { 'module-id': moduleIdKebab } = args;
   const module_id = typeof moduleIdKebab === 'string' ? moduleIdKebab : '';
 
-  const instructionsArg = args.instructions;
+  const { instructions: instructionsArg } = args;
   const instructions = typeof instructionsArg === 'string' ? instructionsArg : null;
 
   const priorityValue = Number(args.priority);
   const priority = Number.isNaN(priorityValue) ? 0 : priorityValue;
 
-  const statusArg = args.status;
+  const { status: statusArg } = args;
   const status = typeof statusArg === 'string' ? statusArg : 'pending';
 
   const maxExecutionsValue = Number(args['max-executions']);
@@ -70,10 +70,8 @@ const validateRequiredParameters = (type: string, module_id: string): void => {
  * @param status - Status to validate.
  */
 const validateStatus = (status: string): void => {
-  const validStatuses = Object.values(TaskStatus as Record<string, string>);
-  const hasValidStatus = validStatuses.some((validStatus): boolean => {
-    return String(validStatus) === String(status);
-  });
+  const validStatuses = Object.values(TaskStatus);
+  const hasValidStatus = validStatuses.includes(status as TaskStatus);
 
   if (!hasValidStatus) {
     process.stderr.write(`Error: Invalid status. Valid values are: ${validStatuses.join(', ')}\n`);

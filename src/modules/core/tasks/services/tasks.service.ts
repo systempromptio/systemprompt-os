@@ -5,15 +5,20 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
+import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
 import {
   type ITaskFilter,
   type ITaskHandler,
-  type ITaskRow,
-  type ITaskService,
-  type ITaskStatistics,
-  TaskStatus
-} from '@/modules/core/tasks/types/index';
+  type ITaskStatistics
+} from '@/modules/core/tasks/types/manual';
+import {
+  type ITask,
+  type ITaskCreateData,
+  type ITaskUpdateData
+} from '@/modules/core/tasks/types/tasks.module.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { EventNames } from '@/modules/core/events/types/index';
 
@@ -21,7 +26,7 @@ import { EventNames } from '@/modules/core/events/types/index';
  * Task service implementation providing task management capabilities.
  * Handles task creation, execution, status updates, and statistics.
  */
-export class TaskService implements ITaskService {
+export class TaskService {
   private static instance: TaskService | null = null;
   private readonly handlers: Map<string, ITaskHandler> = new Map();
   private logger!: ILogger;
@@ -49,17 +54,16 @@ export class TaskService implements ITaskService {
   }
 
   /**
-   * Initialize the task service with dependencies.
-   * @param logger - Logger instance.
-   * @param taskRepository - Task repository instance.
+   * Initialize the task service.
+   * @returns Promise that resolves when initialized.
    */
-  public initialize(logger: ILogger, taskRepository: TaskRepository): void {
+  async initialize(): Promise<void> {
     if (this.initialized) {
       return;
     }
 
-    this.logger = logger;
-    this.taskRepository = taskRepository;
+    this.logger = LoggerService.getInstance();
+    this.taskRepository = new TaskRepository(DatabaseService.getInstance());
     this.eventBus = EventBusService.getInstance();
     this.initialized = true;
 
@@ -71,16 +75,16 @@ export class TaskService implements ITaskService {
    * @param task - Task data to add.
    * @returns Promise resolving to the created task.
    */
-  async addTask(task: Partial<ITaskRow>): Promise<ITaskRow> {
+  async addTask(task: Partial<ITaskCreateData>): Promise<ITask> {
     this.ensureInitialized();
 
-    const createdTask = await this.taskRepository.create(task);
+    const createdTask = await this.taskRepository.create(task as Partial<ITaskRow>);
 
     this.logger.info(LogSource.TASKS, `Task created: ${createdTask.id} (${createdTask.type})`);
 
     await this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
 
-    return createdTask;
+    return createdTask as ITask;
   }
 
   /**
@@ -88,7 +92,7 @@ export class TaskService implements ITaskService {
    * @param types - Optional task types to filter by.
    * @returns Promise resolving to next available task or null.
    */
-  async receiveTask(types?: string[]): Promise<ITaskRow | null> {
+  async receiveTask(types?: string[]): Promise<ITask | null> {
     this.ensureInitialized();
 
     const task = await this.taskRepository.findNextAvailable(types);
@@ -98,7 +102,7 @@ export class TaskService implements ITaskService {
       this.logger.info(LogSource.TASKS, `Task assigned: ${task.id} (${task.type})`);
     }
 
-    return task;
+    return task as ITask | null;
   }
 
   /**
@@ -107,10 +111,10 @@ export class TaskService implements ITaskService {
    * @param status - New status.
    * @returns Promise that resolves when update is complete.
    */
-  async updateTaskStatus(taskId: number, status: TaskStatus): Promise<void> {
+  async updateTaskStatus(taskId: number, status: unknown): Promise<void> {
     this.ensureInitialized();
 
-    await this.taskRepository.updateStatus(taskId, status);
+    await this.taskRepository.updateStatus(taskId, status as TaskStatus);
 
     this.logger.info(LogSource.TASKS, `Task ${taskId} status updated to ${status}`);
 
@@ -126,16 +130,16 @@ status
    * @param updates - Partial task data to update.
    * @returns Promise resolving to the updated task.
    */
-  async updateTask(taskId: number, updates: Partial<ITaskRow>): Promise<ITaskRow> {
+  async updateTask(taskId: number, updates: Partial<ITaskUpdateData>): Promise<ITask> {
     this.ensureInitialized();
 
-    const updatedTask = await this.taskRepository.update(taskId, updates);
+    const updatedTask = await this.taskRepository.update(taskId, updates as Partial<ITaskRow>);
 
     this.logger.info(LogSource.TASKS, `Task ${taskId} updated`);
 
     await this.eventBus.emit(EventNames.TASK_UPDATED, { task: updatedTask });
 
-    return updatedTask;
+    return updatedTask as ITask;
   }
 
   /**
@@ -143,9 +147,9 @@ status
    * @param taskId - Task ID to retrieve.
    * @returns Promise resolving to task or null.
    */
-  async getTaskById(taskId: number): Promise<ITaskRow | null> {
+  async getTaskById(taskId: number): Promise<ITask | null> {
     this.ensureInitialized();
-    return await this.taskRepository.findById(taskId);
+    return await this.taskRepository.findById(taskId) as ITask | null;
   }
 
   /**
@@ -153,9 +157,9 @@ status
    * @param filter - Optional filter criteria.
    * @returns Promise resolving to array of tasks.
    */
-  async listTasks(filter?: ITaskFilter): Promise<ITaskRow[]> {
+  async listTasks(filter?: ITaskFilter): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findWithFilter(filter);
+    return await this.taskRepository.findWithFilter(filter) as ITask[];
   }
 
   /**
@@ -249,9 +253,9 @@ agentId
    * @param agentId - Agent ID to get tasks for.
    * @returns Promise resolving to array of tasks.
    */
-  async getTasksByAgent(agentId: string): Promise<ITaskRow[]> {
+  async getTasksByAgent(agentId: string): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findByAgent(agentId);
+    return await this.taskRepository.findByAgent(agentId) as ITask[];
   }
 
   /**
@@ -259,9 +263,9 @@ agentId
    * @param status - Task status to filter by.
    * @returns Promise resolving to array of tasks.
    */
-  async getTasksByStatus(status: TaskStatus): Promise<ITaskRow[]> {
+  async getTasksByStatus(status: TaskStatus): Promise<ITask[]> {
     this.ensureInitialized();
-    return await this.taskRepository.findByStatus(status);
+    return await this.taskRepository.findByStatus(status) as ITask[];
   }
 
   /**

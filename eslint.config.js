@@ -100,10 +100,10 @@ export default [
       "systemprompt-os/no-blank-lines-between-properties": "error",
       "systemprompt-os/no-jsdoc-in-interfaces": "error",
       "systemprompt-os/enforce-module-bootstrap-pattern": ["error", {
-        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
+        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "events", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
       }],
       "systemprompt-os/enforce-module-yaml-bootstrap": ["error", {
-        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
+        "fundamentalModules": ["auth", "cli", "config", "database", "dev", "events", "logger", "mcp", "modules", "permissions", "system", "tasks", "users", "webhooks"]
       }],
       "systemprompt-os/enforce-core-module-pattern": "error",
       "systemprompt-os/enforce-extension-module-pattern": "error",

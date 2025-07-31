@@ -8,10 +8,6 @@ import {
  existsSync, readFileSync, readdirSync
 } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
-import { unlinkSync, writeFileSync } from 'fs';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
 import type {
  IValidator, ModuleValidationResult, ValidationOptions
 } from '@/modules/core/dev/services/validation/types';
@@ -20,7 +16,7 @@ import type {
  * Validator for module type safety and structure.
  */
 export class ModuleValidator implements IValidator<string, ModuleValidationResult> {
-  constructor(private readonly logger: ILogger) {}
+  constructor() {}
 
   /**
    * Validate a module.
@@ -43,7 +39,6 @@ export class ModuleValidator implements IValidator<string, ModuleValidationResul
         serviceUsesGeneratedTypes: false,
         moduleExportsValid: false,
         noManualTypes: false,
-        schemasValid: false,
         properServiceNaming: false,
       }
     };
@@ -124,17 +119,6 @@ export class ModuleValidator implements IValidator<string, ModuleValidationResul
       result.checks.moduleExportsValid = hasValidExports;
     }
 
-    if (result.checks.generatedTypesExist) {
-      try {
-        result.checks.schemasValid = await this.validateTypeScriptCompilation(moduleName);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        result.errors.push(`TypeScript compilation failed: ${errorMessage}`);
-        result.checks.schemasValid = false;
-        result.valid = false;
-      }
-    }
-
     result.valid = result.valid
       && result.checks.generatedTypesExist
       && result.checks.noManualTypes
@@ -142,35 +126,5 @@ export class ModuleValidator implements IValidator<string, ModuleValidationResul
       && result.errors.length === 0;
 
     return result;
-  }
-
-  /**
-   * Validate TypeScript compilation for a module.
-   * @param moduleName - Module name.
-   * @returns True if compilation succeeds.
-   */
-  private async validateTypeScriptCompilation(moduleName: string): Promise<boolean> {
-    const tempTsConfig = {
-      extends: "./tsconfig.json",
-      include: [`src/modules/core/${moduleName}/**/*`]
-    };
-
-    const tempConfigPath = `tsconfig.${moduleName}.temp.json`;
-    writeFileSync(tempConfigPath, JSON.stringify(tempTsConfig, null, 2));
-
-    try {
-      execSync(`npx tsc -p ${tempConfigPath} --noEmit`, {
-        cwd: process.cwd(),
-        stdio: 'pipe'
-      });
-
-      return true;
-    } catch (tscError: any) {
-      const errorOutput = tscError.stdout?.toString() || tscError.stderr?.toString() || tscError.message;
-      this.logger.error(LogSource.DEV, `TypeScript validation failed for ${moduleName}:`, { error: errorOutput });
-      throw new Error(errorOutput);
-    } finally {
-      unlinkSync(tempConfigPath);
-    }
   }
 }

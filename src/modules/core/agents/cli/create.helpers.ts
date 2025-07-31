@@ -7,8 +7,10 @@
 import type { ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import type {
- AgentType, IAgent, ICreateAgentDto
-} from '@/modules/core/agents/types/agent.types';
+  IAgent,
+  ICreateAgentDto
+} from '@/modules/core/agents/types/manual';
+import type { AgentsType } from '@/modules/core/agents/types/database.generated';
 
 /**
  * Type guard to check if value is a record.
@@ -24,7 +26,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
  * @param value - Value to validate.
  * @returns True if valid AgentType.
  */
-const isValidAgentType = (value: string): value is AgentType => {
+const isValidAgentType = (value: string): value is AgentsType => {
   return ['worker', 'monitor', 'coordinator'].includes(value);
 };
 

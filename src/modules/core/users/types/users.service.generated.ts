@@ -1,5 +1,5 @@
 // Auto-generated service schemas for users module
-// Generated on: 2025-07-31T13:04:45.793Z
+// Generated on: 2025-07-31T14:26:27.451Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

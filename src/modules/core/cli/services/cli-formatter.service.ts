@@ -11,11 +11,9 @@ import {
   createSection, 
   highlight
 } from '@/modules/core/cli/utils/cli-formatter';
-import type { 
-  ProgressLogger
-} from '@/modules/core/cli/utils/progress-logger';
 import { 
-  PROGRESS_PRESETS, 
+  PROGRESS_PRESETS,
+  ProgressLogger, 
   createMultiStepProgress, 
   createProgressLogger,
   withProgress 
@@ -412,6 +410,29 @@ optionsSection };
   }
 
   /**
+   * Create a spinner progress logger for long-running operations.
+   * @param text - Text to display with the spinner.
+   * @param preset - Optional preset to use as base.
+   * @returns New ProgressLogger instance with spinner enabled.
+   */
+  public createSpinner(text: string, preset: keyof typeof PROGRESS_PRESETS = 'loading'): ProgressLogger {
+    const config = { ...PROGRESS_PRESETS[preset],
+text,
+spinner: true };
+    return new ProgressLogger(config);
+  }
+
+  /**
+   * Create a static progress logger (no spinner animation).
+   * @param text - Text to display.
+   * @returns New ProgressLogger instance with spinner disabled.
+   */
+  public createStaticProgress(text: string): ProgressLogger {
+    return new ProgressLogger({ text,
+spinner: false });
+  }
+
+  /**
    * Execute a function with progress logging.
    * @param config - Progress configuration.
    * @param config.fn
@@ -419,6 +440,7 @@ optionsSection };
    * @param config.preset
    * @param config.successText
    * @param config.errorText
+   * @param config.useSpinner
    * @returns Promise with the function result.
    */
   public async withProgress<T>(config: {
@@ -427,16 +449,47 @@ optionsSection };
     preset?: keyof typeof PROGRESS_PRESETS;
     successText?: string;
     errorText?: string;
+    useSpinner?: boolean;
   }): Promise<T> {
     const {
       fn,
       text = 'Loading...',
       preset = 'loading',
       successText,
-      errorText
+      errorText,
+      useSpinner
     } = config;
-    const progressConfig = { ...PROGRESS_PRESETS[preset],
-text };
+    const progressConfig = { 
+      ...PROGRESS_PRESETS[preset],
+      text,
+      ...(useSpinner !== undefined && { spinner: useSpinner })
+    };
+    const options: { successText?: string; errorText?: string } = {};
+    if (successText !== undefined) {
+      options.successText = successText;
+    }
+    if (errorText !== undefined) {
+      options.errorText = errorText;
+    }
+    return await withProgress(fn, progressConfig, options);
+  }
+
+  /**
+   * Execute a function with spinner progress (convenience method).
+   * @param fn - The async function to execute.
+   * @param text - Text to display with the spinner.
+   * @param successText - Optional success message.
+   * @param errorText - Optional error message.
+   * @returns Promise with the function result.
+   */
+  public async withSpinner<T>(
+    fn: () => Promise<T>,
+    text: string,
+    successText?: string,
+    errorText?: string
+  ): Promise<T> {
+    const progressConfig = { text,
+spinner: true };
     const options: { successText?: string; errorText?: string } = {};
     if (successText !== undefined) {
       options.successText = successText;

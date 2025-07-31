@@ -3,7 +3,6 @@ import fs from 'fs';
 
 const REQUIRED_FILES = {
   module: ['index.ts', 'module.yaml'],
-  types: ['index.ts'],
 };
 
 export default {

@@ -5,11 +5,11 @@
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IAgent } from '@/modules/core/agents/types/agent.types';
+import type { IAgent } from '@/modules/core/agents/types/manual';
 
 /**
  * Type guard to check if value is a string.
@@ -109,12 +109,12 @@ const displayAgents = (
 const executeList = async (
   args: Record<string, unknown>,
   cliOutput: CliOutputService,
-  agentService: AgentService
+  agentService: AgentsService
 ): Promise<void> => {
   cliOutput.section('Listing Agents');
 
   const statusFilter = getStatusFilter(args.status);
-  const agents = await agentService.listAgents(statusFilter);
+  const agents = await agentService.listAgents(statusFilter || '');
 
   if (agents.length === 0) {
     cliOutput.info('No agents found');
@@ -148,7 +148,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const agentService = AgentService.getInstance();
+      const agentService = AgentsService.getInstance();
       await executeList(args, cliOutput, agentService);
     } catch (error) {
       cliOutput.error('Failed to list agents');

@@ -17,18 +17,10 @@ import type {
   IUser,
   IUserUpdateData
 } from '@/modules/core/users/types/users.module.generated';
-
-// Local CLI types
-interface IDisplayOptions {
-  format?: string;
-}
-
-interface IUpdateUserArgs {
-  id?: string;
-  email?: string;
-  status?: string;
-  format?: string;
-}
+import type {
+  IDisplayOptions,
+  IUpdateUserArgs
+} from '@/modules/core/users/types/manual';
 
 /**
  * Validates user ID argument.
@@ -36,8 +28,15 @@ interface IUpdateUserArgs {
  * @param cliOutput - CLI output service instance.
  * @returns The validated user ID.
  */
-const validateUserId = (args: IUpdateUserArgs, cliOutput: CliOutputService): string => {
-  if (args.id === null || args.id === undefined || typeof args.id !== 'string' || args.id.trim() === '') {
+const validateUserId = (
+  args: IUpdateUserArgs,
+  cliOutput: CliOutputService
+): string => {
+  if (
+    args.id === undefined
+    || typeof args.id !== 'string'
+    || args.id.trim() === ''
+  ) {
     cliOutput.error('User ID is required (--id)');
     process.exit(1);
   }
@@ -50,15 +49,20 @@ const validateUserId = (args: IUpdateUserArgs, cliOutput: CliOutputService): str
  * @param cliOutput - CLI output service instance.
  * @returns The validated status enum.
  */
-const validateStatus = (status: string, cliOutput: CliOutputService): UsersStatus => {
+const validateStatus = (
+  status: string,
+  cliOutput: CliOutputService
+): UsersStatus => {
   const validStatuses: UsersStatus[] = [
     UsersStatus.ACTIVE,
     UsersStatus.INACTIVE,
     UsersStatus.SUSPENDED
   ];
 
-  const matchedStatus = validStatuses.find(s => { return s === status });
-  if (!matchedStatus) {
+  const matchedStatus = validStatuses.find((statusValue): boolean => {
+    return statusValue === status as UsersStatus;
+  });
+  if (matchedStatus === undefined) {
     cliOutput.error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
     process.exit(1);
   }
@@ -72,7 +76,10 @@ const validateStatus = (status: string, cliOutput: CliOutputService): UsersStatu
  * @param cliOutput - CLI output service instance.
  * @returns The validated update data.
  */
-const buildUpdateData = (args: IUpdateUserArgs, cliOutput: CliOutputService): IUserUpdateData => {
+const buildUpdateData = (
+  args: IUpdateUserArgs,
+  cliOutput: CliOutputService
+): IUserUpdateData => {
   const updateData: IUserUpdateData = {};
   const { email, status } = args;
 
@@ -112,7 +119,7 @@ const displayUserInfo = (
       "Username": user.username,
       "Email": user.email,
       "Status": user.status,
-      'Updated At': user.updated_at || 'N/A'
+      'Updated At': user.updated_at ?? 'N/A'
     });
   }
 };
@@ -123,22 +130,38 @@ const displayUserInfo = (
  * @returns Validated CLI arguments.
  */
 const extractArgs = (contextArgs: Record<string, unknown>): IUpdateUserArgs => {
+  const {
+ id, email, status, format
+} = contextArgs;
   const args: IUpdateUserArgs = {};
 
-  if (typeof contextArgs.id === 'string') {
-    args.id = contextArgs.id;
+  if (typeof id === 'string') {
+    args.id = id;
   }
-  if (typeof contextArgs.email === 'string') {
-    args.email = contextArgs.email;
+  if (typeof email === 'string') {
+    args.email = email;
   }
-  if (typeof contextArgs.status === 'string') {
-    args.status = contextArgs.status;
+  if (typeof status === 'string') {
+    args.status = status;
   }
-  if (typeof contextArgs.format === 'string') {
-    args.format = contextArgs.format;
+  if (typeof format === 'string') {
+    args.format = format;
   }
 
   return args;
+};
+
+/**
+ * Creates display options from format argument.
+ * @param format - Format string from arguments.
+ * @returns Display options object.
+ */
+const createDisplayOptions = (format?: string): IDisplayOptions => {
+  const displayOptions: IDisplayOptions = {};
+  if (format !== undefined && format.trim() !== '') {
+    displayOptions.format = format;
+  }
+  return displayOptions;
 };
 
 export const command: ICLICommand = {
@@ -156,17 +179,14 @@ export const command: ICLICommand = {
       cliOutput.section('Updating User');
       const user = await usersService.updateUser(userId, updateData);
       cliOutput.success('User updated successfully');
-      const displayOptions: IDisplayOptions = {};
-      if (args.format) {
-        displayOptions.format = args.format;
-      }
+
+      const displayOptions = createDisplayOptions(args.format);
       displayUserInfo(user, displayOptions, cliOutput);
       process.exit(0);
     } catch (error) {
       cliOutput.error('Error updating user');
-      logger.error(LogSource.USERS, 'Error updating user', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
+      const logError = error instanceof Error ? error : new Error(String(error));
+      logger.error(LogSource.USERS, 'Error updating user', { error: logError });
       process.exit(1);
     }
   },

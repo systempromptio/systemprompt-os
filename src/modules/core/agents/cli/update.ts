@@ -5,22 +5,22 @@
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { AgentService } from '@/modules/core/agents/services/agent.service';
+import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
-  AgentStatus,
   IAgent,
   IUpdateAgentDto
-} from '@/modules/core/agents/types/agent.types';
+} from '@/modules/core/agents/types/manual';
+import type { AgentsStatus } from '@/modules/core/agents/types/database.generated';
 
 /**
  * Type guard to check if value is a valid AgentStatus.
  * @param value - Value to check.
  * @returns True if valid AgentStatus.
  */
-const isValidAgentStatus = (value: string): value is AgentStatus => {
+const isValidAgentStatus = (value: string): value is AgentsStatus => {
   return ['idle', 'active', 'stopped', 'error'].includes(value);
 };
 
@@ -105,7 +105,7 @@ const validateAgentId = (
 const validateStatusField = (
   status: unknown,
   cliOutput: CliOutputService
-): AgentStatus | undefined => {
+): AgentsStatus | undefined => {
   if (typeof status === 'string' && status.length > 0) {
     if (!isValidAgentStatus(status)) {
       const errorMsg = `Invalid agent status: ${status}. `
@@ -306,7 +306,7 @@ const handleUpdateResult = (
 const executeUpdate = async (
   args: Record<string, unknown>,
   cliOutput: CliOutputService,
-  agentService: AgentService
+  agentService: AgentsService
 ): Promise<void> => {
   const identifier = validateAgentId(args, cliOutput);
   const updateData = buildUpdateData(args, cliOutput);
@@ -389,7 +389,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const agentService = AgentService.getInstance();
+      const agentService = AgentsService.getInstance();
       await executeUpdate(args, cliOutput, agentService);
     } catch (error) {
       cliOutput.error('Failed to update agent');

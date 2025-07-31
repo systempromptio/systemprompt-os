@@ -4,7 +4,12 @@
  * @module src/modules/core/agents/repositories
  */
 
-import type { AgentsType, IAgent } from '@/modules/core/agents/types/agent.types';
+import type {
+  IAgent,
+  IAgentCreateData,
+  IAgentUpdateData
+} from '@/modules/core/agents/types/agents.module.generated';
+import type {AgentsType} from '@/modules/core/agents/types/database.generated';
 import {
   AgentsStatus,
   type IAgentLogsRow,
@@ -13,23 +18,12 @@ import {
 import { AgentBaseRepository } from '@/modules/core/agents/repositories/agent-base.repository';
 
 // Minimal DTOs for input only
-interface CreateAgentInput {
+interface CreateAgentInput extends IAgentCreateData {
   id?: string | undefined;
-  name: string;
-  description: string;
-  instructions: string;
-  type: AgentsType;
-  capabilities?: string[] | undefined;
-  tools?: string[] | undefined;
-  config?: Record<string, unknown> | undefined;
 }
 
-interface UpdateAgentInput {
-  name?: string;
-  description?: string;
-  instructions?: string;
-  type?: AgentsType;
-  status?: AgentsStatus;
+interface UpdateAgentInput extends IAgentUpdateData {
+  // Additional repository-specific fields if needed
 }
 
 /**
@@ -56,6 +50,14 @@ export class AgentRepository extends AgentBaseRepository {
   }
 
   /**
+   * Initialize the repository.
+   * @returns Promise that resolves when initialized.
+   */
+  async initialize(): Promise<void> {
+    await Promise.resolve();
+  }
+
+  /**
    * Creates a new agent in the database.
    * @param data - The agent creation data.
    * @returns Promise resolving to the created agent.
@@ -70,7 +72,7 @@ export class AgentRepository extends AgentBaseRepository {
       name: data.name,
       description: data.description,
       instructions: data.instructions,
-      type: data.type,
+      type: data.type as AgentsType,
       status: AgentsStatus.STOPPED,
       created_at: now,
       updated_at: now,
