@@ -5,7 +5,6 @@
 
 import type { Request, Response } from 'express';
 import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
-import { getAuthModule } from '@/modules/core/auth/index';
 
 /**
  * OpenID Configuration interface (alias to OAuth2 Server Metadata)
@@ -16,18 +15,23 @@ export type OpenIDConfiguration = IOAuth2ServerMetadataInternal;
 export class WellKnownEndpoint {
   private readonly publicKeyJWK: any | null = null;
   getOpenIDConfiguration = async (_req: Request, res: Response): Promise<Response> => {
-    try {
-      const authModule = getAuthModule();
-      const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-      const config = await oauth2ConfigService.getAuthorizationServerMetadata();
-      return res.json(config);
-    } catch (error) {
-      console.error('OAuth2 well-known metadata error:', error);
-      return res.status(500).json({
-        error: 'internal_server_error',
-        error_description: error instanceof Error ? error.message : 'Unable to retrieve OAuth2 server metadata'
-      });
-    }
+    const baseUrl = process.env.BASE_URL || process.env.OAUTH_BASE_URL || 'http://localhost:3000';
+
+    const fallbackConfig: IOAuth2ServerMetadataInternal = {
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/oauth2/authorize`,
+      token_endpoint: `${baseUrl}/oauth2/token`,
+      userinfo_endpoint: `${baseUrl}/oauth2/userinfo`,
+      jwks_uri: `${baseUrl}/.well-known/jwks.json`,
+      registration_endpoint: `${baseUrl}/oauth2/register`,
+      scopes_supported: ['read', 'write', 'admin'],
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      subject_types_supported: ['public'],
+      id_token_signing_alg_values_supported: ['RS256'],
+      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post']
+    };
+    return res.json(fallbackConfig);
   };
   getJWKS = async (_req: Request, res: Response): Promise<Response | void> => {
     const jwks = {

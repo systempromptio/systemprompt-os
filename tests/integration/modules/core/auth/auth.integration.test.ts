@@ -114,7 +114,7 @@ describe('Auth Module Integration Tests', () => {
     dbService = (dbModule as any).exports.service();
     
     const authExports = authModuleRef.exports as IAuthModuleExports;
-    authService = authExports.service();
+    authService = authExports.authService();
     tokenService = authExports.tokenService();
     sessionService = authExports.sessionService();
     oauth2ConfigService = authExports.oauth2ConfigService();
@@ -265,11 +265,11 @@ describe('Auth Module Integration Tests', () => {
       expect(userService).toBeDefined(); // From users module
       
       // Test service instances are properly initialized
-      expect(typeof authModule.exports.service).toBe('function');
+      expect(typeof authModule.exports.authService).toBe('function');
       expect(typeof authModule.exports.tokenService).toBe('function');
       expect(typeof authModule.exports.sessionService).toBe('function');
       expect(typeof authModule.exports.oauth2ConfigService).toBe('function');
-      expect(typeof authModule.exports.getProvidersService).toBe('function');
+      expect(typeof authModule.exports.providersService).toBe('function');
     });
 
     it('should have properly initialized database schema', async () => {
@@ -295,7 +295,8 @@ describe('Auth Module Integration Tests', () => {
 
   describe('OAuth2 Provider Integration', () => {
     it('should register OAuth2 providers', async () => {
-      const providers = await authModule.exports.getAllProviders();
+      const providersService = authModule.exports.providersService();
+      const providers = await providersService.getAllProviderInstances();
       
       expect(Array.isArray(providers)).toBe(true);
       // Should have at least core providers available
@@ -303,23 +304,25 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should handle provider configuration', async () => {
-      const hasGoogle = authModule.exports.hasProvider('google');
-      const hasNonExistent = authModule.exports.hasProvider('nonexistent');
+      const providersService = authModule.exports.providersService();
+      const hasGoogle = providersService.hasProvider('google');
+      const hasNonExistent = providersService.hasProvider('nonexistent');
       
       expect(typeof hasGoogle).toBe('boolean');
       expect(hasNonExistent).toBe(false);
     });
 
     it('should access providers service', async () => {
-      const providersService = authModule.exports.getProvidersService();
+      const providersService = authModule.exports.providersService();
       
       expect(providersService).toBeDefined();
       // Registry should exist even if no providers are configured
     });
 
     it('should reload providers', async () => {
+      const providersService = authModule.exports.providersService();
       // Should not throw when reloading providers
-      await expect(authModule.exports.reloadProviders()).resolves.not.toThrow();
+      await expect(providersService.reloadProviders()).resolves.not.toThrow();
     });
 
     it('should provide OAuth2 server metadata', async () => {
@@ -465,21 +468,21 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should list user tokens using module exports', async () => {
-      const token1 = await authModule.exports.createToken({
+      const token1 = await authService.createApiToken({
         user_id: testUserId,
         type: 'api',
         name: 'test-token',
         scopes: ['read']
       });
       
-      const token2 = await authModule.exports.createToken({
+      const token2 = await authService.createApiToken({
         user_id: testUserId,
         type: 'personal',
         name: 'test-token-rw',
         scopes: ['read', 'write']
       });
 
-      const tokens = await authModule.exports.listUserTokens(testUserId);
+      const tokens = await authService.listUserTokens(testUserId);
       expect(tokens).toHaveLength(2);
       expect(tokens.some((t: any) => t.type === 'api')).toBe(true);
       expect(tokens.some((t: any) => t.type === 'personal')).toBe(true);
@@ -494,9 +497,9 @@ describe('Auth Module Integration Tests', () => {
         scopes: ['read']
       });
 
-      await authModule.exports.revokeToken(tokenResult.row.id);
+      await authService.revokeToken(tokenResult.row.id);
 
-      const validation = await authModule.exports.validateToken(tokenResult.token);
+      const validation = await authService.validateApiToken(tokenResult.token);
       expect(validation.valid).toBe(false);
       expect(validation.reason).toBe('Invalid or expired token');
     });
@@ -517,10 +520,10 @@ describe('Auth Module Integration Tests', () => {
         scopes: ['write']
       });
 
-      await authModule.exports.revokeUserTokens(testUserId);
+      await authService.revokeUserTokens(testUserId);
 
-      const validation1 = await authModule.exports.validateToken(tokenResult1.token);
-      const validation2 = await authModule.exports.validateToken(tokenResult2.token);
+      const validation1 = await authService.validateApiToken(tokenResult1.token);
+      const validation2 = await authService.validateApiToken(tokenResult2.token);
       
       expect(validation1.valid).toBe(false);
       expect(validation2.valid).toBe(false);
@@ -528,7 +531,7 @@ describe('Auth Module Integration Tests', () => {
 
     it('should clean up expired tokens', async () => {
       // Create a normal token using auth module exports for consistency
-      const normalTokenResult = await authModule.exports.createToken({
+      const normalTokenResult = await authService.createApiToken({
         user_id: testUserId,
         type: 'api',
         name: 'test-token',
@@ -542,11 +545,11 @@ describe('Auth Module Integration Tests', () => {
       expect(normalTokenResult.row).toBeDefined();
 
       // Run cleanup (may return 0 if no expired tokens)
-      const cleanedCount = await authModule.exports.cleanupExpiredTokens();
+      const cleanedCount = await authService.cleanupExpiredTokens();
       expect(cleanedCount).toBeGreaterThanOrEqual(0);
 
       // Normal token should still be valid
-      const validation = await authModule.exports.validateToken(normalTokenResult.token);
+      const validation = await authService.validateApiToken(normalTokenResult.token);
       expect(validation.valid).toBe(true);
     });
   });
@@ -789,7 +792,7 @@ describe('Auth Module Integration Tests', () => {
       await dbService.execute('DELETE FROM users WHERE id = ?', [user.id]);
       
       // Token should no longer validate
-      const validation = await authModule.exports.validateToken(tokenResult.token);
+      const validation = await authService.validateApiToken(tokenResult.token);
       expect(validation.valid).toBe(false);
     });
   });
@@ -803,7 +806,7 @@ describe('Auth Module Integration Tests', () => {
       expect(userService).toBeDefined(); // From users module
       
       // Verify services are singletons
-      const authService2 = authModule.exports.service();
+      const authService2 = authModule.exports.authService();
       const tokenService2 = authModule.exports.tokenService();
       
       expect(authService).toBe(authService2);
@@ -813,36 +816,24 @@ describe('Auth Module Integration Tests', () => {
     it('should access all auth module exports', () => {
       const exports = authModule.exports as IAuthModuleExports;
       
-      // Core services
-      expect(exports.service).toBeDefined();
+      // Core services only - the clean architecture pattern
+      expect(exports.authService).toBeDefined();
       expect(exports.tokenService).toBeDefined();
       expect(exports.sessionService).toBeDefined();
       expect(exports.authCodeService).toBeDefined();
       expect(exports.oauth2ConfigService).toBeDefined();
+      expect(exports.providersService).toBeDefined();
       
-      // Provider methods
-      expect(exports.getProvider).toBeDefined();
-      expect(exports.getAllProviders).toBeDefined();
-      expect(exports.hasProvider).toBeDefined();
-      expect(exports.getProvidersService).toBeDefined();
-      expect(exports.reloadProviders).toBeDefined();
-      expect(exports.createProvider).toBeDefined();
-      expect(exports.updateProvider).toBeDefined();
-      expect(exports.deleteProvider).toBeDefined();
+      // Verify services can be accessed
+      const authSvc = exports.authService();
+      const tokenSvc = exports.tokenService();
+      const sessionSvc = exports.sessionService();
+      const providersSvc = exports.providersService();
       
-      // Token methods
-      expect(exports.createToken).toBeDefined();
-      expect(exports.validateToken).toBeDefined();
-      expect(exports.listUserTokens).toBeDefined();
-      expect(exports.revokeToken).toBeDefined();
-      expect(exports.revokeUserTokens).toBeDefined();
-      expect(exports.cleanupExpiredTokens).toBeDefined();
-      
-      // Auth methods
-      expect(exports.login).toBeDefined();
-      expect(exports.logout).toBeDefined();
-      expect(exports.refreshAccessToken).toBeDefined();
-      
+      expect(authSvc).toBeDefined();
+      expect(tokenSvc).toBeDefined();
+      expect(sessionSvc).toBeDefined();
+      expect(providersSvc).toBeDefined();
     });
 
     it('should handle service errors gracefully', async () => {
@@ -856,8 +847,8 @@ describe('Auth Module Integration Tests', () => {
     });
 
     it('should maintain singleton pattern', async () => {
-      const service1 = authModule.exports.service();
-      const service2 = authModule.exports.service();
+      const service1 = authModule.exports.authService();
+      const service2 = authModule.exports.authService();
       
       expect(service1).toBe(service2);
     });

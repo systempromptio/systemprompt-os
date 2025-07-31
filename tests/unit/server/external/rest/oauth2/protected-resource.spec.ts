@@ -15,7 +15,7 @@ vi.mock('../../../../../../src/modules/core/auth/index', () => ({
 }));
 
 // Import the mocked functions
-import { getAuthModule } from '../../../../../../src/modules/core/auth/index.js';
+import { getAuthModule } from '../../../../../../src/modules/core/auth/index';
 
 describe('ProtectedResourceEndpoint', () => {
   let protectedResourceEndpoint: ProtectedResourceEndpoint;
@@ -40,7 +40,7 @@ describe('ProtectedResourceEndpoint', () => {
 
     // Setup mock auth module and oauth2ConfigService
     mockOAuth2ConfigService = {
-      getProtectedResourceMetadata: vi.fn()
+      getProtectedResourceMetadata: vi.fn().mockResolvedValue({}) // Default to resolved promise
     };
 
     mockAuthModule = {
@@ -49,7 +49,7 @@ describe('ProtectedResourceEndpoint', () => {
       }
     };
 
-    vi.mocked(getAuthModule).mockReturnValue(mockAuthModule);
+    vi.mocked(getAuthModule).mockResolvedValue(mockAuthModule);
   });
 
   afterEach(() => {
@@ -57,7 +57,7 @@ describe('ProtectedResourceEndpoint', () => {
   });
 
   describe('getProtectedResourceMetadata', () => {
-    it('should successfully return protected resource metadata in happy path', () => {
+    it('should successfully return protected resource metadata in happy path', async () => {
       const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
         resource: 'https://example.com/mcp',
         authorization_servers: ['https://example.com'],
@@ -66,9 +66,9 @@ describe('ProtectedResourceEndpoint', () => {
         resource_documentation: 'https://example.com/docs/api'
       };
 
-      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockResolvedValue(mockMetadata);
 
-      const result = protectedResourceEndpoint.getProtectedResourceMetadata(
+      const result = await protectedResourceEndpoint.getProtectedResourceMetadata(
         mockReq as Request, 
         mockRes as Response
       );
@@ -85,15 +85,15 @@ describe('ProtectedResourceEndpoint', () => {
       expect(result).toBe(mockRes);
     });
 
-    it('should handle metadata with all RFC 9728 required fields', () => {
+    it('should handle metadata with all RFC 9728 required fields', async () => {
       const mockMetadata: IOAuth2ProtectedResourceMetadataInternal = {
         resource: 'https://api.example.com/protected',
         authorization_servers: ['https://auth.example.com', 'https://backup-auth.example.com']
       };
 
-      mockOAuth2ConfigService.getProtectedResourceMetadata.mockReturnValue(mockMetadata);
+      mockOAuth2ConfigService.getProtectedResourceMetadata.mockResolvedValue(mockMetadata);
 
-      protectedResourceEndpoint.getProtectedResourceMetadata(
+      await protectedResourceEndpoint.getProtectedResourceMetadata(
         mockReq as Request, 
         mockRes as Response
       );

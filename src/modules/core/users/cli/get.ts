@@ -48,9 +48,9 @@ export const command: ICLICommand = {
           "Username": user.username,
           "Email": user.email,
           "Status": user.status,
-          'Email Verified': user.emailVerified ? 'Yes' : 'No',
-          'Created At': user.createdAt.toISOString(),
-          'Updated At': user.updatedAt.toISOString()
+          'Email Verified': user.email_verified ? 'Yes' : 'No',
+          'Created At': user.created_at || 'N/A',
+          'Updated At': user.updated_at || 'N/A'
         });
       }
 

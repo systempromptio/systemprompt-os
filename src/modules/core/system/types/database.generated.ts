@@ -1,6 +1,8 @@
 // Auto-generated database types for system module
-// Generated on: 2025-07-30T22:16:41.625Z
+// Generated on: 2025-07-31T10:03:21.443Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum SystemConfigType {
@@ -27,6 +29,12 @@ export enum SystemMaintenanceType {
   SCHEDULED = 'scheduled',
   EMERGENCY = 'emergency'
 }
+
+// Zod schemas for enums
+export const SystemConfigTypeSchema = z.nativeEnum(SystemConfigType);
+export const SystemModulesStatusSchema = z.nativeEnum(SystemModulesStatus);
+export const SystemEventsSeveritySchema = z.nativeEnum(SystemEventsSeverity);
+export const SystemMaintenanceTypeSchema = z.nativeEnum(SystemMaintenanceType);
 
 /**
  * Generated from database table: system_config
@@ -106,10 +114,70 @@ export interface ISystemMaintenanceRow {
   notes: string | null;
 }
 
+// Zod schemas for database row validation
+export const SystemConfigRowSchema = z.object({
+  key: z.string().uuid(),
+  value: z.string(),
+  type: z.nativeEnum(SystemConfigType),
+  description: z.string().nullable(),
+  is_secret: z.number().nullable(),
+  is_readonly: z.number().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
+export const SystemModulesRowSchema = z.object({
+  name: z.string().uuid(),
+  version: z.string(),
+  status: z.nativeEnum(SystemModulesStatus),
+  enabled: z.number().nullable(),
+  initialized_at: z.string().nullable(),
+  last_health_check: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
+export const SystemModuleMetadataRowSchema = z.object({
+  module_name: z.string(),
+  metadata_key: z.string(),
+  metadata_value: z.string(),
+  created_at: z.string().nullable(),
+});
+
+export const SystemEventsRowSchema = z.object({
+  id: z.number(),
+  event_type: z.string(),
+  source: z.string(),
+  severity: z.nativeEnum(SystemEventsSeverity),
+  message: z.string(),
+  created_at: z.string().nullable(),
+});
+
+export const SystemEventMetadataRowSchema = z.object({
+  event_id: z.number(),
+  metadata_key: z.string(),
+  metadata_value: z.string(),
+});
+
+export const SystemMaintenanceRowSchema = z.object({
+  id: z.string().uuid(),
+  type: z.nativeEnum(SystemMaintenanceType),
+  reason: z.string(),
+  started_at: z.string().nullable(),
+  ended_at: z.string().nullable(),
+  created_by: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type SystemDatabaseRow = ISystemConfigRow | ISystemModulesRow | ISystemModuleMetadataRow | ISystemEventsRow | ISystemEventMetadataRow | ISystemMaintenanceRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const SystemDatabaseRowSchema = z.union([SystemConfigRowSchema, SystemModulesRowSchema, SystemModuleMetadataRowSchema, SystemEventsRowSchema, SystemEventMetadataRowSchema, SystemMaintenanceRowSchema]);
 
 /**
  * Database table names for this module

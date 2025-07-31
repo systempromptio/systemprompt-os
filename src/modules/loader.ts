@@ -24,6 +24,7 @@ import type {
   IModulesConfig,
   ModuleName,
 } from '@/modules/types/index';
+import { ModuleName as ModuleNameEnum } from '@/modules/types/module-names.types';
 import type { IModuleScannerService } from '@/modules/core/modules/types/scanner.types';
 import type { IModuleInterface } from '@/types/modules';
 
@@ -210,9 +211,9 @@ export class ModuleLoader {
   private async loadCoreModules(config: IModulesConfig): Promise<void> {
     logger.debug(LogSource.MODULES, 'Core modules already loaded by bootstrap');
 
-    const modulesModule = this.registry.get('modules');
+    const modulesModule = this.registry.get(ModuleNameEnum.MODULES);
     if (modulesModule === undefined) {
-      await this.loadModule('modules', './core/modules/index.js', config);
+      await this.loadModule(ModuleNameEnum.MODULES, './core/modules/index.js', config);
     }
   }
 
@@ -224,7 +225,7 @@ export class ModuleLoader {
    */
   private async scanAndLoadModules(config: IModulesConfig): Promise<void> {
     try {
-      const modulesModule = this.registry.get('modules');
+      const modulesModule = this.registry.get(ModuleNameEnum.MODULES);
       if (modulesModule === undefined) {
         logger.error(LogSource.MODULES, 'Modules module not properly initialized');
         return;

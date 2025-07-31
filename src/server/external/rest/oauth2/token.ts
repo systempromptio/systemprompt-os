@@ -161,7 +161,7 @@ export class TokenEndpoint {
       return res.status(error.code).json(error.toJSON());
     }
 
-    const authModule = getAuthModule();
+    const authModule = await getAuthModule();
     const authCodeSvc = authModule.exports.authCodeService() as {
       getAuthorizationCode: (code: string) => Promise<IAuthorizationCodeData | null>;
       deleteAuthorizationCode: (code: string) => Promise<void>;
@@ -239,7 +239,7 @@ export class TokenEndpoint {
       && typeof codeData.providerTokens === 'object'
     ) {
       try {
-        const authModule = getAuthModule();
+        const authModule = await getAuthModule();
         const provider = authModule.exports.getProvider(codeData.provider) as {
           exchangeCodeForTokens?: (code: string) => Promise<unknown>;
         } | undefined;

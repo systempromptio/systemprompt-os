@@ -284,9 +284,10 @@ describe('Users Module Integration Tests', () => {
       // User settings should be manageable through the service
       const usersModule = bootstrap.getModules().get('users');
       if (usersModule) {
-        const healthCheck = await usersModule.healthCheck();
-        expect(healthCheck).toBeDefined();
-        expect(typeof healthCheck.healthy).toBe('boolean');
+        // Test that the module is properly initialized and running
+        expect(usersModule.status).toBe('running');
+        expect(usersModule.exports).toBeDefined();
+        expect(typeof usersModule.exports.service).toBe('function');
       }
     });
     

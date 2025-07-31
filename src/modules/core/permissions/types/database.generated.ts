@@ -1,6 +1,8 @@
 // Auto-generated database types for permissions module
-// Generated on: 2025-07-30T22:16:41.626Z
+// Generated on: 2025-07-31T10:03:21.444Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 /**
  * Generated from database table: permissions
@@ -52,10 +54,50 @@ export interface IUserRolesRow {
   expires_at: string | null;
 }
 
+// Zod schemas for database row validation
+export const PermissionsRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  resource: z.string(),
+  action: z.string(),
+  description: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const RolesRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  is_system: z.boolean().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const RolePermissionsRowSchema = z.object({
+  role_id: z.string(),
+  permission_id: z.string(),
+  granted_at: z.string().datetime().nullable(),
+  granted_by: z.string().nullable(),
+});
+
+export const UserRolesRowSchema = z.object({
+  user_id: z.string(),
+  role_id: z.string(),
+  assigned_at: z.string().datetime().nullable(),
+  assigned_by: z.string().nullable(),
+  expires_at: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type PermissionsDatabaseRow = IPermissionsRow | IRolesRow | IRolePermissionsRow | IUserRolesRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const PermissionsDatabaseRowSchema = z.union([PermissionsRowSchema, RolesRowSchema, RolePermissionsRowSchema, UserRolesRowSchema]);
 
 /**
  * Database table names for this module

@@ -16,7 +16,9 @@ import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from '@/server/external/middleware/security';
+import { sessionMiddleware } from '@/server/external/middleware/session';
 import { configureRoutes } from '@/server/external/routes';
+import { ServerAuthAdapter } from '@/server/services/auth-adapter.service';
 
 const logger = LoggerService.getInstance();
 
@@ -32,8 +34,22 @@ const logger = LoggerService.getInstance();
 export const setupExternalEndpoints = (app: Express): void => {
   logger.info(LogSource.SERVER, 'Setting up external REST endpoints');
 
+  // Initialize ServerAuthAdapter before setting up routes
+  try {
+    const authAdapter = ServerAuthAdapter.getInstance();
+    authAdapter.initialize();
+    logger.info(LogSource.SERVER, 'ServerAuthAdapter initialized successfully');
+  } catch (error) {
+    logger.error(LogSource.SERVER, 'Failed to initialize ServerAuthAdapter', {
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+    // Continue with setup even if auth adapter fails - endpoints will handle gracefully
+  }
+
+  // Apply middleware in order
   app.use(securityHeaders);
   app.use(cookieParser());
+  app.use(sessionMiddleware); // Session tracking for all requests
 
   app.get('/setup-test', (_req: Request, res: ExpressResponse) => {
     res.json({ message: 'Setup test route working' });

@@ -1,14 +1,6 @@
-/*
- * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
- * 1. Line 34: prefer-destructuring - False positive, destructuring is already used correctly
- * 2. Lines 40: @typescript-eslint/no-unnecessary-condition - Express Request.cookies type checking
- * 3. Line 147: @typescript-eslint/consistent-type-assertions - JWT payload typing requires assertion
- * These are ESLint config strictness issues that conflict with common Express/TypeScript patterns
- */
-
 /**
  * Authentication middleware for validating OAuth2 tokens.
- * Provides Express middleware for authenticating requests using JWT tokens.
+ * Uses the ServerAuthAdapter to validate tokens through auth module services.
  * Supports both Bearer token authentication and cookie-based authentication.
  * @file Authentication middleware for validating OAuth2 tokens.
  * @module server/external/middleware/auth
@@ -21,34 +13,24 @@ import type {
 } from 'express';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { jwtVerify } from '@/server/external/auth/jwt';
-import { CONFIG } from '@/server/config';
+import { ServerAuthAdapter } from '@/server/services/auth-adapter.service';
 import type {
-  AccessTokenPayload,
   AuthFailureParams,
   AuthMiddlewareOptions,
   AuthUser,
 } from '@/server/external/types/auth';
 
 const logger = LoggerService.getInstance();
+const authAdapter = ServerAuthAdapter.getInstance();
 
 /**
- * Extracts JWT token from request.
+ * Extracts JWT token from request using auth adapter.
  * @param req - Express request object.
  * @returns JWT token string or undefined.
  */
 const extractToken = (req: ExpressRequest): string | undefined => {
-  const { authorization: authHeader } = req.headers;
-  if (authHeader !== undefined && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-
-  const { cookies } = req;
-  if (cookies !== null && cookies !== undefined && typeof cookies.auth_token === 'string') {
-    return cookies.auth_token;
-  }
-
-  return undefined;
+  const token = authAdapter.extractTokenFromRequest(req);
+  return token || undefined;
 };
 
 /**
@@ -85,81 +67,23 @@ const hasRequiredRole = (
 };
 
 /**
- * Maps error message to user-friendly description.
- * @param error - Error object.
- * @returns Error description string.
- */
-const getErrorDescription = (error: unknown): string => {
-  if (!(error instanceof Error)) {
-    return 'Invalid token';
-  }
-
-  const errorMap: Record<string, string> = {
-    'Invalid issuer': 'Invalid token issuer or audience',
-    'Invalid audience': 'Invalid token issuer or audience',
-    'Token expired': 'Token has expired',
-    'Invalid signature': 'Invalid token signature',
-  };
-
-  return errorMap[error.message] ?? 'Invalid token';
-};
-
-/**
- * Creates AuthUser from token payload.
- * @param payload - JWT token payload.
+ * Creates AuthUser from token validation result.
+ * @param userId - User ID from token.
+ * @param scopes - Token scopes.
  * @returns AuthUser object.
  */
-const createAuthUser = (payload: AccessTokenPayload): AuthUser => {
-  const { clientid } = payload;
-  const { scope } = payload;
+const createAuthUser = (userId: string, scopes?: string[]): AuthUser => {
   const authUser: AuthUser = {
-    id: payload.sub,
-    email: payload.user?.email ?? payload.email ?? '',
-    roles: payload.user?.roles ?? payload.roles ?? [],
+    id: userId,
+    email: '', // Will be populated from user service if needed
+    roles: [], // Will be populated from user service if needed
   };
 
-  if (clientid !== undefined) {
-    authUser.clientId = clientid;
-  }
-
-  if (scope !== undefined) {
-    authUser.scope = scope;
+  if (scopes && scopes.length > 0) {
+    authUser.scope = scopes.join(' ');
   }
 
   return authUser;
-};
-
-/**
- * Verifies JWT token and returns payload.
- * @param token - JWT token string.
- * @returns Token payload.
- * @throws Error if token is invalid.
- */
-const verifyToken = (token: string): AccessTokenPayload => {
-  const verifyResult = jwtVerify(token, {
-    issuer: CONFIG.JWTISSUER,
-    audience: CONFIG.JWTAUDIENCE,
-  });
-
-  const { payload } = verifyResult;
-
-  if (typeof payload.sub !== 'string') {
-    throw new Error('Invalid token: missing subject');
-  }
-
-  if (typeof payload.tokentype !== 'string' || payload.tokentype !== 'access') {
-    throw new Error('Invalid token: invalid token type');
-  }
-
-  if (typeof payload.iss !== 'string' || typeof payload.aud !== 'string') {
-    throw new Error('Invalid token: missing issuer or audience');
-  }
-
-  if (typeof payload.iat !== 'number' || typeof payload.exp !== 'number') {
-    throw new Error('Invalid token: missing issued at or expiration time');
-  }
-
-  return payload as unknown as AccessTokenPayload;
 };
 
 /**
@@ -285,12 +209,24 @@ export const createAuthMiddleware = (
   res: ExpressResponse,
   next: NextFunction
 ) => void) => {
-  return (
+  return async (
     req: ExpressRequest,
     res: ExpressResponse,
     next: NextFunction,
-  ): void => {
+  ): Promise<void> => {
     try {
+      // Ensure auth adapter is initialized (lazy initialization)
+      if (!authAdapter['initialized']) {
+        try {
+          authAdapter.initialize();
+        } catch (error) {
+          // If auth adapter fails to initialize, treat as missing token
+          logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, treating as unauthenticated', { error });
+          handleMissingToken(res, options);
+          return;
+        }
+      }
+
       const token = extractToken(req);
 
       if (token === undefined) {
@@ -298,9 +234,24 @@ export const createAuthMiddleware = (
         return;
       }
 
-      const tokenPayload = verifyToken(token);
-      const authUser = createAuthUser(tokenPayload);
+      // Use auth adapter to validate token
+      const httpResult = await authAdapter.validateTokenWithHttpResponse(token);
 
+      if (!httpResult.success) {
+        handleAuthFailure({
+          res,
+          options,
+          statusCode: httpResult.statusCode,
+          error: httpResult.error || 'unauthorized',
+          errorDescription: httpResult.errorDescription || 'Invalid token',
+        });
+        return;
+      }
+
+      // Create auth user from validation result
+      const authUser = createAuthUser(httpResult.user!, httpResult.scopes);
+
+      // TODO: Fetch user roles from user service if needed for role-based access
       if (!checkRequiredRoles(authUser, options)) {
         handleInsufficientPermissions(res, options, authUser);
         return;

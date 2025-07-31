@@ -164,14 +164,15 @@ describe('OAuth Provider Database Integration', () => {
 
       // Reload providers in auth module
       const authExports = authModule.exports as IAuthModuleExports;
-      await authExports.reloadProviders();
+      const providersService = authExports.providersService();
+      await providersService.reloadProviders();
 
       // Check if provider is available
-      const hasProvider = authExports.hasProvider('github');
+      const hasProvider = providersService.hasProvider('github');
       expect(hasProvider).toBe(true);
 
       // Get provider instance
-      const provider = authExports.getProvider('github');
+      const provider = providersService.getProviderInstance('github');
       expect(provider).toBeDefined();
       expect(provider?.id).toBe('github');
       expect(provider?.name).toBe('GitHub');
@@ -230,10 +231,11 @@ describe('OAuth Provider Database Integration', () => {
 
       // Reload providers
       const authExports = authModule.exports as IAuthModuleExports;
-      await authExports.reloadProviders();
+      const providersService = authExports.providersService();
+      await providersService.reloadProviders();
 
       // Get the provider
-      const provider = authExports.getProvider('custom-oauth');
+      const provider = providersService.getProviderInstance('custom-oauth');
       expect(provider).toBeDefined();
       
       // Test that provider can generate authorization URL
@@ -262,9 +264,10 @@ describe('OAuth Provider Database Integration', () => {
       `);
 
       const authExports = authModule.exports as IAuthModuleExports;
-      await authExports.reloadProviders();
+      const providersService = authExports.providersService();
+      await providersService.reloadProviders();
 
-      const provider = authExports.getProvider('keycloak');
+      const provider = providersService.getProviderInstance('keycloak');
       expect(provider).toBeDefined();
       expect(provider?.type).toBe('oidc');
     });
@@ -273,8 +276,9 @@ describe('OAuth Provider Database Integration', () => {
   describe('Provider CRUD Operations', () => {
     it('should create provider through service API', async () => {
       const authExports = authModule.exports as IAuthModuleExports;
+      const providersService = authExports.providersService();
       
-      const newProvider = await authExports.createProvider({
+      const newProvider = await providersService.createProvider({
         id: 'slack',
         name: 'Slack',
         type: 'oauth2',
@@ -317,7 +321,8 @@ describe('OAuth Provider Database Integration', () => {
       const authExports = authModule.exports as IAuthModuleExports;
       
       // Update the provider
-      await authExports.updateProvider('update-test', {
+      const providersService = authExports.providersService();
+      await providersService.updateProvider('update-test', {
         enabled: true,
         clientId: 'new-client-id',
         clientSecret: 'new-client-secret',
@@ -352,7 +357,8 @@ describe('OAuth Provider Database Integration', () => {
       const authExports = authModule.exports as IAuthModuleExports;
       
       // Delete the provider
-      const deleted = await authExports.deleteProvider('delete-test');
+      const providersService = authExports.providersService();
+      const deleted = await providersService.deleteProvider('delete-test');
       expect(deleted).toBe(true);
 
       // Verify it's gone

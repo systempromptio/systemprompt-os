@@ -1,6 +1,8 @@
 // Auto-generated database types for monitor module
-// Generated on: 2025-07-30T22:16:41.626Z
+// Generated on: 2025-07-31T10:03:21.444Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum MetricType {
@@ -8,6 +10,9 @@ export enum MetricType {
   GAUGE = 'gauge',
   HISTOGRAM = 'histogram'
 }
+
+// Zod schemas for enums
+export const MetricTypeSchema = z.nativeEnum(MetricType);
 
 /**
  * Generated from database table: metric
@@ -56,10 +61,51 @@ export interface ISystemMetricRow {
   created_at: string | null;
 }
 
+// Zod schemas for database row validation
+export const MetricRowSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  value: z.number(),
+  type: z.nativeEnum(MetricType),
+  unit: z.string().nullable(),
+  timestamp: z.string().datetime(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const MetricLabelRowSchema = z.object({
+  id: z.number(),
+  metric_id: z.number(),
+  label_key: z.string(),
+  label_value: z.string(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const SystemMetricRowSchema = z.object({
+  id: z.number(),
+  cpu_cores: z.number().nullable(),
+  cpu_usage: z.number().nullable(),
+  memory_total: z.number().nullable(),
+  memory_free: z.number().nullable(),
+  memory_used: z.number().nullable(),
+  disk_total: z.number().nullable(),
+  disk_free: z.number().nullable(),
+  disk_used: z.number().nullable(),
+  network_bytes_in: z.number().nullable(),
+  network_bytes_out: z.number().nullable(),
+  uptime: z.number().nullable(),
+  timestamp: z.string().datetime(),
+  created_at: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type MonitorDatabaseRow = IMetricRow | IMetricLabelRow | ISystemMetricRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const MonitorDatabaseRowSchema = z.union([MetricRowSchema, MetricLabelRowSchema, SystemMetricRowSchema]);
 
 /**
  * Database table names for this module

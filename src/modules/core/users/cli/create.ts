@@ -9,7 +9,8 @@ import { UsersService } from '@/modules/core/users/services/users.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IUserCreateData } from '@/modules/core/users/types/index';
+import type { IUserCreateData } from '@/modules/core/users/types/users.module.generated';
+import { UsersStatus } from '@/modules/core/users/types/database.generated';
 
 export const command: ICLICommand = {
   description: 'Create a new user',
@@ -28,7 +29,16 @@ export const command: ICLICommand = {
 
       const userData: IUserCreateData = {
         username: args.username as string,
-        email: args.email as string
+        email: args.email as string,
+        display_name: (args.displayName as string) || null,
+        avatar_url: (args.avatarUrl as string) || null,
+        bio: (args.bio as string) || null,
+        timezone: (args.timezone as string) || 'UTC',
+        language: (args.language as string) || 'en',
+        status: UsersStatus.ACTIVE,
+        email_verified: args.emailVerified === 'true' || false,
+        preferences: null,
+        metadata: null
       };
 
       cliOutput.section('Creating User');
@@ -45,7 +55,7 @@ export const command: ICLICommand = {
           "Username": user.username,
           "Email": user.email,
           "Status": user.status,
-          'Created At': user.createdAt.toISOString()
+          'Created At': user.created_at || 'N/A'
         });
       }
 

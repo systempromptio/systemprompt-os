@@ -100,6 +100,18 @@ export class MonitorModule extends EventEmitter implements IModule<IMonitorModul
    */
   async start(): Promise<void> {
     try {
+      if (this.status === ModulesStatus.INITIALIZING) {
+        while (this.status === ModulesStatus.INITIALIZING) {
+          await new Promise(resolve => { return setTimeout(resolve, 10) });
+        }
+        if (this.status === ModulesStatus.RUNNING && this.started) {
+          return;
+        }
+        if (this.status === ModulesStatus.ERROR) {
+          throw new Error('Module failed to start during concurrent initialization');
+        }
+      }
+
       if (this.status !== ModulesStatus.STOPPED) {
         throw new Error(`Cannot start module in ${this.status} state`);
       }

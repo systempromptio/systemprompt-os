@@ -52,6 +52,29 @@ cli:
         - name: deps
           type: array
           description: Module dependencies
+    - name: generate-types
+      description: Generate comprehensive types for a module (database types, interfaces, Zod schemas, type guards)
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Module name to generate types for
+        - name: pattern
+          alias: p
+          type: string
+          description: Glob pattern to match files
+        - name: types
+          alias: t
+          type: string
+          description: Comma-separated list of types to generate (database,interfaces,schemas,service-schemas,type-guards,all)
+    - name: validate
+      description: Validate that a module is fully type-safe using generated types
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Module name to validate
+          required: true
 
 database:
   schema: ./database/schema.sql

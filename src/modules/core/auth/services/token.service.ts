@@ -9,6 +9,7 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LogSource, getLoggerService } from '@/modules/core/logger/index';
 import { TokenRepository } from '@/modules/core/auth/repositories/token.repository';
+import { JwtKeyService } from '@/modules/core/auth/services/jwt-key.service';
 import {
   MILLISECONDS_PER_SECOND,
   SIXTY,
@@ -76,12 +77,14 @@ export class TokenService {
   private logger: ILogger | undefined;
   private tokenRepository: TokenRepository | undefined;
   private config: IAuthConfig | undefined;
+  private readonly jwtKeyService: JwtKeyService;
 
   /**
    * Private constructor for singleton pattern.
    * @private
    */
   private constructor() {
+    this.jwtKeyService = JwtKeyService.getInstance();
   }
 
   /**
@@ -94,6 +97,7 @@ export class TokenService {
     const instance = TokenService.getInstance();
     instance.logger = logger;
     instance.tokenRepository = new TokenRepository(database);
+    instance.jwtKeyService.initialize(logger);
     return instance;
   }
 
@@ -285,9 +289,9 @@ export class TokenService {
         algorithm: 'RS256',
         issuer: 'systemprompt-os',
         audience: 'systemprompt-os',
-        keyStorePath: '',
-        privateKey: '',
-        publicKey: '',
+        keyStorePath: './state/auth/keys',
+        privateKey: this.jwtKeyService.getPrivateKey(),
+        publicKey: this.jwtKeyService.getPublicKey(),
       },
       session: {
         maxConcurrent: 5,

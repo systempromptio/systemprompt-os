@@ -1,6 +1,8 @@
 // Auto-generated database types for mcp module
-// Generated on: 2025-07-30T22:16:41.627Z
+// Generated on: 2025-07-31T10:03:21.445Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum McpSessionsStatus {
@@ -25,6 +27,12 @@ export enum McpPromptMessagesRole {
   USER = 'user',
   ASSISTANT = 'assistant'
 }
+
+// Zod schemas for enums
+export const McpSessionsStatusSchema = z.nativeEnum(McpSessionsStatus);
+export const McpMessagesRoleSchema = z.nativeEnum(McpMessagesRole);
+export const McpResourcesContentTypeSchema = z.nativeEnum(McpResourcesContentType);
+export const McpPromptMessagesRoleSchema = z.nativeEnum(McpPromptMessagesRole);
 
 /**
  * Generated from database table: mcp_contexts
@@ -165,10 +173,123 @@ export interface IMcpResourceTemplatesRow {
   updated_at: string | null;
 }
 
+// Zod schemas for database row validation
+export const McpContextsRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  model: z.string(),
+  description: z.string().nullable(),
+  max_tokens: z.number().nullable(),
+  temperature: z.number().nullable(),
+  top_p: z.number().nullable(),
+  frequency_penalty: z.number().nullable(),
+  presence_penalty: z.number().nullable(),
+  stop_sequences: z.string().nullable(),
+  system_prompt: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const McpSessionsRowSchema = z.object({
+  id: z.string().uuid(),
+  context_id: z.string(),
+  status: z.nativeEnum(McpSessionsStatus),
+  session_name: z.string().nullable(),
+  user_id: z.string().nullable(),
+  total_tokens: z.number().nullable(),
+  total_cost: z.number().nullable(),
+  started_at: z.string().datetime().nullable(),
+  ended_at: z.string().datetime().nullable(),
+});
+
+export const McpMessagesRowSchema = z.object({
+  id: z.number(),
+  session_id: z.string(),
+  role: z.nativeEnum(McpMessagesRole),
+  content: z.string(),
+  token_count: z.number().nullable(),
+  cost: z.number().nullable(),
+  model_used: z.string().nullable(),
+  processing_time_ms: z.number().nullable(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const McpResourcesRowSchema = z.object({
+  id: z.number(),
+  uri: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  mime_type: z.string(),
+  content_type: z.nativeEnum(McpResourcesContentType),
+  content: z.string().nullable(),
+  blob_content: z.string().nullable(),
+  size: z.number().nullable(),
+  module_name: z.string(),
+  file_path: z.string().nullable(),
+  category: z.string().nullable(),
+  tags: z.string().nullable(),
+  author: z.string().nullable(),
+  version: z.string().nullable(),
+  checksum: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+  last_synced_at: z.string().datetime().nullable(),
+});
+
+export const McpPromptsRowSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string().nullable(),
+  module_name: z.string(),
+  file_path: z.string().nullable(),
+  category: z.string().nullable(),
+  tags: z.string().nullable(),
+  author: z.string().nullable(),
+  version: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+  last_synced_at: z.string().datetime().nullable(),
+});
+
+export const McpPromptMessagesRowSchema = z.object({
+  id: z.number(),
+  prompt_id: z.number(),
+  role: z.nativeEnum(McpPromptMessagesRole),
+  content: z.string(),
+  message_order: z.number(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const McpPromptArgumentsRowSchema = z.object({
+  id: z.number(),
+  prompt_id: z.number(),
+  argument_name: z.string(),
+  argument_description: z.string().nullable(),
+  is_required: z.boolean().nullable(),
+  argument_order: z.number(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const McpResourceTemplatesRowSchema = z.object({
+  id: z.number(),
+  uri_template: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  mime_type: z.string().nullable(),
+  module_name: z.string(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type McpDatabaseRow = IMcpContextsRow | IMcpSessionsRow | IMcpMessagesRow | IMcpResourcesRow | IMcpPromptsRow | IMcpPromptMessagesRow | IMcpPromptArgumentsRow | IMcpResourceTemplatesRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const McpDatabaseRowSchema = z.union([McpContextsRowSchema, McpSessionsRowSchema, McpMessagesRowSchema, McpResourcesRowSchema, McpPromptsRowSchema, McpPromptMessagesRowSchema, McpPromptArgumentsRowSchema, McpResourceTemplatesRowSchema]);
 
 /**
  * Database table names for this module

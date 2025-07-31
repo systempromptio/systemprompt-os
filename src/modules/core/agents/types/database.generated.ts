@@ -1,6 +1,8 @@
 // Auto-generated database types for agents module
-// Generated on: 2025-07-30T22:16:41.630Z
+// Generated on: 2025-07-31T10:03:21.448Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum AgentsType {
@@ -38,6 +40,13 @@ export enum AgentLogsLevel {
   WARN = 'warn',
   ERROR = 'error'
 }
+
+// Zod schemas for enums
+export const AgentsTypeSchema = z.nativeEnum(AgentsType);
+export const AgentsStatusSchema = z.nativeEnum(AgentsStatus);
+export const AgentTasksPrioritySchema = z.nativeEnum(AgentTasksPriority);
+export const AgentTasksStatusSchema = z.nativeEnum(AgentTasksStatus);
+export const AgentLogsLevelSchema = z.nativeEnum(AgentLogsLevel);
 
 /**
  * Generated from database table: agents
@@ -130,10 +139,79 @@ export interface IAgentMetricsRow {
   timestamp: string | null;
 }
 
+// Zod schemas for database row validation
+export const AgentsRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string(),
+  instructions: z.string(),
+  type: z.nativeEnum(AgentsType),
+  status: z.nativeEnum(AgentsStatus),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+  assigned_tasks: z.number().nullable(),
+  completed_tasks: z.number().nullable(),
+  failed_tasks: z.number().nullable(),
+});
+
+export const AgentCapabilitiesRowSchema = z.object({
+  agent_id: z.string(),
+  capability: z.string(),
+});
+
+export const AgentToolsRowSchema = z.object({
+  agent_id: z.string(),
+  tool: z.string(),
+});
+
+export const AgentConfigRowSchema = z.object({
+  agent_id: z.string(),
+  config_key: z.string(),
+  config_value: z.string(),
+});
+
+export const AgentTasksRowSchema = z.object({
+  id: z.string().uuid(),
+  agent_id: z.string(),
+  name: z.string(),
+  priority: z.nativeEnum(AgentTasksPriority),
+  status: z.nativeEnum(AgentTasksStatus),
+  payload: z.string(),
+  created_at: z.string().datetime().nullable(),
+  assigned_at: z.string().datetime().nullable(),
+  started_at: z.string().datetime().nullable(),
+  completed_at: z.string().datetime().nullable(),
+  retry_count: z.number().nullable(),
+  max_retries: z.number().nullable(),
+  error_message: z.string().nullable(),
+});
+
+export const AgentLogsRowSchema = z.object({
+  id: z.string().uuid(),
+  agent_id: z.string(),
+  level: z.nativeEnum(AgentLogsLevel),
+  message: z.string(),
+  timestamp: z.string().datetime().nullable(),
+  metadata: z.string().nullable(),
+});
+
+export const AgentMetricsRowSchema = z.object({
+  agent_id: z.string(),
+  cpu_usage: z.number().nullable(),
+  memory_usage: z.number().nullable(),
+  active_tasks: z.number().nullable(),
+  timestamp: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type AgentsDatabaseRow = IAgentsRow | IAgentCapabilitiesRow | IAgentToolsRow | IAgentConfigRow | IAgentTasksRow | IAgentLogsRow | IAgentMetricsRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const AgentsDatabaseRowSchema = z.union([AgentsRowSchema, AgentCapabilitiesRowSchema, AgentToolsRowSchema, AgentConfigRowSchema, AgentTasksRowSchema, AgentLogsRowSchema, AgentMetricsRowSchema]);
 
 /**
  * Database table names for this module

@@ -13,14 +13,14 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import { createServer } from 'http';
 import request from 'supertest';
-import { TunnelService } from '../../src/modules/core/auth/services/tunnel.service.js';
-import { setupExternalEndpoints } from '../../src/server/external/setup.js';
-import { initialize as initializeAuthModule } from '../../src/modules/core/auth/index.js';
+// import { TunnelService } from '../../src/modules/core/auth/services/tunnel.service.js'; // Removed - tunnel service moved to system module
+import { setupExternalEndpoints } from '../../src/server/external/setup';
+import { AuthModule } from '../../src/modules/core/auth/index';
 
 describe.skip('Tunnel OAuth Integration Tests (requires tunnel setup)', () => {
   let app: express.Express;
   let server: any;
-  let tunnelService: TunnelService;
+  // let tunnelService: TunnelService; // Removed - tunnel service moved to system module
   const testPort = 3789;
   let publicUrl: string = '';
   

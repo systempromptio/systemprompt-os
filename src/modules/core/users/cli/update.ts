@@ -14,11 +14,21 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { UsersStatus } from '@/modules/core/users/types/database.generated';
 import type {
-  IDisplayOptions,
-  IUpdateUserArgs,
   IUser,
   IUserUpdateData
-} from '@/modules/core/users/types/index';
+} from '@/modules/core/users/types/users.module.generated';
+
+// Local CLI types
+interface IDisplayOptions {
+  format?: string;
+}
+
+interface IUpdateUserArgs {
+  id?: string;
+  email?: string;
+  status?: string;
+  format?: string;
+}
 
 /**
  * Validates user ID argument.
@@ -102,7 +112,7 @@ const displayUserInfo = (
       "Username": user.username,
       "Email": user.email,
       "Status": user.status,
-      'Updated At': user.updatedAt.toISOString()
+      'Updated At': user.updated_at || 'N/A'
     });
   }
 };

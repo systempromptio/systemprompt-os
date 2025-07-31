@@ -1,6 +1,8 @@
 // Auto-generated database types for database module
-// Generated on: 2025-07-30T22:16:41.628Z
+// Generated on: 2025-07-31T10:03:21.447Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum DatabaseOperationsOperationType {
@@ -29,6 +31,12 @@ export enum DatabaseHealthChecksStatus {
   DEGRADED = 'degraded',
   UNHEALTHY = 'unhealthy'
 }
+
+// Zod schemas for enums
+export const DatabaseOperationsOperationTypeSchema = z.nativeEnum(DatabaseOperationsOperationType);
+export const DatabaseOperationsStatusSchema = z.nativeEnum(DatabaseOperationsStatus);
+export const DatabaseHealthChecksCheckTypeSchema = z.nativeEnum(DatabaseHealthChecksCheckType);
+export const DatabaseHealthChecksStatusSchema = z.nativeEnum(DatabaseHealthChecksStatus);
 
 /**
  * Generated from database table: database_schema_versions
@@ -87,10 +95,57 @@ export interface IDatabaseHealthChecksRow {
   checked_at: string | null;
 }
 
+// Zod schemas for database row validation
+export const DatabaseSchemaVersionsRowSchema = z.object({
+  id: z.number(),
+  module_name: z.string(),
+  version: z.string(),
+  checksum: z.string(),
+  applied_at: z.string().datetime().nullable(),
+  execution_time_ms: z.number().nullable(),
+  statements_count: z.number().nullable(),
+});
+
+export const DatabaseMigrationsRowSchema = z.object({
+  id: z.number(),
+  module_name: z.string(),
+  version: z.string(),
+  filename: z.string(),
+  checksum: z.string(),
+  applied_at: z.string().datetime().nullable(),
+  execution_time_ms: z.number().nullable(),
+  rollback_sql: z.string().nullable(),
+});
+
+export const DatabaseOperationsRowSchema = z.object({
+  id: z.number(),
+  operation_type: z.nativeEnum(DatabaseOperationsOperationType),
+  module_name: z.string().nullable(),
+  status: z.nativeEnum(DatabaseOperationsStatus),
+  error_message: z.string().nullable(),
+  affected_rows: z.number().nullable(),
+  execution_time_ms: z.number().nullable(),
+  created_at: z.string().datetime().nullable(),
+});
+
+export const DatabaseHealthChecksRowSchema = z.object({
+  id: z.number(),
+  check_type: z.nativeEnum(DatabaseHealthChecksCheckType),
+  status: z.nativeEnum(DatabaseHealthChecksStatus),
+  details: z.string().nullable(),
+  response_time_ms: z.number().nullable(),
+  checked_at: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type DatabaseDatabaseRow = IDatabaseSchemaVersionsRow | IDatabaseMigrationsRow | IDatabaseOperationsRow | IDatabaseHealthChecksRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const DatabaseDatabaseRowSchema = z.union([DatabaseSchemaVersionsRowSchema, DatabaseMigrationsRowSchema, DatabaseOperationsRowSchema, DatabaseHealthChecksRowSchema]);
 
 /**
  * Database table names for this module

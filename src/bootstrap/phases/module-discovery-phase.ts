@@ -11,6 +11,7 @@ import type {
 } from '@/types/bootstrap';
 import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
 import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
+import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
  * Type guard to check if module has exports property.
@@ -95,7 +96,7 @@ export const executeModuleDiscoveryPhase = async (
   });
 
   try {
-    const modulesModule = modules.get('modules');
+    const modulesModule = modules.get(ModuleName.MODULES);
     if (!hasExports(modulesModule)) {
       logger.warn(
         LogSource.BOOTSTRAP,

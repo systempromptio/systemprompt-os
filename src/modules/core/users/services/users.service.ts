@@ -12,9 +12,9 @@ import { UsersRepository } from '@/modules/core/users/repositories/users.reposit
 import {
   type IUser,
   type IUserCreateData,
-  type IUserUpdateData,
-  type IUsersService
-} from '@/modules/core/users/types/index';
+  type IUserUpdateData
+} from '@/modules/core/users/types/users.module.generated';
+import type { IUsersService } from '@/modules/core/users/types/users.service.generated';
 import { UsersStatus } from '@/modules/core/users/types/database.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
@@ -96,15 +96,17 @@ export class UsersService implements IUsersService {
       id,
       username: data.username,
       email: data.email,
-      displayName: data.displayName || '',
-      avatarUrl: data.avatarUrl || '',
+      display_name: data.display_name || null,
+      avatar_url: data.avatar_url || null,
       bio: data.bio || '',
       timezone: data.timezone ?? 'UTC',
       language: data.language ?? 'en',
       status: UsersStatus.ACTIVE,
-      emailVerified: data.emailVerified ?? false,
-      createdAt: now,
-      updatedAt: now
+      email_verified: data.email_verified ?? false,
+      preferences: data.preferences || null,
+      metadata: data.metadata || null,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString()
     });
 
     const event: UserCreatedEvent = {
@@ -209,7 +211,22 @@ export class UsersService implements IUsersService {
     }
 
     this.logger?.info(LogSource.USERS, `Updating user: ${id}`);
-    const updatedUser = await this.repository.updateUser(id, data);
+    
+    // Filter out undefined values to match repository expectations
+    const cleanData: Record<string, any> = {};
+    if (data.username !== undefined) cleanData.username = data.username;
+    if (data.email !== undefined) cleanData.email = data.email;
+    if (data.display_name !== undefined) cleanData.display_name = data.display_name;
+    if (data.avatar_url !== undefined) cleanData.avatar_url = data.avatar_url;
+    if (data.bio !== undefined) cleanData.bio = data.bio;
+    if (data.timezone !== undefined) cleanData.timezone = data.timezone;
+    if (data.language !== undefined) cleanData.language = data.language;
+    if (data.status !== undefined) cleanData.status = data.status;
+    if (data.email_verified !== undefined) cleanData.email_verified = data.email_verified;
+    if (data.preferences !== undefined) cleanData.preferences = data.preferences;
+    if (data.metadata !== undefined) cleanData.metadata = data.metadata;
+    
+    const updatedUser = await this.repository.updateUser(id, cleanData as Partial<Omit<import('@/modules/core/users/types/database.generated').IUsersRow, 'id' | 'created_at' | 'updated_at'>>);
 
     const event: UserUpdatedEvent = {
       userId: updatedUser.id,
@@ -289,8 +306,8 @@ export class UsersService implements IUsersService {
             id: user.id,
             username: user.username,
             email: user.email,
-            status: user.status,
-            emailVerified: user.emailVerified
+            status: user.status as string,
+            emailVerified: user.email_verified ?? false
           } : null
         };
 
@@ -326,9 +343,15 @@ export class UsersService implements IUsersService {
           user = await this.createUser({
             username,
             email: event.email,
-            displayName: event.name || username,
-            avatarUrl: event.avatar || '',
-            emailVerified: true
+            display_name: event.name || username,
+            avatar_url: event.avatar || null,
+            bio: null,
+            timezone: 'UTC',
+            language: 'en',
+            status: UsersStatus.ACTIVE,
+            email_verified: true,
+            preferences: null,
+            metadata: null
           });
         }
 
@@ -339,7 +362,7 @@ export class UsersService implements IUsersService {
             id: user.id,
             username: user.username,
             email: user.email,
-            ...user.avatarUrl && { avatarUrl: user.avatarUrl },
+            ...user.avatar_url && { avatarUrl: user.avatar_url },
             roles: []
           }
         };

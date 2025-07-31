@@ -10,6 +10,7 @@ export enum ModuleName {
   CONFIG = 'config',
   DATABASE = 'database',
   DEV = 'dev',
+  EVENTS = 'events',
   LOGGER = 'logger',
   MCP = 'mcp',
   MODULES = 'modules',

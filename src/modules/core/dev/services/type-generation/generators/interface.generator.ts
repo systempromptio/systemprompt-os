@@ -1,0 +1,35 @@
+/**
+ * Interface Type Generator Module
+ * Generates interface type exports for modules
+ * @module dev/services/type-generation/generators
+ */
+
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import type { ILogger } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types';
+
+/**
+ * Generates interface type exports
+ */
+export class InterfaceGenerator {
+  constructor(private readonly logger: ILogger) {}
+
+  /**
+   * Generate interface types for a module
+   * @param moduleName - Module name
+   */
+  public async generate(moduleName: string): Promise<void> {
+    const modulePath = join(process.cwd(), `src/modules/core/${moduleName}`);
+    
+    // Only handle manual types if they exist
+    const manualTypesPath = join(modulePath, 'types/manual.ts');
+    if (existsSync(manualTypesPath)) {
+      this.logger.info(LogSource.DEV, `Found manual types for ${moduleName}, no action needed`);
+      return;
+    }
+    
+    // No index.ts file is generated anymore - users should import directly from generated files
+    this.logger.debug(LogSource.DEV, `No manual types for ${moduleName}, skipping index.ts generation`);
+  }
+}

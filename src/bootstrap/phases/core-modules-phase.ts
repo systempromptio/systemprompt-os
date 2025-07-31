@@ -20,6 +20,7 @@ import type {
 } from '@/types/bootstrap';
 import type { IModule } from '@/modules/core/modules/types';
 import type { IModulesModuleExports } from '@/modules/core/modules/types/modules-exports.types';
+import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
  * Create a module instance from the loaded exports.
@@ -203,29 +204,33 @@ const registerPreLoadedModules = (
   moduleExports: IModulesModuleExports,
   modules: Map<string, CoreModuleType>,
 ): void => {
-  const loggerModule = modules.get('logger');
+  const loggerModule = modules.get(ModuleName.LOGGER);
   if (loggerModule !== undefined) {
-    moduleExports.registerPreLoadedModule('logger', loggerModule);
+    moduleExports.registerPreLoadedModule(ModuleName.LOGGER, loggerModule);
   }
 
-  const databaseModule = modules.get('database');
+  const databaseModule = modules.get(ModuleName.DATABASE);
   if (databaseModule !== undefined) {
-    moduleExports.registerPreLoadedModule('database', databaseModule);
+    moduleExports.registerPreLoadedModule(ModuleName.DATABASE, databaseModule);
   }
 
-  const eventsModule = modules.get('events');
+  const eventsModule = modules.get(ModuleName.EVENTS);
   if (eventsModule !== undefined) {
-    moduleExports.registerPreLoadedModule('events', eventsModule);
+    moduleExports.registerPreLoadedModule(ModuleName.EVENTS, eventsModule);
   }
 
-  const systemModule = modules.get('system');
+  const systemModule = modules.get(ModuleName.SYSTEM);
   if (systemModule !== undefined) {
-    moduleExports.registerPreLoadedModule('system', systemModule);
+    moduleExports.registerPreLoadedModule(ModuleName.SYSTEM, systemModule);
   }
 
-  const configModule = modules.get('config');
+  const configModule = modules.get(ModuleName.CONFIG);
   if (configModule !== undefined) {
-    moduleExports.registerPreLoadedModule('config', configModule);
+    moduleExports.registerPreLoadedModule(ModuleName.CONFIG, configModule);
+  }
+  const authModule = modules.get(ModuleName.AUTH);
+  if (authModule !== undefined) {
+    moduleExports.registerPreLoadedModule(ModuleName.AUTH, authModule);
   }
 };
 
@@ -240,7 +245,7 @@ const filterRemainingModules = (
   essentialModules: string[],
 ): ICoreModuleDefinition[] => {
   return coreModules.filter((definition): boolean => {
-    return definition.name !== 'logger' && !essentialModules.includes(definition.name);
+    return definition.name !== ModuleName.LOGGER && !essentialModules.includes(definition.name);
   });
 };
 
@@ -308,7 +313,7 @@ const loadRemainingCoreModules = async (
   coreModules: ICoreModuleDefinition[],
   moduleExports: IModulesModuleExports,
 ): Promise<void> => {
-  const essentialModules = ['database', 'modules', 'events', 'system', 'config'];
+  const essentialModules = ['database', 'modules', 'events', 'system', 'config', 'auth'];
   const remainingModules = filterRemainingModules(coreModules, essentialModules);
 
   for (const definition of remainingModules) {
@@ -327,7 +332,7 @@ const filterNonCriticalModules = (
   modules: Map<string, CoreModuleType>,
 ): ICoreModuleDefinition[] => {
   return coreModules.filter((definition): boolean => {
-    return definition.name !== 'logger' && !definition.critical && modules.has(definition.name);
+    return definition.name !== ModuleName.LOGGER && !definition.critical && modules.has(definition.name);
   });
 };
 
@@ -378,7 +383,7 @@ const startNonCriticalModules = async (
  * @throws Error when modules module is not properly loaded.
  */
 const getModulesServiceExports = (modules: Map<string, CoreModuleType>): IModulesModuleExports => {
-  const modulesModule = modules.get('modules');
+  const modulesModule = modules.get(ModuleName.MODULES);
   if (modulesModule === undefined || !('exports' in modulesModule)) {
     throw new Error('Modules module not properly loaded');
   }
@@ -402,7 +407,7 @@ export const executeCoreModulesPhase = async (context: CoreModulesPhaseContext):
     persistToDb: false,
   });
 
-  const essentialModules = ['database', 'modules', 'events', 'system', 'config'];
+  const essentialModules = ['database', 'modules', 'events', 'system', 'config', 'auth'];
 
   await loadEssentialModules(modules, coreModules, essentialModules);
 

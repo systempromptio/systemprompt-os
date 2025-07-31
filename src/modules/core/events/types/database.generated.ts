@@ -1,6 +1,8 @@
 // Auto-generated database types for events module
-// Generated on: 2025-07-30T22:16:41.628Z
+// Generated on: 2025-07-31T10:03:21.446Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 /**
  * Generated from database table: events
@@ -31,10 +33,37 @@ export interface IEventSubscriptionsRow {
   updated_at: string | null;
 }
 
+// Zod schemas for database row validation
+export const EventsRowSchema = z.object({
+  id: z.number(),
+  event_name: z.string(),
+  event_data: z.string().nullable(),
+  emitted_at: z.string().datetime().nullable(),
+  module_source: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const EventSubscriptionsRowSchema = z.object({
+  id: z.number(),
+  event_name: z.string(),
+  subscriber_module: z.string(),
+  handler_name: z.string().nullable(),
+  subscribed_at: z.string().datetime().nullable(),
+  active: z.boolean().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type EventsDatabaseRow = IEventsRow | IEventSubscriptionsRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const EventsDatabaseRowSchema = z.union([EventsRowSchema, EventSubscriptionsRowSchema]);
 
 /**
  * Database table names for this module

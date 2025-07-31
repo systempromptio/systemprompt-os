@@ -39,7 +39,8 @@ const expressMock = Object.assign(
 );
 
 vi.mock('express', () => ({
-  default: expressMock
+  default: expressMock,
+  Router: vi.fn(() => mockRouter)
 }));
 
 vi.mock('cors', () => ({

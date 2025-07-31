@@ -24,10 +24,9 @@ import type {
 import { WellKnownEndpoint } from '@/server/external/rest/oauth2/well-known';
 import { ProtectedResourceEndpoint } from '@/server/external/rest/oauth2/protected-resource';
 import { AuthorizationServerEndpoint } from '@/server/external/rest/oauth2/authorization-server';
-import { AuthorizeEndpoint } from '@/server/external/rest/oauth2/authorize';
-
+import { UnifiedAuthorizeEndpoint } from '@/server/external/rest/oauth2/unified-authorize';
 import { RegisterEndpoint } from '@/server/external/rest/oauth2/register';
-import { TokenEndpoint } from '@/server/external/rest/oauth2/token';
+import { UnifiedTokenEndpoint } from '@/server/external/rest/oauth2/unified-token';
 import { UserInfoEndpoint } from '@/server/external/rest/oauth2/userinfo';
 
 /**
@@ -72,12 +71,12 @@ const setupDiscoveryRoutes = (
     authorizationServer: AuthorizationServerEndpoint;
   }
 ): void => {
-  router.get('/.well-known/oauth-protected-resource', (req, res): void => {
-    void endpoints.protectedResource.getProtectedResourceMetadata(req, res);
+  router.get('/.well-known/oauth-protected-resource', async (req, res): Promise<void> => {
+    await endpoints.protectedResource.getProtectedResourceMetadata(req, res);
   });
 
-  router.get('/.well-known/oauth-authorization-server', (req, res): void => {
-    void endpoints.authorizationServer.getAuthorizationServerMetadata(req, res);
+  router.get('/.well-known/oauth-authorization-server', async (req, res): Promise<void> => {
+    await endpoints.authorizationServer.getAuthorizationServerMetadata(req, res);
   });
 
   router.get('/.well-known/jwks.json', (req, res): void => {
@@ -98,8 +97,8 @@ const setupOAuth2FlowRoutes = (
   router: Router,
   endpoints: {
     register: RegisterEndpoint;
-    authorize: AuthorizeEndpoint;
-    token: TokenEndpoint;
+    authorize: UnifiedAuthorizeEndpoint;
+    token: UnifiedTokenEndpoint;
     userinfo: UserInfoEndpoint;
   }
 ): void => {
@@ -107,24 +106,24 @@ const setupOAuth2FlowRoutes = (
     void endpoints.register.register(req, res);
   });
 
-  router.get('/oauth2/authorize', (req, res): void => {
-    void endpoints.authorize.getAuthorize(req, res);
+  router.get('/oauth2/authorize', async (req, res): Promise<void> => {
+    await endpoints.authorize.handleAuthorize(req, res);
   });
 
-  router.post('/oauth2/authorize', (req, res): void => {
-    void endpoints.authorize.postAuthorize(req, res);
+  router.post('/oauth2/authorize', async (req, res): Promise<void> => {
+    await endpoints.authorize.handleAuthorize(req, res);
   });
 
-  router.get('/oauth2/callback', (req, res): void => {
-    void endpoints.authorize.handleProviderCallback(req, res);
+  router.get('/oauth2/callback', async (req, res): Promise<void> => {
+    await endpoints.authorize.handleProviderCallback(req, res);
   });
 
-  router.get('/oauth2/callback/:provider', (req, res): void => {
-    void endpoints.authorize.handleProviderCallback(req, res);
+  router.get('/oauth2/callback/:provider', async (req, res): Promise<void> => {
+    await endpoints.authorize.handleProviderCallback(req, res);
   });
 
-  router.post('/oauth2/token', (req, res): void => {
-    void endpoints.token.postToken(req, res);
+  router.post('/oauth2/token', async (req, res): Promise<void> => {
+    await endpoints.token.handleTokenRequest(req, res);
   });
 
   router.get('/oauth2/userinfo', authMiddleware, async (req, res): Promise<void> => {
@@ -168,8 +167,8 @@ export const setupOAuth2Routes = (router: Router): void => {
     protectedResource: new ProtectedResourceEndpoint(),
     authorizationServer: new AuthorizationServerEndpoint(),
     register: new RegisterEndpoint(),
-    authorize: new AuthorizeEndpoint(),
-    token: new TokenEndpoint(),
+    authorize: new UnifiedAuthorizeEndpoint(),
+    token: new UnifiedTokenEndpoint(),
     userinfo: new UserInfoEndpoint()
   };
 

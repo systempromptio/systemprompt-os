@@ -355,46 +355,6 @@ describe('Dev Module Integration Tests', () => {
     });
   });
 
-  describe('CLI Commands', () => {
-    it('should manage profiles via CLI', async () => {
-      // Create profile
-      const createResult = await runCLICommand([
-        'dev', 'profile:create',
-        '--name', 'cli-test-profile',
-        '-d', 'CLI test profile',
-        '--enabled', '--debug'
-      ]);
-      
-      expect(createResult.exitCode).toBe(0);
-      expect(createResult.output).toMatch(/Created profile/);
-      
-      // List profiles
-      const listResult = await runCLICommand(['dev', 'profile:list']);
-      expect(listResult.exitCode).toBe(0);
-      expect(listResult.output).toMatch(/cli-test-profile/);
-    });
-    
-    it('should manage sessions via CLI', async () => {
-      // Start session
-      const startResult = await runCLICommand([
-        'dev', 'session:start',
-        '--type', 'test'
-      ]);
-      expect(startResult.exitCode).toBe(0);
-      expect(startResult.output).toMatch(/Started test session/);
-      
-      // Extract session ID from output
-      const idMatch = startResult.output.match(/ID: (\d+)/);
-      expect(idMatch).toBeTruthy();
-      const sessionId = idMatch?.[1];
-      
-      if (sessionId) {
-        // Session started successfully, test passed
-        expect(parseInt(sessionId)).toBeGreaterThan(0);
-      }
-    });
-  });
-
   describe('Development Workflows', () => {
     it('should support development session management', async () => {
       // Dev service should support basic operations

@@ -3,14 +3,7 @@
  * Handles user data persistence without authentication concerns.
  */
 
-import {
-  type IUser,
-  type IUserUpdateData
-} from '@/modules/core/users/types/index';
-import { UsersStatus } from '@/modules/core/users/types/database.generated';
-import {
-  type IUsersRow
-} from '@/modules/core/users/types/database.generated';
+import { type IUsersRow } from '@/modules/core/users/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 
@@ -39,13 +32,12 @@ export class UsersRepository {
    * Initialize repository.
    * @returns Promise that resolves when initialized.
    */
-  async initialize(): Promise<void> {
+  async initialize() {
     this.dbService = DatabaseService.getInstance();
   }
 
   /**
    * Get database connection.
-   * @returns Database connection.
    */
   private async getDatabase(): Promise<IDatabaseConnection> {
     if (!this.dbService) {
@@ -56,47 +48,60 @@ export class UsersRepository {
 
   /**
    * Create a new user.
-   * @param user - User data.
-   * @returns The created user.
    */
-  async createUser(user: IUser): Promise<IUser> {
+  async createUser(userData: Omit<IUsersRow, 'id'> & { id: string }): Promise<IUsersRow> {
     const database = await this.getDatabase();
 
     const stmt = await database.prepare(
       `INSERT INTO users (
         id, username, email, display_name, avatar_url, bio,
-        timezone, language, status, email_verified,
-        preferences, metadata, created_at, updated_at
+        timezone, language, status, email_verified, preferences,
+        metadata, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     await stmt.run([
-      user.id,
-      user.username,
-      user.email,
-      user.displayName || null,
-      user.avatarUrl || null,
-      user.bio || null,
-      user.timezone,
-      user.language,
-      user.status,
-      user.emailVerified ? 1 : 0,
-      user.preferences ? JSON.stringify(user.preferences) : null,
-      user.metadata ? JSON.stringify(user.metadata) : null,
-      user.createdAt.toISOString(),
-      user.updatedAt.toISOString()
+      userData.id,
+      userData.username,
+      userData.email,
+      userData.display_name || null,
+      userData.avatar_url || null,
+      userData.bio || null,
+      userData.timezone || null,
+      userData.language || null,
+      userData.status,
+      userData.email_verified || null,
+      userData.preferences || null,
+      userData.metadata || null,
+      userData.created_at,
+      userData.updated_at
     ]);
 
     await stmt.finalize();
-    return user;
+    
+    // Return the created user (database row format)
+    return {
+      id: userData.id,
+      username: userData.username,
+      email: userData.email,
+      display_name: userData.display_name || null,
+      avatar_url: userData.avatar_url || null,
+      bio: userData.bio || null,
+      timezone: userData.timezone || null,
+      language: userData.language || null,
+      status: userData.status,
+      email_verified: userData.email_verified || null,
+      preferences: userData.preferences || null,
+      metadata: userData.metadata || null,
+      created_at: userData.created_at,
+      updated_at: userData.updated_at
+    };
   }
 
   /**
    * Find user by ID.
-   * @param id - User ID.
-   * @returns User or null.
    */
-  async findById(id: string): Promise<IUser | null> {
+  async findById(id: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -104,16 +109,14 @@ export class UsersRepository {
       [id]
     );
 
-    const row = (result as any).rows[0];
-    return row ? this.mapRowToUser(row) : null;
+    const row = result.rows[0];
+    return row || null;
   }
 
   /**
    * Find user by username.
-   * @param username - Username.
-   * @returns User or null.
    */
-  async findByUsername(username: string): Promise<IUser | null> {
+  async findByUsername(username: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -121,16 +124,14 @@ export class UsersRepository {
       [username]
     );
 
-    const row = (result as any).rows[0];
-    return row ? this.mapRowToUser(row) : null;
+    const row = result.rows[0];
+    return row || null;
   }
 
   /**
    * Find user by email.
-   * @param email - Email address.
-   * @returns User or null.
    */
-  async findByEmail(email: string): Promise<IUser | null> {
+  async findByEmail(email: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
@@ -138,35 +139,31 @@ export class UsersRepository {
       [email]
     );
 
-    const row = (result as any).rows[0];
-    return row ? this.mapRowToUser(row) : null;
+    const row = result.rows[0];
+    return row || null;
   }
 
   /**
    * Find all users.
-   * @returns Array of users.
    */
-  async findAll(): Promise<IUser[]> {
+  async findAll(): Promise<IUsersRow[]> {
     const database = await this.getDatabase();
 
     const result = await database.query<IUsersRow>(
       'SELECT * FROM users ORDER BY created_at DESC'
     );
 
-    return (result as any).rows.map((row: IUsersRow) => { return this.mapRowToUser(row) });
+    return result.rows;
   }
 
   /**
    * Update user.
-   * @param id - User ID.
-   * @param data - Update data.
-   * @returns Updated user.
    */
-  async updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
+  async updateUser(id: string, data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>): Promise<IUsersRow> {
     const database = await this.getDatabase();
 
-    const updates: string[] = [];
-    const values: unknown[] = [];
+    const updates = [];
+    const values = [];
 
     if (data.username !== undefined) {
       updates.push('username = ?');
@@ -176,13 +173,13 @@ export class UsersRepository {
       updates.push('email = ?');
       values.push(data.email);
     }
-    if (data.displayName !== undefined) {
+    if (data.display_name !== undefined) {
       updates.push('display_name = ?');
-      values.push(data.displayName);
+      values.push(data.display_name);
     }
-    if (data.avatarUrl !== undefined) {
+    if (data.avatar_url !== undefined) {
       updates.push('avatar_url = ?');
-      values.push(data.avatarUrl);
+      values.push(data.avatar_url);
     }
     if (data.bio !== undefined) {
       updates.push('bio = ?');
@@ -200,17 +197,17 @@ export class UsersRepository {
       updates.push('status = ?');
       values.push(data.status);
     }
-    if (data.emailVerified !== undefined) {
+    if (data.email_verified !== undefined) {
       updates.push('email_verified = ?');
-      values.push(data.emailVerified ? 1 : 0);
+      values.push(data.email_verified ? 1 : 0);
     }
     if (data.preferences !== undefined) {
       updates.push('preferences = ?');
-      values.push(JSON.stringify(data.preferences));
+      values.push(data.preferences);
     }
     if (data.metadata !== undefined) {
       updates.push('metadata = ?');
-      values.push(JSON.stringify(data.metadata));
+      values.push(data.metadata);
     }
 
     updates.push('updated_at = ?');
@@ -251,7 +248,7 @@ export class UsersRepository {
    * @param query - Search query.
    * @returns Array of matching users.
    */
-  async searchUsers(query: string): Promise<IUser[]> {
+  async searchUsers(query: string): Promise<IUsersRow[]> {
     const database = await this.getDatabase();
 
     const searchPattern = `%${query}%`;
@@ -262,29 +259,7 @@ export class UsersRepository {
       [searchPattern, searchPattern, searchPattern]
     );
 
-    return (result as any).rows.map((row: IUsersRow) => { return this.mapRowToUser(row) });
+    return result.rows;
   }
 
-  /**
-   * Map database row to user entity.
-   * @param row - Database row.
-   * @returns User entity.
-   */
-  private mapRowToUser(row: IUsersRow): IUser {
-    return {
-      id: row.id,
-      username: row.username,
-      email: row.email,
-      ...row.display_name && { displayName: row.display_name },
-      ...row.avatar_url && { avatarUrl: row.avatar_url },
-      ...row.bio && { bio: row.bio },
-      timezone: row.timezone || 'UTC',
-      language: row.language || 'en',
-      status: row.status || UsersStatus.ACTIVE,
-      emailVerified: Boolean(row.email_verified),
-      ...row.metadata && { metadata: JSON.parse(row.metadata) },
-      createdAt: new Date(row.created_at || Date.now()),
-      updatedAt: new Date(row.updated_at || Date.now())
-    };
-  }
 }

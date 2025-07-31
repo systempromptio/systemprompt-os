@@ -17,6 +17,8 @@ import {
 } from '@/modules/core/dev/types/index';
 import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/database.generated';
 import { DevRepository } from '@/modules/core/dev/repositories/dev.repository';
+import { TypeGenerationService } from '@/modules/core/dev/services/type-generation';
+import { RulesSyncService } from '@/modules/core/dev/services/rules-sync.service';
 
 /**
  * Service for managing development tools - placeholder implementation.
@@ -25,6 +27,8 @@ export class DevService implements IDevService {
   private static instance: DevService;
   private logger?: ILogger;
   private repository!: DevRepository;
+  private typeGenerator!: TypeGenerationService;
+  private rulesSyncService!: RulesSyncService;
   private initialized = false;
 
   /**
@@ -57,12 +61,28 @@ export class DevService implements IDevService {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
+    // Always reinitialize services if logger is now available
+    if (this.initialized && this.logger && !this.typeGenerator) {
+      this.typeGenerator = TypeGenerationService.getInstance(this.logger);
+      this.rulesSyncService = RulesSyncService.getInstance();
+      this.rulesSyncService.setLogger(this.logger);
+      this.logger.info(LogSource.DEV, 'Dev services initialized');
+      return;
+    }
+
     if (this.initialized) {
       await Promise.resolve(); return;
     }
 
     this.repository = DevRepository.getInstance();
     await this.repository.initialize();
+
+    // Initialize dev services
+    if (this.logger) {
+      this.typeGenerator = TypeGenerationService.getInstance(this.logger);
+      this.rulesSyncService = RulesSyncService.getInstance();
+      this.rulesSyncService.setLogger(this.logger);
+    }
 
     this.initialized = true;
     this.logger?.info(LogSource.DEV, 'DevService initialized');
@@ -188,6 +208,37 @@ export class DevService implements IDevService {
     await this.ensureInitialized();
     return await this.repository.getSessionStats(profileId);
   }
+
+  /**
+   * Generate types for a module
+   * @param options - Generation options
+   */
+  async generateTypes(options: {
+    module?: string;
+    pattern?: string;
+    types?: Array<'database' | 'interfaces' | 'schemas' | 'service-schemas' | 'all'>;
+  } = {}): Promise<void> {
+    await this.ensureInitialized();
+    
+    if (!this.typeGenerator) {
+      throw new Error('Type generator not initialized - logger required');
+    }
+    
+    await this.typeGenerator.generateTypes(options);
+  }
+
+
+  /**
+   * Get rules sync service instance
+   * @returns Rules sync service instance
+   */
+  getRulesSyncService(): RulesSyncService {
+    if (!this.rulesSyncService) {
+      throw new Error('Rules sync service not initialized - service required');
+    }
+    return this.rulesSyncService;
+  }
+
 
   /**
    * Ensure service is initialized.

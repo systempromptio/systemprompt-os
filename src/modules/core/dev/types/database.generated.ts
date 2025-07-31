@@ -1,6 +1,8 @@
 // Auto-generated database types for dev module
-// Generated on: 2025-07-30T22:16:41.628Z
+// Generated on: 2025-07-31T10:03:21.446Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 /**
  * Generated from database table: dev_profiles
@@ -33,10 +35,39 @@ export interface IDevSessionsRow {
   error_count: number | null;
 }
 
+// Zod schemas for database row validation
+export const DevProfilesRowSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string().nullable(),
+  config_enabled: z.number().nullable(),
+  config_auto_save: z.number().nullable(),
+  config_debug_mode: z.number().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const DevSessionsRowSchema = z.object({
+  id: z.number(),
+  profile_id: z.number().nullable(),
+  type: z.string(),
+  status: z.string(),
+  started_at: z.string().datetime().nullable(),
+  ended_at: z.string().datetime().nullable(),
+  exit_code: z.number().nullable(),
+  output_lines: z.number().nullable(),
+  error_count: z.number().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type DevDatabaseRow = IDevProfilesRow | IDevSessionsRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const DevDatabaseRowSchema = z.union([DevProfilesRowSchema, DevSessionsRowSchema]);
 
 /**
  * Database table names for this module

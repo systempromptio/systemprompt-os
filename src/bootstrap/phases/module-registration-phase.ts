@@ -9,6 +9,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { CoreModuleType, ModuleRegistrationPhaseContext } from '@/types/bootstrap';
 import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
+import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
  * Type guard to check if exports has registerCoreModule method.
@@ -57,7 +58,7 @@ export const registerCoreModulesInDatabase = async (
     persistToDb: false
   });
 
-  const modulesModule = modules.get('modules');
+  const modulesModule = modules.get(ModuleName.MODULES);
   if (modulesModule?.exports === undefined) {
     logger.warn(
       LogSource.BOOTSTRAP,
@@ -126,7 +127,7 @@ export const registerCliCommands = async (
     persistToDb: false
   });
 
-  const cliModule = modules.get('cli');
+  const cliModule = modules.get(ModuleName.CLI);
   if (cliModule?.exports === undefined) {
     logger.warn(
       LogSource.BOOTSTRAP,

@@ -92,32 +92,13 @@ export interface IdentityProvider {
 
 /**
  * Auth module exports interface.
+ * Exposes services directly for cleaner architecture.
  */
 export interface IAuthModuleExports {
-  service: () => import('@/modules/core/auth/services/auth.service').AuthService;
+  authService: () => import('@/modules/core/auth/services/auth.service').AuthService;
   sessionService: () => import('@/modules/core/auth/services/session.service').SessionService;
   tokenService: () => import('@/modules/core/auth/services/token.service').TokenService;
+  providersService: () => import('@/modules/core/auth/services/providers.service').ProvidersService;
   oauth2ConfigService: () => import('@/modules/core/auth/services/oauth2-config.service').OAuth2ConfigurationService;
   authCodeService: () => import('@/modules/core/auth/services/auth-code.service').AuthCodeService;
-  getProvider: (id: string) => IdentityProvider | undefined;
-  getAllProviders: () => Promise<IdentityProvider[]>;
-  hasProvider: (id: string) => boolean;
-  getProvidersService: () => import('@/modules/core/auth/services/providers.service').ProvidersService;
-  getProviderRegistry: () => import('@/server/external/auth/providers/auth-module-adapter').AuthModuleProviderRegistry;
-  reloadProviders: () => Promise<void>;
-  createProvider: (input: any) => Promise<any>;
-  updateProvider: (id: string, input: any) => Promise<any>;
-  deleteProvider: (id: string) => Promise<boolean>;
-  createToken: (input: TokenCreateInput) => Promise<{ token: string; row: IAuthTokensRow }>;
-  validateToken: (token: string) => Promise<TokenValidationResult>;
-  listUserTokens: (userId: string) => Promise<IAuthTokensRow[]>;
-  revokeToken: (tokenId: string) => Promise<void>;
-  revokeUserTokens: (userId: string, type?: string) => Promise<void>;
-  cleanupExpiredTokens: () => Promise<number>;
-  login: (input: LoginInput) => Promise<LoginResult>;
-  logout: (sessionId: string) => Promise<void>;
-  refreshAccessToken: (refreshToken: string) => Promise<{
-    accessToken: string;
-    refreshToken: string;
-  }>;
 }

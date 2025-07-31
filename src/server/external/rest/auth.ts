@@ -38,25 +38,36 @@ export class AuthEndpoint {
     try {
       const error = typeof req.query.error === 'string' ? req.query.error : undefined;
 
-      const authModule = getAuthModule();
-      const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry() as unknown as ProviderRegistry | null;
+      try {
+        const authModule = getAuthModule();
+        const providerRegistry: ProviderRegistry | null = authModule.exports.getProviderRegistry() as unknown as ProviderRegistry | null;
 
-      if (providerRegistry === null) {
-        throw new Error('Provider registry not initialized');
+        if (providerRegistry === null) {
+          throw new Error('Provider registry not initialized');
+        }
+
+        const allProviders = providerRegistry.getAllProviders();
+        const providers = allProviders as IdentityProvider[];
+
+        const authPageConfig: AuthPageConfig = {
+          providers,
+          isAuthenticated: false,
+          ...error === undefined ? {} : { error }
+        };
+
+        const html = renderAuthPage(authPageConfig);
+
+        res.type('html').send(html);
+      } catch (authError) {
+        const authPageConfig: AuthPageConfig = {
+          providers: [],
+          isAuthenticated: false,
+          ...error === undefined ? {} : { error }
+        };
+
+        const html = renderAuthPage(authPageConfig);
+        res.type('html').send(html);
       }
-
-      const allProviders = providerRegistry.getAllProviders();
-      const providers = allProviders as IdentityProvider[];
-
-      const authPageConfig: AuthPageConfig = {
-        providers,
-        isAuthenticated: false,
-        ...error === undefined ? {} : { error }
-      };
-
-      const html = renderAuthPage(authPageConfig);
-
-      res.type('html').send(html);
     } catch (error: unknown) {
       logger.error(LogSource.AUTH, 'Auth page error', {
         error: error instanceof Error ? error : new Error(String(error)),

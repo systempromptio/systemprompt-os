@@ -1,6 +1,8 @@
 // Auto-generated database types for config module
-// Generated on: 2025-07-30T22:16:41.629Z
+// Generated on: 2025-07-31T10:03:21.447Z
 // Do not modify this file manually - it will be overwritten
+
+import { z } from 'zod';
 
 // Enums generated from CHECK constraints
 export enum McpServersScope {
@@ -22,6 +24,11 @@ export enum McpServersStatus {
   STARTING = 'starting',
   STOPPING = 'stopping'
 }
+
+// Zod schemas for enums
+export const McpServersScopeSchema = z.nativeEnum(McpServersScope);
+export const McpServersTransportSchema = z.nativeEnum(McpServersTransport);
+export const McpServersStatusSchema = z.nativeEnum(McpServersStatus);
 
 /**
  * Generated from database table: configs
@@ -58,10 +65,43 @@ export interface IMcpServersRow {
   last_error: string | null;
 }
 
+// Zod schemas for database row validation
+export const ConfigsRowSchema = z.object({
+  id: z.number(),
+  key: z.string(),
+  value: z.string(),
+  description: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+});
+
+export const McpServersRowSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  command: z.string(),
+  args: z.string().nullable(),
+  env: z.string().nullable(),
+  scope: z.nativeEnum(McpServersScope),
+  transport: z.nativeEnum(McpServersTransport),
+  status: z.nativeEnum(McpServersStatus),
+  description: z.string().nullable(),
+  metadata: z.string().nullable(),
+  oauth_config: z.string().nullable(),
+  created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
+  last_started_at: z.string().datetime().nullable(),
+  last_error: z.string().nullable(),
+});
+
 /**
  * Union type of all database row types in this module
  */
 export type ConfigDatabaseRow = IConfigsRow | IMcpServersRow;
+
+/**
+ * Union Zod schema for all database row types in this module
+ */
+export const ConfigDatabaseRowSchema = z.union([ConfigsRowSchema, McpServersRowSchema]);
 
 /**
  * Database table names for this module

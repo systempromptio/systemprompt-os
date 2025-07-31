@@ -17,7 +17,9 @@ interface LayoutConfig {
  * Identity provider configuration for OAuth authentication.
  */
 export interface IdentityProvider {
+  id: string;
   name: string;
+  url?: string;
 }
 
 /**
@@ -28,6 +30,10 @@ export interface AuthPageConfig {
   isAuthenticated: boolean;
   userEmail?: string;
   error?: string;
+  authorizationRequest?: {
+    client_id: string;
+    scope: string;
+  };
 }
 
 /**
@@ -56,21 +62,15 @@ const renderLayout = (config: LayoutConfig): string => {
  * @returns HTML string for provider authentication button.
  */
 const renderProviderButton = (provider: IdentityProvider): string => {
-  const providerName = provider.name.toLowerCase();
+  const providerName = provider.id.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  const baseUrl = 'http://localhost:3000';
-
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: 'auth-client',
-    redirect_uri: `${baseUrl}/oauth2/callback/${providerName}`,
-    scope: 'profile email',
-    provider: providerName,
-  });
+  
+  // Use provided URL or construct default
+  const authUrl = provider.url || `/oauth2/authorize?provider=${provider.id}`;
 
   return `
-    <a href="/oauth2/authorize?${params.toString()}" class="provider-button">
+    <a href="${authUrl}" class="provider-button">
       <span class="provider-icon">${icon}</span>
       Continue with ${displayName}
     </a>

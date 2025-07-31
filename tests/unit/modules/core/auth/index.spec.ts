@@ -8,24 +8,19 @@ import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { AuthModule, createModule, initialize, type IAuthModuleExports } from '@/modules/core/auth/index';
-import { getAuthModule } from '@/modules/core/auth/utils/module-helpers';
-import { ModuleStatusEnum } from '@/modules/core/modules/types/index';
+import { AuthModule, getAuthModule, type IAuthModuleExports } from '@/modules/core/auth/index';
+import { ModulesStatus } from '@/modules/core/modules/types/database.generated';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { ProviderRegistry } from '@/modules/core/auth/providers/registry';
-import { TunnelService } from '@/modules/core/auth/services/tunnel.service';
+import { ProvidersService } from '@/modules/core/auth/services/providers.service';
 import { TokenService } from '@/modules/core/auth/services/token.service';
+import { SessionService } from '@/modules/core/auth/services/session.service';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
-import { UserService } from '@/modules/core/auth/services/user.service';
-import { MFAService } from '@/modules/core/auth/services/mfa.service';
-import { AuthAuditService } from '@/modules/core/auth/services/audit.service';
 import { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
-import { ConfigurationError } from '@/modules/core/auth/utils/errors';
-import { generateJwtKeyPair } from '@/modules/core/auth/utils/generate-key';
-import { getModuleLoader } from '@/modules/loader';
+import { generateKeyPairSync } from 'crypto';
+import { getModuleRegistry } from '@/modules/loader';
 import { ModuleName } from '@/modules/types/module-names.types';
 import type {
   AuthConfig,
@@ -41,50 +36,15 @@ import type {
 vi.mock('fs');
 vi.mock('path');
 vi.mock('url');
+vi.mock('crypto');
 vi.mock('@/modules/core/database/services/database.service');
-vi.mock('@/modules/core/auth/providers/registry');
-vi.mock('@/modules/core/auth/services/tunnel.service');
+vi.mock('@/modules/core/auth/services/providers.service');
 vi.mock('@/modules/core/auth/services/token.service');
+vi.mock('@/modules/core/auth/services/session.service');
 vi.mock('@/modules/core/auth/services/auth.service');
-vi.mock('@/modules/core/auth/services/user.service');
-vi.mock('@/modules/core/auth/services/mfa.service');
-vi.mock('@/modules/core/auth/services/audit.service');
 vi.mock('@/modules/core/auth/services/oauth2-config.service');
 vi.mock('@/modules/core/auth/services/auth-code.service');
-vi.mock('@/modules/core/auth/utils/generate-key');
 vi.mock('@/modules/loader');
-vi.mock('@/modules/core/auth/utils/module-helpers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/modules/core/auth/utils/module-helpers')>();
-  return {
-    ...actual,
-    getAuthModule: vi.fn(actual.getAuthModule)
-  };
-});
-vi.mock('@/modules/core/auth/utils/config-builder', () => ({
-  buildAuthConfig: vi.fn(() => ({
-    jwt: {
-      algorithm: 'RS256',
-      issuer: 'systemprompt-os',
-      audience: 'systemprompt-os',
-      accessTokenTTL: 900,
-      refreshTokenTTL: 2592000,
-      keyStorePath: process.env.JWT_KEY_PATH ?? './state/auth/keys',
-      privateKey: '',
-      publicKey: ''
-    },
-    session: {
-      maxConcurrent: 5,
-      absoluteTimeout: 86400,
-      inactivityTimeout: 3600
-    },
-    security: {
-      maxLoginAttempts: 5,
-      lockoutDuration: 900,
-      passwordMinLength: 8,
-      requirePasswordChange: false
-    }
-  }))
-}));
 
 describe('AuthModule', () => {
   let authModule: AuthModule;
@@ -108,7 +68,7 @@ describe('AuthModule', () => {
   const mockJoin = join as MockedFunction<typeof join>;
   const mockDirname = dirname as MockedFunction<typeof dirname>;
   const mockFileURLToPath = fileURLToPath as MockedFunction<typeof fileURLToPath>;
-  const mockGenerateJwtKeyPair = generateJwtKeyPair as MockedFunction<typeof generateJwtKeyPair>;
+  const mockGenerateKeyPairSync = generateKeyPairSync as MockedFunction<typeof generateKeyPairSync>;
 
   beforeEach(() => {
     // Reset all mocks

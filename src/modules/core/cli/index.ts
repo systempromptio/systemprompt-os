@@ -219,12 +219,6 @@ export function getCLIModule(): IModule<ICLIModuleExports> {
     exports: cliModuleInstance.exports,
     initialize: async (): Promise<void> => {
       await cliModuleInstance.initialize();
-    },
-    start: async (): Promise<void> => {
-      await cliModuleInstance.start();
-    },
-    stop: async (): Promise<void> => {
-      await cliModuleInstance.stop();
     }
   };
   

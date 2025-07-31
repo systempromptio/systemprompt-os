@@ -399,9 +399,9 @@ let authCodeService: IAuthCodeService | null = null;
  * Get auth code service instance with lazy loading.
  * @returns The auth code service instance.
  */
-const getAuthCodeService = (): IAuthCodeService => {
+const getAuthCodeService = async (): Promise<IAuthCodeService> => {
   if (authCodeService === null) {
-    const authModule = getAuthModule();
+    const authModule = await getAuthModule();
     const authCodeServiceExport = authModule.exports.authCodeService();
     if (!authCodeServiceExport || typeof authCodeServiceExport !== 'object') {
       throw new Error('Invalid auth code service export');
@@ -422,10 +422,10 @@ export class AuthorizeEndpoint {
    * @param res - Express response object.
    * @returns Response or void.
    */
-  public getAuthorize = (
+  public getAuthorize = async (
     req: ExpressRequest,
     res: ExpressResponse
-  ): ExpressResponse | void => {
+  ): Promise<ExpressResponse | void> => {
     try {
       const params = authorizeRequestSchema.parse(req.query);
 
@@ -438,7 +438,7 @@ export class AuthorizeEndpoint {
         return;
       }
 
-      const authModule = getAuthModule();
+      const authModule = await getAuthModule();
       const providerRegistryExport = authModule.exports.getProviderRegistry();
       const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
@@ -550,7 +550,7 @@ export class AuthorizeEndpoint {
       const params = authorizeRequestSchema.parse(req.body);
 
       if (params.provider !== undefined) {
-        const authModule = getAuthModule();
+        const authModule = await getAuthModule();
         const providerRegistryExport = authModule.exports.getProviderRegistry();
       const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
@@ -601,7 +601,7 @@ export class AuthorizeEndpoint {
         return;
       }
 
-      const authCodeServiceInstance = getAuthCodeService();
+      const authCodeServiceInstance = await getAuthCodeService();
       const authCodeParams = createAuthCodeParams(params, user);
 
       const code = await authCodeServiceInstance.createAuthorizationCode(
@@ -725,7 +725,7 @@ export class AuthorizeEndpoint {
         return res.status(invalidError.code).json(invalidError.toJSON());
       }
 
-      const authModule = getAuthModule();
+      const authModule = await getAuthModule();
       const providerRegistryExport = authModule.exports.getProviderRegistry();
       const providerRegistry = providerRegistryExport as IProviderRegistry | null;
 
@@ -782,7 +782,7 @@ export class AuthorizeEndpoint {
         persistToDb: true
       });
 
-      const authCodeServiceInstance = getAuthCodeService();
+      const authCodeServiceInstance = await getAuthCodeService();
       const authCodeParams: IAuthorizationCodeData = {
         clientId: stateData.clientId,
         redirectUri: stateData.redirectUri,

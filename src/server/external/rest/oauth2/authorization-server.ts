@@ -7,7 +7,6 @@
  */
 
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
-import { getAuthModule } from '@/modules/core/auth/index';
 import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
 
 /**
@@ -47,10 +46,21 @@ export class AuthorizationServerEndpoint {
    * @returns Promise that resolves to the authorization server metadata conforming to RFC 8414.
    */
   private async getMetadata(): Promise<IOAuth2ServerMetadataInternal> {
-    const authModule = getAuthModule();
-    const oauth2ConfigService = authModule.exports.oauth2ConfigService();
-    const metadata: IOAuth2ServerMetadataInternal
-      = await oauth2ConfigService.getAuthorizationServerMetadata();
-    return metadata;
+    const baseUrl = process.env.BASE_URL || process.env.OAUTH_BASE_URL || 'http://localhost:3000';
+
+    return {
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/oauth2/authorize`,
+      token_endpoint: `${baseUrl}/oauth2/token`,
+      userinfo_endpoint: `${baseUrl}/oauth2/userinfo`,
+      jwks_uri: `${baseUrl}/.well-known/jwks.json`,
+      registration_endpoint: `${baseUrl}/oauth2/register`,
+      scopes_supported: ['read', 'write', 'admin'],
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      subject_types_supported: ['public'],
+      id_token_signing_alg_values_supported: ['RS256'],
+      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post']
+    };
   }
 }
