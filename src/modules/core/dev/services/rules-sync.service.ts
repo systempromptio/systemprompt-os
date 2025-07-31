@@ -1,12 +1,14 @@
 /**
- * Rules Sync Service - Manages synchronization of generic rules to specific modules
+ * Rules Sync Service - Manages synchronization of generic rules to specific modules.
  * @file Rules sync service implementation.
  * @module dev/services
  * Handles copying and updating module rules with placeholder replacement.
  */
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
+import {
+ existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync
+} from 'fs';
+import { dirname, join } from 'path';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 
@@ -77,14 +79,13 @@ export class RulesSyncService {
    */
   async syncModuleRules(moduleName: string): Promise<RuleSyncResult> {
     await this.ensureInitialized();
-    
+
     this.logger?.info(LogSource.DEV, `Syncing rules for module: ${moduleName}`);
-    
+
     const config = this.getModuleConfig(moduleName);
     const rulesBasePath = join(process.cwd(), 'rules', 'src', 'modules', 'core', '{module}');
     const moduleBasePath = join(process.cwd(), 'src', 'modules', 'core', moduleName);
-    
-    // Check if module exists
+
     if (!existsSync(moduleBasePath)) {
       const message = `Module directory does not exist: ${moduleBasePath}`;
       this.logger?.error(LogSource.DEV, message);
@@ -95,8 +96,7 @@ export class RulesSyncService {
         errors: [message]
       };
     }
-    
-    // Rule files to sync
+
     const ruleFiles = [
       'rules.md',
       'cli/rules.md',
@@ -106,55 +106,49 @@ export class RulesSyncService {
       'types/rules.md',
       'utils/rules.md'
     ];
-    
+
     const errors: string[] = [];
     let filesProcessed = 0;
-    
+
     for (const ruleFile of ruleFiles) {
       const sourcePath = join(rulesBasePath, ruleFile);
       const targetPath = join(moduleBasePath, ruleFile);
-      
+
       try {
-        // Check if source rule file exists
         if (!existsSync(sourcePath)) {
           const error = `Source rule file not found: ${sourcePath}`;
           this.logger?.warn(LogSource.DEV, error);
           errors.push(error);
           continue;
         }
-        
-        // Create target directory if it doesn't exist
+
         const targetDir = dirname(targetPath);
         if (!existsSync(targetDir)) {
           mkdirSync(targetDir, { recursive: true });
         }
-        
-        // Read source content
+
         const sourceContent = readFileSync(sourcePath, 'utf-8');
-        
-        // Replace placeholders
+
         const targetContent = this.replacePlaceholders(sourceContent, config);
-        
-        // Write to target
+
         writeFileSync(targetPath, targetContent, 'utf-8');
-        
+
         this.logger?.debug(LogSource.DEV, `Synced rule file: ${ruleFile}`);
         filesProcessed++;
-        
       } catch (error) {
         const errorMessage = `Failed to sync ${ruleFile}: ${error instanceof Error ? error.message : String(error)}`;
         this.logger?.error(LogSource.DEV, errorMessage);
         errors.push(errorMessage);
       }
     }
-    
+
     const success = errors.length === 0;
-    const message = success 
+    const message = success
       ? `Successfully synced ${filesProcessed} rule files for ${moduleName}`
       : `Synced ${filesProcessed} files with ${errors.length} errors for ${moduleName}`;
-    
+
     this.logger?.info(LogSource.DEV, message);
-    
+
     return {
       success,
       message,
@@ -169,26 +163,27 @@ export class RulesSyncService {
    */
   async syncAllModules(): Promise<RuleSyncResult[]> {
     await this.ensureInitialized();
-    
+
     this.logger?.info(LogSource.DEV, 'Syncing rules for all modules');
-    
+
     const modules = this.getAllModules();
     const results: RuleSyncResult[] = [];
-    
+
     this.logger?.info(LogSource.DEV, `Found ${modules.length} modules: ${modules.join(', ')}`);
-    
+
     for (const moduleName of modules) {
       const result = await this.syncModuleRules(moduleName);
       results.push(result);
     }
-    
-    const totalSuccess = results.filter(r => r.success).length;
-    const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
-    
-    this.logger?.info(LogSource.DEV, 
+
+    const totalSuccess = results.filter(r => { return r.success }).length;
+    const totalErrors = results.reduce((sum, r) => { return sum + r.errors.length }, 0);
+
+    this.logger?.info(
+LogSource.DEV,
       `Completed syncing rules: ${totalSuccess}/${modules.length} modules successful, ${totalErrors} total errors`
     );
-    
+
     return results;
   }
 
@@ -198,16 +193,16 @@ export class RulesSyncService {
    */
   getAllModules(): string[] {
     const modulesPath = join(process.cwd(), 'src', 'modules', 'core');
-    
+
     if (!existsSync(modulesPath)) {
       this.logger?.error(LogSource.DEV, `Modules directory not found: ${modulesPath}`);
       return [];
     }
-    
+
     return readdirSync(modulesPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name)
-      .filter(name => !name.startsWith('.'));
+      .filter(dirent => { return dirent.isDirectory() })
+      .map(dirent => { return dirent.name })
+      .filter(name => { return !name.startsWith('.') });
   }
 
   /**
@@ -221,7 +216,7 @@ export class RulesSyncService {
       name: moduleName,
       pascalCase: this.toPascalCase(moduleName),
       constantCase: this.toConstantCase(moduleName),
-      entity: entity,
+      entity,
       entityPascal: this.toPascalCase(entity),
       serviceName: moduleName,
       tableName: entity.toLowerCase()
@@ -270,7 +265,6 @@ export class RulesSyncService {
    * @returns Singular form.
    */
   private toSingular(str: string): string {
-    // Simple singularization - can be enhanced
     if (str.endsWith('s') && str.length > 1) {
       return str.slice(0, -1);
     }

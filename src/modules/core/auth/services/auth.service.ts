@@ -23,7 +23,6 @@ import {
   UserEvents,
 } from '@/modules/core/events/types/index';
 import {
-  type IAuthSessionsRow,
   type IAuthTokenScopesRow,
   type IAuthTokensRow,
   type LoginInput,
@@ -216,7 +215,7 @@ export class AuthService {
       };
       this.getEventBus().emit(AuthEvents.LOGIN_SUCCESS, event);
 
-      const result: IAuthResult = {
+      const result: LoginResult = {
         success: true,
         userId: user.id,
         sessionId: session.id,
@@ -283,9 +282,7 @@ export class AuthService {
 
     const now = new Date();
     let expires_at: string | null = null;
-    if (input.expires_at) {
-      expires_at = input.expires_at.toISOString();
-    } else if (input.expires_in) {
+    if (input.expires_in) {
       const expire_date = new Date(Date.now() + input.expires_in * 1000);
       expires_at = expire_date.toISOString();
     }
@@ -367,10 +364,10 @@ row: tokenRow
       return {
         valid: true,
         userId: apiToken.user_id,
-        scopes: scopes.map(s => s.scope),
+        scopes: scopes.map(s => { return s.scope }),
       };
     } catch (error) {
-      this.getLogger().error(LogSource.AUTH, 'Token validation error', { error });
+      this.getLogger().error(LogSource.AUTH, 'Token validation error', { error: error instanceof Error ? error.message : String(error) });
       return {
         valid: false,
         reason: 'Token validation failed'
@@ -565,7 +562,7 @@ row: tokenRow
     username: string,
     reason: string,
     ipAddress?: string
-  ): IAuthResult {
+  ): LoginResult {
     const event: LoginFailedEvent = {
       username: username.includes('@') ? '' : username,
       email: username.includes('@') ? username : '',

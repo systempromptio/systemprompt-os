@@ -65,8 +65,7 @@ const renderProviderButton = (provider: IdentityProvider): string => {
   const providerName = provider.id.toLowerCase();
   const displayName = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
   const icon = providerName === 'google' ? '🔵' : '⚫';
-  
-  // Use provided URL or construct default
+
   const authUrl = provider.url || `/oauth2/authorize?provider=${provider.id}`;
 
   return `

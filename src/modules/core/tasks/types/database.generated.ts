@@ -1,22 +1,8 @@
 // Auto-generated database types for tasks module
-// Generated on: 2025-07-31T10:03:21.443Z
+// Generated on: 2025-07-31T11:41:30.110Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-
-// Enums generated from CHECK constraints
-export enum TaskStatus {
-  PENDING = 'pending',
-  ASSIGNED = 'assigned',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-  STOPPED = 'stopped'
-}
-
-// Zod schemas for enums
-export const TaskStatusSchema = z.nativeEnum(TaskStatus);
 
 /**
  * Generated from database table: task
@@ -28,7 +14,7 @@ export interface ITaskRow {
   module_id: string;
   instructions: string | null;
   priority: number | null;
-  status: TaskStatus | null;
+  status: string | null;
   retry_count: number | null;
   max_executions: number | null;
   max_time: number | null;
@@ -62,7 +48,7 @@ export const TaskRowSchema = z.object({
   module_id: z.string(),
   instructions: z.string().nullable(),
   priority: z.number().nullable(),
-  status: z.nativeEnum(TaskStatus).nullable(),
+  status: z.string().nullable(),
   retry_count: z.number().nullable(),
   max_executions: z.number().nullable(),
   max_time: z.number().nullable(),
@@ -100,5 +86,5 @@ export const TasksDatabaseRowSchema = z.union([TaskRowSchema, TaskMetadataRowSch
  */
 export const TASKS_TABLES = {
   TASK: 'task',
-  TASKMETADATA: 'task_metadata',
+  TASK_METADATA: 'task_metadata',
 } as const;

@@ -72,14 +72,36 @@ export class TestService {
   }
 
   /**
-   * Run integration tests and return parsed results.
+   * Run tests for a specific file or folder.
+   * @param target - File or folder path to test.
+   * @param options - Test options.
+   * @param options.unit
+   * @param options.integration
    * @returns Promise resolving to test results.
    */
-  public async runIntegrationTests(): Promise<TestResult> {
-    this.logger.info(LogSource.CLI, 'Running integration tests');
+  public async runTests(target?: string, options: { unit?: boolean; integration?: boolean } = {}): Promise<TestResult> {
+    const testType = options.unit ? 'unit' : options.integration ? 'integration' : 'all';
+    const targetInfo = target ? ` for ${target}` : '';
+
+    this.logger.info(LogSource.CLI, `Running ${testType} tests${targetInfo}`);
 
     return await new Promise((resolve, reject) => {
-      const testProcess = spawn('npm', ['run', 'test:integration'], {
+      const testCommand = 'npm';
+      const testArgs: string[] = ['run'];
+
+      if (testType === 'unit') {
+        testArgs.push('test:unit');
+      } else if (testType === 'integration') {
+        testArgs.push('test:integration');
+      } else {
+        testArgs.push('test');
+      }
+
+      if (target) {
+        testArgs.push('--', target);
+      }
+
+      const testProcess = spawn(testCommand, testArgs, {
         cwd: process.cwd(),
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe']
@@ -99,7 +121,7 @@ export class TestService {
       testProcess.on('close', (code) => {
         try {
           const result = this.parseTestOutput(stdout, stderr, code);
-          this.logger.info(LogSource.CLI, `Integration tests completed: ${result.passedTests}/${result.totalTests} tests passed`);
+          this.logger.info(LogSource.CLI, `Tests completed: ${result.passedTests}/${result.totalTests} tests passed`);
           resolve(result);
         } catch (error) {
           this.logger.error(LogSource.CLI, `Failed to parse test output: ${error instanceof Error ? error.message : String(error)}`);
@@ -219,5 +241,13 @@ export class TestService {
     }
 
     return result;
+  }
+
+  /**
+   * Run integration tests and return parsed results.
+   * @returns Promise resolving to test results.
+   */
+  public async runIntegrationTests(): Promise<TestResult> {
+    return await this.runTests(undefined, { integration: true });
   }
 }

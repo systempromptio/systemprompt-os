@@ -1,5 +1,5 @@
 // Auto-generated database types for mcp module
-// Generated on: 2025-07-31T10:03:21.445Z
+// Generated on: 2025-07-31T11:41:30.914Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -106,7 +106,6 @@ export interface IMcpResourcesRow {
   tags: string | null;
   author: string | null;
   version: string | null;
-  checksum: string | null;
   created_at: string | null;
   updated_at: string | null;
   last_synced_at: string | null;
@@ -175,7 +174,7 @@ export interface IMcpResourceTemplatesRow {
 
 // Zod schemas for database row validation
 export const McpContextsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   model: z.string(),
   description: z.string().nullable(),
@@ -191,7 +190,7 @@ export const McpContextsRowSchema = z.object({
 });
 
 export const McpSessionsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   context_id: z.string(),
   status: z.nativeEnum(McpSessionsStatus),
   session_name: z.string().nullable(),
@@ -230,7 +229,6 @@ export const McpResourcesRowSchema = z.object({
   tags: z.string().nullable(),
   author: z.string().nullable(),
   version: z.string().nullable(),
-  checksum: z.string().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
   last_synced_at: z.string().datetime().nullable(),
@@ -295,12 +293,12 @@ export const McpDatabaseRowSchema = z.union([McpContextsRowSchema, McpSessionsRo
  * Database table names for this module
  */
 export const MCP_TABLES = {
-  MCPCONTEXTS: 'mcp_contexts',
-  MCPSESSIONS: 'mcp_sessions',
-  MCPMESSAGES: 'mcp_messages',
-  MCPRESOURCES: 'mcp_resources',
-  MCPPROMPTS: 'mcp_prompts',
-  MCPPROMPTMESSAGES: 'mcp_prompt_messages',
-  MCPPROMPTARGUMENTS: 'mcp_prompt_arguments',
-  MCPRESOURCETEMPLATES: 'mcp_resource_templates',
+  MCP_CONTEXTS: 'mcp_contexts',
+  MCP_SESSIONS: 'mcp_sessions',
+  MCP_MESSAGES: 'mcp_messages',
+  MCP_RESOURCES: 'mcp_resources',
+  MCP_PROMPTS: 'mcp_prompts',
+  MCP_PROMPT_MESSAGES: 'mcp_prompt_messages',
+  MCP_PROMPT_ARGUMENTS: 'mcp_prompt_arguments',
+  MCP_RESOURCE_TEMPLATES: 'mcp_resource_templates',
 } as const;

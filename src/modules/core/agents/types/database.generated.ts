@@ -1,5 +1,5 @@
 // Auto-generated database types for agents module
-// Generated on: 2025-07-31T10:03:21.448Z
+// Generated on: 2025-07-31T11:50:19.496Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -11,27 +11,11 @@ export enum AgentsType {
   COORDINATOR = 'coordinator'
 }
 
-export enum AgentsStatus {
-  IDLE = 'idle',
-  ACTIVE = 'active',
-  STOPPED = 'stopped',
-  ERROR = 'error'
-}
-
 export enum AgentTasksPriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
   CRITICAL = 'critical'
-}
-
-export enum AgentTasksStatus {
-  PENDING = 'pending',
-  ASSIGNED = 'assigned',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled'
 }
 
 export enum AgentLogsLevel {
@@ -43,9 +27,7 @@ export enum AgentLogsLevel {
 
 // Zod schemas for enums
 export const AgentsTypeSchema = z.nativeEnum(AgentsType);
-export const AgentsStatusSchema = z.nativeEnum(AgentsStatus);
 export const AgentTasksPrioritySchema = z.nativeEnum(AgentTasksPriority);
-export const AgentTasksStatusSchema = z.nativeEnum(AgentTasksStatus);
 export const AgentLogsLevelSchema = z.nativeEnum(AgentLogsLevel);
 
 /**
@@ -58,7 +40,7 @@ export interface IAgentsRow {
   description: string;
   instructions: string;
   type: AgentsType;
-  status: AgentsStatus;
+  status: string;
   created_at: string | null;
   updated_at: string | null;
   assigned_tasks: number | null;
@@ -103,7 +85,7 @@ export interface IAgentTasksRow {
   agent_id: string;
   name: string;
   priority: AgentTasksPriority;
-  status: AgentTasksStatus;
+  status: string;
   payload: string;
   created_at: string | null;
   assigned_at: string | null;
@@ -141,12 +123,12 @@ export interface IAgentMetricsRow {
 
 // Zod schemas for database row validation
 export const AgentsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   description: z.string(),
   instructions: z.string(),
   type: z.nativeEnum(AgentsType),
-  status: z.nativeEnum(AgentsStatus),
+  status: z.string(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
   assigned_tasks: z.number().nullable(),
@@ -171,11 +153,11 @@ export const AgentConfigRowSchema = z.object({
 });
 
 export const AgentTasksRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   agent_id: z.string(),
   name: z.string(),
   priority: z.nativeEnum(AgentTasksPriority),
-  status: z.nativeEnum(AgentTasksStatus),
+  status: z.string(),
   payload: z.string(),
   created_at: z.string().datetime().nullable(),
   assigned_at: z.string().datetime().nullable(),
@@ -187,7 +169,7 @@ export const AgentTasksRowSchema = z.object({
 });
 
 export const AgentLogsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   agent_id: z.string(),
   level: z.nativeEnum(AgentLogsLevel),
   message: z.string(),
@@ -218,10 +200,10 @@ export const AgentsDatabaseRowSchema = z.union([AgentsRowSchema, AgentCapabiliti
  */
 export const AGENTS_TABLES = {
   AGENTS: 'agents',
-  AGENTCAPABILITIES: 'agent_capabilities',
-  AGENTTOOLS: 'agent_tools',
-  AGENTCONFIG: 'agent_config',
-  AGENTTASKS: 'agent_tasks',
-  AGENTLOGS: 'agent_logs',
-  AGENTMETRICS: 'agent_metrics',
+  AGENT_CAPABILITIES: 'agent_capabilities',
+  AGENT_TOOLS: 'agent_tools',
+  AGENT_CONFIG: 'agent_config',
+  AGENT_TASKS: 'agent_tasks',
+  AGENT_LOGS: 'agent_logs',
+  AGENT_METRICS: 'agent_metrics',
 } as const;

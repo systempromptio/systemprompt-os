@@ -119,8 +119,8 @@ export class CoreModuleLoaderService {
       throw new Error(`Module ${name} not loaded`);
     }
 
-    if (typeof module.start === 'function') {
-      await module.start();
+    if (typeof (module as any).start === 'function') {
+      await (module as any).start();
       this.logger.debug(LogSource.MODULES, `Started module: ${name}`);
     }
   }

@@ -70,7 +70,7 @@ export class ModuleRegistryService {
 
     if (module.status === ModulesStatus.RUNNING) {
       this.logger.info(LogSource.MODULES, `Stopping module before unregistering: ${moduleName}`);
-      module.stop().catch(error => {
+      (module as any).stop().catch((error: any) => {
         this.logger.error(LogSource.MODULES, `Failed to stop module '${moduleName}':`, { error });
       });
     }
@@ -209,7 +209,7 @@ export class ModuleRegistryService {
           this.logger.debug(LogSource.MODULES, `Starting module: ${moduleName}`);
           module.status = ModulesStatus.INITIALIZING;
 
-          await module.start();
+          await (module as any).start();
           module.status = ModulesStatus.RUNNING;
 
           this.logger.info(LogSource.MODULES, `Successfully started module: ${moduleName}`);
@@ -249,7 +249,7 @@ export class ModuleRegistryService {
           this.logger.debug(LogSource.MODULES, `Stopping module: ${moduleName}`);
           module.status = ModulesStatus.STOPPING;
 
-          await module.stop();
+          await (module as any).stop();
           module.status = ModulesStatus.STOPPED;
 
           this.logger.info(LogSource.MODULES, `Successfully stopped module: ${moduleName}`);
@@ -274,8 +274,8 @@ export class ModuleRegistryService {
 
     for (const [moduleName, module] of this.modules) {
       try {
-        const result = module.healthCheck
-          ? await module.healthCheck()
+        const result = (module as any).healthCheck
+          ? await (module as any).healthCheck()
           : {
  healthy: true,
 message: 'No health check implemented'

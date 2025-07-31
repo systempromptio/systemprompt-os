@@ -183,7 +183,7 @@ export const initialize = async (): Promise<AuthModule> => {
  */
 export const getAuthModule = (): IModule<IAuthModuleExports> => {
   const registry = getModuleRegistry();
-  const authModule = registry.get(ModuleName.AUTH) as IModule<IAuthModuleExports>;
+  const authModule = registry.get(ModuleName.AUTH) as unknown as IModule<IAuthModuleExports>;
 
   if (!authModule) {
     throw new Error('Auth module not found in registry');

@@ -1,13 +1,13 @@
 /**
- * Validation Service Exports
+ * Validation Service Exports.
  * @module dev/services/validation
  */
 
-export { ValidationService } from '../validation.service';
-export { ModuleValidator } from './validators/module.validator';
+export { ValidationService } from '@/modules/core/dev/services/validation.service';
+export { ModuleValidator } from '@/modules/core/dev/services/validation/validators/module.validator';
 export type {
   ValidationResult,
   ModuleValidationResult,
   ValidationOptions,
   IValidator
-} from './types';
+} from '@/modules/core/dev/services/validation/types';

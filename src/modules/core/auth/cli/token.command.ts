@@ -35,7 +35,8 @@ export function createTokenCommand(authModule: AuthModule): Command {
           }
         }
 
-        await authModule.createToken({
+        const tokenService = authModule.exports.tokenService();
+        await tokenService.createToken({
           user_id: options.user as string,
           name: `CLI Token - ${new Date().toISOString()}`,
           type: options.type as 'api' | 'personal' | 'service',
@@ -59,7 +60,8 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .option('--json', 'Output as JSON')
     .action(async (userId, options) : Promise<void> => {
       try {
-        const tokens = await authModule.listUserTokens(userId);
+        const tokenService = authModule.exports.tokenService();
+        const tokens = await tokenService.listUserTokens(userId);
         const logger = getLoggerService();
 
         if (options.json === true) {
@@ -74,7 +76,7 @@ export function createTokenCommand(authModule: AuthModule): Command {
           logger.info(LogSource.AUTH, 'ID                                Type        Scopes              Expires                   Last Used', {});
           logger.info(LogSource.AUTH, '--------------------------------  ----------  ------------------  ------------------------  ------------------------', {});
 
-          tokens.forEach((token): void => {
+          tokens.forEach((token: any): void => {
             const id = token.id.substring(0, 32);
             const type = token.type.padEnd(10);
             const scopes = 'N/A'.padEnd(18)
@@ -98,7 +100,8 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .description('Revoke a token')
     .action(async (tokenId) : Promise<void> => {
       try {
-        await authModule.revokeToken(tokenId);
+        const tokenService = authModule.exports.tokenService();
+        await tokenService.revokeToken(tokenId);
         const logger = getLoggerService();
         logger.info(LogSource.AUTH, '✓ Token revoked successfully', {});
       } catch (error) {
@@ -114,7 +117,8 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .option('-t, --type <type>', 'Only revoke tokens of specific type')
     .action(async (userId, options) : Promise<void> => {
       try {
-        await authModule.revokeUserTokens(userId, options.type as string | undefined);
+        const tokenService = authModule.exports.tokenService();
+        await tokenService.revokeUserTokens(userId, options.type as string | undefined);
         const logger = getLoggerService();
         const tokenType = options.type !== undefined && options.type !== null && options.type !== '' ? String(options.type) : '';
         logger.info(LogSource.AUTH, `✓ All ${tokenType} tokens revoked for user ${String(userId)}`, {});
@@ -130,7 +134,8 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .description('Clean up expired tokens')
     .action(async () : Promise<void> => {
       try {
-        const count = await authModule.cleanupExpiredTokens();
+        const tokenService = authModule.exports.tokenService();
+        const count = await tokenService.cleanupExpiredTokens();
         const logger = getLoggerService();
         logger.info(LogSource.AUTH, `✓ Cleaned up ${String(count)} expired token(s)`, {});
       } catch (error) {

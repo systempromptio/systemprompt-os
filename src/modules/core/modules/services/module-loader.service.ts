@@ -69,8 +69,8 @@ export class ModuleLoaderService {
 
       this.registry.register(module);
 
-      if (moduleConfig.autoStart && module.start) {
-        await module.start();
+      if (moduleConfig.autoStart && (module as any).start) {
+        await (module as any).start();
       }
 
       this.logger.info(LogSource.MODULES, `Successfully loaded module: ${moduleName}`);

@@ -1,15 +1,13 @@
 /**
- * Server Auth Adapter Service
- * 
+ * Server Auth Adapter Service.
  * Provides a clean interface between the server layer and auth module services.
  * Handles server-specific concerns like HTTP request/response patterns, error transformation,
  * and caching while maintaining loose coupling with the auth module.
- * 
  * @module server/services/auth-adapter
  */
 
 import type { Request as ExpressRequest } from 'express';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'crypto';
 import { getAuthModule } from '@/modules/core/auth/index';
 import type { AuthService } from '@/modules/core/auth/services/auth.service';
 import type { TokenService } from '@/modules/core/auth/services/token.service';
@@ -17,11 +15,9 @@ import type { SessionService } from '@/modules/core/auth/services/session.servic
 import type { ProvidersService } from '@/modules/core/auth/services/providers.service';
 import type { OAuth2ConfigurationService } from '@/modules/core/auth/services/oauth2-config.service';
 import type { AuthCodeService } from '@/modules/core/auth/services/auth-code.service';
-import type { 
-  TokenValidationResult,
-  LoginResult,
+import type {
   IAuthSessionsRow,
-  IAuthTokensRow 
+  TokenValidationResult
 } from '@/modules/core/auth/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -29,7 +25,7 @@ import { LogSource } from '@/modules/core/logger/types/index';
 const logger = LoggerService.getInstance();
 
 /**
- * OAuth state data stored during authorization flow
+ * OAuth state data stored during authorization flow.
  */
 export interface OAuthStateData {
   nonce: string;
@@ -44,7 +40,7 @@ export interface OAuthStateData {
 }
 
 /**
- * Token creation options
+ * Token creation options.
  */
 export interface CreateTokenOptions {
   userId: string;
@@ -55,7 +51,7 @@ export interface CreateTokenOptions {
 }
 
 /**
- * Authorization code creation options
+ * Authorization code creation options.
  */
 export interface CreateAuthCodeOptions {
   userId: string;
@@ -67,7 +63,7 @@ export interface CreateAuthCodeOptions {
 }
 
 /**
- * HTTP-friendly auth result
+ * HTTP-friendly auth result.
  */
 export interface HttpAuthResult {
   success: boolean;
@@ -79,7 +75,7 @@ export interface HttpAuthResult {
 }
 
 /**
- * Token response format
+ * Token response format.
  */
 export interface TokenResponse {
   accessToken: string;
@@ -90,7 +86,7 @@ export interface TokenResponse {
 }
 
 /**
- * Server Auth Adapter - Bridges server layer with auth module services
+ * Server Auth Adapter - Bridges server layer with auth module services.
  */
 export class ServerAuthAdapter {
   private static instance: ServerAuthAdapter;
@@ -101,33 +97,27 @@ export class ServerAuthAdapter {
   private oauth2ConfigService?: OAuth2ConfigurationService;
   private authCodeService?: AuthCodeService;
   private initialized = false;
-
-  // Token validation cache (1 minute TTL)
-  private tokenCache = new Map<string, { result: TokenValidationResult; expiresAt: number }>();
+  private readonly tokenCache = new Map<string, { result: TokenValidationResult; expiresAt: number }>();
   private readonly CACHE_TTL = 60000; // 1 minute
-
-  // OAuth state storage (10 minute TTL for OAuth flows)
-  private stateCache = new Map<string, { state: OAuthStateData; expiresAt: number }>();
+  private readonly stateCache = new Map<string, { state: OAuthStateData; expiresAt: number }>();
   private readonly STATE_TTL = 600000; // 10 minutes
 
   /**
-   * Private constructor for singleton pattern
+   * Private constructor for singleton pattern.
    */
   private constructor() {}
 
   /**
-   * Get singleton instance
+   * Get singleton instance.
    */
   static getInstance(): ServerAuthAdapter {
-    if (!ServerAuthAdapter.instance) {
-      ServerAuthAdapter.instance = new ServerAuthAdapter();
-    }
+    ServerAuthAdapter.instance ||= new ServerAuthAdapter();
     return ServerAuthAdapter.instance;
   }
 
   /**
    * Initialize the adapter with auth module services
-   * Simply gets the already-initialized services from the auth module
+   * Simply gets the already-initialized services from the auth module.
    */
   initialize(): void {
     if (this.initialized) {
@@ -135,10 +125,8 @@ export class ServerAuthAdapter {
     }
 
     try {
-      // Get the already bootstrapped and healthy auth module
       const authModule = getAuthModule();
-      
-      // Get the service instances from the module exports
+
       this.authService = authModule.exports.authService();
       this.tokenService = authModule.exports.tokenService();
       this.sessionService = authModule.exports.sessionService();
@@ -149,7 +137,7 @@ export class ServerAuthAdapter {
 
       logger.info(LogSource.SERVER, 'ServerAuthAdapter initialized successfully');
     } catch (error) {
-      logger.error(LogSource.SERVER, 'ServerAuthAdapter initialization failed', { 
+      logger.error(LogSource.SERVER, 'ServerAuthAdapter initialization failed', {
         error,
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
@@ -159,7 +147,7 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Ensure services are initialized
+   * Ensure services are initialized.
    */
   private ensureInitialized(): void {
     if (!this.initialized) {
@@ -168,21 +156,19 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Extract token from Express request
+   * Extract token from Express request.
+   * @param req
    */
   extractTokenFromRequest(req: ExpressRequest): string | null {
-    // Check Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith('Bearer ')) {
       return authHeader.substring(7);
     }
 
-    // Check cookies
     if (req.cookies?.auth_token) {
       return req.cookies.auth_token;
     }
 
-    // Check query params (for websocket upgrades)
     if (typeof req.query.token === 'string') {
       return req.query.token;
     }
@@ -191,21 +177,19 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Validate token with caching
+   * Validate token with caching.
+   * @param token
    */
   async validateToken(token: string): Promise<TokenValidationResult> {
     this.ensureInitialized();
 
-    // Check cache
     const cached = this.tokenCache.get(token);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.result;
     }
 
-    // Validate with service
     const result = await this.tokenService!.validateToken(token);
 
-    // Cache successful validations
     if (result.valid) {
       this.tokenCache.set(token, {
         result,
@@ -217,7 +201,8 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Validate token and return HTTP-friendly result
+   * Validate token and return HTTP-friendly result.
+   * @param token
    */
   async validateTokenWithHttpResponse(token: string): Promise<HttpAuthResult> {
     try {
@@ -235,8 +220,8 @@ export class ServerAuthAdapter {
       return {
         success: true,
         statusCode: 200,
-        user: result.userId,
-        scopes: result.scopes
+        ...result.userId && { user: result.userId },
+        ...result.scopes && { scopes: result.scopes }
       };
     } catch (error) {
       logger.error(LogSource.AUTH, 'Token validation error', { error });
@@ -260,19 +245,18 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Create OAuth state for authorization flow
+   * Create OAuth state for authorization flow.
+   * @param data
    */
   async createAuthorizationState(data: OAuthStateData): Promise<string> {
     this.ensureInitialized();
 
-    // Create state object
     const state = {
       ...data,
       nonce: data.nonce || randomBytes(16).toString('hex'),
       timestamp: Date.now()
     };
 
-    // Store in memory cache (expires in 10 minutes)
     this.stateCache.set(state.nonce, {
       state,
       expiresAt: Date.now() + this.STATE_TTL
@@ -282,40 +266,39 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Validate OAuth state
+   * Validate OAuth state.
+   * @param stateNonce
    */
   async validateAuthorizationState(stateNonce: string): Promise<OAuthStateData | null> {
     this.ensureInitialized();
 
-    // Get state from memory cache
     const cached = this.stateCache.get(stateNonce);
-    
+
     if (!cached) {
       return null;
     }
 
-    // Check if expired
     if (cached.expiresAt <= Date.now()) {
       this.stateCache.delete(stateNonce);
       return null;
     }
 
-    // Delete state after validation (one-time use)
     this.stateCache.delete(stateNonce);
 
     return cached.state;
   }
 
   /**
-   * Get provider by ID
+   * Get provider by ID.
+   * @param providerId
    */
   async getProvider(providerId: string): Promise<any> {
     this.ensureInitialized();
-    return this.providersService!.getProvider(providerId);
+    return await this.providersService!.getProvider(providerId);
   }
 
   /**
-   * Get all providers
+   * Get all providers.
    */
   async getAllProviders(): Promise<any[]> {
     this.ensureInitialized();
@@ -323,15 +306,21 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Get provider callback URL
+   * Get provider callback URL.
+   * @param provider
    */
   async getProviderCallbackUrl(provider: string): Promise<string> {
     this.ensureInitialized();
-    return this.oauth2ConfigService!.getProviderCallbackUrl(provider);
+    return await this.oauth2ConfigService!.getProviderCallbackUrl(provider);
   }
 
   /**
-   * Authenticate user via OAuth
+   * Authenticate user via OAuth.
+   * @param params
+   * @param params.provider
+   * @param params.providerUserId
+   * @param params.email
+   * @param params.profile
    */
   async authenticateOAuthUser(params: {
     provider: string;
@@ -341,7 +330,6 @@ export class ServerAuthAdapter {
   }): Promise<{ userId: string; isNewUser: boolean }> {
     this.ensureInitialized();
 
-    // Use auth service to create/update user via OAuth
     const user = await this.authService!.createOrUpdateUserFromOAuth(
       params.provider,
       params.providerUserId,
@@ -358,50 +346,55 @@ export class ServerAuthAdapter {
 
     return {
       userId: user.id,
-      isNewUser: false // TODO: Track if user is new
+      isNewUser: fals
     };
   }
 
   /**
-   * Create user session
+   * Create user session.
+   * @param userId
+   * @param metadata
    */
   async createSession(userId: string, metadata?: any): Promise<IAuthSessionsRow> {
     this.ensureInitialized();
-    return this.sessionService!.createSession({
-      user_id: userId,
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+    return await this.sessionService!.createSession({
+      userId,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       metadata
     });
   }
 
   /**
-   * Get session by ID
+   * Get session by ID.
+   * @param sessionId
    */
   async getSession(sessionId: string): Promise<IAuthSessionsRow | null> {
     this.ensureInitialized();
-    return this.sessionService!.getSession(sessionId);
+    return await this.sessionService!.getSession(sessionId);
   }
 
   /**
-   * Update session activity
+   * Update session activity.
+   * @param sessionId
    */
   async touchSession(sessionId: string): Promise<void> {
     this.ensureInitialized();
-    await this.sessionService!.touchSession(sessionId);
+    await this.sessionService!.updateLastActivity(sessionId);
   }
 
   /**
-   * Create access token
+   * Create access token.
+   * @param options
    */
   async createAccessToken(options: CreateTokenOptions): Promise<TokenResponse> {
     this.ensureInitialized();
 
     const token = await this.tokenService!.createToken({
       user_id: options.userId,
-      type: 'access',
+      type: 'api' as 'api' | 'personal' | 'service',
       name: `Access token for ${options.clientId}`,
       scopes: options.scopes,
-      expires_in: options.expiresIn || 3600 // 1 hour default
+      expires_in: options.expiresIn || 360
     });
 
     return {
@@ -413,73 +406,87 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Create refresh token
+   * Create refresh token.
+   * @param options
    */
   async createRefreshToken(options: CreateTokenOptions): Promise<string> {
     this.ensureInitialized();
 
     const token = await this.tokenService!.createToken({
       user_id: options.userId,
-      type: 'refresh',
+      type: 'api' as 'api' | 'personal' | 'service',
       name: `Refresh token for ${options.clientId}`,
       scopes: ['offline_access'],
-      expires_in: 30 * 24 * 60 * 60 // 30 days
+      expires_in: 30 * 24 * 60 * 6
     });
 
     return token.token;
   }
 
   /**
-   * Create authorization code
+   * Create authorization code.
+   * @param options
    */
   async createAuthorizationCode(options: CreateAuthCodeOptions): Promise<string> {
     this.ensureInitialized();
 
     const code = await this.authCodeService!.createAuthorizationCode({
-      client_id: options.clientId,
-      user_id: options.userId,
-      redirect_uri: options.redirectUri,
+      clientId: options.clientId,
+      userId: options.userId,
+      redirectUri: options.redirectUri,
       scope: options.scope,
-      code_challenge: options.codeChallenge,
-      code_challenge_method: options.codeChallengeMethod
+      codeChallenge: options.codeChallenge,
+      codeChallengeMethod: options.codeChallengeMethod
     });
 
     return code.code;
   }
 
   /**
-   * Validate authorization code
+   * Validate authorization code.
+   * @param code
+   * @param clientId
+   * @param redirectUri
+   * @param codeVerifier
    */
   async validateAuthorizationCode(
-    code: string, 
-    clientId: string, 
+    code: string,
+    clientId: string,
     redirectUri: string,
     codeVerifier?: string
   ): Promise<any> {
     this.ensureInitialized();
 
-    return this.authCodeService!.validateAuthorizationCode(
-      code,
-      clientId,
-      redirectUri,
-      codeVerifier
-    );
+    const codeData = await this.authCodeService!.getAuthorizationCode(code);
+
+    if (!codeData) {
+      throw new Error('Invalid authorization code');
+    }
+
+    if (codeData.clientId !== clientId) {
+      throw new Error('Client ID mismatch');
+    }
+
+    if (codeData.redirectUri !== redirectUri) {
+      throw new Error('Redirect URI mismatch');
+    }
+
+    return codeData;
   }
 
   /**
-   * Create tokens from authorization code
+   * Create tokens from authorization code.
+   * @param codeData
    */
   async createTokensFromCode(codeData: any): Promise<TokenResponse & { refreshToken: string }> {
     this.ensureInitialized();
 
-    // Create access token
     const accessTokenResponse = await this.createAccessToken({
       userId: codeData.user_id,
       clientId: codeData.client_id,
       scopes: codeData.scope.split(' ')
     });
 
-    // Create refresh token
     const refreshToken = await this.createRefreshToken({
       userId: codeData.user_id,
       clientId: codeData.client_id,
@@ -493,7 +500,8 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Refresh access token
+   * Refresh access token.
+   * @param refreshToken
    */
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
     this.ensureInitialized();
@@ -504,19 +512,19 @@ export class ServerAuthAdapter {
       throw new Error(result.reason || 'Failed to refresh token');
     }
 
-    // Parse the token to get expiry info
     const validation = await this.tokenService!.validateToken(result.accessToken);
 
     return {
       accessToken: result.accessToken,
       tokenType: 'Bearer',
-      expiresIn: 3600, // Default 1 hour
+      expiresIn: 3600,
       scope: validation.scopes?.join(' ') || ''
     };
   }
 
   /**
-   * Revoke token
+   * Revoke token.
+   * @param tokenId
    */
   async revokeToken(tokenId: string): Promise<void> {
     this.ensureInitialized();
@@ -524,14 +532,14 @@ export class ServerAuthAdapter {
   }
 
   /**
-   * Clear token cache
+   * Clear token cache.
    */
   clearTokenCache(): void {
     this.tokenCache.clear();
   }
 
   /**
-   * Clean up expired cache entries
+   * Clean up expired cache entries.
    */
   cleanupCache(): void {
     const now = Date.now();

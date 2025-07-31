@@ -23,7 +23,9 @@ export interface IModule<TExports = unknown> {
 }
 
 // Re-export Zod schemas for runtime validation
-export { BaseModuleSchema, createModuleSchema, ModulesStatusSchema, ModulesTypeSchema } from '@/modules/core/modules/schemas/module.schemas';
+export {
+ BaseModuleSchema, createModuleSchema, ModulesStatusSchema, ModulesTypeSchema
+} from '@/modules/core/modules/schemas/module.schemas';
 
 // Re-export base module class
 export { BaseModule, createValidatedModule } from '@/modules/core/modules/base/BaseModule';

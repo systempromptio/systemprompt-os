@@ -67,14 +67,29 @@ export class LintService {
   }
 
   /**
-   * Run ESLint and return parsed results.
+   * Run ESLint for a specific file or folder.
+   * @param target - File or folder path to lint.
+   * @param options - Lint options.
+   * @param options.fix
    * @returns Promise resolving to lint results.
    */
-  public async runLint(): Promise<LintResult> {
-    this.logger.info(LogSource.CLI, 'Running ESLint');
+  public async runLint(target?: string, options: { fix?: boolean } = {}): Promise<LintResult> {
+    const targetInfo = target ? ` for ${target}` : '';
+    this.logger.info(LogSource.CLI, `Running ESLint${targetInfo}`);
 
     return await new Promise((resolve, reject) => {
-      const eslintProcess = spawn('npm', ['run', 'lint'], {
+      const lintCommand = 'npm';
+      const lintArgs: string[] = ['run', 'lint'];
+
+      if (target) {
+        lintArgs.push('--', target);
+      }
+
+      if (options.fix) {
+        lintArgs.push('--fix');
+      }
+
+      const eslintProcess = spawn(lintCommand, lintArgs, {
         cwd: process.cwd(),
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe']
@@ -93,7 +108,7 @@ export class LintService {
 
       eslintProcess.on('close', (code) => {
         try {
-          const result = this.parseLintOutput(stdout, stderr, code);
+          const result = this.parseLintOutput(stdout, stderr, code, target);
           this.logger.info(LogSource.CLI, `ESLint completed with ${result.totalErrors} errors, ${result.totalWarnings} warnings`);
           resolve(result);
         } catch (error) {
@@ -114,9 +129,10 @@ export class LintService {
    * @param stdout - Standard output from ESLint.
    * @param stderr - Standard error from ESLint.
    * @param exitCode - Exit code from ESLint process.
+   * @param targetPath - Optional target path to filter results.
    * @returns Parsed lint results.
    */
-  private parseLintOutput(stdout: string, stderr: string, exitCode: number | null): LintResult {
+  private parseLintOutput(stdout: string, stderr: string, exitCode: number | null, targetPath?: string): LintResult {
     const result: LintResult = {
       success: exitCode === 0,
       totalFiles: 0,
@@ -139,10 +155,9 @@ export class LintService {
     }> = [];
 
     for (const line of lines) {
-      if (line.includes('.ts') && (line.includes('error') || line.includes('warning'))) {
-        const fileMatch = line.match(/([^:]+\.ts)/);
-        if (fileMatch && fileMatch[1] !== currentFile) {
-          if (currentFile) {
+      if (line.match(/^[/\w].*\.(ts|tsx|js|jsx)$/)) {
+        if (currentFile) {
+          if (!targetPath || currentFile.includes(targetPath)) {
             result.results.push({
               filePath: currentFile,
               errorCount: currentFileErrors,
@@ -151,31 +166,30 @@ export class LintService {
             });
             result.totalFiles++;
           }
-
-          currentFile = fileMatch[1]!;
-          currentFileErrors = 0;
-          currentFileWarnings = 0;
-          currentMessages.length = 0;
         }
 
-        const messageMatch = line.match(/(\d+):(\d+)\s+(error|warning)\s+(.+?)(?:\s+([^\s]+))?$/);
+        currentFile = line.trim();
+        currentFileErrors = 0;
+        currentFileWarnings = 0;
+        currentMessages.length = 0;
+      }
+      else if (line.match(/^\s+\d+:\d+/) && currentFile) {
+        const messageMatch = line.match(/^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)\s+([^\s]+)$/);
         if (messageMatch) {
           const [, lineNum, column, severity, message, ruleId] = messageMatch;
           const severityNum = severity === 'error' ? 2 : 1;
 
           if (severityNum === 2) {
             currentFileErrors++;
-            result.totalErrors++;
           } else {
             currentFileWarnings++;
-            result.totalWarnings++;
           }
 
           currentMessages.push({
             line: parseInt(lineNum!, 10),
             column: parseInt(column!, 10),
             message: message!,
-            ruleId: ruleId || 'unknown',
+            ruleId: ruleId!,
             severity: severityNum
           });
         }
@@ -183,26 +197,25 @@ export class LintService {
     }
 
     if (currentFile) {
-      result.results.push({
-        filePath: currentFile,
-        errorCount: currentFileErrors,
-        warningCount: currentFileWarnings,
-        messages: [...currentMessages]
-      });
-      result.totalFiles++;
-    }
-
-    if (result.results.length === 0) {
-      const summaryMatch = (stdout + stderr).match(/(\d+)\s+errors?\s+and\s+(\d+)\s+warnings?/);
-      if (summaryMatch) {
-        result.totalErrors = parseInt(summaryMatch[1]!, 10);
-        result.totalWarnings = parseInt(summaryMatch[2]!, 10);
-      }
-
-      if (exitCode === 0 && result.totalErrors === 0 && result.totalWarnings === 0) {
-        result.success = true;
+      if (!targetPath || currentFile.includes(targetPath)) {
+        result.results.push({
+          filePath: currentFile,
+          errorCount: currentFileErrors,
+          warningCount: currentFileWarnings,
+          messages: [...currentMessages]
+        });
+        result.totalFiles++;
       }
     }
+
+    result.totalErrors = 0;
+    result.totalWarnings = 0;
+    for (const file of result.results) {
+      result.totalErrors += file.errorCount;
+      result.totalWarnings += file.warningCount;
+    }
+
+    result.success = result.totalErrors === 0 && result.totalWarnings === 0;
 
     return result;
   }

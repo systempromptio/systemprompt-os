@@ -1,10 +1,5 @@
 /**
- * Type definitions for the Validation Service
- * @module dev/services/validation/types
- */
-
-/**
- * Base validation result interface
+ * Base validation result interface.
  */
 export interface ValidationResult {
   valid: boolean;
@@ -13,7 +8,7 @@ export interface ValidationResult {
 }
 
 /**
- * Module validation specific result
+ * Module validation specific result.
  */
 export interface ModuleValidationResult extends ValidationResult {
   module: string;
@@ -23,7 +18,7 @@ export interface ModuleValidationResult extends ValidationResult {
 }
 
 /**
- * Validation options
+ * Validation options.
  */
 export interface ValidationOptions {
   throwOnError?: boolean;
@@ -31,7 +26,7 @@ export interface ValidationOptions {
 }
 
 /**
- * Base validator interface
+ * Base validator interface.
  */
 export interface IValidator<T = unknown, R extends ValidationResult = ValidationResult> {
   validate(target: T, options?: ValidationOptions): Promise<R>;

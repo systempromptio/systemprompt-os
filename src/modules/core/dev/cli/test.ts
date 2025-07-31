@@ -91,22 +91,38 @@ const displayTestResults = (
 };
 
 /**
- * Execute integration test command.
+ * Execute test command.
  * @param context - CLI context.
  */
-const executeIntegrationTest = async (context: ICLIContext): Promise<void> => {
+const executeTest = async (context: ICLIContext): Promise<void> => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
   const logger = LoggerService.getInstance();
 
   try {
-    cliOutput.info('🧪 Running integration tests...');
+    const module = args.module as string | undefined;
+    let target = args.target as string | undefined;
+    const isUnit = Boolean(args.unit);
+    const isIntegration = Boolean(args.integration);
+
+    // If module is specified, convert to target path
+    if (module && !target) {
+      target = `src/modules/core/${module}`;
+    }
+
+    const testType = isUnit ? 'unit' : isIntegration ? 'integration' : 'all';
+    const targetInfo = module ? ` for ${module} module` : target ? ` for ${target}` : '';
+
+    cliOutput.info(`🧪 Running ${testType} tests${targetInfo}...`);
     cliOutput.output('', { format: 'text' });
 
     const testService = TestService.getInstance();
     testService.initialize();
 
-    const result = await testService.runIntegrationTests();
+    const result = await testService.runTests(target, {
+ unit: isUnit,
+integration: isIntegration
+});
     displayTestResults(result, args, cliOutput);
 
     if (!result.success && result.failedTests > 0) {
@@ -115,23 +131,48 @@ const executeIntegrationTest = async (context: ICLIContext): Promise<void> => {
   } catch (error) {
     logger.error(
       LogSource.CLI,
-      `Error running integration tests: ${error instanceof Error ? error.message : String(error)}`
+      `Error running tests: ${error instanceof Error ? error.message : String(error)}`
     );
-    cliOutput.error(`Error running integration tests: ${error instanceof Error ? error.message : String(error)}`);
+    cliOutput.error(`Error running tests: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }
 
 export const command: ICLICommand = {
-  description: 'Run integration tests and display test coverage summary',
+  description: 'Run tests and display test coverage summary',
   options: [
     {
-      name: 'max',
+      name: 'module',
       alias: 'm',
+      type: 'string',
+      description: 'Module name to test (e.g., users, auth, logger)'
+    },
+    {
+      name: 'target',
+      alias: 't',
+      type: 'string',
+      description: 'Target file or folder to test (e.g., src/modules/core/users)'
+    },
+    {
+      name: 'unit',
+      alias: 'u',
+      type: 'boolean',
+      description: 'Run only unit tests',
+      default: false
+    },
+    {
+      name: 'integration',
+      alias: 'i',
+      type: 'boolean',
+      description: 'Run only integration tests',
+      default: false
+    },
+    {
+      name: 'max',
       type: 'string',
       description: 'Maximum number of test suites to display',
       default: '10'
     }
   ],
-  execute: executeIntegrationTest
+  execute: executeTest
 };

@@ -130,8 +130,8 @@ const startCriticalModule = async (
   definition: ICoreModuleDefinition,
   moduleName: string,
 ): Promise<void> => {
-  if (definition.critical && typeof moduleInstance.start === 'function') {
-    await moduleInstance.start();
+  if (definition.critical && typeof (moduleInstance as any).start === 'function') {
+    await (moduleInstance as any).start();
     const logger = LoggerService.getInstance();
     logger.debug(LogSource.BOOTSTRAP, `Started critical module: ${moduleName}`, {
       category: 'modules',

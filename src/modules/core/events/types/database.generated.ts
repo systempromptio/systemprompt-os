@@ -1,5 +1,5 @@
 // Auto-generated database types for events module
-// Generated on: 2025-07-31T10:03:21.446Z
+// Generated on: 2025-07-31T11:41:31.664Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -70,5 +70,5 @@ export const EventsDatabaseRowSchema = z.union([EventsRowSchema, EventSubscripti
  */
 export const EVENTS_TABLES = {
   EVENTS: 'events',
-  EVENTSUBSCRIPTIONS: 'event_subscriptions',
+  EVENT_SUBSCRIPTIONS: 'event_subscriptions',
 } as const;

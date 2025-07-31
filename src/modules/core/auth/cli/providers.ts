@@ -16,7 +16,8 @@ export const command = {
       execute: async (_context: ICliContext): Promise<void> => {
         try {
           const authModule = getAuthModule();
-          const providers = await authModule.exports.getAllProviders();
+          const providersService = authModule.exports.providersService();
+          const providers = await providersService.getAllProviders();
 
           if (providers.length === 0) {
             console.log('No OAuth2/OIDC providers are currently configured.');
@@ -49,9 +50,10 @@ export const command = {
           const authModule = getAuthModule();
 
           console.log('Reloading provider configurations...');
-          await authModule.exports.reloadProviders();
-
-          const providers = await authModule.exports.getAllProviders();
+          const providersService = authModule.exports.providersService();
+        await providersService.reloadProviders();
+        console.log('\n✓ Providers reloaded successfully!');
+        const providers = await providersService.getAllProviders();
           console.log(`✓ Reloaded successfully. ${providers.length} provider(s) available.`);
 
           if (providers.length > 0) {

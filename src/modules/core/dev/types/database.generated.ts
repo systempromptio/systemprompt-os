@@ -1,5 +1,5 @@
 // Auto-generated database types for dev module
-// Generated on: 2025-07-31T10:03:21.446Z
+// Generated on: 2025-07-31T11:41:31.665Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -73,6 +73,6 @@ export const DevDatabaseRowSchema = z.union([DevProfilesRowSchema, DevSessionsRo
  * Database table names for this module
  */
 export const DEV_TABLES = {
-  DEVPROFILES: 'dev_profiles',
-  DEVSESSIONS: 'dev_sessions',
+  DEV_PROFILES: 'dev_profiles',
+  DEV_SESSIONS: 'dev_sessions',
 } as const;

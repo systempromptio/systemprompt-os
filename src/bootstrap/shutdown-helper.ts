@@ -38,7 +38,7 @@ export const shutdownModule = async (
 
   try {
     logger.debug(LogSource.BOOTSTRAP, `Stopping module: ${name}`);
-    const stopPromise = moduleInstance.stop();
+    const stopPromise = (moduleInstance as any).stop();
     const timeoutPromise = new Promise<void>((_, reject) =>
       { return setTimeout(() => { reject(new Error(`Module ${name} stop timeout`)); }, 3000) });
     await Promise.race([stopPromise, timeoutPromise]);

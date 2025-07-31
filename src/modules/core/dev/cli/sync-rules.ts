@@ -1,12 +1,12 @@
 /**
- * Sync Rules CLI Command
+ * Sync Rules CLI Command.
  * @file CLI command for syncing module rules.
  * @module dev/cli
  * Provides command-line interface for rules synchronization.
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { RulesSyncService } from '../services/rules-sync.service';
+import { RulesSyncService } from '@/modules/core/dev/services/rules-sync.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -17,22 +17,21 @@ export const command: ICLICommand = {
     const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
-    
+
     try {
       const service = RulesSyncService.getInstance();
       service.setLogger(logger);
       await service.initialize();
-      
+
       const targetModule = (args._ as string[] | undefined)?.[0];
-      
+
       cliOutput.section('SystemPrompt OS Rules Sync');
-      
+
       if (targetModule) {
-        // Sync specific module
         cliOutput.info(`Syncing rules for module: ${targetModule}`);
-        
+
         const result = await service.syncModuleRules(targetModule);
-        
+
         if (result.success) {
           cliOutput.success(`✓ ${result.message}`);
           cliOutput.keyValue({
@@ -43,21 +42,20 @@ export const command: ICLICommand = {
           cliOutput.error(`✗ ${result.message}`);
           if (result.errors.length > 0) {
             cliOutput.section('Errors:');
-            result.errors.forEach(error => cliOutput.error(`  - ${error}`));
+            result.errors.forEach(error => { cliOutput.error(`  - ${error}`); });
           }
           process.exit(1);
         }
       } else {
-        // Sync all modules
         cliOutput.info('Syncing rules for all modules...');
-        
+
         const results = await service.syncAllModules();
-        
-        const successful = results.filter(r => r.success);
-        const failed = results.filter(r => !r.success);
-        const totalFiles = results.reduce((sum, r) => sum + r.filesProcessed, 0);
-        const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
-        
+
+        const successful = results.filter(r => { return r.success });
+        const failed = results.filter(r => { return !r.success });
+        const totalFiles = results.reduce((sum, r) => { return sum + r.filesProcessed }, 0);
+        const totalErrors = results.reduce((sum, r) => { return sum + r.errors.length }, 0);
+
         cliOutput.section('Summary:');
         cliOutput.keyValue({
           'Modules processed': results.length.toString(),
@@ -66,7 +64,7 @@ export const command: ICLICommand = {
           'Total files synced': totalFiles.toString(),
           'Total errors': totalErrors.toString()
         });
-        
+
         if (successful.length > 0) {
           cliOutput.section('✓ Successful modules:');
           successful.forEach(result => {
@@ -74,20 +72,20 @@ export const command: ICLICommand = {
             cliOutput.success(`  - ${moduleName} (${result.filesProcessed} files)`);
           });
         }
-        
+
         if (failed.length > 0) {
           cliOutput.section('✗ Failed modules:');
           failed.forEach(result => {
             const moduleName = result.message.split(' ').pop();
             cliOutput.error(`  - ${moduleName}: ${result.message}`);
-            result.errors.forEach(error => cliOutput.error(`    • ${error}`));
+            result.errors.forEach(error => { cliOutput.error(`    • ${error}`); });
           });
           process.exit(1);
         }
-        
+
         cliOutput.success('Rules sync completed successfully!');
       }
-      
+
       process.exit(0);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

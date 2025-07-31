@@ -1,6 +1,6 @@
 /**
  * Generate Types CLI Command
- * Generates comprehensive types for a module using the TypeGuardGeneratorService
+ * Generates comprehensive types for a module using the TypeGuardGeneratorService.
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
@@ -11,7 +11,7 @@ import { LogSource } from '@/modules/core/logger/types/index';
 
 export const command: ICLICommand = {
   description: 'Generate comprehensive types for a module (database types, interfaces, Zod schemas)',
-  
+
   async execute(context: ICLIContext): Promise<void> {
     const { args } = context;
     const options = {
@@ -22,8 +22,7 @@ export const command: ICLICommand = {
     const output = CliOutputService.getInstance();
     const logger = LoggerService.getInstance();
     const devService = DevService.getInstance();
-    
-    // Set logger on dev service
+
     devService.setLogger(logger);
     await devService.initialize();
 
@@ -44,9 +43,9 @@ export const command: ICLICommand = {
 
       const validTypes = ['database', 'interfaces', 'schemas', 'service-schemas', 'type-guards', 'all'] as const;
       type ValidType = typeof validTypes[number];
-      
-      const typeOptions: ValidType[] = options.types 
-        ? options.types.split(',').filter((t): t is ValidType => validTypes.includes(t as ValidType))
+
+      const typeOptions: ValidType[] = options.types
+        ? options.types.split(',').filter((t): t is ValidType => { return validTypes.includes(t as ValidType) })
         : ['all'];
 
       if (options.module) {
@@ -54,13 +53,13 @@ export const command: ICLICommand = {
       } else {
         output.info(`🔄 Generating types for pattern '${options.pattern}'...`);
       }
-      
+
       await devService.generateTypes({
-        module: options.module,
-        pattern: options.pattern,
+        ...options.module && { module: options.module },
+        ...options.pattern && { pattern: options.pattern },
         types: typeOptions
       });
-      
+
       if (options.module) {
         output.success(`✅ Successfully generated types for '${options.module}' module`);
         output.info('Generated files:');
@@ -76,7 +75,6 @@ export const command: ICLICommand = {
       } else {
         output.success(`✅ Successfully generated types for pattern`);
       }
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       output.error(`❌ Failed to generate types: ${errorMessage}`);

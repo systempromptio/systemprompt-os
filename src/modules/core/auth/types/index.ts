@@ -57,7 +57,7 @@ export interface LoginResult {
 }
 
 // Import database types
-import type { IAuthSessionsRow, IAuthTokensRow } from '@/modules/core/auth/types/database.generated';
+import type { IAuthSessionsRow } from '@/modules/core/auth/types/database.generated';
 
 /**
  * Token creation input.

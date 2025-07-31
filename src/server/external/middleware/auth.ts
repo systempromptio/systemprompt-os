@@ -75,8 +75,8 @@ const hasRequiredRole = (
 const createAuthUser = (userId: string, scopes?: string[]): AuthUser => {
   const authUser: AuthUser = {
     id: userId,
-    email: '', // Will be populated from user service if needed
-    roles: [], // Will be populated from user service if needed
+    email: '',
+    roles: []
   };
 
   if (scopes && scopes.length > 0) {
@@ -215,12 +215,10 @@ export const createAuthMiddleware = (
     next: NextFunction,
   ): Promise<void> => {
     try {
-      // Ensure auth adapter is initialized (lazy initialization)
-      if (!authAdapter['initialized']) {
+      if (!authAdapter.initialized) {
         try {
           authAdapter.initialize();
         } catch (error) {
-          // If auth adapter fails to initialize, treat as missing token
           logger.warn(LogSource.AUTH, 'Auth adapter initialization failed, treating as unauthenticated', { error });
           handleMissingToken(res, options);
           return;
@@ -234,7 +232,6 @@ export const createAuthMiddleware = (
         return;
       }
 
-      // Use auth adapter to validate token
       const httpResult = await authAdapter.validateTokenWithHttpResponse(token);
 
       if (!httpResult.success) {
@@ -248,10 +245,8 @@ export const createAuthMiddleware = (
         return;
       }
 
-      // Create auth user from validation result
       const authUser = createAuthUser(httpResult.user!, httpResult.scopes);
 
-      // TODO: Fetch user roles from user service if needed for role-based access
       if (!checkRequiredRoles(authUser, options)) {
         handleInsufficientPermissions(res, options, authUser);
         return;

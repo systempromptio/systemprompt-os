@@ -7,7 +7,7 @@ import type {
  ConfigValue, IConfigEntry, IConfigService, IMcpServerConfig, IMcpServerEntry
 } from '@/modules/core/config/types/index';
 import type {
- IConfigsRow, IMcpServersRow, McpServersStatus
+ IConfigsRow, IMcpServersRow
 } from '@/modules/core/config/types/database.generated';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 
@@ -239,7 +239,7 @@ export class ConfigService implements IConfigService {
    * @param {string} [error] - Error message if status is 'error'.
    * @returns {Promise<void>} Promise that resolves when status is updated.
    */
-  async updateMcpServerStatus(name: string, status: McpServersStatus, error?: string): Promise<void> {
+  async updateMcpServerStatus(name: string, status: string, error?: string): Promise<void> {
     const query = `
       UPDATE mcp_servers 
       SET status = ?, last_error = ?, last_started_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE last_started_at END
@@ -262,8 +262,8 @@ export class ConfigService implements IConfigService {
       args: row.args ? JSON.parse(row.args) : null,
       env: row.env ? JSON.parse(row.env) : null,
       scope: row.scope,
-      transport: row.transport,
-      status: row.status,
+      transport: row.transport as 'stdio' | 'sse' | 'http',
+      status: row.status as 'active' | 'inactive' | 'error' | 'starting' | 'stopping',
       description: row.description,
       metadata: row.metadata ? JSON.parse(row.metadata) : null,
       oauthConfig: row.oauth_config ? JSON.parse(row.oauth_config) : null,

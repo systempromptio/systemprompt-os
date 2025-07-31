@@ -211,21 +211,20 @@ export class UsersService implements IUsersService {
     }
 
     this.logger?.info(LogSource.USERS, `Updating user: ${id}`);
-    
-    // Filter out undefined values to match repository expectations
+
     const cleanData: Record<string, any> = {};
-    if (data.username !== undefined) cleanData.username = data.username;
-    if (data.email !== undefined) cleanData.email = data.email;
-    if (data.display_name !== undefined) cleanData.display_name = data.display_name;
-    if (data.avatar_url !== undefined) cleanData.avatar_url = data.avatar_url;
-    if (data.bio !== undefined) cleanData.bio = data.bio;
-    if (data.timezone !== undefined) cleanData.timezone = data.timezone;
-    if (data.language !== undefined) cleanData.language = data.language;
-    if (data.status !== undefined) cleanData.status = data.status;
-    if (data.email_verified !== undefined) cleanData.email_verified = data.email_verified;
-    if (data.preferences !== undefined) cleanData.preferences = data.preferences;
-    if (data.metadata !== undefined) cleanData.metadata = data.metadata;
-    
+    if (data.username !== undefined) { cleanData.username = data.username; }
+    if (data.email !== undefined) { cleanData.email = data.email; }
+    if (data.display_name !== undefined) { cleanData.display_name = data.display_name; }
+    if (data.avatar_url !== undefined) { cleanData.avatar_url = data.avatar_url; }
+    if (data.bio !== undefined) { cleanData.bio = data.bio; }
+    if (data.timezone !== undefined) { cleanData.timezone = data.timezone; }
+    if (data.language !== undefined) { cleanData.language = data.language; }
+    if (data.status !== undefined) { cleanData.status = data.status; }
+    if (data.email_verified !== undefined) { cleanData.email_verified = data.email_verified; }
+    if (data.preferences !== undefined) { cleanData.preferences = data.preferences; }
+    if (data.metadata !== undefined) { cleanData.metadata = data.metadata; }
+
     const updatedUser = await this.repository.updateUser(id, cleanData as Partial<Omit<import('@/modules/core/users/types/database.generated').IUsersRow, 'id' | 'created_at' | 'updated_at'>>);
 
     const event: UserUpdatedEvent = {

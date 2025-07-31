@@ -96,8 +96,8 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
       },
       startCoreModule: async (name: string) => {
         const module = this.moduleRegistryService?.get(name);
-        if (module?.start) {
-          await module.start();
+        if (module && 'start' in module && typeof (module as any).start === 'function') {
+          await (module as any).start();
         }
       },
 

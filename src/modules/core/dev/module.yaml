@@ -15,18 +15,47 @@ cli:
     - name: lint
       description: Run linter and display a formatted summary of issues
       options:
-        - name: max
+        - name: module
           alias: m
+          type: string
+          description: Module name to lint (e.g., users, auth, logger)
+        - name: target
+          alias: t
+          type: string
+          description: Target file or folder to lint (e.g., src/modules/core/users)
+        - name: fix
+          alias: f
+          type: boolean
+          description: Automatically fix problems
+          default: false
+        - name: max
           type: string
           description: Maximum number of files to display
           default: '10'
     - name: test
-      description: Run integration tests and display test coverage summary
+      description: Run tests for specific module/file/folder and display test coverage summary
       options:
-        - name: max
+        - name: module
           alias: m
           type: string
-          description: Maximum number of files to display
+          description: Module name to test (e.g., users, auth, logger)
+        - name: target
+          alias: t
+          type: string
+          description: Target file or folder to test (e.g., src/modules/core/users)
+        - name: unit
+          alias: u
+          type: boolean
+          description: Run only unit tests
+          default: false
+        - name: integration
+          alias: i
+          type: boolean
+          description: Run only integration tests
+          default: false
+        - name: max
+          type: string
+          description: Maximum number of test suites to display
           default: '10'
     - name: create-module
       description: Create a new SystemPrompt OS module with complete boilerplate
@@ -52,6 +81,26 @@ cli:
         - name: deps
           type: array
           description: Module dependencies
+    - name: typecheck
+      description: Run TypeScript type checking and display errors
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Module name to typecheck (e.g., users, auth, logger)
+        - name: target
+          alias: t
+          type: string
+          description: Target file or folder to typecheck (e.g., src/modules/core/users)
+        - name: strict
+          alias: s
+          type: boolean
+          description: Enable strict type checking
+          default: false
+        - name: max
+          type: string
+          description: Maximum number of errors to display
+          default: '10'
     - name: generate-types
       description: Generate comprehensive types for a module (database types, interfaces, Zod schemas, type guards)
       options:

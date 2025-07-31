@@ -23,6 +23,9 @@
 
 # NEVER use npm
 npm run cli  # ❌ WRONG
+
+# NEVER use shell redirection
+./bin/systemprompt command 2>&1  # ❌ WRONG
 ```
 
 ### 3. Development Commands
@@ -38,8 +41,16 @@ Available dev commands:
 - `validate` - Validate module type safety
 - `lint` - Run linter
 - `test` - Run tests
+- `typecheck` - Run TypeScript type checking
 
-### 4. Feature Planning
+### 4. Generated Files Rule
+**NEVER edit generated files manually**:
+- All `*.generated.ts` files are auto-generated
+- Use CLI commands to regenerate types: `./bin/systemprompt dev generate-types {module}`
+- If types are incorrect, fix the source (schema.sql or service logic), then regenerate
+- Generated files include timestamps and warnings - DO NOT ignore them
+
+### 5. Feature Planning
 When working on a feature, create a planning document:
 - **Location**: `/var/www/html/systemprompt-os/plans/` mirroring the exact `src` path
 - **Structure**: Mirror the same directory structure as rules and src

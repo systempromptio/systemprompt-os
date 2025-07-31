@@ -61,7 +61,6 @@ export class DevService implements IDevService {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    // Always reinitialize services if logger is now available
     if (this.initialized && this.logger && !this.typeGenerator) {
       this.typeGenerator = TypeGenerationService.getInstance(this.logger);
       this.rulesSyncService = RulesSyncService.getInstance();
@@ -77,7 +76,6 @@ export class DevService implements IDevService {
     this.repository = DevRepository.getInstance();
     await this.repository.initialize();
 
-    // Initialize dev services
     if (this.logger) {
       this.typeGenerator = TypeGenerationService.getInstance(this.logger);
       this.rulesSyncService = RulesSyncService.getInstance();
@@ -210,27 +208,29 @@ export class DevService implements IDevService {
   }
 
   /**
-   * Generate types for a module
-   * @param options - Generation options
+   * Generate types for a module.
+   * @param options - Generation options.
+   * @param options.module
+   * @param options.pattern
+   * @param options.types
    */
   async generateTypes(options: {
     module?: string;
     pattern?: string;
-    types?: Array<'database' | 'interfaces' | 'schemas' | 'service-schemas' | 'all'>;
+    types?: Array<'database' | 'interfaces' | 'schemas' | 'service-schemas' | 'type-guards' | 'all'>;
   } = {}): Promise<void> {
     await this.ensureInitialized();
-    
+
     if (!this.typeGenerator) {
       throw new Error('Type generator not initialized - logger required');
     }
-    
+
     await this.typeGenerator.generateTypes(options);
   }
 
-
   /**
-   * Get rules sync service instance
-   * @returns Rules sync service instance
+   * Get rules sync service instance.
+   * @returns Rules sync service instance.
    */
   getRulesSyncService(): RulesSyncService {
     if (!this.rulesSyncService) {
@@ -238,7 +238,6 @@ export class DevService implements IDevService {
     }
     return this.rulesSyncService;
   }
-
 
   /**
    * Ensure service is initialized.

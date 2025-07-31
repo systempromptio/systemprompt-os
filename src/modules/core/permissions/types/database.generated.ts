@@ -1,5 +1,5 @@
 // Auto-generated database types for permissions module
-// Generated on: 2025-07-31T10:03:21.444Z
+// Generated on: 2025-07-31T11:41:30.548Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -56,7 +56,7 @@ export interface IUserRolesRow {
 
 // Zod schemas for database row validation
 export const PermissionsRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   resource: z.string(),
   action: z.string(),
@@ -66,7 +66,7 @@ export const PermissionsRowSchema = z.object({
 });
 
 export const RolesRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
   is_system: z.boolean().nullable(),
@@ -105,6 +105,6 @@ export const PermissionsDatabaseRowSchema = z.union([PermissionsRowSchema, Roles
 export const PERMISSIONS_TABLES = {
   PERMISSIONS: 'permissions',
   ROLES: 'roles',
-  ROLEPERMISSIONS: 'role_permissions',
-  USERROLES: 'user_roles',
+  ROLE_PERMISSIONS: 'role_permissions',
+  USER_ROLES: 'user_roles',
 } as const;

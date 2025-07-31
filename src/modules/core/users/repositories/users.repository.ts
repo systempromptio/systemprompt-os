@@ -48,6 +48,7 @@ export class UsersRepository {
 
   /**
    * Create a new user.
+   * @param userData
    */
   async createUser(userData: Omit<IUsersRow, 'id'> & { id: string }): Promise<IUsersRow> {
     const database = await this.getDatabase();
@@ -78,8 +79,7 @@ export class UsersRepository {
     ]);
 
     await stmt.finalize();
-    
-    // Return the created user (database row format)
+
     return {
       id: userData.id,
       username: userData.username,
@@ -100,6 +100,7 @@ export class UsersRepository {
 
   /**
    * Find user by ID.
+   * @param id
    */
   async findById(id: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
@@ -115,6 +116,7 @@ export class UsersRepository {
 
   /**
    * Find user by username.
+   * @param username
    */
   async findByUsername(username: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
@@ -130,6 +132,7 @@ export class UsersRepository {
 
   /**
    * Find user by email.
+   * @param email
    */
   async findByEmail(email: string): Promise<IUsersRow | null> {
     const database = await this.getDatabase();
@@ -158,6 +161,8 @@ export class UsersRepository {
 
   /**
    * Update user.
+   * @param id
+   * @param data
    */
   async updateUser(id: string, data: Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>): Promise<IUsersRow> {
     const database = await this.getDatabase();
@@ -261,5 +266,4 @@ export class UsersRepository {
 
     return result.rows;
   }
-
 }

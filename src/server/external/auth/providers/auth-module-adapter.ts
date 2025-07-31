@@ -15,7 +15,7 @@ export class AuthModuleProviderRegistry {
    */
   get(providerId: string): IIdentityProvider | undefined {
     const authModule = getAuthModule();
-    const providerService = authModule.exports.getProvidersService();
+    const providerService = authModule.exports.providersService();
     return providerService.getProviderInstance(providerId);
   }
 
@@ -32,7 +32,7 @@ export class AuthModuleProviderRegistry {
    */
   list(): IIdentityProvider[] {
     const authModule = getAuthModule();
-    const providerService = authModule.exports.getProvidersService();
+    const providerService = authModule.exports.providersService();
     return providerService.getAllProviderInstances();
   }
 
@@ -41,7 +41,7 @@ export class AuthModuleProviderRegistry {
    */
   getAllProviders(): IIdentityProvider[] {
     const authModule = getAuthModule();
-    const providerService = authModule.exports.getProvidersService();
+    const providerService = authModule.exports.providersService();
     return providerService.getAllProviderInstances();
   }
 
@@ -51,7 +51,8 @@ export class AuthModuleProviderRegistry {
    */
   has(providerId: string): boolean {
     const authModule = getAuthModule();
-    return authModule.exports.hasProvider?.(providerId) ?? false;
+    const providerService = authModule.exports.providersService();
+    return providerService.hasProvider(providerId);
   }
 
   /**

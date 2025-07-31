@@ -1,10 +1,10 @@
 /**
  * Type Guard Generator Module
- * Generates type guards for module export interfaces
+ * Generates type guards for module export interfaces.
  * @module dev/services/type-generation/generators
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types';
@@ -22,13 +22,13 @@ interface ModuleExportInterface {
 }
 
 /**
- * Generates type guards for module exports
+ * Generates type guards for module exports.
  */
 export class TypeGuardGenerator {
   constructor(private readonly logger: ILogger) {}
 
   /**
-   * Generate type guards for all modules
+   * Generate type guards for all modules.
    */
   public async generate(): Promise<void> {
     this.logger.info(LogSource.DEV, 'Starting type guard generation');
@@ -47,7 +47,7 @@ export class TypeGuardGenerator {
   }
 
   /**
-   * Find all module export interfaces in the codebase
+   * Find all module export interfaces in the codebase.
    */
   private async findExportInterfaces(): Promise<ModuleExportInterface[]> {
     const interfaces: ModuleExportInterface[] = [];
@@ -64,7 +64,9 @@ export class TypeGuardGenerator {
   }
 
   /**
-   * Parse export interfaces from a TypeScript file
+   * Parse export interfaces from a TypeScript file.
+   * @param content
+   * @param filePath
    */
   private parseExportInterfaces(content: string, filePath: string): ModuleExportInterface[] {
     const interfaces: ModuleExportInterface[] = [];
@@ -72,55 +74,92 @@ export class TypeGuardGenerator {
 
     let match;
     while ((match = interfaceRegex.exec(content)) !== null) {
-      const [, interfaceName, moduleName, interfaceBody] = match;
-      const properties = this.parseInterfaceProperties(interfaceBody);
+      const interfaceName = match[1];
+      const moduleName = match[2];
+      const interfaceBody = match[3];
 
-      interfaces.push({
-        name: interfaceName,
-        moduleName: moduleName.toLowerCase(),
-        properties,
-        filePath
-      });
+      if (interfaceName && moduleName && interfaceBody) {
+        const properties = this.parseInterfaceProperties(interfaceBody);
+
+        interfaces.push({
+          name: interfaceName,
+          moduleName: moduleName.toLowerCase(),
+          properties,
+          filePath
+        });
+      }
     }
 
     return interfaces;
   }
 
   /**
-   * Parse properties from interface body
+   * Parse properties from interface body.
+   * @param interfaceBody
    */
   private parseInterfaceProperties(interfaceBody: string): ModuleExportInterface['properties'] {
     const properties: ModuleExportInterface['properties'] = [];
     const cleanBody = interfaceBody.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '').trim();
-    const propertyRegex = /(\w+)(\?)?:\s*([^;,]+)/g;
 
-    let match;
-    while ((match = propertyRegex.exec(cleanBody)) !== null) {
-      const [, propertyName, optional, propertyType] = match;
+    const lines = cleanBody.split('\n');
+    let currentProperty = '';
+    let depth = 0;
 
-      let type: 'function' | 'object' | 'other' = 'other';
-      if (propertyType.includes('=>') || propertyType.includes('function')) {
-        type = 'function';
-      } else if (propertyType.includes('{') || propertyType.startsWith('Record<')) {
-        type = 'object';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) { continue; }
+
+      for (const char of trimmed) {
+        if (char === '(') { depth++; }
+        if (char === ')') { depth--; }
       }
 
-      properties.push({
-        name: propertyName,
-        type,
-        required: !optional
-      });
+      currentProperty += ` ${trimmed}`;
+
+      if (depth === 0 && (trimmed.endsWith(';') || trimmed.endsWith(','))) {
+        const match = currentProperty.match(/^\s*(?:readonly\s+)?(\w+)(\?)?:\s*(.+?)(?:;|,)\s*$/);
+        if (match) {
+          const propertyName = match[1];
+          const optional = match[2];
+          const propertyType = match[3];
+
+          if (propertyName && propertyType) {
+            let type: 'function' | 'object' | 'other' = 'other';
+            if (propertyType.includes('=>') || propertyType.includes('function')) {
+              type = 'function';
+            } else if (propertyType.includes('{') || propertyType.startsWith('Record<')) {
+              type = 'object';
+            }
+
+            properties.push({
+              name: propertyName,
+              type,
+              required: !optional
+            });
+          }
+        }
+        currentProperty = '';
+      }
     }
 
     return properties;
   }
 
   /**
-   * Generate TypeScript code for type guards
+   * Generate TypeScript code for type guards.
+   * @param interfaces
    */
   private generateTypeGuardCode(interfaces: ModuleExportInterface[]): string {
-    const imports = this.generateImports(interfaces);
-    const typeGuards = interfaces.map(iface => this.generateSingleTypeGuard(iface)).join('\n\n');
+    const uniqueInterfaces = new Map<string, ModuleExportInterface>();
+    for (const iface of interfaces) {
+      if (!uniqueInterfaces.has(iface.name)) {
+        uniqueInterfaces.set(iface.name, iface);
+      }
+    }
+
+    const dedupedInterfaces = Array.from(uniqueInterfaces.values());
+    const imports = this.generateImports(dedupedInterfaces);
+    const typeGuards = dedupedInterfaces.map(iface => { return this.generateSingleTypeGuard(iface) }).join('\n\n');
 
     return `/**
  * Auto-generated type guards for module exports
@@ -135,7 +174,8 @@ ${typeGuards}
   }
 
   /**
-   * Generate import statements for the type guards file
+   * Generate import statements for the type guards file.
+   * @param interfaces
    */
   private generateImports(interfaces: ModuleExportInterface[]): string {
     const importMap = new Map<string, Set<string>>();
@@ -150,7 +190,8 @@ ${typeGuards}
 
     const imports: string[] = [];
     for (const [path, interfaces] of importMap) {
-      const interfaceList = Array.from(interfaces).sort().join(', ');
+      const interfaceList = Array.from(interfaces).sort()
+.join(', ');
       imports.push(`import type { ${interfaceList} } from '${path}';`);
     }
 
@@ -161,7 +202,8 @@ ${typeGuards}
   }
 
   /**
-   * Generate a single type guard function
+   * Generate a single type guard function.
+   * @param iface
    */
   private generateSingleTypeGuard(iface: ModuleExportInterface): string {
     const functionName = `is${iface.name.replace(/^I/, '')}`;
@@ -188,7 +230,9 @@ export const ${functionName} = (
   }
 
   /**
-   * Generate property check for a specific property
+   * Generate property check for a specific property.
+   * @param prop
+   * @param accessPath
    */
   private generatePropertyCheck(prop: ModuleExportInterface['properties'][0], accessPath: string): string {
     const propPath = `${accessPath}.${prop.name}`;
@@ -208,14 +252,16 @@ export const ${functionName} = (
   }
 
   /**
-   * Get relative import path for a file
+   * Get relative import path for a file.
+   * @param filePath
    */
   private getRelativeImportPath(filePath: string): string {
     return filePath.replace(/^src\//, '@/').replace(/\.ts$/, '');
   }
 
   /**
-   * Write generated type guards to file
+   * Write generated type guards to file.
+   * @param content
    */
   private async writeTypeGuardsFile(content: string): Promise<void> {
     const outputPath = join(process.cwd(), 'src/modules/types/generated-type-guards.ts');

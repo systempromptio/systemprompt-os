@@ -1,9 +1,7 @@
 /**
- * Unified OAuth2 Token Endpoint
- * 
+ * Unified OAuth2 Token Endpoint.
  * Handles token exchange using auth module services.
  * Supports authorization_code, refresh_token, and client_credentials grant types.
- * 
  * @module server/external/rest/oauth2/unified-token
  */
 
@@ -16,7 +14,7 @@ import { ServerAuthAdapter } from '@/server/services/auth-adapter.service';
 const logger = LoggerService.getInstance();
 
 /**
- * Token request schema
+ * Token request schema.
  */
 const tokenRequestSchema = z.discriminatedUnion('grant_type', [
   // Authorization code grant
@@ -46,7 +44,7 @@ const tokenRequestSchema = z.discriminatedUnion('grant_type', [
 ]);
 
 /**
- * Token error response
+ * Token error response.
  */
 interface TokenError {
   error: string;
@@ -55,7 +53,7 @@ interface TokenError {
 }
 
 /**
- * Token success response
+ * Token success response.
  */
 interface TokenResponse {
   access_token: string;
@@ -67,62 +65,58 @@ interface TokenResponse {
 }
 
 /**
- * Unified OAuth2 Token Endpoint
+ * Unified OAuth2 Token Endpoint.
  */
 export class UnifiedTokenEndpoint {
   constructor() {
-    // Auth adapter will be initialized lazily when first used
   }
 
   /**
-   * Handle POST /oauth2/token
+   * Handle POST /oauth2/token.
+   * @param req
+   * @param res
    */
   async handleTokenRequest(req: ExpressRequest, res: ExpressResponse): Promise<void> {
     try {
-      // Parse and validate request
       const params = this.validateRequest(req);
 
-      // Get auth adapter instance
       const authAdapter = ServerAuthAdapter.getInstance();
-      
-      // Check if auth adapter is initialized
+
       try {
-        authAdapter['ensureInitialized']();
+        authAdapter.ensureInitialized();
       } catch (error) {
         logger.error(LogSource.AUTH, 'Auth adapter not initialized', { error });
-        // For client_credentials grant, return unsupported_grant_type as expected by tests
         if (params.grant_type === 'client_credentials') {
-          return this.sendError(res, {
+          this.sendError(res, {
             error: 'unsupported_grant_type',
             error_description: 'Client credentials grant not supported',
-          });
+          }); return;
         }
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'server_error',
           error_description: 'Authentication service unavailable',
-        });
+        }); return;
       }
 
-      // Route to appropriate handler based on grant type
       switch (params.grant_type) {
         case 'authorization_code':
-          return await this.handleAuthorizationCode(params, res, authAdapter);
+          { await this.handleAuthorizationCode(params, res, authAdapter); return; }
         case 'refresh_token':
-          return await this.handleRefreshToken(params, res, authAdapter);
+          { await this.handleRefreshToken(params, res, authAdapter); return; }
         case 'client_credentials':
-          return await this.handleClientCredentials(params, res, authAdapter);
+          { await this.handleClientCredentials(params, res, authAdapter); }
       }
     } catch (error) {
       logger.error(LogSource.AUTH, 'Token request error', { error });
 
       if (error instanceof z.ZodError) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_request',
           error_description: 'Invalid request parameters',
-        });
+        }); return;
       }
 
-      return this.sendError(res, {
+      this.sendError(res, {
         error: 'server_error',
         error_description: 'Internal server error',
       });
@@ -130,7 +124,10 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Handle authorization code grant
+   * Handle authorization code grant.
+   * @param params
+   * @param res
+   * @param authAdapter
    */
   private async handleAuthorizationCode(
     params: z.infer<typeof tokenRequestSchema> & { grant_type: 'authorization_code' },
@@ -138,13 +135,9 @@ export class UnifiedTokenEndpoint {
     authAdapter: ServerAuthAdapter
   ): Promise<void> {
     try {
-      // Validate client credentials if provided
       if (params.client_secret) {
-        // TODO: Validate client credentials
-        // For now, we'll skip client authentication for public clients
       }
 
-      // Validate authorization code
       const codeData = await authAdapter.validateAuthorizationCode(
         params.code,
         params.client_id,
@@ -153,47 +146,45 @@ export class UnifiedTokenEndpoint {
       );
 
       if (!codeData) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_grant',
           error_description: 'Invalid authorization code',
-        });
+        }); return;
       }
 
-      // Create tokens from authorization code
       const tokens = await authAdapter.createTokensFromCode(codeData);
 
       logger.info(LogSource.AUTH, 'Tokens issued for authorization code', {
         clientId: params.client_id,
         userId: codeData.user_id,
-        scope: tokens.scope,
+        ...tokens.scope && { scope: tokens.scope },
       });
 
-      // Send token response
       this.sendTokenResponse(res, {
         access_token: tokens.accessToken,
         token_type: tokens.tokenType,
         expires_in: tokens.expiresIn,
         refresh_token: tokens.refreshToken,
-        scope: tokens.scope,
+        ...tokens.scope && { scope: tokens.scope },
       });
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Authorization code grant error', { error });
+      logger.error(LogSource.AUTH, 'Authorization code grant error', { error: error instanceof Error ? error.message : String(error) });
 
       if (error instanceof Error && error.message.includes('expired')) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_grant',
           error_description: 'Authorization code has expired',
-        });
+        }); return;
       }
 
       if (error instanceof Error && error.message.includes('PKCE')) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_grant',
           error_description: 'PKCE verification failed',
-        });
+        }); return;
       }
 
-      return this.sendError(res, {
+      this.sendError(res, {
         error: 'server_error',
         error_description: 'Failed to process authorization code',
       });
@@ -201,7 +192,10 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Handle refresh token grant
+   * Handle refresh token grant.
+   * @param params
+   * @param res
+   * @param authAdapter
    */
   private async handleRefreshToken(
     params: z.infer<typeof tokenRequestSchema> & { grant_type: 'refresh_token' },
@@ -209,12 +203,9 @@ export class UnifiedTokenEndpoint {
     authAdapter: ServerAuthAdapter
   ): Promise<void> {
     try {
-      // Validate client credentials if provided
       if (params.client_secret) {
-        // TODO: Validate client credentials
       }
 
-      // Refresh the access token
       const tokenResponse = await authAdapter.refreshAccessToken(params.refresh_token);
 
       logger.info(LogSource.AUTH, 'Access token refreshed', {
@@ -222,31 +213,30 @@ export class UnifiedTokenEndpoint {
         scope: tokenResponse.scope,
       });
 
-      // Send token response
       this.sendTokenResponse(res, {
         access_token: tokenResponse.accessToken,
         token_type: tokenResponse.tokenType,
         expires_in: tokenResponse.expiresIn,
-        scope: tokenResponse.scope || params.scope,
+        ...tokenResponse.scope && { scope: tokenResponse.scope },
       });
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Refresh token grant error', { error });
+      logger.error(LogSource.AUTH, 'Refresh token grant error', { error: error instanceof Error ? error.message : String(error) });
 
       if (error instanceof Error && error.message.includes('expired')) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_grant',
           error_description: 'Refresh token has expired',
-        });
+        }); return;
       }
 
       if (error instanceof Error && error.message.includes('revoked')) {
-        return this.sendError(res, {
+        this.sendError(res, {
           error: 'invalid_grant',
           error_description: 'Refresh token has been revoked',
-        });
+        }); return;
       }
 
-      return this.sendError(res, {
+      this.sendError(res, {
         error: 'server_error',
         error_description: 'Failed to refresh access token',
       });
@@ -254,26 +244,27 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Handle client credentials grant
+   * Handle client credentials grant.
+   * @param params
+   * @param _params
+   * @param res
+   * @param authAdapter
+   * @param _authAdapter
    */
   private async handleClientCredentials(
-    params: z.infer<typeof tokenRequestSchema> & { grant_type: 'client_credentials' },
+    _params: z.infer<typeof tokenRequestSchema> & { grant_type: 'client_credentials' },
     res: ExpressResponse,
-    authAdapter: ServerAuthAdapter
+    _authAdapter: ServerAuthAdapter
   ): Promise<void> {
     try {
-      // Validate client credentials
-      // TODO: Implement client validation
-      // For now, we'll return an error as this grant type needs proper client authentication
-
-      return this.sendError(res, {
+      this.sendError(res, {
         error: 'unsupported_grant_type',
         error_description: 'Client credentials grant not yet implemented',
       });
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Client credentials grant error', { error });
+      logger.error(LogSource.AUTH, 'Client credentials grant error', { error: error instanceof Error ? error.message : String(error) });
 
-      return this.sendError(res, {
+      this.sendError(res, {
         error: 'server_error',
         error_description: 'Failed to process client credentials',
       });
@@ -281,13 +272,12 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Validate token request
+   * Validate token request.
+   * @param req
    */
   private validateRequest(req: ExpressRequest): z.infer<typeof tokenRequestSchema> {
-    // OAuth2 token requests use form-encoded body
     const params = req.body;
 
-    // Basic validation
     if (!params || typeof params !== 'object') {
       throw new Error('Missing request body');
     }
@@ -296,10 +286,11 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Send token response
+   * Send token response.
+   * @param res
+   * @param tokens
    */
   private sendTokenResponse(res: ExpressResponse, tokens: TokenResponse): void {
-    // OAuth2 spec requires specific headers
     res.set({
       'Cache-Control': 'no-store',
       'Pragma': 'no-cache',
@@ -309,18 +300,19 @@ export class UnifiedTokenEndpoint {
   }
 
   /**
-   * Send error response
+   * Send error response.
+   * @param res
+   * @param error
    */
   private sendError(res: ExpressResponse, error: TokenError): void {
-    // OAuth2 spec defines specific error status codes
-    let statusCode = 400; // Bad Request by default
+    let statusCode = 400
 
     if (error.error === 'invalid_client') {
-      statusCode = 401; // Unauthorized
+      statusCode = 401
     } else if (error.error === 'server_error') {
-      statusCode = 500; // Internal Server Error
+      statusCode = 500
     } else if (error.error === 'temporarily_unavailable') {
-      statusCode = 503; // Service Unavailable
+      statusCode = 503
     }
 
     res.status(statusCode).json(error);

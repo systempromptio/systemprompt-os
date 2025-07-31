@@ -40,6 +40,13 @@ const displayLintResults = (
     return;
   }
 
+  const sortedResults = [...result.results].sort((a, b) => {
+    if (b.errorCount !== a.errorCount) {
+      return b.errorCount - a.errorCount;
+    }
+    return b.warningCount - a.warningCount;
+  });
+
   cliOutput.output('', { format: 'text' });
   cliOutput.output(
     'File Path                                                    | Errors | Warnings',
@@ -50,9 +57,14 @@ const displayLintResults = (
     { format: 'text' }
   );
 
-  const displayResults = result.results.slice(0, maxDisplay);
+  const displayResults = sortedResults.slice(0, maxDisplay);
   for (const fileResult of displayResults) {
-    const pathDisplay = fileResult.filePath.padEnd(60, ' ').substring(0, 60);
+    let pathDisplay = fileResult.filePath;
+    if (pathDisplay.length > 60) {
+      pathDisplay = `...${pathDisplay.substring(pathDisplay.length - 57)}`;
+    } else {
+      pathDisplay = pathDisplay.padEnd(60, ' ');
+    }
     const errorCount = String(fileResult.errorCount).padStart(6, ' ');
     const warningCount = String(fileResult.warningCount).padStart(8, ' ');
     cliOutput.output(`${pathDisplay} | ${errorCount} | ${warningCount}`, { format: 'text' });
@@ -80,13 +92,24 @@ const executeLintCheck = async (context: ICLIContext): Promise<void> => {
   const logger = LoggerService.getInstance();
 
   try {
-    cliOutput.info('🔍 Running ESLint analysis...');
+    const module = args.module as string | undefined;
+    let target = args.target as string | undefined;
+    const fix = Boolean(args.fix);
+
+    // If module is specified, convert to target path
+    if (module && !target) {
+      target = `src/modules/core/${module}`;
+    }
+
+    const targetInfo = module ? ` for ${module} module` : target ? ` for ${target}` : '';
+
+    cliOutput.info(`🔍 Running ESLint analysis${targetInfo}...`);
     cliOutput.output('', { format: 'text' });
 
     const lintService = LintService.getInstance();
     lintService.initialize();
 
-    const result = await lintService.runLint();
+    const result = await lintService.runLint(target, { fix });
     displayLintResults(result, args, cliOutput);
 
     if (!result.success && result.totalErrors > 0) {
@@ -106,8 +129,26 @@ export const command: ICLICommand = {
   description: 'Run linter and display a formatted summary of issues',
   options: [
     {
+      name: 'module',
+      alias: 'm', 
+      type: 'string',
+      description: 'Module name to lint (e.g., users, auth, logger)'
+    },
+    {
+      name: 'target',
+      alias: 't',
+      type: 'string',
+      description: 'Target file or folder to lint (e.g., src/modules/core/users)'
+    },
+    {
+      name: 'fix',
+      alias: 'f',
+      type: 'boolean',
+      description: 'Automatically fix problems',
+      default: false
+    },
+    {
       name: 'max',
-      alias: 'm',
       type: 'string',
       description: 'Maximum number of files to display',
       default: '10'

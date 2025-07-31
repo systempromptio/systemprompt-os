@@ -1,40 +1,42 @@
 /**
  * SQL Parser Module
- * Parses SQL schema files to extract table and column definitions
+ * Parses SQL schema files to extract table and column definitions.
  * @module dev/services/type-generation/parsers
  */
 
-import type { Table, Column, CheckConstraint } from '../types';
+import type {
+ CheckConstraint, Column, Table
+} from '@/modules/core/dev/services/type-generation/types';
 
 /**
- * SQL Parser for extracting database schema information
+ * SQL Parser for extracting database schema information.
  */
 export class SQLParser {
-  private checkConstraints: Map<string, CheckConstraint[]> = new Map();
+  private readonly checkConstraints: Map<string, CheckConstraint[]> = new Map();
 
   /**
-   * Parse SQL schema and extract tables
-   * @param sql - SQL schema content
-   * @returns Array of table definitions
+   * Parse SQL schema and extract tables.
+   * @param sql - SQL schema content.
+   * @returns Array of table definitions.
    */
   public parseSQLSchema(sql: string): Table[] {
     const tables: Table[] = [];
     this.checkConstraints.clear();
 
-    // First pass: extract CHECK constraints
     this.extractCheckConstraints(sql);
 
-    // Second pass: parse CREATE TABLE statements
     const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)\s*\(([\s\S]*?)\);/gi;
-    
+
     let match;
     while ((match = createTableRegex.exec(sql)) !== null) {
-      const tableName = match[1].trim();
-      const tableBody = match[2].trim();
-      
+      const tableName = match[1]?.trim();
+      const tableBody = match[2]?.trim();
+
+      if (!tableName || !tableBody) { continue; }
+
       const columns = this.parseColumns(tableBody);
       const checkConstraints = this.checkConstraints.get(tableName) || [];
-      
+
       if (columns.length > 0) {
         tables.push({
           name: tableName,
@@ -48,103 +50,120 @@ export class SQLParser {
   }
 
   /**
-   * Extract CHECK constraints from SQL
-   * @param sql - SQL content
+   * Extract CHECK constraints from SQL.
+   * @param sql - SQL content.
    */
   private extractCheckConstraints(sql: string): void {
-    // Pattern 1: Named constraints - CONSTRAINT name CHECK (column IN (...))
     const namedCheckRegex = /CONSTRAINT\s+\w+\s+CHECK\s*\(\s*(\w+)\s+IN\s*\((.*?)\)\s*\)/gi;
     let checkMatch;
     while ((checkMatch = namedCheckRegex.exec(sql)) !== null) {
-      const [, columnName, valuesList] = checkMatch;
-      const values = valuesList ? valuesList.split(',').map(v => v.trim().replace(/'/g, '')) : [];
+      const columnName = checkMatch[1];
+      const valuesList = checkMatch[2];
+      const values = valuesList ? valuesList.split(',').map(v => { return v.trim().replace(/'/g, '') }) : [];
       const tableName = this.findTableNameForConstraint(sql, checkMatch.index);
-      
+
       if (tableName) {
         if (!this.checkConstraints.has(tableName)) {
           this.checkConstraints.set(tableName, []);
         }
-        this.checkConstraints.get(tableName)!.push({ columnName: columnName || '', values });
+        this.checkConstraints.get(tableName)!.push({
+ columnName: columnName || '',
+values
+});
       }
     }
-    
-    // Pattern 2: Inline constraints - column_name TYPE CHECK (column_name IN (...))
-    const inlineCheckRegex = /(\w+)\s+\w+(?:\([^)]*\))?\s+[^,]*?CHECK\s*\(\s*\1\s+IN\s*\((.*?)\)\s*\)/gi;
+
+    const inlineCheckRegex = /(\w+)\s+\w+(?:\([^)]*\))?\s+[^,]*?CHECK\s*\(\s*(\w+)\s+IN\s*\((.*?)\)\s*\)/gi;
     while ((checkMatch = inlineCheckRegex.exec(sql)) !== null) {
-      const [, columnName, valuesList] = checkMatch;
-      const values = valuesList ? valuesList.split(',').map(v => v.trim().replace(/'/g, '')) : [];
-      const tableName = this.findTableNameForConstraint(sql, checkMatch.index);
+      const columnName = checkMatch[1];
+      const checkColumnName = checkMatch[2];
+      const valuesList = checkMatch[3];
       
-      if (tableName) {
-        if (!this.checkConstraints.has(tableName)) {
-          this.checkConstraints.set(tableName, []);
-        }
-        
-        // Avoid duplicates
-        const existing = this.checkConstraints.get(tableName)!;
-        if (!existing.some(c => c.columnName === columnName)) {
-          existing.push({ columnName: columnName || '', values });
-        }
-      }
-    }
-  }
-
-  /**
-   * Find table name for a constraint at a given position
-   * @param sql - SQL content
-   * @param position - Position in the SQL string
-   * @returns Table name or null
-   */
-  private findTableNameForConstraint(sql: string, position: number): string | null {
-    // Look backwards from the constraint position to find the table name
-    const beforeConstraint = sql.substring(0, position);
-    const tableMatch = beforeConstraint.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\([^)]*$/i);
-    return tableMatch ? tableMatch[1] : null;
-  }
-
-  /**
-   * Parse columns from table body
-   * @param tableBody - Table body SQL
-   * @returns Array of column definitions
-   */
-  private parseColumns(tableBody: string): Column[] {
-    const columns: Column[] = [];
-    
-    // Remove comments and split into lines
-    const lines = tableBody
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('--'));
-    
-    // Track which columns we've seen for comment parsing
-    const columnsSeen = new Set<string>();
-    
-    for (const line of lines) {
-      // Skip non-column definitions
-      if (line.match(/^\s*(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|INDEX)/i)) {
+      // Only process if the column name in CHECK matches the column definition
+      if (columnName !== checkColumnName) {
         continue;
       }
       
-      // Parse column definition
-      const columnMatch = line.match(/^(\w+)\s+(\w+(?:\([^)]*\))?)(.*)/);
-      if (columnMatch) {
-        const [, name, type, rest] = columnMatch;
-        const constraints = rest.toUpperCase();
-        
-        columns.push({
-          name,
-          type,
-          nullable: !constraints.includes('NOT NULL') && !constraints.includes('PRIMARY KEY'),
-          autoGenerated: constraints.includes('DEFAULT CURRENT_TIMESTAMP') || 
-                        constraints.includes('DEFAULT (DATETIME') ||
-                        name === 'created_at' ||
-                        name === 'updated_at'
-        });
-        
-        columnsSeen.add(name);
+      const values = valuesList ? valuesList.split(',').map(v => { return v.trim().replace(/'/g, '') }) : [];
+      const tableName = this.findTableNameForConstraint(sql, checkMatch.index);
+
+      if (tableName) {
+        if (!this.checkConstraints.has(tableName)) {
+          this.checkConstraints.set(tableName, []);
+        }
+
+        const existing = this.checkConstraints.get(tableName)!;
+        if (!existing.some(c => { return c.columnName === columnName })) {
+          existing.push({
+ columnName: columnName || '',
+values
+});
+        }
       }
     }
-    
+  }
+
+  /**
+   * Find table name for a constraint at a given position.
+   * @param sql - SQL content.
+   * @param position - Position in the SQL string.
+   * @returns Table name or null.
+   */
+  private findTableNameForConstraint(sql: string, position: number): string | null {
+    const beforeConstraint = sql.substring(0, position);
+    const tableMatch = beforeConstraint.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\([^)]*$/i);
+    return tableMatch?.[1] ? tableMatch[1] : null;
+  }
+
+  /**
+   * Parse columns from table body.
+   * @param tableBody - Table body SQL.
+   * @returns Array of column definitions.
+   */
+  private parseColumns(tableBody: string): Column[] {
+    const columns: Column[] = [];
+
+    const lines = tableBody
+      .split('\n')
+      .map(line => { return line.trim() })
+      .filter(line => { return line && !line.startsWith('--') });
+
+    const columnsSeen = new Set<string>();
+
+    for (const line of lines) {
+      // Skip table constraints but not column definitions with inline CHECK
+      if (line.match(/^\s*(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|INDEX)/i)) {
+        continue;
+      }
+      
+      // Skip standalone CHECK constraints
+      if (line.match(/^\s*CHECK\s*\(/i)) {
+        continue;
+      }
+
+      const columnMatch = line.match(/^(\w+)\s+(\w+(?:\([^)]*\))?)(.*)/);
+      if (columnMatch) {
+        const name = columnMatch[1] || '';
+        const type = columnMatch[2] || '';
+        const rest = columnMatch[3] || '';
+        const constraints = rest.toUpperCase();
+
+        if (name && type) {
+            columns.push({
+              name,
+              type,
+              nullable: !constraints.includes('NOT NULL') && !constraints.includes('PRIMARY KEY'),
+              autoGenerated: constraints.includes('DEFAULT CURRENT_TIMESTAMP')
+                            || constraints.includes('DEFAULT (DATETIME')
+                            || name === 'created_at'
+                            || name === 'updated_at'
+            });
+
+            columnsSeen.add(name);
+          }
+      }
+    }
+
     return columns;
   }
 }

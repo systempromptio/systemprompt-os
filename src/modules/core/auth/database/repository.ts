@@ -117,7 +117,7 @@ export class AuthRepository {
   ): Promise<IUser> {
     try {
       const authModule = getAuthModule();
-      const authService = authModule.exports.service();
+      const authService = authModule.exports.authService();
 
       const user = await authService.createOrUpdateUserFromOAuth(provider, providerId, profile);
 
@@ -157,7 +157,7 @@ export class AuthRepository {
   async getIUserById(userId: string): Promise<IUser | null> {
     try {
       const authModule = getAuthModule();
-      const authService = authModule.exports.service();
+      const authService = authModule.exports.authService();
 
       const userInfo = await authService.requestUserData(userId);
 

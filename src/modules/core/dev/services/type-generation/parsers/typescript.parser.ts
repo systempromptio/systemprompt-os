@@ -1,37 +1,40 @@
 /**
  * TypeScript Parser Module
- * Parses TypeScript files to extract interface and service definitions
+ * Parses TypeScript files to extract interface and service definitions.
  * @module dev/services/type-generation/parsers
  */
 
 import * as ts from 'typescript';
-import type { InterfaceField, ServiceInfo, ServiceMethod } from '../types';
+import type {
+ InterfaceField, ServiceInfo, ServiceMethod
+} from '@/modules/core/dev/services/type-generation/types';
 
 /**
- * TypeScript Parser for extracting type information
+ * TypeScript Parser for extracting type information.
  */
 export class TypeScriptParser {
   /**
-   * Parse interface fields from interface body
-   * @param interfaceBody - Interface body content
-   * @returns Array of interface fields
+   * Parse interface fields from interface body.
+   * @param interfaceBody - Interface body content.
+   * @returns Array of interface fields.
    */
   public parseInterfaceFields(interfaceBody: string): InterfaceField[] {
     const fields: InterfaceField[] = [];
     const lines = interfaceBody.split('\n');
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('//')) continue;
-      
-      // Parse field: name: type | null;
+      if (!trimmed || trimmed.startsWith('//')) { continue; }
+
       const match = trimmed.match(/^(\w+)(\?)?:\s*(.+?)(?:;|$)/);
-      if (match) {
-        const [, name, optional, typeStr] = match;
+      if (match?.[1] && match[3]) {
+        const name = match[1];
+        const optional = match[2];
+        const typeStr = match[3];
         const cleanType = typeStr.trim();
         const nullable = cleanType.includes(' | null');
         const type = cleanType.replace(' | null', '').trim();
-        
+
         fields.push({
           name,
           type,
@@ -40,15 +43,15 @@ export class TypeScriptParser {
         });
       }
     }
-    
+
     return fields;
   }
 
   /**
-   * Parse service file to extract method information
-   * @param filePath - Path to service file
-   * @param moduleName - Module name
-   * @returns Service information or null
+   * Parse service file to extract method information.
+   * @param filePath - Path to service file.
+   * @param moduleName - Module name.
+   * @returns Service information or null.
    */
   public async parseServiceFile(filePath: string, moduleName: string): Promise<ServiceInfo | null> {
     const program = ts.createProgram([filePath], {
@@ -60,7 +63,7 @@ export class TypeScriptParser {
     });
 
     const sourceFile = program.getSourceFile(filePath);
-    if (!sourceFile) return null;
+    if (!sourceFile) { return null; }
 
     const serviceName = `${this.toPascalCase(moduleName)}Service`;
     const methods: ServiceMethod[] = [];
@@ -70,16 +73,14 @@ export class TypeScriptParser {
         node.members.forEach(member => {
           if (ts.isMethodDeclaration(member) && member.name && ts.isIdentifier(member.name)) {
             const methodName = member.name.text;
-            
-            // Check for private/protected modifiers
+
             const hasPrivateModifier = member.modifiers?.some(
-              modifier => modifier.kind === ts.SyntaxKind.PrivateKeyword
+              modifier => { return modifier.kind === ts.SyntaxKind.PrivateKeyword }
             );
             const hasProtectedModifier = member.modifiers?.some(
-              modifier => modifier.kind === ts.SyntaxKind.ProtectedKeyword
+              modifier => { return modifier.kind === ts.SyntaxKind.ProtectedKeyword }
             );
-            
-            // Skip private/protected methods and lifecycle methods
+
             if (hasPrivateModifier || hasProtectedModifier || this.shouldSkipMethod(methodName)) {
               return;
             }
@@ -87,7 +88,10 @@ export class TypeScriptParser {
             const params = member.parameters.map(param => {
               const paramName = param.name.getText(sourceFile);
               const paramType = param.type ? param.type.getText(sourceFile) : 'unknown';
-              return { name: paramName, type: paramType };
+              return {
+ name: paramName,
+type: paramType
+};
             });
 
             const returnType = member.type ? member.type.getText(sourceFile) : 'void';
@@ -102,13 +106,16 @@ export class TypeScriptParser {
       }
     });
 
-    return methods.length > 0 ? { name: serviceName, methods } : null;
+    return methods.length > 0 ? {
+ name: serviceName,
+methods
+} : null;
   }
 
   /**
-   * Check if a method should be skipped
-   * @param methodName - Method name
-   * @returns True if method should be skipped
+   * Check if a method should be skipped.
+   * @param methodName - Method name.
+   * @returns True if method should be skipped.
    */
   private shouldSkipMethod(methodName: string): boolean {
     const skipMethods = [
@@ -118,19 +125,19 @@ export class TypeScriptParser {
       'setLogger',
       'ensureInitialized'
     ];
-    
+
     return methodName.startsWith('_') || skipMethods.includes(methodName);
   }
 
   /**
-   * Convert string to PascalCase
-   * @param str - Input string
-   * @returns PascalCase string
+   * Convert string to PascalCase.
+   * @param str - Input string.
+   * @returns PascalCase string.
    */
   private toPascalCase(str: string): string {
     return str
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map(word => { return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() })
       .join('');
   }
 }

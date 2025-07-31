@@ -1,10 +1,10 @@
 /**
- * Type Generation Service Exports
+ * Type Generation Service Exports.
  * @module dev/services/type-generation
  */
 
-export { TypeGenerationService } from '../type-generation.service';
-export type { 
+export { TypeGenerationService } from '@/modules/core/dev/services/type-generation.service';
+export type {
   TypeGenerationOptions,
   ModuleGenerationOptions,
   CheckConstraint,
@@ -13,4 +13,4 @@ export type {
   InterfaceField,
   ServiceMethod,
   ServiceInfo
-} from './types';
+} from '@/modules/core/dev/services/type-generation/types';

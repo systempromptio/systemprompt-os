@@ -1,9 +1,7 @@
 /**
- * Unified OAuth2 Authorization Endpoint
- * 
+ * Unified OAuth2 Authorization Endpoint.
  * Consolidates OAuth2 authorization flow using auth module services.
  * Handles provider selection, state management, and authorization code generation.
- * 
  * @module server/external/rest/oauth2/unified-authorize
  */
 
@@ -12,13 +10,13 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { LoggerService } from '@/modules/core/logger/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { ServerAuthAdapter, type OAuthStateData } from '@/server/services/auth-adapter.service';
+import { type OAuthStateData, ServerAuthAdapter } from '@/server/services/auth-adapter.service';
 import { renderAuthPage } from '@/server/external/templates/auth';
 
 const logger = LoggerService.getInstance();
 
 /**
- * OAuth2 error response
+ * OAuth2 error response.
  */
 interface OAuth2Error {
   error: string;
@@ -28,13 +26,14 @@ interface OAuth2Error {
 }
 
 /**
- * Authorization request parameters schema
+ * Authorization request parameters schema.
  */
 const authorizeRequestSchema = z.object({
   response_type: z.enum(['code', 'code id_token']),
   client_id: z.string(),
   redirect_uri: z.string().url(),
-  scope: z.string().optional().default('openid email profile'),
+  scope: z.string().optional()
+.default('openid email profile'),
   state: z.string().optional(),
   nonce: z.string().optional(),
   code_challenge: z.string().optional(),
@@ -44,60 +43,54 @@ const authorizeRequestSchema = z.object({
 });
 
 /**
- * Parsed authorization request
+ * Parsed authorization request.
  */
 type AuthorizeRequest = z.infer<typeof authorizeRequestSchema>;
 
 /**
- * Unified OAuth2 Authorization Endpoint
+ * Unified OAuth2 Authorization Endpoint.
  */
 export class UnifiedAuthorizeEndpoint {
   constructor() {
-    // Auth adapter will be initialized lazily when first used
   }
 
   /**
-   * Handle GET /oauth2/authorize
+   * Handle GET /oauth2/authorize.
+   * @param req
+   * @param res
    */
   async handleAuthorize(req: ExpressRequest, res: ExpressResponse): Promise<void> {
     try {
-      // Parse and validate request
       const params = this.validateRequest(req);
 
-      // Get provider if specified
       const providerId = params.provider || params.idp;
-      
+
       if (!providerId) {
-        // No provider specified - redirect to auth page
-        res.redirect('/auth?client_id=' + encodeURIComponent(params.client_id));
+        res.redirect(`/auth?client_id=${encodeURIComponent(params.client_id)}`);
         return;
       }
 
-      // Get auth adapter instance
       const authAdapter = ServerAuthAdapter.getInstance();
-      
-      // Check if auth adapter is initialized
+
       try {
-        authAdapter['ensureInitialized']();
+        authAdapter.ensureInitialized();
       } catch (error) {
-        logger.error(LogSource.AUTH, 'Auth adapter not initialized', { error });
-        return this.sendError(res, params, {
+        logger.error(LogSource.AUTH, 'Auth adapter not initialized', { error: error instanceof Error ? error.message : String(error) });
+        this.sendError(res, params, {
           error: 'server_error',
           error_description: 'Authentication service unavailable'
-        });
+        }); return;
       }
 
-      // Get provider instance
       const provider = await authAdapter.getProvider(providerId);
-      
+
       if (!provider) {
-        return this.sendError(res, params, {
+        this.sendError(res, params, {
           error: 'invalid_request',
           error_description: `Unknown provider: ${providerId}`
-        });
+        }); return;
       }
 
-      // Create OAuth state
       const stateData: OAuthStateData = {
         nonce: randomBytes(16).toString('hex'),
         timestamp: Date.now(),
@@ -112,7 +105,6 @@ export class UnifiedAuthorizeEndpoint {
 
       const stateNonce = await authAdapter.createAuthorizationState(stateData);
 
-      // Get provider authorization URL
       const callbackUrl = await authAdapter.getProviderCallbackUrl(providerId);
       const authUrl = await provider.getAuthorizationUrl({
         state: stateNonce,
@@ -127,12 +119,10 @@ export class UnifiedAuthorizeEndpoint {
         scope: params.scope
       });
 
-      // Redirect to provider
       res.redirect(authUrl);
-
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Authorization error', { error });
-      
+      logger.error(LogSource.AUTH, 'Authorization error', { error: error instanceof Error ? error.message : String(error) });
+
       if (error instanceof z.ZodError) {
         res.status(400).json({
           error: 'invalid_request',
@@ -149,22 +139,23 @@ export class UnifiedAuthorizeEndpoint {
   }
 
   /**
-   * Handle provider callback
+   * Handle provider callback.
+   * @param req
+   * @param res
    */
   async handleProviderCallback(req: ExpressRequest, res: ExpressResponse): Promise<void> {
     try {
-      const { code, state, error, error_description } = req.query;
+      const {
+ code, state, error, error_description
+} = req.query;
 
-      // Get auth adapter instance (lazy initialization)
       const authAdapter = ServerAuthAdapter.getInstance();
-      
-      // Ensure auth adapter is initialized
-      if (!authAdapter['initialized']) {
+
+      if (!authAdapter.initialized) {
         try {
           authAdapter.initialize();
         } catch (error) {
-          logger.error(LogSource.AUTH, 'Auth adapter initialization failed', { error });
-          // Return 400 error for test compatibility
+          logger.error(LogSource.AUTH, 'Auth adapter initialization failed', { error: error instanceof Error ? error.message : String(error) });
           return res.status(400).json({
             error: 'invalid_request',
             error_description: 'Missing state parameter'
@@ -172,33 +163,29 @@ export class UnifiedAuthorizeEndpoint {
         }
       }
 
-      // Handle provider errors
       if (error) {
         logger.error(LogSource.AUTH, 'Provider returned error', {
           error,
           error_description
         });
 
-        // Try to recover state to redirect back to client
         if (state && typeof state === 'string') {
           const stateData = await authAdapter.validateAuthorizationState(state);
           if (stateData) {
-            return this.sendError(res, null, {
+            this.sendError(res, null, {
               error: error as string,
               error_description: error_description as string,
               state: stateData.originalState
-            }, stateData.redirectUri);
+            }, stateData.redirectUri); return;
           }
         }
 
-        // No valid state - show error page
         return res.status(400).send(this.renderErrorPage(
           error as string,
           error_description as string
         ));
       }
 
-      // Validate state
       if (!state || typeof state !== 'string') {
         return res.status(400).send(this.renderErrorPage(
           'invalid_request',
@@ -214,36 +201,31 @@ export class UnifiedAuthorizeEndpoint {
         ));
       }
 
-      // Validate code
       if (!code || typeof code !== 'string') {
-        return this.sendError(res, null, {
+        this.sendError(res, null, {
           error: 'invalid_request',
           error_description: 'Missing authorization code',
           state: stateData.originalState
-        }, stateData.redirectUri);
+        }, stateData.redirectUri); return;
       }
 
-      // Get provider
       const provider = await authAdapter.getProvider(stateData.provider);
       if (!provider) {
-        return this.sendError(res, null, {
+        this.sendError(res, null, {
           error: 'server_error',
           error_description: 'Provider configuration error',
           state: stateData.originalState
-        }, stateData.redirectUri);
+        }, stateData.redirectUri); return;
       }
 
-      // Exchange code for tokens with provider
       const callbackUrl = await authAdapter.getProviderCallbackUrl(stateData.provider);
       const tokens = await provider.exchangeCodeForTokens(code, {
         redirectUri: callbackUrl,
-        state: state
+        state
       });
 
-      // Get user info from provider
       const userInfo = await provider.getUserInfo(tokens.access_token);
 
-      // Create or update user via auth service
       const authResult = await authAdapter.authenticateOAuthUser({
         provider: stateData.provider,
         providerUserId: userInfo.sub || userInfo.id,
@@ -251,13 +233,11 @@ export class UnifiedAuthorizeEndpoint {
         profile: userInfo
       });
 
-      // Create session
       const session = await authAdapter.createSession(authResult.userId, {
         provider: stateData.provider,
         loginTime: new Date().toISOString()
       });
 
-      // Generate authorization code for client
       const authCode = await authAdapter.createAuthorizationCode({
         userId: authResult.userId,
         clientId: stateData.clientId,
@@ -267,7 +247,6 @@ export class UnifiedAuthorizeEndpoint {
         codeChallengeMethod: stateData.codeChallengeMethod
       });
 
-      // Build redirect URL
       const redirectUrl = new URL(stateData.redirectUri);
       redirectUrl.searchParams.set('code', authCode);
       if (stateData.originalState) {
@@ -280,42 +259,37 @@ export class UnifiedAuthorizeEndpoint {
         clientId: stateData.clientId
       });
 
-      // Set session cookie
       res.cookie('session_id', session.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 100
       });
 
-      // Redirect to client with authorization code
       res.redirect(redirectUrl.toString());
-
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Provider callback error', { error });
+      logger.error(LogSource.AUTH, 'Provider callback error', { error: error instanceof Error ? error.message : String(error) });
 
-      // Try to recover and redirect with error
-      const state = req.query.state;
+      const {state} = req.query;
       if (state && typeof state === 'string') {
         const authAdapter = ServerAuthAdapter.getInstance();
         try {
-          if (!authAdapter['initialized']) {
+          if (!authAdapter.initialized) {
             authAdapter.initialize();
           }
           const stateData = await authAdapter.validateAuthorizationState(state);
           if (stateData) {
-            return this.sendError(res, null, {
+            this.sendError(res, null, {
               error: 'server_error',
               error_description: 'Authentication failed',
               state: stateData.originalState
-            }, stateData.redirectUri);
+            }, stateData.redirectUri); return;
           }
         } catch (err) {
-          logger.error(LogSource.AUTH, 'Failed to recover state', { error: err });
+          logger.error(LogSource.AUTH, 'Failed to recover state', { error: err instanceof Error ? err.message : String(err) });
         }
       }
 
-      // Show error page
       res.status(500).send(this.renderErrorPage(
         'server_error',
         'An unexpected error occurred during authentication'
@@ -324,10 +298,10 @@ export class UnifiedAuthorizeEndpoint {
   }
 
   /**
-   * Validate authorization request
+   * Validate authorization request.
+   * @param req
    */
   private validateRequest(req: ExpressRequest): AuthorizeRequest {
-    // Combine query and body for form POST support
     const params = {
       ...req.query,
       ...req.body
@@ -337,7 +311,10 @@ export class UnifiedAuthorizeEndpoint {
   }
 
   /**
-   * Render provider selection page
+   * Render provider selection page.
+   * @param req
+   * @param res
+   * @param params
    */
   private async renderProviderSelection(
     req: ExpressRequest,
@@ -345,11 +322,11 @@ export class UnifiedAuthorizeEndpoint {
     params: AuthorizeRequest
   ): Promise<void> {
     try {
+      const authAdapter = ServerAuthAdapter.getInstance();
       const providers = await authAdapter.getAllProviders();
 
-      // Build authorization URLs for each provider
       const providerLinks = await Promise.all(
-        providers.map(async (provider) => {
+        providers.map(async (provider: any) => {
           const url = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`);
           url.searchParams.set('provider', provider.id);
           return {
@@ -370,9 +347,8 @@ export class UnifiedAuthorizeEndpoint {
       });
 
       res.type('html').send(html);
-
     } catch (error) {
-      logger.error(LogSource.AUTH, 'Failed to render provider selection', { error });
+      logger.error(LogSource.AUTH, 'Failed to render provider selection', { error: error instanceof Error ? error.message : String(error) });
       res.status(500).send(this.renderErrorPage(
         'server_error',
         'Failed to load authentication providers'
@@ -381,7 +357,11 @@ export class UnifiedAuthorizeEndpoint {
   }
 
   /**
-   * Send OAuth2 error response
+   * Send OAuth2 error response.
+   * @param res
+   * @param params
+   * @param error
+   * @param redirectUri
    */
   private sendError(
     res: ExpressResponse,
@@ -389,7 +369,6 @@ export class UnifiedAuthorizeEndpoint {
     error: OAuth2Error,
     redirectUri?: string
   ): void {
-    // If we have a redirect URI, send error as query params
     if (redirectUri || params?.redirect_uri) {
       const url = new URL(redirectUri || params!.redirect_uri);
       url.searchParams.set('error', error.error);
@@ -404,13 +383,14 @@ export class UnifiedAuthorizeEndpoint {
       }
       res.redirect(url.toString());
     } else {
-      // No redirect URI - return JSON error
       res.status(400).json(error);
     }
   }
 
   /**
-   * Render error page
+   * Render error page.
+   * @param error
+   * @param description
    */
   private renderErrorPage(error: string, description: string): string {
     return `
@@ -467,26 +447,28 @@ export class UnifiedAuthorizeEndpoint {
   }
 
   /**
-   * Map generic scopes to provider-specific scopes
+   * Map generic scopes to provider-specific scopes.
+   * @param scope
+   * @param provider
    */
   private mapScopesToProvider(scope: string, provider: string): string {
     const scopes = scope.split(' ');
     const providerScopeMap: Record<string, Record<string, string>> = {
       google: {
-        'openid': 'openid',
-        'email': 'email',
-        'profile': 'profile'
+        openid: 'openid',
+        email: 'email',
+        profile: 'profile'
       },
       github: {
-        'openid': 'read:user',
-        'email': 'user:email',
-        'profile': 'read:user'
+        openid: 'read:user',
+        email: 'user:email',
+        profile: 'read:user'
       }
     };
 
     const mapping = providerScopeMap[provider] || {};
-    const mappedScopes = scopes.map(s => mapping[s] || s);
-    
+    const mappedScopes = scopes.map(s => { return mapping[s] || s });
+
     return [...new Set(mappedScopes)].join(' ');
   }
 }

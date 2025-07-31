@@ -1,10 +1,5 @@
 /**
- * Type definitions for the Type Generation Service
- * @module dev/services/type-generation/types
- */
-
-/**
- * Represents a CHECK constraint from SQL
+ * Represents a CHECK constraint from SQL.
  */
 export interface CheckConstraint {
   columnName: string;
@@ -12,7 +7,7 @@ export interface CheckConstraint {
 }
 
 /**
- * Represents a database column definition
+ * Represents a database column definition.
  */
 export interface Column {
   name: string;
@@ -22,7 +17,7 @@ export interface Column {
 }
 
 /**
- * Represents a database table definition
+ * Represents a database table definition.
  */
 export interface Table {
   name: string;
@@ -31,7 +26,7 @@ export interface Table {
 }
 
 /**
- * Represents a TypeScript interface field
+ * Represents a TypeScript interface field.
  */
 export interface InterfaceField {
   name: string;
@@ -41,7 +36,7 @@ export interface InterfaceField {
 }
 
 /**
- * Represents a service method definition
+ * Represents a service method definition.
  */
 export interface ServiceMethod {
   name: string;
@@ -50,7 +45,7 @@ export interface ServiceMethod {
 }
 
 /**
- * Represents service information
+ * Represents service information.
  */
 export interface ServiceInfo {
   name: string;
@@ -58,7 +53,7 @@ export interface ServiceInfo {
 }
 
 /**
- * Type generation options
+ * Type generation options.
  */
 export interface TypeGenerationOptions {
   module?: string;
@@ -67,7 +62,7 @@ export interface TypeGenerationOptions {
 }
 
 /**
- * Module generation options
+ * Module generation options.
  */
 export interface ModuleGenerationOptions {
   database: boolean;

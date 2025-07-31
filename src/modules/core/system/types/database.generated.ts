@@ -1,5 +1,5 @@
 // Auto-generated database types for system module
-// Generated on: 2025-07-31T10:03:21.443Z
+// Generated on: 2025-07-31T11:41:30.111Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -116,7 +116,7 @@ export interface ISystemMaintenanceRow {
 
 // Zod schemas for database row validation
 export const SystemConfigRowSchema = z.object({
-  key: z.string().uuid(),
+  key: z.string(),
   value: z.string(),
   type: z.nativeEnum(SystemConfigType),
   description: z.string().nullable(),
@@ -127,7 +127,7 @@ export const SystemConfigRowSchema = z.object({
 });
 
 export const SystemModulesRowSchema = z.object({
-  name: z.string().uuid(),
+  name: z.string(),
   version: z.string(),
   status: z.nativeEnum(SystemModulesStatus),
   enabled: z.number().nullable(),
@@ -160,7 +160,7 @@ export const SystemEventMetadataRowSchema = z.object({
 });
 
 export const SystemMaintenanceRowSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string(),
   type: z.nativeEnum(SystemMaintenanceType),
   reason: z.string(),
   started_at: z.string().nullable(),
@@ -183,10 +183,10 @@ export const SystemDatabaseRowSchema = z.union([SystemConfigRowSchema, SystemMod
  * Database table names for this module
  */
 export const SYSTEM_TABLES = {
-  SYSTEMCONFIG: 'system_config',
-  SYSTEMMODULES: 'system_modules',
-  SYSTEMMODULEMETADATA: 'system_module_metadata',
-  SYSTEMEVENTS: 'system_events',
-  SYSTEMEVENTMETADATA: 'system_event_metadata',
-  SYSTEMMAINTENANCE: 'system_maintenance',
+  SYSTEM_CONFIG: 'system_config',
+  SYSTEM_MODULES: 'system_modules',
+  SYSTEM_MODULE_METADATA: 'system_module_metadata',
+  SYSTEM_EVENTS: 'system_events',
+  SYSTEM_EVENT_METADATA: 'system_event_metadata',
+  SYSTEM_MAINTENANCE: 'system_maintenance',
 } as const;

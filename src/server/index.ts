@@ -46,11 +46,10 @@ export const createApp = async function createApp(): Promise<express.Application
   const authModule = registry.get(ModuleName.AUTH);
   if (authModule && 'start' in authModule && authModule.start !== null && authModule.start !== undefined) {
     try {
-      await authModule.start();
+      await (authModule as any).start();
       console.log('Auth module started successfully');
     } catch (error) {
       console.error('Failed to start auth module:', error);
-      // Continue anyway - endpoints will handle auth failures gracefully
     }
   }
 
