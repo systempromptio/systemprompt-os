@@ -146,7 +146,7 @@ const displayNextSteps = (options: IModuleGeneratorOptions, cliOutput: CliOutput
   cliOutput.success('✅ Module created successfully!');
   cliOutput.info('Next steps:');
   cliOutput.info('1. Add module to ModuleName enum in src/modules/types/index.ts');
-  cliOutput.info('2. Register module in src/bootstrap/phases/core-modules-phase.ts');
+  cliOutput.info('2. Module will be automatically discovered during bootstrap');
   if (options.needsCli) {
     cliOutput.info('3. Add CLI command to src/modules/core/cli/commands/index.ts');
   }

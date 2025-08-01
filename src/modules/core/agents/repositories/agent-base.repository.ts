@@ -158,20 +158,15 @@ export abstract class AgentBaseRepository {
    */
   private createAgentFromRow(agentRow: IAgentsRow): IAgent {
     return {
-      id: agentRow.id,
-      name: agentRow.name,
-      description: agentRow.description,
-      instructions: agentRow.instructions,
+      ...agentRow,
       type: this.validateAgentType(agentRow.type),
       status: this.validateAgentStatus(agentRow.status),
       config: {},
       capabilities: [],
       tools: [],
-      created_at: agentRow.created_at,
-      updated_at: agentRow.updated_at,
       assigned_tasks: agentRow.assigned_tasks ?? 0,
       completed_tasks: agentRow.completed_tasks ?? 0,
       failed_tasks: agentRow.failed_tasks ?? 0
-    };
+    } as IAgent;
   }
 }

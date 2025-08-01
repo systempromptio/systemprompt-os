@@ -13,7 +13,7 @@ import type {
   IMetricLabelRow,
   IMetricRow
 } from '@/modules/core/monitor/types/database.generated';
-import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
+import type { IModuleDatabaseAdapter } from '@/modules/core/database/adapters/module.adapter';
 
 /**
  * Repository implementation for monitor data using SQLite.
@@ -67,7 +67,7 @@ export class MonitorRepositoryImpl implements MonitorRepository {
     const rows = await this.db.query<{ name: string }>(
       'SELECT DISTINCT name FROM metric ORDER BY name'
     );
-    return rows.map((row): string => {
+    return rows.map((row: { name: string }): string => {
       return row.name;
     });
   }
@@ -96,7 +96,7 @@ export class MonitorRepositoryImpl implements MonitorRepository {
     const rows = await this.db.query<IMetricRow>(sql, params);
 
     const metricsPromises = rows.map(
-      async (row): Promise<IMetricData> => {
+      async (row: IMetricRow): Promise<IMetricData> => {
         return await this.convertRowToMetricData(row);
       }
     );

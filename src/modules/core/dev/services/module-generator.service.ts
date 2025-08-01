@@ -325,7 +325,7 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
       LogSource.MODULES,
       `Module ${options.name} generated. Manual registration required in:
     1. src/modules/types/index.ts - Add to ModuleName enum
-    2. src/bootstrap/phases/core-modules-phase.ts - Add to core modules list
+    2. Module will be automatically discovered during bootstrap
     3. src/modules/core/cli/commands/index.ts - Add CLI command (if applicable)`
     );
   }

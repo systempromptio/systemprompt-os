@@ -26,7 +26,7 @@ interface IModulePreparedStatement {
   run(...params: unknown[]): Promise<IMutationResult>;
 }
 
-interface IModuleDatabaseAdapter {
+export interface IModuleDatabaseAdapter {
   query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
   execute(sql: string, params?: unknown[]): Promise<IMutationResult>;
   prepare(sql: string): IModulePreparedStatement;

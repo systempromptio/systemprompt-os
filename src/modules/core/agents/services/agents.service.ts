@@ -12,6 +12,7 @@ import {
   type IAgentCreateDataExtended,
   type IAgentUpdateData
 } from '../types/manual';
+import { type IAgentCreateData } from '../types/agents.module.generated';
 import type { IAgentsService } from '../types/agents.service.generated';
 import {
   AgentsStatus,
@@ -97,11 +98,18 @@ export class AgentsService implements IAgentsService {
    * @param data - Agent creation data.
    * @returns Promise resolving to the created agent.
    */
-  async createAgent(data: IAgentCreateDataExtended): Promise<IAgent> {
+  async createAgent(data: IAgentCreateData): Promise<IAgent> {
     await this.ensureInitialized();
 
     try {
-      const agent = await this.repository.createAgentExtended(data);
+      // Convert basic data to extended format for repository
+      const extendedData: IAgentCreateDataExtended = {
+        ...data,
+        capabilities: [],
+        tools: [],
+        config: {}
+      };
+      const agent = await this.repository.createAgentExtended(extendedData);
 
       this.logAgentCreated(agent);
 
@@ -242,12 +250,12 @@ export class AgentsService implements IAgentsService {
   private createExtendedAgent(agent: IAgentsRow, status: AgentsStatus): IAgent {
     return {
       ...agent,
-      status,
+      status: status,
       updated_at: new Date().toISOString(),
       capabilities: [],
       tools: [],
       config: {}
-    };
+    } as IAgent;
   }
 
   /**
@@ -533,8 +541,8 @@ export class AgentsService implements IAgentsService {
   private logAgentCreated(agent: IAgent): void {
     this.logger?.info(LogSource.AGENT, 'Agent created', {
       metadata: {
-        agentId: agent.id,
-        name: agent.name
+        agentId: (agent as any).id,
+        name: (agent as any).name
       }
     });
   }

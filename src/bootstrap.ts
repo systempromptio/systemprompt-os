@@ -32,29 +32,23 @@ export class Bootstrap {
    */
   async bootstrap(): Promise<Map<string, IModule>> {
     try {
-      // 1. LOGGER - Initialize logger first
       const loggerModule = await createLoggerModuleForBootstrap();
       const logger = LoggerService.getInstance();
       logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process');
 
-      // 2. CORE SETUP - Initialize registry and manually load critical modules
       this.moduleRegistry = ModuleRegistryService.getInstance();
       this.moduleRegistry.register(loggerModule);
-      
-      // Manually load database module (required by modules module)
+
       const databaseModule = await this.loadCoreModuleManually('database', ['logger']);
       this.moduleRegistry.register(databaseModule);
       logger.info(LogSource.BOOTSTRAP, 'Database module loaded');
-      
-      // 3. MODULES_MODULE - Now we can initialize modules module with database available
+
       const modulesModule = await this.initializeModulesModule();
       this.moduleRegistry.register(modulesModule);
       logger.info(LogSource.BOOTSTRAP, 'Modules module initialized');
-      
-      // 4. DELEGATE_TO_MODULES_SERVICE - Use module services for everything else
+
       await this.loadRemainingCoreModules(modulesModule);
 
-      // 5. READY
       this.isReady = true;
       const loadedModules = this.moduleRegistry.getAll();
       logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${loadedModules.size} modules loaded`);
@@ -64,7 +58,6 @@ export class Bootstrap {
       throw error;
     }
   }
-
 
   /**
    * Gets a module by name.
@@ -143,18 +136,16 @@ export class Bootstrap {
    */
   private async loadCoreModuleManually(name: string, dependencies: string[]): Promise<IModule> {
     const logger = LoggerService.getInstance();
-    
-    // Check dependencies are loaded
+
     for (const dep of dependencies) {
       if (!this.moduleRegistry!.get(dep)) {
         throw new Error(`Missing dependency '${dep}' for module '${name}'`);
       }
     }
-    
-    // Load the module
+
     const modulePath = `./modules/core/${name}/index.ts`;
     const moduleImport = await import(modulePath);
-    
+
     let moduleInstance: IModule;
     if (typeof moduleImport.createModule === 'function') {
       moduleInstance = moduleImport.createModule();
@@ -163,15 +154,13 @@ export class Bootstrap {
     } else {
       throw new Error(`Module '${name}' does not export createModule or initialize`);
     }
-    
-    // Initialize the module
+
     await moduleInstance.initialize();
-    
-    // Start if it has a start method
+
     if (moduleInstance.start) {
       await moduleInstance.start();
     }
-    
+
     logger.info(LogSource.BOOTSTRAP, `Manually loaded module: ${name}`);
     return moduleInstance;
   }
@@ -183,11 +172,10 @@ export class Bootstrap {
   private async loadRemainingCoreModules(modulesModule: IModule): Promise<void> {
     const logger = LoggerService.getInstance();
     const moduleExports = modulesModule.exports as any;
-    
-    // Register our pre-loaded modules with the modules service
+
     const loggerModule = this.moduleRegistry!.get('logger');
     const databaseModule = this.moduleRegistry!.get('database');
-    
+
     if (loggerModule) {
       moduleExports.registerPreLoadedModule('logger', loggerModule);
     }
@@ -195,8 +183,7 @@ export class Bootstrap {
       moduleExports.registerPreLoadedModule('database', databaseModule);
     }
     moduleExports.registerPreLoadedModule('modules', modulesModule);
-    
-    // Use CoreModuleLoaderService directly
+
     const coreLoader = CoreModuleLoaderService.getInstance();
     if (loggerModule) {
       coreLoader.registerLoadedModule('logger', loggerModule);
@@ -205,26 +192,64 @@ export class Bootstrap {
       coreLoader.registerLoadedModule('database', databaseModule);
     }
     coreLoader.registerLoadedModule('modules', modulesModule);
-    
-    // Hardcoded core module list in dependency order (temporary until module scanning works)
+
     const coreModules = [
-      { name: 'events', deps: ['logger'] },
-      { name: 'auth', deps: ['logger', 'database', 'events'] },
-      { name: 'cli', deps: ['logger', 'database'] },
-      { name: 'config', deps: ['logger', 'database'] },
-      { name: 'users', deps: ['logger', 'database', 'events'] },
-      { name: 'permissions', deps: ['logger', 'database'] },
-      { name: 'system', deps: ['logger', 'database'] },
-      { name: 'agents', deps: ['logger', 'database', 'events'] },
-      { name: 'tasks', deps: ['logger', 'database', 'events'] },
-      { name: 'monitor', deps: ['logger', 'database'] },
-      { name: 'webhooks', deps: ['logger', 'database', 'events'] },
-      { name: 'mcp', deps: ['logger', 'database'] },
-      { name: 'dev', deps: ['logger', 'database'] }
+      {
+ name: 'events',
+deps: ['logger']
+},
+      {
+ name: 'auth',
+deps: ['logger', 'database', 'events']
+},
+      {
+ name: 'cli',
+deps: ['logger', 'database']
+},
+      {
+ name: 'config',
+deps: ['logger', 'database']
+},
+      {
+ name: 'users',
+deps: ['logger', 'database', 'events']
+},
+      {
+ name: 'permissions',
+deps: ['logger', 'database']
+},
+      {
+ name: 'system',
+deps: ['logger', 'database']
+},
+      {
+ name: 'agents',
+deps: ['logger', 'database', 'events']
+},
+      {
+ name: 'tasks',
+deps: ['logger', 'database', 'events']
+},
+      {
+ name: 'monitor',
+deps: ['logger', 'database']
+},
+      {
+ name: 'webhooks',
+deps: ['logger', 'database', 'events']
+},
+      {
+ name: 'mcp',
+deps: ['logger', 'database']
+},
+      {
+ name: 'dev',
+deps: ['logger', 'database']
+}
     ];
-    
+
     const criticalModules = ['logger', 'database', 'events', 'auth', 'cli', 'modules'];
-    
+
     for (const { name, deps } of coreModules) {
       try {
         const definition = {
@@ -235,8 +260,7 @@ export class Bootstrap {
           description: `${name} module`,
           type: 'self-contained' as const
         };
-        
-        // Use modules service to load the module
+
         await moduleExports.loadCoreModule(definition);
         logger.info(LogSource.BOOTSTRAP, `Module loaded: ${name}`);
       } catch (error) {
@@ -249,7 +273,6 @@ export class Bootstrap {
       }
     }
   }
-
 
   /**
    * Handles bootstrap errors with appropriate logging.

@@ -1,5 +1,5 @@
 // Auto-generated database types for monitor module
-// Generated on: 2025-08-01T13:49:52.426Z
+// Generated on: 2025-08-01T14:25:28.745Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

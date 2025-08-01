@@ -4,14 +4,14 @@
  * Provides command-line interface utilities, help system, and command management functionality.
  */
 
-import { type IModule, ModulesStatus, ModulesType } from '@/modules/core/modules/types/manual';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { CliService } from '@/modules/core/cli/services/cli.service';
-import type { CLICommand } from '@/modules/core/cli/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { getModuleRegistry } from '@/modules/core/modules/index';
-import { ModuleName } from '@/modules/types/module-names.types';
+import { type IModule, ModulesStatus, ModulesType } from '../modules/types/manual';
+import { DatabaseService } from '../database/services/database.service';
+import { CliService } from './services/cli.service';
+import type { CLICommand } from './types/manual';
+import { type ILogger, LogSource } from '../logger/types/manual';
+import { LoggerService } from '../logger/services/logger.service';
+import { getModuleRegistry } from '../modules/index';
+import { ModuleName } from '../../types/module-names.types';
 
 /**
  * Strongly typed exports interface for CLI module.

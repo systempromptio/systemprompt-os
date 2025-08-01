@@ -117,7 +117,7 @@ export class MonitorModule extends BaseModule<IMonitorModuleExports> {
    * Start the monitor module.
    * @returns Promise that resolves when the module is started.
    */
-  public async start(): Promise<void> {
+  public override async start(): Promise<void> {
     const { status } = this;
     if (status === RUNNING) {
       return;
@@ -140,7 +140,7 @@ export class MonitorModule extends BaseModule<IMonitorModuleExports> {
    * Stop the monitor module.
    * @returns Promise that resolves when the module is stopped.
    */
-  public async stop(): Promise<void> {
+  public override async stop(): Promise<void> {
     const { status } = this;
     if (status === STOPPED) {
       return;

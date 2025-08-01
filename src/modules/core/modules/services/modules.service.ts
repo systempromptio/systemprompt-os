@@ -9,7 +9,6 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
 import type { ZodSchema } from 'zod';
-import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { BaseModule } from '@/modules/core/modules/base/BaseModule';
@@ -39,14 +38,9 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
   private moduleLoaderService?: ModuleLoaderService;
   private moduleRegistryService?: ModuleRegistryService;
   private moduleManagerService?: ModuleManagerService;
-  private readonly logger: ILogger;
   private started = false;
 
-  constructor() {
-    super();
-    this.logger = LoggerService.getInstance();
-  }
-  protected override getExportsSchema(): ZodSchema<IModulesModuleExports> {
+  protected override getExportsSchema(): ZodSchema {
     return ModulesModuleExportsSchema;
   }
 
@@ -54,7 +48,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
     return LogSource.MODULES;
   }
 
-  get exports(): IModulesModuleExports {
+  override get exports(): IModulesModuleExports {
     this.ensureInitialized();
 
     return {
@@ -96,7 +90,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
 
         await this.moduleManagerService.registerCoreModule(name, path, dependencies || []);
 
-        this.logger.debug(LogSource.MODULES, `Registered core module: ${name}`, {
+        LoggerService.getInstance().debug(LogSource.MODULES, `Registered core module: ${name}`, {
           path,
           dependencies: dependencies?.join(', ') || 'none',
         });
@@ -184,7 +178,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
         }
 
         if (warnings.length > 0) {
-          this.logger.warn(
+          LoggerService.getInstance().warn(
             LogSource.MODULES,
             `Module configuration mismatches detected:\n${warnings.join('\n')}`,
           );
@@ -192,11 +186,11 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
 
         if (errors.length > 0) {
           const errorMessage = `Core module validation failed:\n${errors.join('\n')}`;
-          this.logger.error(LogSource.MODULES, errorMessage);
+          LoggerService.getInstance().error(LogSource.MODULES, errorMessage);
           throw new Error(errorMessage);
         }
 
-        this.logger.info(
+        LoggerService.getInstance().info(
           LogSource.MODULES,
           `Validated ${registryModules.size} core modules against database`,
         );
@@ -299,7 +293,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
     // Note: During bootstrap, the ModuleLoaderService will handle starting modules
     // The modules module itself doesn't need to start other modules - that can cause conflicts
     // when modules are already started by the bootstrap process
-    this.logger.debug(LogSource.MODULES, 'Modules module start() called - not starting other modules to avoid conflicts');
+    LoggerService.getInstance().debug(LogSource.MODULES, 'Modules module start() called - not starting other modules to avoid conflicts');
 
     this.started = true;
     this.status = ModulesStatus.RUNNING;
@@ -309,7 +303,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
   /**
    * Stop the module.
    */
-  async stop(): Promise<void> {
+  override async stop(): Promise<void> {
     if (!this.started) {
       return;
     }
@@ -327,7 +321,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
   /**
    * Health check.
    */
-  async health(): Promise<{ status: 'healthy' | 'unhealthy' | 'unknown'; checks?: Record<string, unknown>; message?: string }> {
+  override async health(): Promise<{ status: 'healthy' | 'unhealthy' | 'unknown'; checks?: Record<string, unknown>; message?: string }> {
     const issues: string[] = [];
     const checks: Record<string, unknown> = {};
 
@@ -401,7 +395,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
           injectablePath: config.injectablePath || './injectable',
           extensionsPath: config.extensionsPath || './extensions',
         },
-        this.logger,
+        LoggerService.getInstance(),
         moduleRepository,
       );
 
@@ -436,7 +430,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
         if (module) {
           module.status = status;
           if (error && status === ModulesStatus.ERROR) {
-            this.logger.error(LogSource.MODULES, `Module ${name} error: ${error}`);
+            LoggerService.getInstance().error(LogSource.MODULES, `Module ${name} error: ${error}`);
           }
         }
       },
@@ -451,7 +445,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
 
       updateModuleHealth: async (name: string, healthy: boolean, message?: string) => {
         if (!healthy) {
-          this.logger.warn(
+          LoggerService.getInstance().warn(
             LogSource.MODULES,
             `Module ${name} health check failed: ${message || 'No message provided'}`,
           );
@@ -526,7 +520,7 @@ export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
         );
       }
     } catch (error) {
-      this.logger.warn(LogSource.MODULES, `Failed to validate YAML for module '${name}'`, {
+      LoggerService.getInstance().warn(LogSource.MODULES, `Failed to validate YAML for module '${name}'`, {
         error: error instanceof Error ? error.message : String(error),
       });
     }
