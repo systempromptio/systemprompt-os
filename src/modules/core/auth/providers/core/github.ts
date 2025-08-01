@@ -91,12 +91,12 @@ export class GitHubProvider implements IIdentityProvider {
 
   /**
    * Retrieves user information from GitHub API.
-   * @param accessToken - The access token for API authentication.
+   * @param tokens - The tokens object containing access token.
    * @returns Promise resolving to IDPUserInfo.
    */
-  async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
-    const userData = await this.fetchUserData(accessToken);
-    const emailInfo = await this.resolveUserEmail(accessToken, userData.email);
+  async getUserInfo(tokens: IdpTokens): Promise<IIdpUserInfo> {
+    const userData = await this.fetchUserData(tokens.accessToken);
+    const emailInfo = await this.resolveUserEmail(tokens.accessToken, userData.email);
 
     return this.buildUserInfo(userData, emailInfo);
   }
@@ -176,15 +176,12 @@ verified: true
   ): IIdpUserInfo {
     const userInfo: IIdpUserInfo = {
       id: userData.id.toString(),
+      email: emailInfo.email ?? '',
       emailVerified: emailInfo.verified,
       name: userData.name ?? userData.login,
       picture: userData.avatar_url,
       raw: userData,
     };
-
-    if (emailInfo.email) {
-      userInfo.email = emailInfo.email;
-    }
 
     return userInfo;
   }

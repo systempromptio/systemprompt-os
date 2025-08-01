@@ -1,4 +1,4 @@
-Fix all TypeScript and linting issues for the {module-name} module:
+Fix all TypeScript and linting issues for the auth module:
 
 ## CRITICAL REQUIREMENTS - READ FIRST
 
@@ -7,10 +7,12 @@ Fix all TypeScript and linting issues for the {module-name} module:
 
 The module MUST have the exact same structure, Zod validation, and type generation as the `users` module.
 
+`npm run typecheck` MUST HAVE NO errors related to the code that will be worked on.
+
 ## Step-by-Step Process
 
 1. **Initial Validation Check**
-   Run ./bin/systemprompt dev validate --module {module-name} to check current status. If it shows "Generated type files are missing", this means the generate-types command is not working for this module.
+   Run ./bin/systemprompt dev validate --module auth to check current status. If it shows "Generated type files are missing", this means the generate-types command is not working for this module.
 
 2. **Fix Module Structure (CRITICAL)**
    If generate-types is not working, you must fix the underlying service/module structure FIRST before the generate-types command will work. The service must be compatible with the module generation system.
@@ -20,8 +22,8 @@ The module MUST have the exact same structure, Zod validation, and type generati
    **REQUIRED MODULE STRUCTURE:**
    - `index.ts` - Must extend BaseModule with full Zod validation
    - `module.yaml` - Module configuration 
-   - `services/{module-name}.service.ts` - Service implementation with proper method signatures
-   - `repositories/{module-name}.repository.ts` - Repository pattern implementation
+   - `services/auth.service.ts` - Service implementation with proper method signatures
+   - `repositories/auth.repository.ts` - Repository pattern implementation
    - `database/schema.sql` - Database schema for type generation
    - `types/` folder with generated files only
 
@@ -33,10 +35,10 @@ The module MUST have the exact same structure, Zod validation, and type generati
    - NO manual types unless absolutely necessary (use .manual.ts suffix with justification)
 
 4. **Type Generation**
-   Once the service structure matches the users module, run ./bin/systemprompt dev generate-types --module {module-name} to autogenerate types. This should now work without errors.
+   Once the service structure matches the users module, run ./bin/systemprompt dev generate-types --module auth to autogenerate types. This should now work without errors.
 
 5. **Final Validation (MANDATORY)**
-   Run ./bin/systemprompt dev validate --module {module-name} again to verify TypeScript compilation. You MUST get a SUCCESS response with ALL checks passing (✅) before proceeding. Any errors or warnings mean you cannot proceed to the next step.
+   Run ./bin/systemprompt dev validate --module auth again to verify TypeScript compilation. You MUST get a SUCCESS response with ALL checks passing (✅) before proceeding. Any errors or warnings mean you cannot proceed to the next step.
 
 6. **Agent Spawning (ONLY AFTER SUCCESS)**
-   CRITICAL: Only proceed to this step when you have achieved 100% SUCCESS from the validate typecheck command - all type safety checks must show ✅ with no errors. Then spawn the Module-developer agent with: Fix all test failures and linting errors in the {module-name} module. Follow your iterative development cycle focusing on Phase 3 Code Quality Enhancement to achieve zero linting errors.
+   CRITICAL: Only proceed to this step when you have achieved 100% SUCCESS from the validate typecheck command - all type safety checks must show ✅ with no errors. Then spawn the Module-developer agent with: Fix all test failures and linting errors in the auth module. Follow your iterative development cycle focusing on Phase 3 Code Quality Enhancement to achieve zero linting errors.

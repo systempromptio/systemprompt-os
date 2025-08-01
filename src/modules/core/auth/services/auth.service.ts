@@ -8,6 +8,8 @@
 import { randomUUID } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
+import { SessionService } from '@/modules/core/auth/services/session.service';
+import { OAuthService } from '@/modules/core/auth/services/oauth.service';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { type IAuthService } from '@/modules/core/auth/types/auth.service.generated';
 import {
@@ -22,6 +24,8 @@ import {
 export class AuthService implements IAuthService {
   private static instance: AuthService;
   private readonly repository: AuthRepository;
+  private readonly sessionService: SessionService;
+  private readonly oauthService: OAuthService;
   private readonly eventBus: EventBusService;
   private logger?: ILogger;
   private initialized = false;
@@ -31,6 +35,8 @@ export class AuthService implements IAuthService {
    */
   private constructor() {
     this.repository = AuthRepository.getInstance();
+    this.sessionService = SessionService.getInstance();
+    this.oauthService = OAuthService.getInstance();
     this.eventBus = EventBusService.getInstance();
   }
 
@@ -61,6 +67,13 @@ export class AuthService implements IAuthService {
     }
 
     await this.repository.initialize();
+    await this.oauthService.initialize();
+    
+    // Set logger on OAuth service if available
+    if (this.logger) {
+      this.oauthService.setLogger(this.logger);
+    }
+    
     this.initialized = true;
     this.logger?.info(LogSource.AUTH, 'AuthService initialized');
   }
@@ -130,10 +143,23 @@ export class AuthService implements IAuthService {
   public async createSession(userId: string): Promise<string> {
     await this.ensureInitialized();
 
-    const sessionId = randomUUID();
     this.logger?.info(LogSource.AUTH, `Creating session for user: ${userId}`);
 
-    return sessionId;
+    const session = await this.sessionService.createSession({
+      user_id: userId,
+      type: 'web',
+      ip_address: '127.0.0.1', // This would come from request context in real implementation
+      user_agent: 'SystemPrompt CLI' // This would come from request context in real implementation
+    });
+
+    // Emit session created event
+    this.eventBus.emit(AuthEvents.SESSION_CREATED, {
+      sessionId: session.id,
+      userId: session.user_id,
+      timestamp: new Date()
+    });
+
+    return session.id;
   }
 
   /**
@@ -150,9 +176,18 @@ export class AuthService implements IAuthService {
 
     this.logger?.info(LogSource.AUTH, `Validating session: ${sessionId}`);
 
+    const result = await this.sessionService.validateSession(sessionId);
+
+    if (result) {
+      return {
+        valid: true,
+        userId: result.userId
+      };
+    }
+
     return {
-      valid: true,
-      userId: randomUUID()
+      valid: false,
+      error: 'Invalid or expired session'
     };
   }
 
@@ -165,6 +200,14 @@ export class AuthService implements IAuthService {
     await this.ensureInitialized();
 
     this.logger?.info(LogSource.AUTH, `Revoking session: ${sessionId}`);
+
+    await this.sessionService.revokeSession(sessionId);
+
+    // Emit session revoked event
+    this.eventBus.emit(AuthEvents.SESSION_REVOKED, {
+      sessionId,
+      timestamp: new Date()
+    });
   }
 
   /**
@@ -177,54 +220,10 @@ export class AuthService implements IAuthService {
 
     this.logger?.info(LogSource.AUTH, `Listing sessions for user: ${userId}`);
 
-    return [];
+    const sessions = await this.sessionService.getUserSessions(userId);
+    return sessions.map(session => session.id);
   }
 
-  /**
-   * Create or update user from OAuth provider data.
-   * @param providerData - OAuth provider user data.
-   * @param providerData.provider
-   * @param providerData.providerId
-   * @param providerData.email
-   * @param providerData.name
-   * @param providerData.avatarUrl
-   * @returns Promise that resolves to user ID.
-   */
-  public async createOrUpdateUserFromOAuth(providerData: {
-    provider: string;
-    providerId: string;
-    email: string;
-    name?: string;
-    avatarUrl?: string;
-  }): Promise<string> {
-    await this.ensureInitialized();
-
-    this.logger?.info(LogSource.AUTH, `Creating/updating user from OAuth: ${providerData.email}`);
-
-    return randomUUID();
-  }
-
-  /**
-   * Request user data from external provider.
-   * @param provider - The provider name.
-   * @param userId - The user ID.
-   * @returns Promise that resolves to user data.
-   */
-  public async requestUserData(provider: string, userId: string): Promise<{
-    email: string;
-    name?: string;
-    avatarUrl?: string;
-  }> {
-    await this.ensureInitialized();
-
-    this.logger?.info(LogSource.AUTH, `Requesting user data from ${provider} for user: ${userId}`);
-
-    return {
-      email: 'user@example.com',
-      name: 'User Name',
-      avatarUrl: 'https://example.com/avatar.jpg'
-    };
-  }
 
   /**
    * Ensure service is initialized.

@@ -20,7 +20,7 @@ import {
 import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { EventNames } from '@/modules/core/events/types/index';
-import { getModuleRegistry } from '@/modules/loader';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 /**
  * Task service implementation providing task management capabilities.
@@ -63,17 +63,7 @@ export class TaskService implements ITasksService {
     }
 
     this.logger = LoggerService.getInstance();
-
-    const registry = getModuleRegistry();
-    const databaseModule = registry.get('DATABASE');
-    if (databaseModule === null || databaseModule === undefined) {
-      throw new Error('Database module not found');
-    }
-
-    const moduleWithExports = databaseModule as {
-      exports: { service: () => unknown };
-    };
-    const databaseService = moduleWithExports.exports.service();
+    const databaseService = DatabaseService.getInstance();
 
     this.taskRepository = new TaskRepository(databaseService);
     this.eventBus = EventBusService.getInstance();
@@ -131,13 +121,11 @@ export class TaskService implements ITasksService {
   async updateTaskStatus(taskId: number, status: unknown): Promise<void> {
     this.ensureInitialized();
 
-    const validTaskStatuses = Object.values(TaskStatus);
-    const statusValue = status as TaskStatus;
-    if (!validTaskStatuses.includes(statusValue)) {
+    if (!this.isValidTaskStatus(status)) {
       throw new Error(`Invalid task status: ${String(status)}`);
     }
 
-    await this.taskRepository.updateStatus(taskId, statusValue);
+    await this.taskRepository.updateStatus(taskId, status);
 
     const taskIdStr = String(taskId);
     const statusStr = String(status);
@@ -342,12 +330,32 @@ agentId
   }
 
   /**
+   * Type guard to check if value is a valid TaskStatus.
+   * @param status
+   */
+  private isValidTaskStatus(status: unknown): status is TaskStatus {
+    const validStatuses = Object.values(TaskStatus);
+    return validStatuses.includes(status as TaskStatus);
+  }
+
+  /**
+   * Type guard to check if value is a task object.
+   * @param task
+   */
+  private isTaskObject(task: unknown): task is Record<string, unknown> {
+    return task !== null && typeof task === 'object';
+  }
+
+  /**
    * Build task data for repository creation.
    * @param task - Task data to process.
    * @returns Processed task data for repository.
    */
   private buildTaskData(task: unknown): Partial<ITaskRow> {
-    const taskObj = task as Record<string, unknown>;
+    if (!this.isTaskObject(task)) {
+      throw new Error('Invalid task data structure');
+    }
+
     const {
       type,
       module_id,
@@ -355,15 +363,15 @@ agentId
       priority,
       status,
       max_executions
-    } = taskObj;
+    } = task;
 
     return {
-      ...type !== undefined && { type: type as string },
-      ...module_id !== undefined && { module_id: module_id as string },
-      ...instructions !== undefined && { instructions: instructions as string | null },
-      ...priority !== undefined && { priority: priority as number | null },
-      ...status !== undefined && { status: status as TaskStatus | null },
-      ...max_executions !== undefined && { max_executions: max_executions as number | null }
+      ...type !== undefined && { type: String(type) },
+      ...module_id !== undefined && { module_id: String(module_id) },
+      ...instructions !== undefined && { instructions: instructions === null ? null : String(instructions) },
+      ...priority !== undefined && { priority: typeof priority === 'number' ? priority : null },
+      ...status !== undefined && this.isValidTaskStatus(status) && { status },
+      ...max_executions !== undefined && { max_executions: typeof max_executions === 'number' ? max_executions : null }
     };
   }
 
@@ -385,7 +393,7 @@ agentId
     return {
       ...instructions !== undefined && { instructions },
       ...priority !== undefined && { priority },
-      ...status !== undefined && { status: status as TaskStatus | null },
+      ...status !== undefined && this.isValidTaskStatus(status) && { status },
       ...progress !== undefined && { progress },
       ...result !== undefined && { result },
       ...error !== undefined && { error }

@@ -262,7 +262,7 @@ error: 'Token expired'
 };
     }
 
-    await this.getTokenRepository().updateLastUsed(tokenId);
+    await this.getTokenRepository().updateTokenUsage(tokenId);
 
     return {
       valid: true,

@@ -28,14 +28,14 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    */
   constructor(config: IGenericOAuth2Config) {
     const {
-      id, name, issuer, scope, userinfoMapping
+      id, name, issuer, scopes, userinfoMapping
     } = config;
-    this.id = id;
-    this.name = name;
+    this.id = id || 'oauth2';
+    this.name = name || 'OAuth2 Provider';
     this.type = issuer ? 'oidc' : 'oauth2';
     this.config = {
       ...config,
-      scope: scope ?? 'email profile',
+      scopes: scopes ?? ['email', 'profile'],
       userinfoMapping: userinfoMapping ?? {},
     };
   }
@@ -49,9 +49,9 @@ export class GenericOAuth2Provider implements IIdentityProvider {
   public getAuthorizationUrl(state: string, nonce?: string): string {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: this.config.redirectUri || '',
       response_type: 'code',
-      scope: this.config.scope ?? 'email profile',
+      scope: this.config.scopes.join(' '),
       state,
     });
 
@@ -83,15 +83,15 @@ export class GenericOAuth2Provider implements IIdentityProvider {
 
   /**
    * Retrieves user information from the userinfo endpoint.
-   * @param accessToken - The access token for authentication.
+   * @param tokens - The tokens object containing access token.
    * @returns Promise resolving to the user information.
    */
-  public async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
+  public async getUserInfo(tokens: IdpTokens): Promise<IIdpUserInfo> {
     if (!this.config.userinfoEndpoint) {
       throw new Error('UserInfo endpoint not configured');
     }
 
-    const userData = await this.fetchUserData(accessToken);
+    const userData = await this.fetchUserData(tokens.accessToken);
     return this.mapUserData(userData);
   }
 
@@ -115,7 +115,7 @@ export class GenericOAuth2Provider implements IIdentityProvider {
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
       code: authCode,
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: this.config.redirectUri || '',
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
     });
@@ -232,13 +232,18 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    */
   private mapUserData(userData: Record<string, unknown>): IIdpUserInfo {
     const mapping = this.config.userinfoMapping ?? {};
+    // Convert mapping to Record<string, string> for compatibility
+    const stringMapping = Object.entries(mapping).reduce((acc, [key, value]) => {
+      acc[key] = String(value);
+      return acc;
+    }, {} as Record<string, string>);
 
     return {
-      id: this.getUserId(userData, mapping),
-      email: this.getUserEmail(userData, mapping),
-      emailVerified: this.getEmailVerified(userData, mapping),
-      name: this.getUserName(userData, mapping),
-      picture: this.getUserPicture(userData, mapping),
+      id: this.getUserId(userData, stringMapping),
+      email: this.getUserEmail(userData, stringMapping),
+      emailVerified: this.getEmailVerified(userData, stringMapping),
+      name: this.getUserName(userData, stringMapping),
+      picture: this.getUserPicture(userData, stringMapping),
       raw: userData,
     };
   }
@@ -373,7 +378,18 @@ export const discoverOidcConfiguration = async (
   }
 
   const data: unknown = await response.json();
-  const configData = data as IOIDCDiscoveryConfig;
+  // OIDC discovery response uses snake_case
+  const rawConfig = data as {
+    issuer: string;
+    authorization_endpoint: string;
+    token_endpoint: string;
+    userinfo_endpoint?: string;
+    jwks_uri?: string;
+    scopes_supported?: string[];
+    response_types_supported?: string[];
+    grant_types_supported?: string[];
+    token_endpoint_auth_methods_supported?: string[];
+  };
 
   const {
     issuer: configIssuer,
@@ -385,17 +401,14 @@ export const discoverOidcConfiguration = async (
     response_types_supported,
     grant_types_supported,
     token_endpoint_auth_methods_supported,
-  } = configData;
+  } = rawConfig;
 
   return {
     issuer: configIssuer,
     authorizationEndpoint: authorization_endpoint,
     tokenEndpoint: token_endpoint,
-    userinfoEndpoint: userinfo_endpoint,
-    jwksUri: jwks_uri,
-    scopesSupported: scopes_supported,
-    responseTypesSupported: response_types_supported,
-    grantTypesSupported: grant_types_supported,
-    tokenEndpointAuthMethods: token_endpoint_auth_methods_supported,
+    userInfoEndpoint: userinfo_endpoint || '',
+    jwksUri: jwks_uri || '',
+    scopes: scopes_supported || ['openid', 'profile', 'email'],
   };
 };

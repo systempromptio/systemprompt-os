@@ -27,7 +27,7 @@ export class GoogleProvider implements IIdentityProvider {
   constructor(config: IGoogleConfig) {
     this.config = {
       ...config,
-      scope: config.scope ?? "openid email profile",
+      scopes: config.scopes ?? ["openid", "email", "profile"],
     };
   }
 
@@ -38,7 +38,7 @@ export class GoogleProvider implements IIdentityProvider {
    * @returns The authorization URL.
    */
   getAuthorizationUrl(state: string, nonce?: string): string {
-    const scope = this.config.scope ?? "openid email profile";
+    const scope = this.config.scopes.join(" ");
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
@@ -70,12 +70,12 @@ export class GoogleProvider implements IIdentityProvider {
   }
 
   /**
-   * Retrieves user information from Google using an access token.
-   * @param accessToken - The access token from Google.
+   * Retrieves user information from Google using tokens.
+   * @param tokens - The tokens object containing access token.
    * @returns Promise resolving to user information.
    */
-  async getUserInfo(accessToken: string): Promise<IIdpUserInfo> {
-    const response = await this.makeUserInfoRequest(accessToken);
+  async getUserInfo(tokens: IdpTokens): Promise<IIdpUserInfo> {
+    const response = await this.makeUserInfoRequest(tokens.accessToken);
     const googleUserInfo = await this.parseUserInfoResponse(response);
     return this.buildUserInfo(googleUserInfo);
   }
@@ -299,12 +299,10 @@ export class GoogleProvider implements IIdentityProvider {
    */
   private buildGoogleUserInfo(data: Record<string, unknown>): IGoogleUserInfo {
     const result: IGoogleUserInfo = {
-      sub: data.sub as string,
+      id: data.sub as string,
+      email: data.email as string,
     };
 
-    if (typeof data.email === 'string') {
-      result.email = data.email;
-    }
     if (typeof data.email_verified === 'boolean') {
       result.emailVerified = data.email_verified;
     }
@@ -389,8 +387,9 @@ export class GoogleProvider implements IIdentityProvider {
    */
   private buildUserInfo(googleUserInfo: IGoogleUserInfo): IIdpUserInfo {
     const result: IIdpUserInfo = {
-      id: googleUserInfo.sub,
-      raw: googleUserInfo,
+      id: googleUserInfo.id,
+      email: googleUserInfo.email,
+      raw: googleUserInfo as Record<string, unknown>,
     };
 
     const {

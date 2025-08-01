@@ -39,7 +39,7 @@ const displayQueueStatistics = (stats: ITaskStatistics): void => {
  * Display JSON output format.
  * @param stats - Task statistics to display.
  */
-const displayJsonOutput = (stats: TaskStatistics): void => {
+const displayJsonOutput = (stats: ITaskStatistics): void => {
   process.stdout.write('\n');
   process.stdout.write(JSON.stringify({
     module: 'tasks',
@@ -59,7 +59,20 @@ const executeStatus = async (context: ICLIContext): Promise<void> => {
   try {
     const tasksModule = getTasksModule();
     const taskService = tasksModule.exports.service();
-    const stats = await taskService.getStatistics();
+    const rawStats = await taskService.getStatistics();
+
+    const stats: ITaskStatistics = {
+      total: rawStats.total,
+      pending: rawStats.pending,
+      inProgress: rawStats.inProgress,
+      completed: rawStats.completed,
+      failed: rawStats.failed,
+      cancelled: rawStats.cancelled,
+      tasksByType: rawStats.tasksByType,
+      ...rawStats.averageExecutionTime !== undefined && {
+        averageExecutionTime: rawStats.averageExecutionTime
+      }
+    };
 
     displayModuleStatus();
     displayQueueStatistics(stats);

@@ -6,6 +6,7 @@
 
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { IAuthOauthIdentitiesRow } from '@/modules/core/auth/types/database.generated';
 
 /**
  * Repository for managing authentication data.
@@ -103,5 +104,79 @@ export class AuthRepository {
    */
   async deleteCredentials(userId: string): Promise<void> {
     this.logger?.debug(LogSource.AUTH, `Deleting credentials for user: ${userId}`);
+  }
+
+  /**
+   * Create or update OAuth identity.
+   * @param data - The OAuth identity data.
+   * @returns Promise that resolves when identity is saved.
+   */
+  async createOrUpdateOAuthIdentity(data: {
+    user_id: string;
+    provider: string;
+    provider_user_id: string;
+    provider_email?: string | null;
+    provider_name?: string | null;
+    provider_picture?: string | null;
+  }): Promise<void> {
+    const db = this.database.getConnection();
+    
+    // Check if identity exists
+    const existing = await db
+      .select('auth_oauth_identities', ['id'])
+      .where('user_id', data.user_id)
+      .where('provider', data.provider)
+      .executeTakeFirst();
+
+    if (existing) {
+      // Update existing
+      await db
+        .update('auth_oauth_identities')
+        .set({
+          provider_user_id: data.provider_user_id,
+          provider_email: data.provider_email,
+          provider_name: data.provider_name,
+          provider_picture: data.provider_picture,
+          updated_at: new Date().toISOString()
+        })
+        .where('user_id', data.user_id)
+        .where('provider', data.provider)
+        .execute();
+    } else {
+      // Create new
+      await db
+        .insert('auth_oauth_identities')
+        .values({
+          user_id: data.user_id,
+          provider: data.provider,
+          provider_user_id: data.provider_user_id,
+          provider_email: data.provider_email,
+          provider_name: data.provider_name,
+          provider_picture: data.provider_picture,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .execute();
+    }
+
+    this.logger?.info(LogSource.AUTH, `Saved OAuth identity for user: ${data.user_id}`);
+  }
+
+  /**
+   * Get OAuth identity.
+   * @param userId - The user ID.
+   * @param provider - The provider name.
+   * @returns Promise that resolves to OAuth identity or null.
+   */
+  async getOAuthIdentity(userId: string, provider: string): Promise<IAuthOauthIdentitiesRow | null> {
+    const db = this.database.getConnection();
+    
+    const identity = await db
+      .select('auth_oauth_identities', ['*'])
+      .where('user_id', userId)
+      .where('provider', provider)
+      .executeTakeFirst();
+
+    return identity || null;
   }
 }

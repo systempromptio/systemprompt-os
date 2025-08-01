@@ -46,7 +46,7 @@ export class TasksModule extends BaseModule<ITasksModuleExports> {
           TasksServiceSchema,
           'TaskService'
         );
-        return validatedService as ITasksService;
+        return validatedService;
       },
       TaskStatus,
       TaskExecutionStatus,
@@ -65,9 +65,9 @@ export class TasksModule extends BaseModule<ITasksModuleExports> {
   /**
    * Initialize the module.
    */
-  protected initializeModule(): void {
+  protected async initializeModule(): Promise<void> {
     this.taskService = TaskService.getInstance();
-    this.taskService.initialize();
+    await this.taskService.initialize();
   }
 }
 
@@ -109,6 +109,10 @@ const hasRequiredExports = (mod: unknown): mod is TasksModule => {
     return false;
   }
 
+  if (typeof moduleExports !== 'object' || moduleExports === null) {
+    return false;
+  }
+
   const exportsObj = moduleExports as Record<string, unknown>;
 
   return (
@@ -127,11 +131,11 @@ const getGlobalModuleLoader = (): {
   getModuleRegistry(): Map<string, unknown>;
 } | null => {
   const globalWithLoader = globalThis as {
-    __MODULE_LOADER__?: {
+    MODULE_LOADER?: {
       getModuleRegistry(): Map<string, unknown>;
     };
   };
-  return globalWithLoader.__MODULE_LOADER__ ?? null;
+  return globalWithLoader.MODULE_LOADER ?? null;
 };
 
 /**

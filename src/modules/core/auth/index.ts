@@ -6,29 +6,25 @@
 
 import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
-import { TokenService } from '@/modules/core/auth/services/token.service';
-import { ProvidersService } from '@/modules/core/auth/services/providers.service';
 import {
   AuthModuleExportsSchema,
-  AuthServiceSchema
+  AuthServiceSchema,
+  type IAuthModuleExports
 } from '@/modules/core/auth/types/auth.service.generated';
-import type { IAuthModuleExportsExtended } from '@/modules/core/auth/types/manual';
 import type { ZodSchema } from 'zod';
 
 /**
  * Auth module implementation using BaseModule.
  * Provides authentication services with full Zod validation.
  */
-export class AuthModule extends BaseModule<IAuthModuleExportsExtended> {
+export class AuthModule extends BaseModule<IAuthModuleExports> {
   public readonly name = 'auth' as const;
   public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Authentication and authorization system';
   public readonly dependencies = ['logger', 'database', 'events'] as const;
   private authService!: AuthService;
-  private tokenService!: TokenService;
-  private providersService!: ProvidersService;
-  get exports(): IAuthModuleExportsExtended {
+  get exports(): IAuthModuleExports {
     return {
       service: (): AuthService => {
         this.ensureInitialized();
@@ -37,14 +33,6 @@ export class AuthModule extends BaseModule<IAuthModuleExportsExtended> {
           AuthServiceSchema,
           'AuthService'
         );
-      },
-      tokenService: (): TokenService => {
-        this.ensureInitialized();
-        return this.tokenService;
-      },
-      providersService: (): ProvidersService => {
-        this.ensureInitialized();
-        return this.providersService;
       },
     };
   }
@@ -63,10 +51,6 @@ export class AuthModule extends BaseModule<IAuthModuleExportsExtended> {
   protected async initializeModule(): Promise<void> {
     this.authService = AuthService.getInstance();
     await this.authService.initialize();
-
-    this.tokenService = TokenService.getInstance();
-    this.providersService = ProvidersService.getInstance();
-    await this.providersService.initialize();
   }
 }
 

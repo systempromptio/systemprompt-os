@@ -1,6 +1,6 @@
 /**
- * Tasks module add CLI command.
- * @file Tasks module add CLI command.
+ * Tasks module create CLI command.
+ * @file Tasks module create CLI command.
  * @module modules/core/tasks/cli
  */
 
@@ -147,9 +147,9 @@ const executeAddTask = async (options: CLIContext): Promise<void> => {
 /**
  * Tasks add command.
  */
-export const add: CLICommand = {
-  name: 'add',
-  description: 'Add a new task to the queue',
+export const create: CLICommand = {
+  name: 'create',
+  description: 'Create a new task in the queue',
   options: [
     {
       name: 'type',
@@ -204,4 +204,4 @@ export const add: CLICommand = {
   execute: executeAddTask
 };
 
-export default add;
+export default create;

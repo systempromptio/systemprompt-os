@@ -17,7 +17,7 @@ import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
  */
 const isValidTaskStatus = (value: string): value is TaskStatus => {
   const validValues = Object.values(TaskStatus);
-  return validValues.includes(value as TaskStatus);
+  return validValues.includes(value as any);
 };
 
 /**
@@ -52,7 +52,7 @@ const buildTaskFilter = (args: CLIContext['args']): ITaskFilter => {
   const moduleIdValue = moduleId ?? moduleIdKebab;
   const filter: ITaskFilter = {};
 
-  if (typeof status === 'string') { filter.status = status as TaskStatus; }
+  if (typeof status === 'string' && isValidTaskStatus(status)) { filter.status = status; }
   if (typeof type === 'string') { filter.type = type; }
   if (typeof moduleIdValue === 'string') { filter.module_id = moduleIdValue; }
   if (typeof limit === 'number') { filter.limit = limit; }
@@ -214,3 +214,5 @@ export const list: CLICommand = {
   ],
   execute: executeTasks
 };
+
+export default list;

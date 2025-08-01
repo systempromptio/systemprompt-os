@@ -100,7 +100,7 @@ export class ProviderFactoryService {
       clientId: config.client_id,
       clientSecret: config.client_secret,
       redirectUri: redirectUri || 'http://localhost:3000/oauth2/callback',
-      scope: config.scopes ? JSON.parse(config.scopes).join(' ') : undefined,
+      scopes: config.scopes ? JSON.parse(config.scopes) : ['email', 'profile'],
     };
   }
 
@@ -134,7 +134,7 @@ export class ProviderFactoryService {
       redirectUri: idpConfig.redirectUri,
       authorizationEndpoint: config.authorization_endpoint || discovered.authorizationEndpoint!,
       tokenEndpoint: config.token_endpoint || discovered.tokenEndpoint!,
-      scope: idpConfig.scope || 'openid email profile',
+      scopes: idpConfig.scopes || ['openid', 'email', 'profile'],
     };
 
     const userinfoEndpoint = config.userinfo_endpoint || discovered.userinfoEndpoint;
@@ -188,7 +188,7 @@ export class ProviderFactoryService {
       redirectUri: idpConfig.redirectUri,
       authorizationEndpoint: config.authorization_endpoint,
       tokenEndpoint: config.token_endpoint,
-      scope: idpConfig.scope || 'openid email profile',
+      scopes: idpConfig.scopes || ['openid', 'email', 'profile'],
     };
 
     if (config.userinfo_endpoint) {

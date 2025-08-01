@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { getAuthModule } from '@/modules/core/auth/index';
+import { OAuthService } from '@/modules/core/auth/services/oauth.service';
 
 // Auth-specific user interface - different from the main IUser interface
 interface IAuthUser {
@@ -135,29 +135,34 @@ export class AuthRepository {
     profile: OAuthProfile,
   ): Promise<IAuthUser> {
     try {
-      const authModule = getAuthModule();
-      const authService = authModule.exports.service();
+      const oauthService = OAuthService.getInstance();
 
-      const user = await authService.createOrUpdateUserFromOAuth(provider, providerId, profile);
+      const userId = await oauthService.createOrUpdateUserFromOAuth({
+        provider,
+        providerId,
+        email: profile.email,
+        name: profile.name || undefined,
+        avatarUrl: profile.avatarUrl || undefined
+      });
 
-      if (!user) {
+      if (!userId) {
         throw new Error('Failed to create/update OAuth user');
       }
 
       const result: IAuthUser = {
-        id: user.id,
-        email: user.email,
+        id: userId,
+        email: profile.email,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      if (user.name !== null && user.name !== undefined) {
-        result.name = user.name;
+      if (profile.name) {
+        result.name = profile.name;
       }
 
-      if (user.avatarUrl !== null && user.avatarUrl !== undefined) {
-        result.avatarUrl = user.avatarUrl;
+      if (profile.avatarUrl) {
+        result.avatarUrl = profile.avatarUrl;
       }
 
       result.lastLoginAt = new Date().toISOString();
@@ -175,22 +180,45 @@ export class AuthRepository {
    */
   async getIUserById(userId: string): Promise<IAuthUser | null> {
     try {
-      const authModule = getAuthModule();
-      const authService = authModule.exports.service();
+      // Use event-based communication to get user data
+      const { EventBusService } = await import('@/modules/core/events/services/event-bus.service');
+      const { UserEvents } = await import('@/modules/core/events/types/index');
+      const eventBus = EventBusService.getInstance();
+      
+      return new Promise((resolve) => {
+        const requestId = randomUUID();
+        const timeout = setTimeout(() => {
+          eventBus.off(UserEvents.USER_DATA_RESPONSE, responseHandler);
+          resolve(null);
+        }, 5000);
 
-      const userInfo = await authService.requestUserData(userId);
+        const responseHandler = (event: any) => {
+          if (event.requestId === requestId) {
+            clearTimeout(timeout);
+            eventBus.off(UserEvents.USER_DATA_RESPONSE, responseHandler);
+            
+            if (event.user) {
+              resolve({
+                id: event.user.id,
+                email: event.user.email,
+                name: event.user.display_name,
+                avatarUrl: event.user.avatar_url,
+                isActive: event.user.status === 'active',
+                createdAt: event.user.created_at || new Date().toISOString(),
+                updatedAt: event.user.updated_at || new Date().toISOString(),
+              });
+            } else {
+              resolve(null);
+            }
+          }
+        };
 
-      if (!userInfo) {
-        return null;
-      }
-
-      return {
-        id: userInfo.id,
-        email: userId,
-        isActive: userInfo.status === 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+        eventBus.on(UserEvents.USER_DATA_RESPONSE, responseHandler);
+        eventBus.emit(UserEvents.USER_DATA_REQUEST, {
+          requestId,
+          userId
+        });
+      });
     } catch (error) {
       return null;
     }

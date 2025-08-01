@@ -5,15 +5,21 @@
 
 import type {
   AuthDatabase,
-  IAuthCliTypes,
-  ICliContext,
-  IUserListQueryResult
+  ICliContext
 } from '@/modules/core/auth/types/manual';
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
 import { ONE, ZERO } from '@/constants/numbers';
 import { EIGHTY } from '@/modules/core/auth/constants/session.constants';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
+
+/**
+ * User query result with roles information.
+ */
+interface IUserWithRoles extends IUsersRow {
+  roles?: string | null;
+}
 import { getAuthModule } from '@/modules/core/auth/index';
 import type { AuthModule } from '@/modules/core/auth/index';
 import readline from 'readline';
@@ -52,7 +58,7 @@ const askConfirmation = async (question: string): Promise<string> => {
  * @param logger - Logger instance.
  */
 const displayUserInfo = (
-  user: IUserListQueryResult,
+  user: IUserWithRoles,
   index: number,
   logger: ILogger
 ): void => {
@@ -141,7 +147,7 @@ const createDefaultRoles = async (
  * @param context - CLI context (unused).
  * @returns Promise that resolves when reset is complete.
  */
-const resetDatabase = async (context: ICliContext): Promise<void> => {
+const resetDatabase = async (_context: ICliContext): Promise<void> => {
   const logger = getLogger();
   const question = '\n⚠️  This will delete ALL users, roles, and sessions. '
     + 'Are you sure? (yes/no): ';
@@ -171,14 +177,14 @@ const resetDatabase = async (context: ICliContext): Promise<void> => {
  * @param logger - Logger instance.
  */
 const displayAllUsers = (
-  users: IUserListQueryResult[],
+  users: IUserWithRoles[],
   logger: ILogger
 ): void => {
   logger.info(LogSource.AUTH, '\n📋 Users in database:\n');
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
 
-  users.forEach((user: IUserListQueryResult, index: number): void => {
+  users.forEach((user: IUserWithRoles, index: number): void => {
     displayUserInfo(user, index, logger);
   });
 
@@ -191,14 +197,14 @@ const displayAllUsers = (
  * @param context - CLI context (unused).
  * @returns Promise that resolves when listing is complete.
  */
-const listUsers = async (context: ICliContext): Promise<void> => {
+const listUsers = async (_context: ICliContext): Promise<void> => {
   const logger = getLogger();
   try {
     const authModule = getAuthModule();
     const db = (authModule as AuthModule & { getDatabase: () => AuthDatabase })
       .getDatabase();
 
-    const users = await db.query<IUserListQueryResult>(`
+    const users = await db.query<IUserWithRoles>(`
       SELECT
         u.id,
         u.email,

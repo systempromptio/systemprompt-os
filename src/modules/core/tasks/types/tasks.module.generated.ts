@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for tasks module
-// Generated on: 2025-07-31T15:10:50.774Z
+// Generated on: 2025-08-01T08:05:33.625Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

@@ -10,6 +10,8 @@ import {
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
 import {
   AuthEvents,
   type SessionCreatedEvent,
@@ -33,6 +35,7 @@ export class SessionService {
   private static instance: SessionService;
   private eventBusService?: EventBusService;
   private loggerService?: ILogger;
+  private readonly dbService?: DatabaseService;
 
   /**
    * Private constructor for singleton.
@@ -40,6 +43,7 @@ export class SessionService {
   private constructor() {
     this.eventBusService = EventBusService.getInstance();
     this.loggerService = LoggerService.getInstance();
+    this.dbService = DatabaseService.getInstance();
   }
 
   /**
@@ -49,6 +53,17 @@ export class SessionService {
   static getInstance(): SessionService {
     SessionService.instance ||= new SessionService();
     return SessionService.instance;
+  }
+
+  /**
+   * Get database connection.
+   * @returns Promise resolving to database connection.
+   */
+  private async getConnection(): Promise<IDatabaseConnection> {
+    if (this.dbService === undefined) {
+      throw new Error('SessionService not initialized');
+    }
+    return await this.dbService.getConnection();
   }
 
   /**
@@ -112,7 +127,7 @@ export class SessionService {
       last_activity_at: now.toISOString(),
     };
 
-    await this.getDb().execute(
+    await this.getConnection().execute(
       `INSERT INTO auth_sessions 
        (id, user_id, token_hash, refresh_token_hash, type, ip_address, user_agent, 
         expires_at, refresh_expires_at, created_at, last_activity_at)
@@ -157,7 +172,7 @@ export class SessionService {
   async validateSession(token: string): Promise<{ userId: string; sessionId: string } | null> {
     const tokenHash = this.hashToken(token);
 
-    const sessions = await this.getDb().query<IAuthSessionsRow>(
+    const sessions = await this.getConnection().query<IAuthSessionsRow>(
       `SELECT * FROM auth_sessions 
        WHERE token_hash = ? AND revoked_at IS NULL 
        AND datetime(expires_at) > datetime('now')`,
@@ -170,7 +185,7 @@ export class SessionService {
 
     const session = sessions[0]!;
 
-    await this.getDb().execute(
+    await this.getConnection().execute(
       `UPDATE auth_sessions SET last_activity_at = datetime('now') WHERE id = ?`,
       [session.id]
     );
@@ -192,7 +207,7 @@ export class SessionService {
   }> {
     const refreshTokenHash = this.hashToken(refreshToken);
 
-    const sessions = await this.getDb().query<IAuthSessionsRow>(
+    const sessions = await this.getConnection().query<IAuthSessionsRow>(
       `SELECT * FROM auth_sessions 
        WHERE refresh_token_hash = ? AND revoked_at IS NULL 
        AND datetime(refresh_expires_at) > datetime('now')`,
@@ -210,7 +225,7 @@ export class SessionService {
     const newAccessTokenHash = this.hashToken(newAccessToken);
     const newRefreshTokenHash = this.hashToken(newRefreshToken);
 
-    await this.getDb().execute(
+    await this.getConnection().execute(
       `UPDATE auth_sessions 
        SET token_hash = ?, refresh_token_hash = ?, last_activity_at = datetime('now')
        WHERE id = ?`,
@@ -234,7 +249,7 @@ export class SessionService {
    * @param sessionId
    */
   async revokeSession(sessionId: string): Promise<void> {
-    await this.getDb().execute(
+    await this.getConnection().execute(
       `UPDATE auth_sessions SET revoked_at = datetime('now') WHERE id = ?`,
       [sessionId]
     );
@@ -252,7 +267,7 @@ export class SessionService {
    * @param userId
    */
   async getUserSessions(userId: string): Promise<IAuthSessionsRow[]> {
-    return await this.getDb().query<IAuthSessionsRow>(
+    return await this.getConnection().query<IAuthSessionsRow>(
       `SELECT * FROM auth_sessions 
        WHERE user_id = ? AND revoked_at IS NULL 
        AND datetime(expires_at) > datetime('now')
@@ -266,7 +281,7 @@ export class SessionService {
    * @param userId
    */
   async revokeUserSessions(userId: string): Promise<number> {
-    const result = await this.getDb().execute(
+    const result = await this.getConnection().execute(
       `UPDATE auth_sessions 
        SET revoked_at = datetime('now') 
        WHERE user_id = ? AND revoked_at IS NULL`,
@@ -286,7 +301,7 @@ export class SessionService {
    * @param sessionId
    */
   async getSession(sessionId: string): Promise<IAuthSessionsRow | null> {
-    const sessions = await this.getDb().query<IAuthSessionsRow>(
+    const sessions = await this.getConnection().query<IAuthSessionsRow>(
       `SELECT * FROM auth_sessions WHERE id = ?`,
       [sessionId]
     );
@@ -298,7 +313,7 @@ export class SessionService {
    * Clean up expired sessions.
    */
   async cleanupExpiredSessions(): Promise<number> {
-    const result = await this.getDb().execute(
+    const result = await this.getConnection().execute(
       `UPDATE auth_sessions 
        SET revoked_at = datetime('now')
        WHERE revoked_at IS NULL 
@@ -325,21 +340,21 @@ export class SessionService {
     revoked: number;
   }> {
     const [totalResult, activeResult, expiredResult, revokedResult] = await Promise.all([
-      this.getDb().query<{ count: number }>(
+      this.getConnection().query<{ count: number }>(
         `SELECT COUNT(*) as count FROM auth_sessions WHERE user_id = ?`,
         [userId]
       ),
-      this.getDb().query<{ count: number }>(
+      this.getConnection().query<{ count: number }>(
         `SELECT COUNT(*) as count FROM auth_sessions 
          WHERE user_id = ? AND revoked_at IS NULL AND datetime(expires_at) > datetime('now')`,
         [userId]
       ),
-      this.getDb().query<{ count: number }>(
+      this.getConnection().query<{ count: number }>(
         `SELECT COUNT(*) as count FROM auth_sessions 
          WHERE user_id = ? AND revoked_at IS NULL AND datetime(expires_at) <= datetime('now')`,
         [userId]
       ),
-      this.getDb().query<{ count: number }>(
+      this.getConnection().query<{ count: number }>(
         `SELECT COUNT(*) as count FROM auth_sessions 
          WHERE user_id = ? AND revoked_at IS NOT NULL`,
         [userId]

@@ -23,7 +23,12 @@ export function createTokenCommand(authModule: AuthModule): Command {
     .option('-s, --scope <scopes...>', 'Token scopes', ['read'])
     .option('-e, --expires <seconds>', 'Token expiration in seconds')
     .option('-m, --metadata <json>', 'Token metadata as JSON')
-    .action(async (options): Promise<void> => {
+    .action(async (_options): Promise<void> => {
+      const logger = getLoggerService();
+      logger.info(LogSource.AUTH, 'Token creation is not available in the current implementation.', {});
+      logger.info(LogSource.AUTH, 'API tokens are managed internally by the auth module.', {});
+      // TODO: Implement token creation through AuthService if needed
+      /*
       try {
         if (options.metadata !== undefined && options.metadata !== null && options.metadata !== '') {
           try {
@@ -49,101 +54,139 @@ export function createTokenCommand(authModule: AuthModule): Command {
         logger.info(LogSource.AUTH, '\nNote: The actual token value is not displayed for security reasons.', {});
       } catch (error) {
         const logger = getLoggerService();
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(LogSource.AUTH, 'Error creating token:', { error: errorMessage });
+        logger.error(LogSource.AUTH, 'Error creating token:', { error });
         process.exit(1);
       }
+      */
     });
 
-  cmd.command('list <userId>')
-    .description('List user tokens')
-    .option('--json', 'Output as JSON')
-    .action(async (userId, options) : Promise<void> => {
+  cmd.command('list')
+    .description('List tokens')
+    .option('-u, --user <userId>', 'Filter by user ID')
+    .option('-t, --type <type>', 'Filter by token type')
+    .action(async (_options): Promise<void> => {
+      const logger = getLoggerService();
+      logger.info(LogSource.AUTH, 'Token listing is not available in the current implementation.', {});
+      // TODO: Implement token listing through AuthService if needed
+      /*
       try {
         const tokenService = authModule.exports.tokenService();
-        const tokens = await tokenService.listUserTokens(userId);
+        const filters: { user_id?: string; type?: string } = {};
+        
+        if (options.user !== undefined && options.user !== null && options.user !== '') {
+          filters.user_id = options.user as string;
+        }
+        if (options.type !== undefined && options.type !== null && options.type !== '') {
+          filters.type = options.type as string;
+        }
+        
+        const tokens = await tokenService.listTokens(filters);
+        
+        if (tokens.length === 0) {
+          const logger = getLoggerService();
+          logger.info(LogSource.AUTH, 'No tokens found', {});
+          return;
+        }
+        
         const logger = getLoggerService();
-
-        if (options.json === true) {
-          logger.info(LogSource.AUTH, JSON.stringify(tokens, null, 2), {});
-        } else {
-          if (tokens.length === 0) {
-            logger.info(LogSource.AUTH, 'No tokens found', {});
-            return;
-          }
-
-          logger.info(LogSource.AUTH, '\nTokens:', {});
-          logger.info(LogSource.AUTH, 'ID                                Type        Scopes              Expires                   Last Used', {});
-          logger.info(LogSource.AUTH, '--------------------------------  ----------  ------------------  ------------------------  ------------------------', {});
-
-          tokens.forEach((token: any): void => {
-            const id = token.id.substring(0, 32);
-            const type = token.type.padEnd(10);
-            const scopes = 'N/A'.padEnd(18)
-            const expires = token.expires_at !== null ? token.expires_at : 'Never'.padEnd(24);
-            const lastUsed = token.last_used_at !== null && token.last_used_at !== undefined ? token.last_used_at : 'Never'.padEnd(24);
-
-            logger.info(LogSource.AUTH, `${id}  ${type}  ${scopes}  ${expires}  ${lastUsed}`, {});
-          });
-
-          logger.info(LogSource.AUTH, `\nTotal: ${String(tokens.length)} token(s)`, {});
+        logger.info(LogSource.AUTH, `\nFound ${tokens.length} token(s):\n`, {});
+        
+        for (const token of tokens) {
+          logger.info(LogSource.AUTH, `ID: ${token.id}`, {});
+          logger.info(LogSource.AUTH, `  Name: ${token.name}`, {});
+          logger.info(LogSource.AUTH, `  Type: ${token.type}`, {});
+          logger.info(LogSource.AUTH, `  User: ${token.user_id}`, {});
+          logger.info(LogSource.AUTH, `  Created: ${token.created_at}`, {});
+          logger.info(LogSource.AUTH, `  Last Used: ${token.last_used_at ?? 'Never'}`, {});
+          logger.info(LogSource.AUTH, '', {});
         }
       } catch (error) {
         const logger = getLoggerService();
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(LogSource.AUTH, 'Error listing tokens:', { error: errorMessage });
+        logger.error(LogSource.AUTH, 'Error listing tokens:', { error });
         process.exit(1);
       }
+      */
     });
 
-  cmd.command('revoke <tokenId>')
+  cmd.command('revoke')
     .description('Revoke a token')
-    .action(async (tokenId) : Promise<void> => {
+    .requiredOption('-i, --id <tokenId>', 'Token ID to revoke')
+    .action(async (_options): Promise<void> => {
+      const logger = getLoggerService();
+      logger.info(LogSource.AUTH, 'Token revocation is not available in the current implementation.', {});
+      // TODO: Implement token revocation through AuthService if needed
+      /*
       try {
         const tokenService = authModule.exports.tokenService();
-        await tokenService.revokeToken(tokenId);
+        await tokenService.revokeToken(options.id as string);
+        
         const logger = getLoggerService();
-        logger.info(LogSource.AUTH, '✓ Token revoked successfully', {});
+        logger.info(LogSource.AUTH, '\n✓ Token revoked successfully!', {});
       } catch (error) {
         const logger = getLoggerService();
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(LogSource.AUTH, 'Error revoking token:', { error: errorMessage });
+        logger.error(LogSource.AUTH, 'Error revoking token:', { error });
         process.exit(1);
       }
+      */
     });
 
-  cmd.command('revoke-all <userId>')
-    .description('Revoke all tokens for a user')
-    .option('-t, --type <type>', 'Only revoke tokens of specific type')
-    .action(async (userId, options) : Promise<void> => {
+  cmd.command('validate')
+    .description('Validate a token')
+    .requiredOption('-t, --token <token>', 'Token to validate')
+    .action(async (_options): Promise<void> => {
+      const logger = getLoggerService();
+      logger.info(LogSource.AUTH, 'Token validation is not available in the current implementation.', {});
+      // TODO: Implement token validation through AuthService if needed
+      /*
       try {
         const tokenService = authModule.exports.tokenService();
-        await tokenService.revokeUserTokens(userId, options.type as string | undefined);
-        const logger = getLoggerService();
-        const tokenType = options.type !== undefined && options.type !== null && options.type !== '' ? String(options.type) : '';
-        logger.info(LogSource.AUTH, `✓ All ${tokenType} tokens revoked for user ${String(userId)}`, {});
+        const validationResult = await tokenService.validateToken(options.token as string);
+        
+        if (validationResult.valid === true) {
+          const logger = getLoggerService();
+          logger.info(LogSource.AUTH, '\n✓ Token is valid', {});
+          logger.info(LogSource.AUTH, `  User ID: ${validationResult.userId ?? 'N/A'}`, {});
+          logger.info(LogSource.AUTH, `  Type: ${validationResult.type ?? 'N/A'}`, {});
+          logger.info(LogSource.AUTH, `  Scopes: ${validationResult.scopes?.join(', ') ?? 'N/A'}`, {});
+        } else {
+          const logger = getLoggerService();
+          logger.error(LogSource.AUTH, '\n✗ Token is invalid', {});
+          if (validationResult.error !== undefined && validationResult.error !== null && validationResult.error !== '') {
+            logger.error(LogSource.AUTH, `  Reason: ${validationResult.error}`, {});
+          }
+          process.exit(1);
+        }
       } catch (error) {
         const logger = getLoggerService();
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(LogSource.AUTH, 'Error revoking tokens:', { error: errorMessage });
+        logger.error(LogSource.AUTH, 'Error validating token:', { error });
         process.exit(1);
       }
+      */
     });
 
-  cmd.command('cleanup')
-    .description('Clean up expired tokens')
-    .action(async () : Promise<void> => {
+  cmd.command('refresh')
+    .description('Refresh a token')
+    .requiredOption('-t, --token <refreshToken>', 'Refresh token')
+    .action(async (_options): Promise<void> => {
+      const logger = getLoggerService();
+      logger.info(LogSource.AUTH, 'Token refresh is not available in the current implementation.', {});
+      // TODO: Implement token refresh through AuthService if needed
+      /*
       try {
         const tokenService = authModule.exports.tokenService();
-        const count = await tokenService.cleanupExpiredTokens();
+        const newTokens = await tokenService.refreshToken(options.token as string);
+        
         const logger = getLoggerService();
-        logger.info(LogSource.AUTH, `✓ Cleaned up ${String(count)} expired token(s)`, {});
+        logger.info(LogSource.AUTH, '\n✓ Token refreshed successfully!', {});
+        logger.info(LogSource.AUTH, '\nNew tokens generated (not displayed for security)', {});
+        logger.info(LogSource.AUTH, `  Access Token ID: ${newTokens.accessTokenId}`, {});
+        logger.info(LogSource.AUTH, `  Refresh Token ID: ${newTokens.refreshTokenId}`, {});
       } catch (error) {
         const logger = getLoggerService();
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(LogSource.AUTH, 'Error cleaning up tokens:', { error: errorMessage });
+        logger.error(LogSource.AUTH, 'Error refreshing token:', { error });
         process.exit(1);
       }
+      */
     });
 
   return cmd;

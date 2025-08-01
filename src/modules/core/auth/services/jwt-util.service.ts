@@ -53,10 +53,10 @@ export class JwtUtilService {
       jti: tokenId,
       iat: Math.floor(now / MILLISECONDS_PER_SECOND),
       exp: Math.floor(now / MILLISECONDS_PER_SECOND) + expiresIn,
-      email: params.email,
-      name: params.name,
-      roles: params.roles,
-      scope: params.scope,
+      ...params.email && { email: params.email },
+      ...params.name && { name: params.name },
+      ...params.roles && { roles: params.roles },
+      ...params.scope && { scope: params.scope },
     };
 
     return jwt.sign(payload, config.jwt.privateKey, {
@@ -83,7 +83,7 @@ export class JwtUtilService {
 
       return {
         valid: true,
-        payload: decoded,
+        payload: decoded as Record<string, unknown>,
         userId: decoded.userId,
         scopes: decoded.scope,
       };

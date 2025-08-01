@@ -14,6 +14,10 @@ export const command = {
   subcommands: {
     list: {
       execute: async (_context: IAuthCliTypes): Promise<void> => {
+        console.log('Provider listing is not available in the current implementation.');
+        console.log('OAuth providers are managed internally by the auth module.');
+        // TODO: Implement provider listing through AuthService if needed
+        /*
         try {
           const authModule = getAuthModule();
           const providersService = authModule.exports.providersService();
@@ -41,11 +45,16 @@ export const command = {
           console.error('Error listing providers:', error);
           process.exit(1);
         }
+        */
       },
     },
 
     reload: {
       execute: async (_context: IAuthCliTypes): Promise<void> => {
+        console.log('Provider reloading is not available in the current implementation.');
+        console.log('OAuth providers are managed internally by the auth module.');
+        // TODO: Implement provider reloading through AuthService if needed
+        /*
         try {
           const authModule = getAuthModule();
 
@@ -66,6 +75,7 @@ export const command = {
           console.error('Error reloading providers:', error);
           process.exit(1);
         }
+        */
       },
     },
   },

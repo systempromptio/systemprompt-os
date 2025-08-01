@@ -31,14 +31,34 @@ export class TaskRepository {
    */
   async create(task: Partial<ITaskRow>): Promise<ITaskRow> {
     this.validateRequiredTaskFields(task);
+    const sql = this.buildInsertSQL();
+    const params = this.buildInsertParams(task);
+    const result = await this.database.query<ITaskRow>(sql, params);
 
-    const sql = `INSERT INTO task 
+    if (result.length === 0) {
+      throw new Error('Failed to create task');
+    }
+
+    return result[0]!;
+  }
+
+  /**
+   * Build SQL for task insertion.
+   */
+  private buildInsertSQL(): string {
+    return `INSERT INTO task 
       (type, module_id, instructions, priority, status, retry_count, max_executions, 
        max_time, result, scheduled_at, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING *`;
+  }
 
-    const result = await this.database.query<ITaskRow>(sql, [
+  /**
+   * Build parameters for task insertion.
+   * @param task
+   */
+  private buildInsertParams(task: Partial<ITaskRow>): unknown[] {
+    return [
       task.type,
       task.module_id,
       task.instructions ?? null,
@@ -50,13 +70,7 @@ export class TaskRepository {
       task.result ?? null,
       task.scheduled_at ?? null,
       task.created_by ?? null
-    ]);
-
-    if (result.length === 0 || result[0] === null) {
-      throw new Error('Failed to create task');
-    }
-
-    return result[0];
+    ];
   }
 
   /**
@@ -78,7 +92,7 @@ export class TaskRepository {
     sql += ' ORDER BY priority DESC, created_at ASC LIMIT 1';
     const result = await this.database.query<ITaskRow>(sql, params);
 
-    return result.length > 0 && result[0] !== null ? result[0] : null;
+    return result.length > 0 ? result[0]! : null;
   }
 
   /**
@@ -98,7 +112,7 @@ export class TaskRepository {
    */
   async findById(taskId: number): Promise<ITaskRow | null> {
     const result = await this.database.query<ITaskRow>('SELECT * FROM task WHERE id = ?', [taskId]);
-    return result.length > 0 && result[0] !== null ? result[0] : null;
+    return result.length > 0 ? result[0]! : null;
   }
 
   /**
@@ -127,7 +141,7 @@ export class TaskRepository {
     await this.executeUpdateQuery(updateFields, updateValues, taskId);
 
     const updatedTask = await this.findById(taskId);
-    if (updatedTask === null || updatedTask === undefined) {
+    if (updatedTask === null) {
       throw new Error('Task not found after update');
     }
 
@@ -156,7 +170,6 @@ export class TaskRepository {
       completed: statusCounts[TaskStatus.COMPLETED] ?? 0,
       failed: statusCounts[TaskStatus.FAILED] ?? 0,
       cancelled: statusCounts[TaskStatus.CANCELLED] ?? 0,
-      averageExecutionTime: undefined,
       tasksByType
     };
 
@@ -239,8 +252,21 @@ export class TaskRepository {
    * @returns Object containing SQL query and parameters.
    */
   private buildFilterQuery(filter?: ITaskFilter): { sql: string; params: unknown[] } {
-    const baseSql = 'SELECT * FROM task WHERE 1=1';
     const params: unknown[] = [];
+    const conditions = this.buildFilterConditions(filter, params);
+    const sql = this.assembleFilterSQL(conditions, filter, params);
+    return {
+ sql,
+params
+};
+  }
+
+  /**
+   * Build filter conditions and parameters.
+   * @param filter
+   * @param params
+   */
+  private buildFilterConditions(filter: ITaskFilter | undefined, params: unknown[]): string[] {
     const conditions: string[] = [];
 
     if (filter?.status !== undefined) {
@@ -258,12 +284,34 @@ export class TaskRepository {
       params.push(filter.module_id);
     }
 
-    let sql = baseSql;
+    return conditions;
+  }
+
+  /**
+   * Assemble the complete filter SQL.
+   * @param conditions
+   * @param filter
+   * @param params
+   */
+  private assembleFilterSQL(conditions: string[], filter: ITaskFilter | undefined, params: unknown[]): string {
+    let sql = 'SELECT * FROM task WHERE 1=1';
+
     if (conditions.length > 0) {
       sql += ` AND ${conditions.join(' AND ')}`;
     }
+
     sql += ' ORDER BY priority DESC, created_at ASC';
 
+    return this.addPaginationToSQL(sql, filter, params);
+  }
+
+  /**
+   * Add pagination clauses to SQL.
+   * @param sql
+   * @param filter
+   * @param params
+   */
+  private addPaginationToSQL(sql: string, filter: ITaskFilter | undefined, params: unknown[]): string {
     if (filter?.limit !== undefined) {
       sql += ' LIMIT ?';
       params.push(filter.limit);
@@ -272,11 +320,7 @@ export class TaskRepository {
       sql += ' OFFSET ?';
       params.push(filter.offset);
     }
-
-    return {
- sql,
-params
-};
+    return sql;
   }
 
   /**
