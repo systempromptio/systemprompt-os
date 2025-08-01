@@ -353,9 +353,19 @@ describe('Bootstrap Integration Tests', () => {
     });
 
     it('should allow clean shutdown and restart', async () => {
+      // Reset singletons before restart test
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
+      const { ModuleRegistryService } = await import('@/modules/core/modules/services/module-registry.service');
+      const { CoreModuleLoaderService } = await import('@/modules/core/modules/services/core-module-loader.service');
+      
       // Test shutdown
       await bootstrap.shutdown();
       expect(bootstrap.getCurrentPhase()).toBe('init');
+      
+      // Reset singletons for restart
+      ModulesModuleService.reset();
+      (ModuleRegistryService as any).instance = null;
+      (CoreModuleLoaderService as any).instance = null;
       
       // Test restart
       const modules = await bootstrap.bootstrap();
@@ -367,6 +377,19 @@ describe('Bootstrap Integration Tests', () => {
   });
 
   describe('Bootstrap Error Handling and Module Loading', () => {
+    beforeEach(async () => {
+      // Reset singletons before each test in this describe block
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
+      const { ModuleRegistryService } = await import('@/modules/core/modules/services/module-registry.service');
+      const { CoreModuleLoaderService } = await import('@/modules/core/modules/services/core-module-loader.service');
+      const { LoggerService } = await import('@/modules/core/logger/services/logger.service');
+      
+      ModulesModuleService.reset();
+      (ModuleRegistryService as any).instance = null;
+      (CoreModuleLoaderService as any).instance = null;
+      LoggerService.resetInstance();
+    });
+
     it('should initialize logger before any logging attempts', async () => {
       // Create a new bootstrap instance to test initialization order
       const testBootstrap = new Bootstrap({

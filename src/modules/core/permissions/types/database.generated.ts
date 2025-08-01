@@ -1,5 +1,5 @@
 // Auto-generated database types for permissions module
-// Generated on: 2025-08-01T13:49:52.768Z
+// Generated on: 2025-08-01T14:31:11.107Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

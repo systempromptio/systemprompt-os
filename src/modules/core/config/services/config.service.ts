@@ -50,7 +50,6 @@ export class ConfigService implements IConfigService {
   async setConfig(key: string, value: string, type?: ConfigType): Promise<IConfig> {
     await this.ensureInitialized();
     
-    const id = randomUUID();
     const now = new Date();
     const configType = type || ConfigType.STRING;
 
@@ -60,12 +59,10 @@ export class ConfigService implements IConfigService {
     this.validateConfigValue(value, configType);
 
     const configData: IConfigCreateData = {
-      id,
       key,
       value,
       type: configType,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString()
+      description: null
     };
 
     const configRow = await this.repository.setConfig(configData);
@@ -133,12 +130,8 @@ export class ConfigService implements IConfigService {
       this.validateConfigValue(data.value, existing.type);
     }
 
-    const updateData = {
-      ...data,
-      updated_at: new Date().toISOString()
-    };
-
-    const configRow = await this.repository.updateConfig(key, updateData);
+    // Note: updated_at is handled by repository
+    const configRow = await this.repository.updateConfig(key, data);
     const config = this.rowToConfig(configRow);
 
     this.eventBus.emit('config:updated', {
@@ -197,8 +190,8 @@ export class ConfigService implements IConfigService {
       value: row.value,
       type: row.type,
       description: row.description,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
+      created_at: row.created_at,
+      updated_at: row.updated_at
     };
   }
 

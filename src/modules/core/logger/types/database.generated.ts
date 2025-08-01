@@ -1,5 +1,5 @@
 // Auto-generated database types for logger module
-// Generated on: 2025-08-01T13:49:51.326Z
+// Generated on: 2025-08-01T14:31:17.307Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

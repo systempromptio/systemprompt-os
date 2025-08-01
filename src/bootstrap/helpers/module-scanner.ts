@@ -5,9 +5,15 @@
 
 import { promises as fs } from 'fs';
 import { join, resolve } from 'path';
-import type { ICoreModuleDefinition } from '../../types/bootstrap';
-import { LoggerService } from '../../modules/core/logger/services/logger.service';
-import { LogSource } from '../../modules/core/logger/types/manual';
+import type { ICoreModuleDefinition } from '@/types/bootstrap';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/manual';
+
+interface ModuleMetadata {
+  dependencies?: string[];
+  critical?: boolean;
+  description?: string;
+}
 
 /**
  * Scanner for discovering core modules from the filesystem.
@@ -16,6 +22,10 @@ export class CoreModuleScanner {
   private readonly logger = LoggerService.getInstance();
   private readonly corePath: string;
 
+  /**
+   * Constructor for CoreModuleScanner.
+   * @param basePath - Base path for scanning.
+   */
   constructor(basePath: string = process.cwd()) {
     this.corePath = resolve(basePath, 'src/modules/core');
   }
@@ -32,13 +42,18 @@ export class CoreModuleScanner {
     try {
       const modules = await this.scanDirectory();
       const definitions = await Promise.all(
-        modules.map(async moduleName => { return await this.buildModuleDefinition(moduleName) })
+        modules.map(async (moduleName): Promise<ICoreModuleDefinition | null> => 
+          this.buildModuleDefinition(moduleName)
+        )
       );
 
-      const validDefinitions = definitions.filter(def => { return def !== null });
+      const validDefinitions = definitions.filter((def): def is ICoreModuleDefinition => 
+        def !== null
+      );
 
-      this.logger.info(LogSource.BOOTSTRAP, `Found ${validDefinitions.length} core modules`, {
-        modules: validDefinitions.map(d => { return d.name })
+      const moduleCount = String(validDefinitions.length);
+      this.logger.info(LogSource.BOOTSTRAP, `Found ${moduleCount} core modules`, {
+        modules: validDefinitions.map((def): string => def.name)
       });
 
       return this.sortByDependencies(validDefinitions);
@@ -58,7 +73,11 @@ export class CoreModuleScanner {
     const entries = await fs.readdir(this.corePath, { withFileTypes: true });
 
     const modules = [];
+    // Sequential scanning to preserve order and avoid file system race conditions
+    // eslint-disable-next-line no-await-in-loop
     for (const entry of entries) {
+      // Sequential validation required for consistent ordering
+      // eslint-disable-next-line no-await-in-loop
       if (entry.isDirectory() && await this.isValidModule(entry.name)) {
         modules.push(entry.name);
       }
@@ -95,14 +114,14 @@ export class CoreModuleScanner {
 
       let metadata = await this.readModuleMetadata(moduleYamlPath);
 
-      metadata ||= this.getDefaultMetadata(moduleName);
+      metadata ??= this.getDefaultMetadata(moduleName);
 
       return {
         name: moduleName,
         path: join(modulePath, 'index.ts'),
-        dependencies: metadata.dependencies || [],
+        dependencies: metadata.dependencies ?? [],
         critical: metadata.critical ?? this.isCriticalModule(moduleName),
-        description: metadata.description || `${moduleName} module`,
+        description: metadata.description ?? `${moduleName} module`,
         type: 'self-contained'
       };
     } catch (error) {
@@ -116,11 +135,12 @@ export class CoreModuleScanner {
   /**
    * Read module metadata from module.yaml if it exists.
    * @param yamlPath - Path to module.yaml.
-   * @param _yamlPath
    * @returns Module metadata or null.
    */
-  private async readModuleMetadata(_yamlPath: string): Promise<any> {
+  private async readModuleMetadata(yamlPath: string): Promise<ModuleMetadata | null> {
+    void yamlPath; // Acknowledge unused parameter - yaml parsing not implemented
     try {
+      // YAML parsing not implemented - using defaults
       return null;
     } catch {
       return null;
@@ -132,8 +152,8 @@ export class CoreModuleScanner {
    * @param moduleName - Name of the module.
    * @returns Default metadata.
    */
-  private getDefaultMetadata(moduleName: string): any {
-    const knownModules: Record<string, any> = {
+  private getDefaultMetadata(moduleName: string): ModuleMetadata {
+    const knownModules: Record<string, ModuleMetadata> = {
       logger: {
         dependencies: [],
         critical: true,
@@ -216,7 +236,7 @@ export class CoreModuleScanner {
       }
     };
 
-    return knownModules[moduleName] || {
+    return knownModules[moduleName] ?? {
       dependencies: ['logger'],
       critical: false,
       description: `${moduleName} module`
@@ -239,26 +259,36 @@ export class CoreModuleScanner {
    * @returns Sorted array of module definitions.
    */
   private sortByDependencies(modules: ICoreModuleDefinition[]): ICoreModuleDefinition[] {
-    const moduleMap = new Map(modules.map(m => { return [m.name, m] }));
+    const moduleMap = new Map(modules.map((mod): [string, ICoreModuleDefinition] => 
+      [mod.name, mod]
+    ));
     const visited = new Set<string>();
     const sorted: ICoreModuleDefinition[] = [];
 
-    const visit = (moduleName: string) => {
-      if (visited.has(moduleName)) { return; }
+    /**
+     * Visit a module and its dependencies recursively.
+     * @param moduleName - Name of module to visit.
+     */
+    const visit = (moduleName: string): void => {
+      if (visited.has(moduleName)) { 
+        return; 
+      }
       visited.add(moduleName);
 
-      const module = moduleMap.get(moduleName);
-      if (!module) { return; }
+      const moduleDefinition = moduleMap.get(moduleName);
+      if (moduleDefinition === undefined) { 
+        return; 
+      }
 
-      for (const dep of module.dependencies) {
+      for (const dep of moduleDefinition.dependencies) {
         visit(dep);
       }
 
-      sorted.push(module);
+      sorted.push(moduleDefinition);
     };
 
-    for (const module of modules) {
-      visit(module.name);
+    for (const moduleDefinition of modules) {
+      visit(moduleDefinition.name);
     }
 
     return sorted;

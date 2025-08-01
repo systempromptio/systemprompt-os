@@ -1,11 +1,24 @@
 // Auto-generated service schemas for config module
-// Generated on: 2025-08-01T13:49:50.220Z
+// Generated on: 2025-08-01T14:30:32.992Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/manual';
 import { ConfigSchema, ConfigUpdateDataSchema } from './config.module.generated';
+
+// Local definitions to avoid import issues
+enum ModulesType {
+  CORE = 'core'
+}
+
+const createModuleSchema = <T extends z.ZodTypeAny>(exportsSchema: T) => { return z.object({
+  name: z.string(),
+  version: z.string(),
+  type: z.nativeEnum(ModulesType),
+  dependencies: z.array(z.string()).readonly().optional(),
+  status: z.string(),
+  exports: exportsSchema,
+  initialize: z.function().returns(z.promise(z.void()))
+}) };
 
 // Zod schema for ConfigService
 export const ConfigServiceSchema = z.object({

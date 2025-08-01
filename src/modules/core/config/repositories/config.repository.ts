@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
 import type { IConfigRow, ConfigType } from '../types/database.generated';
 import type { IConfigCreateData } from '../types/config.module.generated';
 import { DatabaseService } from '../../database/services/database.service';
-import type { IDatabaseConnection } from '../../database/types/database.types';
+import type { IDatabaseConnection } from '../../database/types/manual';
 
 export class ConfigRepository {
   private static instance: ConfigRepository;
@@ -66,6 +66,10 @@ export class ConfigRepository {
       }
       return updated;
     } else {
+      // Generate fields that should be auto-created
+      const id = randomUUID();
+      const timestamp = new Date().toISOString();
+      
       // Insert new config
       const stmt = await database.prepare(
         `INSERT INTO config (
@@ -74,26 +78,26 @@ export class ConfigRepository {
       );
 
       await stmt.run([
-        configData.id,
+        id,
         configData.key,
         configData.value,
-        configData.type || 'string',
+        configData.type,
         configData.description || null,
-        configData.created_at,
-        configData.updated_at
+        timestamp,
+        timestamp
       ]);
 
       await stmt.finalize();
       
       // Return auto-generated database row type
       return {
-        id: configData.id,
+        id,
         key: configData.key,
         value: configData.value,
-        type: (configData.type || 'string') as ConfigType,
+        type: configData.type,
         description: configData.description || null,
-        created_at: configData.created_at,
-        updated_at: configData.updated_at
+        created_at: timestamp,
+        updated_at: timestamp
       };
     }
   }

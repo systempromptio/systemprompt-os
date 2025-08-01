@@ -26,6 +26,18 @@ LOGGER → MODULES_MODULE → DELEGATE_TO_MODULES_SERVICE → READY
 3. **DELEGATE_TO_MODULES_SERVICE**: Use modules module services to handle all subsequent module loading
 4. **READY**: System fully operational, `isReady = true`
 
+### Critical Design Decision: Why Bootstrap Cannot Use Modules Service for Initial Modules
+
+The bootstrap MUST manually load logger, database, and modules modules because:
+
+1. **Circular Dependency Problem**: The modules module depends on database, but we need the modules module to load the database module. This creates an unresolvable circular dependency.
+
+2. **Service Initialization Order**: The modules module's services (ModuleLoaderService, ModuleRegistryService) require database to be initialized, but we can't use these services to load the database itself.
+
+3. **Type Safety vs Reality**: While the modules module exports are type-safe, they cannot be used until the module is initialized, which requires its dependencies (database) to already be loaded.
+
+**Solution**: Bootstrap manually loads the minimal set of modules (logger, database, modules) using direct imports, then delegates all remaining module loading to the modules service. This is NOT a code smell but a necessary bootstrap sequence to break the circular dependency.
+
 ### Architectural Components
 
 The bootstrap leverages the modules module's comprehensive service architecture:

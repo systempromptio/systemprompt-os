@@ -1,5 +1,5 @@
 // Auto-generated service schemas for permissions module
-// Generated on: 2025-08-01T13:49:53.113Z
+// Generated on: 2025-08-01T14:31:11.699Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

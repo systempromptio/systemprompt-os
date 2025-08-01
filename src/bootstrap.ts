@@ -2,6 +2,7 @@
  * Bootstrap module loader for SystemPrompt OS.
  */
 import type { IModule } from './modules/core/modules/types/manual';
+import type { IModulesModuleExports } from './modules/core/modules/types/manual';
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import { LoggerService } from './modules/core/logger/services/logger.service';
 import { LogSource } from './modules/core/logger/types/manual';
@@ -9,6 +10,11 @@ import { createLoggerModuleForBootstrap } from './modules/core/logger';
 import { ModuleRegistryService } from './modules/core/modules/services/module-registry.service';
 import { CoreModuleLoaderService } from './modules/core/modules/services/core-module-loader.service';
 import type { IBootstrapOptions } from './types/bootstrap';
+
+interface ModuleDefinition {
+  name: string;
+  deps: string[];
+}
 
 /**
  * Bootstrap class manages the initialization lifecycle of SystemPrompt OS.
@@ -51,7 +57,8 @@ export class Bootstrap {
 
       this.isReady = true;
       const loadedModules = this.moduleRegistry.getAll();
-      logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${loadedModules.size} modules loaded`);
+      const moduleCount = String(loadedModules.size);
+      logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${moduleCount} modules loaded`);
       return loadedModules;
     } catch (error) {
       this.handleBootstrapError(error);
@@ -73,7 +80,7 @@ export class Bootstrap {
    * @returns Map of all modules.
    */
   getModules(): Map<string, IModule> {
-    return this.moduleRegistry?.getAll() ?? new Map();
+    return this.moduleRegistry?.getAll() ?? new Map<string, IModule>();
   }
 
   /**
@@ -86,10 +93,11 @@ export class Bootstrap {
 
   /**
    * Checks if a phase has been completed.
-   * @param _phase - Phase name (unused in simplified implementation).
+   * @param phase - Phase name (unused in simplified implementation).
    * @returns True if ready.
    */
-  hasCompletedPhase(_phase: string): boolean {
+  hasCompletedPhase(phase: string): boolean {
+    void phase; // Acknowledge unused parameter
     return this.isReady;
   }
 
@@ -107,7 +115,7 @@ export class Bootstrap {
   async shutdown(): Promise<void> {
     const logger = LoggerService.getInstance();
     logger.info(LogSource.BOOTSTRAP, 'Shutting down system');
-    const modules = this.moduleRegistry?.getAll() ?? new Map();
+    const modules = this.moduleRegistry?.getAll() ?? new Map<string, IModule>();
     await shutdownAllModules(modules, logger);
     this.isReady = false;
     logger.info(LogSource.BOOTSTRAP, 'Shutdown complete');
@@ -119,10 +127,14 @@ export class Bootstrap {
    */
   private async initializeModulesModule(): Promise<IModule> {
     const modulePath = './modules/core/modules/index.ts';
-    const moduleImport = await import(modulePath);
+    // Dynamic import needed for bootstrapping - modules not available at import time
+    // eslint-disable-next-line no-restricted-syntax
+    const moduleImport = await import(modulePath) as {
+      createModule: () => IModule<IModulesModuleExports>;
+    };
     const moduleInstance = moduleImport.createModule();
     await moduleInstance.initialize();
-    if (moduleInstance.start) {
+    if (moduleInstance.start !== undefined) {
       await moduleInstance.start();
     }
     return moduleInstance;
@@ -138,13 +150,19 @@ export class Bootstrap {
     const logger = LoggerService.getInstance();
 
     for (const dep of dependencies) {
-      if (!this.moduleRegistry!.get(dep)) {
+      const registry = this.moduleRegistry;
+      if (registry === undefined || registry.get(dep) === undefined) {
         throw new Error(`Missing dependency '${dep}' for module '${name}'`);
       }
     }
 
     const modulePath = `./modules/core/${name}/index.ts`;
-    const moduleImport = await import(modulePath);
+    // Dynamic import needed for bootstrapping - modules not available at import time
+    // eslint-disable-next-line no-restricted-syntax
+    const moduleImport = await import(modulePath) as {
+      createModule?: () => IModule;
+      initialize?: () => Promise<IModule>;
+    };
 
     let moduleInstance: IModule;
     if (typeof moduleImport.createModule === 'function') {
@@ -157,7 +175,7 @@ export class Bootstrap {
 
     await moduleInstance.initialize();
 
-    if (moduleInstance.start) {
+    if (moduleInstance.start !== undefined) {
       await moduleInstance.start();
     }
 
@@ -170,86 +188,71 @@ export class Bootstrap {
    * @param modulesModule - The modules module instance.
    */
   private async loadRemainingCoreModules(modulesModule: IModule): Promise<void> {
-    const logger = LoggerService.getInstance();
-    const moduleExports = modulesModule.exports as any;
+    await this.registerPreloadedModules(modulesModule);
+    await this.loadCoreModulesInOrder(modulesModule);
+  }
 
-    const loggerModule = this.moduleRegistry!.get('logger');
-    const databaseModule = this.moduleRegistry!.get('database');
+  /**
+   * Register pre-loaded modules with the modules service.
+   * @param modulesModule - The modules module instance.
+   */
+  private async registerPreloadedModules(modulesModule: IModule): Promise<void> {
+    const moduleExports = modulesModule.exports as IModulesModuleExports;
+    const registry = this.moduleRegistry;
+    
+    if (registry === undefined) {
+      throw new Error('Module registry not initialized');
+    }
 
-    if (loggerModule) {
+    const loggerModule = registry.get('logger');
+    const databaseModule = registry.get('database');
+
+    if (loggerModule !== undefined) {
       moduleExports.registerPreLoadedModule('logger', loggerModule);
     }
-    if (databaseModule) {
+    if (databaseModule !== undefined) {
       moduleExports.registerPreLoadedModule('database', databaseModule);
     }
     moduleExports.registerPreLoadedModule('modules', modulesModule);
 
     const coreLoader = CoreModuleLoaderService.getInstance();
-    if (loggerModule) {
+    if (loggerModule !== undefined) {
       coreLoader.registerLoadedModule('logger', loggerModule);
     }
-    if (databaseModule) {
+    if (databaseModule !== undefined) {
       coreLoader.registerLoadedModule('database', databaseModule);
     }
     coreLoader.registerLoadedModule('modules', modulesModule);
+  }
 
-    const coreModules = [
-      {
- name: 'events',
-deps: ['logger']
-},
-      {
- name: 'auth',
-deps: ['logger', 'database', 'events']
-},
-      {
- name: 'cli',
-deps: ['logger', 'database']
-},
-      {
- name: 'config',
-deps: ['logger', 'database']
-},
-      {
- name: 'users',
-deps: ['logger', 'database', 'events']
-},
-      {
- name: 'permissions',
-deps: ['logger', 'database']
-},
-      {
- name: 'system',
-deps: ['logger', 'database']
-},
-      {
- name: 'agents',
-deps: ['logger', 'database', 'events']
-},
-      {
- name: 'tasks',
-deps: ['logger', 'database', 'events']
-},
-      {
- name: 'monitor',
-deps: ['logger', 'database']
-},
-      {
- name: 'webhooks',
-deps: ['logger', 'database', 'events']
-},
-      {
- name: 'mcp',
-deps: ['logger', 'database']
-},
-      {
- name: 'dev',
-deps: ['logger', 'database']
-}
+  /**
+   * Load core modules in dependency order.
+   * @param modulesModule - The modules module instance.
+   */
+  private async loadCoreModulesInOrder(modulesModule: IModule): Promise<void> {
+    const logger = LoggerService.getInstance();
+    const moduleExports = modulesModule.exports as IModulesModuleExports;
+
+    const coreModules: ModuleDefinition[] = [
+      { name: 'events', deps: ['logger'] },
+      { name: 'auth', deps: ['logger', 'database', 'events'] },
+      { name: 'cli', deps: ['logger', 'database'] },
+      { name: 'config', deps: ['logger', 'database'] },
+      { name: 'users', deps: ['logger', 'database', 'events'] },
+      { name: 'permissions', deps: ['logger', 'database'] },
+      { name: 'system', deps: ['logger', 'database'] },
+      { name: 'agents', deps: ['logger', 'database', 'events'] },
+      { name: 'tasks', deps: ['logger', 'database', 'events'] },
+      { name: 'monitor', deps: ['logger', 'database'] },
+      { name: 'webhooks', deps: ['logger', 'database', 'events'] },
+      { name: 'mcp', deps: ['logger', 'database'] },
+      { name: 'dev', deps: ['logger', 'database'] }
     ];
 
     const criticalModules = ['logger', 'database', 'events', 'auth', 'cli', 'modules'];
 
+    // Sequential loading is required to ensure dependency order
+    // eslint-disable-next-line no-await-in-loop
     for (const { name, deps } of coreModules) {
       try {
         const definition = {
@@ -261,6 +264,8 @@ deps: ['logger', 'database']
           type: 'self-contained' as const
         };
 
+        // Sequential loading is required to ensure dependency order
+        // eslint-disable-next-line no-await-in-loop
         await moduleExports.loadCoreModule(definition);
         logger.info(LogSource.BOOTSTRAP, `Module loaded: ${name}`);
       } catch (error) {
@@ -279,12 +284,15 @@ deps: ['logger', 'database']
    * @param error - The error that occurred.
    */
   private handleBootstrapError(error: unknown): void {
+    const logger = LoggerService.getInstance();
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
     try {
-      LoggerService.getInstance().error(LogSource.BOOTSTRAP, 'Bootstrap failed', {
-        error: error instanceof Error ? error.message : String(error)
-      });
+      logger.error(LogSource.BOOTSTRAP, 'Bootstrap failed', { error: errorMessage });
     } catch {
-      console.error('Bootstrap failed:', error instanceof Error ? error.message : String(error));
+      // Fallback if logger is not available
+      // eslint-disable-next-line no-console
+      console.error('Bootstrap failed:', errorMessage);
     }
   }
 }

@@ -4,8 +4,12 @@
  * @module bootstrap/shutdown-helper
  */
 
-import type { IModule } from '../modules/core/modules/types/manual';
-import { type ILogger, LogSource } from '../modules/core/logger/types/manual';
+import type { IModule } from '@/modules/core/modules/types/manual';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
+
+interface ModuleWithStop extends IModule {
+  stop: () => Promise<void>;
+}
 
 /**
  * Check if module has a specific method.
@@ -17,7 +21,16 @@ export const moduleHasMethod = (moduleInstance: IModule, method: string): boolea
   if (method === 'stop') {
     return 'stop' in moduleInstance && typeof moduleInstance.stop === 'function';
   }
-  return Object.prototype.hasOwnProperty.call(moduleInstance, method);
+  return Object.hasOwn(moduleInstance, method);
+};
+
+/**
+ * Type guard to check if module has stop method.
+ * @param {IModule} moduleInstance - Module instance.
+ * @returns {boolean} True if module has stop method.
+ */
+const hasStopMethod = (moduleInstance: IModule): moduleInstance is ModuleWithStop => {
+  return 'stop' in moduleInstance && typeof moduleInstance.stop === 'function';
 };
 
 /**
@@ -32,15 +45,18 @@ export const shutdownModule = async (
   moduleInstance: IModule,
   logger: ILogger,
 ): Promise<void> => {
-  if (!moduleHasMethod(moduleInstance, 'stop')) {
+  if (!hasStopMethod(moduleInstance)) {
     return;
   }
 
   try {
     logger.debug(LogSource.BOOTSTRAP, `Stopping module: ${name}`);
-    const stopPromise = (moduleInstance as any).stop();
-    const timeoutPromise = new Promise<void>((_, reject) =>
-      { return setTimeout(() => { reject(new Error(`Module ${name} stop timeout`)); }, 3000) });
+    const stopPromise = moduleInstance.stop();
+    const timeoutPromise = new Promise<void>((_, reject): void => {
+      setTimeout((): void => {
+        reject(new Error(`Module ${name} stop timeout`));
+      }, 3000);
+    });
     await Promise.race([stopPromise, timeoutPromise]);
   } catch (error) {
     logger.error(LogSource.BOOTSTRAP, `Error stopping module ${name}:`, {
@@ -108,8 +124,11 @@ export const shutdownAllModules = async (
     logger
   });
 
-  const globalTimeoutPromise = new Promise<void>((_, reject) =>
-    { return setTimeout(() => { reject(new Error('Global shutdown timeout')); }, 10000) });
+  const globalTimeoutPromise = new Promise<void>((_, reject): void => {
+    setTimeout((): void => {
+      reject(new Error('Global shutdown timeout'));
+    }, 10000);
+  });
 
   try {
     await Promise.race([shutdownPromise, globalTimeoutPromise]);

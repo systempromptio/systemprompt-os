@@ -10,7 +10,7 @@ config:
   autoDiscover: true
 dependencies:
   - logger
-  - config
+  - database
 cli:
   commands:
     - name: status
