@@ -18,7 +18,7 @@ import {
   type IAgentLogsRow,
   type IAgentsRow
 } from '@/modules/core/agents/types/database.generated';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { EventNames } from '@/modules/core/events/types/index';
 
 /**

@@ -1,8 +1,8 @@
 import {
   type ErrorCategory,
   ErrorCategoryMapping
-} from '@/modules/core/logger/types/error-handling.types';
-import type { LogCategory } from '@/modules/core/logger/types';
+} from '@/modules/core/logger/types/manual';
+import type { LogCategory } from '@/modules/core/logger/types/manual';
 
 /**
  * Base class for all application errors

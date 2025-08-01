@@ -8,7 +8,7 @@
 import { randomUUID } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import {
   type UserCreateOAuthRequestEvent,
   type UserCreateOAuthResponseEvent,

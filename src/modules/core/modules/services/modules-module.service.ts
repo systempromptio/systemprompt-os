@@ -429,8 +429,10 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
     warnings: string[],
   ): Promise<void> {
     try {
-      const { CORE_MODULES } = await import('@/constants/bootstrap');
-      const coreModule = CORE_MODULES.find((m) => {
+      const { CoreModuleScanner } = await import('@/bootstrap/helpers/module-scanner');
+      const scanner = new CoreModuleScanner();
+      const coreModules = await scanner.scan();
+      const coreModule = coreModules.find((m) => {
         return m.name === name;
       });
 

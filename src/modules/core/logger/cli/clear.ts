@@ -1,35 +1,29 @@
-// LINT-STANDARDS-ENFORCER: Unable to resolve after 9 iterations. Remaining issues: 16 ESLint errors including JSDoc missing param descriptions, unnecessary conditionals, max line length violations, and dynamic import restrictions. TypeScript errors are primarily module resolution issues that should resolve at build time.
 /**
  * Clear logs CLI command.
  * @file Clear logs CLI command.
  * @module modules/core/logger/cli/clear
- * @description Command to clear logs from the database with various filtering options.
+ * @description Command to clear logs from the database with filtering options.
  */
 
 import { createInterface } from 'readline';
-import type { ICLIContext } from '@/modules/core/cli/types/index';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { z } from 'zod';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { type IClearLogsOptions, LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
-/**
- * Validate and process older-than parameter.
- * @param olderThan - Raw older-than value.
- * @returns Parsed days or undefined.
- * @throws {Error} When older-than value is invalid.
- */
-const validateOlderThan = (olderThan: string | undefined): number | undefined => {
-  if (olderThan === undefined || olderThan === '') {
-    return undefined;
-  }
+// Zod schema for clear command arguments
+const clearLogsArgsSchema = z.object({
+  format: z.enum(['text', 'json']).default('text'),
+  level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+  olderThan: z.coerce.number().positive().optional(),
+  confirm: z.enum(['true', 'false']).transform(v => v === 'true').default('false'),
+  dryRun: z.enum(['true', 'false']).transform(v => v === 'true').default('false')
+});
 
-  const days = Number.parseInt(olderThan, 10);
-  if (Number.isNaN(days) || days <= 0) {
-    throw new Error('older-than must be a positive number of days');
-  }
+type ClearLogsArgs = z.infer<typeof clearLogsArgsSchema>;
 
-  return days;
-};
+// Validation is now handled by Zod schema
 
 /**
  * Add level condition to query.
@@ -40,7 +34,7 @@ const validateOlderThan = (olderThan: string | undefined): number | undefined =>
  * @param params.descriptions - Array to push descriptions to.
  */
 const addLevelCondition = (params: {
-  options: IClearLogsOptions;
+  options: ClearLogsArgs;
   conditions: string[];
   queryParams: unknown[];
   descriptions: string[];
@@ -61,16 +55,15 @@ const addLevelCondition = (params: {
  * @param params.descriptions - Array to push descriptions to.
  */
 const addTimeCondition = (params: {
-  options: IClearLogsOptions;
+  options: ClearLogsArgs;
   conditions: string[];
   queryParams: unknown[];
   descriptions: string[];
 }): void => {
-  const days = validateOlderThan(params.options.olderThan);
-  if (days !== undefined) {
+  if (params.options.olderThan !== undefined) {
     params.conditions.push('timestamp < datetime("now", "-" || ? || " days")');
-    params.queryParams.push(days);
-    params.descriptions.push(`older than ${String(days)} days`);
+    params.queryParams.push(params.options.olderThan);
+    params.descriptions.push(`older than ${String(params.options.olderThan)} days`);
   }
 };
 
@@ -78,10 +71,9 @@ const addTimeCondition = (params: {
  * Build SQL query for clearing logs.
  * @param options - Command options.
  * @returns SQL query and parameters.
- * @throws {Error} When older-than value is invalid.
  */
 const buildClearQuery = (
-  options: IClearLogsOptions
+  options: ClearLogsArgs
 ): { sql: string; params: unknown[]; description: string } => {
   const conditions: string[] = [];
   const queryParams: unknown[] = [];
@@ -116,7 +108,7 @@ description
  * @param options - Command options.
  * @returns SQL count query and parameters.
  */
-const buildCountQuery = (options: IClearLogsOptions): { sql: string; params: unknown[] } => {
+const buildCountQuery = (options: ClearLogsArgs): { sql: string; params: unknown[] } => {
   const conditions: string[] = [];
   const queryParams: unknown[] = [];
   const descriptions: string[] = [];
@@ -151,7 +143,7 @@ params: queryParams
  * @returns Promise that resolves to count of logs.
  */
 const getLogCount = async (
-  options: IClearLogsOptions,
+  options: ClearLogsArgs,
   dbService: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> }
 ): Promise<number> => {
   const { sql: countSql, params: countParams } = buildCountQuery(options);
@@ -178,56 +170,9 @@ const promptConfirmation = async (message: string): Promise<boolean> => {
   });
 };
 
-/**
- * Validate log level parameter.
- * @param level - Log level to validate.
- * @throws {Error} When log level is invalid.
- */
-const validateLogLevel = (level: string | undefined): void => {
-  if (level === undefined || level === '') {
-    return;
-  }
+// Log level validation is now handled by Zod schema
 
-  const validLevels = ['debug', 'info', 'warn', 'error'];
-  if (!validLevels.includes(level.toLowerCase())) {
-    throw new Error('Invalid log level. Must be one of: debug, info, warn, error');
-  }
-};
-
-/**
- * Parse and validate command options from CLI context.
- * @param context - CLI context with arguments and flags.
- * @returns Parsed and validated options.
- * @throws {Error} When options are invalid.
- */
-const parseOptions = (context: ICLIContext): IClearLogsOptions => {
-  const { args } = context;
-  if (args === null || args === undefined) {
-    const emptyOptions: IClearLogsOptions = {};
-    return emptyOptions;
-  }
-
-  const options: IClearLogsOptions = {};
-
-  if ('level' in args && typeof args.level === 'string') {
-    options.level = args.level;
-  }
-
-  if ('older-than' in args && typeof args['older-than'] === 'string') {
-    options.olderThan = args['older-than'];
-  }
-
-  if ('confirm' in args) {
-    options.confirm = Boolean(args.confirm);
-  }
-
-  if ('dry-run' in args) {
-    options.dryRun = Boolean(args['dry-run']);
-  }
-
-  validateLogLevel(options.level);
-  return options;
-};
+// Options parsing is now handled by Zod schema validation
 
 /**
  * Handle dry run mode execution.
@@ -236,17 +181,35 @@ const parseOptions = (context: ICLIContext): IClearLogsOptions => {
  * @param params.sql - SQL to execute.
  * @param params.logCount - Count of logs to clear.
  * @param params.description - Description of logs to clear.
+ * @param params.cliOutput - CLI output service.
  */
 const handleDryRun = (params: {
-  options: IClearLogsOptions;
+  options: ClearLogsArgs;
   sql: string;
   logCount: number;
   description: string;
+  cliOutput: CliOutputService;
 }): void => {
   if (params.options.dryRun === true) {
-    process.stdout.write(`Found ${String(params.logCount)} ${params.description} to clear.\n`);
-    process.stdout.write('Dry run mode - no logs were actually deleted.\n');
-    process.stdout.write(`Would execute: ${params.sql}\n`);
+    if (params.options.format === 'json') {
+      params.cliOutput.json({
+        operation: 'clear-logs',
+        dryRun: true,
+        matchingLogs: params.logCount,
+        wouldDelete: params.logCount,
+        description: params.description,
+        sql: params.sql,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      params.cliOutput.section('Dry Run Mode');
+      params.cliOutput.keyValue({
+        'Matching logs': String(params.logCount),
+        'Description': params.description,
+        'Would execute': params.sql
+      });
+      params.cliOutput.info('No logs were actually deleted.');
+    }
   }
 };
 
@@ -260,38 +223,60 @@ const handleDryRun = (params: {
  * @param params.description - Description of logs to clear.
  * @param params.dbInstance - Database service instance.
  * @param params.logger - Logger service instance.
+ * @param params.cliOutput - CLI output service.
  * @param params.dbInstance.execute
  * @param params.dbInstance.query
  * @returns Promise that resolves when operation completes.
  */
 const executeClearOperation = async (params: {
-  options: IClearLogsOptions;
+  options: ClearLogsArgs;
   sql: string;
   sqlParams: unknown[];
   logCount: number;
   description: string;
   dbInstance: { execute: (sql: string, params?: unknown[]) => Promise<void>; query: <T>(sql: string, params?: unknown[]) => Promise<T[]> };
   logger: LoggerService;
+  cliOutput: CliOutputService;
 }): Promise<void> => {
   if (params.options.confirm !== true) {
     const message = `Are you sure you want to delete ${String(params.logCount)} ${params.description}?`;
     const confirmed = await promptConfirmation(message);
     if (!confirmed) {
-      process.stdout.write('Operation cancelled.\n');
+      if (params.options.format === 'json') {
+        params.cliOutput.json({
+          operation: 'clear-logs',
+          cancelled: true,
+          reason: 'User cancelled operation',
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        params.cliOutput.info('Operation cancelled.');
+      }
       return;
     }
   }
 
   await params.dbInstance.execute(params.sql, params.sqlParams);
-  process.stdout.write(`Successfully deleted ${String(params.logCount)} ${params.description}.\n`);
-
   const remainingCount = await getLogCount({}, params.dbInstance);
-  process.stdout.write(`${String(remainingCount)} logs remaining in database.\n`);
 
-  params.logger.info(LogSource.CLI, 'Cleared logs successfully', {
+  if (params.options.format === 'json') {
+    params.cliOutput.json({
+      operation: 'clear-logs',
+      success: true,
+      deletedCount: params.logCount,
+      remainingCount: remainingCount,
+      description: params.description,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    params.cliOutput.success(`Successfully deleted ${String(params.logCount)} ${params.description}`);
+    params.cliOutput.info(`${String(remainingCount)} logs remaining in database`);
+  }
+
+  params.logger.info(LogSource.LOGGER, 'Cleared logs successfully', {
     count: params.logCount,
     description: params.description,
-    dryRun: params.options.dryRun
+    remainingCount: remainingCount
   });
 };
 
@@ -314,18 +299,29 @@ const getDatabaseService = async (): Promise<{
  * @param dbInstance - Database service instance.
  * @param dbInstance.execute
  * @param logger - Logger service instance.
+ * @param cliOutput - CLI output service.
  * @param dbInstance.query
  * @returns Promise that resolves when operation completes.
  */
 const executeClearLogic = async (
-  options: IClearLogsOptions,
+  options: ClearLogsArgs,
   dbInstance: { execute: (sql: string, params?: unknown[]) => Promise<void>; query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
-  logger: LoggerService
+  logger: LoggerService,
+  cliOutput: CliOutputService
 ): Promise<void> => {
   const logCount = await getLogCount(options, dbInstance);
 
   if (logCount === 0) {
-    process.stdout.write('No logs found matching the criteria.\n');
+    if (options.format === 'json') {
+      cliOutput.json({
+        operation: 'clear-logs',
+        matchingLogs: 0,
+        message: 'No logs found matching the criteria',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      cliOutput.info('No logs found matching the criteria.');
+    }
     return;
   }
 
@@ -340,7 +336,8 @@ const executeClearLogic = async (
       options,
       sql: clearSql,
       logCount,
-      description
+      description,
+      cliOutput
     });
     return;
   }
@@ -352,34 +349,68 @@ const executeClearLogic = async (
     logCount,
     description,
     dbInstance,
-    logger
+    logger,
+    cliOutput
   });
 };
 
-/**
- * Execute the clear logs command.
- * @param context - CLI context with arguments and flags.
- * @returns Promise that resolves when command completes.
- * @throws {CommandExecutionError} When command execution fails.
- */
-export const execute = async (context: ICLIContext): Promise<void> => {
-  const logger = LoggerService.getInstance();
+export const command: ICLICommand = {
+  description: 'Clear logs from database with filtering options',
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    },
+    {
+      name: 'level',
+      type: 'string',
+      description: 'Clear only specific log level (debug, info, warn, error)'
+    },
+    {
+      name: 'older-than',
+      alias: 'o',
+      type: 'string',
+      description: 'Clear logs older than N days (e.g., 30)'
+    },
+    {
+      name: 'confirm',
+      alias: 'y',
+      type: 'boolean',
+      description: 'Skip confirmation prompt'
+    },
+    {
+      name: 'dry-run',
+      type: 'boolean',
+      description: 'Show what would be deleted without actually deleting'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
 
-  try {
-    const options = parseOptions(context);
-    const dbInstance = await getDatabaseService();
-    await executeClearLogic(options, dbInstance, logger);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(LogSource.CLI, `Failed to clear logs: ${errorMessage}`, {
-      error: error instanceof Error ? error : new Error(errorMessage)
-    });
-    throw new CommandExecutionError(
-      'logger:clear',
-      error instanceof Error ? error : new Error(errorMessage),
-      `Failed to clear logs: ${errorMessage}`
-    );
+    try {
+      const validatedArgs = clearLogsArgsSchema.parse(context.args);
+      const dbInstance = await getDatabaseService();
+      await executeClearLogic(validatedArgs, dbInstance, logger, cliOutput);
+      process.exit(0);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        cliOutput.error(`Failed to clear logs: ${errorMessage}`);
+        logger.error(LogSource.LOGGER, 'Clear logs command failed', {
+          error: error instanceof Error ? error : new Error(errorMessage)
+        });
+      }
+      process.exit(1);
+    }
   }
 };
-
-export default { execute };

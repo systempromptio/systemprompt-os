@@ -1,5 +1,5 @@
 import { ErrorHandlingService } from '@/modules/core/logger/services/error-handling.service';
-import type { IErrorHandlingOptions } from '@/modules/core/logger/types/error-handling.types';
+import type { IErrorHandlingOptions } from '@/modules/core/logger/types/manual';
 
 /**
  * Main error handling function - the simplified interface for error processing.

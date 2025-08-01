@@ -8,9 +8,8 @@ import type * as Database from 'better-sqlite3';
 import type {
   IDatabaseConnection,
   IPreparedStatement,
-  IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types';
+} from '@/modules/core/database/types/manual';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
 import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter';
 

@@ -5,7 +5,7 @@
 ```
 Spawn a bootstrap-developer agent to continue the bootstrap refactor. 
 
-The refactor is currently 60% complete according to `/var/www/html/systemprompt-os/rules/src/bootstrap/bootstrap-refactor.md`. 
+The refactor is currently `/var/www/html/systemprompt-os/rules/src/bootstrap/bootstrap-refactor.md`. 
 
 Your task: Review the refactor status document, run the integration tests, and complete the next phase of work. Focus on making tests pass first, then implementing remaining features.
 

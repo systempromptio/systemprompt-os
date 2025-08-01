@@ -9,7 +9,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { TestService } from '@/modules/core/dev/services/test.service';
 import type { TestResult } from '@/modules/core/dev/services/test.service';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { DevEvents } from '@/modules/core/events/types/index';
 
 /**

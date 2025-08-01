@@ -37,69 +37,105 @@ apis:
 cli:
   commands:
     - name: status
-      description: Show auth module status (enabled/healthy)
-    - name: generatekey
-      description: Generate cryptographic keys for JWT signing
+      description: Show auth module status and health information
       options:
-        - name: type
-          alias: t
-          type: string
-          description: Key type (currently only "jwt" is supported)
-          default: jwt
-        - name: algorithm
-          alias: a
-          type: string
-          description: Algorithm (RS256, RS384, or RS512)
-          default: RS256
-        - name: output
-          alias: o
-          type: string
-          description: Output directory
         - name: format
           alias: f
           type: string
-          description: Output format (pem or jwk)
-          default: pem
-    - name: providers
-      description: List configured OAuth2/OIDC providers
-      subcommands:
-        - name: list
-          description: List all configured providers
-        - name: reload
-          description: Reload provider configurations
-    - name: db
-      description: Database management commands
-      subcommands:
-        - name: reset
-          description: Reset the authentication database (removes all users, roles, and sessions)
-        - name: list-users
-          description: List all users and their roles
-    - name: role
-      description: Role management commands
-      subcommands:
-        - name: grant
-          description: Grant a role to a user
-          options:
-            - name: user
-              alias: u
-              type: string
-              description: User email or ID
-              required: true
-            - name: role
-              alias: r
-              type: string
-              description: Role name (admin or user)
-              required: true
-        - name: revoke
-          description: Revoke a role from a user
-          options:
-            - name: user
-              alias: u
-              type: string
-              description: User email or ID
-              required: true
-            - name: role
-              alias: r
-              type: string
-              description: Role name (admin or user)
-              required: true
+          description: Output format
+          choices: ['text', 'json']
+          default: text
+    - name: authenticate
+      description: Authenticate user credentials
+      options:
+        - name: email
+          alias: e
+          type: string
+          description: User email address
+          required: true
+        - name: password
+          alias: p
+          type: string
+          description: User password
+          required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text  
+    - name: session:create
+      description: Create a new user session
+      options:
+        - name: user-id
+          alias: u
+          type: string
+          description: User ID (UUID format)
+          required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text
+    - name: session:list
+      description: List sessions for a user
+      options:
+        - name: user-id
+          alias: u
+          type: string
+          description: User ID (UUID format)
+          required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text
+        - name: limit
+          alias: l
+          type: number
+          description: Maximum number of sessions to return
+          default: 20
+        - name: page
+          alias: p
+          type: number
+          description: Page number for pagination
+          default: 1
+    - name: session:validate
+      description: Validate a session token
+      options:
+        - name: session-id
+          alias: s
+          type: string
+          description: Session ID (UUID format)
+          required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text
+    - name: session:revoke
+      description: Revoke an active session
+      options:
+        - name: session-id
+          alias: s
+          type: string
+          description: Session ID (UUID format)
+          required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text
+    - name: providers:list
+      description: List configured OAuth providers
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: text

@@ -5,7 +5,6 @@
 
 import { promises as fs } from 'fs';
 import { join, resolve } from 'path';
-import { pathToFileURL } from 'url';
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -119,7 +118,7 @@ export class CoreModuleScanner {
    * @param yamlPath - Path to module.yaml.
    * @returns Module metadata or null.
    */
-  private async readModuleMetadata(yamlPath: string): Promise<any> {
+  private async readModuleMetadata(_yamlPath: string): Promise<any> {
     try {
       return null;
     } catch {

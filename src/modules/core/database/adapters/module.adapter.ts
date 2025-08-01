@@ -5,13 +5,30 @@
  */
 
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type {
-  IDatabaseRow,
-  IModuleDatabaseAdapter,
-  IModulePreparedStatement,
-  IMutationResult
-} from '@/modules/core/database/types/module-adapter.types';
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
+
+// Define missing types locally
+interface IDatabaseRow {
+  [key: string]: unknown;
+}
+
+interface IMutationResult {
+  changes: number;
+  lastInsertRowid?: number;
+}
+
+interface IModulePreparedStatement {
+  query<T = unknown>(params?: unknown[]): Promise<T[]>;
+  execute(params?: unknown[]): Promise<IMutationResult>;
+  finalize(): Promise<void>;
+}
+
+interface IModuleDatabaseAdapter {
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  execute(sql: string, params?: unknown[]): Promise<IMutationResult>;
+  prepare(sql: string): Promise<IModulePreparedStatement>;
+  close(): Promise<void>;
+}
 
 /**
  * Adapter for module database operations.

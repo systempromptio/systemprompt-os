@@ -148,6 +148,7 @@ export interface ITableInfo {
  */
 export interface IDatabaseConnection {
   query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
   run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
   close(): Promise<void>;
 }
@@ -231,7 +232,6 @@ export interface IPreparedStatement {
 export interface ITransaction {
   query<T = unknown>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
   execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
-  prepare(sql: string): Promise<IPreparedStatement>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
 }

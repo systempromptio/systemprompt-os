@@ -4,45 +4,77 @@
  * @module modules/core/mcp/cli/status
  */
 
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { cliSchemas, type StatusMcpArgs } from '../utils/cli-validation';
 
-/**
- * Log status information to logger.
- * @param logger - Logger service instance.
- * @param contexts - MCP contexts array.
- */
-const logStatusInformation = (logger: LoggerService, contexts: unknown[]): void => {
-  logger.info(LogSource.MCP, 'MCP Module Status:');
-  logger.info(LogSource.MCP, '════════════════');
-  logger.info(LogSource.MCP, 'Module: mcp');
-  logger.info(LogSource.MCP, 'Enabled: ✓');
-  logger.info(LogSource.MCP, 'Healthy: ✓');
-  logger.info(LogSource.MCP, 'Service: McpService initialized');
-  logger.info(LogSource.MCP, `Active MCP contexts: ${String(contexts.length)}`);
-  logger.info(LogSource.MCP, 'MCP protocol support: ✓');
-  logger.info(LogSource.MCP, 'Context management: ✓');
-  logger.info(LogSource.MCP, 'Session handling: ✓');
-};
-
-export const command = {
+export const command: ICLICommand = {
   description: 'Show MCP module status (enabled/healthy)',
-  execute: async (): Promise<void> => {
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const cliOutput = CliOutputService.getInstance();
     const logger = LoggerService.getInstance();
 
     try {
+      // Validate arguments with Zod
+      const validatedArgs = cliSchemas.status.parse(context.args) as StatusMcpArgs;
+      
       const mcpService = MCPService.getInstance();
       const contexts = await mcpService.listContexts();
+      
+      // Create status data object
+      const statusData = {
+        module: 'mcp',
+        status: 'healthy',
+        enabled: true,
+        service: 'MCPService initialized',
+        active_contexts: contexts.length,
+        mcp_protocol_support: true,
+        context_management: true,
+        session_handling: true,
+        timestamp: new Date().toISOString()
+      };
 
-      logStatusInformation(logger, contexts);
+      if (validatedArgs.format === 'json') {
+        cliOutput.json(statusData);
+      } else {
+        cliOutput.section('MCP Module Status');
+        cliOutput.keyValue({
+          'Module': 'mcp',
+          'Status': 'Healthy',
+          'Enabled': '✓',
+          'Service': 'MCPService initialized',
+          'Active MCP contexts': contexts.length.toString(),
+          'MCP protocol support': '✓',
+          'Context management': '✓',
+          'Session handling': '✓'
+        });
+      }
+      
       process.exit(0);
     } catch (error) {
-      const errorMessage = 'Error getting MCP status';
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-
-      logger.error(LogSource.MCP, errorMessage, { error: errorObj });
-      logger.error(LogSource.MCP, `${errorMessage}: ${String(error)}`);
+      if (error instanceof Error && 'issues' in error) {
+        // Handle Zod validation errors
+        cliOutput.error('Invalid arguments:');
+        (error as any).issues?.forEach((issue: any) => {
+          cliOutput.error(`  ${issue.path.join('.')}: ${issue.message}`);
+        });
+      } else {
+        cliOutput.error('Error getting MCP status');
+        logger.error(LogSource.MCP, 'Status command failed', { error });
+      }
       process.exit(1);
     }
   },

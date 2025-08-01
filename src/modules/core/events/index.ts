@@ -6,12 +6,12 @@
 import {
   type IModule, ModulesStatus, ModulesType
 } from '@/modules/core/modules/types/index';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
-import { EventNames, type IEventsModuleExports } from '@/modules/core/events/types/index';
+import { EventBusService } from '@/modules/core/events/services/events.service';
+import { EventNames, type IEventsModuleExports } from '@/modules/core/events/types/manual';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 // CLI commands are registered through the cliCommands getter
-import { statusCommand } from '@/modules/core/events/cli/status';
+import { command as statusCommand } from '@/modules/core/events/cli/status';
 
 /**
  * Events module implementation providing event bus functionality for inter-module communication.

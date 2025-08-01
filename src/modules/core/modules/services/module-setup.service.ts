@@ -11,7 +11,7 @@ import type { ICoreModuleDefinition } from '@/types/bootstrap';
 import type { IScannedModule } from '@/modules/core/modules/types/scanner.types';
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
-import { CORE_MODULES } from '@/constants/bootstrap';
+import { CoreModuleScanner } from '@/bootstrap/helpers/module-scanner';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { parse } from 'yaml';
@@ -20,12 +20,15 @@ export class ModuleSetupService {
   private static instance: ModuleSetupService;
   private readonly logger: ILogger;
   private readonly repository: ModuleManagerRepository;
+  private readonly moduleScanner: CoreModuleScanner;
+  private coreModules: ICoreModuleDefinition[] = [];
 
   private constructor(
     private readonly database: DatabaseService
   ) {
     this.logger = LoggerService.getInstance();
     this.repository = ModuleManagerRepository.getInstance(database);
+    this.moduleScanner = new CoreModuleScanner();
   }
 
   /**
@@ -40,6 +43,24 @@ export class ModuleSetupService {
       ModuleSetupService.instance = new ModuleSetupService(database);
     }
     return ModuleSetupService.instance;
+  }
+
+  /**
+   * Discover core modules dynamically.
+   * This is called before any operation that needs the module list.
+   */
+  private async discoverCoreModules(): Promise<void> {
+    if (this.coreModules.length === 0) {
+      try {
+        this.coreModules = await this.moduleScanner.scan();
+        this.logger.debug(LogSource.MODULES, `Discovered ${this.coreModules.length} core modules`);
+      } catch (error) {
+        this.logger.error(LogSource.MODULES, 'Failed to discover core modules:', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
+    }
   }
 
   /**
@@ -61,13 +82,15 @@ export class ModuleSetupService {
         return;
       }
 
-      for (const coreModule of CORE_MODULES) {
+      await this.discoverCoreModules();
+
+      for (const coreModule of this.coreModules) {
         await this.seedCoreModule(coreModule);
       }
 
       this.logger.info(
         LogSource.MODULES,
-        `Successfully installed ${CORE_MODULES.length} core modules`
+        `Successfully installed ${this.coreModules.length} core modules`
       );
     } catch (error) {
       this.logger.error(LogSource.MODULES, 'Failed to install core modules:', {
@@ -108,7 +131,9 @@ export class ModuleSetupService {
     this.logger.info(LogSource.MODULES, 'Updating core module definitions');
 
     try {
-      for (const coreModule of CORE_MODULES) {
+      await this.discoverCoreModules();
+
+      for (const coreModule of this.coreModules) {
         const existing = await this.repository.getModule(coreModule.name);
 
         if (existing && existing.type === ModulesType.CORE) {
@@ -135,7 +160,9 @@ export class ModuleSetupService {
     const errors: string[] = [];
 
     try {
-      for (const coreModule of CORE_MODULES) {
+      await this.discoverCoreModules();
+
+      for (const coreModule of this.coreModules) {
         const dbModule = await this.repository.getModule(coreModule.name);
 
         if (!dbModule) {
@@ -154,7 +181,7 @@ export class ModuleSetupService {
 
       this.logger.info(
         LogSource.MODULES,
-        `Validated ${CORE_MODULES.length} core modules in database`
+        `Validated ${this.coreModules.length} core modules in database`
       );
     } catch (error) {
       this.logger.error(LogSource.MODULES, 'Module validation failed:', {

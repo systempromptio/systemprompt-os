@@ -10,7 +10,7 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
 import { SessionService } from '@/modules/core/auth/services/session.service';
 import { OAuthService } from '@/modules/core/auth/services/oauth.service';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { type IAuthService } from '@/modules/core/auth/types/auth.service.generated';
 import {
   AuthEvents,

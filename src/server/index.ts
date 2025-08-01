@@ -8,6 +8,7 @@ import express from 'express';
 import cors from 'cors';
 import { CONFIG } from '@/server/config';
 import { setupExternalEndpoints } from '@/server/external/setup';
+import { setupHealthEndpoints } from '@/server/health';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getModuleRegistry } from '@/modules/core/modules/index';
@@ -81,6 +82,9 @@ limit: '50mb'
     console.error('Error setting up external endpoints:', error);
     throw error;
   }
+
+  // Set up health check endpoints
+  setupHealthEndpoints(app);
 
   app.get('/test', (_req, res) => {
     res.json({

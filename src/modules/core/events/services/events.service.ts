@@ -3,27 +3,27 @@
  */
 
 import { EventEmitter } from 'events';
-import type { IEventBus, IEventHandler } from '@/modules/core/events/types/index';
+import type { IEventBus, IEventHandler } from '@/modules/core/events/types/manual';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { EventsRepository } from '@/modules/core/events/repositories/events.repository';
 
 export class EventBusService implements IEventBus {
   private static instance: EventBusService | null = null;
   private readonly emitter: EventEmitter;
   private readonly logger: ILogger;
   private readonly handlerMap: Map<Function, Function>;
-  private readonly db: DatabaseService | null = null;
+  private readonly repository: EventsRepository | null = null;
   private persistEvents = true;
 
   private constructor() {
     this.emitter = new EventEmitter();
-    this.emitter.setMaxListeners(100)
+    this.emitter.setMaxListeners(100);
     this.logger = LoggerService.getInstance();
     this.handlerMap = new Map();
 
     try {
-      this.db = DatabaseService.getInstance();
+      this.repository = EventsRepository.getInstance();
     } catch {
       this.persistEvents = false;
     }
@@ -47,7 +47,7 @@ export class EventBusService implements IEventBus {
       data: data as Record<string, unknown> | undefined
     });
 
-    if (this.persistEvents && this.db) {
+    if (this.persistEvents && this.repository) {
       this.persistEvent(event, data).catch(error => {
         this.logger.error(LogSource.MODULES, `Failed to persist event: ${event}`, { error });
       });
@@ -57,22 +57,15 @@ export class EventBusService implements IEventBus {
   }
 
   /**
-   * Persist event to database.
+   * Persist event to database via repository.
    * @param eventName
    * @param data
    */
   private async persistEvent(eventName: string, data: unknown): Promise<void> {
-    if (!this.db) { return; }
+    if (!this.repository) { return; }
 
     try {
-      await this.db.execute(
-        `INSERT INTO events (event_name, event_data, module_source) VALUES (?, ?, ?)`,
-        [
-          eventName,
-          JSON.stringify(data),
-          'system'
-        ]
-      );
+      await this.repository.createEvent(eventName, data, 'system');
     } catch (error) {
       if (error instanceof Error && error.message.includes('no such table')) {
         this.persistEvents = false;

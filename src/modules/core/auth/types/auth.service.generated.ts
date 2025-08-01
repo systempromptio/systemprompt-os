@@ -1,5 +1,5 @@
 // Auto-generated service schemas for auth module
-// Generated on: 2025-08-01T09:21:44.197Z
+// Generated on: 2025-08-01T09:40:02.486Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

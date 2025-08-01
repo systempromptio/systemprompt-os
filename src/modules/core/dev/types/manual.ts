@@ -62,7 +62,6 @@ export interface IDevService {
   ): Promise<void>;
 }
 
-
 /**
  * Module generator options.
  */

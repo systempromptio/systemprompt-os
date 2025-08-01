@@ -6,13 +6,24 @@
  */
 
 import { spawn } from 'child_process';
-import type { ICLIContext } from '@/modules/core/cli/types';
-import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { z } from 'zod';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { IShowLogsOptions } from '@/modules/core/logger/types/log-entry.types';
 import type { ISystemLogsRow } from '@/modules/core/logger/types/database.generated';
-import { DatabaseQueryService } from '@/modules/core/cli/services/database-query.service';
-import { LogSource } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types/manual';
+
+// Zod schema for show logs arguments
+const showLogsArgsSchema = z.object({
+  format: z.enum(['text', 'json']).default('text'),
+  limit: z.coerce.number().positive().max(1000).default(50),
+  level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+  module: z.string().optional(),
+  since: z.string().datetime().optional(),
+  pager: z.enum(['true', 'false']).transform(v => v === 'true').default('false')
+});
+
+type ShowLogsArgs = z.infer<typeof showLogsArgsSchema>;
 
 /**
  * Format a log entry as text.
@@ -29,47 +40,53 @@ const formatLogEntry = (entry: ISystemLogsRow): string => {
 };
 
 /**
- * Build WHERE conditions for SQL query.
+ * Build WHERE conditions for SQL query with parameters.
  * @param options - Command options.
- * @returns SQL conditions.
+ * @returns SQL conditions and parameters.
  */
-const buildWhereConditions = (options: IShowLogsOptions): { conditions: string[] } => {
+const buildWhereConditions = (options: ShowLogsArgs): { conditions: string[]; params: unknown[] } => {
   const conditions: string[] = [];
+  const params: unknown[] = [];
 
   if (options.level !== undefined && options.level !== '') {
-    conditions.push(`level = '${options.level.toLowerCase()}'`);
+    conditions.push('level = ?');
+    params.push(options.level.toLowerCase());
   }
 
   if (options.module !== undefined && options.module !== '') {
-    conditions.push(`source = '${options.module}'`);
+    conditions.push('source = ?');
+    params.push(options.module);
   }
 
   if (options.since !== undefined && options.since !== '') {
-    conditions.push(`timestamp >= '${options.since}'`);
+    conditions.push('timestamp >= ?');
+    params.push(options.since);
   }
 
-  return { conditions };
+  return { conditions, params };
 };
 
 /**
  * Build SQL query with filters.
  * @param options - Command options.
- * @returns SQL query object.
+ * @returns SQL query object with parameters.
  */
-const buildQuery = (options: IShowLogsOptions): { sql: string } => {
-  const { conditions } = buildWhereConditions(options);
+const buildQuery = (options: ShowLogsArgs): { sql: string; params: unknown[] } => {
+  const { conditions, params } = buildWhereConditions(options);
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const limit = options.limit ?? 50;
 
   const sql = `
     SELECT id, level, message, args, source, timestamp, category, created_at
     FROM system_logs
     ${whereClause}
     ORDER BY timestamp DESC
-    LIMIT ${String(limit)}
+    LIMIT ?
   `;
 
-  return { sql };
+  // Add limit parameter
+  params.push(options.limit);
+
+  return { sql, params };
 };
 
 /**
@@ -96,8 +113,8 @@ const handlePagerClose = (
  * @param resolve - Promise resolve function.
  */
 const handlePagerError = (content: string, resolve: () => void): void => {
-  const logger = LoggerService.getInstance();
-  logger.info(LogSource.LOGGER, content);
+  // Fallback to stdout if pager fails
+  process.stdout.write(content);
   resolve();
 };
 
@@ -125,158 +142,133 @@ const sendToPager = async (content: string): Promise<void> => {
   });
 };
 
+// Option extraction is now handled by Zod schema validation
+
 /**
- * Extract numeric option from arguments.
- * @param args - CLI arguments.
- * @param key - Option key.
- * @returns Numeric value or undefined.
+ * Get database service instance.
+ * @returns Database service instance.
  */
-const extractNumericOption = (args: Record<string, unknown>, key: string): number | undefined => {
-  const { [key]: value } = args;
-  return typeof value === 'number' ? value : undefined;
+const getDatabaseService = async (): Promise<{
+  query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+}> => {
+  const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+  return DatabaseService.getInstance();
 };
 
 /**
- * Extract string option from arguments.
- * @param args - CLI arguments.
- * @param key - Option key.
- * @returns String value or undefined.
- */
-const extractStringOption = (args: Record<string, unknown>, key: string): string | undefined => {
-  const { [key]: value } = args;
-  return typeof value === 'string' ? value : undefined;
-};
-
-/**
- * Extract boolean option from arguments.
- * @param args - CLI arguments.
- * @param key - Option key.
- * @returns Boolean value or undefined.
- */
-const extractBooleanOption = (args: Record<string, unknown>, key: string): boolean | undefined => {
-  const { [key]: value } = args;
-  return typeof value === 'boolean' ? value : undefined;
-};
-
-/**
- * Extract format option with validation.
- * @param args - CLI arguments.
- * @returns Format value or 'text' default.
- */
-const extractFormatOption = (args: Record<string, unknown>): 'text' | 'json' => {
-  const format = extractStringOption(args, 'format');
-  return format === 'json' ? 'json' : 'text';
-};
-
-/**
- * Extract and validate options from CLI context.
- * @param context - CLI context.
- * @returns Validated options.
- */
-const extractOptions = (context: ICLIContext): IShowLogsOptions => {
-  const { args } = context;
-
-  const options: IShowLogsOptions = {};
-
-  const format = extractFormatOption(args);
-  if (format !== undefined) {
-    options.format = format;
-  }
-
-  const limit = extractNumericOption(args, 'limit');
-  if (limit !== undefined) {
-    options.limit = limit;
-  }
-
-  const level = extractStringOption(args, 'level');
-  if (level !== undefined) {
-    options.level = level;
-  }
-
-  const module = extractStringOption(args, 'module');
-  if (module !== undefined) {
-    options.module = module;
-  }
-
-  const since = extractStringOption(args, 'since');
-  if (since !== undefined) {
-    options.since = since;
-  }
-
-  const pager = extractBooleanOption(args, 'pager');
-  if (pager !== undefined) {
-    options.pager = pager;
-  }
-
-  return options;
-};
-
-/**
- * Get database query service for CLI operations.
- * @returns Database query service instance.
- */
-const getDatabaseQueryService = (): DatabaseQueryService => {
-  return DatabaseQueryService.getInstance();
-};
-
-/**
- * Format logs based on output format.
+ * Format logs for text output.
  * @param logs - Log entries to format.
- * @param format - Output format.
  * @returns Formatted output string.
  */
-const formatOutput = (logs: ISystemLogsRow[], format?: string): string => {
-  if (format === 'json') {
-    return JSON.stringify(logs, null, 2);
-  }
+const formatTextOutput = (logs: ISystemLogsRow[]): string => {
   const formattedLogs = logs.reverse().map(formatLogEntry);
   return formattedLogs.join('\n');
 };
 
 /**
- * Display output to user via pager or logger.
+ * Display output to user via pager or CLI output service.
  * @param output - Content to display.
  * @param usePager - Whether to use pager.
+ * @param cliOutput - CLI output service.
  */
-const displayOutput = async (output: string, usePager: boolean): Promise<void> => {
+const displayTextOutput = async (output: string, usePager: boolean, cliOutput: CliOutputService): Promise<void> => {
   if (usePager && process.stdout.isTTY) {
     await sendToPager(output);
   } else {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.LOGGER, output);
+    cliOutput.info(output);
   }
 };
 
-/**
- * Execute the show logs command.
- * @param context - CLI context.
- */
-export const execute = async (context: ICLIContext): Promise<void> => {
-  const logger = LoggerService.getInstance();
-  try {
-    const options = extractOptions(context);
-    const dbQueryService = getDatabaseQueryService();
-    const { sql } = buildQuery(options);
-    const queryResult = await dbQueryService.executeQuery(sql, 'json');
-
-    if (queryResult.output.length === 0 || queryResult.output[0] === '(0 rows)') {
-      logger.info(LogSource.LOGGER, 'No logs found matching the criteria.');
-      return;
+export const command: ICLICommand = {
+  description: 'Show recent logs from database with filtering and paging options',
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    },
+    {
+      name: 'limit',
+      alias: 'l',
+      type: 'number',
+      description: 'Number of recent logs to show',
+      default: 50
+    },
+    {
+      name: 'level',
+      type: 'string',
+      description: 'Filter by log level (debug, info, warn, error)'
+    },
+    {
+      name: 'module',
+      alias: 'm',
+      type: 'string',
+      description: 'Filter by module name'
+    },
+    {
+      name: 'since',
+      alias: 's',
+      type: 'string',
+      description: 'Show logs since timestamp (YYYY-MM-DD HH:MM:SS)'
+    },
+    {
+      name: 'pager',
+      alias: 'p',
+      type: 'boolean',
+      description: 'Use pager for output (less)'
     }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
 
-    const logs: ISystemLogsRow[] = JSON.parse(queryResult.output[0] ?? '[]');
-    const output = formatOutput(logs, options.format);
-    await displayOutput(output, options.pager === true);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new CommandExecutionError(
-      'logger:show',
-      error instanceof Error ? error : new Error(errorMessage),
-      `Failed to show logs: ${errorMessage}`
-    );
+    try {
+      const validatedArgs = showLogsArgsSchema.parse(context.args);
+      const dbService = await getDatabaseService();
+      const { sql, params } = buildQuery(validatedArgs);
+      
+      const logs: ISystemLogsRow[] = await dbService.query<ISystemLogsRow>(sql, params);
+
+      if (logs.length === 0) {
+        if (validatedArgs.format === 'json') {
+          cliOutput.json({
+            logs: [],
+            message: 'No logs found matching the criteria',
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          cliOutput.info('No logs found matching the criteria.');
+        }
+        process.exit(0);
+        return;
+      }
+
+      if (validatedArgs.format === 'json') {
+        // Return full database objects
+        cliOutput.json(logs);
+      } else {
+        const textOutput = formatTextOutput(logs);
+        await displayTextOutput(textOutput, validatedArgs.pager, cliOutput);
+      }
+      
+      process.exit(0);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        cliOutput.error(`Failed to show logs: ${errorMessage}`);
+        logger.error(LogSource.LOGGER, 'Show logs command failed', {
+          error: error instanceof Error ? error : new Error(errorMessage)
+        });
+      }
+      process.exit(1);
+    }
   }
-};
-
-export default {
-  execute
 };

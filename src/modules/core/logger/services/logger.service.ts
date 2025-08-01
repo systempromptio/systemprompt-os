@@ -18,7 +18,7 @@ import {
   LogOutput,
   LogSource,
   LoggerMode,
-} from '@/modules/core/logger/types/index';
+} from '@/modules/core/logger/types/manual';
 // Database service interface to avoid direct service dependency
 interface ILogDatabaseService {
   execute(sql: string, params?: unknown[]): Promise<void>;

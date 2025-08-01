@@ -9,7 +9,7 @@ import type {
   IPreparedStatement,
   IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types';
+} from '@/modules/core/database/types/manual';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
 
 /**

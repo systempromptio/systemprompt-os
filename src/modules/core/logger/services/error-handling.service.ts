@@ -9,10 +9,10 @@ import {
   type IErrorHandlingConfig,
   type IErrorHandlingOptions,
   type IProcessedError,
-} from '@/modules/core/logger/types/error-handling.types';
+} from '@/modules/core/logger/types/manual';
 import {
  type LogArgs, LogCategory, LogSource
-} from '@/modules/core/logger/types';
+} from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**

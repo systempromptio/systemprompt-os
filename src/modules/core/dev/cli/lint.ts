@@ -9,7 +9,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LintService } from '@/modules/core/dev/services/lint.service';
 import type { LintResult } from '@/modules/core/dev/services/lint.service';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { DevEvents } from '@/modules/core/events/types/index';
 
 /**
@@ -115,7 +115,22 @@ const executeLintCheck = async (context: ICLIContext): Promise<void> => {
     const result = await lintService.runLint(target, { fix });
     const duration = Date.now() - startTime;
 
-    displayLintResults(result, args, cliOutput);
+    if (args.format === 'json') {
+      const jsonResult = {
+        module,
+        target,
+        timestamp: new Date().toISOString(),
+        duration,
+        success: result.success,
+        totalErrors: result.totalErrors,
+        totalWarnings: result.totalWarnings,
+        totalFiles: result.totalFiles,
+        results: result.results
+      };
+      cliOutput.json(jsonResult);
+    } else {
+      displayLintResults(result, args, cliOutput);
+    }
 
     const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
     const reportWriter = ReportWriterService.getInstance();
@@ -176,7 +191,7 @@ export const command: ICLICommand = {
     },
     {
       name: 'fix',
-      alias: 'f',
+      alias: 'F',
       type: 'boolean',
       description: 'Automatically fix problems',
       default: false
@@ -186,6 +201,14 @@ export const command: ICLICommand = {
       type: 'string',
       description: 'Maximum number of files to display',
       default: '10'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
   execute: executeLintCheck

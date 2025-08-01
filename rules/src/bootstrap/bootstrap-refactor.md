@@ -1,194 +1,157 @@
-# Bootstrap System Refactor Status
+# Bootstrap System Simplification
 
 **Last Updated**: 2025-08-01
 
 ## Overview
 
-This document tracks the ongoing refactor of the SystemPrompt OS bootstrap system. The refactor aims to transform the bootstrap from a hardcoded, monolithic system into a dynamic, modular, and observable initialization framework.
+This document tracks the simplification of the SystemPrompt OS bootstrap system. The goal is to remove unnecessary complexity and over-engineering while maintaining reliability.
 
-## Current Status: 60% Complete
+## Current Status: Needs Simplification
 
-### ✅ Completed (What's Done)
+### ❌ Over-Engineered Components to Remove
 
-1. **Module Lifecycle Support**
-   - IModule interface includes `start?()`, `stop?()`, and `health?()` methods
-   - BaseModule provides default implementations for all lifecycle methods
-   - Module registry properly checks for method existence before calling
-   - Clean lifecycle sequence: initialize → start → running → stop → terminated
+1. **BootstrapEventEmitter**
+   - Complex event system for phase transitions
+   - Event emission adds no value for one-time startup process
+   - Remove all event-related code
 
-2. **HTTP Server Phase Clarity**
-   - Renamed `mcp-servers-phase.ts` to `http-server-phase.ts`
-   - Updated all references in bootstrap.ts and types
-   - Clear separation of HTTP setup from protocol-specific code
+2. **ModuleLifecycleManager** 
+   - Unnecessary abstraction layer
+   - Direct method calls are sufficient
+   - Timeout/retry logic is overkill
 
-3. **Optional Path Handling**
-   - Warning messages for optional paths changed to debug messages
-   - `/injectable` and `/config/modules.json` are truly optional
-   - Messages include "(this is normal)" suffix for clarity
+3. **Complex Phase System**
+   - Multiple phases with boundaries
+   - Sequential loading is simpler
+   - Remove phase enum and phase management
 
-4. **Module Discovery Infrastructure**
-   - `CoreModuleScanner` class implemented for filesystem discovery
-   - `DependencyResolver` class with circular dependency detection
-   - Topological sorting for correct module load order
-   - Feature flag `useDynamicDiscovery` added (currently false)
+4. **Feature Flags & Migration Code**
+   - `useDynamicDiscovery` flag
+   - Legacy support code
+   - All migration paths
 
-5. **Module Start Method Fix**
-   - Registry checks if `module.start` exists and is a function
-   - No errors thrown for modules without start methods
-   - Proper debug logging for modules without start
+5. **Parallel Loading Infrastructure**
+   - ParallelLoader helper
+   - Complexity without clear benefit
+   - Sequential loading is more reliable
 
-### ⏳ In Progress (What's Partially Done)
+### ✅ Simple Components to Keep
 
-1. **Dynamic Module Discovery**
-   - Infrastructure complete but not activated
-   - Feature flag set to false for safety
-   - Still using hardcoded CORE_MODULES constant
-   - Need to enable and test thoroughly
+1. **Module Discovery from Filesystem**
+   - Scan `/src/modules/core/` directories
+   - Read `module.yaml` files for metadata
+   - No hardcoded CORE_MODULES lists
 
-2. **Separation of Concerns**
-   - HTTP setup separated into its own phase
-   - Module discovery infrastructure ready
-   - Still need to separate CLI registration and other concerns
+2. **Dependency Resolution**
+   - Simple topological sort from module.yaml
+   - Circular dependency detection
+   - Load modules in correct order
 
-### ❌ Not Started (What's Left)
+3. **Basic Lifecycle Management**
+   - Call `initialize()` and `start()` if they exist
+   - Call `stop()` on shutdown
+   - Simple error handling
 
-1. **Remove CORE_MODULES Constant**
-   - File `/src/constants/bootstrap.ts` still exists
-   - All imports need updating
-   - Switch to fully dynamic discovery
+## Target Architecture
 
-2. **Lifecycle Manager**
-   - No centralized `ModuleLifecycleManager` class
-   - Lifecycle logic scattered across services
-   - Need unified lifecycle orchestration
-
-3. **Event System**
-   - No `BootstrapEventEmitter` implemented
-   - Cannot monitor bootstrap progress externally
-   - No lifecycle events emitted
-
-4. **Health Endpoints**
-   - Health methods exist but not exposed via HTTP
-   - No `/health` endpoint for module status
-   - No aggregated system health check
-
-5. **Integration Test Failures**
-   - Multiple test failures in bootstrap integration tests
-   - Need to fix before enabling dynamic discovery
-
-## Action Plan
-
-### Phase 1: Fix Tests and Enable Discovery (Priority: HIGH)
-```bash
-# 1. Fix integration test failures
-npm test -- src/__tests__/bootstrap.integration.test.ts
-
-# 2. Enable dynamic discovery
-# In src/bootstrap.ts, change:
-private readonly useDynamicDiscovery: boolean = true;
-
-# 3. Test thoroughly
-./bin/systemprompt dev test bootstrap
+### Simple Bootstrap Process
+```
+1. Initialize logger first
+2. Scan /src/modules/core/ for module.yaml files
+3. Build dependency graph from yaml files
+4. Load modules in dependency order
+5. Start HTTP server
+6. Done
 ```
 
-### Phase 2: Remove Hardcoded Constants (Priority: HIGH)
-```bash
-# 1. Delete constants file
-rm src/constants/bootstrap.ts
-
-# 2. Update all imports (search and replace)
-# From: import { CORE_MODULES } from '@/constants/bootstrap'
-# To: Remove the import
-
-# 3. Ensure bootstrap uses dynamic discovery
+### Simplified File Structure
+```
+src/bootstrap/
+   index.ts                # Main Bootstrap class (~100 lines)
+   module-loader.ts        # Simple module loading logic
+   dependency-resolver.ts  # Read yaml, sort dependencies
+   types/
+       bootstrap.types.ts   # Minimal type definitions
 ```
 
-### Phase 3: Implement Lifecycle Manager (Priority: MEDIUM)
-```typescript
-// Create src/bootstrap/helpers/lifecycle-manager.ts
-export class ModuleLifecycleManager {
-  async initializeModule(module: IModule): Promise<void>
-  async startModule(module: IModule): Promise<void>
-  async stopModule(module: IModule, timeout?: number): Promise<void>
-  async checkModuleHealth(module: IModule): Promise<HealthStatus>
-}
-```
+### Key Simplifications
 
-### Phase 4: Add Event System (Priority: MEDIUM)
-```typescript
-// Create src/bootstrap/helpers/bootstrap-events.ts
-export class BootstrapEventEmitter extends EventEmitter {
-  emitPhaseStart(phase: BootstrapPhaseEnum): void
-  emitPhaseComplete(phase: BootstrapPhaseEnum): void
-  emitModuleLifecycle(module: string, event: string): void
-}
-```
+1. **No Event System**: Just log what happens
+2. **No Phases**: Sequential steps only
+3. **No Feature Flags**: One implementation path
+4. **No Complex Managers**: Direct method calls
+5. **No Parallel Loading**: Sequential is fine
+6. **No Migration Code**: Clean implementation
 
-### Phase 5: Expose Health Endpoints (Priority: LOW)
-```typescript
-// In http-server-phase.ts, add:
-app.get('/health', async (req, res) => {
-  const health = await moduleRegistry.healthCheckAll();
-  res.json(health);
-});
-```
+## Implementation Plan
+
+### Phase 1: Remove Over-Engineering
+- [ ] Remove BootstrapEventEmitter class and all usage
+- [ ] Remove ModuleLifecycleManager class and all usage  
+- [ ] Remove phase enum and phase management logic
+- [ ] Remove feature flags (useDynamicDiscovery, etc.)
+- [ ] Remove parallel loading helpers
+
+### Phase 2: Simplify Core Logic
+- [ ] Rewrite Bootstrap class to be simple and direct
+- [ ] Simplify dependency resolver to just read yaml files
+- [ ] Remove timeout/retry complexity
+- [ ] Clean up type definitions
+
+### Phase 3: Clean Up
+- [ ] Remove unused helper files
+- [ ] Update tests to match simplified implementation
+- [ ] Verify all functionality still works
+- [ ] Update documentation
 
 ## Success Criteria
 
-| Criteria | Status | Description |
-|----------|--------|-------------|
-| No Hardcoded Lists | ❌ | CORE_MODULES constant must be removed |
-| Dynamic Discovery | ❌ | All modules discovered from filesystem |
-| Lifecycle Support | ✅ | All modules support start/stop/health |
-| Clean Shutdown | ✅ | Graceful shutdown with proper cleanup |
-| Event Visibility | ❌ | Full event stream for monitoring |
-| Test Coverage | ❓ | > 90% coverage for bootstrap code |
-| Performance | ❓ | < 2 second bootstrap time |
+| Criteria | Target | Current Status |
+|----------|---------|----------------|
+| Bootstrap.ts Lines | < 150 | ~320 |
+| Helper Files | < 3 | ~6 |
+| Event System | None | Complex |
+| Feature Flags | None | Multiple |
+| Startup Time | < 1 second | Unknown |
 
-## Risks and Mitigations
+## Benefits of Simplification
 
-1. **Risk**: Breaking existing functionality
-   - **Mitigation**: Feature flag allows instant rollback
-   - **Status**: Flag implemented and ready
+1. **Maintainability**: Less code to understand and debug
+2. **Reliability**: Fewer moving parts, fewer failure modes  
+3. **Performance**: No event emission overhead
+4. **Clarity**: Direct sequential flow is easier to follow
+5. **Testing**: Simpler logic is easier to test
 
-2. **Risk**: Module load order issues
-   - **Mitigation**: DependencyResolver handles ordering
-   - **Status**: Implemented with circular dependency detection
+## What We're Removing and Why
 
-3. **Risk**: Performance degradation
-   - **Mitigation**: Parallel loading where possible
-   - **Status**: Not yet implemented
+### Event System
+- **What**: BootstrapEventEmitter, phase events, lifecycle events
+- **Why**: Bootstrap runs once at startup, events add no value
+- **Impact**: Simpler code, no performance overhead
 
-## Next Developer Actions
+### Lifecycle Manager
+- **What**: ModuleLifecycleManager with timeouts and retries
+- **Why**: Direct method calls are sufficient for module lifecycle
+- **Impact**: Less abstraction, clearer error handling
 
-1. **MUST DO FIRST**: Fix integration test failures
-2. **THEN**: Set `useDynamicDiscovery = true` and test
-3. **NEXT**: Remove CORE_MODULES constant
-4. **FINALLY**: Implement remaining features
+### Complex Phases
+- **What**: Phase enum, phase boundaries, phase management
+- **Why**: Sequential loading is simpler and just as effective
+- **Impact**: Easier to understand bootstrap flow
 
-## Commands for Testing
+### Feature Flags
+- **What**: useDynamicDiscovery, migration paths, legacy support
+- **Why**: We don't need gradual migration, just one good implementation
+- **Impact**: No tech debt, cleaner codebase
 
-```bash
-# Run bootstrap tests
-npm test -- src/__tests__/bootstrap.integration.test.ts
+## Notes for Implementation
 
-# Test bootstrap with debug logging
-DEBUG=bootstrap:* ./bin/systemprompt dev test
-
-# Check module discovery
-./bin/systemprompt dev list-modules
-
-# Verify no hardcoded references
-grep -r "CORE_MODULES" src/
-```
-
-## Notes for Developers
-
-- The refactor follows the rules in `/var/www/html/systemprompt-os/rules/src/bootstrap/rules.md`
-- All changes must maintain backward compatibility until fully migrated
-- Use the feature flag for safe testing
-- Document any deviations from the plan
+- Keep the module.yaml discovery - that's good
+- Keep dependency resolution - but simplify it
+- Keep basic error handling - but no complex retry logic
+- Focus on clarity and simplicity over flexibility
+- No backwards compatibility needed
 
 ---
 
-**Remember**: This is a living document. Update it as you make progress!
+**Status**: Ready for implementation. The current bootstrap is over-engineered and needs significant simplification to be maintainable.

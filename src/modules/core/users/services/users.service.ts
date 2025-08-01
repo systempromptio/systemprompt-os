@@ -19,7 +19,7 @@ import type {
 
 import { UserEvents } from '@/modules/core/events/types/index';
 import { UsersStatus } from '@/modules/core/users/types/database.generated';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { UsersRepository } from '@/modules/core/users/repositories/users.repository';
 import { UserValidationHelper } from '@/modules/core/users/utils/user-validation.helper';
 import { OAuthUserHelper } from '@/modules/core/users/utils/oauth-user.helper';

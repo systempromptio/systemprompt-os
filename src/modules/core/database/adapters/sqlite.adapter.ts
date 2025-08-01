@@ -12,7 +12,7 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
-} from '@/modules/core/database/types/database.types';
+} from '@/modules/core/database/types/manual';
 import { ConnectionError } from '@/modules/core/database/errors/connection.error';
 import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
 

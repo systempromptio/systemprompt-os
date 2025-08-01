@@ -13,7 +13,7 @@ import type {
 import type { TaskPriority, TaskStatus } from '@/modules/core/agents/types/manual';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
 
 /**
  * Base repository class for agent-related database operations.

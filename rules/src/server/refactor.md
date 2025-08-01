@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The current server implementation violates core architectural principles by tightly coupling with modules, mixing protocol concerns, and lacking proper abstraction layers. This refactoring plan outlines a phased approach to transform the server into a world-class, extensible platform that follows the architecture defined in `rules.md`.
+The current server implementation violates core architectural principles by tightly coupling with modules, mixing protocol concerns, and lacking proper abstraction layers. This refactoring plan outlines a phased approach to transform the server into a lean, extensible platform that follows the architecture defined in `rules.md`.
 
 ## Current State Analysis
 
@@ -30,22 +30,29 @@ The current server implementation violates core architectural principles by tigh
 
 5. **Session Management Issues**
    - MCP sessions separate from HTTP sessions
-   - No unified session management
+   - Sessions should be managed by auth module
    - Session logic duplicated
 
-6. **Lack of Observability**
-   - No structured health checks
-   - Missing metrics collection
-   - Limited monitoring capabilities
+6. **No Deployment Strategy**
+   - No support for cloudflared tunnels
+   - No reverse proxy configuration
+   - Missing Docker deployment setup
 
-7. **Testing and Debug Code**
+7. **Limited MCP Context Support**
+   - Single MCP server instance
+   - No module context isolation
+   - Cannot serve multiple MCP contexts
+
+8. **Testing and Debug Code**
    - Debug routes in production code
    - Test endpoints mixed with real endpoints
    - Console.log statements throughout
+   - No integration tests
+   - No E2E tests with external access
 
 ## Refactoring Phases
 
-### Phase 1: Core Server Foundation (2 weeks)
+### Phase 1: Core Server Foundation (1 week)
 
 **Goal**: Create the new server core with proper abstractions
 
@@ -75,24 +82,26 @@ The current server implementation violates core architectural principles by tigh
 
 **Tasks**:
 1. Create protocol handler structure
-2. Implement HTTP protocol handler
-3. Implement MCP protocol handler
+2. Implement HTTP protocol handler with proxy support
+3. Implement MCP protocol handler with multi-context support
 4. Create protocol configuration system
 5. Migrate existing HTTP endpoints
 6. Migrate existing MCP handling
+7. Add cloudflared tunnel detection
 
 **Deliverables**:
 - `/src/server/protocols/http/http-protocol.ts`
 - `/src/server/protocols/mcp/mcp-protocol.ts`
-- `/src/server/protocols/types/protocol.types.ts`
+- `/src/server/protocols/mcp/context-manager.ts`
 - Protocol handler tests
 
 **Success Criteria**:
 - Protocols register themselves with server core
 - All existing endpoints work through new handlers
-- Protocol handlers are independently testable
+- MCP supports multiple contexts via headers
+- Server detects tunnel/proxy headers correctly
 
-### Phase 3: Module Integration Bridge (3 weeks)
+### Phase 3: Module Integration Bridge (2 weeks)
 
 **Goal**: Enable modules to register endpoints dynamically
 
@@ -115,31 +124,7 @@ The current server implementation violates core architectural principles by tigh
 - Server forwards requests to modules via events
 - No direct module imports in server
 
-### Phase 4: Security Layer (2 weeks)
-
-**Goal**: Unified security across all protocols
-
-**Tasks**:
-1. Create unified authentication service
-2. Implement authorization service
-3. Add rate limiting service
-4. Create unified session manager
-5. Integrate with all protocols
-6. Remove old auth adapters
-
-**Deliverables**:
-- `/src/server/security/authentication.ts`
-- `/src/server/security/authorization.ts`
-- `/src/server/security/rate-limiting.ts`
-- `/src/server/security/session-manager.ts`
-- Security layer tests
-
-**Success Criteria**:
-- Single authentication flow for all protocols
-- Sessions work across HTTP and MCP
-- Rate limiting enforced per endpoint
-
-### Phase 5: Module Migration (4 weeks)
+### Phase 4: Module Migration (3 weeks)
 
 **Goal**: Migrate all modules to use new registration pattern
 
@@ -162,31 +147,33 @@ The current server implementation violates core architectural principles by tigh
 - All routes dynamically registered
 - No hardcoded endpoints in server
 - All tests passing
+- Auth module handles all authentication/sessions
 
-### Phase 6: Monitoring and Health (1 week)
+### Phase 5: Testing Infrastructure (1 week)
 
-**Goal**: Add comprehensive monitoring
+**Goal**: Comprehensive testing setup
 
 **Tasks**:
-1. Implement health check aggregator
-2. Add metrics collection
-3. Create structured logging
-4. Add performance monitoring
-5. Implement health endpoints
-6. Add monitoring dashboard
+1. Create integration test suite structure
+2. Implement server integration tests
+3. Create Docker-based E2E test framework
+4. Implement cloudflared tunnel E2E tests
+5. Add performance benchmarks
+6. Create CI/CD pipeline for tests
 
 **Deliverables**:
-- `/src/server/monitoring/health-check.ts`
-- `/src/server/monitoring/metrics.ts`
-- `/src/server/monitoring/logging.ts`
-- Monitoring tests
+- `/tests/integration/server/` test suite
+- `/tests/e2e/docker/01-server-external.e2e.test.ts`
+- Docker compose for test environment
+- CI/CD configuration
 
 **Success Criteria**:
-- Health endpoint shows all component status
-- Metrics available for all endpoints
-- Performance data collected
+- 90%+ test coverage
+- E2E tests pass with cloudflared
+- Performance benchmarks established
+- Tests run in CI/CD
 
-### Phase 7: Cleanup and Optimization (1 week)
+### Phase 6: Cleanup and Optimization (1 week)
 
 **Goal**: Remove old code and optimize
 
@@ -196,12 +183,13 @@ The current server implementation violates core architectural principles by tigh
 3. Remove debug/test routes
 4. Optimize event bus performance
 5. Add caching where appropriate
-6. Performance testing
+6. Create deployment documentation
 
 **Success Criteria**:
 - All old code removed
 - Performance benchmarks met
 - Clean codebase
+- Deployment guides complete
 
 ## Migration Strategy
 
@@ -228,6 +216,16 @@ The current server implementation violates core architectural principles by tigh
 4. **Data Migration**: Sessions/auth state preserved
 5. **Rollback Plan**: Keep ability to revert each phase
 
+## Note on Security and Monitoring
+
+The lean server architecture delegates responsibilities:
+- **Authentication/Authorization**: Handled by auth module via events
+- **Session Management**: Managed by auth module, not server
+- **Monitoring/Metrics**: Can be implemented as a separate monitoring module
+- **Rate Limiting**: Configurable per endpoint, enforced by integration layer
+
+This keeps the server focused on its core responsibility: serving protocols.
+
 ## Technical Debt Items
 
 ### Immediate Fixes (Do First)
@@ -239,11 +237,11 @@ The current server implementation violates core architectural principles by tigh
 ### Architecture Fixes (During Refactor)
 1. Remove direct module imports
 2. Eliminate auth adapter duplication
-3. Unify session management
+3. Move session management to auth module
 4. Standardize error handling
 
 ### Future Improvements (Post-Refactor)
-1. Add WebSocket support
+1. Add WebSocket support (already planned)
 2. Implement GraphQL handler
 3. Add request/response caching
 4. Enable horizontal scaling
@@ -299,15 +297,14 @@ The current server implementation violates core architectural principles by tigh
 
 ## Timeline Summary
 
-Total Duration: **13 weeks**
+Total Duration: **10 weeks**
 
-1. **Weeks 1-2**: Core Server Foundation
-2. **Weeks 3-4**: Protocol Abstraction Layer
-3. **Weeks 5-7**: Module Integration Bridge
-4. **Weeks 8-9**: Security Layer
-5. **Weeks 10-13**: Module Migration
-6. **Week 14**: Monitoring and Health
-7. **Week 15**: Cleanup and Optimization
+1. **Week 1**: Core Server Foundation
+2. **Weeks 2-3**: Protocol Abstraction Layer
+3. **Weeks 4-5**: Module Integration Bridge
+4. **Weeks 6-8**: Module Migration
+5. **Week 9**: Testing Infrastructure
+6. **Week 10**: Cleanup and Optimization
 
 ## Next Steps
 
@@ -361,12 +358,46 @@ src/server/
            monitoring.types.ts
 ```
 
+### Files to Create (Continued)
+```
+deployment/
+├── cloudflared/
+│   ├── config.yml
+│   └── docker-compose.yml
+├── nginx/
+│   ├── nginx.conf
+│   └── ssl/
+└── docker/
+    ├── Dockerfile
+    └── docker-compose.prod.yml
+```
+
 ### Files to Modify
 - `/src/modules/core/*/index.ts` - Add endpoint registration
 - `/src/bootstrap/phases/http-server-phase.ts` - Use new server
 
-### Files to Delete (Phase 7)
+### Files to Delete (Phase 6)
 - `/src/server/external/` - Entire directory
 - `/src/server/mcp.ts` - Replaced by protocol handler
 - `/src/server/services/auth-adapter.service.ts` - Replaced
 - All debug/test routes
+
+## Deployment Considerations
+
+### Cloudflared Integration
+- Server must detect `CF-Connecting-IP` header
+- Handle `CF-RAY` for request tracing
+- Support tunnel health checks
+- Configure proper ingress rules
+
+### Nginx Compatibility
+- Handle `X-Forwarded-*` headers
+- Support WebSocket upgrade
+- Proper SSL termination
+- Rate limiting at proxy level
+
+### Docker Requirements
+- Multi-stage build for production
+- Health check endpoint
+- Graceful shutdown handling
+- Environment-based configuration

@@ -62,9 +62,6 @@ export class Bootstrap {
 
     this.moduleScanner = new CoreModuleScanner();
     this.dependencyResolver = new DependencyResolver();
-
-    // Dynamic discovery is now the default
-    // The coreModules array will be populated during the discovery phase
   }
 
   /**
@@ -74,8 +71,14 @@ export class Bootstrap {
    */
   async bootstrap(): Promise<Map<string, IModule>> {
     try {
+      // Bootstrap started
       await this.loadLoggerModule();
       await this.executeAllPhases();
+      const logger = LoggerService.getInstance();
+      logger.info(LogSource.BOOTSTRAP, 'Bootstrap completed', {
+        totalModules: this.modules.size,
+        category: 'startup'
+      });
       return this.modules;
     } catch (error) {
       const logger = LoggerService.getInstance();
@@ -83,6 +86,7 @@ export class Bootstrap {
         error: error instanceof Error ? error.message : String(error),
         category: 'startup'
       });
+      // Error already logged above
       throw error;
     }
   }
@@ -189,6 +193,7 @@ export class Bootstrap {
    */
   private setCurrentPhase(phase: BootstrapPhaseEnum): void {
     this.currentPhase = phase;
+    // Phase started: ${phase}
   }
 
   /**
@@ -237,6 +242,7 @@ export class Bootstrap {
     });
 
     logger.info(LogSource.BOOTSTRAP, 'Core modules phase completed', { category: 'phase' });
+    // Core modules phase completed
   }
 
   /**
@@ -255,6 +261,7 @@ export class Bootstrap {
     this.mcpApp = await executeHttpServerPhase(httpServerContext);
 
     logger.info(LogSource.BOOTSTRAP, 'HTTP server phase completed', { category: 'phase' });
+    // HTTP server phase completed
   }
 
   /**
@@ -271,6 +278,7 @@ export class Bootstrap {
     });
 
     logger.info(LogSource.BOOTSTRAP, 'Module discovery phase completed', { category: 'phase' });
+    // Module discovery phase completed
   }
 
   /**

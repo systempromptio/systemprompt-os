@@ -17,8 +17,8 @@ import {
   LogOutput,
   LogSource,
   LoggerMode
-} from '@/modules/core/logger/types/index';
-import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger-module.types';
+} from '@/modules/core/logger/types/manual';
+import type { ILoggerModuleExports } from '@/modules/core/logger/types/manual';
 
 /**
  * Type guard to check if a module is a Logger module.
@@ -379,7 +379,7 @@ export type {
   ErrorSeverity,
   ErrorHandler,
   AsyncErrorHandler
-} from '@/modules/core/logger/types/error-handling.types';
+} from '@/modules/core/logger/types/manual';
 
 /**
  * Default export of initialize for module pattern.

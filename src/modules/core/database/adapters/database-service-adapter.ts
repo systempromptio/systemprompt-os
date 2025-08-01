@@ -7,9 +7,8 @@
 import type {
   IDatabaseConnection,
   IPreparedStatement,
-  IQueryResult,
   ITransaction
-} from '@/modules/core/database/types/database.types';
+} from '@/modules/core/database/types/manual';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 
 /**
@@ -28,12 +27,8 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
    * @param params - Optional parameters for the query.
    * @returns A promise that resolves to the query result.
    */
-  async query<T = unknown>(sql: string, params?: unknown[]): Promise<IQueryResult<T>> {
-    const rows = await this.databaseService.query<T>(sql, params);
-    return {
-      rows,
-      rowCount: rows.length
-    };
+  async query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
+    return await this.databaseService.query<T>(sql, params);
   }
 
   /**
@@ -42,8 +37,19 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
    * @param params - Optional parameters for the statement.
    * @returns A promise that resolves when execution is complete.
    */
-  async execute(sql: string, params?: unknown[]): Promise<void> {
-    await this.databaseService.execute(sql, params);
+  async execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
+    const result = await this.databaseService.execute(sql, params);
+    return result;
+  }
+
+  /**
+   * Runs a SQL statement and returns the result.
+   * @param sql - The SQL statement to run.
+   * @param params - Optional parameters for the statement.
+   * @returns A promise that resolves to the result.
+   */
+  async run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
+    return await this.execute(sql, params);
   }
 
   /**
@@ -54,23 +60,11 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
    */
   async prepare(sql: string): Promise<IPreparedStatement> {
     const preparedStatement: IPreparedStatement = {
-      execute: async (params?: unknown[]): Promise<IQueryResult> => {
-        return await this.query(sql, params);
+      query: async <T = unknown>(params?: unknown[]): Promise<T[]> => {
+        return await this.query<T>(sql, params);
       },
-      all: async <T = unknown>(params?: unknown[]): Promise<T[]> => {
-        const result = await this.query<T>(sql, params);
-        return result.rows;
-      },
-      get: async <T = unknown>(params?: unknown[]): Promise<T | undefined> => {
-        const result = await this.query<T>(sql, params);
-        return result.rows[0];
-      },
-      run: async (params?: unknown[]): Promise<{ changes: number; lastInsertRowid: number | string }> => {
-        await this.execute(sql, params);
-        return {
- changes: 0,
-lastInsertRowid: 0
-};
+      execute: async (params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> => {
+        return await this.execute(sql, params);
       },
       finalize: async (): Promise<void> => {
       }
@@ -86,11 +80,13 @@ lastInsertRowid: 0
   async transaction<T>(handler: (tx: ITransaction) => Promise<T>): Promise<T> {
     return await this.databaseService.transaction(async (conn): Promise<T> => {
       const txAdapter: ITransaction = {
-        query: async <R = unknown>(sql: string, params?: unknown[]): Promise<IQueryResult<R>> => {
-          return await conn.query<R>(sql, params);
+        query: async <R = unknown>(sql: string, params?: unknown[]): Promise<{ rows: R[] }> => {
+          const result = await conn.query<R>(sql, params);
+          return { rows: result };
         },
-        execute: conn.execute.bind(conn),
-        prepare: conn.prepare.bind(conn),
+        execute: async (sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> => {
+          return await conn.execute(sql, params);
+        },
         commit: async (): Promise<void> => {
         },
         rollback: async (): Promise<void> => {

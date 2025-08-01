@@ -110,11 +110,11 @@ export class AgentsRepository extends AgentBaseRepository {
   async getAgentById(id: string): Promise<IAgentsRow | null> {
     const result = await this.database.query<IAgentsRow>('SELECT * FROM agents WHERE id = ?', [id]);
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return null;
     }
 
-    return result.rows[0] ?? null;
+    return result[0] ?? null;
   }
 
   /**
@@ -125,11 +125,11 @@ export class AgentsRepository extends AgentBaseRepository {
   async getAgentByName(name: string): Promise<IAgentsRow | null> {
     const result = await this.database.query<IAgentsRow>('SELECT * FROM agents WHERE name = ?', [name]);
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return null;
     }
 
-    return result.rows[0] ?? null;
+    return result[0] ?? null;
   }
 
   /**
@@ -150,7 +150,7 @@ export class AgentsRepository extends AgentBaseRepository {
 
     const result = await this.database.query<IAgentsRow>(query, params);
 
-    return result.rows;
+    return result;
   }
 
   /**
@@ -163,7 +163,7 @@ export class AgentsRepository extends AgentBaseRepository {
       'SELECT capability FROM agent_capabilities WHERE agent_id = ?',
       [agentId]
     );
-    return result.rows.map((row): string => { return row.capability });
+    return result.map((row: { capability: string }): string => { return row.capability });
   }
 
   /**
@@ -176,7 +176,7 @@ export class AgentsRepository extends AgentBaseRepository {
       'SELECT tool FROM agent_tools WHERE agent_id = ?',
       [agentId]
     );
-    return result.rows.map((row): string => { return row.tool });
+    return result.map((row: { tool: string }): string => { return row.tool });
   }
 
   /**
@@ -187,7 +187,7 @@ export class AgentsRepository extends AgentBaseRepository {
   private async getAgentConfig(agentId: string): Promise<Record<string, unknown>> {
     const result = await this.database.query<{ config_key: string; config_value: string }>('SELECT config_key, config_value FROM agent_config WHERE agent_id = ?', [agentId]);
     const config: Record<string, unknown> = {};
-    for (const row of result.rows) {
+    for (const row of result) {
       config[row.config_key] = row.config_value;
     }
     return config;
@@ -296,7 +296,7 @@ export class AgentsRepository extends AgentBaseRepository {
   async getAgentLogs(agentId: string, limit?: number): Promise<IAgentLogsRow[]> {
     const { query, params } = this.buildLogQuery(agentId, limit);
     const result = await this.database.query<IAgentLogsRow>(query, params);
-    return result.rows;
+    return result;
   }
 
   /**

@@ -93,6 +93,23 @@ ${results.test.coverage?.lines ? `- **Coverage**: ${results.test.coverage.lines}
 
 export const command: ICLICommand = {
   description: 'Validate that a module is fully type-safe using generated types',
+  options: [
+    {
+      name: 'module',
+      alias: 'm',
+      type: 'string',
+      description: 'Module name to validate',
+      required: true
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
 
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
@@ -101,6 +118,7 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     const moduleName = args.module as string;
+    const format = args.format as string;
 
     if (!moduleName) {
       output.error('Module name is required');
@@ -276,15 +294,24 @@ export const command: ICLICommand = {
         output.success('✅ No linting errors');
       }
 
-      await writeModuleReport(moduleName, {
+      const validationResults = {
+        module: moduleName,
+        timestamp: new Date().toISOString(),
+        duration: Date.now() - startTime,
+        overall_status: typecheckResult.totalErrors === 0 && testResult.success && result.valid ? 'PASSED' : 'FAILED',
         validation: result,
         typecheck: typecheckResult,
         test: testResult,
-        lint: lintResult,
-        duration: Date.now() - startTime
-      });
+        lint: lintResult
+      };
 
-      output.success(`\n✅ ${moduleName} module validation complete!`);
+      await writeModuleReport(moduleName, validationResults);
+
+      if (format === 'json') {
+        output.json(validationResults);
+      } else {
+        output.success(`\n✅ ${moduleName} module validation complete!`);
+      }
       process.exit(0);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

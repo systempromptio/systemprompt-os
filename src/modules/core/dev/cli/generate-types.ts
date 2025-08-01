@@ -40,6 +40,14 @@ export const command: ICLICommand = {
       type: 'string',
       description: 'Comma-separated list of types to generate (database,interfaces,schemas,service-schemas,type-guards,all)',
       required: false
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
 
@@ -59,29 +67,45 @@ export const command: ICLICommand = {
 
     try {
       if (args.all || args.a) {
-        output.info('🔄 Generating types for all modules...');
-
         const modules = [
           'agents', 'auth', 'cli', 'config', 'database', 'dev',
           'events', 'logger', 'mcp', 'modules', 'monitor',
           'permissions', 'system', 'tasks', 'users', 'webhooks'
         ];
 
+        const results = [];
+
+        if (args.format !== 'json') {
+          output.info('🔄 Generating types for all modules...');
+        }
+
         for (const module of modules) {
-          output.info(`\n📦 Processing module: ${module}`);
+          if (args.format !== 'json') {
+            output.info(`\n📦 Processing module: ${module}`);
+          }
           try {
             await devService.generateTypes({
               module,
               types: ['all']
             });
-            output.success(`  ✅ Generated types for ${module}`);
+            results.push({ module, status: 'success', files: [`src/modules/core/${module}/types/database.generated.ts`, `src/modules/core/${module}/types/${module}.module.generated.ts`, `src/modules/core/${module}/types/${module}.service.generated.ts`] });
+            if (args.format !== 'json') {
+              output.success(`  ✅ Generated types for ${module}`);
+            }
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            output.error(`  ❌ Failed to generate types for ${module}: ${errorMessage}`);
+            results.push({ module, status: 'error', error: errorMessage });
+            if (args.format !== 'json') {
+              output.error(`  ❌ Failed to generate types for ${module}: ${errorMessage}`);
+            }
           }
         }
 
-        output.success('\n✅ Completed type generation for all modules');
+        if (args.format === 'json') {
+          output.json({ modules: results, timestamp: new Date().toISOString() });
+        } else {
+          output.success('\n✅ Completed type generation for all modules');
+        }
         return;
       }
 
@@ -120,20 +144,35 @@ export const command: ICLICommand = {
         types: typeOptions
       });
 
-      if (options.module) {
-        output.success(`✅ Successfully generated types for '${options.module}' module`);
-        output.info('Generated files:');
-        if (typeOptions.includes('all') || typeOptions.includes('database')) {
-          output.info(`  • src/modules/core/${options.module}/types/database.generated.ts`);
-        }
-        if (typeOptions.includes('all') || typeOptions.includes('schemas')) {
-          output.info(`  • src/modules/core/${options.module}/types/${options.module}.module.generated.ts`);
-        }
-        if (typeOptions.includes('all') || typeOptions.includes('service-schemas')) {
-          output.info(`  • src/modules/core/${options.module}/types/${options.module}.service.generated.ts`);
-        }
+      const generatedFiles = [];
+      if (typeOptions.includes('all') || typeOptions.includes('database')) {
+        generatedFiles.push(`src/modules/core/${options.module}/types/database.generated.ts`);
+      }
+      if (typeOptions.includes('all') || typeOptions.includes('schemas')) {
+        generatedFiles.push(`src/modules/core/${options.module}/types/${options.module}.module.generated.ts`);
+      }
+      if (typeOptions.includes('all') || typeOptions.includes('service-schemas')) {
+        generatedFiles.push(`src/modules/core/${options.module}/types/${options.module}.service.generated.ts`);
+      }
+
+      const result = {
+        module: options.module,
+        pattern: options.pattern,
+        types: typeOptions,
+        files: generatedFiles,
+        timestamp: new Date().toISOString()
+      };
+
+      if (args.format === 'json') {
+        output.json(result);
       } else {
-        output.success(`✅ Successfully generated types for pattern`);
+        if (options.module) {
+          output.success(`✅ Successfully generated types for '${options.module}' module`);
+          output.info('Generated files:');
+          generatedFiles.forEach(file => output.info(`  • ${file}`));
+        } else {
+          output.success(`✅ Successfully generated types for pattern`);
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

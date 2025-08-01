@@ -18,7 +18,7 @@ import {
   type ITaskUpdateData
 } from '@/modules/core/tasks/types/tasks.module.generated';
 import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { EventBusService } from '@/modules/core/events/services/events.service';
 import { EventNames } from '@/modules/core/events/types/index';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 

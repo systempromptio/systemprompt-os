@@ -4,37 +4,86 @@
  * @module modules/core/mcp/cli/delete
  */
 
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { cliSchemas, type DeleteMcpArgs } from '../utils/cli-validation';
 
-export const command = {
+export const command: ICLICommand = {
   description: 'Delete an MCP context',
-  execute: async (): Promise<void> => {
+  options: [
+    {
+      name: 'id',
+      alias: 'i',
+      type: 'string',
+      description: 'Context ID to delete',
+      required: true
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    },
+    {
+      name: 'confirm',
+      alias: 'y',
+      type: 'boolean',
+      description: 'Skip confirmation prompt',
+      default: false
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const cliOutput = CliOutputService.getInstance();
     const logger = LoggerService.getInstance();
 
     try {
+      // Validate arguments with Zod
+      const validatedArgs = cliSchemas.delete.parse(context.args) as DeleteMcpArgs;
+      
       const service = MCPService.getInstance();
+      
+      // First, verify the context exists
       const contexts = await service.listContexts();
-
-      if (contexts.length === 0) {
-        logger.info(LogSource.MCP, 'No MCP contexts found to delete.');
-        return;
-      }
-
-      const contextToDelete = contexts[0];
+      const contextToDelete = contexts.find(ctx => ctx.id === validatedArgs.id);
+      
       if (!contextToDelete) {
-        logger.warn(LogSource.MCP, 'No MCP contexts found to delete');
-        return;
+        cliOutput.error(`MCP context with ID '${validatedArgs.id}' not found`);
+        process.exit(1);
       }
-      await service.deleteContext(contextToDelete.id);
+      
+      // Perform deletion
+      await service.deleteContext(validatedArgs.id);
 
-      logger.info(LogSource.MCP, `Deleted MCP context: ${contextToDelete.name} (${contextToDelete.id})`);
+      const deletionResult = {
+        deleted: true,
+        context_id: validatedArgs.id,
+        context_name: contextToDelete.name,
+        timestamp: new Date().toISOString()
+      };
+
+      if (validatedArgs.format === 'json') {
+        cliOutput.json(deletionResult);
+      } else {
+        cliOutput.success(`Deleted MCP context: ${contextToDelete.name} (${validatedArgs.id})`);
+      }
+      
+      process.exit(0);
     } catch (error) {
-      const errorMessage = 'Error deleting MCP context';
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-
-      logger.error(LogSource.MCP, errorMessage, { error: errorObj });
+      if (error instanceof Error && 'issues' in error) {
+        // Handle Zod validation errors
+        cliOutput.error('Invalid arguments:');
+        (error as any).issues?.forEach((issue: any) => {
+          cliOutput.error(`  ${issue.path.join('.')}: ${issue.message}`);
+        });
+      } else {
+        cliOutput.error('Error deleting MCP context');
+        logger.error(LogSource.MCP, 'Delete command failed', { error });
+      }
       process.exit(1);
     }
   },
