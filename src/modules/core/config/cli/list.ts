@@ -3,17 +3,23 @@
  * @module modules/core/config/cli/list
  */
 
+import { z } from 'zod';
 import { configModule } from '@/modules/core/config/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import type { IListCommandOptions } from '@/modules/core/config/types/manual';
+
+// Zod schema for command arguments
+const listArgsSchema = z.object({
+  format: z.enum(['text', 'json', 'table']).default('text')
+});
 
 /**
  * Format configuration data in tree structure.
- * @param {unknown} configData - Configuration data to format.
- * @param {string} prefix - Current line prefix for tree structure.
- * @returns {string} Formatted tree string.
+ * @param configData - Configuration data to format.
+ * @param prefix - Current line prefix for tree structure.
+ * @returns Formatted tree string.
  */
 const formatTree = (configData: unknown, prefix = ''): string => {
   if (configData === null || configData === undefined) {
@@ -57,54 +63,6 @@ const formatTree = (configData: unknown, prefix = ''): string => {
 };
 
 /**
- * Format configuration data in YAML format.
- * @param {unknown} configData - Configuration data to format.
- * @param {number} indent - Current indentation level.
- * @returns {string} Formatted YAML string.
- */
-const formatYaml = (configData: unknown, indent = 0): string => {
-  if (configData === null) {
-    return 'null';
-  }
-
-  if (typeof configData !== 'object' || Array.isArray(configData)) {
-    if (typeof configData === 'string') {
-      return `"${configData}"`;
-    }
-    return JSON.stringify(configData);
-  }
-
-  const lines: string[] = [];
-  const indentStr = '  '.repeat(indent);
-  const dataObject = configData as Record<string, unknown>;
-  const keys = Object.keys(dataObject);
-
-  keys.forEach((key): void => {
-    const { [key]: value } = dataObject;
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      lines.push(`${indentStr}${key}:`);
-      const childYaml = formatYaml(value, indent + 1);
-      lines.push(childYaml);
-    } else {
-      let formattedValue: string;
-      if (typeof value === 'string') {
-        formattedValue = `"${value}"`;
-      } else {
-        formattedValue = JSON.stringify(value);
-      }
-      lines.push(`${indentStr}${key}: ${formattedValue}`);
-    }
-  });
-
-  return lines.join('\n');
-};
-
-/**
- * Export functions for testing.
- */
-export { formatTree, formatYaml };
-
-/**
  * Build config data object from list array.
  * @param configList - List of config entries.
  * @returns Config data object.
@@ -128,60 +86,108 @@ const buildConfigDataFromList = (
   );
 };
 
-export const command = {
-  /**
-   * Execute the list command.
-   * @param {object} options - Command options.
-   * @param {string} [options.format] - Output format (tree, json, yaml).
-   * @returns {Promise<void>} Promise that resolves when command completes.
-   */
-  async execute(options: IListCommandOptions = {}): Promise<void> {
+export const command: ICLICommand = {
+  description: 'List all configuration values',
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json', 'table'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
+
     try {
+      const validatedArgs = listArgsSchema.parse(context.args);
+
       await configModule.initialize();
-      const configList = await configModule.exports.service().list();
+      const configService = configModule.exports.service();
+      const configList = await configService.list();
 
       const configData = Array.isArray(configList)
         ? buildConfigDataFromList(configList)
         : configList;
 
-      const cliOutput = CliOutputService.getInstance();
-
       if (configData === null || configData === undefined
           || typeof configData === 'object' && Object.keys(configData).length === 0) {
-        cliOutput.info('No configuration values found.');
+        if (validatedArgs.format === 'json') {
+          cliOutput.json([]);
+        } else {
+          cliOutput.info('No configuration values found.');
+        }
         process.exit(0);
         return;
       }
 
-      const format = options.format ?? 'tree';
-
-      switch (format) {
+      switch (validatedArgs.format) {
         case 'json':
-          cliOutput.info(JSON.stringify(configData, null, 2));
+          if (Array.isArray(configList)) {
+            cliOutput.json(configList);
+          } else {
+            cliOutput.json(configData);
+          }
           break;
 
-        case 'yaml':
-          cliOutput.info(formatYaml(configData));
+        case 'table':
+          if (Array.isArray(configList)) {
+            cliOutput.table(configList, [
+              {
+ key: 'key',
+header: 'Key'
+},
+              {
+ key: 'value',
+header: 'Value'
+},
+              {
+ key: 'description',
+header: 'Description'
+}
+            ]);
+          } else {
+            const tableData = Object.entries(configData).map(([key, value]) => { return {
+              key,
+              value: typeof value === 'string' ? value : JSON.stringify(value),
+              description: ''
+            } });
+            cliOutput.table(tableData, [
+              {
+ key: 'key',
+header: 'Key'
+},
+              {
+ key: 'value',
+header: 'Value'
+}
+            ]);
+          }
           break;
 
-        case 'tree':
-          cliOutput.info('\nConfiguration Values:');
-          cliOutput.info('====================\n');
-          cliOutput.info(formatTree(configData));
-          break;
+        case 'text':
         default:
-          cliOutput.info('\nConfiguration Values:');
-          cliOutput.info('====================\n');
-          cliOutput.info(formatTree(configData));
+          cliOutput.section('Configuration Values');
+          cliOutput.output(formatTree(configData));
           break;
       }
+
+      process.exit(0);
     } catch (error) {
-      const logger = LoggerService.getInstance();
-      const cliOutput = CliOutputService.getInstance();
-      cliOutput.error('Failed to list configuration');
-      logger.error(LogSource.CLI, 'Failed to list configuration', {
-        error: error instanceof Error ? error : new Error(String(error))
-      });
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        cliOutput.error('Failed to list configuration');
+        logger.error(LogSource.CLI, 'Failed to list configuration', {
+          error: error instanceof Error ? error : new Error(String(error))
+        });
+      }
       process.exit(1);
     }
   }

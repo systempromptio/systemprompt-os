@@ -7,7 +7,6 @@ import type {
   IGenericOAuth2Config,
   IIdentityProvider,
   IIdpUserInfo,
-  IOIDCDiscoveryConfig,
   ITokenResponseData,
   IdpTokens,
 } from '@/modules/core/auth/types/manual';
@@ -232,11 +231,10 @@ export class GenericOAuth2Provider implements IIdentityProvider {
    */
   private mapUserData(userData: Record<string, unknown>): IIdpUserInfo {
     const mapping = this.config.userinfoMapping ?? {};
-    // Convert mapping to Record<string, string> for compatibility
-    const stringMapping = Object.entries(mapping).reduce((acc, [key, value]) => {
+    const stringMapping = Object.entries(mapping).reduce<Record<string, string>>((acc, [key, value]) => {
       acc[key] = String(value);
       return acc;
-    }, {} as Record<string, string>);
+    }, {});
 
     return {
       id: this.getUserId(userData, stringMapping),
@@ -378,7 +376,6 @@ export const discoverOidcConfiguration = async (
   }
 
   const data: unknown = await response.json();
-  // OIDC discovery response uses snake_case
   const rawConfig = data as {
     issuer: string;
     authorization_endpoint: string;
@@ -398,9 +395,6 @@ export const discoverOidcConfiguration = async (
     userinfo_endpoint,
     jwks_uri,
     scopes_supported,
-    response_types_supported,
-    grant_types_supported,
-    token_endpoint_auth_methods_supported,
   } = rawConfig;
 
   return {

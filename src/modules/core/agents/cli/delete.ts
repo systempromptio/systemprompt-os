@@ -9,48 +9,8 @@ import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-
-/**
- * Validates delete command arguments.
- * @param args - CLI arguments.
- * @param cliOutput - CLI output service.
- * @returns Agent ID if valid.
- */
-const validateDeleteArgs = (
-  args: Record<string, unknown>,
-  cliOutput: CliOutputService
-): string | null => {
-  if (typeof args.id !== 'string' || args.id === '') {
-    cliOutput.error('Agent ID is required (--id)');
-    cliOutput.info('Usage: systemprompt agent delete --id <id>');
-    return null;
-  }
-  return String(args.id);
-};
-
-/**
- * Performs agent deletion.
- * @param agentService - Agent service instance.
- * @param identifier - Agent identifier.
- * @param cliOutput - CLI output service.
- * @returns Promise resolving to success status.
- */
-const performDeletion = async (
-  agentService: AgentsService,
-  identifier: string,
-  cliOutput: CliOutputService
-): Promise<boolean> => {
-  cliOutput.section('Deleting Agent');
-  const success = await agentService.deleteAgent(identifier);
-
-  if (!success) {
-    cliOutput.error('Agent not found');
-    return false;
-  }
-
-  cliOutput.success('Agent deleted successfully');
-  return true;
-};
+import { deleteCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
+import { ZodError } from 'zod';
 
 export const command: ICLICommand = {
   description: 'Delete an agent',
@@ -69,6 +29,13 @@ export const command: ICLICommand = {
       description: 'Force deletion without confirmation',
       required: false,
       default: false
+    },
+    {
+      name: 'format',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
   execute: async (context: ICLIContext): Promise<void> => {
@@ -77,21 +44,71 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const identifier = validateDeleteArgs(args, cliOutput);
-      if (identifier === null) {
+      const validatedArgs = deleteCommandArgsSchema.parse(args);
+
+      const agentService = AgentsService.getInstance();
+
+      if (validatedArgs.format !== 'json') {
+        cliOutput.section('Deleting Agent');
+      }
+
+      const success = await agentService.deleteAgent(validatedArgs.id);
+
+      if (!success) {
+        if (validatedArgs.format === 'json') {
+          cliOutput.json({
+ success: false,
+message: 'Agent not found'
+});
+        } else {
+          cliOutput.error('Agent not found');
+        }
         process.exit(1);
       }
 
-      const agentService = AgentsService.getInstance();
-      const success = await performDeletion(agentService, identifier, cliOutput);
+      if (validatedArgs.format === 'json') {
+        cliOutput.json({
+ success: true,
+message: 'Agent deleted successfully'
+});
+      } else {
+        cliOutput.success('Agent deleted successfully');
+      }
 
-      process.exit(success ? 0 : 1);
+      process.exit(0);
     } catch (error) {
-      cliOutput.error('Failed to delete agent');
-      logger.error(LogSource.AGENT, 'Error deleting agent', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      process.exit(1);
+      if (error instanceof ZodError) {
+        if (args.format === 'json') {
+          cliOutput.json({
+            success: false,
+            message: 'Invalid arguments',
+            errors: error.errors.map(err => { return {
+              field: err.path.join('.'),
+              message: err.message
+            } })
+          });
+        } else {
+          cliOutput.error('Invalid arguments:');
+          error.errors.forEach(err => {
+            const field = err.path.length > 0 ? err.path.join('.') : 'argument';
+            cliOutput.error(`  ${field}: ${err.message}`);
+          });
+        }
+        process.exit(1);
+      } else {
+        if (args.format === 'json') {
+          cliOutput.json({
+ success: false,
+message: 'Failed to delete agent'
+});
+        } else {
+          cliOutput.error('Failed to delete agent');
+        }
+        logger.error(LogSource.AGENT, 'Error deleting agent', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        process.exit(1);
+      }
     }
   },
 };

@@ -62,14 +62,6 @@ export interface IDevService {
   ): Promise<void>;
 }
 
-import type { DevService } from '@/modules/core/dev/services/dev.service';
-
-/**
- * Strongly typed exports interface for Dev module.
- */
-export interface IDevModuleExports {
-  readonly service: () => DevService;
-}
 
 /**
  * Module generator options.
@@ -99,4 +91,33 @@ export interface IModuleGeneratorService {
   generateModule(options: IModuleGeneratorOptions): Promise<void>;
   validateModuleName(name: string): boolean;
   getModulePath(name: string, isCustom?: boolean): string;
+}
+
+/**
+ * Lint error information interface.
+ */
+export interface LintError {
+  path: string;
+  errors: number;
+  issues: string[];
+}
+
+/**
+ * Test file information interface.
+ */
+export interface TestFileInfo {
+  path: string;
+  tests: number;
+  skipped: number;
+  todos: number;
+  coverage: string[];
+}
+
+/**
+ * TypeScript error information interface.
+ */
+export interface TypeCheckError {
+  path: string;
+  errors: number;
+  issues: string[];
 }

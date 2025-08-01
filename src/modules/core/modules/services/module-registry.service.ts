@@ -216,7 +216,12 @@ export class ModuleRegistryService {
           this.logger.debug(LogSource.MODULES, `Starting module: ${moduleName}`);
           module.status = ModulesStatus.INITIALIZING;
 
-          await (module as any).start();
+          if (module.start && typeof module.start === 'function') {
+            await module.start();
+          } else {
+            this.logger.debug(LogSource.MODULES, `Module '${moduleName}' does not have a start() method`);
+          }
+
           module.status = ModulesStatus.RUNNING;
 
           this.logger.info(LogSource.MODULES, `Successfully started module: ${moduleName}`);

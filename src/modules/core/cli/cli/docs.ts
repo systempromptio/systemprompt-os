@@ -5,7 +5,7 @@
  */
 
 import { CLIModule } from '@/modules/core/cli';
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/manual';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 

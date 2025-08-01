@@ -9,7 +9,7 @@ import type {
   CLILogger,
   CLIOption,
   CommandMetadata,
-} from '@/modules/core/cli/types/index';
+} from '@/modules/core/cli/types/manual';
 import type {
   ICliCommandAliasesRow,
   ICliCommandOptionsRow,

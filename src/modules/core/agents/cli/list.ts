@@ -9,25 +9,9 @@ import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
+import { listCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
 import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
-
-/**
- * Type guard to check if value is a string.
- * @param value - Value to check.
- * @returns True if value is a string.
- */
-const isString = (value: unknown): value is string => {
-  return typeof value === 'string';
-};
-
-/**
- * Gets validated status filter from CLI arguments.
- * @param status - Status argument from CLI.
- * @returns Validated status string or undefined.
- */
-const getStatusFilter = (status: unknown): string | undefined => {
-  return isString(status) ? status : undefined;
-};
+import { ZodError } from 'zod';
 
 /**
  * Transforms agent data for table display.
@@ -95,37 +79,11 @@ const displayAgents = (
   cliOutput: CliOutputService
 ): void => {
   if (format === 'json') {
-    process.stdout.write(`${JSON.stringify(agents, null, 2)}\n`);
+    cliOutput.json(agents);
     return;
   }
 
   displayAgentsTable(agents, cliOutput);
-};
-
-/**
- * Executes the agent listing process.
- * @param args - CLI arguments.
- * @param cliOutput - CLI output service.
- * @param agentService - Agent service instance.
- */
-const executeList = async (
-  args: Record<string, unknown>,
-  cliOutput: CliOutputService,
-  agentService: AgentsService
-): Promise<void> => {
-  cliOutput.section('Listing Agents');
-
-  const statusFilter = getStatusFilter(args.status);
-  const filterValue = statusFilter !== undefined && statusFilter.length > 0 ? statusFilter : '';
-  const agents = await agentService.listAgents(filterValue);
-
-  if (agents.length === 0) {
-    cliOutput.info('No agents found');
-    process.exit(0);
-  }
-
-  displayAgents(agents, args.format, cliOutput);
-  process.exit(0);
 };
 
 export const command: ICLICommand = {
@@ -151,14 +109,61 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
+      const validatedArgs = listCommandArgsSchema.parse(args);
+
       const agentService = AgentsService.getInstance();
-      await executeList(args, cliOutput, agentService);
+
+      if (validatedArgs.format !== 'json') {
+        cliOutput.section('Listing Agents');
+      }
+
+      const statusFilter = validatedArgs.status || '';
+      const agents = await agentService.listAgents(statusFilter);
+
+      if (agents.length === 0) {
+        if (validatedArgs.format === 'json') {
+          cliOutput.json([]);
+        } else {
+          cliOutput.info('No agents found');
+        }
+        process.exit(0);
+      }
+
+      displayAgents(agents, validatedArgs.format, cliOutput);
+      process.exit(0);
     } catch (error) {
-      cliOutput.error('Failed to list agents');
-      logger.error(LogSource.AGENT, 'Error listing agents', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      process.exit(1);
+      if (error instanceof ZodError) {
+        if (args.format === 'json') {
+          cliOutput.json({
+            success: false,
+            message: 'Invalid arguments',
+            errors: error.errors.map(err => { return {
+              field: err.path.join('.'),
+              message: err.message
+            } })
+          });
+        } else {
+          cliOutput.error('Invalid arguments:');
+          error.errors.forEach(err => {
+            const field = err.path.length > 0 ? err.path.join('.') : 'argument';
+            cliOutput.error(`  ${field}: ${err.message}`);
+          });
+        }
+        process.exit(1);
+      } else {
+        if (args.format === 'json') {
+          cliOutput.json({
+ success: false,
+message: 'Failed to list agents'
+});
+        } else {
+          cliOutput.error('Failed to list agents');
+        }
+        logger.error(LogSource.AGENT, 'Error listing agents', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+        process.exit(1);
+      }
     }
   },
 };

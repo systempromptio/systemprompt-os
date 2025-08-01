@@ -4,93 +4,103 @@
  * @module modules/core/config/cli/set
  */
 
+import { z } from 'zod';
 import { configModule } from '@/modules/core/config/index';
-import type { ConfigValue } from '@/modules/core/config/types/manual';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
+// Zod schema for command arguments
+const setArgsSchema = z.object({
+  key: z.string().min(1, 'Configuration key cannot be empty'),
+  value: z.string().min(1, 'Configuration value cannot be empty'),
+  format: z.enum(['text', 'json']).default('text')
+});
+
 /**
  * Parse a string value into appropriate type.
- * @param {string} value - String value to parse.
- * @returns {ConfigValue} Parsed value.
+ * @param value - String value to parse.
+ * @returns Parsed value.
  */
-const parseValue = (value: string): ConfigValue => {
+const parseValue = (value: string): unknown => {
   try {
-    return JSON.parse(value) as ConfigValue;
+    return JSON.parse(value);
   } catch {
     return value;
   }
 };
 
-/**
- * Format value for display.
- * @param {ConfigValue} value - Value to format.
- * @returns {string} Formatted value string.
- */
-const formatValue = (value: ConfigValue): string => {
-  if (typeof value === 'string') {
-    return `"${value}"`;
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  return String(value);
-};
-
-/**
- * Validate required arguments for set command.
- * @param key - Configuration key.
- * @param value - Configuration value.
- * @param cliOutput - CLI output service.
- * @returns True if valid, exits process if invalid.
- */
-const validateSetArgs = (
-  key: unknown,
-  value: unknown,
-  cliOutput: CliOutputService
-): { validKey: string; validValue: string } => {
-  const typedKey = typeof key === 'string' ? key : undefined;
-  const typedValue = typeof value === 'string' ? value : undefined;
-
-  if (!typedKey || typedKey.trim() === ''
-      || !typedValue || typedValue.trim() === '') {
-    cliOutput.error('Error: Both key and value are required.');
-    process.exit(1);
-  }
-
-  return {
- validKey: typedKey,
-validValue: typedValue
-};
-};
-
 export const command: ICLICommand = {
   description: 'Set configuration value',
+  options: [
+    {
+      name: 'key',
+      alias: 'k',
+      type: 'string',
+      description: 'Configuration key',
+      required: true
+    },
+    {
+      name: 'value',
+      alias: 'v',
+      type: 'string',
+      description: 'Configuration value',
+      required: true
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
-    const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
-    const { key, value } = args;
-    const { validKey, validValue } = validateSetArgs(key, value, cliOutput);
-
     try {
+      const validatedArgs = setArgsSchema.parse(context.args);
+
       await configModule.initialize();
-      const parsedValue = parseValue(validValue);
+      const configService = configModule.exports.service();
 
-      await configModule.exports.service().set(validKey, parsedValue);
+      const parsedValue = parseValue(validatedArgs.value);
 
-      cliOutput.success('Configuration updated:');
-      cliOutput.keyValue({
-        [validKey]: formatValue(parsedValue)
-      });
+      await configService.set(validatedArgs.key, parsedValue);
+
+      const storedValue = await configService.get(validatedArgs.key);
+
+      if (validatedArgs.format === 'json') {
+        cliOutput.json({
+          key: validatedArgs.key,
+          value: storedValue,
+          message: 'Configuration updated successfully'
+        });
+      } else {
+        cliOutput.success('Configuration updated successfully');
+        cliOutput.keyValue({
+          [validatedArgs.key]: typeof storedValue === 'string'
+            ? storedValue
+            : JSON.stringify(storedValue)
+        });
+      }
+
+      process.exit(0);
     } catch (error) {
-      cliOutput.error('Failed to set configuration');
-      logger.error(LogSource.CLI, 'Failed to set configuration', {
-        error: error instanceof Error ? error : new Error(String(error))
-      });
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        cliOutput.error('Failed to set configuration');
+        logger.error(LogSource.CLI, 'Failed to set configuration', {
+          error: error instanceof Error ? error : new Error(String(error))
+        });
+      }
       process.exit(1);
     }
   },

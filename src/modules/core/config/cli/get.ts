@@ -1,107 +1,81 @@
 /**
- * Config get CLI command - retrieves configuration values by key or lists all configuration.
+ * Config get CLI command - retrieves configuration values by key.
  * @file Config get CLI command.
  * @module modules/core/config/cli/get
  */
 
+import { z } from 'zod';
 import { configModule } from '@/modules/core/config/index';
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 
-/**
- * Extracts the key from the context object.
- * @param context - CLI context or simple object with key.
- * @returns The extracted key or undefined.
- */
-const extractKey = (context: ICLIContext | { key?: string }): string | undefined => {
-  if ('args' in context) {
-    const { args } = context;
-    const { key: argsKey } = args;
-    return typeof argsKey === 'string' ? argsKey : undefined;
-  }
-  const { key } = context;
-  return key;
-};
+// Zod schema for command arguments
+const getArgsSchema = z.object({
+  key: z.string().min(1, 'Configuration key cannot be empty'),
+  format: z.enum(['text', 'json']).default('text')
+});
 
-/**
- * Handles the case when no configuration key is provided.
- * @param value - The configuration value (should be array or undefined).
- * @param logger - Logger instance.
- * @param cliOutput
- */
-const handleNoKey = (
-  value: unknown,
-  logger: ReturnType<typeof LoggerService.getInstance>,
-  cliOutput: ReturnType<typeof CliOutputService.getInstance>
-): void => {
-  if (value === undefined) {
-    cliOutput.info('No configuration values found.');
-    return;
-  }
-
-  try {
-    cliOutput.info(JSON.stringify(value, null, 2));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    cliOutput.error(`Error serializing configuration value: ${errorMessage}`);
-    logger.error(LogSource.CLI, `Error serializing configuration value: ${errorMessage}`);
-    process.exit(1);
-  }
-};
-
-/**
- * Handles the case when a specific configuration key is provided.
- * @param key - The configuration key.
- * @param value - The configuration value.
- * @param logger - Logger instance.
- * @param cliOutput
- */
-const handleSpecificKey = (
-  key: string,
-  value: unknown,
-  logger: ReturnType<typeof LoggerService.getInstance>,
-  cliOutput: ReturnType<typeof CliOutputService.getInstance>
-): void => {
-  if (value === undefined || value === null) {
-    cliOutput.error(`Configuration key '${key}' not found.`);
-    logger.error(LogSource.CLI, `Configuration key '${key}' not found.`);
-    process.exit(1);
-  }
-
-  try {
-    cliOutput.info(JSON.stringify(value, null, 2));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    cliOutput.error(`Error serializing configuration value: ${errorMessage}`);
-    logger.error(LogSource.CLI, `Error serializing configuration value: ${errorMessage}`);
-    process.exit(1);
-  }
-};
-
-export const command = {
-  description: 'Get configuration value(s)',
-  execute: async (context: ICLIContext | { key?: string }): Promise<void> => {
+export const command: ICLICommand = {
+  description: 'Get configuration value by key',
+  options: [
+    {
+      name: 'key',
+      alias: 'k',
+      type: 'string',
+      description: 'Configuration key to retrieve',
+      required: true
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
-    const key = extractKey(context);
 
     try {
+      const validatedArgs = getArgsSchema.parse(context.args);
+
       await configModule.initialize();
       const configService = configModule.exports.service();
-      const value = key ? await configService.get(key) : await configService.list();
+      const value = await configService.get(validatedArgs.key);
 
-      if (key !== undefined && key !== '') {
-        handleSpecificKey(key, value, logger, cliOutput);
-      } else {
-        handleNoKey(value, logger, cliOutput);
+      if (value === undefined || value === null) {
+        cliOutput.error(`Configuration key '${validatedArgs.key}' not found`);
+        process.exit(1);
       }
+
+      if (validatedArgs.format === 'json') {
+        cliOutput.json({
+ key: validatedArgs.key,
+value
+});
+      } else if (typeof value === 'string') {
+          cliOutput.output(value);
+        } else {
+          cliOutput.output(JSON.stringify(value, null, 2));
+        }
+
+      process.exit(0);
     } catch (error) {
-      cliOutput.error('Failed to get configuration');
-      logger.error(LogSource.CLI, 'Failed to get configuration', {
-        error: error instanceof Error ? error : new Error(String(error))
-      });
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        cliOutput.error('Failed to get configuration');
+        logger.error(LogSource.CLI, 'Failed to get configuration', {
+          error: error instanceof Error ? error : new Error(String(error))
+        });
+      }
       process.exit(1);
     }
   },

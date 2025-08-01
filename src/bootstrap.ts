@@ -4,19 +4,20 @@
  * @module bootstrap
  */
 import type { Express } from 'express';
-import { CORE_MODULES } from './constants/bootstrap';
+import { CoreModuleScanner } from './bootstrap/helpers/module-scanner';
+import { DependencyResolver } from './bootstrap/helpers/dependency-resolver';
 import {
   BootstrapPhaseEnum,
   type CoreModuleType,
   type GlobalConfiguration,
+  type HttpServerPhaseContext,
   type IBootstrapOptions,
   type ICoreModuleDefinition,
-  type McpServersPhaseContext,
 } from './types/bootstrap';
 import type { IModule } from '@/modules/core/modules/types/index';
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
 import { executeCoreModulesPhase } from './bootstrap/phases/core-modules-phase';
-import { executeMcpServersPhase } from './bootstrap/phases/mcp-servers-phase';
+import { executeHttpServerPhase } from './bootstrap/phases/http-server-phase';
 import { executeModuleDiscoveryPhase } from './bootstrap/phases/module-discovery-phase';
 import {
   registerCliCommands,
@@ -36,9 +37,12 @@ export class Bootstrap {
   private readonly config: GlobalConfiguration;
   private readonly modules: Map<string, CoreModuleType> = new Map();
   private readonly options: IBootstrapOptions;
-  private readonly coreModules: ICoreModuleDefinition[] = CORE_MODULES;
+  private coreModules: ICoreModuleDefinition[] = [];
   private currentPhase: BootstrapPhaseEnum = BootstrapPhaseEnum.INIT;
   private mcpApp?: Express;
+  private readonly moduleScanner: CoreModuleScanner;
+  private readonly dependencyResolver: DependencyResolver;
+  private readonly useDynamicDiscovery: boolean = true; // Feature flag for gradual migration
 
   /**
    * Creates a new Bootstrap instance.
@@ -55,6 +59,12 @@ export class Bootstrap {
       environment: environment ?? process.env.NODE_ENV ?? 'development',
       modules: {},
     };
+
+    this.moduleScanner = new CoreModuleScanner();
+    this.dependencyResolver = new DependencyResolver();
+
+    // Dynamic discovery is now the default
+    // The coreModules array will be populated during the discovery phase
   }
 
   /**
@@ -111,7 +121,7 @@ export class Bootstrap {
     const phaseOrder = [
       BootstrapPhaseEnum.INIT,
       BootstrapPhaseEnum.CORE_MODULES,
-      BootstrapPhaseEnum.MCP_SERVERS,
+      BootstrapPhaseEnum.HTTP_SERVER,
       BootstrapPhaseEnum.MODULE_DISCOVERY,
       BootstrapPhaseEnum.READY,
     ];
@@ -182,12 +192,43 @@ export class Bootstrap {
   }
 
   /**
+   * Discover core modules dynamically from the filesystem.
+   */
+  private async discoverCoreModules(): Promise<void> {
+    if (!this.useDynamicDiscovery) {
+      return
+    }
+
+    const logger = LoggerService.getInstance();
+    logger.info(LogSource.BOOTSTRAP, 'Discovering core modules dynamically', { category: 'discovery' });
+
+    try {
+      const discoveredModules = await this.moduleScanner.scan();
+
+      this.dependencyResolver.validateDependencies(discoveredModules);
+
+      this.coreModules = this.dependencyResolver.resolve(discoveredModules);
+
+      logger.info(LogSource.BOOTSTRAP, `Discovered ${this.coreModules.length} core modules`, {
+        modules: this.coreModules.map(m => { return m.name })
+      });
+    } catch (error) {
+      logger.error(LogSource.BOOTSTRAP, 'Failed to discover core modules', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Phase 1: Load and initialize core modules.
    */
   private async executeCoreModulesPhase(): Promise<void> {
     const logger = LoggerService.getInstance();
     logger.info(LogSource.BOOTSTRAP, 'Starting core modules phase', { category: 'phase' });
     this.setCurrentPhase(BootstrapPhaseEnum.CORE_MODULES);
+
+    await this.discoverCoreModules();
 
     await executeCoreModulesPhase({
       modules: this.modules,
@@ -204,16 +245,16 @@ export class Bootstrap {
   private async executeMcpServersPhase(): Promise<void> {
     const logger = LoggerService.getInstance();
     logger.info(LogSource.BOOTSTRAP, 'Starting MCP servers phase', { category: 'phase' });
-    this.setCurrentPhase(BootstrapPhaseEnum.MCP_SERVERS);
+    this.setCurrentPhase(BootstrapPhaseEnum.HTTP_SERVER);
 
-    const mcpServersContext: McpServersPhaseContext = {};
+    const httpServerContext: HttpServerPhaseContext = {};
     if (this.mcpApp !== undefined) {
       const { mcpApp } = { mcpApp: this.mcpApp };
-      mcpServersContext.mcpApp = mcpApp;
+      httpServerContext.mcpApp = mcpApp;
     }
-    this.mcpApp = await executeMcpServersPhase(mcpServersContext);
+    this.mcpApp = await executeHttpServerPhase(httpServerContext);
 
-    logger.info(LogSource.BOOTSTRAP, 'MCP servers phase completed', { category: 'phase' });
+    logger.info(LogSource.BOOTSTRAP, 'HTTP server phase completed', { category: 'phase' });
   }
 
   /**

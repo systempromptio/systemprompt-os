@@ -36,7 +36,7 @@ export interface IModuleImportResult {
 export enum BootstrapPhaseEnum {
   INIT = 'init',
   CORE_MODULES = 'core_modules',
-  MCP_SERVERS = 'mcp_servers',
+  HTTP_SERVER = 'http_server',
   MODULE_DISCOVERY = 'module_discovery',
   READY = 'ready',
 }
@@ -67,10 +67,10 @@ export interface IBootstrapOptions {
 }
 
 /**
- * MCP servers phase context.
- * Context passed to the MCP servers bootstrap phase.
+ * HTTP server phase context.
+ * Context passed to the HTTP server bootstrap phase.
  */
-export interface McpServersPhaseContext {
+export interface HttpServerPhaseContext {
   mcpApp?: Express;
 }
 
@@ -103,7 +103,7 @@ export type LogCategory =
   | 'modules'
   | 'database'
   | 'discovery'
-  | 'mcp'
+  | 'http'
   | 'cli'
   | 'error'
   | 'logger'

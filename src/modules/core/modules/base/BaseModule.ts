@@ -6,7 +6,7 @@
 
 import type { ZodSchema } from 'zod';
 import { ZodError } from 'zod';
-import type {ModulesType} from '@/modules/core/modules/types/index';
+import type {HealthStatus, ModulesType} from '@/modules/core/modules/types/index';
 import {
   BaseModuleSchema,
   type IModule,
@@ -84,6 +84,33 @@ export abstract class BaseModule<TExports = unknown> implements IModule<TExports
       this.logger.error(this.getLogSource(), `Failed to initialize ${this.name} module`, { error: errorMessage });
       throw new Error(`Failed to initialize ${this.name} module: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Start the module operations. Optional method - required for critical modules.
+   * Default implementation does nothing. Override in subclasses that need start logic.
+   */
+  public async start?(): Promise<void> {
+    this.logger?.debug?.(this.getLogSource(), `${this.name} module start() called (no-op)`);
+  }
+
+  /**
+   * Stop the module and cleanup resources. Optional method.
+   * Default implementation does nothing. Override in subclasses that need cleanup.
+   */
+  public async stop?(): Promise<void> {
+    this.logger?.debug?.(this.getLogSource(), `${this.name} module stop() called (no-op)`);
+  }
+
+  /**
+   * Health check for the module. Optional method.
+   * Default implementation returns healthy. Override for custom health checks.
+   */
+  public async health?(): Promise<HealthStatus> {
+    return {
+      status: this.status === ModulesStatus.RUNNING ? 'healthy' : 'unhealthy',
+      message: `${this.name} module status: ${this.status}`
+    };
   }
 
   /**

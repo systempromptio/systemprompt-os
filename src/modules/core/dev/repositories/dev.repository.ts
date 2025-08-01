@@ -9,7 +9,7 @@ import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { IDevProfileConfig, IDevSessionMetadata } from '@/modules/core/dev/types/index';
+import type { IDevProfileConfig, IDevSessionMetadata } from '@/modules/core/dev/types/manual';
 
 /**
  * Repository for managing development profiles and sessions.

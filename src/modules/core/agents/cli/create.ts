@@ -9,28 +9,27 @@ import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { validateCreateAgentArgs } from '@/modules/core/agents/cli/validation.helpers';
-import { buildAgentData, displayCreatedAgent } from '@/modules/core/agents/cli/create.helpers';
+import { type CreateCommandArgs, createCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
+import { displayCreatedAgent } from '@/modules/core/agents/cli/create.helpers';
 import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
+import { ZodError } from 'zod';
 
 /**
  * Handles success case for agent creation.
  * @param agent - Created agent.
- * @param args - CLI arguments.
+ * @param args - Validated CLI arguments.
  * @param cliOutput - CLI output service.
  */
 const handleSuccess = (
   agent: IAgent,
-  args: Record<string, unknown>,
+  args: CreateCommandArgs,
   cliOutput: CliOutputService
 ): void => {
-  const format = typeof args.format === 'string' ? args.format : undefined;
-
-  if (format !== 'json') {
+  if (args.format !== 'json') {
     cliOutput.success(`Agent '${agent.name}' created successfully`);
   }
 
-  displayCreatedAgent(agent, format);
+  displayCreatedAgent(agent, args.format);
   process.exit(0);
 };
 
@@ -63,22 +62,38 @@ const executeCreation = async (context: ICLIContext): Promise<void> => {
   const cliOutput = CliOutputService.getInstance();
 
   try {
-    if (!validateCreateAgentArgs(context)) {
-      process.exit(1);
-    }
+    const validatedArgs = createCommandArgsSchema.parse(args);
 
     const agentService = AgentsService.getInstance();
-    const agentData = buildAgentData(context);
 
-    const format = typeof args.format === 'string' ? args.format : undefined;
-    if (format !== 'json') {
+    if (validatedArgs.format !== 'json') {
       cliOutput.section('Creating Agent');
     }
 
-    const agent = await agentService.createAgent(agentData);
-    handleSuccess(agent, args, cliOutput);
+    const agent = await agentService.createAgent(validatedArgs);
+    handleSuccess(agent, validatedArgs, cliOutput);
   } catch (error) {
-    handleError(error, logger, cliOutput);
+    if (error instanceof ZodError) {
+      if (args.format === 'json') {
+        cliOutput.json({
+          success: false,
+          message: 'Invalid arguments',
+          errors: error.errors.map(err => { return {
+            field: err.path.join('.'),
+            message: err.message
+          } })
+        });
+      } else {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          const field = err.path.length > 0 ? err.path.join('.') : 'argument';
+          cliOutput.error(`  ${field}: ${err.message}`);
+        });
+      }
+      process.exit(1);
+    } else {
+      handleError(error, logger, cliOutput);
+    }
   }
 };
 
@@ -134,8 +149,9 @@ export const command: ICLICommand = {
       name: 'format',
       alias: 'f',
       type: 'string',
-      description: 'Output format (table or json)',
-      default: 'table'
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
   execute: executeCreation,

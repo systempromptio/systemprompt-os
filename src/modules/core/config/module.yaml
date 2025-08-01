@@ -18,25 +18,61 @@ cli:
   commands:
     - name: status
       description: Show config module status (enabled/healthy)
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: get
       description: Get configuration value
       options:
         - name: key
+          alias: k
           type: string
           description: Configuration key
           required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: set
       description: Set configuration value
       options:
         - name: key
+          alias: k
           type: string
           description: Configuration key
           required: true
         - name: value
+          alias: v
           type: string
           description: Configuration value
           required: true
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: list
       description: List all configuration values
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json, table]
+          default: text
     - name: validate
       description: Validate configuration
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text

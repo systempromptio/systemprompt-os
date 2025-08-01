@@ -137,13 +137,27 @@ export class AuthRepository {
     try {
       const oauthService = OAuthService.getInstance();
 
-      const userId = await oauthService.createOrUpdateUserFromOAuth({
+      const providerData: {
+        provider: string;
+        providerId: string;
+        email: string;
+        name?: string;
+        avatarUrl?: string;
+      } = {
         provider,
         providerId,
         email: profile.email,
-        name: profile.name || undefined,
-        avatarUrl: profile.avatarUrl || undefined
-      });
+      };
+
+      if (profile.name) {
+        providerData.name = profile.name;
+      }
+
+      if (profile.avatarUrl) {
+        providerData.avatarUrl = profile.avatarUrl;
+      }
+
+      const userId = await oauthService.createOrUpdateUserFromOAuth(providerData);
 
       if (!userId) {
         throw new Error('Failed to create/update OAuth user');
@@ -180,11 +194,10 @@ export class AuthRepository {
    */
   async getIUserById(userId: string): Promise<IAuthUser | null> {
     try {
-      // Use event-based communication to get user data
       const { EventBusService } = await import('@/modules/core/events/services/event-bus.service');
       const { UserEvents } = await import('@/modules/core/events/types/index');
       const eventBus = EventBusService.getInstance();
-      
+
       return new Promise((resolve) => {
         const requestId = randomUUID();
         const timeout = setTimeout(() => {
@@ -196,7 +209,7 @@ export class AuthRepository {
           if (event.requestId === requestId) {
             clearTimeout(timeout);
             eventBus.off(UserEvents.USER_DATA_RESPONSE, responseHandler);
-            
+
             if (event.user) {
               resolve({
                 id: event.user.id,

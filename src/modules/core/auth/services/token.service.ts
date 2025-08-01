@@ -17,7 +17,7 @@ import { TokenRepository } from '@/modules/core/auth/repositories/token.reposito
 import { TokenConfigService } from '@/modules/core/auth/services/token-config.service';
 import { JwtUtilService } from '@/modules/core/auth/services/jwt-util.service';
 import {
- MILLISECONDS_PER_SECOND, TWO, ZERO
+ MILLISECONDS_PER_SECOND, ZERO
 } from '@/constants/numbers';
 
 /**
@@ -254,7 +254,7 @@ error: 'Token revoked'
     }
 
     const now = new Date();
-    const expiresAt = new Date(tokenRecord.expires_at);
+    const expiresAt = new Date(tokenRecord.expires_at as string);
     if (now > expiresAt) {
       return {
  valid: false,

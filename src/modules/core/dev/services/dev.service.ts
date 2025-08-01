@@ -8,13 +8,13 @@
  */
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type {DevSessionStatus} from '@/modules/core/dev/types/index';
+import type {DevSessionStatus} from '@/modules/core/dev/types/manual';
 import {
   type DevSessionType,
   type IDevProfileConfig,
   type IDevService,
   type IDevSessionMetadata
-} from '@/modules/core/dev/types/index';
+} from '@/modules/core/dev/types/manual';
 import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/database.generated';
 import { DevRepository } from '@/modules/core/dev/repositories/dev.repository';
 import { TypeGenerationService } from '@/modules/core/dev/services/type-generation';

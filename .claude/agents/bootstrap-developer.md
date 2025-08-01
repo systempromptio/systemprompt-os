@@ -50,15 +50,16 @@ Your job is to:
   - Emit proper lifecycle events
   - Critical modules MUST implement start() method
 
-### Refactor Plan
-- **Location**: `/var/www/html/systemprompt-os/rules/src/bootstrap/refactor.md`
-- **Purpose**: Documents technical debt and migration strategy
-- **Key Issues to Address**:
-  - Inconsistent module lifecycle (missing start/stop/health methods)
-  - Hardcoded CORE_MODULES constant
-  - Misleading "MCP servers" phase naming
-  - Poor separation of concerns
-  - Configuration confusion
+### Bootstrap Refactor Status
+- **Location**: `/var/www/html/systemprompt-os/rules/src/bootstrap/bootstrap-refactor.md`
+- **Purpose**: Living document tracking refactor progress and remaining work
+- **Current Status**: 60% complete
+- **Key Remaining Tasks**:
+  - Enable dynamic discovery (feature flag currently false)
+  - Remove CORE_MODULES constant
+  - Fix integration test failures
+  - Implement lifecycle manager
+  - Add event system for monitoring
 
 ## Development Guidelines
 

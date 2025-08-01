@@ -10,7 +10,7 @@ import { execSync } from 'child_process';
 import type {
   IModuleGeneratorOptions,
   IModuleGeneratorService
-} from '@/modules/core/dev/types/index';
+} from '@/modules/core/dev/types/manual';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

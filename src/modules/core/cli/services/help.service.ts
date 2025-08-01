@@ -4,21 +4,21 @@
  * Provides help information and formatting for CLI commands.
  */
 
-import type { ICliService } from '@/modules/core/cli/types/index';
+import type { ICliService } from '@/modules/core/cli/types/manual';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 
 /**
  * Service for providing help information for CLI commands.
  */
 export class HelpService {
   private static instance: HelpService;
+  private readonly cliOutput: CliOutputService;
 
   /**
    * Private constructor to enforce singleton pattern.
    */
   private constructor() {
-    /**
-     * Intentionally empty for singleton pattern.
-     */
+    this.cliOutput = CliOutputService.getInstance();
   }
 
   /**
@@ -41,7 +41,7 @@ export class HelpService {
   ): Promise<void> {
     const commands = await cliService.getAllCommands();
     const help = cliService.getCommandHelp(commandName, commands);
-    this.writeToConsole(help);
+    this.cliOutput.output(help);
   }
 
   /**
@@ -49,8 +49,7 @@ export class HelpService {
    * @param cliService - The CLI service.
    */
   public async showAllCommands(cliService: ICliService): Promise<void> {
-    this.writeToConsole('\nSystemPrompt OS - All Available Commands');
-    this.writeToConsole('========================================\n');
+    this.cliOutput.section('SystemPrompt OS - All Available Commands');
 
     const commands = await cliService.getAllCommands();
     const commandsArray = Array.from(commands.entries());
@@ -59,8 +58,8 @@ export class HelpService {
     });
 
     sortedCommands.forEach(([name]): void => {
-      this.writeToConsole(cliService.getCommandHelp(name, commands));
-      this.writeToConsole('-'.repeat(40));
+      this.cliOutput.output(cliService.getCommandHelp(name, commands));
+      this.cliOutput.output('-'.repeat(40));
     });
   }
 
@@ -69,26 +68,16 @@ export class HelpService {
    * @param cliService - The CLI service.
    */
   public async showGeneralHelp(cliService: ICliService): Promise<void> {
-    this.writeToConsole('\nSystemPrompt OS CLI');
-    this.writeToConsole('==================\n');
-    this.writeToConsole('Usage: systemprompt <command> [options]\n');
-    this.writeToConsole('Commands:');
+    this.cliOutput.section('SystemPrompt OS CLI');
+    this.cliOutput.output('Usage: systemprompt <command> [options]\n');
+    this.cliOutput.output('Commands:');
 
     const commands = await cliService.getAllCommands();
-    this.writeToConsole(cliService.formatCommands(commands, 'text'));
+    this.cliOutput.output(cliService.formatCommands(commands, 'text'));
 
-    this.writeToConsole('\nFor detailed help on a specific command:');
-    this.writeToConsole('  systemprompt cli:help --command <command-name>');
-    this.writeToConsole('\nFor all commands with details:');
-    this.writeToConsole('  systemprompt cli:help --all');
-  }
-
-  /**
-   * Write text to console output.
-   * Centralized method to handle console output for help text.
-   * @param text - Text to output to console.
-   */
-  private writeToConsole(text: string): void {
-    process.stdout.write(`${text}\n`);
+    this.cliOutput.output('\nFor detailed help on a specific command:');
+    this.cliOutput.output('  systemprompt cli:help --command <command-name>');
+    this.cliOutput.output('\nFor all commands with details:');
+    this.cliOutput.output('  systemprompt cli:help --all');
   }
 }

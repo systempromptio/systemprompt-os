@@ -4,18 +4,21 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { type Migration, ensureDatabaseInitialized } from '@/modules/core/database/cli/utils';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { z } from 'zod';
 
-export interface MigrateOptions {
-  'dry-run'?: boolean;
-  module?: string;
-}
+/**
+ * CLI arguments schema for migrate command.
+ */
+const migrateArgsSchema = z.object({
+  "format": z.enum(['text', 'json']).default('text'),
+  'dry-run': z.boolean().default(false),
+  "module": z.string().optional(),
+});
 
-export interface MigrateContext extends ICLIContext {
-  args: Record<string, unknown> & {
-    'dry-run'?: boolean;
-    module?: string;
-  };
-}
+type MigrateArgs = z.infer<typeof migrateArgsSchema>;
 
 /**
  * Database migrate command implementation.
@@ -24,6 +27,14 @@ export const command: ICLICommand = {
   name: 'migrate',
   description: 'Run pending database migrations',
   options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    },
     {
       name: 'dry-run',
       alias: 'd',
@@ -40,39 +51,78 @@ export const command: ICLICommand = {
   ],
 
   async execute(context: ICLIContext): Promise<void> {
+    const cliOutput = CliOutputService.getInstance();
+    const logger = LoggerService.getInstance();
+
     try {
+      const validatedArgs = migrateArgsSchema.parse(context.args);
+      const {format} = validatedArgs;
+
       const { dbService, migrationService } = await ensureDatabaseInitialized();
 
       const isInitialized = await dbService.isInitialized();
       if (!isInitialized) {
-        console.error("Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.");
+        const message = "Database is not initialized. Run 'systemprompt database:schema --action=init' to initialize.";
+        cliOutput.error(message);
+        logger.error(LogSource.DATABASE, message);
         process.exit(1);
       }
 
       const allMigrations = await migrationService.getPendingMigrations();
 
-      const moduleFilter: string | undefined = context.args.module as string | undefined;
+      const moduleFilter: string | undefined = validatedArgs.module;
       const migrations: Migration[] = moduleFilter
         ? allMigrations.filter((m: Migration): boolean => { return m.module === moduleFilter })
         : allMigrations;
 
       if (migrations.length === 0) {
-        console.log('No pending migrations found.');
+        const message = 'No pending migrations found.';
+        if (format === 'json') {
+          cliOutput.json({
+ migrations: [],
+count: 0,
+message
+});
+        } else {
+          cliOutput.info(message);
+        }
         return;
       }
 
-      console.log(`Found ${migrations.length} pending migration(s):\n`);
-      for (const migration of migrations) {
-        console.log(`  - ${migration.module}/${migration.filename} (${migration.version})`);
+      if (format === 'json') {
+        cliOutput.json({
+          migrations: migrations.map(m => { return {
+            module: m.module,
+            filename: m.filename,
+            version: m.version
+          } }),
+          count: migrations.length
+        });
+      } else {
+        cliOutput.info(`Found ${migrations.length} pending migration(s):\n`);
+        for (const migration of migrations) {
+          cliOutput.info(`  - ${migration.module}/${migration.filename} (${migration.version})`);
+        }
       }
 
-      const isDryRun: boolean = Boolean(context.args['dry-run']);
+      const isDryRun: boolean = validatedArgs['dry-run'];
       if (isDryRun) {
-        console.log('\n[DRY RUN] Migrations were not executed.');
+        const message = '[DRY RUN] Migrations were not executed.';
+        if (format === 'json') {
+          cliOutput.json({
+ dryRun: true,
+message,
+migrations: migrations.length
+});
+        } else {
+          cliOutput.info(`\n${message}`);
+        }
         return;
       }
 
-      console.log('\nExecuting migrations...\n');
+      if (format === 'text') {
+        cliOutput.info('\nExecuting migrations...\n');
+      }
 
       let successfulMigrations: number = 0;
       let failedMigrations: number = 0;
@@ -83,29 +133,67 @@ export const command: ICLICommand = {
 
         try {
           await migrationService.executeMigration(migration);
-          console.log(`  ✓ ${migration.module}/${migration.filename} (${migration.version})`);
+          const successMsg = `${migration.module}/${migration.filename} (${migration.version})`;
+          if (format === 'text') {
+            cliOutput.success(`  ✓ ${successMsg}`);
+          }
           successfulMigrations++;
         } catch (error) {
           failedMigrations++;
           hasFailed = true;
           const errorMessage: string = error instanceof Error ? error.message : String(error);
-          console.error(`  ✗ Failed: ${errorMessage}`);
+          const failMsg = `Failed: ${errorMessage}`;
+          if (format === 'text') {
+            cliOutput.error(`  ✗ ${failMsg}`);
+          }
+          logger.error(LogSource.DATABASE, failMsg, { migration: migration.filename });
         }
       }
 
-      console.log('\nMigration summary:');
-      console.log(`  Successful: ${successfulMigrations}`);
-      console.log(`  Failed: ${failedMigrations}`);
+      const summary = {
+        successful: successfulMigrations,
+        failed: failedMigrations,
+        total: migrations.length,
+        hasErrors: hasFailed
+      };
+
+      if (format === 'json') {
+        cliOutput.json(summary);
+      } else {
+        cliOutput.info('\nMigration summary:');
+        cliOutput.info(`  Successful: ${successfulMigrations}`);
+        cliOutput.info(`  Failed: ${failedMigrations}`);
+
+        if (hasFailed) {
+          cliOutput.error('\nSome migrations failed. Database may be in an inconsistent state.');
+        } else {
+          cliOutput.success('\nAll migrations completed successfully.');
+        }
+      }
 
       if (hasFailed) {
-        console.error('\nSome migrations failed. Database may be in an inconsistent state.');
         process.exit(1);
-      } else {
-        console.log('\nAll migrations completed successfully.');
       }
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+        process.exit(1);
+      }
+
       const errorMessage: string = error instanceof Error ? error.message : String(error);
-      console.error('Error running migrations:', errorMessage);
+      const outputFormat = 'text'
+      if (outputFormat === 'json') {
+        cliOutput.json({
+ error: errorMessage,
+success: false
+});
+      } else {
+        cliOutput.error(`Error running migrations: ${errorMessage}`);
+      }
+      logger.error(LogSource.DATABASE, 'Error running migrations', { error });
       process.exit(1);
     }
   }

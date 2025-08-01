@@ -5,8 +5,9 @@
  */
 
 import { CLIModule } from '@/modules/core/cli/index';
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
+import type { CLICommand, CLIContext } from '@/modules/core/cli/types/manual';
 import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 
 /**
  * Parses a command name to extract module and command parts.
@@ -21,27 +22,6 @@ command: parts[0] ?? '' };
   }
   return { module: parts[0] ?? '',
 command: parts[1] ?? '' };
-};
-
-/**
- * Formats commands as JSON output.
- * @param commands - Map of commands to format.
- * @returns JSON string representation of commands.
- */
-const formatCommandsAsJson = (commands: Map<string, CLICommand>): string => {
-  const commandList = Array.from(commands.entries()).map(([name, cmd]) => {
-    const { module, command } = parseCommandName(name);
-    return {
-      command,
-      module,
-      description: cmd.description,
-      usage: `systemprompt ${name}`,
-      options: cmd.options || [],
-      positionals: cmd.positionals || []
-    };
-  });
-  
-  return JSON.stringify(commandList, null, 2);
 };
 
 /**
@@ -87,11 +67,10 @@ export const command: CLICommand = {
   ],
   execute: async (context: CLIContext): Promise<void> => {
     const { args } = context;
+    const cliOutput = CliOutputService.getInstance();
 
     try {
       const cliModule = new CLIModule();
-      console.log('cliModule instance:', cliModule);
-      console.log('cliModule.initialize:', typeof cliModule.initialize);
       await cliModule.initialize();
 
       let commands = await cliModule.getAllCommands();
@@ -104,19 +83,29 @@ export const command: CLICommand = {
       const format = (args.format as string) || 'text';
 
       if (format === 'json') {
-        const jsonOutput = formatCommandsAsJson(commands);
-        console.log(jsonOutput);
+        const commandList = Array.from(commands.entries()).map(([name, cmd]) => {
+          const { module, command } = parseCommandName(name);
+          return {
+            command,
+            module,
+            description: cmd.description,
+            usage: `systemprompt ${name}`,
+            options: cmd.options || [],
+            positionals: cmd.positionals || []
+          };
+        });
+        cliOutput.json(commandList);
       } else {
         // Show header for text and table formats
         if (format === 'text') {
-          console.log('SystemPrompt OS - Available Commands');
-          console.log('====================================');
+          cliOutput.section('SystemPrompt OS - Available Commands');
         }
         
         const formattedOutput = cliModule.formatCommands(commands, format);
-        console.log(formattedOutput);
+        cliOutput.output(formattedOutput, { format: 'text' });
       }
     } catch (error) {
+      cliOutput.error('Failed to list commands');
       throw new CommandExecutionError('cli:list', error as Error);
     }
   },

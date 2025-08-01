@@ -18,6 +18,17 @@ import type {
   ISchemaVersion,
   StatusFormat,
 } from '@/modules/core/cli/types/database-status.types';
+import { z } from 'zod';
+
+/**
+ * CLI arguments schema for status command.
+ */
+const statusArgsSchema = z.object({
+  format: z.enum(['text', 'json']).default('text'),
+  detailed: z.boolean().default(false),
+});
+
+type StatusArgs = z.infer<typeof statusArgsSchema>;
 
 /**
  * Handle status command execution.
@@ -92,30 +103,51 @@ const handleStatusExecution = async (
 
 export const command = {
   description: 'Show database connection health and status',
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    },
+    {
+      name: 'detailed',
+      alias: 'd',
+      type: 'boolean',
+      description: 'Show detailed information',
+      default: false
+    }
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
-    const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
-    const formatValue = args.format ?? 'text';
-    const format: StatusFormat = formatValue === 'json' ? 'json' : 'text';
-    const detailed = args.detailed === true;
-
-    const params: IStatusParams = {
-      format,
-      detailed,
-    };
-
     try {
+      const validatedArgs = statusArgsSchema.parse(context.args);
+
+      const params: IStatusParams = {
+        format: validatedArgs.format as StatusFormat,
+        detailed: validatedArgs.detailed,
+      };
+
       await handleStatusExecution(params, cliOutput, logger);
+      process.exit(0);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+        process.exit(1);
+      }
+
       cliOutput.error('Error getting database status');
       logger.error(LogSource.DATABASE, 'Error getting database status', {
         error: error instanceof Error ? error : new Error(String(error)),
       });
       process.exit(1);
     }
-
-    process.exit(0);
   },
 };

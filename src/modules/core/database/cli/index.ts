@@ -7,6 +7,7 @@ export { command as view } from '@/modules/core/database/cli/view';
 export { command as clear } from '@/modules/core/database/cli/clear';
 export { command as rebuild } from '@/modules/core/database/cli/rebuild';
 export { command as reset } from '@/modules/core/database/cli/reset';
+export { command as migrate } from '@/modules/core/database/cli/migrate';
 export { command as query } from '@/modules/core/database/cli/query';
 export { command as schema } from '@/modules/core/database/cli/schema';
 

@@ -130,12 +130,12 @@ export const buildAgentData = (context: ICLIContext): IAgentCreateData => {
  * @param format - Output format.
  */
 export const displayCreatedAgent = (agent: IAgent, format?: string): void => {
+  const cliOutput = CliOutputService.getInstance();
+
   if (format === 'json') {
-    process.stdout.write(`${JSON.stringify(agent, null, 2)}\n`);
+    cliOutput.json(agent);
     return;
   }
-
-  const cliOutput = CliOutputService.getInstance();
   const tableData = [{
     id: agent.id,
     name: agent.name,

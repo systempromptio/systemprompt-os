@@ -7,7 +7,7 @@ import type {
   ISchemaVersion,
   IStatusData,
   StatusFormat,
-} from '@/modules/core/cli/types/database-status.types';
+} from '@/modules/core/cli/types/manual';
 
 /**
  * Parameters for the status operation.

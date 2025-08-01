@@ -251,7 +251,13 @@ export class ProviderRegistry {
 
     switch (config.id) {
       case "google":
-        return new GoogleProvider(idpConfig);
+        const googleConfig = {
+          clientId: idpConfig.clientId,
+          clientSecret: idpConfig.clientSecret,
+          redirectUri: idpConfig.redirectUri,
+          scopes: config.scopes || []
+        };
+        return new GoogleProvider(googleConfig);
 
       case "github":
         return new GitHubProvider(idpConfig);
@@ -287,21 +293,29 @@ export class ProviderRegistry {
       redirectUri: idpConfig.redirectUri,
       authorizationEndpoint: config.endpoints.authorization,
       tokenEndpoint: config.endpoints.token,
-      ...idpConfig.scope ? { scope: idpConfig.scope } : {},
-      ...config.endpoints.userinfo && config.endpoints.userinfo.trim() !== '' ? {
-        userinfoEndpoint: config.endpoints.userinfo
-      } : {},
-      ...(() => {
-        const issuer = this.extractIssuer(config);
-        return issuer ? { issuer } : {};
-      })(),
-      ...config.endpoints.jwks && config.endpoints.jwks.trim() !== '' ? {
-        jwksUri: config.endpoints.jwks
-      } : {},
-      ...config.userinfoMapping ? {
-        userinfoMapping: config.userinfoMapping
-      } : {},
+      scopes: config.scopes || [],
     };
+
+    if (idpConfig.scope && !genericConfig.scopes.length) {
+      genericConfig.scopes = idpConfig.scope.split(' ');
+    }
+
+    if (config.endpoints.userinfo && config.endpoints.userinfo.trim() !== '') {
+      genericConfig.userinfoEndpoint = config.endpoints.userinfo;
+    }
+
+    const issuer = this.extractIssuer(config);
+    if (issuer) {
+      genericConfig.issuer = issuer;
+    }
+
+    if (config.endpoints.jwks && config.endpoints.jwks.trim() !== '') {
+      genericConfig.jwksUri = config.endpoints.jwks;
+    }
+
+    if (config.userinfoMapping) {
+      genericConfig.userinfoMapping = config.userinfoMapping;
+    }
 
     if (
       config.type === "oidc"
@@ -378,15 +392,11 @@ export class ProviderRegistry {
     const config = (await response.json()) as IOIDCDiscoveryConfig;
 
     return {
-      authorizationEndpoint: config.authorization_endpoint,
-      tokenEndpoint: config.token_endpoint,
-      userinfoEndpoint: config.userinfo_endpoint,
-      jwksUri: config.jwks_uri,
+      authorizationEndpoint: config.authorizationEndpoint,
+      tokenEndpoint: config.tokenEndpoint,
+      userinfoEndpoint: config.userInfoEndpoint,
+      jwksUri: config.jwksUri,
       issuer: config.issuer,
-      scopesSupported: config.scopes_supported,
-      responseTypesSupported: config.response_types_supported,
-      grantTypesSupported: config.grant_types_supported,
-      tokenEndpointAuthMethods: config.token_endpoint_auth_methods_supported,
     };
   }
 

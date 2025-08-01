@@ -8,7 +8,7 @@ import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/databas
 import type { IModule } from '@/modules/core/modules/types';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { CliService } from '@/modules/core/cli/services/cli.service';
-import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { CLICommand } from '@/modules/core/cli/types/manual';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

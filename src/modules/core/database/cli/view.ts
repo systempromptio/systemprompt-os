@@ -12,6 +12,7 @@ import {
   type IColumnInfo,
   type IViewResult,
 } from '@/modules/core/cli/services/database-view.service';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type {
@@ -281,11 +282,13 @@ const displayDataTable = (
  * @param result - View result object.
  * @param format - Output format.
  * @param logger - Logger instance.
+ * @param cliOutput - CLI output service instance.
  */
 const processViewResult = (
   result: IViewResult,
   format: ViewFormat,
   logger: LoggerService,
+  cliOutput: CliOutputService,
 ): void => {
   if (!result.success) {
     logger.error(LogSource.CLI, result.message ?? 'Unknown error occurred');
@@ -294,7 +297,7 @@ const processViewResult = (
 
   if (result.schema !== undefined) {
     if (format === 'json') {
-      logger.info(LogSource.CLI, JSON.stringify(result.schema, null, 2));
+      cliOutput.json(result.schema);
     } else {
       displaySchemaTable(result.schema.table, result.schema.columns, logger);
     }
@@ -307,7 +310,7 @@ const processViewResult = (
   }
 
   if (format === 'json') {
-    logger.info(LogSource.CLI, JSON.stringify(result.data, null, 2));
+    cliOutput.json(result.data);
   } else if (format === 'csv') {
     displayDataCsv(result.data.data, logger);
   } else {
@@ -438,6 +441,7 @@ const buildViewParams = (args: {
  */
 const executeViewCommand = async (context: ICLIContext): Promise<void> => {
   const logger = LoggerService.getInstance();
+  const cliOutput = CliOutputService.getInstance();
 
   const {
     table: tableName,
@@ -499,7 +503,7 @@ const executeViewCommand = async (context: ICLIContext): Promise<void> => {
 
     const result = await databaseViewService.handleView(viewParams);
 
-    processViewResult(result, viewFormat, logger);
+    processViewResult(result, viewFormat, logger, cliOutput);
   } catch (error) {
     const errorMessage
       = error instanceof Error ? error.message : 'Unknown error';

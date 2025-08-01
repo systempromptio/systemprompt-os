@@ -13,6 +13,13 @@ cli:
   commands:
     - name: status
       description: Show agents module status
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: create
       description: Create a new agent
       options:
@@ -42,9 +49,11 @@ cli:
           type: string
           description: Agent configuration (JSON format)
         - name: format
+          alias: f
           type: string
-          description: Output format (table or json)
-          default: table
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: list
       description: List all agents
       options:
@@ -55,9 +64,11 @@ cli:
           type: string
           description: Filter by agent type
         - name: format
+          alias: f
           type: string
-          description: Output format (table or json)
-          default: table
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: show
       description: Show agent details
       options:
@@ -72,8 +83,9 @@ cli:
         - name: format
           alias: f
           type: string
-          description: Output format (table or json)
-          default: table
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: update
       description: Update an agent
       options:
@@ -103,9 +115,11 @@ cli:
           type: string
           description: Agent configuration (JSON format)
         - name: format
+          alias: f
           type: string
-          description: Output format (table or json)
-          default: table
+          description: Output format
+          choices: [text, json]
+          default: text
     - name: delete
       description: Delete an agent
       options:
@@ -117,3 +131,8 @@ cli:
           type: boolean
           description: Force deletion without confirmation
           default: false
+        - name: format
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text

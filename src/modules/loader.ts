@@ -183,9 +183,9 @@ export class ModuleLoader {
    */
   private loadConfig(): IModulesConfig {
     if (!existsSync(this.configPath)) {
-      logger.warn(
+      logger.debug(
         LogSource.MODULES,
-        `Module config not found at ${this.configPath}, using defaults`,
+        `Optional module config not found at ${this.configPath}, using defaults (this is normal)`,
       );
       return { modules: {} };
     }

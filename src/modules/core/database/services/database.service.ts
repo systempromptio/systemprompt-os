@@ -15,10 +15,10 @@ import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
+  IDatabaseService,
   IPreparedStatement,
   ITransaction
-} from '@/modules/core/database/types/database.types';
-import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
+} from '@/modules/core/database/types/manual';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
 

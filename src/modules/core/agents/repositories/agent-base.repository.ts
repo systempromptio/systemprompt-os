@@ -116,13 +116,39 @@ export abstract class AgentBaseRepository {
   }
 
   /**
+   * Type guard to check if a value is a valid IAgentsRow.
+   * @param value - Value to check.
+   * @returns True if value is IAgentsRow.
+   */
+  private isValidAgentsRow(value: unknown): value is IAgentsRow {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+
+    const record = value as Record<string, unknown>;
+    return (
+      typeof record.id === 'string'
+      && typeof record.name === 'string'
+      && typeof record.description === 'string'
+      && typeof record.instructions === 'string'
+      && typeof record.type === 'string'
+      && typeof record.status === 'string'
+      && (record.created_at === null || typeof record.created_at === 'string')
+      && (record.updated_at === null || typeof record.updated_at === 'string')
+    );
+  }
+
+  /**
    * Converts database row to agent object.
    * @param row - Database row data.
    * @returns Agent object.
+   * @throws Error if row is not a valid agents row.
    */
   protected rowToAgent(row: unknown): IAgent {
-    const agentRow = row as IAgentsRow;
-    return this.createAgentFromRow(agentRow);
+    if (!this.isValidAgentsRow(row)) {
+      throw new Error('Invalid agents row data');
+    }
+    return this.createAgentFromRow(row);
   }
 
   /**

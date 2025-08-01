@@ -174,9 +174,9 @@ export class ModuleLoaderService {
    */
   private loadModuleConfig(): { modules: Record<string, IModuleConfiguration> } {
     if (!existsSync(this.configPath)) {
-      this.logger.warn(
+      this.logger.debug(
         LogSource.MODULES,
-        `Module config not found at ${this.configPath}, using defaults`,
+        `Optional module config not found at ${this.configPath}, using defaults (this is normal)`,
       );
       return { modules: {} };
     }

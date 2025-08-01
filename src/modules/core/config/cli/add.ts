@@ -36,8 +36,7 @@ const validateRequiredArgs = (
   serverCommand: string | undefined,
   cliOutput: CliOutputService
 ): boolean => {
-  if (name === null || name === undefined || name === ''
-      || serverCommand === null || serverCommand === undefined || serverCommand === '') {
+  if (!name || !serverCommand) {
     cliOutput.error('Error: Both name and command are required.');
     cliOutput.info(
       'Usage: config add --name <server-name> '
@@ -84,8 +83,7 @@ const parseAndValidateEnv = (
   cliOutput: CliOutputService
 ): Record<string, string> | null => {
   const parsedEnv = parseJsonSafely(envString);
-  if (parsedEnv === null || parsedEnv === undefined
-      || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
+  if (!parsedEnv || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
     cliOutput.error('Error: --env must be a valid JSON object');
     return null;
   }
@@ -117,10 +115,10 @@ const displaySuccessInfo = (
     Status: 'inactive'
   });
 
-  if (config.args !== null && config.args !== undefined && config.args.length > 0) {
+  if (config.args && config.args.length > 0) {
     cliOutput.info(`Arguments: ${JSON.stringify(config.args)}`);
   }
-  if (config.env !== null && config.env !== undefined && Object.keys(config.env).length > 0) {
+  if (config.env && Object.keys(config.env).length > 0) {
     cliOutput.info(`Environment: ${JSON.stringify(config.env)}`);
   }
 };
@@ -154,10 +152,10 @@ const parseCommandArgs = (args: Record<string, unknown>): {
     typedCommand: typeof serverCommand === 'string' ? serverCommand : undefined,
     typedArgsString: typeof argsString === 'string' ? argsString : undefined,
     typedEnvString: typeof envString === 'string' ? envString : undefined,
-    typedScope: ['local', 'project', 'user'].includes(scope as string)
+    typedScope: typeof scope === 'string' && ['local', 'project', 'user'].includes(scope)
       ? scope as 'local' | 'project' | 'user'
       : undefined,
-    typedTransport: ['stdio', 'sse', 'http'].includes(transport as string)
+    typedTransport: typeof transport === 'string' && ['stdio', 'sse', 'http'].includes(transport)
       ? transport as 'stdio' | 'sse' | 'http'
       : undefined,
     typedDescription: typeof description === 'string' ? description : undefined
@@ -193,21 +191,20 @@ const buildServerConfig = (
     command: typedCommand ?? '',
     scope: typedScope ?? 'local',
     transport: typedTransport ?? 'stdio',
-    ...typedDescription !== null && typedDescription !== undefined
-        ? { description: typedDescription } : {}
+    ...typedDescription ? { description: typedDescription } : {}
   };
 
-  if (typedArgsString !== null && typedArgsString !== undefined && typedArgsString !== '') {
+  if (typedArgsString) {
     const parsedArgsResult = parseAndValidateArgs(typedArgsString, cliOutput);
-    if (parsedArgsResult === null) {
+    if (!parsedArgsResult) {
       return null;
     }
     config.args = parsedArgsResult;
   }
 
-  if (typedEnvString !== null && typedEnvString !== undefined && typedEnvString !== '') {
+  if (typedEnvString) {
     const parsedEnv = parseAndValidateEnv(typedEnvString, cliOutput);
-    if (parsedEnv === null) {
+    if (!parsedEnv) {
       return null;
     }
     config.env = parsedEnv;
@@ -226,7 +223,7 @@ export const command: ICLICommand = {
     const parsedArgs = parseCommandArgs(args);
     const config = buildServerConfig(parsedArgs, cliOutput);
 
-    if (config === null || config === undefined) {
+    if (!config) {
       process.exit(1);
     }
 

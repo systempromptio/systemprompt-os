@@ -68,12 +68,11 @@ export class AuthService implements IAuthService {
 
     await this.repository.initialize();
     await this.oauthService.initialize();
-    
-    // Set logger on OAuth service if available
+
     if (this.logger) {
       this.oauthService.setLogger(this.logger);
     }
-    
+
     this.initialized = true;
     this.logger?.info(LogSource.AUTH, 'AuthService initialized');
   }
@@ -146,13 +145,12 @@ export class AuthService implements IAuthService {
     this.logger?.info(LogSource.AUTH, `Creating session for user: ${userId}`);
 
     const session = await this.sessionService.createSession({
-      user_id: userId,
+      userId,
       type: 'web',
-      ip_address: '127.0.0.1', // This would come from request context in real implementation
-      user_agent: 'SystemPrompt CLI' // This would come from request context in real implementation
+      ipAddress: '127.0.0.1',
+      userAgent: 'SystemPrompt CLI'
     });
 
-    // Emit session created event
     this.eventBus.emit(AuthEvents.SESSION_CREATED, {
       sessionId: session.id,
       userId: session.user_id,
@@ -203,7 +201,6 @@ export class AuthService implements IAuthService {
 
     await this.sessionService.revokeSession(sessionId);
 
-    // Emit session revoked event
     this.eventBus.emit(AuthEvents.SESSION_REVOKED, {
       sessionId,
       timestamp: new Date()
@@ -221,9 +218,8 @@ export class AuthService implements IAuthService {
     this.logger?.info(LogSource.AUTH, `Listing sessions for user: ${userId}`);
 
     const sessions = await this.sessionService.getUserSessions(userId);
-    return sessions.map(session => session.id);
+    return sessions.map(session => { return session.id });
   }
-
 
   /**
    * Ensure service is initialized.

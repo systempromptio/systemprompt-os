@@ -145,6 +145,7 @@ const createDefaultRoles = async (
 /**
  * Reset database command handler.
  * @param context - CLI context (unused).
+ * @param _context
  * @returns Promise that resolves when reset is complete.
  */
 const resetDatabase = async (_context: ICliContext): Promise<void> => {
@@ -195,6 +196,7 @@ const displayAllUsers = (
 /**
  * List users command handler.
  * @param context - CLI context (unused).
+ * @param _context
  * @returns Promise that resolves when listing is complete.
  */
 const listUsers = async (_context: ICliContext): Promise<void> => {

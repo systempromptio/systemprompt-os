@@ -10,13 +10,11 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
-  UserEvents,
+  type UserCreateOAuthRequestEvent,
+  type UserCreateOAuthResponseEvent,
   type UserDataRequestEvent,
   type UserDataResponseEvent,
-  type UserCreateRequestEvent,
-  type UserCreateResponseEvent,
-  type UserUpdateRequestEvent,
-  type UserUpdateResponseEvent
+  UserEvents
 } from '@/modules/core/events/types/index';
 
 /**
@@ -60,7 +58,7 @@ export class OAuthService {
    * @returns Promise that resolves when initialized.
    */
   async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.initialized) { return; }
 
     await this.repository.initialize();
     this.initialized = true;
@@ -88,48 +86,33 @@ export class OAuthService {
 
     this.logger?.info(LogSource.AUTH, `Creating/updating user from OAuth: ${providerData.email}`);
 
-    // First, check if user exists by requesting user data
-    const checkRequestId = randomUUID();
     const userExists = await this.requestUserByEmail(providerData.email);
 
     let userId: string;
 
     if (!userExists) {
-      // Create new user via event
       const createRequestId = randomUUID();
-      userId = await this.createUserViaEvent({
+      const createEventData: UserCreateOAuthRequestEvent = {
         requestId: createRequestId,
-        email: providerData.email,
-        username: providerData.email.split('@')[0],
-        display_name: providerData.name || providerData.email.split('@')[0],
-        avatar_url: providerData.avatarUrl
-      });
+        provider: providerData.provider,
+        providerId: providerData.providerId,
+        email: providerData.email
+      };
+      if (providerData.name) { createEventData.name = providerData.name; }
+      if (providerData.avatarUrl) { createEventData.avatar = providerData.avatarUrl; }
+
+      userId = await this.createUserViaEvent(createEventData);
     } else {
       userId = userExists.id;
-      
-      // Update existing user if we have new data
-      if (providerData.name || providerData.avatarUrl) {
-        const updateRequestId = randomUUID();
-        const updates: any = {};
-        if (providerData.name) updates.display_name = providerData.name;
-        if (providerData.avatarUrl) updates.avatar_url = providerData.avatarUrl;
-        
-        await this.updateUserViaEvent({
-          requestId: updateRequestId,
-          userId,
-          updates
-        });
-      }
     }
 
-    // Store OAuth identity
     await this.repository.createOrUpdateOAuthIdentity({
       user_id: userId,
       provider: providerData.provider,
       provider_user_id: providerData.providerId,
       provider_email: providerData.email,
-      provider_name: providerData.name,
-      provider_picture: providerData.avatarUrl
+      provider_name: providerData.name || null,
+      provider_picture: providerData.avatarUrl || null
     });
 
     return userId;
@@ -151,16 +134,24 @@ export class OAuthService {
     this.logger?.info(LogSource.AUTH, `Requesting user data from ${provider} for user: ${userId}`);
 
     const identity = await this.repository.getOAuthIdentity(userId, provider);
-    
+
     if (!identity) {
       return null;
     }
 
-    return {
-      email: identity.provider_email || '',
-      name: identity.provider_name || undefined,
-      avatarUrl: identity.provider_picture || undefined
+    const result: { email: string; name?: string; avatarUrl?: string } = {
+      email: identity.provider_email || ''
     };
+
+    if (identity.provider_name) {
+      result.name = identity.provider_name;
+    }
+
+    if (identity.provider_picture) {
+      result.avatarUrl = identity.provider_picture;
+    }
+
+    return result;
   }
 
   /**
@@ -169,24 +160,24 @@ export class OAuthService {
    * @returns Promise that resolves to user data or null.
    */
   private async requestUserByEmail(email: string): Promise<{ id: string; email: string } | null> {
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve) => {
       const requestId = randomUUID();
       const timeout = setTimeout(() => {
         this.eventBus.off(UserEvents.USER_DATA_RESPONSE, responseHandler);
         resolve(null);
       }, 5000);
 
-      const responseHandler = (event: UserDataResponseEvent) => {
-        if (event.requestId === requestId) {
+      const responseHandler = (event: unknown) => {
+        const typedEvent = event as UserDataResponseEvent;
+        if (typedEvent.requestId === requestId) {
           clearTimeout(timeout);
           this.eventBus.off(UserEvents.USER_DATA_RESPONSE, responseHandler);
-          resolve(event.user);
+          resolve(typedEvent.user);
         }
       };
 
-      this.eventBus.on(UserEvents.USER_DATA_RESPONSE, responseHandler);
+      this.eventBus.on<UserDataResponseEvent>(UserEvents.USER_DATA_RESPONSE, responseHandler);
 
-      // Emit request
       this.eventBus.emit(UserEvents.USER_DATA_REQUEST, {
         requestId,
         email
@@ -199,64 +190,35 @@ export class OAuthService {
    * @param data - User creation data.
    * @returns Promise that resolves to user ID.
    */
-  private async createUserViaEvent(data: UserCreateRequestEvent): Promise<string> {
-    return new Promise((resolve, reject) => {
+  private async createUserViaEvent(data: UserCreateOAuthRequestEvent): Promise<string> {
+    return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        this.eventBus.off(UserEvents.USER_CREATE_RESPONSE, responseHandler);
+        this.eventBus.off(UserEvents.USER_CREATE_OAUTH_RESPONSE, responseHandler);
         reject(new Error('User creation timeout'));
       }, 5000);
 
-      const responseHandler = (event: UserCreateResponseEvent) => {
-        if (event.requestId === data.requestId) {
+      const responseHandler = (event: unknown) => {
+        const typedEvent = event as UserCreateOAuthResponseEvent;
+        if (typedEvent.requestId === data.requestId) {
           clearTimeout(timeout);
-          this.eventBus.off(UserEvents.USER_CREATE_RESPONSE, responseHandler);
-          
-          if (event.error) {
-            reject(new Error(event.error));
-          } else if (event.userId) {
-            resolve(event.userId);
+          this.eventBus.off(UserEvents.USER_CREATE_OAUTH_RESPONSE, responseHandler);
+
+          if (typedEvent.error) {
+            reject(new Error(typedEvent.error));
+          } else if (typedEvent.user?.id) {
+            resolve(typedEvent.user.id);
           } else {
             reject(new Error('User creation failed'));
           }
         }
       };
 
-      this.eventBus.on(UserEvents.USER_CREATE_RESPONSE, responseHandler);
-      this.eventBus.emit(UserEvents.USER_CREATE_REQUEST, data);
+      this.eventBus.on<UserCreateOAuthResponseEvent>(UserEvents.USER_CREATE_OAUTH_RESPONSE, responseHandler);
+      this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_REQUEST, data);
     });
   }
 
-  /**
-   * Update user via events.
-   * @param data - User update data.
-   * @returns Promise that resolves when update is complete.
-   */
-  private async updateUserViaEvent(data: UserUpdateRequestEvent): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.eventBus.off(UserEvents.USER_UPDATE_RESPONSE, responseHandler);
-        reject(new Error('User update timeout'));
-      }, 5000);
-
-      const responseHandler = (event: UserUpdateResponseEvent) => {
-        if (event.requestId === data.requestId) {
-          clearTimeout(timeout);
-          this.eventBus.off(UserEvents.USER_UPDATE_RESPONSE, responseHandler);
-          
-          if (event.error) {
-            reject(new Error(event.error));
-          } else if (event.success) {
-            resolve();
-          } else {
-            reject(new Error('User update failed'));
-          }
-        }
-      };
-
-      this.eventBus.on(UserEvents.USER_UPDATE_RESPONSE, responseHandler);
-      this.eventBus.emit(UserEvents.USER_UPDATE_REQUEST, data);
-    });
-  }
+  // TODO: Implement updateUserViaEvent when USER_UPDATE events are available
 
   /**
    * Ensure service is initialized.

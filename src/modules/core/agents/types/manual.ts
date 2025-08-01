@@ -32,3 +32,23 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
  * Task status values.
  */
 export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+/**
+ * Field validation interface for CLI validation helpers.
+ */
+export interface IFieldValidation {
+  hasName: boolean;
+  hasDescription: boolean;
+  hasInstructions: boolean;
+  hasType: boolean;
+}
+
+/**
+ * CLI deletion context interface.
+ */
+export interface IDeletionContext {
+  agentService: any; // AgentsService type
+  identifier: string;
+  format: unknown;
+  cliOutput: any; // CliOutputService type
+}

@@ -20,8 +20,8 @@ const displayBasicInfo = (agent: IAgent, cliOutput: CliOutputService): void => {
     Description: agent.description,
     Type: agent.type,
     Status: agent.status,
-    Created: agent.created_at ? new Date(agent.created_at).toISOString() : 'N/A',
-    Updated: agent.updated_at ? new Date(agent.updated_at).toISOString() : 'N/A'
+    Created: agent.created_at !== null ? new Date(agent.created_at).toISOString() : 'N/A',
+    Updated: agent.updated_at !== null ? new Date(agent.updated_at).toISOString() : 'N/A'
   });
 };
 
@@ -80,12 +80,13 @@ const displayMetrics = (agent: IAgent, cliOutput: CliOutputService): void => {
 };
 
 /**
- * Displays agent details in a formatted way.
+ * Displays agent instructions section.
  * @param agent - Agent to display.
+ * @param cliOutput - CLI output service.
  */
-export const displayAgentDetails = (agent: IAgent): void => {
-  const cliOutput = CliOutputService.getInstance();
-  displayAllAgentSections(agent, cliOutput);
+const displayInstructions = (agent: IAgent, cliOutput: CliOutputService): void => {
+  cliOutput.section('Instructions');
+  cliOutput.info(agent.instructions);
 };
 
 /**
@@ -93,21 +94,20 @@ export const displayAgentDetails = (agent: IAgent): void => {
  * @param agent - Agent to display.
  * @param cliOutput - CLI output service.
  */
-function displayAllAgentSections(agent: IAgent, cliOutput: CliOutputService): void {
+const displayAllAgentSections = (agent: IAgent, cliOutput: CliOutputService): void => {
   displayBasicInfo(agent, cliOutput);
   displayInstructions(agent, cliOutput);
   displayCapabilities(agent, cliOutput);
   displayTools(agent, cliOutput);
   displayConfiguration(agent, cliOutput);
   displayMetrics(agent, cliOutput);
-}
+};
 
 /**
- * Displays agent instructions section.
+ * Displays agent details in a formatted way.
  * @param agent - Agent to display.
- * @param cliOutput - CLI output service.
  */
-function displayInstructions(agent: IAgent, cliOutput: CliOutputService): void {
-  cliOutput.section('Instructions');
-  cliOutput.info(agent.instructions);
-}
+export const displayAgentDetails = (agent: IAgent): void => {
+  const cliOutput = CliOutputService.getInstance();
+  displayAllAgentSections(agent, cliOutput);
+};

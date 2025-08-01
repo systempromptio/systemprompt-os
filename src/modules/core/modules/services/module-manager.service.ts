@@ -201,13 +201,13 @@ export class ModuleManagerService {
   }
 
   /**
-   * Log warning when injectable path is not found.
+   * Log debug message when injectable path is not found.
    * @param injectablePath - The path that was not found.
    */
   private logPathNotFound(injectablePath: string): void {
-    this.logger.warn(
+    this.logger.debug(
       LogSource.MODULES,
-      `Injectable modules path does not exist: ${injectablePath}`
+      `Optional injectable modules path does not exist: ${injectablePath} (this is normal)`
     );
   }
 

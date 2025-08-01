@@ -9,7 +9,7 @@ import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/databas
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { IDevModuleExports } from '@/modules/core/dev/types/index';
+import type { IDevModuleExports } from '@/modules/core/dev/types/dev.service.generated';
 
 /**
  * Dev module implementation.

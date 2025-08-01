@@ -1,5 +1,5 @@
 // Auto-generated service schemas for dev module
-// Generated on: 2025-07-31T13:04:44.052Z
+// Generated on: 2025-08-01T09:22:09.750Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

@@ -81,12 +81,17 @@ export class JwtUtilService {
         audience: config.jwt.audience,
       }) as JwtPayload;
 
-      return {
+      const result: TokenValidationResult = {
         valid: true,
-        payload: decoded as Record<string, unknown>,
+        payload: decoded as unknown as Record<string, unknown>,
         userId: decoded.userId,
-        scopes: decoded.scope,
       };
+
+      if (decoded.scope) {
+        result.scopes = decoded.scope;
+      }
+
+      return result;
     } catch (error) {
       return {
         valid: false,

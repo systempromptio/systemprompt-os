@@ -9,9 +9,10 @@ import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { validateAgentIdentifier } from '@/modules/core/agents/cli/validation.helpers';
+import { showCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
 import { displayAgentDetails } from '@/modules/core/agents/cli/show.helpers';
 import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
+import { ZodError } from 'zod';
 
 /**
  * Handles success case for agent display.
@@ -21,7 +22,7 @@ import type { IAgent } from '@/modules/core/agents/types/agents.module.generated
  */
 const handleShowSuccess = (agent: IAgent, format: string, cliOutput: CliOutputService): void => {
   if (format === 'json') {
-    process.stdout.write(`${JSON.stringify(agent, null, 2)}\n`);
+    cliOutput.json(agent);
   } else {
     cliOutput.section('Agent Details');
     displayAgentDetails(agent);
@@ -52,27 +53,52 @@ const handleShowError = (
  * @param context - CLI context with arguments and metadata.
  */
 const executeShow = async (context: ICLIContext): Promise<void> => {
+  const { args } = context;
   const logger = LoggerService.getInstance();
   const cliOutput = CliOutputService.getInstance();
 
   try {
-    const identifier = validateAgentIdentifier(context);
-    if (identifier === null) {
-      process.exit(1);
-    }
+    const validatedArgs = showCommandArgsSchema.parse(args);
 
     const agentService = AgentsService.getInstance();
+    const identifier = validatedArgs.id || validatedArgs.name || '';
     const agent = await agentService.getAgent(identifier);
 
     if (agent === null) {
-      cliOutput.error('Agent not found');
+      if (validatedArgs.format === 'json') {
+        cliOutput.json({
+ success: false,
+message: 'Agent not found'
+});
+      } else {
+        cliOutput.error('Agent not found');
+      }
       process.exit(1);
     }
 
-    const format = typeof context.args.format === 'string' ? context.args.format : 'text';
-    handleShowSuccess(agent, format, cliOutput);
+    handleShowSuccess(agent, validatedArgs.format, cliOutput);
   } catch (error) {
-    handleShowError(error, logger, cliOutput);
+    if (error instanceof ZodError) {
+      if (args.format === 'json') {
+        cliOutput.json({
+          success: false,
+          message: 'Invalid arguments',
+          errors: error.errors.map(err => { return {
+            field: err.path.join('.'),
+            message: err.message
+          } })
+        });
+      } else {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          const field = err.path.length > 0 ? err.path.join('.') : 'argument';
+          cliOutput.error(`  ${field}: ${err.message}`);
+        });
+      }
+      process.exit(1);
+    } else {
+      handleShowError(error, logger, cliOutput);
+    }
   }
 };
 

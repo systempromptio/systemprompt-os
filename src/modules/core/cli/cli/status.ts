@@ -11,7 +11,7 @@ import type {
   CLIContext,
   ICliModule,
   ICliService
-} from '@/modules/core/cli/types/index';
+} from '@/modules/core/cli/types/manual';
 import { CommandExecutionError } from '@/modules/core/cli/utils/errors';
 import { StatusService } from '@/modules/core/cli/services/status.service';
 
