@@ -73,7 +73,9 @@ const validateRequiredParameters = (type: string, module_id: string): void => {
  */
 const validateStatus = (status: string): status is TaskStatus => {
   const validStatuses = Object.values(TaskStatus);
-  const hasValidStatus = validStatuses.some(validStatus => { return validStatus === status });
+  const hasValidStatus = validStatuses.some(
+    (validStatus): boolean => { return String(validStatus) === status }
+  );
 
   if (!hasValidStatus) {
     process.stderr.write(`Error: Invalid status. Valid values are: ${validStatuses.join(', ')}\n`);

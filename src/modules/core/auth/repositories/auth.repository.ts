@@ -49,6 +49,10 @@ export class AuthRepository {
       return;
     }
 
+    if (!this.database) {
+      throw new Error('Database service not available');
+    }
+
     this.initialized = true;
     this.logger?.info(LogSource.AUTH, 'AuthRepository initialized');
   }
@@ -77,6 +81,7 @@ export class AuthRepository {
    */
   async createCredentials(userId: string, passwordHash: string, salt: string): Promise<void> {
     this.logger?.debug(LogSource.AUTH, `Creating credentials for user: ${userId}`);
+    console.debug('Creating credentials with hash:', passwordHash.length, 'salt:', salt.length);
   }
 
   /**
@@ -88,6 +93,7 @@ export class AuthRepository {
    */
   async updateCredentials(userId: string, passwordHash: string, salt: string): Promise<void> {
     this.logger?.debug(LogSource.AUTH, `Updating credentials for user: ${userId}`);
+    console.debug('Updating credentials with hash:', passwordHash.length, 'salt:', salt.length);
   }
 
   /**

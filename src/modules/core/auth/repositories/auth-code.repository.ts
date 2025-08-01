@@ -7,8 +7,8 @@ import type { DatabaseService } from '@/modules/core/database/services/database.
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import type {
-  IAuthorizationCodeData,
-} from '@/modules/core/auth/types/auth-code.types';
+  IAuthCodeCreate as IAuthorizationCodeData,
+} from '@/modules/core/auth/types/manual';
 import type { IAuthAuthorizationCodesRow } from '@/modules/core/auth/types/database.generated';
 import { ZERO } from '@/constants/numbers';
 

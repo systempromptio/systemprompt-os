@@ -110,7 +110,7 @@ describe('Agent-Task Integration Tests', () => {
     if (!tasksModuleRef || !('exports' in tasksModuleRef) || !tasksModuleRef.exports) {
       console.warn('Tasks module not loaded - skipping agent-task integration tests');
       // Skip all tests in this suite since tasks module is required
-      return;
+      throw new Error('Tasks module not loaded - required for integration tests');
     }
     
     if (!dbModule || !('exports' in dbModule) || !dbModule.exports) {

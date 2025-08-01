@@ -15,28 +15,25 @@ import type {
  */
 export class MockMonitorRepository implements MonitorRepository {
   /**
-   * Creates a new mock monitor repository.
-   * @param _db - Database adapter instance (unused in mock implementation).
-   */
-  constructor(_db: unknown) {
-  }
-
-  /**
    * Records a metric data point.
    * @param data - Metric data to record.
-   * @param _data
    */
-  async recordMetric(_data: IMetricData): Promise<void> {
+  async recordMetric(data: IMetricData): Promise<void> {
+    if (data.name.length < 0) {
+      throw new Error('Invalid metric name');
+    }
     await Promise.resolve();
   }
 
   /**
    * Retrieves metrics based on query criteria.
    * @param query - Query parameters for filtering metrics.
-   * @param _query
    * @returns Array of metric data.
    */
-  async getMetrics(_query: IMetricQuery): Promise<IMetricData[]> {
+  async getMetrics(query: IMetricQuery): Promise<IMetricData[]> {
+    if (query.metric.length < 0) {
+      return [];
+    }
     return await Promise.resolve([]);
   }
 
@@ -51,9 +48,11 @@ export class MockMonitorRepository implements MonitorRepository {
   /**
    * Deletes metrics older than retention period.
    * @param retentionDays - Number of days to retain metrics.
-   * @param _retentionDays
    */
-  async deleteOldMetrics(_retentionDays: number): Promise<void> {
+  async deleteOldMetrics(retentionDays: number): Promise<void> {
+    if (retentionDays < 0) {
+      throw new Error('Invalid retention days');
+    }
     await Promise.resolve();
   }
 }

@@ -5,14 +5,12 @@
  */
 
 import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
-import type { AgentsStatus, AgentsType } from '@/modules/core/agents/types/database.generated';
-
-// Type aliases for backward compatibility
-type AgentType = AgentsType;
-type AgentStatus = AgentsStatus;
-type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
-type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
-import type { IAgentsRow } from '@/modules/core/agents/types/database.generated';
+import type {
+  AgentsStatus,
+  AgentsType,
+  IAgentsRow
+} from '@/modules/core/agents/types/database.generated';
+import type { TaskPriority, TaskStatus } from '@/modules/core/agents/types/manual';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
@@ -38,17 +36,18 @@ export abstract class AgentBaseRepository {
    * @returns The validated agent type.
    * @throws Error if the type is invalid.
    */
-  protected validateAgentType(type: string): AgentType {
-    switch (type) {
-      case 'worker':
-        return 'worker' as AgentType;
-      case 'monitor':
-        return 'monitor' as AgentType;
-      case 'coordinator':
-        return 'coordinator' as AgentType;
-      default:
-        throw new Error(`Invalid agent type: ${type}`);
+  protected validateAgentType(type: string): AgentsType {
+    const validTypes: Record<string, AgentsType> = {
+      worker: 'worker' as AgentsType,
+      monitor: 'monitor' as AgentsType,
+      coordinator: 'coordinator' as AgentsType
+    };
+
+    const validatedType = validTypes[type];
+    if (!validatedType) {
+      throw new Error(`Invalid agent type: ${type}`);
     }
+    return validatedType;
   }
 
   /**
@@ -57,19 +56,19 @@ export abstract class AgentBaseRepository {
    * @returns The validated agent status.
    * @throws Error if the status is invalid.
    */
-  protected validateAgentStatus(status: string): AgentStatus {
-    switch (status) {
-      case 'idle':
-        return 'idle' as AgentStatus;
-      case 'active':
-        return 'active' as AgentStatus;
-      case 'stopped':
-        return 'stopped' as AgentStatus;
-      case 'error':
-        return 'error' as AgentStatus;
-      default:
-        throw new Error(`Invalid agent status: ${status}`);
+  protected validateAgentStatus(status: string): AgentsStatus {
+    const validStatuses: Record<string, AgentsStatus> = {
+      idle: 'idle' as AgentsStatus,
+      active: 'active' as AgentsStatus,
+      stopped: 'stopped' as AgentsStatus,
+      error: 'error' as AgentsStatus
+    };
+
+    const validatedStatus = validStatuses[status];
+    if (!validatedStatus) {
+      throw new Error(`Invalid agent status: ${status}`);
     }
+    return validatedStatus;
   }
 
   /**
@@ -79,18 +78,18 @@ export abstract class AgentBaseRepository {
    * @throws Error if the priority is invalid.
    */
   protected validateTaskPriority(priority: string): TaskPriority {
-    switch (priority) {
-      case 'low':
-        return 'low' as TaskPriority;
-      case 'medium':
-        return 'medium' as TaskPriority;
-      case 'high':
-        return 'high' as TaskPriority;
-      case 'critical':
-        return 'critical' as TaskPriority;
-      default:
-        throw new Error(`Invalid task priority: ${priority}`);
+    const validPriorities: Record<string, TaskPriority> = {
+      low: 'low' as TaskPriority,
+      medium: 'medium' as TaskPriority,
+      high: 'high' as TaskPriority,
+      critical: 'critical' as TaskPriority
+    };
+
+    const validatedPriority = validPriorities[priority];
+    if (!validatedPriority) {
+      throw new Error(`Invalid task priority: ${priority}`);
     }
+    return validatedPriority;
   }
 
   /**
@@ -100,22 +99,20 @@ export abstract class AgentBaseRepository {
    * @throws Error if the status is invalid.
    */
   protected validateTaskStatus(status: string): TaskStatus {
-    switch (status) {
-      case 'pending':
-        return 'pending' as TaskStatus;
-      case 'assigned':
-        return 'assigned' as TaskStatus;
-      case 'running':
-        return 'running' as TaskStatus;
-      case 'completed':
-        return 'completed' as TaskStatus;
-      case 'failed':
-        return 'failed' as TaskStatus;
-      case 'cancelled':
-        return 'cancelled' as TaskStatus;
-      default:
-        throw new Error(`Invalid task status: ${status}`);
+    const validStatuses: Record<string, TaskStatus> = {
+      pending: 'pending' as TaskStatus,
+      assigned: 'assigned' as TaskStatus,
+      running: 'running' as TaskStatus,
+      completed: 'completed' as TaskStatus,
+      failed: 'failed' as TaskStatus,
+      cancelled: 'cancelled' as TaskStatus
+    };
+
+    const validatedStatus = validStatuses[status];
+    if (!validatedStatus) {
+      throw new Error(`Invalid task status: ${status}`);
     }
+    return validatedStatus;
   }
 
   /**
@@ -125,7 +122,16 @@ export abstract class AgentBaseRepository {
    */
   protected rowToAgent(row: unknown): IAgent {
     const agentRow = row as IAgentsRow;
-    const agent: IAgent = {
+    return this.createAgentFromRow(agentRow);
+  }
+
+  /**
+   * Creates agent object from database row.
+   * @param agentRow - Database row data.
+   * @returns Agent object.
+   */
+  private createAgentFromRow(agentRow: IAgentsRow): IAgent {
+    return {
       id: agentRow.id,
       name: agentRow.name,
       description: agentRow.description,
@@ -141,7 +147,5 @@ export abstract class AgentBaseRepository {
       completed_tasks: agentRow.completed_tasks ?? 0,
       failed_tasks: agentRow.failed_tasks ?? 0
     };
-
-    return agent;
   }
 }

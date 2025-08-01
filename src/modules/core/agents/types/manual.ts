@@ -14,14 +14,21 @@ import type {
  * Extends IAgentCreateData with optional ID for repository operations.
  */
 export interface CreateAgentInput extends IAgentCreateData {
-  /** Optional agent ID for specific scenarios */
-  id?: string | undefined;
+    id?: string | undefined;
 }
 
 /**
  * Minimal DTO for agent update input.
  * Repository-specific interface for agent updates.
  */
-export interface UpdateAgentInput extends IAgentUpdateData {
-  /** Additional repository-specific fields if needed */
-}
+export type UpdateAgentInput = IAgentUpdateData;
+
+/**
+ * Task priority levels.
+ */
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Task status values.
+ */
+export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';

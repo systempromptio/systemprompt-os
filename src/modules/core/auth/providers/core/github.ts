@@ -2,7 +2,7 @@ import type {
   IIdentityProvider,
   IIdpUserInfo,
   IdpTokens,
-} from '@/modules/core/auth/types/provider-interface';
+} from '@/modules/core/auth/types/manual';
 import type {
   IGitHubConfig,
   IGitHubEmailData,

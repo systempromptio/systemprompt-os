@@ -7,13 +7,7 @@ import { configModule } from '@/modules/core/config/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-
-/**
- * Options for the list command.
- */
-interface IListCommandOptions {
-  format?: 'tree' | 'json' | 'yaml';
-}
+import type { IListCommandOptions } from '@/modules/core/config/types/manual';
 
 /**
  * Format configuration data in tree structure.
@@ -111,8 +105,29 @@ const formatYaml = (configData: unknown, indent = 0): string => {
 export { formatTree, formatYaml };
 
 /**
- * CLI command for listing configuration values.
+ * Build config data object from list array.
+ * @param configList - List of config entries.
+ * @returns Config data object.
  */
+const buildConfigDataFromList = (
+  configList: unknown[]
+): Record<string, unknown> => {
+  return configList.reduce<Record<string, unknown>>(
+    (acc, entry): Record<string, unknown> => {
+      if (entry !== null && entry !== undefined
+          && typeof entry === 'object' && 'key' in entry && 'value' in entry) {
+        const typedEntry = entry as { key: string; value: unknown };
+        return {
+          ...acc,
+          [typedEntry.key]: typedEntry.value
+        };
+      }
+      return acc;
+    },
+    {}
+  );
+};
+
 export const command = {
   /**
    * Execute the list command.
@@ -126,18 +141,13 @@ export const command = {
       const configList = await configModule.exports.service().list();
 
       const configData = Array.isArray(configList)
-        ? configList.reduce<Record<string, unknown>>((acc, entry) => {
-            if (entry && typeof entry === 'object' && 'key' in entry && 'value' in entry) {
-              acc[String(entry.key)] = entry.value;
-            }
-            return acc;
-          }, {})
+        ? buildConfigDataFromList(configList)
         : configList;
 
       const cliOutput = CliOutputService.getInstance();
 
-      if (!configData || typeof configData === 'object'
-          && Object.keys(configData).length === 0) {
+      if (configData === null || configData === undefined
+          || typeof configData === 'object' && Object.keys(configData).length === 0) {
         cliOutput.info('No configuration values found.');
         process.exit(0);
         return;
@@ -155,6 +165,11 @@ export const command = {
           break;
 
         case 'tree':
+          cliOutput.info('\nConfiguration Values:');
+          cliOutput.info('====================\n');
+          cliOutput.info(formatTree(configData));
+          break;
+        default:
           cliOutput.info('\nConfiguration Values:');
           cliOutput.info('====================\n');
           cliOutput.info(formatTree(configData));

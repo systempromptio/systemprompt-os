@@ -29,7 +29,7 @@ import type {
 import type {
   ICommandOptions,
   IProviderWithVersion
-} from '@/modules/core/config/cli/types/provider.types';
+} from '@/modules/core/config/types/manual';
 
 /**
  * Output interface for CLI operations.

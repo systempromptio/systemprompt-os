@@ -321,11 +321,11 @@ column: 'metadata'
   /**
    * Processes a single field mapping for updates.
    * @param mapping - Field mapping configuration.
-   * @param mapping.field
+   * @param mapping.field - Field name in data object.
+   * @param mapping.column - Column name in database.
+   * @param mapping.transform - Optional transform function.
    * @param data - Update data.
-   * @param mapping.column
    * @param updates - Updates array to populate.
-   * @param mapping.transform
    * @param values - Values array to populate.
    */
   private processFieldMapping(
@@ -334,14 +334,30 @@ column: 'metadata'
     updates: string[],
     values: unknown[]
   ): void {
-    const {
- field, column, transform
-} = mapping;
-    if (data[field] !== undefined) {
-      updates.push(`${column} = ?`);
-      const transformedValue = transform ? transform(data[field]) : data[field];
-      values.push(transformedValue);
+    const processedValue = this.processFieldValue(mapping, data);
+    if (processedValue !== null) {
+      updates.push(`${mapping.column} = ?`);
+      values.push(processedValue);
     }
+  }
+
+  /**
+   * Process field value with optional transformation.
+   * @param mapping - Field mapping configuration.
+   * @param mapping.field
+   * @param data - Update data.
+   * @param mapping.column
+   * @param mapping.transform
+   * @returns Processed value or null if field not present.
+   */
+  private processFieldValue(
+    mapping: { field: string; column: string; transform?: (value: unknown) => unknown },
+    data: Record<string, unknown>
+  ): unknown | null {
+    if (data[mapping.field] !== undefined) {
+      return mapping.transform ? mapping.transform(data[mapping.field]) : data[mapping.field];
+    }
+    return null;
   }
 
   /**

@@ -40,7 +40,6 @@ export class AgentsService implements IAgentsService {
   private constructor() {
     this.repository = AgentsRepository.getInstance();
     this.eventBus = EventBusService.getInstance();
-    this.setupEventHandlers();
   }
 
   /**
@@ -93,12 +92,6 @@ export class AgentsService implements IAgentsService {
   }
 
   /**
-   * Set up event handlers for inter-module communication.
-   */
-  private setupEventHandlers(): void {
-  }
-
-  /**
    * Creates a new agent.
    * @param data - Agent creation data.
    * @returns Promise resolving to the created agent.
@@ -109,12 +102,7 @@ export class AgentsService implements IAgentsService {
     try {
       const agent = await this.repository.createAgentExtended(data);
 
-      this.logger?.info(LogSource.AGENT, 'Agent created', {
-        metadata: {
-          agentId: agent.id,
-          name: agent.name
-        }
-      });
+      this.logAgentCreated(agent);
 
       this.eventBus.emit(EventNames.AGENT_CREATED, {
         agentId: agent.id,
@@ -160,7 +148,7 @@ export class AgentsService implements IAgentsService {
     });
 
     const extendedAgent = await this.repository.getAgentByIdExtended(agentId);
-    if (extendedAgent) {
+    if (extendedAgent !== null) {
       this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
         agentId,
         capabilities: extendedAgent.capabilities
@@ -172,7 +160,7 @@ export class AgentsService implements IAgentsService {
    * Stops an agent.
    * @param agentId - ID of the agent to stop.
    * @param force - Whether to force stop the agent.
-   * @returns Promise.
+   * @returns Promise that resolves when the agent is stopped.
    */
   async stopAgent(agentId: string, force: unknown = false): Promise<void> {
     await this.ensureInitialized();
@@ -201,6 +189,67 @@ export class AgentsService implements IAgentsService {
   }
 
   /**
+   * Validates and converts status to AgentsStatus.
+   * @param status - Status to validate.
+   * @returns Valid AgentsStatus.
+   * @throws Error when status is invalid.
+   */
+  private validateAgentStatus(status: unknown): AgentsStatus {
+    const agentStatus = status as AgentsStatus;
+    if (!Object.values(AgentsStatus).includes(agentStatus)) {
+      throw new Error(`Invalid agent status: ${String(status)}`);
+    }
+    return agentStatus;
+  }
+
+  /**
+   * Updates agent status in repository with error handling.
+   * @param agentId - Agent ID.
+   * @param status - New status.
+   * @returns Promise.
+   */
+  private async updateAgentInRepository(
+    agentId: string,
+    status: AgentsStatus
+  ): Promise<void> {
+    try {
+      const success = await this.repository.updateAgent(agentId, { status });
+      if (!success) {
+        throw new Error('Repository updateAgent returned false');
+      }
+      this.logger?.debug(LogSource.AGENT, 'Repository update succeeded', {
+        metadata: { agentId }
+      });
+    } catch (error) {
+      this.logger?.error(LogSource.AGENT, 'Repository update failed', {
+        error: error instanceof Error ? error.message : String(error),
+        metadata: {
+          agentId,
+          status
+        }
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Creates extended agent from base agent and new status.
+   * @param agent - Base agent.
+   * @param status - New status.
+   * @returns Extended agent.
+   */
+  private createExtendedAgent(agent: IAgentsRow, status: AgentsStatus): IAgent {
+    return {
+      ...agent,
+      status,
+      updated_at: new Date().toISOString(),
+      capabilities: [],
+      tools: [],
+      config: {}
+    };
+  }
+
+  /**
    * Updates an agent's status.
    * @param agentId - ID of the agent to update.
    * @param status - New status for the agent.
@@ -209,60 +258,31 @@ export class AgentsService implements IAgentsService {
   async updateAgentStatus(agentId: string, status: unknown): Promise<IAgent> {
     await this.ensureInitialized();
 
-    const agentStatus = status as AgentsStatus;
-    if (!Object.values(AgentsStatus).includes(agentStatus)) {
-      throw new Error(`Invalid agent status: ${String(status)}`);
-    }
+    const agentStatus = this.validateAgentStatus(status);
 
     this.logger?.debug(LogSource.AGENT, 'Updating agent status', {
       metadata: {
- agentId,
-status: agentStatus,
-statusType: typeof agentStatus
-}
+        agentId,
+        status: agentStatus,
+        statusType: typeof agentStatus
+      }
     });
 
     const agent = await this.repository.getAgentById(agentId);
-
     if (agent === null) {
       throw new Error(`Agent with ID ${agentId} not found`);
     }
 
     this.logger?.debug(LogSource.AGENT, 'Found agent before update', {
       metadata: {
- agentId,
-currentStatus: agent.status
-}
+        agentId,
+        currentStatus: agent.status
+      }
     });
 
-    try {
-      const success = await this.repository.updateAgent(agentId, { status: agentStatus });
-      if (!success) {
-        throw new Error('Repository updateAgent returned false');
-      }
+    await this.updateAgentInRepository(agentId, agentStatus);
 
-      this.logger?.debug(LogSource.AGENT, 'Repository update succeeded', {
-        metadata: { agentId }
-      });
-    } catch (error) {
-      this.logger?.error(LogSource.AGENT, 'Repository update failed', {
-        error: error instanceof Error ? error.message : String(error),
-        metadata: {
- agentId,
-status
-}
-      });
-      throw error;
-    }
-
-    const extendedAgent: IAgent = {
-      ...agent,
-      status: agentStatus,
-      updated_at: new Date().toISOString(),
-      capabilities: [],
-      tools: [],
-      config: {}
-    };
+    const extendedAgent = this.createExtendedAgent(agent, agentStatus);
 
     this.logger?.info(LogSource.AGENT, 'Agent status updated', {
       metadata: {
@@ -285,9 +305,11 @@ status
    * Reports that an agent is working on a task.
    * @param agentId - ID of the agent.
    * @param taskId - ID of the task.
-   * @returns Promise.
+   * @returns Promise that resolves when the agent status is updated.
    */
   async reportAgentBusy(agentId: string, taskId: number): Promise<void> {
+    await this.ensureInitialized();
+
     await this.repository.updateAgent(agentId, {
       status: AgentsStatus.ACTIVE
     });
@@ -301,10 +323,11 @@ status
   /**
    * Reports that an agent has finished a task.
    * @param agentId - ID of the agent.
-   * @param success - Whether the task was successful.
-   * @returns Promise.
+   * @returns Promise that resolves when the agent status is updated.
    */
   async reportAgentIdle(agentId: string): Promise<void> {
+    await this.ensureInitialized();
+
     const agent = await this.repository.getAgentById(agentId);
     if (agent === null) {
       return;
@@ -314,18 +337,12 @@ status
       status: AgentsStatus.ACTIVE
     });
 
-    this.eventBus.emit(EventNames.AGENT_IDLE, {
-      agentId
-    });
-
-    this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
-      agentId
-    });
+    this.emitAgentIdleEvents(agentId);
   }
 
   /**
    * Starts monitoring agents.
-   * @returns Promise.
+   * @returns Promise that resolves when monitoring is started.
    */
   async startMonitoring(): Promise<void> {
     if (this.isMonitoring) {
@@ -338,18 +355,12 @@ status
     await Promise.resolve();
     this.logger?.info(LogSource.AGENT, 'Agent monitoring started');
 
-    this.monitoringInterval = setInterval((): void => {
-      this.performMonitoringCycle().catch((error: unknown): void => {
-        this.logger?.error(LogSource.AGENT, 'Monitoring cycle failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-      });
-    }, 5000);
+    this.startMonitoringInterval();
   }
 
   /**
    * Stops monitoring agents.
-   * @returns Promise.
+   * @returns Promise that resolves when monitoring is stopped.
    */
   async stopMonitoring(): Promise<void> {
     if (!this.isMonitoring) {
@@ -359,10 +370,7 @@ status
     this.isMonitoring = false;
     this.started = false;
 
-    if (this.monitoringInterval !== undefined) {
-      clearInterval(this.monitoringInterval);
-      this.monitoringInterval = undefined;
-    }
+    this.clearMonitoringInterval();
 
     await Promise.resolve();
     this.logger?.info(LogSource.AGENT, 'Agent monitoring stopped');
@@ -370,7 +378,7 @@ status
 
   /**
    * Reset service state for testing purposes.
-   * @returns Promise.
+   * @returns Promise that resolves when service is reset.
    */
   async reset(): Promise<void> {
     await this.stopMonitoring();
@@ -419,7 +427,7 @@ status
       return null;
     }
 
-    await new Promise(resolve => { return setTimeout(resolve, 50) });
+    await this.waitForUpdate();
 
     return await this.repository.getAgentByIdExtended(agent.id);
   }
@@ -442,7 +450,7 @@ status
     const success = await this.repository.deleteAgent(agent.id);
 
     if (success) {
-      this.logger?.info(LogSource.AGENT, `Agent deleted: ${agent.name}`, { agentId: agent.id });
+      this.logAgentDeleted(agent);
     }
 
     return success;
@@ -468,9 +476,9 @@ status
     await this.ensureInitialized();
 
     let agent = await this.repository.getAgentByIdExtended(identifier);
-    if (!agent) {
+    if (agent === null) {
       const agentRow = await this.repository.getAgentByName(identifier);
-      if (agentRow) {
+      if (agentRow !== null) {
         agent = await this.repository.getAgentByIdExtended(agentRow.id);
       }
     }
@@ -489,7 +497,7 @@ status
     const idleAgents = await this.repository.listAgents(AgentsStatus.IDLE);
     const agents = [...activeAgents, ...idleAgents];
 
-    if (capability === '' || capability === undefined) {
+    if (capability === '') {
       return agents;
     }
 
@@ -498,7 +506,7 @@ status
 
   /**
    * Performs a monitoring cycle for all active agents.
-   * @returns Promise.
+   * @returns Promise that resolves when monitoring cycle is complete.
    */
   private async performMonitoringCycle(): Promise<void> {
     const activeAgents = await this.repository.listAgents(AgentsStatus.ACTIVE);
@@ -515,5 +523,75 @@ status
         }
       })
     );
+  }
+
+  /**
+   * Logs agent creation.
+   * @param agent - The created agent.
+   */
+  private logAgentCreated(agent: IAgent): void {
+    this.logger?.info(LogSource.AGENT, 'Agent created', {
+      metadata: {
+        agentId: agent.id,
+        name: agent.name
+      }
+    });
+  }
+
+  /**
+   * Logs agent deletion.
+   * @param agent - The deleted agent.
+   */
+  private logAgentDeleted(agent: IAgentsRow): void {
+    this.logger?.info(LogSource.AGENT, `Agent deleted: ${agent.name}`, {
+      agentId: agent.id
+    });
+  }
+
+  /**
+   * Emits agent idle events.
+   * @param agentId - ID of the agent.
+   */
+  private emitAgentIdleEvents(agentId: string): void {
+    this.eventBus.emit(EventNames.AGENT_IDLE, {
+      agentId
+    });
+
+    this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
+      agentId
+    });
+  }
+
+  /**
+   * Starts the monitoring interval.
+   */
+  private startMonitoringInterval(): void {
+    this.monitoringInterval = setInterval((): void => {
+      this.performMonitoringCycle().catch((error: unknown): void => {
+        this.logger?.error(LogSource.AGENT, 'Monitoring cycle failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      });
+    }, 5000);
+  }
+
+  /**
+   * Clears the monitoring interval.
+   */
+  private clearMonitoringInterval(): void {
+    if (this.monitoringInterval !== undefined) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = undefined;
+    }
+  }
+
+  /**
+   * Waits for a short period to allow updates to propagate.
+   * @returns Promise that resolves after a short delay.
+   */
+  private async waitForUpdate(): Promise<void> {
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 50);
+    });
   }
 }

@@ -263,3 +263,49 @@ export interface IConfigService {
   listMcpServers(): Promise<IMcpServerEntry[]>;
   updateMcpServerStatus(name: string, status: string, error?: string): Promise<void>;
 }
+
+// CLI Command types - required for CLI commands that cannot be auto-generated
+/**
+ * Extended provider interface with version and typed config.
+ */
+export interface IProviderWithVersion {
+  name: string;
+  displayName: string;
+  enabled: boolean;
+  version: string;
+  description: string;
+  config?: IProviderConfig;
+}
+
+/**
+ * Command options interface for provider commands.
+ */
+export interface ICommandOptions {
+  enabled?: boolean;
+  name?: string;
+  models?: boolean;
+}
+
+/**
+ * Options for the list command.
+ */
+export interface IListCommandOptions {
+  format?: 'tree' | 'json' | 'yaml';
+}
+
+/**
+ * MCP server display interface for formatting in CLI.
+ */
+export interface McpServerDisplay {
+  name: string;
+  command: string;
+  scope: string;
+  transport: string;
+  status: string;
+  description?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  lastError?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

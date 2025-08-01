@@ -3,31 +3,20 @@
  * @module modules/core/auth/cli/db
  */
 
-import type { IUsersRow } from '@/modules/core/users/types/database.generated';
-import readline from 'readline';
-
-/**
- * User list row interface extending database type with aggregated roles.
- */
-interface IUserListQueryResult extends IUsersRow {
-  roles: string | null;
-}
-import {
- ONE, ZERO
-} from '@/constants/numbers';
-
-const EIGHTY = 80;
-import type { IAuthCliTypes } from '@/modules/core/auth/types/manual';
+import type {
+  AuthDatabase,
+  IAuthCliTypes,
+  ICliContext,
+  IUserListQueryResult
+} from '@/modules/core/auth/types/manual';
+import { ONE, ZERO } from '@/constants/numbers';
+import { EIGHTY } from '@/modules/core/auth/constants/session.constants';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { getAuthModule } from '@/modules/core/auth/index';
 import type { AuthModule } from '@/modules/core/auth/index';
-
-interface AuthDatabase {
-  execute: (sql: string, params?: unknown[]) => Promise<void>;
-  query: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
-}
+import readline from 'readline';
 
 /**
  * Get logger instance.
@@ -62,7 +51,11 @@ const askConfirmation = async (question: string): Promise<string> => {
  * @param index - User index in the list.
  * @param logger - Logger instance.
  */
-const displayUserInfo = (user: IUserListQueryResult, index: number, logger: ILogger): void => {
+const displayUserInfo = (
+  user: IUserListQueryResult,
+  index: number,
+  logger: ILogger
+): void => {
   const userNumber = index + ONE;
   logger.info(LogSource.AUTH, `${String(userNumber)}. ${user.email}`);
   logger.info(LogSource.AUTH, `   ID: ${user.id}`);
@@ -70,7 +63,9 @@ const displayUserInfo = (user: IUserListQueryResult, index: number, logger: ILog
     logger.info(LogSource.AUTH, `   Name: ${user.display_name}`);
   }
   logger.info(LogSource.AUTH, `   Roles: ${user.roles ?? 'none'}`);
-  logger.info(LogSource.AUTH, `   Created: ${new Date(user.created_at ?? new Date().toISOString()).toLocaleString()}`);
+  const createdAt = user.created_at ?? new Date().toISOString();
+  const createdDate = new Date(createdAt).toLocaleString();
+  logger.info(LogSource.AUTH, `   Created: ${createdDate}`);
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
 };
@@ -81,8 +76,12 @@ const displayUserInfo = (user: IUserListQueryResult, index: number, logger: ILog
  * @param logger - Logger instance.
  * @returns Promise that resolves when done.
  */
-const deleteAuthTables = async (authModule: AuthModule, logger: ILogger): Promise<void> => {
-  const db = (authModule as any).getDatabase() as AuthDatabase;
+const deleteAuthTables = async (
+  authModule: AuthModule,
+  logger: ILogger
+): Promise<void> => {
+  const db = (authModule as AuthModule & { getDatabase: () => AuthDatabase })
+    .getDatabase();
 
   await db.execute('DELETE FROM auth_sessions');
   await db.execute('DELETE FROM auth_role_permissions');
@@ -102,8 +101,12 @@ const deleteAuthTables = async (authModule: AuthModule, logger: ILogger): Promis
  * @param logger - Logger instance.
  * @returns Promise that resolves when done.
  */
-const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Promise<void> => {
-  const db = (authModule as any).getDatabase() as AuthDatabase;
+const createDefaultRoles = async (
+  authModule: AuthModule,
+  logger: ILogger
+): Promise<void> => {
+  const db = (authModule as AuthModule & { getDatabase: () => AuthDatabase })
+    .getDatabase();
 
   const defaultRoles = [
     {
@@ -121,12 +124,13 @@ const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Prom
   ];
 
   await Promise.all(
-    defaultRoles.map(async (role) =>
-      { await db.execute(
+    defaultRoles.map(async (role) => {
+      await db.execute(
         `INSERT INTO auth_roles (id, name, description, is_system)
          VALUES (?, ?, ?, ?)`,
-        [role.id, role.name, role.description, role.isSystem],
-      ); })
+        [role.id, role.name, role.description, role.isSystem]
+      );
+    })
   );
 
   logger.info(LogSource.AUTH, '✅ Default roles re-created');
@@ -134,15 +138,14 @@ const createDefaultRoles = async (authModule: AuthModule, logger: ILogger): Prom
 
 /**
  * Reset database command handler.
- * @param context - CLI context.
- * @param _context
+ * @param context - CLI context (unused).
  * @returns Promise that resolves when reset is complete.
  */
-const resetDatabase = async (_context: IAuthCliTypes): Promise<void> => {
+const resetDatabase = async (context: ICliContext): Promise<void> => {
   const logger = getLogger();
-  const answer = await askConfirmation(
-    '\n⚠️  This will delete ALL users, roles, and sessions. Are you sure? (yes/no): '
-  );
+  const question = '\n⚠️  This will delete ALL users, roles, and sessions. '
+    + 'Are you sure? (yes/no): ';
+  const answer = await askConfirmation(question);
 
   if (answer.toLowerCase() !== 'yes') {
     logger.info(LogSource.AUTH, 'Database reset cancelled');
@@ -150,12 +153,14 @@ const resetDatabase = async (_context: IAuthCliTypes): Promise<void> => {
   }
 
   try {
-    const authModule = getAuthModule() as any;
+    const authModule = getAuthModule();
     await deleteAuthTables(authModule, logger);
     await createDefaultRoles(authModule, logger);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(LogSource.AUTH, '❌ Error resetting database:', { error: errorMessage });
+    logger.error(LogSource.AUTH, '❌ Error resetting database:', {
+      error: errorMessage
+    });
     process.exit(ONE);
   }
 };
@@ -165,7 +170,10 @@ const resetDatabase = async (_context: IAuthCliTypes): Promise<void> => {
  * @param users - List of users to display.
  * @param logger - Logger instance.
  */
-const displayAllUsers = (users: IUserListQueryResult[], logger: ILogger): void => {
+const displayAllUsers = (
+  users: IUserListQueryResult[],
+  logger: ILogger
+): void => {
   logger.info(LogSource.AUTH, '\n📋 Users in database:\n');
   const separator = '─'.repeat(EIGHTY);
   logger.info(LogSource.AUTH, separator);
@@ -180,15 +188,15 @@ const displayAllUsers = (users: IUserListQueryResult[], logger: ILogger): void =
 
 /**
  * List users command handler.
- * @param context - CLI context.
- * @param _context
+ * @param context - CLI context (unused).
  * @returns Promise that resolves when listing is complete.
  */
-const listUsers = async (_context: IAuthCliTypes): Promise<void> => {
+const listUsers = async (context: ICliContext): Promise<void> => {
   const logger = getLogger();
   try {
     const authModule = getAuthModule();
-    const db = (authModule as any).getDatabase() as AuthDatabase;
+    const db = (authModule as AuthModule & { getDatabase: () => AuthDatabase })
+      .getDatabase();
 
     const users = await db.query<IUserListQueryResult>(`
       SELECT
@@ -213,7 +221,9 @@ const listUsers = async (_context: IAuthCliTypes): Promise<void> => {
     displayAllUsers(users, logger);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(LogSource.AUTH, '❌ Error listing users:', { error: errorMessage });
+    logger.error(LogSource.AUTH, '❌ Error listing users:', {
+      error: errorMessage
+    });
     process.exit(ONE);
   }
 };

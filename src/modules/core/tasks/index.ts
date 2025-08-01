@@ -5,13 +5,11 @@
  */
 
 declare global {
-
+  // eslint-disable-next-line vars-on-top, no-underscore-dangle
   var __MODULE_LOADER__: {
     getModuleRegistry(): Map<string, unknown>;
   };
 }
-
-/**/
 
 import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
 import { TaskService } from '@/modules/core/tasks/services/tasks.service';
@@ -41,13 +39,14 @@ export class TasksModule extends BaseModule<ITasksModuleExports> {
   private taskService!: TaskService;
   get exports(): ITasksModuleExports {
     return {
-      service: () => {
+      service: (): ITasksService => {
         this.ensureInitialized();
-        return this.validateServiceStructure(
+        const validatedService = this.validateServiceStructure(
           this.taskService,
           TasksServiceSchema,
           'TaskService'
-        ) as ITasksService;
+        );
+        return validatedService as ITasksService;
       },
       TaskStatus,
       TaskExecutionStatus,
@@ -66,10 +65,9 @@ export class TasksModule extends BaseModule<ITasksModuleExports> {
   /**
    * Initialize the module.
    */
-  protected async initializeModule(): Promise<void> {
+  protected initializeModule(): void {
     this.taskService = TaskService.getInstance();
-
-    await this.taskService.initialize();
+    this.taskService.initialize();
   }
 }
 
@@ -96,27 +94,44 @@ export const initialize = async (): Promise<void> => {
 
 /**
  * Validates that the module has all required exports.
- * @param module - Module to validate.
+ * @param mod - Module to validate.
  * @returns True if module has all required exports.
  */
-const hasRequiredExports = (module: unknown): module is TasksModule => {
-  if (!module || typeof module !== 'object') {
+const hasRequiredExports = (mod: unknown): mod is TasksModule => {
+  if (mod === null || typeof mod !== 'object') {
     return false;
   }
 
-  const moduleObj = module as Record<string, unknown>;
-  const exports = moduleObj.exports as Record<string, unknown> | undefined;
+  const moduleObj = mod as Record<string, unknown>;
+  const { exports: moduleExports } = moduleObj;
 
-  if (!exports) {
+  if (moduleExports === null || moduleExports === undefined) {
     return false;
   }
+
+  const exportsObj = moduleExports as Record<string, unknown>;
 
   return (
-    typeof exports.service === 'function'
-    && exports.TaskStatus !== undefined
-    && exports.TaskExecutionStatus !== undefined
-    && exports.TaskPriority !== undefined
+    typeof exportsObj.service === 'function'
+    && exportsObj.TaskStatus !== undefined
+    && exportsObj.TaskExecutionStatus !== undefined
+    && exportsObj.TaskPriority !== undefined
   );
+};
+
+/**
+ * Helper function to get the global module loader.
+ * @returns The global module loader or null if not available.
+ */
+const getGlobalModuleLoader = (): {
+  getModuleRegistry(): Map<string, unknown>;
+} | null => {
+  const globalWithLoader = globalThis as {
+    __MODULE_LOADER__?: {
+      getModuleRegistry(): Map<string, unknown>;
+    };
+  };
+  return globalWithLoader.__MODULE_LOADER__ ?? null;
 };
 
 /**
@@ -127,8 +142,8 @@ const hasRequiredExports = (module: unknown): module is TasksModule => {
  */
 export const getTasksModule = (): TasksModule => {
   try {
-    const moduleLoader = globalThis.__MODULE_LOADER__;
-    if (!moduleLoader) {
+    const moduleLoader = getGlobalModuleLoader();
+    if (moduleLoader === null) {
       throw new Error('Module loader not available');
     }
 

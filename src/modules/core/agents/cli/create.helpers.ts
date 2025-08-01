@@ -141,7 +141,9 @@ export const displayCreatedAgent = (agent: IAgent, format?: string): void => {
     name: agent.name,
     type: agent.type,
     status: agent.status,
-    created: agent.created_at ? new Date(agent.created_at).toISOString() : 'N/A'
+    created: agent.created_at !== null && agent.created_at.length > 0
+      ? new Date(agent.created_at).toISOString()
+      : 'N/A'
   }];
 
   cliOutput.table(tableData, [

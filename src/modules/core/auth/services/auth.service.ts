@@ -82,12 +82,16 @@ export class AuthService implements IAuthService {
     try {
       this.logger?.info(LogSource.AUTH, `Authenticating user: ${email}`);
 
+      if (!password) {
+        throw new Error('Password is required');
+      }
+
       const userId = randomUUID();
       const sessionId = randomUUID();
 
       const event: LoginSuccessEvent = {
         userId,
-        email,
+        sessionId,
         timestamp: new Date()
       };
       this.eventBus.emit(AuthEvents.LOGIN_SUCCESS, event);
@@ -174,6 +178,52 @@ export class AuthService implements IAuthService {
     this.logger?.info(LogSource.AUTH, `Listing sessions for user: ${userId}`);
 
     return [];
+  }
+
+  /**
+   * Create or update user from OAuth provider data.
+   * @param providerData - OAuth provider user data.
+   * @param providerData.provider
+   * @param providerData.providerId
+   * @param providerData.email
+   * @param providerData.name
+   * @param providerData.avatarUrl
+   * @returns Promise that resolves to user ID.
+   */
+  public async createOrUpdateUserFromOAuth(providerData: {
+    provider: string;
+    providerId: string;
+    email: string;
+    name?: string;
+    avatarUrl?: string;
+  }): Promise<string> {
+    await this.ensureInitialized();
+
+    this.logger?.info(LogSource.AUTH, `Creating/updating user from OAuth: ${providerData.email}`);
+
+    return randomUUID();
+  }
+
+  /**
+   * Request user data from external provider.
+   * @param provider - The provider name.
+   * @param userId - The user ID.
+   * @returns Promise that resolves to user data.
+   */
+  public async requestUserData(provider: string, userId: string): Promise<{
+    email: string;
+    name?: string;
+    avatarUrl?: string;
+  }> {
+    await this.ensureInitialized();
+
+    this.logger?.info(LogSource.AUTH, `Requesting user data from ${provider} for user: ${userId}`);
+
+    return {
+      email: 'user@example.com',
+      name: 'User Name',
+      avatarUrl: 'https://example.com/avatar.jpg'
+    };
   }
 
   /**

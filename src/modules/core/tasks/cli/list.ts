@@ -49,28 +49,14 @@ const buildTaskFilter = (args: CLIContext['args']): ITaskFilter => {
     offset
   } = args;
 
+  const moduleIdValue = moduleId ?? moduleIdKebab;
   const filter: ITaskFilter = {};
 
-  if (status !== undefined && typeof status === 'string') {
-    filter.status = status as TaskStatus;
-  }
-
-  if (type !== undefined && typeof type === 'string') {
-    filter.type = type;
-  }
-
-  const moduleIdValue = moduleId || moduleIdKebab;
-  if (moduleIdValue !== undefined && typeof moduleIdValue === 'string') {
-    filter.module_id = moduleIdValue;
-  }
-
-  if (limit !== undefined && typeof limit === 'number') {
-    filter.limit = limit;
-  }
-
-  if (offset !== undefined && typeof offset === 'number') {
-    filter.offset = offset;
-  }
+  if (typeof status === 'string') { filter.status = status as TaskStatus; }
+  if (typeof type === 'string') { filter.type = type; }
+  if (typeof moduleIdValue === 'string') { filter.module_id = moduleIdValue; }
+  if (typeof limit === 'number') { filter.limit = limit; }
+  if (typeof offset === 'number') { filter.offset = offset; }
 
   return filter;
 };

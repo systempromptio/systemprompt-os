@@ -5,9 +5,11 @@
  */
 
 import type {
-  IAgent,
-  IAgentCreateData,
-  IAgentUpdateData
+  IAgent
+  /**
+   * IAgentCreateData and IAgentUpdateData types would be imported here
+   * when needed for future functionality.
+   */
 } from '@/modules/core/agents/types/agents.module.generated';
 import {
   AgentsStatus,
@@ -58,8 +60,7 @@ export class AgentsRepository extends AgentBaseRepository {
    * @returns Promise resolving to the created agent.
    */
   async createAgent(data: CreateAgentInput): Promise<IAgentsRow> {
-    const id = data.id ?? `agent-${Date.now().toString()}-${Math.random().toString(36)
-.substring(2, 11)}`;
+    const id = data.id ?? this.generateAgentId();
     const now = new Date().toISOString();
 
     const agent: IAgentsRow = {
@@ -76,51 +77,8 @@ export class AgentsRepository extends AgentBaseRepository {
       failed_tasks: 0
     };
 
-    await this.database.execute(
-      `INSERT INTO agents (id, name, description, instructions, type, status, 
-       created_at, updated_at, assigned_tasks, completed_tasks, failed_tasks) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        agent.id,
-        agent.name,
-        agent.description,
-        agent.instructions,
-        agent.type,
-        agent.status,
-        agent.created_at,
-        agent.updated_at,
-        agent.assigned_tasks,
-        agent.completed_tasks,
-        agent.failed_tasks
-      ]
-    );
-
-    if (data.capabilities && data.capabilities.length > 0) {
-      for (const capability of data.capabilities) {
-        await this.database.execute(
-          'INSERT INTO agent_capabilities (agent_id, capability) VALUES (?, ?)',
-          [agent.id, capability]
-        );
-      }
-    }
-
-    if (data.tools && data.tools.length > 0) {
-      for (const tool of data.tools) {
-        await this.database.execute(
-          'INSERT INTO agent_tools (agent_id, tool) VALUES (?, ?)',
-          [agent.id, tool]
-        );
-      }
-    }
-
-    if (data.config) {
-      for (const [key, value] of Object.entries(data.config)) {
-        await this.database.execute(
-          'INSERT INTO agent_config (agent_id, config_key, config_value) VALUES (?, ?, ?)',
-          [agent.id, key, value]
-        );
-      }
-    }
+    await this.insertAgentRecord(agent);
+    await this.insertAgentRelatedData(agent.id, data);
 
     return agent;
   }
@@ -132,9 +90,9 @@ export class AgentsRepository extends AgentBaseRepository {
    */
   async createAgentExtended(data: CreateAgentInput): Promise<IAgent> {
     const agentRow = await this.createAgent(data);
-    const capabilities = data.capabilities || [];
-    const tools = data.tools || [];
-    const config = data.config || {};
+    const capabilities = data.capabilities ?? [];
+    const tools = data.tools ?? [];
+    const config = data.config ?? {};
 
     return {
       ...agentRow,
@@ -201,8 +159,11 @@ export class AgentsRepository extends AgentBaseRepository {
    * @returns Promise resolving to array of capabilities.
    */
   private async getAgentCapabilities(agentId: string): Promise<string[]> {
-    const result = await this.database.query<{ capability: string }>('SELECT capability FROM agent_capabilities WHERE agent_id = ?', [agentId]);
-    return result.rows.map(row => { return row.capability });
+    const result = await this.database.query<{ capability: string }>(
+      'SELECT capability FROM agent_capabilities WHERE agent_id = ?',
+      [agentId]
+    );
+    return result.rows.map((row): string => { return row.capability });
   }
 
   /**
@@ -211,8 +172,11 @@ export class AgentsRepository extends AgentBaseRepository {
    * @returns Promise resolving to array of tools.
    */
   private async getAgentTools(agentId: string): Promise<string[]> {
-    const result = await this.database.query<{ tool: string }>('SELECT tool FROM agent_tools WHERE agent_id = ?', [agentId]);
-    return result.rows.map(row => { return row.tool });
+    const result = await this.database.query<{ tool: string }>(
+      'SELECT tool FROM agent_tools WHERE agent_id = ?',
+      [agentId]
+    );
+    return result.rows.map((row): string => { return row.tool });
   }
 
   /**
@@ -236,7 +200,7 @@ export class AgentsRepository extends AgentBaseRepository {
    */
   async getAgentByIdExtended(id: string): Promise<IAgent | null> {
     const agentRow = await this.getAgentById(id);
-    if (!agentRow) {
+    if (agentRow === null) {
       return null;
     }
 
@@ -261,24 +225,7 @@ export class AgentsRepository extends AgentBaseRepository {
    */
   async listAgentsExtended(status?: string): Promise<IAgent[]> {
     const agentRows = await this.listAgents(status);
-    const agents: IAgent[] = [];
-
-    for (const agentRow of agentRows) {
-      const [capabilities, tools, config] = await Promise.all([
-        this.getAgentCapabilities(agentRow.id),
-        this.getAgentTools(agentRow.id),
-        this.getAgentConfig(agentRow.id)
-      ]);
-
-      agents.push({
-        ...agentRow,
-        capabilities,
-        tools,
-        config
-      });
-    }
-
-    return agents;
+    return await this.enrichAgentsWithExtendedData(agentRows);
   }
 
   /**
@@ -347,6 +294,148 @@ export class AgentsRepository extends AgentBaseRepository {
    * @returns Promise resolving to array of logs.
    */
   async getAgentLogs(agentId: string, limit?: number): Promise<IAgentLogsRow[]> {
+    const { query, params } = this.buildLogQuery(agentId, limit);
+    const result = await this.database.query<IAgentLogsRow>(query, params);
+    return result.rows;
+  }
+
+  /**
+   * Generates a unique agent ID.
+   * @returns Generated agent ID.
+   */
+  private generateAgentId(): string {
+    return `agent-${Date.now().toString()}-${Math.random().toString(36)
+.substring(2, 11)}`;
+  }
+
+  /**
+   * Inserts agent record into database.
+   * @param agent - Agent record to insert.
+   * @returns Promise that resolves when insert is complete.
+   */
+  private async insertAgentRecord(agent: IAgentsRow): Promise<void> {
+    await this.database.execute(
+      `INSERT INTO agents (id, name, description, instructions, type, status, 
+       created_at, updated_at, assigned_tasks, completed_tasks, failed_tasks) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        agent.id,
+        agent.name,
+        agent.description,
+        agent.instructions,
+        agent.type,
+        agent.status,
+        agent.created_at,
+        agent.updated_at,
+        agent.assigned_tasks,
+        agent.completed_tasks,
+        agent.failed_tasks
+      ]
+    );
+  }
+
+  /**
+   * Inserts agent related data (capabilities, tools, config).
+   * @param agentId - Agent ID.
+   * @param data - Agent creation data.
+   * @returns Promise that resolves when all related data is inserted.
+   */
+  private async insertAgentRelatedData(agentId: string, data: CreateAgentInput): Promise<void> {
+    await Promise.all([
+      this.insertAgentCapabilities(agentId, data.capabilities),
+      this.insertAgentTools(agentId, data.tools),
+      this.insertAgentConfig(agentId, data.config)
+    ]);
+  }
+
+  /**
+   * Inserts agent capabilities.
+   * @param agentId - Agent ID.
+   * @param capabilities - Array of capabilities.
+   * @returns Promise that resolves when capabilities are inserted.
+   */
+  private async insertAgentCapabilities(agentId: string, capabilities?: string[]): Promise<void> {
+    if (!capabilities || capabilities.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      capabilities.map(async capability => { await this.database.execute(
+          'INSERT INTO agent_capabilities (agent_id, capability) VALUES (?, ?)',
+          [agentId, capability]
+        ); })
+    );
+  }
+
+  /**
+   * Inserts agent tools.
+   * @param agentId - Agent ID.
+   * @param tools - Array of tools.
+   * @returns Promise that resolves when tools are inserted.
+   */
+  private async insertAgentTools(agentId: string, tools?: string[]): Promise<void> {
+    if (!tools || tools.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      tools.map(async tool => { await this.database.execute(
+          'INSERT INTO agent_tools (agent_id, tool) VALUES (?, ?)',
+          [agentId, tool]
+        ); })
+    );
+  }
+
+  /**
+   * Inserts agent config.
+   * @param agentId - Agent ID.
+   * @param config - Config object.
+   * @returns Promise that resolves when config is inserted.
+   */
+  private async insertAgentConfig(agentId: string, config?: Record<string, unknown>): Promise<void> {
+    if (!config) {
+      return;
+    }
+
+    await Promise.all(
+      Object.entries(config).map(async ([key, value]) => { await this.database.execute(
+          'INSERT INTO agent_config (agent_id, config_key, config_value) VALUES (?, ?, ?)',
+          [agentId, key, value]
+        ); })
+    );
+  }
+
+  /**
+   * Enriches agent rows with extended data.
+   * @param agentRows - Array of agent rows.
+   * @returns Promise resolving to array of extended agents.
+   */
+  private async enrichAgentsWithExtendedData(agentRows: IAgentsRow[]): Promise<IAgent[]> {
+    return await Promise.all(
+      agentRows.map(async (agentRow): Promise<IAgent> => {
+        const [capabilities, tools, config] = await Promise.all([
+          this.getAgentCapabilities(agentRow.id),
+          this.getAgentTools(agentRow.id),
+          this.getAgentConfig(agentRow.id)
+        ]);
+
+        return {
+          ...agentRow,
+          capabilities,
+          tools,
+          config
+        };
+      })
+    );
+  }
+
+  /**
+   * Builds query for agent logs.
+   * @param agentId - Agent ID.
+   * @param limit - Optional limit.
+   * @returns Query and parameters.
+   */
+  private buildLogQuery(agentId: string, limit?: number): { query: string; params: (string | number)[] } {
     let query = 'SELECT * FROM agent_logs WHERE agent_id = ? ORDER BY timestamp DESC';
     const params: (string | number)[] = [agentId];
 
@@ -355,8 +444,9 @@ export class AgentsRepository extends AgentBaseRepository {
       params.push(limit);
     }
 
-    const result = await this.database.query<IAgentLogsRow>(query, params);
-
-    return result.rows;
+    return {
+ query,
+params
+};
   }
 }

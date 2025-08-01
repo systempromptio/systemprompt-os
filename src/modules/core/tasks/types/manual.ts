@@ -8,7 +8,7 @@ import type { ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.g
 /**
  * Task execution status enum representing the runtime states of task execution.
  */
-export enum TaskExecutionStatus {
+export const enum TaskExecutionStatus {
   RUNNING = 'running',
   SUCCESS = 'success',
   FAILED = 'failed',
@@ -19,7 +19,7 @@ export enum TaskExecutionStatus {
 /**
  * Task priority enum representing the urgency levels for task execution.
  */
-export enum TaskPriority {
+export const enum TaskPriority {
   LOW = -1,
   NORMAL = 0,
   HIGH = 1,

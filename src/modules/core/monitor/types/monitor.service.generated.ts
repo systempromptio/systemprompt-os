@@ -1,5 +1,5 @@
 // Auto-generated service schemas for monitor module
-// Generated on: 2025-07-31T15:21:01.470Z
+// Generated on: 2025-07-31T17:18:31.681Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

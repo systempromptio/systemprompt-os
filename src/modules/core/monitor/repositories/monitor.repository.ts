@@ -19,6 +19,10 @@ import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/modul
  * Repository implementation for monitor data using SQLite.
  */
 export class MonitorRepositoryImpl implements MonitorRepository {
+  /**
+   * Creates a new MonitorRepositoryImpl instance.
+   * @param db - The database adapter for this module.
+   */
   constructor(private readonly db: IModuleDatabaseAdapter) {}
 
   /**
@@ -26,7 +30,7 @@ export class MonitorRepositoryImpl implements MonitorRepository {
    * @param data - Metric data to record.
    */
   async recordMetric(data: IMetricData): Promise<void> {
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (): Promise<void> => {
       const result = await this.db.execute(
         `INSERT INTO metric (name, value, type, unit, timestamp) 
          VALUES (?, ?, ?, ?, ?)`,
@@ -34,90 +38,25 @@ export class MonitorRepositoryImpl implements MonitorRepository {
           data.name,
           data.value,
           data.type,
-          data.unit || null,
+          data.unit ?? null,
           data.timestamp.toISOString()
         ]
       );
 
-      const metricId = result.lastInsertRowid;
+      const { lastInsertRowid: metricId } = result;
 
-      if (data.labels && Object.keys(data.labels).length > 0) {
-        for (const [key, value] of Object.entries(data.labels)) {
-          await this.db.execute(
-            `INSERT INTO metric_label (metric_id, label_key, label_value) 
-             VALUES (?, ?, ?)`,
-            [metricId, key, value]
-          );
-        }
+      if (data.labels !== undefined && Object.keys(data.labels).length > 0) {
+        await Promise.all(
+          Object.entries(data.labels).map(async ([key, value]): Promise<void> => {
+            await this.db.execute(
+              `INSERT INTO metric_label (metric_id, label_key, label_value) 
+               VALUES (?, ?, ?)`,
+              [metricId, key, value]
+            );
+          })
+        );
       }
     });
-  }
-
-  /**
-   * Retrieves metrics based on query criteria.
-   * @param query - Query parameters for filtering metrics.
-   * @returns Array of metric data.
-   */
-  async getMetrics(query: IMetricQuery): Promise<IMetricData[]> {
-    let sql = `
-      SELECT m.id, m.name, m.value, m.type, m.unit, m.timestamp
-      FROM metric m
-      WHERE m.name = ?
-    `;
-    const params: unknown[] = [query.metric];
-
-    if (query.start_time) {
-      sql += ' AND m.timestamp >= ?';
-      params.push(query.start_time.toISOString());
-    }
-
-    if (query.end_time) {
-      sql += ' AND m.timestamp <= ?';
-      params.push(query.end_time.toISOString());
-    }
-
-    if (query.labels && Object.keys(query.labels).length > 0) {
-      const labelEntries = Object.entries(query.labels);
-      sql += ` AND m.id IN (
-        SELECT metric_id FROM metric_label
-        WHERE ${labelEntries.map(() => { return '(label_key = ? AND label_value = ?)' }).join(' OR ')}
-        GROUP BY metric_id
-        HAVING COUNT(DISTINCT label_key) = ?
-      )`;
-
-      for (const [key, value] of labelEntries) {
-        params.push(key, value);
-      }
-      params.push(labelEntries.length);
-    }
-
-    sql += ' ORDER BY m.timestamp DESC';
-
-    const rows = await this.db.query<IMetricRow>(sql, params);
-
-    const metrics: IMetricData[] = [];
-    for (const row of rows) {
-      const labelRows = await this.db.query<IMetricLabelRow>(
-        'SELECT label_key, label_value FROM metric_label WHERE metric_id = ?',
-        [row.id]
-      );
-
-      const labels: Record<string, string> = {};
-      for (const labelRow of labelRows) {
-        labels[labelRow.label_key] = labelRow.label_value;
-      }
-
-      metrics.push({
-        name: row.name,
-        value: row.value,
-        type: row.type,
-        timestamp: new Date(row.timestamp),
-        ...row.unit && { unit: row.unit },
-        ...Object.keys(labels).length > 0 && { labels },
-      });
-    }
-
-    return metrics;
   }
 
   /**
@@ -128,7 +67,9 @@ export class MonitorRepositoryImpl implements MonitorRepository {
     const rows = await this.db.query<{ name: string }>(
       'SELECT DISTINCT name FROM metric ORDER BY name'
     );
-    return rows.map(row => { return row.name });
+    return rows.map((row): string => {
+      return row.name;
+    });
   }
 
   /**
@@ -143,5 +84,130 @@ export class MonitorRepositoryImpl implements MonitorRepository {
       'DELETE FROM metric WHERE timestamp < ?',
       [cutoffDate.toISOString()]
     );
+  }
+
+  /**
+   * Gets metrics based on query parameters.
+   * @param query - Query parameters for filtering metrics.
+   * @returns Array of metric data.
+   */
+  async getMetrics(query: IMetricQuery): Promise<IMetricData[]> {
+    const { sql, params } = this.buildMetricsQuery(query);
+    const rows = await this.db.query<IMetricRow>(sql, params);
+
+    const metricsPromises = rows.map(
+      async (row): Promise<IMetricData> => {
+        return await this.convertRowToMetricData(row);
+      }
+    );
+    const metrics = await Promise.all(metricsPromises);
+
+    return metrics;
+  }
+
+  /**
+   * Builds SQL query for metrics with parameters.
+   * @param query - Query parameters for filtering metrics.
+   * @returns SQL query and parameters.
+   */
+  private buildMetricsQuery(query: IMetricQuery): { sql: string; params: unknown[] } {
+    const baseSQL = `
+      SELECT m.id, m.name, m.value, m.type, m.unit, m.timestamp
+      FROM metric m
+      WHERE m.name = ?
+    `;
+    const params: unknown[] = [query.metric];
+
+    const queryParts = this.buildTimeFilterParts(query, params);
+    const labelPart = this.buildLabelFilterPart(query, params);
+
+    const finalSQL = `${baseSQL}${queryParts}${labelPart} ORDER BY m.timestamp DESC`;
+
+    return {
+      sql: finalSQL,
+      params
+    };
+  }
+
+  /**
+   * Builds time filter parts of the SQL query.
+   * @param query - Query parameters.
+   * @param params - Parameters array to populate.
+   * @returns SQL filter string.
+   */
+  private buildTimeFilterParts(query: IMetricQuery, params: unknown[]): string {
+    let filterParts = '';
+
+    if (query.start_time !== undefined) {
+      filterParts += ' AND m.timestamp >= ?';
+      params.push(query.start_time.toISOString());
+    }
+
+    if (query.end_time !== undefined) {
+      filterParts += ' AND m.timestamp <= ?';
+      params.push(query.end_time.toISOString());
+    }
+
+    return filterParts;
+  }
+
+  /**
+   * Builds label filter part of the SQL query.
+   * @param query - Query parameters.
+   * @param params - Parameters array to populate.
+   * @returns SQL filter string.
+   */
+  private buildLabelFilterPart(query: IMetricQuery, params: unknown[]): string {
+    const labels = query.labels ?? {};
+    if (Object.keys(labels).length === 0) {
+      return '';
+    }
+
+    const labelEntries = Object.entries(labels);
+    const labelConditions = labelEntries
+      .map((): string => {
+        return '(label_key = ? AND label_value = ?)';
+      })
+      .join(' OR ');
+
+    for (const [key, value] of labelEntries) {
+      params.push(key);
+      params.push(value);
+    }
+    params.push(labelEntries.length);
+
+    return ` AND m.id IN (
+        SELECT metric_id FROM metric_label
+        WHERE ${labelConditions}
+        GROUP BY metric_id
+        HAVING COUNT(DISTINCT label_key) = ?
+      )`;
+  }
+
+  /**
+   * Converts database row to metric data.
+   * @param row - Database row to convert.
+   * @returns Promise resolving to metric data.
+   */
+  private async convertRowToMetricData(row: IMetricRow): Promise<IMetricData> {
+    const labelRows = await this.db.query<IMetricLabelRow>(
+      'SELECT label_key, label_value FROM metric_label WHERE metric_id = ?',
+      [row.id]
+    );
+
+    const labels: Record<string, string> = {};
+    for (const labelRow of labelRows) {
+      const { label_key: key, label_value: value } = labelRow;
+      labels[key] = value;
+    }
+
+    return {
+      name: row.name,
+      value: row.value,
+      type: row.type,
+      timestamp: new Date(row.timestamp),
+      ...row.unit !== null && { unit: row.unit },
+      ...Object.keys(labels).length > 0 && { labels },
+    };
   }
 }

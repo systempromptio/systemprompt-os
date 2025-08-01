@@ -58,8 +58,10 @@ const validateHost = (host: unknown): string | null => {
  * @returns Error message or null.
  */
 const validateEnvironment = (environment: unknown): string | null => {
-  if (typeof environment === 'string' && !VALID_ENVIRONMENTS.includes(environment as 'development' | 'production' | 'test')) {
-    return 'defaults.system.environment must be one of: development, production, test';
+  if (typeof environment === 'string'
+      && !VALID_ENVIRONMENTS.includes(environment as 'development' | 'production' | 'test')) {
+    return 'defaults.system.environment must be one of: '
+      + 'development, production, test';
   }
   return null;
 };
@@ -70,8 +72,10 @@ const validateEnvironment = (environment: unknown): string | null => {
  * @returns Error message or null.
  */
 const validateLogLevel = (logLevel: unknown): string | null => {
-  if (typeof logLevel === 'string' && !VALID_LOG_LEVELS.includes(logLevel as 'error' | 'warn' | 'info' | 'debug')) {
-    return 'defaults.system.logLevel must be one of: error, warn, info, debug';
+  if (typeof logLevel === 'string'
+      && !VALID_LOG_LEVELS.includes(logLevel as 'error' | 'warn' | 'info' | 'debug')) {
+    return 'defaults.system.logLevel must be one of: '
+      + 'error, warn, info, debug';
   }
   return null;
 };

@@ -231,7 +231,9 @@ const displayUpdatedAgent = (
     name: agent.name,
     type: agent.type,
     status: agent.status,
-    updated: agent.updated_at ? new Date(agent.updated_at).toISOString() : 'N/A'
+    updated: agent.updated_at !== null && agent.updated_at.length > 0
+      ? new Date(agent.updated_at).toISOString()
+      : 'N/A'
   }];
 
   cliOutput.table(tableData, [

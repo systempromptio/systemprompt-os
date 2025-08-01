@@ -4,15 +4,13 @@
  */
 
 import type {
+  IGenericOAuth2Config,
   IIdentityProvider,
   IIdpUserInfo,
-  IdpTokens,
-} from '@/modules/core/auth/types/provider-interface';
-import type {
-  IGenericOAuth2Config,
   IOIDCDiscoveryConfig,
   ITokenResponseData,
-} from '@/modules/core/auth/types/oauth2.types';
+  IdpTokens,
+} from '@/modules/core/auth/types/manual';
 
 /**
  * Generic OAuth2 Provider implementation.

@@ -6,10 +6,7 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { getTasksModule } from '@/modules/core/tasks';
-import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
-
-// Extract statistics type from service interface
-type TaskStatistics = Awaited<ReturnType<ITasksService['getStatistics']>>;
+import type { ITaskStatistics } from '@/modules/core/tasks/types/manual';
 
 /**
  * Display module status information.
@@ -27,7 +24,7 @@ const displayModuleStatus = (): void => {
  * Display queue statistics.
  * @param stats - Task statistics to display.
  */
-const displayQueueStatistics = (stats: TaskStatistics): void => {
+const displayQueueStatistics = (stats: ITaskStatistics): void => {
   process.stdout.write('\nQueue Statistics\n');
   process.stdout.write('================\n\n');
   process.stdout.write(`Total tasks: ${String(stats.total)}\n`);

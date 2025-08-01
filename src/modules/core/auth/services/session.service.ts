@@ -9,7 +9,6 @@ import {
 } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import {
   AuthEvents,
@@ -18,19 +17,13 @@ import {
 import {
   type IAuthSessionsRow,
 } from '@/modules/core/auth/types/database.generated';
-
-const SESSION_EXPIRY_HOURS = 24;
-const REFRESH_EXPIRY_DAYS = 30;
-
-/**
- * Session creation input.
- */
-interface ISessionCreateInput {
-  userId: string;
-  ipAddress?: string;
-  userAgent?: string;
-  type?: 'web' | 'api' | 'oauth';
-}
+import {
+  REFRESH_EXPIRY_DAYS,
+  SESSION_EXPIRY_HOURS,
+} from '@/modules/core/auth/constants/session.constants';
+import {
+  type ISessionCreateInput
+} from '@/modules/core/auth/types/manual';
 
 /**
  * Session service for managing user sessions.
@@ -38,17 +31,20 @@ interface ISessionCreateInput {
  */
 export class SessionService {
   private static instance: SessionService;
-  private dbService?: DatabaseService;
   private eventBusService?: EventBusService;
   private loggerService?: ILogger;
 
   /**
    * Private constructor for singleton.
    */
-  private constructor() {}
+  private constructor() {
+    this.eventBusService = EventBusService.getInstance();
+    this.loggerService = LoggerService.getInstance();
+  }
 
   /**
    * Get singleton instance.
+   * @returns The SessionService instance.
    */
   static getInstance(): SessionService {
     SessionService.instance ||= new SessionService();
@@ -56,29 +52,20 @@ export class SessionService {
   }
 
   /**
-   * Initialize with database and logger.
-   * @param database
-   * @param logger
+   * Initialize with logger.
+   * @param logger - The logger instance to use.
+   * @returns The SessionService instance.
+   * @throws Error if initialization fails.
    */
-  static initialize(database: DatabaseService, logger: ILogger): SessionService {
+  static initialize(logger: ILogger): SessionService {
     const instance = SessionService.getInstance();
-    instance.dbService = database;
     instance.loggerService = logger;
     return instance;
   }
 
   /**
-   * Get database connection.
-   */
-  private getDb(): DatabaseService {
-    if (!this.dbService) {
-      throw new Error('SessionService not properly initialized with database');
-    }
-    return this.dbService;
-  }
-
-  /**
    * Get event bus (lazy initialization).
+   * @returns The EventBusService instance.
    */
   private getEventBus(): EventBusService {
     this.eventBusService ||= EventBusService.getInstance();
@@ -87,6 +74,7 @@ export class SessionService {
 
   /**
    * Get logger (lazy initialization).
+   * @returns The ILogger instance.
    */
   private getLogger(): ILogger {
     this.loggerService ||= LoggerService.getInstance();
@@ -95,7 +83,8 @@ export class SessionService {
 
   /**
    * Create a new session for a user.
-   * @param input
+   * @param input - The session creation input data.
+   * @returns Promise that resolves to the created session.
    */
   async createSession(input: ISessionCreateInput): Promise<IAuthSessionsRow> {
     const sessionId = randomUUID();
@@ -113,9 +102,9 @@ export class SessionService {
       user_id: input.userId,
       token_hash: tokenHash,
       refresh_token_hash: refreshTokenHash,
-      type: input.type || 'web',
-      ip_address: input.ipAddress || null,
-      user_agent: input.userAgent || null,
+      type: input.type ?? 'web',
+      ip_address: input.ipAddress ?? null,
+      user_agent: input.userAgent ?? null,
       expires_at: expiresAt.toISOString(),
       refresh_expires_at: refreshExpiresAt.toISOString(),
       revoked_at: null,

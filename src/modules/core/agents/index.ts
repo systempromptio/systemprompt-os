@@ -26,7 +26,7 @@ export class AgentsModule extends BaseModule<IAgentsModuleExports> {
   private agentsService!: AgentsService;
   get exports(): IAgentsModuleExports {
     return {
-      service: (): AgentsService => {
+      service: () => {
         this.ensureInitialized();
         return this.validateServiceStructure(
           this.agentsService,

@@ -18,6 +18,15 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import type { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
+import type { IModule } from '@/modules/core/modules/types/index';
+
+// Extended interface for lifecycle testing
+interface ILifecycleModule extends IModule {
+  start?(): Promise<void>;
+  stop?(): Promise<void>;
+  healthCheck?(): Promise<any>;
+  getInfo?(): any;
+}
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';
@@ -298,43 +307,43 @@ describe('Monitor Module Integration Tests', () => {
   describe('Module Lifecycle', () => {
     it('should start and stop monitor module', async () => {
       const modules = bootstrap.getModules();
-      const monitorModule = modules.get('monitor');
+      const monitorModule = modules.get('monitor') as ILifecycleModule;
       
       expect(monitorModule).toBeDefined();
       
       // Stop the module if it's running (from bootstrap)
-      if (monitorModule?.getInfo().status === 'running') {
-        await monitorModule.stop();
+      if (monitorModule?.getInfo?.().status === 'running') {
+        await monitorModule.stop?.();
       }
       
       // Module should be in stopped state after init
-      let info = monitorModule?.getInfo();
+      let info = monitorModule?.getInfo?.();
       expect(info?.status).toBe('stopped');
       
       // Start the module
-      await monitorModule?.start();
-      info = monitorModule?.getInfo();
+      await monitorModule?.start?.();
+      info = monitorModule?.getInfo?.();
       expect(info?.status).toBe('running');
       
       // Stop the module
-      await monitorModule?.stop();
-      info = monitorModule?.getInfo();
+      await monitorModule?.stop?.();
+      info = monitorModule?.getInfo?.();
       expect(info?.status).toBe('stopped');
     });
     
     it('should handle cleanup operations', async () => {
       const modules = bootstrap.getModules();
-      const monitorModule = modules.get('monitor');
+      const monitorModule = modules.get('monitor') as ILifecycleModule;
       
       expect(monitorModule).toBeDefined();
       
       // Stop the module if it's running (from bootstrap)
-      if (monitorModule?.getInfo().status === 'running') {
-        await monitorModule.stop();
+      if (monitorModule?.getInfo?.().status === 'running') {
+        await monitorModule.stop?.();
       }
       
       // Start module to enable cleanup timer
-      await monitorModule?.start();
+      await monitorModule?.start?.();
       
       // Cleanup should work without errors
       if (monitorService) {

@@ -52,7 +52,7 @@ export class TaskRepository {
       task.created_by ?? null
     ]);
 
-    if (result.length === 0 || result[0] === null || result[0] === undefined) {
+    if (result.length === 0 || result[0] === null) {
       throw new Error('Failed to create task');
     }
 
@@ -78,7 +78,7 @@ export class TaskRepository {
     sql += ' ORDER BY priority DESC, created_at ASC LIMIT 1';
     const result = await this.database.query<ITaskRow>(sql, params);
 
-    return result.length > 0 && result[0] !== null && result[0] !== undefined ? result[0] : null;
+    return result.length > 0 && result[0] !== null ? result[0] : null;
   }
 
   /**
@@ -98,7 +98,7 @@ export class TaskRepository {
    */
   async findById(taskId: number): Promise<ITaskRow | null> {
     const result = await this.database.query<ITaskRow>('SELECT * FROM task WHERE id = ?', [taskId]);
-    return result.length > 0 && result[0] !== null && result[0] !== undefined ? result[0] : null;
+    return result.length > 0 && result[0] !== null ? result[0] : null;
   }
 
   /**
@@ -144,7 +144,10 @@ export class TaskRepository {
       this.getTypeCounts()
     ]);
 
-    const total = Object.values(statusCounts).reduce((sum: number, count: number): number => { return sum + count }, 0);
+    const total = Object.values(statusCounts).reduce(
+      (sum: number, count: number): number => { return sum + count },
+      0
+    );
 
     const stats: ITaskStatistics = {
       total,
@@ -201,7 +204,8 @@ export class TaskRepository {
    * @returns Promise resolving to array of tasks.
    */
   async findByAgent(agentId: string): Promise<ITaskRow[]> {
-    const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? ORDER BY priority DESC, created_at ASC';
+    const sql = 'SELECT * FROM task WHERE assigned_agent_id = ? '
+                + 'ORDER BY priority DESC, created_at ASC';
     return await this.database.query<ITaskRow>(sql, [agentId]);
   }
 
@@ -369,8 +373,8 @@ updateValues
     );
 
     const statusCounts: Record<string, number> = {};
-    for (const row of result) {
-      statusCounts[row.status] = row.count;
+    for (const { status, count } of result) {
+      statusCounts[status] = count;
     }
 
     return statusCounts;

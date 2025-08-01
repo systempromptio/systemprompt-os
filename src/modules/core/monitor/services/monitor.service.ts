@@ -33,6 +33,7 @@ export class MonitorService extends EventEmitter {
   private config: IMetricConfig;
   private buffer: IMetricData[] = [];
   private flushTimer?: NodeJS.Timeout | undefined;
+  private initialized = false;
 
   /**
    * Private constructor to enforce singleton pattern.
@@ -49,7 +50,10 @@ export class MonitorService extends EventEmitter {
    * @returns The MonitorService instance.
    */
   public static getInstance(): MonitorService {
-    MonitorService.instance ??= new MonitorService();
+    if (MonitorService.instance === null) {
+      MonitorService.instance = new MonitorService();
+      MonitorService.instance.initialize();
+    }
     return MonitorService.instance;
   }
 
@@ -67,23 +71,6 @@ export class MonitorService extends EventEmitter {
     this.repository = repository;
     this.logger = logger;
     this.config = config;
-  }
-
-  /**
-   * Initialize the metric service and start periodic flushing.
-   */
-  private initialize(): void {
-    this.logger.info('Metric service initialized');
-
-    this.flushTimer = setInterval(
-      (): void => {
-        this.flushMetrics().catch((error: unknown): void => {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.error('Failed to flush metrics in timer', { error: errorMessage });
-        });
-      },
-      this.config.metrics.flushInterval
-    );
   }
 
   /**
@@ -284,10 +271,33 @@ export class MonitorService extends EventEmitter {
   public async shutdown(): Promise<void> {
     if (this.flushTimer !== undefined) {
       clearInterval(this.flushTimer);
-      this.flushTimer = undefined as NodeJS.Timeout | undefined;
+      this.flushTimer = undefined;
     }
 
     await this.flushMetrics();
+  }
+
+  /**
+   * Initialize the metric service and start periodic flushing.
+   */
+  private initialize(): void {
+    if (this.initialized) {
+      return;
+    }
+
+    this.logger.info('Metric service initialized');
+
+    this.flushTimer = setInterval(
+      (): void => {
+        this.flushMetrics().catch((error: unknown): void => {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.error('Failed to flush metrics in timer', { error: errorMessage });
+        });
+      },
+      this.config.metrics.flushInterval
+    );
+
+    this.initialized = true;
   }
 
   /**
@@ -312,13 +322,22 @@ export class MonitorService extends EventEmitter {
   }
 
   /**
+   * No-op function for default logger methods.
+   * @returns Undefined value.
+   */
+  private createNoopFunction(): () => void {
+    return (): void => {
+      return undefined;
+    };
+  }
+
+  /**
    * Creates a default logger for initialization.
    * No-op logger implementation for default behavior.
    * @returns A default logger.
    */
   private createDefaultLogger(): ILogger {
-    const noop = (): void => {
-    };
+    const noop = this.createNoopFunction();
     return {
       info: noop,
       error: noop,

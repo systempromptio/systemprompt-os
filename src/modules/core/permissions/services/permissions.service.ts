@@ -1,5 +1,4 @@
 /* eslint-disable
-  logical-assignment-operators,
   @typescript-eslint/no-unnecessary-condition,
   @typescript-eslint/strict-boolean-expressions,
   systemprompt-os/no-block-comments
@@ -43,9 +42,7 @@ export class PermissionsService {
    * @returns The permissions service instance.
    */
   static getInstance(): PermissionsService {
-    if (!PermissionsService.instance) {
-      PermissionsService.instance = new PermissionsService();
-    }
+    PermissionsService.instance ||= new PermissionsService();
     return PermissionsService.instance;
   }
 
@@ -217,7 +214,7 @@ export class PermissionsService {
    * @param expiresAt - Optional expiration date.
    * @returns Promise that resolves when assigned.
    */
-  async assignRole(userId: string, roleId: string, expiresAt: Date | null): Promise<void> {
+  async assignRole(userId: string, roleId: string, expiresAt?: unknown): Promise<void> {
     await this.ensureInitialized();
 
     const role = await this.repository.findRoleById(roleId);
@@ -226,11 +223,12 @@ export class PermissionsService {
     }
 
     this.logger?.info(LogSource.PERMISSIONS, `Assigning role ${roleId} to user ${userId}`);
-    if (expiresAt) {
+    const expirationDate = expiresAt instanceof Date ? expiresAt : undefined;
+    if (expirationDate) {
       await this.repository.assignRoleToUser({
         userId,
         roleId,
-        expiresAt
+        expiresAt: expirationDate
       });
     } else {
       await this.repository.assignRoleToUser({

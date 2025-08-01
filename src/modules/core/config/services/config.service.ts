@@ -46,6 +46,7 @@ export class ConfigService implements IConfigService {
     }
 
     this.databaseService = DatabaseService.getInstance();
+    await Promise.resolve();
     this.initialized = true;
   }
 
@@ -58,16 +59,16 @@ export class ConfigService implements IConfigService {
     const query = 'SELECT * FROM configs WHERE key = ? LIMIT 1';
     const rows = await this.databaseService.query<IConfigsRow>(query, [key]);
 
-    if (!rows || rows.length === 0) {
+    if (rows.length === 0) {
       return null;
     }
 
-    const result = rows[0];
-    if (!result) {
+    const [result] = rows;
+    if (result === null || result === undefined) {
       return null;
     }
     try {
-      return JSON.parse(result.value);
+      return JSON.parse(result.value) as ConfigValue;
     } catch {
       return result.value;
     }
@@ -111,13 +112,15 @@ export class ConfigService implements IConfigService {
     const query = 'SELECT * FROM configs ORDER BY key';
     const rows = await this.databaseService.query<IConfigsRow>(query);
 
-    return rows.map(row => { return {
-      key: row.key,
-      value: this.parseValue(row.value),
-      description: row.description ?? '',
-      createdAt: new Date(row.created_at || ''),
-      updatedAt: new Date(row.updated_at || '')
-    } as IConfigEntry });
+    return rows.map((row): IConfigEntry => {
+      return {
+        key: row.key,
+        value: this.parseValue(row.value),
+        description: row.description ?? '',
+        createdAt: new Date(row.created_at ?? ''),
+        updatedAt: new Date(row.updated_at ?? '')
+      };
+    });
   }
 
   /**
@@ -131,7 +134,9 @@ export class ConfigService implements IConfigService {
       const query = 'SELECT COUNT(*) as count FROM configs';
       await this.databaseService.query(query);
     } catch (error) {
-      errors.push(`Database validation failed: ${error instanceof Error ? error.message : String(error)}`);
+      errors.push(
+        `Database validation failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     const EMPTY_ERRORS = 0;
@@ -148,19 +153,6 @@ export class ConfigService implements IConfigService {
   }
 
   /**
-   * Parse configuration value from database.
-   * @param {string} value - Raw value from database.
-   * @returns {ConfigValue} Parsed configuration value.
-   */
-  private parseValue(value: string): ConfigValue {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
-  }
-
-  /**
    * Add a new MCP server configuration.
    * @param {IMcpServerConfig} config - MCP server configuration.
    * @returns {Promise<void>} Promise that resolves when server is added.
@@ -172,19 +164,23 @@ export class ConfigService implements IConfigService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const args = config.args ? JSON.stringify(config.args) : null;
-    const env = config.env ? JSON.stringify(config.env) : null;
-    const metadata = config.metadata ? JSON.stringify(config.metadata) : null;
-    const oauthConfig = config.oauthConfig ? JSON.stringify(config.oauthConfig) : null;
+    const args = config.args !== null && config.args !== undefined
+      ? JSON.stringify(config.args) : null;
+    const env = config.env !== null && config.env !== undefined
+      ? JSON.stringify(config.env) : null;
+    const metadata = config.metadata !== null && config.metadata !== undefined
+      ? JSON.stringify(config.metadata) : null;
+    const oauthConfig = config.oauthConfig !== null && config.oauthConfig !== undefined
+      ? JSON.stringify(config.oauthConfig) : null;
 
     await this.databaseService.execute(query, [
       config.name,
       config.command,
       args,
       env,
-      config.scope || 'local',
-      config.transport || 'stdio',
-      config.description || null,
+      config.scope ?? 'local',
+      config.transport ?? 'stdio',
+      config.description ?? null,
       metadata,
       oauthConfig
     ]);
@@ -209,12 +205,12 @@ export class ConfigService implements IConfigService {
     const query = 'SELECT * FROM mcp_servers WHERE name = ? LIMIT 1';
     const rows = await this.databaseService.query<IMcpServersRow>(query, [name]);
 
-    if (!rows || rows.length === 0) {
+    if (rows.length === 0) {
       return null;
     }
 
-    const row = rows[0];
-    if (!row) {
+    const [row] = rows;
+    if (row === null || row === undefined) {
       return null;
     }
 
@@ -229,7 +225,9 @@ export class ConfigService implements IConfigService {
     const query = 'SELECT * FROM mcp_servers ORDER BY name';
     const rows = await this.databaseService.query<IMcpServersRow>(query);
 
-    return rows.map(row => { return this.mapRowToMcpServerEntry(row) });
+    return rows.map((row): IMcpServerEntry => {
+      return this.mapRowToMcpServerEntry(row);
+    });
   }
 
   /**
@@ -242,11 +240,25 @@ export class ConfigService implements IConfigService {
   async updateMcpServerStatus(name: string, status: string, error?: string): Promise<void> {
     const query = `
       UPDATE mcp_servers 
-      SET status = ?, last_error = ?, last_started_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE last_started_at END
+      SET status = ?, last_error = ?, 
+          last_started_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE last_started_at END
       WHERE name = ?
     `;
 
-    await this.databaseService.execute(query, [status, error || null, status, name]);
+    await this.databaseService.execute(query, [status, error ?? null, status, name]);
+  }
+
+  /**
+   * Parse configuration value from database.
+   * @param {string} value - Raw value from database.
+   * @returns {ConfigValue} Parsed configuration value.
+   */
+  private parseValue(value: string): ConfigValue {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
   }
 
   /**
@@ -259,17 +271,22 @@ export class ConfigService implements IConfigService {
       id: row.id,
       name: row.name,
       command: row.command,
-      args: row.args ? JSON.parse(row.args) : null,
-      env: row.env ? JSON.parse(row.env) : null,
-      scope: row.scope as 'local' | 'project' | 'user',
-      transport: row.transport as 'stdio' | 'sse' | 'http',
-      status: row.status as 'active' | 'inactive' | 'error' | 'starting' | 'stopping',
+      args: row.args !== null && row.args !== undefined
+        ? JSON.parse(row.args) : null,
+      env: row.env !== null && row.env !== undefined
+        ? JSON.parse(row.env) : null,
+      scope: row.scope,
+      transport: row.transport,
+      status: row.status,
       description: row.description,
-      metadata: row.metadata ? JSON.parse(row.metadata) : null,
-      oauthConfig: row.oauth_config ? JSON.parse(row.oauth_config) : null,
-      createdAt: new Date(row.created_at || ''),
-      updatedAt: new Date(row.updated_at || ''),
-      lastStartedAt: row.last_started_at ? new Date(row.last_started_at) : null,
+      metadata: row.metadata !== null && row.metadata !== undefined
+        ? JSON.parse(row.metadata) : null,
+      oauthConfig: row.oauth_config !== null && row.oauth_config !== undefined
+        ? JSON.parse(row.oauth_config) : null,
+      createdAt: new Date(row.created_at ?? ''),
+      updatedAt: new Date(row.updated_at ?? ''),
+      lastStartedAt: row.last_started_at !== null && row.last_started_at !== undefined
+        ? new Date(row.last_started_at) : null,
       lastError: row.last_error
     };
   }

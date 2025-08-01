@@ -73,9 +73,9 @@ const displayConfiguration = (agent: IAgent, cliOutput: CliOutputService): void 
 const displayMetrics = (agent: IAgent, cliOutput: CliOutputService): void => {
   cliOutput.section('Task Metrics');
   cliOutput.keyValue({
-    'Assigned Tasks': agent.assigned_tasks?.toString() || '0',
-    'Completed Tasks': agent.completed_tasks?.toString() || '0',
-    'Failed Tasks': agent.failed_tasks?.toString() || '0'
+    'Assigned Tasks': agent.assigned_tasks?.toString() ?? '0',
+    'Completed Tasks': agent.completed_tasks?.toString() ?? '0',
+    'Failed Tasks': agent.failed_tasks?.toString() ?? '0'
   });
 };
 
@@ -85,12 +85,29 @@ const displayMetrics = (agent: IAgent, cliOutput: CliOutputService): void => {
  */
 export const displayAgentDetails = (agent: IAgent): void => {
   const cliOutput = CliOutputService.getInstance();
+  displayAllAgentSections(agent, cliOutput);
+};
 
+/**
+ * Displays all agent sections.
+ * @param agent - Agent to display.
+ * @param cliOutput - CLI output service.
+ */
+function displayAllAgentSections(agent: IAgent, cliOutput: CliOutputService): void {
   displayBasicInfo(agent, cliOutput);
-  cliOutput.section('Instructions');
-  cliOutput.info(agent.instructions);
+  displayInstructions(agent, cliOutput);
   displayCapabilities(agent, cliOutput);
   displayTools(agent, cliOutput);
   displayConfiguration(agent, cliOutput);
   displayMetrics(agent, cliOutput);
-};
+}
+
+/**
+ * Displays agent instructions section.
+ * @param agent - Agent to display.
+ * @param cliOutput - CLI output service.
+ */
+function displayInstructions(agent: IAgent, cliOutput: CliOutputService): void {
+  cliOutput.section('Instructions');
+  cliOutput.info(agent.instructions);
+}

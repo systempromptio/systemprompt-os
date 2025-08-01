@@ -4,7 +4,7 @@
  * @module modules/core/monitor/cli/status
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -12,7 +12,8 @@ import { LogSource } from '@/modules/core/logger/types/index';
 
 export const command: ICLICommand = {
   description: 'Show monitor module status and system metrics',
-  execute: async (_context: ICLIContext): Promise<void> => {
+
+  execute: async (): Promise<void> => {
     const cliOutput = CliOutputService.getInstance();
 
     try {

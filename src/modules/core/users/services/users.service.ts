@@ -1,51 +1,45 @@
 /**
- * Users service implementation - manages user profiles and data.
+ * Users service for managing user operations.
  * @file Users service implementation.
  * @module users/services
- * Provides business logic for user management operations.
- * Authentication concerns have been moved to the auth module.
  */
 
-import { randomUUID } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { UsersRepository } from '@/modules/core/users/repositories/users.repository';
-import {
-  type IUser,
-  type IUserCreateData,
-  type IUserUpdateData
+import type { IUsersRow } from '@/modules/core/users/types/database.generated';
+import type {
+  IUser,
+  IUserCreateData,
+  IUserUpdateData
 } from '@/modules/core/users/types/users.module.generated';
-import type { IUsersService } from '@/modules/core/users/types/users.service.generated';
-import { type IUsersRow, UsersStatus } from '@/modules/core/users/types/database.generated';
-import { EventBusService } from '@/modules/core/events/services/event-bus.service';
-import {
-  type UserCreateOAuthRequestEvent,
-  type UserCreatedEvent,
-  type UserDataRequestEvent,
-  type UserDataResponseEvent,
-  type UserDeletedEvent,
-  UserEvents,
-  type UserUpdatedEvent
+import type {
+  UserCreateOAuthRequestEvent,
+  UserDataRequestEvent,
+  UserDataResponseEvent
 } from '@/modules/core/events/types/index';
+
+import { UserEvents } from '@/modules/core/events/types/index';
+import { UsersStatus } from '@/modules/core/users/types/database.generated';
+import { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import { UsersRepository } from '@/modules/core/users/repositories/users.repository';
 import { UserValidationHelper } from '@/modules/core/users/utils/user-validation.helper';
 import { OAuthUserHelper } from '@/modules/core/users/utils/oauth-user.helper';
 
 /**
- * Service for managing users.
+ * Users service providing user management functionality.
  */
-export class UsersService implements IUsersService {
+export class UsersService {
   private static instance: UsersService;
+  private initialized = false;
+  private logger?: ILogger;
   private readonly repository: UsersRepository;
   private readonly eventBus: EventBusService;
-  private logger?: ILogger;
-  private initialized = false;
 
   /**
-   * Private constructor for singleton.
+   * Private constructor for singleton pattern.
    */
   private constructor() {
     this.repository = UsersRepository.getInstance();
     this.eventBus = EventBusService.getInstance();
-    this.setupEventHandlers();
   }
 
   /**
@@ -56,6 +50,12 @@ export class UsersService implements IUsersService {
     UsersService.instance ||= new UsersService();
     return UsersService.instance;
   }
+
+  /*
+   * ============================================================================
+   * PUBLIC METHODS
+   * ============================================================================
+   */
 
   /**
    * Set logger instance.
@@ -74,92 +74,32 @@ export class UsersService implements IUsersService {
       return;
     }
 
-    await this.repository.initialize();
+    this.repository.initialize();
+    this.setupEventHandlers();
     this.initialized = true;
     this.logger?.info(LogSource.USERS, 'UsersService initialized');
   }
 
   /**
-   * Build user data for repository creation.
-   * @param data - User creation data.
-   * @param id - Generated user ID.
-   * @param now - Current timestamp.
-   * @returns Repository user data.
-   */
-  private buildUserForRepository(
-    data: IUserCreateData,
-    id: string,
-    now: Date
-  ): Omit<IUsersRow, 'id'> & { id: string } {
-    return {
-      id,
-      username: data.username,
-      email: data.email,
-      display_name: data.display_name ?? null,
-      avatar_url: data.avatar_url ?? null,
-      bio: data.bio ?? null,
-      timezone: data.timezone ?? 'UTC',
-      language: data.language ?? 'en',
-      status: UsersStatus.ACTIVE,
-      email_verified: data.email_verified ?? false,
-      preferences: data.preferences ?? null,
-      metadata: data.metadata ?? null,
-      created_at: now.toISOString(),
-      updated_at: now.toISOString()
-    };
-  }
-
-  /**
    * Create a new user.
-   * @param data - The user creation data.
-   * @returns Promise that resolves to the created user.
+   * @param data - User creation data.
+   * @returns Promise resolving to created user.
    */
   public async createUser(data: IUserCreateData): Promise<IUser> {
     await this.ensureInitialized();
     await UserValidationHelper.validateUserData(data);
-    await this.validateUserData(data);
 
-    const id = randomUUID();
-    const now = new Date();
+    const userData = this.buildUserForRepository(data);
+    const user = await this.repository.createUser(userData as Omit<IUsersRow, 'id'> & { id: string });
 
-    this.logger?.info(LogSource.USERS, `Creating user: ${data.username}`);
-
-    const userData = this.buildUserForRepository(data, id, now);
-    const user = await this.repository.createUser(userData);
-
-    const event: UserCreatedEvent = {
-      userId: user.id,
-      username: user.username,
-      email: user.email,
-      timestamp: now
-    };
-    this.eventBus.emit(UserEvents.USER_CREATED, event);
-
-    this.logger?.info(LogSource.USERS, `Created user: ${id}`);
+    this.logger?.info(LogSource.USERS, `Created user: ${user.id}`);
     return user;
   }
 
   /**
-   * Validate user creation data.
-   * @param data - The user creation data.
-   * @returns Promise that resolves when validation passes.
-   */
-  private async validateUserData(data: IUserCreateData): Promise<void> {
-    const existingUsername = await this.repository.findByUsername(data.username);
-    if (existingUsername !== null) {
-      throw new Error(`Username already exists: ${data.username}`);
-    }
-
-    const existingEmail = await this.repository.findByEmail(data.email);
-    if (existingEmail !== null) {
-      throw new Error(`Email already exists: ${data.email}`);
-    }
-  }
-
-  /**
    * Get user by ID.
-   * @param id - The user ID.
-   * @returns Promise that resolves to the user or null if not found.
+   * @param id - User ID.
+   * @returns Promise resolving to user or null if not found.
    */
   public async getUser(id: string): Promise<IUser | null> {
     await this.ensureInitialized();
@@ -168,8 +108,8 @@ export class UsersService implements IUsersService {
 
   /**
    * Get user by username.
-   * @param username - The username.
-   * @returns Promise that resolves to the user or null if not found.
+   * @param username - Username to search for.
+   * @returns Promise resolving to user or null if not found.
    */
   public async getUserByUsername(username: string): Promise<IUser | null> {
     await this.ensureInitialized();
@@ -178,8 +118,8 @@ export class UsersService implements IUsersService {
 
   /**
    * Get user by email.
-   * @param email - The email address.
-   * @returns Promise that resolves to the user or null if not found.
+   * @param email - Email to search for.
+   * @returns Promise resolving to user or null if not found.
    */
   public async getUserByEmail(email: string): Promise<IUser | null> {
     await this.ensureInitialized();
@@ -188,7 +128,7 @@ export class UsersService implements IUsersService {
 
   /**
    * List all users.
-   * @returns Promise that resolves to array of users.
+   * @returns Promise resolving to array of users.
    */
   public async listUsers(): Promise<IUser[]> {
     await this.ensureInitialized();
@@ -196,30 +136,84 @@ export class UsersService implements IUsersService {
   }
 
   /**
-   * Update user information.
-   * @param id - The user ID.
-   * @param data - The update data.
-   * @returns Promise that resolves to the updated user.
+   * Update user.
+   * @param id - User ID to update.
+   * @param data - Update data.
+   * @returns Promise resolving to updated user.
    */
   public async updateUser(id: string, data: IUserUpdateData): Promise<IUser> {
     await this.ensureInitialized();
 
     const user = await this.repository.findById(id);
-    if (user === null) {
+    if (!user) {
       throw new Error(`User not found: ${id}`);
     }
 
     await UserValidationHelper.validateUpdateData(data, user);
-
-    this.logger?.info(LogSource.USERS, `Updating user: ${id}`);
-
     const cleanData = this.buildCleanUpdateData(data);
     const updatedUser = await this.repository.updateUser(id, cleanData);
 
-    await this.emitUpdateEvents(user, updatedUser, data);
-
+    this.emitUpdateEvents(user, updatedUser, data);
     this.logger?.info(LogSource.USERS, `Updated user: ${id}`);
     return updatedUser;
+  }
+
+  /**
+   * Delete user.
+   * @param id - User ID to delete.
+   * @returns Promise that resolves when user is deleted.
+   */
+  public async deleteUser(id: string): Promise<void> {
+    await this.ensureInitialized();
+
+    const user = await this.repository.findById(id);
+    if (!user) {
+      throw new Error(`User not found: ${id}`);
+    }
+
+    await this.repository.deleteUser(id);
+    this.logger?.info(LogSource.USERS, `Deleted user: ${id}`);
+  }
+
+  /**
+   * Search users by query.
+   * @param query - Search query.
+   * @returns Promise resolving to matching users.
+   */
+  public async searchUsers(query: string): Promise<IUser[]> {
+    await this.ensureInitialized();
+    return await this.repository.searchUsers(query);
+  }
+
+  /*
+   * ============================================================================
+   * PRIVATE METHODS
+   * ============================================================================
+   */
+
+  /**
+   * Build user data for repository operations.
+   * @param data - User creation data.
+   * @returns Repository-compatible user data.
+   */
+  private buildUserForRepository(data: IUserCreateData): Partial<IUsersRow> {
+    const now = new Date().toISOString();
+    return {
+      id: crypto.randomUUID(),
+      username: data.username,
+      email: data.email,
+      display_name: data.display_name ?? null,
+      avatar_url: data.avatar_url ?? null,
+      bio: data.bio ?? null,
+      timezone: data.timezone ?? null,
+      language: data.language ?? null,
+      status: data.status,
+      email_verified: data.email_verified ?? null,
+      preferences: data.preferences ?? null,
+      metadata: data.metadata ?? null,
+      created_at: now,
+      updated_at: now
+    };
   }
 
   /**
@@ -230,102 +224,78 @@ export class UsersService implements IUsersService {
   private buildCleanUpdateData(
     data: IUserUpdateData
   ): Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>> {
-    const cleanData: Record<string, unknown> = {};
-    const {
-      username,
-      email,
-      display_name,
-      avatar_url,
-      bio,
-      timezone,
-      language,
-      status,
-      email_verified,
-      preferences,
-      metadata
-    } = data;
-
-    if (username !== undefined) { cleanData.username = username; }
-    if (email !== undefined) { cleanData.email = email; }
-    if (display_name !== undefined) { cleanData.display_name = display_name; }
-    if (avatar_url !== undefined) { cleanData.avatar_url = avatar_url; }
-    if (bio !== undefined) { cleanData.bio = bio; }
-    if (timezone !== undefined) { cleanData.timezone = timezone; }
-    if (language !== undefined) { cleanData.language = language; }
-    if (status !== undefined) { cleanData.status = status; }
-    if (email_verified !== undefined) { cleanData.email_verified = email_verified; }
-    if (preferences !== undefined) { cleanData.preferences = preferences; }
-    if (metadata !== undefined) { cleanData.metadata = metadata; }
-
-    return cleanData as Partial<Omit<IUsersRow, 'id' | 'created_at' | 'updated_at'>>;
+    const cleanData = this.extractCleanFields(data);
+    this.setUpdatedTimestamp(cleanData);
+    return cleanData;
   }
 
   /**
-   * Emit update-related events.
-   * @param originalUser - The original user before update.
-   * @param updatedUser - The updated user.
-   * @param data - The update data.
-   * @returns Promise that resolves when events are emitted.
+   * Extract clean fields from update data.
+   * @param data - Update data.
+   * @returns Clean field data.
+   */
+  private extractCleanFields(data: IUserUpdateData): Record<string, unknown> {
+    const cleanData: Record<string, unknown> = {};
+    const fieldMappings = this.getUpdateFieldMappings();
+
+    Object.entries(fieldMappings).forEach(([field, dbColumn]) => {
+      if (data[field as keyof IUserUpdateData] !== undefined) {
+        cleanData[dbColumn] = data[field as keyof IUserUpdateData];
+      }
+    });
+
+    return cleanData;
+  }
+
+  /**
+   * Get update field mappings.
+   * @returns Mapping of data fields to database columns.
+   */
+  private getUpdateFieldMappings(): Record<string, string> {
+    return {
+      username: 'username',
+      email: 'email',
+      display_name: 'display_name',
+      avatar_url: 'avatar_url',
+      bio: 'bio',
+      timezone: 'timezone',
+      language: 'language',
+      status: 'status',
+      email_verified: 'email_verified',
+      preferences: 'preferences',
+      metadata: 'metadata'
+    };
+  }
+
+  /**
+   * Set updated timestamp on clean data.
+   * @param cleanData - Clean data to modify.
+   */
+  private setUpdatedTimestamp(cleanData: Record<string, unknown>): void {
+    cleanData.updated_at = new Date().toISOString();
+  }
+
+  /**
+   * Emit update events for user changes.
+   * @param originalUser - Original user data.
+   * @param updatedUser - Updated user data.
+   * @param updateData - The update data that was applied.
    */
   private emitUpdateEvents(
     originalUser: IUser,
     updatedUser: IUser,
-    data: IUserUpdateData
+    updateData: IUserUpdateData
   ): void {
-    const event: UserUpdatedEvent = {
+    this.eventBus.emit('user:updated', {
       userId: updatedUser.id,
-      changes: data as Record<string, unknown>,
-      timestamp: new Date()
-    };
-    this.eventBus.emit(UserEvents.USER_UPDATED, event);
-
-    if (data.status !== undefined && data.status !== originalUser.status) {
-      this.eventBus.emit(UserEvents.USER_STATUS_CHANGED, {
-        userId: originalUser.id,
-        oldStatus: originalUser.status,
-        newStatus: data.status,
-        timestamp: new Date()
-      });
-    }
+      changes: updateData,
+      before: originalUser,
+      after: updatedUser
+    });
   }
 
   /**
-   * Delete a user.
-   * @param id - The user ID.
-   * @returns Promise that resolves when deleted.
-   */
-  public async deleteUser(id: string): Promise<void> {
-    await this.ensureInitialized();
-
-    const user = await this.repository.findById(id);
-    if (user === null) {
-      throw new Error(`User not found: ${id}`);
-    }
-
-    this.logger?.info(LogSource.USERS, `Deleting user: ${id}`);
-    await this.repository.deleteUser(id);
-
-    const event: UserDeletedEvent = {
-      userId: id,
-      timestamp: new Date()
-    };
-    this.eventBus.emit(UserEvents.USER_DELETED, event);
-
-    this.logger?.info(LogSource.USERS, `Deleted user: ${id}`);
-  }
-
-  /**
-   * Search users by query.
-   * @param query - The search query.
-   * @returns Promise that resolves to array of matching users.
-   */
-  public async searchUsers(query: string): Promise<IUser[]> {
-    await this.ensureInitialized();
-    return await this.repository.searchUsers(query);
-  }
-
-  /**
-   * Setup event handlers for auth module communication.
+   * Setup event handlers for user operations.
    */
   private setupEventHandlers(): void {
     this.setupUserDataRequestHandler();
@@ -333,16 +303,15 @@ export class UsersService implements IUsersService {
   }
 
   /**
-   * Setup handler for user data requests.
+   * Setup user data request handler.
    */
   private setupUserDataRequestHandler(): void {
     this.eventBus.on<UserDataRequestEvent>(
-      UserEvents.USER_DATA_REQUEST,
-      async (data: unknown): Promise<void> => {
+      'USER_DATA_REQUEST',
+      async (data: unknown) => {
+        const event = data as UserDataRequestEvent;
         try {
-          const event = data as UserDataRequestEvent;
           const user = await this.findUserFromRequest(event);
-
           const response: UserDataResponseEvent = {
             requestId: event.requestId,
             user: user ? {
@@ -353,10 +322,29 @@ export class UsersService implements IUsersService {
               emailVerified: user.email_verified || false
             } : null
           };
-
           this.eventBus.emit(UserEvents.USER_DATA_RESPONSE, response);
         } catch (error) {
-          this.handleUserDataRequestError(data as UserDataRequestEvent, error);
+          this.handleUserDataRequestError(event, error);
+        }
+      }
+    );
+  }
+
+  /**
+   * Setup OAuth user creation handler.
+   */
+  private setupOAuthUserCreationHandler(): void {
+    this.eventBus.on<UserCreateOAuthRequestEvent>(
+      'USER_CREATE_OAUTH_REQUEST',
+      async (data: unknown) => {
+        const event = data as UserCreateOAuthRequestEvent;
+        try {
+          const user = await this.findOrCreateOAuthUser(event);
+          const response = OAuthUserHelper.buildOAuthSuccessResponse(event.requestId, user);
+          this.eventBus.emit('USER_CREATE_OAUTH_RESPONSE', response);
+        } catch (error) {
+          const errorResponse = OAuthUserHelper.buildOAuthErrorResponse(event.requestId, error);
+          this.eventBus.emit('USER_CREATE_OAUTH_RESPONSE', errorResponse);
         }
       }
     );
@@ -364,8 +352,8 @@ export class UsersService implements IUsersService {
 
   /**
    * Find user from request data.
-   * @param event - The user data request event.
-   * @returns Promise that resolves to user or null.
+   * @param event - User data request event.
+   * @returns Promise resolving to user or null.
    */
   private async findUserFromRequest(event: UserDataRequestEvent): Promise<IUser | null> {
     if (event.userId && event.userId.length > 0) {
@@ -394,65 +382,42 @@ export class UsersService implements IUsersService {
       requestId: event.requestId,
       user: null
     };
+
     this.eventBus.emit(UserEvents.USER_DATA_RESPONSE, response);
   }
 
   /**
-   * Setup handler for OAuth user creation.
-   */
-  private setupOAuthUserCreationHandler(): void {
-    this.eventBus.on<UserCreateOAuthRequestEvent>(
-      UserEvents.USER_CREATE_OAUTH_REQUEST,
-      async (data: unknown): Promise<void> => {
-        try {
-          const event = data as UserCreateOAuthRequestEvent;
-          const user = await this.findOrCreateOAuthUser(event);
-          const response = OAuthUserHelper.buildOAuthSuccessResponse(event.requestId, user);
-          this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
-        } catch (error) {
-          this.logger?.error(LogSource.USERS, 'Error handling OAuth user creation', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-        const event = data as UserCreateOAuthRequestEvent;
-        const response = OAuthUserHelper.buildOAuthErrorResponse(event.requestId, error);
-        this.eventBus.emit(UserEvents.USER_CREATE_OAUTH_RESPONSE, response);
-        }
-      }
-    );
-  }
-
-  /**
    * Find or create OAuth user.
-   * @param event - The OAuth user creation request.
-   * @returns Promise that resolves to the user.
+   * @param event - OAuth user creation request.
+   * @returns Promise resolving to user.
    */
   private async findOrCreateOAuthUser(event: UserCreateOAuthRequestEvent): Promise<IUser> {
-    let user = await this.getUserByEmail(event.email);
-
-    if (user === null) {
-      const username = await OAuthUserHelper.generateUniqueUsername(
-        event,
-        async (username: string) => {
-          const existing = await this.repository.findByUsername(username);
-          return existing !== null;
-        }
-      );
-      user = await this.createUser({
-        username,
-        email: event.email,
-        display_name: event.name ?? username,
-        avatar_url: event.avatar ?? null,
-        bio: null,
-        timezone: 'UTC',
-        language: 'en',
-        status: UsersStatus.ACTIVE,
-        email_verified: true,
-        preferences: null,
-        metadata: null
-      });
+    const existingUser = await this.getUserByEmail(event.email);
+    if (existingUser) {
+      return existingUser;
     }
 
-    return user;
+    const username = await OAuthUserHelper.generateUniqueUsername(
+      event,
+      async (testUsername: string): Promise<boolean> => {
+        const user = await this.getUserByUsername(testUsername);
+        return user !== null;
+      }
+    );
+
+    return await this.createUser({
+      username,
+      email: event.email,
+      display_name: event.name ?? null,
+      avatar_url: event.avatar ?? null,
+      bio: null,
+      timezone: null,
+      language: null,
+      status: UsersStatus.ACTIVE,
+      email_verified: true,
+      preferences: null,
+      metadata: null
+    });
   }
 
   /**

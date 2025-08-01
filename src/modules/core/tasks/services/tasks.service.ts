@@ -7,7 +7,6 @@
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';
 import {
   type ITaskFilter,
@@ -21,6 +20,7 @@ import {
 import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import { EventNames } from '@/modules/core/events/types/index';
+import { getModuleRegistry } from '@/modules/loader';
 
 /**
  * Task service implementation providing task management capabilities.
@@ -55,24 +55,27 @@ export class TaskService implements ITasksService {
 
   /**
    * Initialize the task service.
-   * @returns Promise that resolves when initialized.
+   * @throws Error if database module not found.
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     if (this.initialized) {
       return;
     }
 
     this.logger = LoggerService.getInstance();
 
-    const { getModuleRegistry } = await import('@/modules/loader');
     const registry = getModuleRegistry();
     const databaseModule = registry.get('DATABASE');
-    if (!databaseModule) {
+    if (databaseModule === null || databaseModule === undefined) {
       throw new Error('Database module not found');
     }
-    const databaseService = (databaseModule as unknown as { exports: { service: () => unknown } }).exports.service();
 
-    this.taskRepository = new TaskRepository(databaseService as DatabaseService);
+    const moduleWithExports = databaseModule as {
+      exports: { service: () => unknown };
+    };
+    const databaseService = moduleWithExports.exports.service();
+
+    this.taskRepository = new TaskRepository(databaseService);
     this.eventBus = EventBusService.getInstance();
     this.initialized = true;
 
@@ -82,27 +85,17 @@ export class TaskService implements ITasksService {
   /**
    * Add a new task to the queue.
    * @param task - Task data to add.
-   * @param {...any} args
-   * @param {...any} _args
    * @returns Promise resolving to the created task.
    */
-  async addTask(task: any, ..._args: unknown[]): Promise<ITask> {
+  async addTask(task: unknown): Promise<ITask> {
     this.ensureInitialized();
 
-    const taskData: Partial<ITaskRow> = {
-      ...task.type !== undefined && { type: task.type },
-      ...task.module_id !== undefined && { module_id: task.module_id },
-      ...task.instructions !== undefined && { instructions: task.instructions },
-      ...task.priority !== undefined && { priority: task.priority },
-      ...task.status !== undefined && { status: task.status as TaskStatus | null },
-      ...task.max_executions !== undefined && { max_executions: task.max_executions }
-    };
-
+    const taskData = this.buildTaskData(task);
     const createdTask = await this.taskRepository.create(taskData);
 
-    const taskId = String(createdTask.id);
-    const taskType = createdTask.type;
-    this.logger.info(LogSource.TASKS, `Task created: ${taskId} (${taskType})`);
+    const { id, type } = createdTask;
+    const taskId = String(id);
+    this.logger.info(LogSource.TASKS, `Task created: ${taskId} (${type})`);
 
     this.eventBus.emit(EventNames.TASK_CREATED, { task: createdTask });
 
@@ -119,11 +112,11 @@ export class TaskService implements ITasksService {
 
     const task = await this.taskRepository.findNextAvailable(types);
 
-    if (task !== null && task !== undefined) {
+    if (task !== null) {
       await this.updateTaskStatus(task.id, TaskStatus.ASSIGNED);
-      const taskId = String(task.id);
-      const taskType = task.type;
-      this.logger.info(LogSource.TASKS, `Task assigned: ${taskId} (${taskType})`);
+      const { id, type } = task;
+      const taskId = String(id);
+      this.logger.info(LogSource.TASKS, `Task assigned: ${taskId} (${type})`);
     }
 
     return task;
@@ -138,11 +131,13 @@ export class TaskService implements ITasksService {
   async updateTaskStatus(taskId: number, status: unknown): Promise<void> {
     this.ensureInitialized();
 
-    if (!Object.values(TaskStatus).includes(status as TaskStatus)) {
+    const validTaskStatuses = Object.values(TaskStatus);
+    const statusValue = status as TaskStatus;
+    if (!validTaskStatuses.includes(statusValue)) {
       throw new Error(`Invalid task status: ${String(status)}`);
     }
 
-    await this.taskRepository.updateStatus(taskId, status as TaskStatus);
+    await this.taskRepository.updateStatus(taskId, statusValue);
 
     const taskIdStr = String(taskId);
     const statusStr = String(status);
@@ -163,15 +158,7 @@ status
   async updateTask(taskId: number, updates: Partial<ITaskUpdateData>): Promise<ITask> {
     this.ensureInitialized();
 
-    const updateData: Partial<ITaskRow> = {
-      ...updates.instructions !== undefined && { instructions: updates.instructions },
-      ...updates.priority !== undefined && { priority: updates.priority },
-      ...updates.status !== undefined && { status: updates.status as TaskStatus | null },
-      ...updates.progress !== undefined && { progress: updates.progress },
-      ...updates.result !== undefined && { result: updates.result },
-      ...updates.error !== undefined && { error: updates.error }
-    };
-
+    const updateData = this.buildUpdateData(updates);
     const updatedTask = await this.taskRepository.update(taskId, updateData);
 
     const taskIdStr = String(taskId);
@@ -352,6 +339,57 @@ agentId
     await this.taskRepository.setMetadata(taskId, key, value);
     const taskIdStr = String(taskId);
     this.logger.debug(LogSource.TASKS, `Metadata set for task ${taskIdStr}: ${key}`);
+  }
+
+  /**
+   * Build task data for repository creation.
+   * @param task - Task data to process.
+   * @returns Processed task data for repository.
+   */
+  private buildTaskData(task: unknown): Partial<ITaskRow> {
+    const taskObj = task as Record<string, unknown>;
+    const {
+      type,
+      module_id,
+      instructions,
+      priority,
+      status,
+      max_executions
+    } = taskObj;
+
+    return {
+      ...type !== undefined && { type: type as string },
+      ...module_id !== undefined && { module_id: module_id as string },
+      ...instructions !== undefined && { instructions: instructions as string | null },
+      ...priority !== undefined && { priority: priority as number | null },
+      ...status !== undefined && { status: status as TaskStatus | null },
+      ...max_executions !== undefined && { max_executions: max_executions as number | null }
+    };
+  }
+
+  /**
+   * Build update data for repository update.
+   * @param updates - Update data to process.
+   * @returns Processed update data for repository.
+   */
+  private buildUpdateData(updates: Partial<ITaskUpdateData>): Partial<ITaskRow> {
+    const {
+      instructions,
+      priority,
+      status,
+      progress,
+      result,
+      error
+    } = updates;
+
+    return {
+      ...instructions !== undefined && { instructions },
+      ...priority !== undefined && { priority },
+      ...status !== undefined && { status: status as TaskStatus | null },
+      ...progress !== undefined && { progress },
+      ...result !== undefined && { result },
+      ...error !== undefined && { error }
+    };
   }
 
   /**

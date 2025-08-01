@@ -10,8 +10,7 @@ import { TokenService } from '@/modules/core/auth/services/token.service';
 import { ProvidersService } from '@/modules/core/auth/services/providers.service';
 import {
   AuthModuleExportsSchema,
-  AuthServiceSchema,
-  type IAuthModuleExports
+  AuthServiceSchema
 } from '@/modules/core/auth/types/auth.service.generated';
 import type { IAuthModuleExportsExtended } from '@/modules/core/auth/types/manual';
 import type { ZodSchema } from 'zod';
@@ -66,7 +65,7 @@ export class AuthModule extends BaseModule<IAuthModuleExportsExtended> {
     await this.authService.initialize();
 
     this.tokenService = TokenService.getInstance();
-    this.providersService = new ProvidersService();
+    this.providersService = ProvidersService.getInstance();
     await this.providersService.initialize();
   }
 }

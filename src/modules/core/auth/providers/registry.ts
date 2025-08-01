@@ -6,14 +6,12 @@ import { parse as parseYaml } from "yaml";
 import type { ILogger } from "@/modules/core/logger/types/index";
 import { LogSource } from "@/modules/core/logger/types/index";
 import type {
-  IdpConfig as IDPConfig,
-  IIdentityProvider
-} from '@/modules/core/auth/types/provider-interface';
-import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
-import type {
+  IDPConfig,
   IGenericOAuth2Config,
+  IIdentityProvider,
   IOIDCDiscoveryConfig
-} from '@/modules/core/auth/types/oauth2.types';
+} from '@/modules/core/auth/types/manual';
+import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
 import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
 import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
 import type { ProviderConfig } from '@/modules/core/auth/providers/types';

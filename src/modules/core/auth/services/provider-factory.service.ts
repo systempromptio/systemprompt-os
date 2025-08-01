@@ -6,7 +6,10 @@
 
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { GenericOAuth2Provider, discoverOidcConfiguration } from '@/modules/core/auth/providers/core/oauth2';
+import {
+  GenericOAuth2Provider,
+  discoverOidcConfiguration
+} from '@/modules/core/auth/providers/core/oauth2';
 import type {
   IDPConfig,
   IGenericOAuth2Config,
@@ -23,6 +26,9 @@ export class ProviderFactoryService {
   private readonly logger: ILogger;
   private urlConfigService?: UrlConfigService;
 
+  /**
+   * Private constructor for singleton pattern.
+   */
   private constructor() {
     this.logger = LoggerService.getInstance();
   }

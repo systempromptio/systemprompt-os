@@ -4,13 +4,14 @@
  * @module modules/core/monitor/cli/list
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand } from '@/modules/core/cli/types/index';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 
 export const command: ICLICommand = {
   description: 'List available metrics',
-  execute: async (_context: ICLIContext): Promise<void> => {
+
+  execute: async (): Promise<void> => {
     const cliOutput = CliOutputService.getInstance();
 
     try {

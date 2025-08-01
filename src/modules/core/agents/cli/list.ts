@@ -41,7 +41,9 @@ const transformAgentForTable = (agent: IAgent): Record<string, string> => {
     type: agent.type,
     status: agent.status,
     tasks: `${String(agent.completed_tasks ?? 0)}/${String(agent.assigned_tasks ?? 0)}`,
-    created: agent.created_at ? new Date(agent.created_at).toLocaleDateString() : 'N/A'
+    created: agent.created_at !== null && agent.created_at.length > 0
+      ? new Date(agent.created_at).toLocaleDateString()
+      : 'N/A'
   };
 };
 
@@ -114,7 +116,8 @@ const executeList = async (
   cliOutput.section('Listing Agents');
 
   const statusFilter = getStatusFilter(args.status);
-  const agents = await agentService.listAgents(statusFilter || '');
+  const filterValue = statusFilter !== undefined && statusFilter.length > 0 ? statusFilter : '';
+  const agents = await agentService.listAgents(filterValue);
 
   if (agents.length === 0) {
     cliOutput.info('No agents found');

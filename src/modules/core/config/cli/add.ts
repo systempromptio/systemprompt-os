@@ -24,6 +24,198 @@ const parseJsonSafely = (jsonString: string): unknown => {
   }
 };
 
+/**
+ * Validate required arguments for add command.
+ * @param name - Server name.
+ * @param serverCommand - Server command.
+ * @param cliOutput - CLI output service.
+ * @returns True if valid, false otherwise.
+ */
+const validateRequiredArgs = (
+  name: string | undefined,
+  serverCommand: string | undefined,
+  cliOutput: CliOutputService
+): boolean => {
+  if (name === null || name === undefined || name === ''
+      || serverCommand === null || serverCommand === undefined || serverCommand === '') {
+    cliOutput.error('Error: Both name and command are required.');
+    cliOutput.info(
+      'Usage: config add --name <server-name> '
+      + '--command <command-path> [options]'
+    );
+    cliOutput.info('Options:');
+    cliOutput.info('  --args <json-array>      Arguments for the server command');
+    cliOutput.info('  --env <json-object>      Environment variables');
+    cliOutput.info('  --scope <local|project|user>  Server scope (default: local)');
+    cliOutput.info('  --transport <stdio|sse|http>  Transport type (default: stdio)');
+    cliOutput.info('  --description <text>     Server description');
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Parse and validate arguments array.
+ * @param argsString - JSON string of arguments.
+ * @param cliOutput - CLI output service.
+ * @returns Parsed arguments or null if invalid.
+ */
+const parseAndValidateArgs = (
+  argsString: string,
+  cliOutput: CliOutputService
+): string[] | null => {
+  const parsedArgs = parseJsonSafely(argsString);
+  if (!Array.isArray(parsedArgs)) {
+    cliOutput.error('Error: --args must be a valid JSON array');
+    return null;
+  }
+  return parsedArgs.every((arg): arg is string => { return typeof arg === 'string'; })
+    ? parsedArgs : null;
+};
+
+/**
+ * Parse and validate environment variables.
+ * @param envString - JSON string of environment variables.
+ * @param cliOutput - CLI output service.
+ * @returns Parsed environment or null if invalid.
+ */
+const parseAndValidateEnv = (
+  envString: string,
+  cliOutput: CliOutputService
+): Record<string, string> | null => {
+  const parsedEnv = parseJsonSafely(envString);
+  if (parsedEnv === null || parsedEnv === undefined
+      || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
+    cliOutput.error('Error: --env must be a valid JSON object');
+    return null;
+  }
+  const isValidEnv = Object.values(parsedEnv).every(
+    (val): val is string => { return typeof val === 'string'; }
+  );
+  if (!isValidEnv) {
+    cliOutput.error('Error: All environment variable values must be strings');
+    return null;
+  }
+  return parsedEnv as Record<string, string>;
+};
+
+/**
+ * Display success information for added server.
+ * @param config - Server configuration.
+ * @param cliOutput - CLI output service.
+ */
+const displaySuccessInfo = (
+  config: IMcpServerConfig,
+  cliOutput: CliOutputService
+): void => {
+  cliOutput.success(`MCP server '${config.name}' added successfully!`);
+  cliOutput.keyValue({
+    Name: config.name,
+    Command: config.command,
+    Scope: config.scope ?? 'local',
+    Transport: config.transport ?? 'stdio',
+    Status: 'inactive'
+  });
+
+  if (config.args !== null && config.args !== undefined && config.args.length > 0) {
+    cliOutput.info(`Arguments: ${JSON.stringify(config.args)}`);
+  }
+  if (config.env !== null && config.env !== undefined && Object.keys(config.env).length > 0) {
+    cliOutput.info(`Environment: ${JSON.stringify(config.env)}`);
+  }
+};
+
+/**
+ * Parse command arguments from CLI context.
+ * @param args - CLI context arguments.
+ * @returns Typed arguments object.
+ */
+const parseCommandArgs = (args: Record<string, unknown>): {
+  typedName: string | undefined;
+  typedCommand: string | undefined;
+  typedArgsString: string | undefined;
+  typedEnvString: string | undefined;
+  typedScope: 'local' | 'project' | 'user' | undefined;
+  typedTransport: 'stdio' | 'sse' | 'http' | undefined;
+  typedDescription: string | undefined;
+} => {
+  const {
+    name,
+    command: serverCommand,
+    args: argsString,
+    env: envString,
+    scope,
+    transport,
+    description
+  } = args;
+
+  return {
+    typedName: typeof name === 'string' ? name : undefined,
+    typedCommand: typeof serverCommand === 'string' ? serverCommand : undefined,
+    typedArgsString: typeof argsString === 'string' ? argsString : undefined,
+    typedEnvString: typeof envString === 'string' ? envString : undefined,
+    typedScope: ['local', 'project', 'user'].includes(scope as string)
+      ? scope as 'local' | 'project' | 'user'
+      : undefined,
+    typedTransport: ['stdio', 'sse', 'http'].includes(transport as string)
+      ? transport as 'stdio' | 'sse' | 'http'
+      : undefined,
+    typedDescription: typeof description === 'string' ? description : undefined
+  };
+};
+
+/**
+ * Build server configuration from parsed arguments.
+ * @param parsedArgs - Parsed command arguments.
+ * @param cliOutput - CLI output service.
+ * @returns Server configuration or null if invalid.
+ */
+const buildServerConfig = (
+  parsedArgs: ReturnType<typeof parseCommandArgs>,
+  cliOutput: CliOutputService
+): IMcpServerConfig | null => {
+  const {
+    typedName,
+    typedCommand,
+    typedArgsString,
+    typedEnvString,
+    typedScope,
+    typedTransport,
+    typedDescription
+  } = parsedArgs;
+
+  if (!validateRequiredArgs(typedName, typedCommand, cliOutput)) {
+    return null;
+  }
+
+  const config: IMcpServerConfig = {
+    name: typedName ?? '',
+    command: typedCommand ?? '',
+    scope: typedScope ?? 'local',
+    transport: typedTransport ?? 'stdio',
+    ...typedDescription !== null && typedDescription !== undefined
+        ? { description: typedDescription } : {}
+  };
+
+  if (typedArgsString !== null && typedArgsString !== undefined && typedArgsString !== '') {
+    const parsedArgsResult = parseAndValidateArgs(typedArgsString, cliOutput);
+    if (parsedArgsResult === null) {
+      return null;
+    }
+    config.args = parsedArgsResult;
+  }
+
+  if (typedEnvString !== null && typedEnvString !== undefined && typedEnvString !== '') {
+    const parsedEnv = parseAndValidateEnv(typedEnvString, cliOutput);
+    if (parsedEnv === null) {
+      return null;
+    }
+    config.env = parsedEnv;
+  }
+
+  return config;
+};
+
 export const command: ICLICommand = {
   description: 'Add MCP server configuration',
   execute: async (context: ICLIContext): Promise<void> => {
@@ -31,71 +223,17 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
-    const name = args.name as string | undefined;
-    const command = args.command as string | undefined;
-    const argsString = args.args as string | undefined;
-    const envString = args.env as string | undefined;
-    const scope = args.scope as 'local' | 'project' | 'user' | undefined;
-    const transport = args.transport as 'stdio' | 'sse' | 'http' | undefined;
-    const description = args.description as string | undefined;
+    const parsedArgs = parseCommandArgs(args);
+    const config = buildServerConfig(parsedArgs, cliOutput);
 
-    if (!name || !command) {
-      cliOutput.error('Error: Both name and command are required.');
-      cliOutput.info('Usage: config add --name <server-name> --command <command-path> [options]');
-      cliOutput.info('Options:');
-      cliOutput.info('  --args <json-array>      Arguments for the server command');
-      cliOutput.info('  --env <json-object>      Environment variables');
-      cliOutput.info('  --scope <local|project|user>  Server scope (default: local)');
-      cliOutput.info('  --transport <stdio|sse|http>  Transport type (default: stdio)');
-      cliOutput.info('  --description <text>     Server description');
+    if (config === null || config === undefined) {
       process.exit(1);
     }
 
     try {
-      const config: IMcpServerConfig = {
-        name,
-        command,
-        scope: scope || 'local',
-        transport: transport || 'stdio',
-        ...description && { description }
-      };
-
-      if (argsString) {
-        const parsedArgs = parseJsonSafely(argsString);
-        if (!Array.isArray(parsedArgs)) {
-          cliOutput.error('Error: --args must be a valid JSON array');
-          process.exit(1);
-        }
-        config.args = parsedArgs as string[];
-      }
-
-      if (envString) {
-        const parsedEnv = parseJsonSafely(envString);
-        if (!parsedEnv || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
-          cliOutput.error('Error: --env must be a valid JSON object');
-          process.exit(1);
-        }
-        config.env = parsedEnv as Record<string, string>;
-      }
-
       await configModule.initialize();
       await configModule.exports.service().addMcpServer(config);
-
-      cliOutput.success(`MCP server '${name}' added successfully!`);
-      cliOutput.keyValue({
-        Name: name,
-        Command: command,
-        Scope: config.scope || 'local',
-        Transport: config.transport || 'stdio',
-        Status: 'inactive'
-      });
-
-      if (config.args && config.args.length > 0) {
-        cliOutput.info(`Arguments: ${JSON.stringify(config.args)}`);
-      }
-      if (config.env && Object.keys(config.env).length > 0) {
-        cliOutput.info(`Environment: ${JSON.stringify(config.env)}`);
-      }
+      displaySuccessInfo(config, cliOutput);
     } catch (error) {
       cliOutput.error('Failed to add MCP server configuration');
       logger.error(LogSource.CLI, 'Failed to add MCP server configuration', {

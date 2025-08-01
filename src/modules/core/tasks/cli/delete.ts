@@ -105,7 +105,7 @@ const displayTaskDeletionPlaceholder = (): void => {
  * Execute delete command.
  * @param options - CLI context options.
  */
-const executeDelete = async (options: ICLIContext): Promise<void> => {
+const executeDelete = (options: ICLIContext): void => {
   const { args } = options;
   const { type } = args;
 

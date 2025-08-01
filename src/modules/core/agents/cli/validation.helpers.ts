@@ -16,24 +16,82 @@ export const validateCreateAgentArgs = (context: ICLIContext): boolean => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
 
-  const hasName = Boolean(args.name || args.n);
-  const hasDescription = Boolean(args.description || args.d);
-  const hasInstructions = Boolean(args.instructions || args.i);
-  const hasType = Boolean(args.type || args.t);
+  const hasName = Boolean(args.name ?? args.n);
+  const hasDescription = Boolean(args.description ?? args.d);
+  const hasInstructions = Boolean(args.instructions ?? args.i);
+  const hasType = Boolean(args.type ?? args.t);
 
-  if (!hasName || !hasDescription || !hasInstructions || !hasType) {
-    cliOutput.error('Name, description, instructions, and type are required');
-    cliOutput.info('Missing arguments:');
-    if (!hasName) { cliOutput.info('  - name (--name or -n)'); }
-    if (!hasDescription) { cliOutput.info('  - description (--description or -d)'); }
-    if (!hasInstructions) { cliOutput.info('  - instructions (--instructions or -i)'); }
-    if (!hasType) { cliOutput.info('  - type (--type or -t)'); }
-    cliOutput.info('Types: worker, monitor, coordinator');
+  const missingFields = getMissingRequiredFields({
+    hasName,
+    hasDescription,
+    hasInstructions,
+    hasType
+  });
+
+  if (missingFields.length > 0) {
+    displayValidationErrors(cliOutput, missingFields);
     return false;
   }
 
   return true;
+};
+
+/**
+ * Field validation interface.
+ */
+interface IFieldValidation {
+  hasName: boolean;
+  hasDescription: boolean;
+  hasInstructions: boolean;
+  hasType: boolean;
 }
+
+/**
+ * Gets list of missing required fields.
+ * @param fields - Field validation results.
+ * @returns Array of missing field names.
+ */
+function getMissingRequiredFields(fields: IFieldValidation): string[] {
+  const missing: string[] = [];
+  const fieldMapping = {
+    hasName: 'name (--name or -n)',
+    hasDescription: 'description (--description or -d)',
+    hasInstructions: 'instructions (--instructions or -i)',
+    hasType: 'type (--type or -t)'
+  };
+
+  Object.entries(fieldMapping).forEach(([fieldKey, fieldName]) => {
+    if (!fields[fieldKey as keyof IFieldValidation]) {
+      missing.push(fieldName);
+    }
+  });
+
+  return missing;
+}
+
+/**
+ * Displays validation errors for missing fields.
+ * @param cliOutput - CLI output service.
+ * @param missingFields - Array of missing field names.
+ */
+function displayValidationErrors(
+  cliOutput: CliOutputService,
+  missingFields: string[]
+): void {
+  cliOutput.error('Name, description, instructions, and type are required');
+  cliOutput.info('Missing arguments:');
+
+  missingFields.forEach(field => {
+    cliOutput.info(`  - ${field}`);
+  });
+
+  cliOutput.info('Types: worker, monitor, coordinator');
+}
+
+/**
+ * Valid agent types constant.
+ */
+const VALID_AGENT_TYPES: readonly string[] = ['worker', 'monitor', 'coordinator'];
 
 /**
  * Validates agent type.
@@ -41,8 +99,7 @@ export const validateCreateAgentArgs = (context: ICLIContext): boolean => {
  * @returns True if valid, false otherwise.
  */
 export const validateAgentType = (type: string): boolean => {
-  const validTypes: readonly string[] = ['worker', 'monitor', 'coordinator'];
-  return validTypes.includes(type);
+  return VALID_AGENT_TYPES.includes(type);
 }
 
 /**
@@ -54,15 +111,31 @@ export const validateAgentIdentifier = (context: ICLIContext): string | null => 
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
 
-  const hasName = Boolean(args.name);
-  const hasId = Boolean(args.id);
+  const identifierValidation = validateIdentifierArgs(args);
 
-  if (!hasName && !hasId) {
+  if (!identifierValidation.isValid) {
     cliOutput.error('Either agent name (-n) or ID (-i) is required');
     return null;
   }
 
+  return identifierValidation.identifier;
+};
+
+/**
+ * Validates identifier arguments.
+ * @param args - Command arguments.
+ * @returns Validation result.
+ */
+function validateIdentifierArgs(args: Record<string, unknown>): {
+  isValid: boolean;
+  identifier: string;
+} {
   const name = typeof args.name === 'string' ? args.name : null;
   const id = typeof args.id === 'string' ? args.id : null;
-  return name ?? id ?? '';
+  const identifier = name ?? id ?? '';
+
+  return {
+    isValid: Boolean(name || id),
+    identifier
+  };
 }
