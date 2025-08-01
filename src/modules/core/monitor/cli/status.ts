@@ -8,7 +8,7 @@ import type { ICLICommand } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 export const command: ICLICommand = {
   description: 'Show monitor module status and system metrics',

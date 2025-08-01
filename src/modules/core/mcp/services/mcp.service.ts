@@ -12,12 +12,12 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { MCPRepository } from '@/modules/core/mcp/repositories/mcp.repository';
 import type {
   IMCPService,
-} from '@/modules/core/mcp/types/index';
+} from '@/modules/core/mcp/types/manual';
 import type {
   IMcpContextsRow,
   IMcpMessagesRow,

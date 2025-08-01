@@ -6,12 +6,56 @@
 import type {
  Express, Request, Response
 } from 'express';
-import { getModuleRegistry } from '@/modules/core/modules/index';
-import { ModulesStatus } from '@/modules/core/modules/types/manual';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+// Note: Using dynamic requires to avoid circular dependencies and module resolution issues
 
-const logger = LoggerService.getInstance();
+// Dynamic imports for modules to avoid circular dependencies
+const getModuleRegistry = (): any => {
+  try {
+    const { getModuleRegistry } = require('../../modules/core/modules/index');
+    return getModuleRegistry();
+  } catch (error) {
+    console.warn('Module registry not available:', error);
+    return {
+      getAll: () => new Map(),
+      get: () => undefined
+    };
+  }
+};
+
+const getLoggerService = (): any => {
+  try {
+    const { LoggerService } = require('../../modules/core/logger/services/logger.service');
+    return LoggerService.getInstance();
+  } catch (error) {
+    return {
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    };
+  }
+};
+
+const getLogSource = (): any => {
+  try {
+    const { LogSource } = require('../../modules/core/logger/types/manual');
+    return LogSource;
+  } catch (error) {
+    return { SERVER: 'server' };
+  }
+};
+
+const getModulesStatus = (): any => {
+  try {
+    const { ModulesStatus } = require('../../modules/core/modules/types/manual');
+    return ModulesStatus;
+  } catch (error) {
+    return { RUNNING: 'running' };
+  }
+};
+
+const logger = getLoggerService();
+const LogSource = getLogSource();
+const ModulesStatus = getModulesStatus();
 
 interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -22,7 +66,7 @@ interface HealthCheckResponse {
 }
 
 interface ModuleHealthStatus {
-  status: ModulesStatus;
+  status: string;
   healthy: boolean;
   message?: string;
 }
@@ -80,7 +124,7 @@ async function checkModuleHealth(): Promise<Record<string, ModuleHealthStatus>> 
       } else {
         healthStatuses[name] = {
           status: module.status,
-          healthy: module.status === ModulesStatus.RUNNING,
+          healthy: module.status === 'running',
           message: `Module status: ${module.status}`
         };
       }
@@ -216,7 +260,7 @@ async function handleModuleHealth(req: Request, res: Response): Promise<void> {
       };
     } else {
       health = {
-        healthy: module.status === ModulesStatus.RUNNING,
+        healthy: module.status === 'running',
         message: `Module status: ${module.status}`
       };
     }

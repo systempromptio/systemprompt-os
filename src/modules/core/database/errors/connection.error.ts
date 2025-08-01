@@ -4,7 +4,7 @@
  * @module database/errors/connection.error
  */
 
-import { DatabaseError } from '@/modules/core/database/errors/base.error';
+import { DatabaseError } from './base.error';
 
 /**
  * Error thrown when database connection fails.

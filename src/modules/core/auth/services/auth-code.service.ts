@@ -6,7 +6,7 @@
 import { randomBytes } from 'crypto';
 import { AuthCodeRepository } from '@/modules/core/auth/repositories/auth-code.repository';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import type {
   IAuthCodeCreate as IAuthorizationCodeData,
 } from '@/modules/core/auth/types/manual';
@@ -45,7 +45,16 @@ export class AuthCodeService {
    */
   public static getInstance(): AuthCodeService {
     if (AuthCodeService.instance === undefined) {
-      throw new Error('AuthCodeService must be initialized with database and logger first');
+      // Try to auto-initialize if database and logger are available
+      try {
+        const { DatabaseService } = require('@/modules/core/database/services/database.service');
+        const { LoggerService } = require('@/modules/core/logger/services/logger.service');
+        const database = DatabaseService.getInstance();
+        const logger = LoggerService.getInstance();
+        return AuthCodeService.initialize(database, logger);
+      } catch (error) {
+        throw new Error('AuthCodeService must be initialized with database and logger first');
+      }
     }
     return AuthCodeService.instance;
   }

@@ -4,7 +4,7 @@
 
 import { RegisterEndpoint } from '@/server/external/rest/oauth2/register';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type { IDefaultClient } from '@/server/external/rest/oauth2/types/index';
 
 const logger = LoggerService.getInstance();

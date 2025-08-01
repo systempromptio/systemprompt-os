@@ -1,43 +1,29 @@
 // Auto-generated service schemas for config module
-// Generated on: 2025-07-31T14:59:46.748Z
+// Generated on: 2025-08-01T13:49:50.220Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/manual';
+import { ConfigSchema, ConfigUpdateDataSchema } from './config.module.generated';
 
 // Zod schema for ConfigService
 export const ConfigServiceSchema = z.object({
-  get: z.function()
+  setConfig: z.function()
+    .args(z.string(), z.string(), z.unknown())
+    .returns(z.promise(ConfigSchema)),
+  getConfig: z.function()
     .args(z.string())
-    .returns(z.promise(z.unknown())),
-  set: z.function()
-    .args(z.string(), z.unknown())
-    .returns(z.promise(z.void())),
-  delete: z.function()
+    .returns(z.promise(ConfigSchema.nullable())),
+  listConfigs: z.function()
     .args(z.string())
-    .returns(z.promise(z.void())),
-  list: z.function()
-    .args()
-    .returns(z.promise(z.array(z.unknown()))),
-  validate: z.function()
-    .args()
-    .returns(z.promise(z.unknown())),
-  addMcpServer: z.function()
-    .args(z.unknown())
-    .returns(z.promise(z.void())),
-  deleteMcpServer: z.function()
+    .returns(z.promise(z.array(ConfigSchema))),
+  deleteConfig: z.function()
     .args(z.string())
     .returns(z.promise(z.void())),
-  getMcpServer: z.function()
-    .args(z.string())
-    .returns(z.promise(z.unknown().nullable())),
-  listMcpServers: z.function()
-    .args()
-    .returns(z.promise(z.array(z.unknown()))),
-  updateMcpServerStatus: z.function()
-    .args(z.string(), z.string(), z.string())
-    .returns(z.promise(z.void())),
+  updateConfig: z.function()
+    .args(z.string(), ConfigUpdateDataSchema)
+    .returns(z.promise(ConfigSchema)),
 });
 
 // Zod schema for IConfigModuleExports

@@ -5,7 +5,7 @@
  */
 
 import type { Express } from 'express';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { setupMcpServers } from '@/server/mcp/index';
 import { loadExpressApp } from '@/bootstrap/express-loader';

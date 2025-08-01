@@ -7,8 +7,8 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 interface ModuleExportInterface {
   name: string;

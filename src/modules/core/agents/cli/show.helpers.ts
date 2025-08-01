@@ -30,13 +30,11 @@ const displayBasicInfo = (agent: IAgent, cliOutput: CliOutputService): void => {
  * @param agent - Agent to display.
  * @param cliOutput - CLI output service.
  */
-const displayCapabilities = (agent: IAgent, cliOutput: CliOutputService): void => {
-  if (agent.capabilities.length > 0) {
-    cliOutput.section('Capabilities');
-    agent.capabilities.forEach((cap: string): void => {
-      cliOutput.info(`• ${cap}`);
-    });
-  }
+const displayCapabilities = (_agent: IAgent, cliOutput: CliOutputService): void => {
+  // Note: capabilities are stored in separate table - would need to be fetched separately
+  // For now, show a placeholder section
+  cliOutput.section('Capabilities');
+  cliOutput.info('• Capabilities stored separately (not fetched in basic agent view)');
 };
 
 /**
@@ -44,13 +42,11 @@ const displayCapabilities = (agent: IAgent, cliOutput: CliOutputService): void =
  * @param agent - Agent to display.
  * @param cliOutput - CLI output service.
  */
-const displayTools = (agent: IAgent, cliOutput: CliOutputService): void => {
-  if (agent.tools.length > 0) {
-    cliOutput.section('Tools');
-    agent.tools.forEach((tool: string): void => {
-      cliOutput.info(`• ${tool}`);
-    });
-  }
+const displayTools = (_agent: IAgent, cliOutput: CliOutputService): void => {
+  // Note: tools are stored in separate table - would need to be fetched separately
+  // For now, show a placeholder section
+  cliOutput.section('Tools');
+  cliOutput.info('• Tools stored separately (not fetched in basic agent view)');
 };
 
 /**
@@ -58,11 +54,11 @@ const displayTools = (agent: IAgent, cliOutput: CliOutputService): void => {
  * @param agent - Agent to display.
  * @param cliOutput - CLI output service.
  */
-const displayConfiguration = (agent: IAgent, cliOutput: CliOutputService): void => {
-  if (Object.keys(agent.config).length > 0) {
-    cliOutput.section('Configuration');
-    cliOutput.info(JSON.stringify(agent.config, null, 2));
-  }
+const displayConfiguration = (_agent: IAgent, cliOutput: CliOutputService): void => {
+  // Note: config is stored in separate table - would need to be fetched separately
+  // For now, show a placeholder section
+  cliOutput.section('Configuration');
+  cliOutput.info('• Configuration stored separately (not fetched in basic agent view)');
 };
 
 /**

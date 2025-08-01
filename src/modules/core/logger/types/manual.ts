@@ -26,6 +26,7 @@ export enum LogSource {
   AGENT = 'agent',
   BOOTSTRAP = 'bootstrap',
   CLI = 'cli',
+  CONFIG = 'config',
   DATABASE = 'database',
   LOGGER = 'logger',
   AUTH = 'auth',

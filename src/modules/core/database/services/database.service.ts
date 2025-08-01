@@ -18,9 +18,9 @@ import type {
   IDatabaseService,
   IPreparedStatement,
   ITransaction
-} from '@/modules/core/database/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { SqliteAdapter } from '@/modules/core/database/adapters/sqlite.adapter';
+} from '../types/manual';
+import { type ILogger, LogSource } from '../../logger/types/manual';
+import { SqliteAdapter } from '../adapters/sqlite.adapter';
 
 /**
  * Database service singleton for managing database connections.
@@ -179,6 +179,15 @@ export class DatabaseService implements IDatabaseService {
       DatabaseService.instance = undefined;
     }
   }
+
+  /**
+   * Instance method to reset the service.
+   * @returns {Promise<void>}
+   */
+  public async reset(): Promise<void> {
+    await DatabaseService.reset();
+  }
+
 
   /**
    * Get the current database type.

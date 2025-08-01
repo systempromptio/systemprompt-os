@@ -6,7 +6,7 @@
  */
 
 import type { WebhookRepository } from '@/modules/core/webhooks/repositories/webhook-repository';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type {
   CreateWebhookDto,
   IWebhookDeliveryService,

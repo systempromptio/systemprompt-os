@@ -8,19 +8,7 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-
-/**
- * Zod schema for CLI arguments validation.
- */
-const listArgsSchema = z.object({
-  format: z.enum(['text', 'json']).default('text'),
-  limit: z.coerce.number().positive()
-.max(1000)
-.default(20),
-  eventName: z.string().min(1)
-.optional(),
-  verbose: z.boolean().default(false)
-});
+import { type ListArgs, cliSchemas } from '@/modules/core/events/utils/cli-validation';
 
 /**
  * Events module list command implementation.
@@ -63,7 +51,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = listArgsSchema.parse(context.args);
+      const validatedArgs: ListArgs = cliSchemas.list.parse(context.args);
 
       logger.debug(LogSource.MODULES, 'Events list command executed', { args: validatedArgs });
 
@@ -114,7 +102,9 @@ width: 15
  key: 'emitted_at',
 header: 'Emitted At',
 width: 20,
-format: (value) => { return new Date(value).toLocaleString() }
+format: (value: unknown): string => {
+  return new Date(value as string).toLocaleString();
+}
 }
           ]);
 

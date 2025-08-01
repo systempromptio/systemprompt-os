@@ -2,7 +2,7 @@
  * Integration tests for events emit CLI command
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { execSync } from 'child_process';
 
 describe('events emit CLI command', () => {

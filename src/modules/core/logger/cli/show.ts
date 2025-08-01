@@ -7,7 +7,7 @@
 
 import { spawn } from 'child_process';
 import { z } from 'zod';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { ISystemLogsRow } from '@/modules/core/logger/types/database.generated';
@@ -55,7 +55,7 @@ const buildWhereConditions = (options: ShowLogsArgs): { conditions: string[]; pa
   const conditions: string[] = [];
   const params: unknown[] = [];
 
-  if (options.level !== undefined && options.level !== '') {
+  if (options.level !== undefined) {
     conditions.push('level = ?');
     params.push(options.level.toLowerCase());
   }

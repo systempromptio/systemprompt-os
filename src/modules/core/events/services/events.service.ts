@@ -3,13 +3,13 @@
  */
 
 import { EventEmitter } from 'events';
-import type { IEventHandler } from '@/modules/core/events/types/manual';
+import type { IEventHandler, IEventBus } from '@/modules/core/events/types/manual';
 import type { IEventBusService } from '@/modules/core/events/types/events.service.generated';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { EventsRepository } from '@/modules/core/events/repositories/events.repository';
 
-export class EventBusService implements IEventBusService {
+export class EventBusService implements IEventBus, IEventBusService {
   private static instance: EventBusService | null = null;
   private readonly emitter: EventEmitter;
   private readonly logger: ILogger;
@@ -94,12 +94,12 @@ export class EventBusService implements IEventBusService {
       }
     };
 
-    this.handlerMap.set(handler, wrappedHandler);
+    this.handlerMap.set(handler as Function, wrappedHandler);
 
     this.emitter.on(event, wrappedHandler);
     this.logger.debug(LogSource.MODULES, `Event handler registered: ${event}`);
 
-    return () => { this.off(event, handler); };
+    return () => { this.off(event, handler as Function); };
   }
 
   /**
@@ -107,11 +107,13 @@ export class EventBusService implements IEventBusService {
    * @param event
    * @param handler
    */
-  off(event: string, handler: Function): void {
-    const wrappedHandler = this.handlerMap.get(handler);
+  off(event: string, handler: Function): void;
+  off(event: string, handler: (data: unknown) => void | Promise<void>): void;
+  off(event: string, handler: Function | ((data: unknown) => void | Promise<void>)): void {
+    const wrappedHandler = this.handlerMap.get(handler as Function);
     if (wrappedHandler) {
       this.emitter.removeListener(event, wrappedHandler as any);
-      this.handlerMap.delete(handler);
+      this.handlerMap.delete(handler as Function);
     }
 
     this.logger.debug(LogSource.MODULES, `Event handler removed: ${event}`);
@@ -122,7 +124,7 @@ export class EventBusService implements IEventBusService {
    * @param event
    * @param handler
    */
-  once<T = unknown>(event: string, handler: IEventHandler): void {
+  once<T = unknown>(event: string, handler: (data: unknown) => void | Promise<void>): void {
     const wrappedHandler = async (data: T) => {
       try {
         await handler(data);

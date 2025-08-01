@@ -7,7 +7,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type {
  IDatabaseService, IImportResult, ISQLParserService, ISchemaFile, ISchemaImportResult
 } from '@/modules/core/database/types/manual';

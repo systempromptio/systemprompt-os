@@ -4,8 +4,8 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import type {
   IAuthCodeCreate as IAuthorizationCodeData,
 } from '@/modules/core/auth/types/manual';

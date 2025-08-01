@@ -6,11 +6,10 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { z } from 'zod';
-import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
 import { ModulesModuleService } from '@/modules/core/modules/services/modules.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 
 // Command arguments schema
@@ -39,11 +38,10 @@ export const command: ICLICommand = {
     try {
       const validatedArgs: StatusArgs = statusArgsSchema.parse(context.args);
 
-      const moduleManager = ModuleManagerService.getInstance();
       const modulesService = ModulesModuleService.getInstance();
 
-      const modules = await moduleManager.getAllModules();
-      const healthCheck = await modulesService.healthCheck();
+      const modules = await modulesService.exports.getAllModules();
+      const healthCheck = await modulesService.exports.healthCheck();
 
       const statusData = {
         module: 'modules',

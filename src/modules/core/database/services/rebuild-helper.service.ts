@@ -2,8 +2,8 @@ import { createHash } from 'crypto';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { SchemaService } from '@/modules/core/database/services/schema.service';
 import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
+import type { IDatabaseService } from '@/modules/core/database/types/manual';
 
 /**
  * Helper service for database rebuild operations.
@@ -32,14 +32,14 @@ export class RebuildHelperService {
     const failedDrops: string[] = [];
 
     const dbService = DatabaseService.getInstance();
-    await dbService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
+    await dbService.transaction(async (conn: IDatabaseService): Promise<void> => {
       await conn.execute('PRAGMA foreign_keys = OFF');
 
       const tablesResult = await conn.query<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' 
          AND name NOT LIKE 'sqlite_%' ORDER BY name`
       );
-      const currentTables = tablesResult.rows;
+      const currentTables = tablesResult;
 
       for (const table of currentTables) {
         try {
@@ -143,8 +143,11 @@ export class RebuildHelperService {
         logger.info(LogSource.DATABASE, `  - ${moduleKey}`);
       }
 
-      const checksum = createHash('sha256').update(schema.sql)
-.digest('hex');
+      if (!schema.sql || !schema.schemaPath) {
+        continue;
+      }
+
+      const checksum = createHash('sha256').update(schema.sql).digest('hex');
 
       schemaFiles.push({
         module: moduleKey,

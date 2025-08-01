@@ -9,7 +9,7 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { RulesSyncService } from '@/modules/core/dev/services/rules-sync.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 export const command: ICLICommand = {
   description: 'Sync generic rules to specific modules with placeholder replacement',
@@ -55,7 +55,6 @@ export const command: ICLICommand = {
 
       const targetModule = args.module as string | undefined;
       const syncAll = args.all as boolean | undefined;
-      const force = args.force as boolean | undefined;
       const format = args.format as string;
 
       if (format !== 'json') {

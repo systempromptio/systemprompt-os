@@ -8,16 +8,7 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-
-/**
- * Zod schema for CLI arguments validation.
- */
-const statusArgsSchema = z.object({
-  format: z.enum(['text', 'json']).default('text'),
-  verbose: z.boolean().default(false),
-  limit: z.number().min(1)
-.default(10)
-});
+import { type StatusArgs, cliSchemas } from '@/modules/core/events/utils/cli-validation';
 
 /**
  * Events module status command implementation.
@@ -54,7 +45,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = statusArgsSchema.parse(context.args);
+      const validatedArgs: StatusArgs = cliSchemas.status.parse(context.args);
 
       logger.debug(LogSource.MODULES, 'Events status command executed', { args: validatedArgs });
 

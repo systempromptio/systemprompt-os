@@ -7,6 +7,8 @@ singleton: true
 enabled: true
 dependencies: 
   - database
+  - logger
+  - events
 exports:
   - services
   - types

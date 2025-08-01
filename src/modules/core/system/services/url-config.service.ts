@@ -4,8 +4,8 @@
  * @module system/services
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { SystemService } from '@/modules/core/system/services/system.service';
 import { SystemConfigType } from '@/modules/core/system/types/index';

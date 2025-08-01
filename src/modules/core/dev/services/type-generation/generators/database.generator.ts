@@ -8,8 +8,8 @@ import {
  existsSync, readFileSync, writeFileSync
 } from 'fs';
 import { join } from 'path';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { SQLParser } from '@/modules/core/dev/services/type-generation/parsers/sql.parser';
 import { TypeConverter } from '@/modules/core/dev/services/type-generation/utils/type-converter';
 import { StringUtils } from '@/modules/core/dev/services/type-generation/utils/string-utils';

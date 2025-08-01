@@ -5,11 +5,10 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { z } from 'zod';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { ModuleSetupService } from '@/modules/core/modules/services/module-setup.service';
+import { ModulesModuleService } from '@/modules/core/modules/services/modules.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 // Command arguments schema
 const setupArgsSchema = z.object({
@@ -52,15 +51,14 @@ export const command: ICLICommand = {
     try {
       const validatedArgs: SetupArgs = setupArgsSchema.parse(context.args);
 
-      const database = DatabaseService.getInstance();
-      const setupService = ModuleSetupService.getInstance(database);
+      const modulesService = ModulesModuleService.getInstance();
 
       let result: any = {};
 
       switch (validatedArgs.action) {
         case 'install':
           cliOutput.info('Installing core modules...');
-          await setupService.install();
+          await modulesService.exports.setupInstall();
           result = {
             action: 'install',
             success: true,
@@ -91,7 +89,7 @@ export const command: ICLICommand = {
             process.exit(1);
           }
           cliOutput.info('Cleaning and rebuilding module database...');
-          await setupService.clean();
+          await modulesService.exports.setupClean();
           result = {
             action: 'clean',
             success: true,
@@ -107,7 +105,7 @@ export const command: ICLICommand = {
 
         case 'update':
           cliOutput.info('Updating core module definitions...');
-          await setupService.update();
+          await modulesService.exports.setupUpdate();
           result = {
             action: 'update',
             success: true,
@@ -123,7 +121,7 @@ export const command: ICLICommand = {
 
         case 'validate':
           cliOutput.info('Validating module database...');
-          await setupService.validate();
+          await modulesService.exports.setupValidate();
           result = {
             action: 'validate',
             success: true,

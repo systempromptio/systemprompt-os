@@ -13,7 +13,7 @@ import { OAuth2Error } from '@/server/external/rest/oauth2/errors';
 import { jwtSign, jwtVerify } from '@/server/external/auth/jwt';
 import { AuthRepository } from '@/modules/core/auth/database/repository';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   IJWTTokenPayload,
   IProviderTokens,

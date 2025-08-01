@@ -2,10 +2,10 @@
  * Utility functions for database CLI commands.
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { MigrationService } from '@/modules/core/database/services/migration.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
-import type { IMigration } from '@/modules/core/database/types/manual';
+import { DatabaseService } from '../services/database.service';
+import { MigrationService } from '../services/migration.service';
+import { SchemaService } from '../services/schema.service';
+import type { IMigration } from '../types/manual';
 
 export interface DatabaseServices {
   dbService: DatabaseService;

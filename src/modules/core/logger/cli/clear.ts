@@ -48,7 +48,7 @@ const addLevelCondition = (params: {
   queryParams: unknown[];
   descriptions: string[];
 }): void => {
-  if (params.options.level !== undefined && params.options.level !== '') {
+  if (params.options.level !== undefined) {
     params.conditions.push('level = ?');
     params.queryParams.push(params.options.level.toLowerCase());
     params.descriptions.push(`level=${params.options.level}`);
@@ -266,7 +266,11 @@ const executeClearOperation = async (params: {
   }
 
   await params.dbInstance.execute(params.sql, params.sqlParams);
-  const remainingCount = await getLogCount({}, params.dbInstance);
+  const remainingCount = await getLogCount({
+ format: 'text',
+confirm: false,
+dryRun: false
+}, params.dbInstance);
 
   if (params.options.format === 'json') {
     params.cliOutput.json({
@@ -299,7 +303,13 @@ const getDatabaseService = async (): Promise<{
   query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
 }> => {
   const { DatabaseService } = await import('@/modules/core/database/services/database.service');
-  return DatabaseService.getInstance();
+  const service = DatabaseService.getInstance();
+  return {
+    execute: async (sql: string, params?: unknown[]) => {
+      await service.execute(sql, params);
+    },
+    query: service.query.bind(service)
+  };
 };
 
 /**

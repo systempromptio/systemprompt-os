@@ -4,8 +4,8 @@
  * @module bootstrap/shutdown-helper
  */
 
-import type { IModule } from '@/modules/core/modules/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
+import type { IModule } from '../modules/core/modules/types/manual';
+import { type ILogger, LogSource } from '../modules/core/logger/types/manual';
 
 /**
  * Check if module has a specific method.
@@ -17,7 +17,7 @@ export const moduleHasMethod = (moduleInstance: IModule, method: string): boolea
   if (method === 'stop') {
     return 'stop' in moduleInstance && typeof moduleInstance.stop === 'function';
   }
-  return Object.hasOwn(moduleInstance, method);
+  return Object.prototype.hasOwnProperty.call(moduleInstance, method);
 };
 
 /**

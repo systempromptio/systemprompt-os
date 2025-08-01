@@ -8,8 +8,8 @@ import type * as Database from 'better-sqlite3';
 import type {
   IPreparedStatement,
   ITransaction
-} from '@/modules/core/database/types/manual';
-import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
+} from '../types/manual';
+import { SqlitePreparedStatement } from './sqlite-prepared-statement.adapter';
 
 /**
  * SQLite transaction implementation.

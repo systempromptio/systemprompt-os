@@ -4,14 +4,14 @@
  * @module modules/core/agents/cli/create
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
-import { AgentsService } from '@/modules/core/agents/services/agents.service';
-import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { type CreateCommandArgs, createCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
-import { displayCreatedAgent } from '@/modules/core/agents/cli/create.helpers';
-import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
+import type { ICLICommand, ICLIContext } from '../../cli/types/manual';
+import { AgentsService } from '../services/agents.service';
+import { CliOutputService } from '../../cli/services/cli-output.service';
+import { LoggerService } from '../../logger/services/logger.service';
+import { LogSource } from '../../logger/types/manual';
+import { type CreateCommandArgs, createCommandArgsSchema } from './schemas';
+import { displayCreatedAgent } from './create.helpers';
+import type { IAgent } from '../types/agents.module.generated';
 import { ZodError } from 'zod';
 
 /**
@@ -53,6 +53,56 @@ const handleError = (
 };
 
 /**
+ * Handle validation errors for agent creation.
+ * @param error - Zod validation error.
+ * @param args - Original CLI arguments.
+ * @param cliOutput - CLI output service.
+ */
+const handleValidationError = (
+  error: ZodError,
+  args: unknown,
+  cliOutput: CliOutputService
+): void => {
+  if ((args as { format?: string })?.format === 'json') {
+    cliOutput.json({
+      success: false,
+      message: 'Invalid arguments',
+      errors: error.errors.map(err => { return {
+        field: err.path.join('.'),
+        message: err.message
+      } })
+    });
+  } else {
+    cliOutput.error('Invalid arguments:');
+    error.errors.forEach(err => {
+      const field = err.path.length > 0 ? err.path.join('.') : 'argument';
+      cliOutput.error(`  ${field}: ${err.message}`);
+    });
+  }
+  process.exit(1);
+};
+
+/**
+ * Create agent with validated data.
+ * @param validatedArgs - Validated CLI arguments.
+ * @param cliOutput - CLI output service.
+ * @returns Promise resolving to created agent.
+ */
+const createAgentWithData = async (
+  validatedArgs: CreateCommandArgs,
+  cliOutput: CliOutputService
+): Promise<IAgent> => {
+  const agentService = AgentsService.getInstance();
+
+  if (validatedArgs.format !== 'json') {
+    cliOutput.section('Creating Agent');
+  }
+
+  const { format, ...agentData } = validatedArgs;
+  return await agentService.createAgent(agentData);
+};
+
+/**
  * Execute agent creation with validation and error handling.
  * @param context - CLI context with arguments and metadata.
  */
@@ -63,34 +113,11 @@ const executeCreation = async (context: ICLIContext): Promise<void> => {
 
   try {
     const validatedArgs = createCommandArgsSchema.parse(args);
-
-    const agentService = AgentsService.getInstance();
-
-    if (validatedArgs.format !== 'json') {
-      cliOutput.section('Creating Agent');
-    }
-
-    const agent = await agentService.createAgent(validatedArgs);
+    const agent = await createAgentWithData(validatedArgs, cliOutput);
     handleSuccess(agent, validatedArgs, cliOutput);
   } catch (error) {
     if (error instanceof ZodError) {
-      if (args.format === 'json') {
-        cliOutput.json({
-          success: false,
-          message: 'Invalid arguments',
-          errors: error.errors.map(err => { return {
-            field: err.path.join('.'),
-            message: err.message
-          } })
-        });
-      } else {
-        cliOutput.error('Invalid arguments:');
-        error.errors.forEach(err => {
-          const field = err.path.length > 0 ? err.path.join('.') : 'argument';
-          cliOutput.error(`  ${field}: ${err.message}`);
-        });
-      }
-      process.exit(1);
+      handleValidationError(error, args, cliOutput);
     } else {
       handleError(error, logger, cliOutput);
     }

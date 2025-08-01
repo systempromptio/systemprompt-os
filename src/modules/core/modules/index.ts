@@ -39,12 +39,11 @@ export const createModule = (): ModulesModuleService => {
 
 /**
  * Initialize function for core module pattern.
- * @returns Initialized modules module.
+ * @returns Promise that resolves when the module is initialized.
  */
-export const initialize = async (): Promise<ModulesModuleService> => {
+export const initialize = async (): Promise<void> => {
   const modulesModule = ModulesModuleService.getInstance();
   await modulesModule.initialize();
-  return modulesModule;
 };
 
 /**

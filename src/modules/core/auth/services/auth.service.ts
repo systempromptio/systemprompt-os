@@ -6,11 +6,12 @@
  */
 
 import { randomUUID } from 'crypto';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
 import { SessionService } from '@/modules/core/auth/services/session.service';
 import { OAuthService } from '@/modules/core/auth/services/oauth.service';
 import { ProvidersService } from '@/modules/core/auth/services/providers.service';
+import { TokenService } from '@/modules/core/auth/services/token.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
 import { type IAuthService } from '@/modules/core/auth/types/auth.service.generated';
 import {
@@ -28,6 +29,7 @@ export class AuthService implements IAuthService {
   private readonly sessionService: SessionService;
   private readonly oauthService: OAuthService;
   private readonly providersService: ProvidersService;
+  private readonly tokenService: TokenService;
   private readonly eventBus: EventBusService;
   private logger?: ILogger;
   private initialized = false;
@@ -40,6 +42,7 @@ export class AuthService implements IAuthService {
     this.sessionService = SessionService.getInstance();
     this.oauthService = OAuthService.getInstance();
     this.providersService = ProvidersService.getInstance();
+    this.tokenService = TokenService.getInstance();
     this.eventBus = EventBusService.getInstance();
   }
 
@@ -251,6 +254,76 @@ export class AuthService implements IAuthService {
         error: error instanceof Error ? error.message : String(error)
       });
       return [];
+    }
+  }
+
+  /**
+   * Create or update user from OAuth provider data.
+   * @param provider - OAuth provider name.
+   * @param providerUserId - Provider-specific user ID.
+   * @param userData - User data from OAuth provider.
+   * @returns Promise that resolves to user information.
+   */
+  public async createOrUpdateUserFromOAuth(
+    provider: string,
+    providerUserId: string,
+    userData: {
+      email: string;
+      name?: string;
+      avatarUrl?: string;
+      [key: string]: unknown;
+    }
+  ): Promise<{ userId: string; isNewUser: boolean }> {
+    await this.ensureInitialized();
+
+    this.logger?.info(LogSource.AUTH, `Creating/updating user from OAuth: ${provider}:${providerUserId}`);
+
+    return await this.oauthService.createOrUpdateUserFromOAuth({
+      provider,
+      providerUserId,
+      email: userData.email,
+      name: userData.name,
+      avatarUrl: userData.avatarUrl,
+      ...userData
+    });
+  }
+
+  /**
+   * Refresh access token using refresh token.
+   * @param refreshToken - The refresh token.
+   * @returns Promise that resolves to new token information.
+   */
+  public async refreshAccessToken(refreshToken: string): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresIn?: number;
+  }> {
+    await this.ensureInitialized();
+
+    this.logger?.info(LogSource.AUTH, 'Refreshing access token');
+
+    try {
+      // Validate the refresh token and extract user information
+      const tokenValidation = await this.tokenService.validateToken(refreshToken);
+      if (!tokenValidation.valid || !tokenValidation.payload?.sub) {
+        throw new Error('Invalid refresh token');
+      }
+
+      const userId = tokenValidation.payload.sub;
+      
+      // Create new token pair for the user
+      const tokenPair = await this.tokenService.createTokenPair(userId, ['read', 'write']);
+      
+      return {
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        expiresIn: 3600 // 1 hour default
+      };
+    } catch (error) {
+      this.logger?.error(LogSource.AUTH, 'Failed to refresh access token', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw new Error('Failed to refresh access token');
     }
   }
 

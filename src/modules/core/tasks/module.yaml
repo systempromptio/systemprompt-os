@@ -34,8 +34,8 @@ cli:
           type: string
           description: Output format (table or json)
           default: table
-    - name: add
-      description: Add a new task to the queue
+    - name: create
+      description: Create a new task in the queue
       options:
         - name: type
           type: string
@@ -64,6 +64,21 @@ cli:
           type: string
           description: Output format (table or json)
           default: table
+    - name: get
+      description: Get detailed information about a task by ID
+      options:
+        - name: id
+          type: number
+          description: Task ID to retrieve
+          required: true
+        - name: include_metadata
+          type: boolean
+          description: Include additional metadata information
+          default: false
+        - name: format
+          type: string
+          description: Output format (text or json)
+          default: text
     - name: update
       description: Update an existing task
       options:

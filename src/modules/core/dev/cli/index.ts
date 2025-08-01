@@ -4,7 +4,10 @@
 
 export { command as lint } from '@/modules/core/dev/cli/lint';
 export { command as test } from '@/modules/core/dev/cli/test';
-export { command as typecheck } from '@/modules/core/dev/cli/typecheck';
+/*
+ * TODO: Fix EventBusService duplicate declaration issue
+ * export { command as typecheck } from '@/modules/core/dev/cli/typecheck';
+ */
 export { command as createModule } from '@/modules/core/dev/cli/create-module';
 export { command as generateTypes } from '@/modules/core/dev/cli/generate-types';
 export { command as validate } from '@/modules/core/dev/cli/validate';
@@ -28,11 +31,14 @@ export const devCommands = {
       description: 'Run tests for specific file/folder and display test coverage summary',
       handler: 'dev:test'
     },
-    {
-      name: 'typecheck',
-      description: 'Run TypeScript type checking and display errors',
-      handler: 'dev:typecheck'
-    },
+    /*
+     * TODO: Re-enable after fixing EventBusService duplicate declaration
+     * {
+     *   name: 'typecheck',
+     *   description: 'Run TypeScript type checking and display errors',
+     *   handler: 'dev:typecheck'
+     * },
+     */
     {
       name: 'create-module',
       description: 'Create a new SystemPrompt OS module with complete boilerplate',

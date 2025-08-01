@@ -8,7 +8,7 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import type {
   IPromptScanData,
   IResourceScanData,
-} from '@/modules/core/mcp/types/index';
+} from '@/modules/core/mcp/types/manual';
 
 /**
  * Interface for existing prompt data from database.

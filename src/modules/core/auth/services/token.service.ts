@@ -11,7 +11,7 @@ import type {
   TokenCreateInput,
   TokenValidationResult
 } from '@/modules/core/auth/types/manual';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LogSource, getLoggerService } from '@/modules/core/logger/index';
 import { TokenRepository } from '@/modules/core/auth/repositories/token.repository';
 import { TokenConfigService } from '@/modules/core/auth/services/token-config.service';

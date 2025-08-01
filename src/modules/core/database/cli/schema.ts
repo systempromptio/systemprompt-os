@@ -1,7 +1,7 @@
 import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import { DatabaseQueryService } from '@/modules/core/cli/services/database-query.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { createFooter } from '@/modules/core/cli/utils/cli-formatter';
 

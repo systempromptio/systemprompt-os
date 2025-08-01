@@ -4,14 +4,14 @@
  * @module bootstrap/type-guards
  */
 
-import type { IModuleExports } from '@/types/bootstrap';
+import type { IModulesModuleExports } from '../modules/core/modules/types/manual';
 
 /**
- * Type guard to check if an object is a valid IModuleExports.
+ * Type guard to check if an object is a valid IModulesModuleExports.
  * @param {unknown} obj - Object to check.
- * @returns {obj is IModuleExports} True if object is IModuleExports.
+ * @returns {obj is IModulesModuleExports} True if object is IModulesModuleExports.
  */
-export const isModuleExports = (obj: unknown): obj is IModuleExports => {
+export const isModuleExports = (obj: unknown): obj is IModulesModuleExports => {
   if (obj === null || obj === undefined) {
     return false;
   }
@@ -30,12 +30,12 @@ export const isModuleExports = (obj: unknown): obj is IModuleExports => {
 };
 
 /**
- * Assert that an object is a valid IModuleExports.
+ * Assert that an object is a valid IModulesModuleExports.
  * @param {unknown} obj - Object to check.
- * @throws {Error} If object is not a valid IModuleExports.
- * @returns {asserts obj is IModuleExports} Type assertion.
+ * @throws {Error} If object is not a valid IModulesModuleExports.
+ * @returns {asserts obj is IModulesModuleExports} Type assertion.
  */
-export const assertModuleExports = (obj: unknown): asserts obj is IModuleExports => {
+export const assertModuleExports = (obj: unknown): asserts obj is IModulesModuleExports => {
   if (!isModuleExports(obj)) {
     throw new Error(
       'Invalid module exports: missing required methods scanForModules or getEnabledModules',

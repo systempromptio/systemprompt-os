@@ -6,10 +6,10 @@
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { z } from 'zod';
-import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
+import { ModulesModuleService } from '@/modules/core/modules/services/modules.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 // Command arguments schema
 const listArgsSchema = z.object({
@@ -46,8 +46,8 @@ export const command: ICLICommand = {
     try {
       const validatedArgs: ListArgs = listArgsSchema.parse(context.args);
 
-      const moduleManager = ModuleManagerService.getInstance();
-      const modules = await moduleManager.getAllModules();
+      const modulesService = ModulesModuleService.getInstance();
+      const modules = await modulesService.exports.getAllModules();
 
       let filteredModules = modules;
       if (validatedArgs.type !== 'all') {

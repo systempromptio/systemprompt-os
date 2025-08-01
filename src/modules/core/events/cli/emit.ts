@@ -8,24 +8,7 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-
-/**
- * Zod schema for CLI arguments validation.
- */
-const emitArgsSchema = z.object({
-  format: z.enum(['text', 'json']).default('text'),
-  eventName: z.string().min(1, 'Event name is required'),
-  data: z.string().optional()
-.transform(val => {
-    if (!val) { return {}; }
-    try {
-      return JSON.parse(val);
-    } catch {
-      return { message: val };
-    }
-  }),
-  source: z.string().default('cli')
-});
+import { type EmitArgs, cliSchemas } from '@/modules/core/events/utils/cli-validation';
 
 /**
  * Events module emit command implementation.
@@ -68,7 +51,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = emitArgsSchema.parse(context.args);
+      const validatedArgs: EmitArgs = cliSchemas.emit.parse(context.args);
 
       logger.debug(LogSource.MODULES, 'Events emit command executed', { args: validatedArgs });
 

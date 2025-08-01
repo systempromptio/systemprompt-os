@@ -4,13 +4,14 @@
  * @module modules/core/agents
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
-import { AgentsService } from '@/modules/core/agents/services/agents.service';
+import { BaseModule, ModulesType } from '../modules/types/manual';
+import { AgentsService } from './services/agents.service';
 import {
   AgentsModuleExportsSchema,
   AgentsServiceSchema,
-  type IAgentsModuleExports
-} from '@/modules/core/agents/types/agents.service.generated';
+  type IAgentsModuleExports,
+  type IAgentsService
+} from './types/agents.service.generated';
 import type { ZodSchema } from 'zod';
 
 /**
@@ -26,7 +27,7 @@ export class AgentsModule extends BaseModule<IAgentsModuleExports> {
   private agentsService!: AgentsService;
   get exports(): IAgentsModuleExports {
     return {
-      service: (): AgentsService => {
+      service: (): IAgentsService => {
         this.ensureInitialized();
         return this.validateServiceStructure(
           this.agentsService,

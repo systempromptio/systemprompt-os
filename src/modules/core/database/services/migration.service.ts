@@ -8,11 +8,11 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '../../logger/types/manual';
+import { LogSource } from '../../logger/types/manual';
 import type {
  IDatabaseConnection, IDatabaseService, IExecutedMigration, IMigration
-} from '@/modules/core/database/types/manual';
+} from '../types/manual';
 
 /**
  * Database row type for migration records.
@@ -100,6 +100,7 @@ export class MigrationService {
           module: moduleNameResult,
           version,
           filename,
+          content: sql,
           sql,
           checksum,
         };
@@ -164,8 +165,9 @@ pending: pending.length
         version: migration.version,
       });
 
-      await this.databaseService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
-        await conn.execute(migration.sql);
+      await this.databaseService.transaction(async (conn: IDatabaseService): Promise<void> => {
+        const sql = migration.sql ?? migration.content;
+        await conn.execute(sql);
 
         await conn.execute(
           `INSERT INTO _migrations (module, version, filename, checksum, applied_at)
@@ -326,7 +328,7 @@ pending: pending.length
         name: row.filename,
         sql: '',
         checksum: row.checksum,
-        executedAt: row.applied_at,
+        executedAt: new Date(row.applied_at),
       } });
     } catch (error) {
       this.logger?.debug(LogSource.DATABASE, 'No migrations table found', {
@@ -360,7 +362,7 @@ pending: pending.length
         version: migration.version,
       });
 
-      await this.databaseService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
+      await this.databaseService.transaction(async (conn: IDatabaseService): Promise<void> => {
         const rollbackPath = migration.filename.replace('.sql', '.rollback.sql');
 
         try {

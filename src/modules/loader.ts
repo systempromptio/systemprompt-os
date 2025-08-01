@@ -12,7 +12,7 @@ import { join } from 'path';
 import { ModuleRegistry } from '@/modules/registry';
 import { CONFIG } from '@/server/config';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { ModulesStatus } from '@/modules/core/modules/types/manual';
 import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 import type {

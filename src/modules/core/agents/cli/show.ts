@@ -8,7 +8,7 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { showCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
 import { displayAgentDetails } from '@/modules/core/agents/cli/show.helpers';
 import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';

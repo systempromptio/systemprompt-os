@@ -4,9 +4,9 @@
  * @module modules/core/dev
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
+import { BaseModule, ModulesType, ModulesStatus } from '@/modules/core/modules/types/manual';
 import { DevService } from '@/modules/core/dev/services/dev.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import {
   DevModuleExportsSchema,
   type IDevModuleExports
@@ -63,6 +63,46 @@ export class DevModule extends BaseModule<IDevModuleExports> {
   getService(): DevService {
     this.ensureInitialized();
     return this.devService;
+  }
+
+  /**
+   * Perform health check on the dev module.
+   * @returns {Promise<{ healthy: boolean; message?: string }>} Health check result.
+   */
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+    try {
+      if (!this.initialized) {
+        return {
+          healthy: false,
+          message: 'Dev module not initialized'
+        };
+      }
+
+      if (this.status !== ModulesStatus.RUNNING) {
+        return {
+          healthy: false,
+          message: `Dev module status: ${this.status}`
+        };
+      }
+
+      // Check if dev service is available and functioning
+      if (!this.devService) {
+        return {
+          healthy: false,
+          message: 'Dev service not available'
+        };
+      }
+
+      return {
+        healthy: true,
+        message: 'Dev module is healthy and operational'
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        message: `Health check failed: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
   }
 }
 

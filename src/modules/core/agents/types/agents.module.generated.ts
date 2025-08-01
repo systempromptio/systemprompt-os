@@ -1,36 +1,33 @@
 // Auto-generated Zod schemas for agents module
-// Generated on: 2025-07-31T14:35:01.009Z
+// Generated on: 2025-08-01T14:00:02.805Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { AgentsStatusSchema, AgentsRowSchema } from './database.generated';
+import { AgentsStatusSchema, AgentsTypeSchema, AgentsRowSchema } from './database.generated';
 
-// Extended Agent schema with additional properties
-export const AgentSchema = AgentsRowSchema.extend({
-  capabilities: z.array(z.string()),
-  tools: z.array(z.string()),
-  config: z.record(z.unknown())
-});
+// Agent schema - directly use database row schema
+export const AgentSchema = AgentsRowSchema;
 
 export const AgentCreateDataSchema = z.object({
   name: z.string(),
   description: z.string(),
   instructions: z.string(),
-  type: z.unknown(),
-  capabilities: z.array(z.string()).optional(),
-  tools: z.array(z.string()).optional(),
-  config: z.record(z.unknown()).optional(),
+  type: AgentsTypeSchema,
+  status: AgentsStatusSchema,
+  assigned_tasks: z.number().nullable(),
+  completed_tasks: z.number().nullable(),
+  failed_tasks: z.number().nullable(),
 });
 
 export const AgentUpdateDataSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   instructions: z.string().optional(),
-  type: z.unknown().optional(),
+  type: AgentsTypeSchema.optional(),
   status: AgentsStatusSchema.optional(),
-  capabilities: z.array(z.string()).optional(),
-  tools: z.array(z.string()).optional(),
-  config: z.record(z.unknown()).optional(),
+  assigned_tasks: z.number().nullable().optional(),
+  completed_tasks: z.number().nullable().optional(),
+  failed_tasks: z.number().nullable().optional(),
 });
 
 // Type inference from schemas

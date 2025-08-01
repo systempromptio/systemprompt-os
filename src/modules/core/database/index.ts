@@ -5,20 +5,20 @@
  * @module database
  */
 
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { SchemaService } from '@/modules/core/database/services/schema.service';
-import { MigrationService } from '@/modules/core/database/services/migration.service';
-import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
-import { SQLParserService } from '@/modules/core/database/services/sql-parser.service';
-import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IDatabaseConfig, IDatabaseService } from '@/modules/core/database/types/manual';
-import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/manual";
-import type { IModule } from '@/modules/core/modules/types';
-import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type { IDatabaseModuleExports } from '@/modules/core/database/types/database.service.generated';
-import type { IDatabaseAdapter, IModuleDatabaseAdapter } from '@/modules/core/database/types/manual';
+import { DatabaseService } from './services/database.service';
+import { SchemaService } from './services/schema.service';
+import { MigrationService } from './services/migration.service';
+import { SchemaImportService } from './services/schema-import.service';
+import { SQLParserService } from './services/sql-parser.service';
+import { DatabaseCLIHandlerService } from './services/cli-handler.service';
+import { type ILogger, LogSource } from '../logger/types/manual';
+import type { IDatabaseConfig } from './types/manual';
+import { ModulesStatus, ModulesType } from '../modules/types/manual';
+import type { IModule } from '../modules/types/manual';
+import { createModuleAdapter } from './adapters/module-adapter';
+import { LoggerService } from '../logger/services/logger.service';
+import type { IDatabaseModuleExports } from './types/database.service.generated';
+import type { IDatabaseAdapter, IModuleDatabaseAdapter } from './types/manual';
 
 /**
  * Type guard to check if a module is a Database module.
@@ -70,7 +70,7 @@ export { createModuleAdapter };
  */
 export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   public readonly name = 'database';
-  public readonly type = ModulesType.CORE as const;
+  public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Core database management for SystemPrompt OS';
   public readonly dependencies: string[] = [];
@@ -81,28 +81,13 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
   private databaseService?: DatabaseService;
   get exports(): IDatabaseModuleExports {
     return {
-      service: (): IDatabaseService => { return this.getService() },
-      schemaService: (): SchemaService => { return SchemaService.getInstance() },
-      migrationService: (): MigrationService => { return MigrationService.getInstance() },
-      schemaImportService: (): SchemaImportService =>
-        { return SchemaImportService.getInstance() },
-      sqlParserService: (): SQLParserService => { return SQLParserService.getInstance() },
-      cliHandlerService: (): DatabaseCLIHandlerService =>
-        { return DatabaseCLIHandlerService.getInstance() },
-      createModuleAdapter: async (
-        moduleName: string
-      ): Promise<IModuleDatabaseAdapter> => {
-        const dbService = this.getService();
-        const connection = await dbService.getConnection();
-
-        if (dbService.getDatabaseType() !== 'sqlite') {
-          throw new Error(
-            `Module adapter currently only supports SQLite database. Module: ${moduleName}`
-          );
-        }
-
-        return new (await import('@/modules/core/database/adapters/module.adapter')).SqliteModuleAdapter(connection);
-      },
+      service: () => this.getService(),
+      schemaService: () => this.getSchemaService(),
+      migrationService: () => this.getMigrationService(),
+      schemaImportService: () => this.getSchemaImportService(),
+      sqlParserService: () => this.getSQLParserService(),
+      cliHandlerService: () => this.getCLIHandlerService(),
+      createModuleAdapter: (moduleName: string) => this.createModuleAdapter(moduleName)
     };
   }
 
@@ -115,6 +100,55 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       return this.databaseService;
     }
     return DatabaseService.getInstance();
+  }
+
+  /**
+   * Get schema service instance.
+   * @returns {SchemaService} Schema service.
+   */
+  getSchemaService(): SchemaService {
+    return SchemaService.getInstance();
+  }
+
+  /**
+   * Get migration service instance.
+   * @returns {MigrationService} Migration service.
+   */
+  getMigrationService(): MigrationService {
+    return MigrationService.getInstance();
+  }
+
+  /**
+   * Get schema import service instance.
+   * @returns {SchemaImportService} Schema import service.
+   */
+  getSchemaImportService(): SchemaImportService {
+    return SchemaImportService.getInstance();
+  }
+
+  /**
+   * Get SQL parser service instance.
+   * @returns {SQLParserService} SQL parser service.
+   */
+  getSQLParserService(): SQLParserService {
+    return SQLParserService.getInstance();
+  }
+
+  /**
+   * Get CLI handler service instance.
+   * @returns {DatabaseCLIHandlerService} CLI handler service.
+   */
+  getCLIHandlerService(): DatabaseCLIHandlerService {
+    return DatabaseCLIHandlerService.getInstance();
+  }
+
+  /**
+   * Create module adapter.
+   * @param {string} moduleName - Module name.
+   * @returns {Promise<IModuleDatabaseAdapter>} Module database adapter.
+   */
+  async createModuleAdapter(moduleName: string): Promise<IModuleDatabaseAdapter> {
+    return await createModuleAdapter(moduleName);
   }
 
   /**
@@ -171,27 +205,21 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
    */
   private createDatabaseAdapter(dbService: DatabaseService): IDatabaseAdapter {
     return {
-      execute: async (sql: string, params?: unknown[]): Promise<void> => {
-        await dbService.execute(sql, params);
+      connect: async (config: IDatabaseConfig) => {
+        // This adapter wraps an already connected service
+        throw new Error('Connect not supported on service wrapper adapter');
+      },
+      disconnect: async () => {
+        await dbService.disconnect();
+      },
+      isConnected: () => {
+        return true; // Service wrapper is always connected when available
+      },
+      execute: async (sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> => {
+        return await dbService.execute(sql, params);
       },
       query: async <T>(sql: string, params?: unknown[]): Promise<T[]> => {
         return await dbService.query<T>(sql, params);
-      },
-      transaction: async <TResult>(fn: (conn: {
-        execute(sql: string, params?: unknown[]): Promise<void>;
-        query<TQuery>(sql: string, params?: unknown[]): Promise<TQuery[]>;
-      }) => Promise<TResult>): Promise<TResult> => {
-        return await dbService.transaction(async (conn) => {
-          return await fn({
-            execute: async (sql: string, params?: unknown[]): Promise<void> => {
-              await conn.execute(sql, params);
-            },
-            query: async <TQuery>(sql: string, params?: unknown[]): Promise<TQuery[]> => {
-              const result = await conn.query<TQuery>(sql, params);
-              return result.rows;
-            }
-          });
-        });
       }
     };
   }
@@ -372,8 +400,8 @@ export const createModule = (): DatabaseModule => {
  * @throws {Error} If Database module is not available or missing required exports.
  */
 export function getDatabaseModule(): IModule<IDatabaseModuleExports> {
-  const { getModuleRegistry } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
+  const { getModuleRegistry } = require('/var/www/html/systemprompt-os/src/modules/loader');
+  const { ModuleName } = require('/var/www/html/systemprompt-os/src/modules/types/module-names.types');
 
   const registry = getModuleRegistry();
   const databaseModule = registry.get(ModuleName.DATABASE);
@@ -433,15 +461,12 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
     transaction: async <T>(fn: (conn: {
       execute(sql: string, params?: unknown[]): Promise<void>;
       query<T>(sql: string, params?: unknown[]): Promise<T[]>;
-    }) => Promise<T>) => { return await dbService.transaction(async (conn: {
-      execute(sql: string, params?: unknown[]): Promise<void>;
-      query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
-    }) => {
+    }) => Promise<T>) => { return await dbService.transaction(async (conn) => {
       return await fn({
         execute: async (sql: string, params?: unknown[]) => { await conn.execute(sql, params); },
         query: async <T>(sql: string, params?: unknown[]) => {
           const result = await conn.query<T>(sql, params);
-          return result.rows;
+          return result;
         }
       });
     }) }

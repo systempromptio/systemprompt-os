@@ -4,16 +4,16 @@
  * @module src/modules/core/agents/repositories/agent-base
  */
 
-import type { IAgent } from '@/modules/core/agents/types/agents.module.generated';
+import type { IAgent } from '../types/manual';
 import type {
   AgentsStatus,
   AgentsType,
   IAgentsRow
-} from '@/modules/core/agents/types/database.generated';
-import type { TaskPriority, TaskStatus } from '@/modules/core/agents/types/manual';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
-import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
+} from '../types/database.generated';
+import type { TaskPriority, TaskStatus } from '../types/manual';
+import { DatabaseService } from '../../database/services/database.service';
+import { DatabaseServiceAdapter } from '../../database/adapters/database-service-adapter';
+import type { IDatabaseConnection } from '../../database/types/manual';
 
 /**
  * Base repository class for agent-related database operations.

@@ -4,8 +4,8 @@
  * @module modules/core/logger/utils/invalid-log-level-error
  */
 
-import { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index';
-import { LoggerError } from '@/modules/core/logger/utils/logger-error-base';
+import { LoggerErrorCodeEnum } from '../types/manual';
+import { LoggerError } from './logger-error-base';
 
 /**
  * Error thrown when an invalid log level is provided.

@@ -8,14 +8,7 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-
-/**
- * Zod schema for CLI arguments validation.
- */
-const getArgsSchema = z.object({
-  format: z.enum(['text', 'json']).default('text'),
-  id: z.string().min(1, 'Event ID is required')
-});
+import { type GetArgs, cliSchemas } from '@/modules/core/events/utils/cli-validation';
 
 /**
  * Events module get command implementation.
@@ -45,7 +38,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = getArgsSchema.parse(context.args);
+      const validatedArgs: GetArgs = cliSchemas.get.parse(context.args);
 
       logger.debug(LogSource.MODULES, 'Events get command executed', { args: validatedArgs });
 

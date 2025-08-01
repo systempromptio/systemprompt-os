@@ -7,7 +7,7 @@ import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 export const command: ICLICommand = {
   description: 'Generate comprehensive types for a module (database types, interfaces, Zod schemas)',

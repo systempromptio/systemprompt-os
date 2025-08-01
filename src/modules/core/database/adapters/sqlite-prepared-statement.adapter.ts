@@ -5,7 +5,7 @@
  */
 
 import type * as BetterSqlite3 from 'better-sqlite3';
-import type { IPreparedStatement } from '@/modules/core/database/types/manual';
+import type { IPreparedStatement } from '../types/manual';
 
 /**
  * SQLite prepared statement implementation.

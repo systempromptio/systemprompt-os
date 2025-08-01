@@ -121,8 +121,8 @@ export const initialize = (): EventsModule => {
  * @throws {Error} If Events module is not available or missing required exports.
  */
 export function getEventsModule(): IModule<IEventsModuleExports> {
-  const { getModuleRegistry } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/module-names.types');
+  const { getModuleRegistry } = require('/var/www/html/systemprompt-os/src/modules/loader');
+  const { ModuleName } = require('/var/www/html/systemprompt-os/src/modules/types/module-names.types');
 
   const registry = getModuleRegistry();
   const eventsModule = registry.get(ModuleName.EVENTS);

@@ -138,7 +138,7 @@ describe('Tasks Module Integration Tests', () => {
 
     it('should create a task to write a unit test', async () => {
       const result = await runCLICommand([
-        'tasks', 'add',
+        'tasks', 'create',
         '--type=write-unit-test',
         '--module-id=cli',
         '--instructions={"target": "auth.service.ts", "coverage": "80%"}',

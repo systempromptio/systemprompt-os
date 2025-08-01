@@ -1,5 +1,5 @@
 // Auto-generated service schemas for auth module
-// Generated on: 2025-08-01T10:34:43.921Z
+// Generated on: 2025-08-01T13:49:49.432Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -25,6 +25,12 @@ export const AuthServiceSchema = z.object({
     .returns(z.promise(z.array(z.string()))),
   listProviders: z.function()
     .args()
+    .returns(z.promise(z.unknown())),
+  createOrUpdateUserFromOAuth: z.function()
+    .args(z.string(), z.string(), z.unknown())
+    .returns(z.promise(z.unknown())),
+  refreshAccessToken: z.function()
+    .args(z.string())
     .returns(z.promise(z.unknown())),
 });
 

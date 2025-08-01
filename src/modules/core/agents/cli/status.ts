@@ -7,7 +7,7 @@
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import { statusCommandArgsSchema } from '@/modules/core/agents/cli/schemas';
 import { ZodError } from 'zod';

@@ -11,7 +11,7 @@
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import type {
   IOAuth2ProtectedResourceMetadataInternal
-} from '@/modules/core/auth/types/oauth2.types';
+} from '../../../../modules/core/auth/types/oauth2.types';
 
 /**
  * Type alias for protected resource metadata returned by the endpoint.

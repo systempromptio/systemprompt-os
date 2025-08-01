@@ -1,5 +1,5 @@
 // Auto-generated service schemas for database module
-// Generated on: 2025-08-01T10:06:56.150Z
+// Generated on: 2025-08-01T13:58:47.172Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -16,14 +16,14 @@ export const DatabaseServiceSchema = z.object({
     .returns(z.promise(z.array(z.unknown()))),
   execute: z.function()
     .args(z.string(), z.array(z.unknown()))
-    .returns(z.promise(z.any())),
+    .returns(z.promise(z.unknown())),
   prepare: z.function()
     .args(z.string())
     .returns(z.promise(z.unknown())),
   transaction: z.function()
     .args(z.unknown())
     .returns(z.promise(z.unknown())),
-  disconnect: z.function()
+  reset: z.function()
     .args()
     .returns(z.promise(z.void())),
   reset: z.function()
@@ -34,10 +34,16 @@ export const DatabaseServiceSchema = z.object({
     .returns(z.unknown()),
   isConnected: z.function()
     .args()
-    .returns(z.boolean()),
+    .returns(z.promise(z.boolean())),
   isInitialized: z.function()
     .args()
     .returns(z.promise(z.boolean())),
+  close: z.function()
+    .args()
+    .returns(z.promise(z.void())),
+  disconnect: z.function()
+    .args()
+    .returns(z.promise(z.void())),
 });
 
 // Zod schema for IDatabaseModuleExports

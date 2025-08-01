@@ -1,5 +1,5 @@
 // Auto-generated database types for database module
-// Generated on: 2025-08-01T10:06:55.543Z
+// Generated on: 2025-08-01T13:58:46.518Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

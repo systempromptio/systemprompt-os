@@ -8,9 +8,9 @@
 import { readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { ISchemaModule, ISchemaVersion } from '@/modules/core/database/types/manual';
+import type { ILogger } from '../../logger/types/manual';
+import { LogSource } from '../../logger/types/manual';
+import type { ISchemaModule, ISchemaVersion, IModuleSchema, IInstalledSchema } from '../types/manual';
 
 /**
  * MCP content scanner interface.

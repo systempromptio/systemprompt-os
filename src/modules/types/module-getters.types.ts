@@ -5,7 +5,7 @@
  */
 
 import type { IModule } from '@/modules/core/modules/types/manual';
-import type { IMCPModuleExports } from '@/modules/core/mcp/types/index';
+import type { IMCPModuleExports } from '@/modules/core/mcp/types/manual';
 
 /**
  * Generic typed module getter that guarantees module availability.

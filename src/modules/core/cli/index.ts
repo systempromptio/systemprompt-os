@@ -4,16 +4,14 @@
  * Provides command-line interface utilities, help system, and command management functionality.
  */
 
-import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/manual";
-import type { IModule } from '@/modules/core/modules/types/manual';
+import { type IModule, ModulesStatus, ModulesType } from '@/modules/core/modules/types/manual';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { CliService } from '@/modules/core/cli/services/cli.service';
 import type { CLICommand } from '@/modules/core/cli/types/manual';
-import type { ILogger } from '@/modules/core/logger/types/manual';
-import { LogSource } from '@/modules/core/logger/types/manual';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { getModuleRegistry } from '@/modules/core/modules/index';
-import { ModuleName } from '@/modules/types/index';
+import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
  * Strongly typed exports interface for CLI module.
@@ -97,7 +95,7 @@ export class CLIModule implements IModule<ICLIModuleExports> {
    * Check the health of the CLI module.
    * @returns Health check result.
    */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+  healthCheck(): { healthy: boolean; message?: string } {
     const isHealthy =
       this.status === ModulesStatus.RUNNING && this.cliService?.isInitialized();
     return {

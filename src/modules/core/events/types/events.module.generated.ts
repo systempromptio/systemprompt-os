@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for events module
-// Generated on: 2025-08-01T10:34:10.518Z
+// Generated on: 2025-08-01T13:49:50.977Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

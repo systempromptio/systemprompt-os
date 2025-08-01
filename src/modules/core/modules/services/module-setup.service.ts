@@ -4,7 +4,7 @@
  * This service manages the initial setup and cleanup of module data.
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ICoreModuleDefinition } from '@/types/bootstrap';

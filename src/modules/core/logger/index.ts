@@ -1,5 +1,5 @@
-import { ModulesType } from "@/modules/core/modules/types/database.generated";
-import { ModulesStatus } from "@/modules/core/modules/types/manual";
+import { ModulesType } from '@/modules/core/modules/types/database.generated';
+import { ModulesStatus } from '@/modules/core/modules/types/manual';
 /**
  * Core logger module - provides system-wide logging.
  * @file Core logger module - provides system-wide logging.
@@ -8,7 +8,7 @@ import { ModulesStatus } from "@/modules/core/modules/types/manual";
 
 import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
-import type { IModule } from '@/modules/core/modules/types';
+import type { IModule } from '@/modules/core/modules/types/manual';
 import {
   type ILogFiles,
   type ILogger,
@@ -19,6 +19,8 @@ import {
   LoggerMode
 } from '@/modules/core/logger/types/manual';
 import type { ILoggerModuleExports } from '@/modules/core/logger/types/manual';
+// Import generated module schema for validation
+import { LoggerModuleExportsSchema } from '@/modules/core/logger/types/logger.service.generated';
 
 /**
  * Type guard to check if a module is a Logger module.
@@ -50,10 +52,18 @@ export class LoggerModule implements IModule<ILoggerModuleExports> {
   private initialized = false;
   private started = false;
   get exports(): ILoggerModuleExports {
-    return {
+    const exports = {
       service: (): ILogger => { return this.getService() },
       getInstance: (): LoggerServiceClass => { return LoggerServiceClass.getInstance() },
     };
+
+    try {
+      LoggerModuleExportsSchema.parse({ service: exports.service });
+    } catch (error) {
+      console.warn('Logger module exports validation failed:', error);
+    }
+
+    return exports;
   }
 
   /**

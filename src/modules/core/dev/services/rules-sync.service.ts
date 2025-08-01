@@ -9,8 +9,8 @@ import {
  existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync
 } from 'fs';
 import { dirname, join } from 'path';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 interface ModuleConfig {
   name: string;

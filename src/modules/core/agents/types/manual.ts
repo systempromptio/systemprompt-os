@@ -6,14 +6,45 @@
 
 import type {
   IAgentCreateData,
-  IAgentUpdateData
-} from '@/modules/core/agents/types/agents.module.generated';
+  IAgentUpdateData,
+  IAgent as IBaseAgent
+} from './agents.module.generated';
+
+/**
+ * Extended agent interface with capabilities, tools, and config.
+ */
+export interface IAgent extends IBaseAgent {
+  capabilities?: string[];
+  tools?: string[];
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Extended agent creation data with optional fields for capabilities, tools, and config.
+ */
+export interface IAgentCreateDataExtended extends IAgentCreateData {
+  capabilities?: string[];
+  tools?: string[];
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Extended agent update data with optional fields for capabilities, tools, and config.
+ */
+export interface IAgentUpdateDataExtended extends IAgentUpdateData {
+  capabilities?: string[];
+  tools?: string[];
+  config?: Record<string, unknown>;
+}
+
+// Re-export the base IAgentUpdateData type
+export type { IAgentUpdateData } from './agents.module.generated';
 
 /**
  * Minimal DTO for agent creation input.
  * Extends IAgentCreateData with optional ID for repository operations.
  */
-export interface CreateAgentInput extends IAgentCreateData {
+export interface CreateAgentInput extends IAgentCreateDataExtended {
     id?: string | undefined;
 }
 
@@ -47,8 +78,10 @@ export interface IFieldValidation {
  * CLI deletion context interface.
  */
 export interface IDeletionContext {
-  agentService: any; // AgentsService type
+  /** AgentsService instance for agent operations. */
+  agentService: unknown;
   identifier: string;
   format: unknown;
-  cliOutput: any; // CliOutputService type
+  /** CliOutputService instance for CLI output. */
+  cliOutput: unknown;
 }

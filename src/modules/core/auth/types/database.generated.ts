@@ -1,5 +1,5 @@
 // Auto-generated database types for auth module
-// Generated on: 2025-08-01T10:34:43.327Z
+// Generated on: 2025-08-01T13:49:49.038Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

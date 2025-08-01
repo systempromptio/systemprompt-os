@@ -2,11 +2,11 @@
  * Database migration CLI command.
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
-import { type Migration, ensureDatabaseInitialized } from '@/modules/core/database/cli/utils';
-import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ICLICommand, ICLIContext } from '../../cli/types/manual';
+import { type Migration, ensureDatabaseInitialized } from './utils';
+import { CliOutputService } from '../../cli/services/cli-output.service';
+import { LoggerService } from '../../logger/services/logger.service';
+import { LogSource } from '../../logger/types/manual';
 import { z } from 'zod';
 
 /**
@@ -184,7 +184,7 @@ migrations: migrations.length
       }
 
       const errorMessage: string = error instanceof Error ? error.message : String(error);
-      const outputFormat = 'text'
+      const outputFormat = (context.args.format as string) || 'text';
       if (outputFormat === 'json') {
         cliOutput.json({
  error: errorMessage,

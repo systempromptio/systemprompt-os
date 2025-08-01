@@ -11,7 +11,7 @@ import type {
 } from 'express';
 import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import {
  type AuthPageConfig, renderAuthPage
 } from '@/server/external/templates/auth';

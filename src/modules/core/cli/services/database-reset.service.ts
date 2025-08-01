@@ -3,8 +3,8 @@
  * Provides a clean interface for CLI commands to perform complete database reset operations.
  */
 import { RebuildHelperService } from '@/modules/core/database/services/rebuild-helper.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 

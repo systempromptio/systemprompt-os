@@ -1,14 +1,17 @@
 // Auto-generated service schemas for agents module
-// Generated on: 2025-07-31T14:35:01.636Z
+// Generated on: 2025-08-01T14:00:03.508Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
-import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/manual';
+import { createModuleSchema } from '../../modules/schemas/module.schemas';
+import { ModulesType } from '../../modules/types/manual';
 import { AgentSchema, AgentCreateDataSchema, AgentUpdateDataSchema } from './agents.module.generated';
 
 // Zod schema for AgentsService
 export const AgentsServiceSchema = z.object({
+  reset: z.function()
+    .args()
+    .returns(z.promise(z.void())),
   createAgent: z.function()
     .args(AgentCreateDataSchema)
     .returns(z.promise(AgentSchema)),
@@ -31,9 +34,6 @@ export const AgentsServiceSchema = z.object({
     .args()
     .returns(z.promise(z.void())),
   stopMonitoring: z.function()
-    .args()
-    .returns(z.promise(z.void())),
-  reset: z.function()
     .args()
     .returns(z.promise(z.void())),
   isHealthy: z.function()

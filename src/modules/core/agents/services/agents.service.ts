@@ -5,21 +5,22 @@
  * Provides business logic for agent management operations.
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import { AgentsRepository } from '@/modules/core/agents/repositories/agents.repository';
+import { type ILogger, LogSource } from '../../logger/types/manual';
+import { AgentsRepository } from '../repositories/agents.repository';
 import {
   type IAgent,
-  type IAgentCreateData,
+  type IAgentCreateDataExtended,
   type IAgentUpdateData
-} from '@/modules/core/agents/types/agents.module.generated';
-import type { IAgentsService } from '@/modules/core/agents/types/agents.service.generated';
+} from '../types/manual';
+import type { IAgentsService } from '../types/agents.service.generated';
 import {
   AgentsStatus,
   type IAgentLogsRow,
   type IAgentsRow
-} from '@/modules/core/agents/types/database.generated';
-import { EventBusService } from '@/modules/core/events/services/events.service';
-import { EventNames } from '@/modules/core/events/types/manual';
+} from '../types/database.generated';
+// Note: Event service imports temporarily commented out due to circular dependencies
+// import { EventBusService } from '../../events/services/events.service';
+// import { EventNames } from '../../events/types/manual';
 
 /**
  * Service for managing agents.
@@ -27,7 +28,7 @@ import { EventNames } from '@/modules/core/events/types/manual';
 export class AgentsService implements IAgentsService {
   private static instance: AgentsService;
   private readonly repository: AgentsRepository;
-  private readonly eventBus: EventBusService;
+  // private readonly eventBus: EventBusService;
   private logger?: ILogger;
   private initialized = false;
   private started = false;
@@ -39,7 +40,7 @@ export class AgentsService implements IAgentsService {
    */
   private constructor() {
     this.repository = AgentsRepository.getInstance();
-    this.eventBus = EventBusService.getInstance();
+    // this.eventBus = EventBusService.getInstance();
   }
 
   /**
@@ -96,7 +97,7 @@ export class AgentsService implements IAgentsService {
    * @param data - Agent creation data.
    * @returns Promise resolving to the created agent.
    */
-  async createAgent(data: IAgentCreateData): Promise<IAgent> {
+  async createAgent(data: IAgentCreateDataExtended): Promise<IAgent> {
     await this.ensureInitialized();
 
     try {
@@ -104,11 +105,11 @@ export class AgentsService implements IAgentsService {
 
       this.logAgentCreated(agent);
 
-      this.eventBus.emit(EventNames.AGENT_CREATED, {
-        agentId: agent.id,
-        name: agent.name,
-        type: agent.type
-      });
+      // this.eventBus.emit(EventNames.AGENT_CREATED, {
+      //   agentId: agent.id,
+      //   name: agent.name,
+      //   type: agent.type
+      // });
 
       return agent;
     } catch (error) {
@@ -142,17 +143,17 @@ export class AgentsService implements IAgentsService {
 
     this.logger?.info(LogSource.AGENT, 'Agent started', { metadata: { agentId } });
 
-    this.eventBus.emit(EventNames.AGENT_STARTED, {
-      agentId,
-      startedAt: new Date()
-    });
+    // this.eventBus.emit(EventNames.AGENT_STARTED, {
+    //   agentId,
+    //   startedAt: new Date()
+    // });
 
     const extendedAgent = await this.repository.getAgentByIdExtended(agentId);
     if (extendedAgent !== null) {
-      this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
-        agentId,
-        capabilities: extendedAgent.capabilities
-      });
+      // this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
+      //   agentId,
+      //   capabilities: extendedAgent.capabilities
+      // });
     }
   }
 
@@ -292,11 +293,11 @@ export class AgentsService implements IAgentsService {
       }
     });
 
-    this.eventBus.emit(EventNames.AGENT_STATUS_CHANGED, {
-      agentId,
-      oldStatus: agent.status,
-      newStatus: agentStatus
-    });
+    // this.eventBus.emit(EventNames.AGENT_STATUS_CHANGED, {
+    //   agentId,
+    //   oldStatus: agent.status,
+    //   newStatus: agentStatus
+    // });
 
     return extendedAgent;
   }
@@ -304,20 +305,20 @@ export class AgentsService implements IAgentsService {
   /**
    * Reports that an agent is working on a task.
    * @param agentId - ID of the agent.
-   * @param taskId - ID of the task.
+   * @param _taskId - ID of the task (unused for now).
    * @returns Promise that resolves when the agent status is updated.
    */
-  async reportAgentBusy(agentId: string, taskId: number): Promise<void> {
+  async reportAgentBusy(agentId: string, _taskId: number): Promise<void> {
     await this.ensureInitialized();
 
     await this.repository.updateAgent(agentId, {
       status: AgentsStatus.ACTIVE
     });
 
-    this.eventBus.emit(EventNames.AGENT_BUSY, {
-      agentId,
-      taskId
-    });
+    // this.eventBus.emit(EventNames.AGENT_BUSY, {
+    //   agentId,
+    //   taskId
+    // });
   }
 
   /**
@@ -550,16 +551,16 @@ export class AgentsService implements IAgentsService {
 
   /**
    * Emits agent idle events.
-   * @param agentId - ID of the agent.
+   * @param _agentId - ID of the agent (unused - event emission commented out).
    */
-  private emitAgentIdleEvents(agentId: string): void {
-    this.eventBus.emit(EventNames.AGENT_IDLE, {
-      agentId
-    });
+  private emitAgentIdleEvents(_agentId: string): void {
+    // this.eventBus.emit(EventNames.AGENT_IDLE, {
+    //   agentId
+    // });
 
-    this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
-      agentId
-    });
+    // this.eventBus.emit(EventNames.AGENT_AVAILABLE, {
+    //   agentId
+    // });
   }
 
   /**

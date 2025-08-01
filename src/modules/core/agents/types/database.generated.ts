@@ -1,5 +1,5 @@
 // Auto-generated database types for agents module
-// Generated on: 2025-07-31T14:35:01.008Z
+// Generated on: 2025-08-01T14:00:02.804Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

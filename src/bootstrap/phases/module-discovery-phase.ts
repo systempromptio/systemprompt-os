@@ -4,12 +4,12 @@
  * @module bootstrap/phases/module-discovery
  */
 
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type {
   ModuleDiscoveryPhaseContext
 } from '@/types/bootstrap';
-import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
+import type { IModulesModuleExports } from '@/modules/core/modules/types/modules.service.generated';
 import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 import { ModuleName } from '@/modules/types/module-names.types';
 
@@ -75,7 +75,7 @@ const processModuleDiscovery = async (
     return;
   }
 
-  logDiscoveredModules(enabledModules, logger);
+  logDiscoveredModules(enabledModules as IModulesRow[], logger);
 };
 
 /**

@@ -5,12 +5,12 @@
  */
 
 import type { Express } from 'express';
-import type { IModulesModuleExports } from '@/modules/core/modules/types/modules.service.generated';
-import type { ICLIModuleExports } from '@/modules/core/cli/index';
-import type { IModule } from '@/modules/core/modules/types/manual';
-import type { IDatabaseModuleExports } from '@/modules/core/database/types/database.service.generated';
-import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger.service.generated';
-import type { ILogger } from '@/modules/core/logger/types/manual';
+import type { IModulesModuleExports } from '../modules/core/modules/types/modules.service.generated';
+import type { ICLIModuleExports } from '../modules/core/cli/index';
+import type { IModule } from '../modules/core/modules/types/manual';
+import type { IDatabaseModuleExports } from '../modules/core/database/types/database.service.generated';
+import type { ILoggerModuleExports } from '../modules/core/logger/types/logger.service.generated';
+import type { ILogger } from '../modules/core/logger/types/manual';
 
 /**
  * Core module definition for bootstrap.

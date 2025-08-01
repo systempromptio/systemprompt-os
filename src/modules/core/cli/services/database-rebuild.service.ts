@@ -4,7 +4,7 @@
  */
 import { RebuildHelperService } from '@/modules/core/database/services/rebuild-helper.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 
 /**
  * Parameters for the rebuild operation.

@@ -23,7 +23,7 @@ import {
   OutputFormattingError,
 } from '@/modules/core/cli/utils/errors';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';

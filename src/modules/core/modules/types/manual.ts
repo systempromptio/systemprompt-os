@@ -6,16 +6,16 @@
  */
 
 import { z } from 'zod';
-import type { ICoreModuleDefinition } from '@/types/bootstrap';
-import type { ModuleRegistryService } from '@/modules/core/modules/services/module-registry.service';
-import type { ModuleLoaderService } from '@/modules/core/modules/services/module-loader.service';
-import type { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
+import type { ICoreModuleDefinition } from '../../../../types/bootstrap';
+import type { ModuleRegistryService } from '../services/module-registry.service';
+import type { ModuleLoaderService } from '../services/module-loader.service';
+import type { ModuleManagerService } from '../services/module-manager.service';
 
 // Import types we need to use in this file
 import type {
   IModulesRow,
   ModulesType
-} from '@/modules/core/modules/types/database.generated';
+} from './database.generated';
 
 /*
  * ============================================================================
@@ -28,7 +28,7 @@ export type {
   IModulesRow,
   IModuleEventsRow,
   ModulesDatabaseRow
-} from '@/modules/core/modules/types/database.generated';
+} from './database.generated';
 
 export {
   ModulesType,
@@ -41,7 +41,7 @@ export {
   ModuleEventsRowSchema,
   ModulesDatabaseRowSchema,
   MODULES_TABLES
-} from '@/modules/core/modules/types/database.generated';
+} from './database.generated';
 
 /*
  * ============================================================================
@@ -50,7 +50,7 @@ export {
  */
 
 // Re-export module service types (when available)
-export type * from '@/modules/core/modules/types/modules.module.generated';
+export type * from './modules.module.generated';
 
 /*
  * ============================================================================
@@ -191,6 +191,7 @@ export interface IModulesModuleExports {
   readonly service: () => IModuleScannerService | undefined;
   readonly scanForModules: () => Promise<IScannedModule[]>;
   readonly getEnabledModules: () => Promise<IModulesRow[]>;
+  readonly getAllModules: () => Promise<IModulesRow[]>;
   readonly getModule: (name: string) => Promise<IModulesRow | undefined>;
   readonly enableModule: (name: string) => Promise<void>;
   readonly disableModule: (name: string) => Promise<void>;
@@ -211,6 +212,13 @@ export interface IModulesModuleExports {
   readonly getManager: () => ModuleManagerService | undefined;
   // Database validation method
   readonly validateCoreModules: () => Promise<void>;
+  // Setup methods
+  readonly setupInstall: () => Promise<void>;
+  readonly setupClean: () => Promise<void>;
+  readonly setupUpdate: () => Promise<void>;
+  readonly setupValidate: () => Promise<void>;
+  // Health check method
+  readonly healthCheck: () => Promise<{ healthy: boolean; message?: string }>;
 }
 
 /*
@@ -222,11 +230,40 @@ export interface IModulesModuleExports {
 // Create Zod schema for ModulesStatus
 export const ModulesStatusSchema = z.nativeEnum(ModulesStatus);
 
+// Create Zod schema for IModulesModuleExports
+export const ModulesModuleExportsSchema = z.object({
+  service: z.function().returns(z.unknown()),
+  scanForModules: z.function().returns(z.promise(z.array(z.unknown()))),
+  getEnabledModules: z.function().returns(z.promise(z.array(z.unknown()))),
+  getAllModules: z.function().returns(z.promise(z.array(z.unknown()))),
+  getModule: z.function().args(z.string()).returns(z.promise(z.unknown())),
+  enableModule: z.function().args(z.string()).returns(z.promise(z.void())),
+  disableModule: z.function().args(z.string()).returns(z.promise(z.void())),
+  registerCoreModule: z.function().returns(z.promise(z.void())),
+  loadCoreModule: z.function().returns(z.promise(z.unknown())),
+  startCoreModule: z.function().args(z.string()).returns(z.promise(z.void())),
+  getCoreModule: z.function().args(z.string()).returns(z.promise(z.unknown())),
+  getAllCoreModules: z.function().returns(z.map(z.string(), z.unknown())),
+  registerPreLoadedModule: z.function().returns(z.void()),
+  getRegistry: z.function().returns(z.unknown()),
+  getLoader: z.function().returns(z.unknown()),
+  getManager: z.function().returns(z.unknown()),
+  validateCoreModules: z.function().returns(z.promise(z.void())),
+  setupInstall: z.function().returns(z.promise(z.void())),
+  setupClean: z.function().returns(z.promise(z.void())),
+  setupUpdate: z.function().returns(z.promise(z.void())),
+  setupValidate: z.function().returns(z.promise(z.void())),
+  healthCheck: z.function().returns(z.promise(z.object({
+    healthy: z.boolean(),
+    message: z.string().optional()
+  })))
+});
+
 // Re-export Zod schemas for runtime validation
 export {
   BaseModuleSchema,
   createModuleSchema
-} from '@/modules/core/modules/schemas/module.schemas';
+} from '../schemas/module.schemas';
 
 /*
  * ============================================================================
@@ -238,4 +275,4 @@ export {
 export {
   BaseModule,
   createValidatedModule
-} from '@/modules/core/modules/base/BaseModule';
+} from '../base/BaseModule';

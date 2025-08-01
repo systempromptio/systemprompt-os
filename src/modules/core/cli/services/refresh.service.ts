@@ -77,7 +77,10 @@ export class RefreshService {
      * Build module map for core modules (we'll hardcode this for now)
      * In a real implementation, this would come from a module registry.
      */
-    const coreModules: readonly string[] = ['logger', 'database', 'auth', 'cli', 'modules'] as const;
+    const coreModules: readonly string[] = [
+      'logger', 'database', 'auth', 'cli', 'modules', 'mcp', 'dev', 'config',
+      'events', 'agents', 'monitor', 'permissions', 'system', 'tasks', 'users', 'webhooks'
+    ] as const;
     const moduleMap = new Map<string, { path: string }>();
     
     for (const moduleName of coreModules) {

@@ -14,7 +14,7 @@
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   IClientRegistrationRequest,
   IClientRegistrationResponse,

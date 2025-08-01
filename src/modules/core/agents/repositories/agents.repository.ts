@@ -5,23 +5,17 @@
  */
 
 import type {
-  IAgent
-  /**
-   * IAgentCreateData and IAgentUpdateData types would be imported here
-   * when needed for future functionality.
-   */
-} from '@/modules/core/agents/types/agents.module.generated';
+  IAgent,
+  IAgentCreateDataExtended,
+  IAgentUpdateData
+} from '../types/manual';
+import type { IAgentCreateData } from '../types/agents.module.generated';
 import {
   AgentsStatus,
-  type AgentsType,
   type IAgentLogsRow,
   type IAgentsRow
-} from '@/modules/core/agents/types/database.generated';
-import type {
-  CreateAgentInput,
-  UpdateAgentInput
-} from '@/modules/core/agents/types/manual';
-import { AgentBaseRepository } from '@/modules/core/agents/repositories/agent-base.repository';
+} from '../types/database.generated';
+import { AgentBaseRepository } from './agent-base.repository';
 
 /**
  * Repository class for agent-related database operations.
@@ -59,22 +53,22 @@ export class AgentsRepository extends AgentBaseRepository {
    * @param data - The agent creation data.
    * @returns Promise resolving to the created agent.
    */
-  async createAgent(data: CreateAgentInput): Promise<IAgentsRow> {
-    const id = data.id ?? this.generateAgentId();
+  async createAgent(data: IAgentCreateData): Promise<IAgentsRow> {
+    const id = this.generateAgentId();
     const now = new Date().toISOString();
 
     const agent: IAgentsRow = {
       id,
       name: data.name,
       description: data.description,
-      instructions: data.instructions,
-      type: data.type as AgentsType,
-      status: AgentsStatus.STOPPED,
+      instructions: data.instructions,  
+      type: data.type,
+      status: data.status ?? AgentsStatus.STOPPED,
       created_at: now,
       updated_at: now,
-      assigned_tasks: 0,
-      completed_tasks: 0,
-      failed_tasks: 0
+      assigned_tasks: data.assigned_tasks ?? 0,
+      completed_tasks: data.completed_tasks ?? 0,
+      failed_tasks: data.failed_tasks ?? 0
     };
 
     await this.insertAgentRecord(agent);
@@ -88,7 +82,7 @@ export class AgentsRepository extends AgentBaseRepository {
    * @param data - The agent creation data.
    * @returns Promise resolving to the created agent with extended data.
    */
-  async createAgentExtended(data: CreateAgentInput): Promise<IAgent> {
+  async createAgentExtended(data: IAgentCreateDataExtended): Promise<IAgent> {
     const agentRow = await this.createAgent(data);
     const capabilities = data.capabilities ?? [];
     const tools = data.tools ?? [];
@@ -234,7 +228,7 @@ export class AgentsRepository extends AgentBaseRepository {
    * @param data - The update data.
    * @returns Promise resolving to success status.
    */
-  async updateAgent(id: string, data: UpdateAgentInput): Promise<boolean> {
+  async updateAgent(id: string, data: IAgentUpdateData): Promise<boolean> {
     const updates: string[] = [];
     const params: unknown[] = [];
 
@@ -340,7 +334,7 @@ export class AgentsRepository extends AgentBaseRepository {
    * @param data - Agent creation data.
    * @returns Promise that resolves when all related data is inserted.
    */
-  private async insertAgentRelatedData(agentId: string, data: CreateAgentInput): Promise<void> {
+  private async insertAgentRelatedData(agentId: string, data: IAgentCreateDataExtended): Promise<void> {
     await Promise.all([
       this.insertAgentCapabilities(agentId, data.capabilities),
       this.insertAgentTools(agentId, data.tools),

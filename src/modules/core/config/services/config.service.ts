@@ -1,293 +1,214 @@
 /**
- * Config service implementation.
- * @module modules/core/config/services/config.service
+ * Config service implementation - manages configuration key-value operations.
+ * @file Config service implementation.
+ * @module modules/core/config/services/config
  */
 
-import type {
- ConfigValue, IConfigEntry, IConfigService, IMcpServerConfig, IMcpServerEntry
-} from '@/modules/core/config/types/manual';
-import type {
- IConfigsRow, IMcpServersRow
-} from '@/modules/core/config/types/database.generated';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { randomUUID } from 'crypto';
+import { type ILogger, LogSource } from '../../logger/types/manual';
+import { ConfigRepository } from '../repositories/config.repository';
+import { EventBusService } from '../../events/services/events.service';
+import {
+  type IConfig,
+  type IConfigCreateData,
+  type IConfigUpdateData,
+  type IConfigService
+} from '../types/config.module.generated';
+import { ConfigType, type IConfigRow } from '../types/database.generated';
 
 /**
- * Service for managing configuration with singleton pattern.
- * @class ConfigService
+ * Service for managing configuration.
  */
 export class ConfigService implements IConfigService {
-  private static instance: ConfigService | undefined;
-  private databaseService!: DatabaseService;
+  private static instance: ConfigService;
+  private readonly repository: ConfigRepository;
+  private readonly eventBus: EventBusService;
+  private logger?: ILogger;
   private initialized = false;
 
-  /**
-   * Private constructor for singleton pattern. Private constructor for singleton.
-   */
   private constructor() {
-    Object.seal(this);
+    this.repository = ConfigRepository.getInstance();
+    this.eventBus = EventBusService.getInstance();
   }
 
-  /**
-   * Get singleton instance.
-   * @returns {ConfigService} The singleton instance.
-   */
-  public static getInstance(): ConfigService {
-    ConfigService.instance ??= new ConfigService();
+  static getInstance(): ConfigService {
+    ConfigService.instance ||= new ConfigService();
     return ConfigService.instance;
   }
 
-  /**
-   * Initialize the service.
-   * @returns {Promise<void>} Promise that resolves when initialized.
-   */
+  setLogger(logger: ILogger): void {
+    this.logger = logger;
+  }
+
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-
-    this.databaseService = DatabaseService.getInstance();
-    await Promise.resolve();
+    if (this.initialized) return;
+    await this.repository.initialize();
     this.initialized = true;
+    this.logger?.info(LogSource.CONFIG, 'ConfigService initialized');
   }
 
-  /**
-   * Get a configuration value.
-   * @param {string} key - Configuration key.
-   * @returns {Promise<ConfigValue>} Configuration value.
-   */
-  async get(key: string): Promise<ConfigValue> {
-    const query = 'SELECT * FROM configs WHERE key = ? LIMIT 1';
-    const rows = await this.databaseService.query<IConfigsRow>(query, [key]);
+  async setConfig(key: string, value: string, type?: ConfigType): Promise<IConfig> {
+    await this.ensureInitialized();
+    
+    const id = randomUUID();
+    const now = new Date();
+    const configType = type || ConfigType.STRING;
 
-    if (rows.length === 0) {
-      return null;
-    }
+    this.logger?.info(LogSource.CONFIG, `Setting config: ${key}`);
 
-    const [result] = rows;
-    if (result === null || result === undefined) {
-      return null;
-    }
-    try {
-      return JSON.parse(result.value) as ConfigValue;
-    } catch {
-      return result.value;
-    }
-  }
+    // Validate the value for the specified type
+    this.validateConfigValue(value, configType);
 
-  /**
-   * Set a configuration value.
-   * @param {string} key - Configuration key.
-   * @param {ConfigValue} value - Configuration value.
-   * @returns {Promise<void>} Promise that resolves when value is set.
-   */
-  async set(key: string, value: ConfigValue): Promise<void> {
-    const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
-
-    const query = `
-      INSERT INTO configs (key, value, updated_at) 
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(key) DO UPDATE SET 
-        value = excluded.value,
-        updated_at = CURRENT_TIMESTAMP
-    `;
-
-    await this.databaseService.execute(query, [key, serializedValue]);
-  }
-
-  /**
-   * Delete a configuration value.
-   * @param {string} key - Configuration key.
-   * @returns {Promise<void>} Promise that resolves when value is deleted.
-   */
-  async delete(key: string): Promise<void> {
-    const query = 'DELETE FROM configs WHERE key = ?';
-    await this.databaseService.execute(query, [key]);
-  }
-
-  /**
-   * List all configuration entries.
-   * @returns {Promise<IConfigEntry[]>} All configuration entries.
-   */
-  async list(): Promise<IConfigEntry[]> {
-    const query = 'SELECT * FROM configs ORDER BY key';
-    const rows = await this.databaseService.query<IConfigsRow>(query);
-
-    return rows.map((row): IConfigEntry => {
-      return {
-        key: row.key,
-        value: this.parseValue(row.value),
-        description: row.description ?? '',
-        createdAt: new Date(row.created_at ?? ''),
-        updatedAt: new Date(row.updated_at ?? '')
-      };
-    });
-  }
-
-  /**
-   * Validate configuration.
-   * @returns {Promise<{ valid: boolean; errors?: string[] }>} Validation result.
-   */
-  async validate(): Promise<{ valid: boolean; errors?: string[] }> {
-    const errors: string[] = [];
-
-    try {
-      const query = 'SELECT COUNT(*) as count FROM configs';
-      await this.databaseService.query(query);
-    } catch (error) {
-      errors.push(
-        `Database validation failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-
-    const EMPTY_ERRORS = 0;
-    if (errors.length > EMPTY_ERRORS) {
-      return {
-        valid: false,
-        errors,
-      };
-    }
-
-    return {
-      valid: true,
+    const configData: IConfigCreateData = {
+      id,
+      key,
+      value,
+      type: configType,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString()
     };
-  }
 
-  /**
-   * Add a new MCP server configuration.
-   * @param {IMcpServerConfig} config - MCP server configuration.
-   * @returns {Promise<void>} Promise that resolves when server is added.
-   */
-  async addMcpServer(config: IMcpServerConfig): Promise<void> {
-    const query = `
-      INSERT INTO mcp_servers (
-        name, command, args, env, scope, transport, description, metadata, oauth_config
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    const configRow = await this.repository.setConfig(configData);
+    const config = this.rowToConfig(configRow);
 
-    const args = config.args !== null && config.args !== undefined
-      ? JSON.stringify(config.args) : null;
-    const env = config.env !== null && config.env !== undefined
-      ? JSON.stringify(config.env) : null;
-    const metadata = config.metadata !== null && config.metadata !== undefined
-      ? JSON.stringify(config.metadata) : null;
-    const oauthConfig = config.oauthConfig !== null && config.oauthConfig !== undefined
-      ? JSON.stringify(config.oauthConfig) : null;
-
-    await this.databaseService.execute(query, [
-      config.name,
-      config.command,
-      args,
-      env,
-      config.scope ?? 'local',
-      config.transport ?? 'stdio',
-      config.description ?? null,
-      metadata,
-      oauthConfig
-    ]);
-  }
-
-  /**
-   * Delete an MCP server configuration.
-   * @param {string} name - MCP server name.
-   * @returns {Promise<void>} Promise that resolves when server is deleted.
-   */
-  async deleteMcpServer(name: string): Promise<void> {
-    const query = 'DELETE FROM mcp_servers WHERE name = ?';
-    await this.databaseService.execute(query, [name]);
-  }
-
-  /**
-   * Get an MCP server configuration by name.
-   * @param {string} name - MCP server name.
-   * @returns {Promise<IMcpServerEntry | null>} MCP server entry or null if not found.
-   */
-  async getMcpServer(name: string): Promise<IMcpServerEntry | null> {
-    const query = 'SELECT * FROM mcp_servers WHERE name = ? LIMIT 1';
-    const rows = await this.databaseService.query<IMcpServersRow>(query, [name]);
-
-    if (rows.length === 0) {
-      return null;
-    }
-
-    const [row] = rows;
-    if (row === null || row === undefined) {
-      return null;
-    }
-
-    return this.mapRowToMcpServerEntry(row);
-  }
-
-  /**
-   * List all MCP server configurations.
-   * @returns {Promise<IMcpServerEntry[]>} Array of MCP server entries.
-   */
-  async listMcpServers(): Promise<IMcpServerEntry[]> {
-    const query = 'SELECT * FROM mcp_servers ORDER BY name';
-    const rows = await this.databaseService.query<IMcpServersRow>(query);
-
-    return rows.map((row): IMcpServerEntry => {
-      return this.mapRowToMcpServerEntry(row);
+    // Emit events for other modules
+    this.eventBus.emit('config:updated', {
+      key: config.key,
+      value: config.value,
+      type: config.type,
+      timestamp: now
     });
+
+    return config;
+  }
+
+  async getConfig(key: string): Promise<IConfig | null> {
+    await this.ensureInitialized();
+    
+    const configRow = await this.repository.getConfig(key);
+    if (!configRow) {
+      return null;
+    }
+
+    return this.rowToConfig(configRow);
+  }
+
+  async listConfigs(prefix?: string): Promise<IConfig[]> {
+    await this.ensureInitialized();
+    
+    const configRows = await this.repository.listConfigs(prefix);
+    return configRows.map(row => this.rowToConfig(row));
+  }
+
+  async deleteConfig(key: string): Promise<void> {
+    await this.ensureInitialized();
+    
+    const existing = await this.repository.getConfig(key);
+    if (!existing) {
+      throw new Error(`Config key not found: ${key}`);
+    }
+
+    await this.repository.deleteConfig(key);
+    
+    this.eventBus.emit('config:deleted', {
+      key,
+      timestamp: new Date()
+    });
+
+    this.logger?.info(LogSource.CONFIG, `Deleted config: ${key}`);
+  }
+
+  async updateConfig(key: string, data: IConfigUpdateData): Promise<IConfig> {
+    await this.ensureInitialized();
+    
+    const existing = await this.repository.getConfig(key);
+    if (!existing) {
+      throw new Error(`Config key not found: ${key}`);
+    }
+
+    // Validate the value if provided
+    if (data.value !== undefined && data.type !== undefined) {
+      this.validateConfigValue(data.value, data.type);
+    } else if (data.value !== undefined) {
+      this.validateConfigValue(data.value, existing.type);
+    }
+
+    const updateData = {
+      ...data,
+      updated_at: new Date().toISOString()
+    };
+
+    const configRow = await this.repository.updateConfig(key, updateData);
+    const config = this.rowToConfig(configRow);
+
+    this.eventBus.emit('config:updated', {
+      key: config.key,
+      value: config.value,
+      type: config.type,
+      timestamp: new Date()
+    });
+
+    this.logger?.info(LogSource.CONFIG, `Updated config: ${key}`);
+
+    return config;
   }
 
   /**
-   * Update MCP server status.
-   * @param {string} name - MCP server name.
-   * @param {McpServersStatus} status - New status.
-   * @param {string} [error] - Error message if status is 'error'.
-   * @returns {Promise<void>} Promise that resolves when status is updated.
+   * Validate configuration value against its type.
+   * @param value - The value to validate.
+   * @param type - The expected type.
+   * @throws Error if validation fails.
    */
-  async updateMcpServerStatus(name: string, status: string, error?: string): Promise<void> {
-    const query = `
-      UPDATE mcp_servers 
-      SET status = ?, last_error = ?, 
-          last_started_at = CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP ELSE last_started_at END
-      WHERE name = ?
-    `;
-
-    await this.databaseService.execute(query, [status, error ?? null, status, name]);
-  }
-
-  /**
-   * Parse configuration value from database.
-   * @param {string} value - Raw value from database.
-   * @returns {ConfigValue} Parsed configuration value.
-   */
-  private parseValue(value: string): ConfigValue {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
+  private validateConfigValue(value: string, type: ConfigType): void {
+    switch (type) {
+      case ConfigType.NUMBER:
+        if (isNaN(Number(value)) || !isFinite(Number(value))) {
+          throw new Error('Value must be a valid number for number type');
+        }
+        break;
+      case ConfigType.BOOLEAN:
+        if (!['true', 'false'].includes(value.toLowerCase())) {
+          throw new Error('Value must be true or false for boolean type');
+        }
+        break;
+      case ConfigType.JSON:
+        try {
+          JSON.parse(value);
+        } catch {
+          throw new Error('Value must be valid JSON for json type');
+        }
+        break;
+      case ConfigType.STRING:
+      default:
+        // No validation needed for string type
+        break;
     }
   }
 
   /**
-   * Map database row to MCP server entry.
-   * @param {IMcpServersRow} row - Database row.
-   * @returns {IMcpServerEntry} MCP server entry.
+   * Convert database row to domain object.
+   * @param row - Database row.
+   * @returns Domain config object.
    */
-  private mapRowToMcpServerEntry(row: IMcpServersRow): IMcpServerEntry {
+  private rowToConfig(row: IConfigRow): IConfig {
     return {
       id: row.id,
-      name: row.name,
-      command: row.command,
-      args: row.args !== null && row.args !== undefined
-        ? JSON.parse(row.args) : null,
-      env: row.env !== null && row.env !== undefined
-        ? JSON.parse(row.env) : null,
-      scope: row.scope,
-      transport: row.transport,
-      status: row.status,
+      key: row.key,
+      value: row.value,
+      type: row.type,
       description: row.description,
-      metadata: row.metadata !== null && row.metadata !== undefined
-        ? JSON.parse(row.metadata) : null,
-      oauthConfig: row.oauth_config !== null && row.oauth_config !== undefined
-        ? JSON.parse(row.oauth_config) : null,
-      createdAt: new Date(row.created_at ?? ''),
-      updatedAt: new Date(row.updated_at ?? ''),
-      lastStartedAt: row.last_started_at !== null && row.last_started_at !== undefined
-        ? new Date(row.last_started_at) : null,
-      lastError: row.last_error
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at)
     };
+  }
+
+  /**
+   * Ensure service is initialized.
+   * @returns Promise that resolves when initialized.
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
   }
 }

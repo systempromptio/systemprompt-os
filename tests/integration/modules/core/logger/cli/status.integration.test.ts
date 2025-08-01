@@ -3,32 +3,27 @@
  * @file Logger status CLI command integration tests.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execSync } from 'child_process';
-import { DatabaseService } from '@/modules/core/database/services/database.service';
+import { describe, it, expect } from 'vitest';
+import { runCLICommand } from '../../../../../utils/cli-runner';
 
 describe('logger status CLI command', () => {
-  let dbService: DatabaseService;
-
-  beforeAll(async () => {
-    // Initialize database service for setup
-    dbService = DatabaseService.getInstance();
-  });
-
-  afterAll(async () => {
-    // Cleanup if needed
-  });
 
   describe('JSON output', () => {
-    it('should return valid JSON with --format json', () => {
-      const result = execSync('./bin/systemprompt logger status --format json', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should return valid JSON with --format json', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'json']
+      );
 
-      expect(() => JSON.parse(result)).not.toThrow();
+      expect(exitCode).toBe(0);
+      // Extract JSON from stdout (ignore module initialization logs)
+      const jsonMatch = stdout.match(/^\{[\s\S]*\}$/m);
+      expect(jsonMatch).toBeTruthy();
+      const jsonOutput = jsonMatch![0];
+      expect(() => JSON.parse(jsonOutput)).not.toThrow();
       
-      const output = JSON.parse(result);
+      const output = JSON.parse(jsonOutput);
       expect(output).toHaveProperty('module', 'logger');
       expect(output).toHaveProperty('status');
       expect(output).toHaveProperty('configuration');
@@ -54,13 +49,18 @@ describe('logger status CLI command', () => {
       expect(typeof output.statistics.recentErrors).toBe('number');
     });
 
-    it('should return structured status object with proper types', () => {
-      const result = execSync('./bin/systemprompt logger status --format json', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should return structured status object with proper types', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'json']
+      );
 
-      const output = JSON.parse(result);
+      expect(exitCode).toBe(0);
+      // Extract JSON from stdout (ignore module initialization logs)
+      const jsonMatch = stdout.match(/^\{[\s\S]*\}$/m);
+      expect(jsonMatch).toBeTruthy();
+      const output = JSON.parse(jsonMatch![0]);
       
       // Check timestamp is valid ISO string
       expect(() => new Date(output.timestamp)).not.toThrow();
@@ -75,56 +75,65 @@ describe('logger status CLI command', () => {
   });
 
   describe('Text output', () => {
-    it('should display human-readable status with default format', () => {
-      const result = execSync('./bin/systemprompt logger status', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should display human-readable status with default format', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status'
+      );
 
-      expect(result).toContain('Logger Module Status');
-      expect(result).toContain('Module');
-      expect(result).toContain('logger');
-      expect(result).toContain('Enabled');
-      expect(result).toContain('Healthy');
-      expect(result).toContain('Configuration');
-      expect(result).toContain('Statistics');
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe('');
+      expect(stdout).toContain('Logger Module Status');
+      expect(stdout).toContain('Module');
+      expect(stdout).toContain('logger');
+      expect(stdout).toContain('Enabled');
+      expect(stdout).toContain('Healthy');
+      expect(stdout).toContain('Configuration');
+      expect(stdout).toContain('Statistics');
     });
 
-    it('should display statistics section with log counts', () => {
-      const result = execSync('./bin/systemprompt logger status', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should display statistics section with log counts', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status'
+      );
 
-      expect(result).toContain('Statistics');
-      expect(result).toContain('Total logs');
-      expect(result).toContain('Recent errors');
-      expect(result).toContain('Debug logs');
-      expect(result).toContain('Info logs');
-      expect(result).toContain('Warning logs');
-      expect(result).toContain('Error logs');
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe('');
+      expect(stdout).toContain('Statistics');
+      expect(stdout).toContain('Total logs');
+      expect(stdout).toContain('Recent errors');
+      expect(stdout).toContain('Debug logs');
+      expect(stdout).toContain('Info logs');
+      expect(stdout).toContain('Warning logs');
+      expect(stdout).toContain('Error logs');
     });
   });
 
   describe('Format option validation', () => {
-    it('should handle explicit text format', () => {
-      const result = execSync('./bin/systemprompt logger status --format text', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should handle explicit text format', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'text']
+      );
 
-      expect(result).toContain('Logger Module Status');
-      expect(result).not.toContain('{');
-      expect(result).not.toContain('}');
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe('');
+      expect(stdout).toContain('Logger Module Status');
+      expect(stdout).not.toContain('{');
+      expect(stdout).not.toContain('}');
     });
 
-    it('should reject invalid format option', () => {
-      expect(() => {
-        execSync('./bin/systemprompt logger status --format invalid', {
-          encoding: 'utf-8',
-          timeout: 10000
-        });
-      }).toThrow();
+    it('should reject invalid format option', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'invalid']
+      );
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('Invalid arguments');
     });
   });
 
@@ -132,35 +141,43 @@ describe('logger status CLI command', () => {
     it('should handle database errors gracefully in JSON format', async () => {
       // This test may be challenging to implement without mocking
       // For now, we'll test that the command doesn't crash
-      const result = execSync('./bin/systemprompt logger status --format json', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'json']
+      );
 
-      expect(() => JSON.parse(result)).not.toThrow();
-      const output = JSON.parse(result);
+      expect(exitCode).toBe(0);
+      // Extract JSON from stdout (ignore module initialization logs)
+      const jsonMatch = stdout.match(/^\{[\s\S]*\}$/m);
+      expect(jsonMatch).toBeTruthy();
+      const output = JSON.parse(jsonMatch![0]);
       expect(output.statistics).toBeDefined();
     });
 
-    it('should exit with code 0 on success', () => {
-      const result = execSync('./bin/systemprompt logger status --format json', {
-        encoding: 'utf-8',
-        timeout: 10000
-      });
+    it('should exit with code 0 on success', async () => {
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'json']
+      );
 
-      expect(result).toBeTruthy();
+      expect(exitCode).toBe(0);
+      expect(stdout).toBeTruthy();
     });
   });
 
   describe('Performance', () => {
-    it('should complete within reasonable time', () => {
+    it('should complete within reasonable time', async () => {
       const start = Date.now();
-      execSync('./bin/systemprompt logger status --format json', {
-        encoding: 'utf-8',
-        timeout: 5000
-      });
+      const { stdout, stderr, exitCode } = await runCLICommand(
+        'logger', 
+        'status',
+        ['--format', 'json']
+      );
       const duration = Date.now() - start;
 
+      expect(exitCode).toBe(0);
       expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
     });
   });

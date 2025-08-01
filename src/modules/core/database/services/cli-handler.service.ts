@@ -7,7 +7,7 @@ import { ClearOperationsHelperService } from '@/modules/core/database/services/c
 import { LoggingHelperService } from '@/modules/core/database/services/logging-helper.service';
 import { SchemaListHelperService } from '@/modules/core/database/services/schema-list-helper.service';
 import { InitHelperService } from '@/modules/core/database/services/init-helper.service';
-import { type ILogger } from '@/modules/core/logger/types/index';
+import { type ILogger } from '@/modules/core/logger/types/manual';
 import type { ISchemaVersion } from '@/modules/core/database/types/manual';
 
 /**

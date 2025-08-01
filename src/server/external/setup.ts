@@ -13,7 +13,7 @@ import type {
   Request
 } from 'express';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from '@/server/external/middleware/security';
 import { sessionMiddleware } from '@/server/external/middleware/session';

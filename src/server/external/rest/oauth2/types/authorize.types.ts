@@ -1,4 +1,16 @@
-import type { IAuthorizationCodeData } from '@/modules/core/auth/types/auth-code.types';
+// Temporary interface until auth module is fully resolved
+export interface IAuthorizationCodeData {
+  code: string;
+  provider: string;
+  user_id: string;
+  redirect_uri: string;
+  scopes: string[];
+  expires_at: Date;
+  clientId?: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
+  expiresAt?: Date;
+}
 
 /**
  * Interface for identity provider implementations.

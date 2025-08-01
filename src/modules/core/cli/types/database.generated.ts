@@ -1,5 +1,5 @@
 // Auto-generated database types for cli module
-// Generated on: 2025-07-31T13:04:42.543Z
+// Generated on: 2025-08-01T13:49:49.438Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

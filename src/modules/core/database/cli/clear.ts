@@ -11,7 +11,7 @@ import {
   type IClearParams,
 } from '@/modules/core/cli/services/database-clear.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Handle clear command execution.

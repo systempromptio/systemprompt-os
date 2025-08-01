@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { TestService } from '@/modules/core/dev/services/test.service';
 import type { TestResult } from '@/modules/core/dev/services/test.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';

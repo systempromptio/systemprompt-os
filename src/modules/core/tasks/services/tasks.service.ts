@@ -4,7 +4,7 @@
  * @module modules/core/tasks/services
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { TaskRepository } from '@/modules/core/tasks/repositories/task.repository';
 import { type ITaskRow, TaskStatus } from '@/modules/core/tasks/types/database.generated';

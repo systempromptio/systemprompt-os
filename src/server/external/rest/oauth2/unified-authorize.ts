@@ -9,7 +9,7 @@ import type { Request as ExpressRequest, Response as ExpressResponse } from 'exp
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { type OAuthStateData, ServerAuthAdapter } from '@/server/services/auth-adapter.service';
 
 const logger = LoggerService.getInstance();

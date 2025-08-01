@@ -10,7 +10,7 @@ import {
 } from 'fs';
 import { join, resolve } from 'path';
 import { parse } from 'yaml';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type { IScannedModule } from "@/modules/core/modules/types/manual";
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 import type { ModuleManagerRepository } from

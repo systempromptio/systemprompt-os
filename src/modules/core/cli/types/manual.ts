@@ -178,8 +178,8 @@ export interface ISchemaVersion {
   version: string;
 }
 
-/*
- * Re-export types for convenience (both interface and alias forms)
+/**
+ * Re-export types for convenience (both interface and alias forms).
  */
 export type {
   ICLIContext as CLIContext,

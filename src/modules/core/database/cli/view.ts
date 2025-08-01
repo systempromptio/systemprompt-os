@@ -14,7 +14,7 @@ import {
 } from '@/modules/core/cli/services/database-view.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   IViewArgs,
   ViewFormat,

@@ -3,7 +3,7 @@
  * @module bootstrap/helpers/dependency-resolver
  */
 
-import type { ICoreModuleDefinition } from '@/types/bootstrap';
+import type { ICoreModuleDefinition } from '../../types/bootstrap';
 
 /**
  * Simple dependency resolver that performs topological sort.

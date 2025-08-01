@@ -8,15 +8,19 @@
 import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { parse } from 'yaml';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ZodSchema } from 'zod';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { BaseModule } from '@/modules/core/modules/base/BaseModule';
 import type { IModule } from '@/modules/core/modules/types/manual';
-import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/manual';
-import type {
-  IModuleContext,
-  IModuleScanOptions,
-  IModuleScannerService,
-  IModulesModuleExports
+import { 
+  ModulesStatus, 
+  ModulesType,
+  ModulesModuleExportsSchema,
+  type IModuleScanOptions,
+  type IModuleScannerService,
+  type IModulesModuleExports
 } from '@/modules/core/modules/types/manual';
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
 import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
@@ -25,22 +29,33 @@ import { ModuleRegistryService } from '@/modules/core/modules/services/module-re
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
 import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
 
-export class ModulesModuleService implements IModule<IModulesModuleExports> {
+export class ModulesModuleService extends BaseModule<IModulesModuleExports> {
   private static instance: ModulesModuleService;
   public readonly name = 'modules';
   public readonly version = '1.0.0';
   public readonly type = ModulesType.CORE;
-  public status: ModulesStatus = ModulesStatus.PENDING;
-  private logger!: ILogger;
+  public readonly description = 'Core module system management service';
+  public readonly dependencies = ['logger', 'database'] as const;
   private moduleLoaderService?: ModuleLoaderService;
   private moduleRegistryService?: ModuleRegistryService;
   private moduleManagerService?: ModuleManagerService;
-  private initialized = false;
+  private readonly logger: ILogger;
   private started = false;
+
+  constructor() {
+    super();
+    this.logger = LoggerService.getInstance();
+  }
+  protected override getExportsSchema(): ZodSchema<IModulesModuleExports> {
+    return ModulesModuleExportsSchema;
+  }
+
+  protected override getLogSource(): LogSource {
+    return LogSource.MODULES;
+  }
+
   get exports(): IModulesModuleExports {
-    if (!this.initialized) {
-      throw new Error('Modules module not initialized');
-    }
+    this.ensureInitialized();
 
     return {
       service: () => {
@@ -53,6 +68,10 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
 
       getEnabledModules: async () => {
         return await (this.moduleManagerService?.getEnabledModules() ?? []);
+      },
+
+      getAllModules: async () => {
+        return await (this.moduleManagerService?.getAllModules() ?? []);
       },
 
       getModule: async (name: string) => {
@@ -182,137 +201,174 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
           `Validated ${registryModules.size} core modules against database`,
         );
       },
+
+      // Setup methods
+      setupInstall: async () => {
+        const { ModuleSetupService } = await import('@/modules/core/modules/services/module-setup.service');
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        const setupService = ModuleSetupService.getInstance(DatabaseService.getInstance());
+        await setupService.install();
+      },
+
+      setupClean: async () => {
+        const { ModuleSetupService } = await import('@/modules/core/modules/services/module-setup.service');
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        const setupService = ModuleSetupService.getInstance(DatabaseService.getInstance());
+        await setupService.clean();
+      },
+
+      setupUpdate: async () => {
+        const { ModuleSetupService } = await import('@/modules/core/modules/services/module-setup.service');
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        const setupService = ModuleSetupService.getInstance(DatabaseService.getInstance());
+        await setupService.update();
+      },
+
+      setupValidate: async () => {
+        const { ModuleSetupService } = await import('@/modules/core/modules/services/module-setup.service');
+        const { DatabaseService } = await import('@/modules/core/database/services/database.service');
+        const setupService = ModuleSetupService.getInstance(DatabaseService.getInstance());
+        await setupService.validate();
+      },
+
+      // Health check method  
+      healthCheck: async () => {
+        const issues: string[] = [];
+
+        if (!this.initialized) {
+          issues.push('Not initialized');
+        }
+
+        if (!this.moduleManagerService) {
+          issues.push('Module manager service not available');
+        }
+
+        if (!this.moduleLoaderService) {
+          issues.push('Module loader service not available');
+        }
+
+        if (!this.moduleRegistryService) {
+          issues.push('Module registry service not available');
+        }
+
+        if (this.status === ModulesStatus.ERROR) {
+          issues.push('Module in error state');
+        }
+
+        return {
+          healthy: issues.length === 0,
+          message: issues.length > 0 ? issues.join(', ') : 'All module services operational',
+        };
+      },
     };
   }
 
   /**
-   * Initialize the module.
-   * @param context
+   * Override BaseModule's initialize to set proper status for modules module.
    */
-  async initialize(context?: IModuleContext): Promise<void> {
-    this.logger = context?.logger || console;
+  public override async initialize(): Promise<void> {
+    await super.initialize();
+    // Override the RUNNING status set by BaseModule - modules module should be STOPPED after init
+    this.status = ModulesStatus.STOPPED;
+  }
 
-    if (this.initialized) {
-      this.logger.warn(LogSource.MODULES, 'Modules module already initialized');
-      return;
-    }
+  /**
+   * Module-specific initialization logic called by BaseModule.
+   */
+  protected async initializeModule(): Promise<void> {
+    const config = {
+      modulesConfigPath: join(process.cwd(), 'config', 'modules.json'),
+      modulesPath: './src/modules',
+      injectablePath: './injectable',
+      extensionsPath: './extensions',
+    };
 
-    try {
-      this.status = ModulesStatus.INITIALIZING;
-      this.logger.info(LogSource.MODULES, 'Initializing modules module');
-
-      const config = context?.config || {
-        modulesConfigPath: join(process.cwd(), 'config', 'modules.json'),
-        modulesPath: './src/modules',
-        injectablePath: './injectable',
-        extensionsPath: './extensions',
-      };
-
-      await this.initializeServices(config);
-
-      this.initialized = true;
-      this.status = ModulesStatus.STOPPED;
-      this.logger.info(LogSource.MODULES, 'Modules module initialized successfully');
-    } catch (error) {
-      this.status = ModulesStatus.ERROR;
-      this.logger.error(LogSource.MODULES, 'Failed to initialize modules module:', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    await this.initializeServices(config);
   }
 
   /**
    * Start the module.
    */
-  async start(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('Modules module not initialized');
-    }
+  override async start(): Promise<void> {
+    this.ensureInitialized();
 
     if (this.started) {
-      this.logger.debug(LogSource.MODULES, 'Modules module already started');
       return;
     }
 
-    try {
-      this.status = ModulesStatus.INITIALIZING;
-      this.logger.info(LogSource.MODULES, 'Starting modules module');
+    // Note: During bootstrap, the ModuleLoaderService will handle starting modules
+    // The modules module itself doesn't need to start other modules - that can cause conflicts
+    // when modules are already started by the bootstrap process
+    this.logger.debug(LogSource.MODULES, 'Modules module start() called - not starting other modules to avoid conflicts');
 
-      if (this.moduleLoaderService) {
-        await this.moduleLoaderService.loadModules();
-        await this.moduleLoaderService.startModules();
-      }
-
-      this.started = true;
-      this.status = ModulesStatus.RUNNING;
-      this.logger.info(LogSource.MODULES, 'Modules module started successfully');
-    } catch (error) {
-      this.status = ModulesStatus.ERROR;
-      this.logger.error(LogSource.MODULES, 'Failed to start modules module:', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    this.started = true;
+    this.status = ModulesStatus.RUNNING;
   }
+
 
   /**
    * Stop the module.
    */
   async stop(): Promise<void> {
     if (!this.started) {
-      this.logger.debug(LogSource.MODULES, 'Modules module not started');
       return;
     }
 
-    try {
-      this.status = ModulesStatus.STOPPING;
-      this.logger.info(LogSource.MODULES, 'Stopping modules module');
+    this.status = ModulesStatus.STOPPING;
 
-      if (this.moduleLoaderService) {
-        await this.moduleLoaderService.stopModules();
-      }
-
-      this.started = false;
-      this.status = ModulesStatus.STOPPED;
-      this.logger.info(LogSource.MODULES, 'Modules module stopped successfully');
-    } catch (error) {
-      this.status = ModulesStatus.ERROR;
-      this.logger.error(LogSource.MODULES, 'Failed to stop modules module:', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+    if (this.moduleLoaderService) {
+      await this.moduleLoaderService.stopModules();
     }
+
+    this.started = false;
+    this.status = ModulesStatus.STOPPED;
   }
 
   /**
    * Health check.
    */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+  async health(): Promise<{ status: 'healthy' | 'unhealthy' | 'unknown'; checks?: Record<string, unknown>; message?: string }> {
     const issues: string[] = [];
+    const checks: Record<string, unknown> = {};
 
     if (!this.initialized) {
       issues.push('Not initialized');
+      checks.initialized = false;
+    } else {
+      checks.initialized = true;
     }
 
     if (!this.moduleManagerService) {
       issues.push('Module manager service not available');
+      checks.moduleManager = false;
+    } else {
+      checks.moduleManager = true;
     }
 
     if (!this.moduleLoaderService) {
       issues.push('Module loader service not available');
+      checks.moduleLoader = false;
+    } else {
+      checks.moduleLoader = true;
     }
 
     if (!this.moduleRegistryService) {
       issues.push('Module registry service not available');
+      checks.moduleRegistry = false;
+    } else {
+      checks.moduleRegistry = true;
     }
 
     if (this.status === ModulesStatus.ERROR) {
       issues.push('Module in error state');
+      checks.status = 'error';
+    } else {
+      checks.status = this.status;
     }
 
     return {
-      healthy: issues.length === 0,
+      status: issues.length === 0 ? 'healthy' : 'unhealthy',
+      checks,
       message: issues.length > 0 ? issues.join(', ') : 'All module services operational',
     };
   }
@@ -351,13 +407,8 @@ export class ModulesModuleService implements IModule<IModulesModuleExports> {
 
       this.moduleManagerService.initialize();
     } catch (error) {
-      this.logger.warn(
-        LogSource.MODULES,
-        'Could not initialize module manager (database not available):',
-        {
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      // Note: Database might not be available during early bootstrap - this is expected
+      // Module will still function in limited mode without database features
     }
   }
 

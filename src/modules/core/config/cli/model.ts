@@ -7,7 +7,7 @@
 import { ProvidersService } from '@/modules/core/config/services/providers.service';
 import { GoogleGenAI } from '@google/genai';
 import { getLoggerService } from '@/modules/core/logger';
-import { LogSource } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   IModelCommandOptions,
   IProviderConfig

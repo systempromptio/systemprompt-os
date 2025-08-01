@@ -6,8 +6,8 @@
 
 import { existsSync } from 'fs';
 import { join } from 'path';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Generates interface type exports.

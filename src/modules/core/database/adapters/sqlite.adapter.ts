@@ -5,16 +5,16 @@
  * @module database/adapters/sqlite.adapter
  */
 
-import BetterSqlite3 from 'better-sqlite3';
+import * as BetterSqlite3 from 'better-sqlite3';
 import { dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import type {
   IDatabaseAdapter,
   IDatabaseConfig,
   IDatabaseConnection,
-} from '@/modules/core/database/types/manual';
-import { ConnectionError } from '@/modules/core/database/errors/connection.error';
-import { SqliteConnection } from '@/modules/core/database/adapters/sqlite-connection.adapter';
+} from '../types/manual';
+import { ConnectionError } from '../errors/connection.error';
+import { SqliteConnection } from './sqlite-connection.adapter';
 
 /**
  * SQLite database adapter.
@@ -79,7 +79,7 @@ export class SqliteAdapter implements IDatabaseAdapter {
    */
   private async createDatabase(filename: string): Promise<void> {
     await mkdir(dirname(filename), { recursive: true });
-    this.db = new BetterSqlite3(filename);
+    this.db = new BetterSqlite3.default(filename);
     this.configureDatabase();
   }
 

@@ -29,7 +29,7 @@ import type {
 
 import { getModuleRegistry } from '@/modules/core/modules/index';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type { IMCPToolContext } from '@/server/mcp/core/types/request-context';
 import {
  type IUserPermissionContext, ROLE_PERMISSIONS, type UserRole, hasPermission

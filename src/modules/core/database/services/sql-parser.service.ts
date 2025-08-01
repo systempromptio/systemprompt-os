@@ -4,9 +4,9 @@
  * @module database/services/sql-parser
  */
 
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
-import type { ISqlParseResult, ISqlStatement } from '@/modules/core/database/types/manual';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
+import type { ISqlParseResult, ISqlStatement, IParsedStatement } from '@/modules/core/database/types/manual';
 
 /**
  * SQL parser service for parsing and validating SQL statements.
@@ -54,7 +54,7 @@ export class SQLParserService {
    * @param fileName - Optional file name for logging.
    * @returns Parse result with statements and errors.
    */
-  public parseSQLFile(sql: string, fileName?: string): IParseResult {
+  public parseSQLFile(sql: string, fileName?: string): ISqlParseResult {
     if (fileName !== undefined) {
       this.logger?.debug(LogSource.DATABASE, 'Parsing SQL file', { fileName });
     }

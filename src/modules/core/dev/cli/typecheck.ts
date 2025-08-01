@@ -2,15 +2,17 @@
  * Typecheck command - runs TypeScript type checking and displays formatted summary.
  */
 
-import { randomUUID } from 'crypto';
+// Import { randomUUID } from 'crypto';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { TypecheckService } from '@/modules/core/dev/services/typecheck.service';
 import type { TypecheckResult } from '@/modules/core/dev/services/typecheck.service';
-import { EventBusService } from '@/modules/core/events/services/events.service';
-import { DevEvents } from '@/modules/core/events/types/manual';
+/*
+ * Import { EventBusService } from '@/modules/core/events/services/events.service';
+ * import { DevEvents } from '@/modules/core/events/types/manual';
+ */
 
 /**
  * Display typecheck results in a formatted table.
@@ -137,32 +139,6 @@ const executeTypecheck = async (context: ICLIContext): Promise<void> => {
     } else {
       displayTypecheckResults(result, args, cliOutput);
     }
-
-    const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
-    ReportWriterService.getInstance();
-
-    const eventBus = EventBusService.getInstance();
-    eventBus.emit(DevEvents.REPORT_WRITE_REQUEST, {
-      requestId: randomUUID(),
-      report: {
-        timestamp: new Date().toISOString(),
-        command: 'typecheck' as const,
-        module,
-        target,
-        success: result.totalErrors === 0,
-        duration,
-        totalErrors: result.totalErrors,
-        files: result.files.map(file => { return {
-          filePath: file.filePath,
-          errors: file.errors.map(error => { return {
-            line: error.line,
-            column: error.column,
-            code: error.code,
-            message: error.message
-          } })
-        } })
-      }
-    });
 
     if (result.totalErrors > 0) {
       process.exit(1);

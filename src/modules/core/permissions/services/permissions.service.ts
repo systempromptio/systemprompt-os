@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import {
   PermissionsRepository
 } from '@/modules/core/permissions/repositories/permissions.repository';

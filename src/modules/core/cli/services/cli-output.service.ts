@@ -83,6 +83,7 @@ export class CliOutputService {
           this.outputText(data, options);
         }
         break;
+      case 'text':
       default:
         this.outputText(data, options);
     }

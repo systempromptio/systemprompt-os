@@ -7,7 +7,7 @@
  * Provides business logic for development operations.
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type {DevSessionStatus} from '@/modules/core/dev/types/manual';
 import {
   type DevSessionType,

@@ -4,14 +4,13 @@
  * @module modules/core/config
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
-import { ConfigService } from '@/modules/core/config/services/config.service';
+import { BaseModule, ModulesType } from '../modules/types/manual';
+import { ConfigService } from './services/config.service';
 import {
   ConfigModuleExportsSchema,
-  ConfigServiceSchema,
   type IConfigModuleExports,
   type IConfigService
-} from '@/modules/core/config/types/config.service.generated';
+} from './types/config.module.generated';
 import type { ZodSchema } from 'zod';
 
 /**
@@ -23,17 +22,13 @@ export class ConfigModule extends BaseModule<IConfigModuleExports> {
   public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Configuration management module for SystemPrompt OS';
-  public readonly dependencies = ['logger', 'database'] as const;
+  public readonly dependencies = ['logger', 'database', 'events'] as const;
   private configService!: ConfigService;
   get exports(): IConfigModuleExports {
     return {
       service: (): IConfigService => {
         this.ensureInitialized();
-        return this.validateServiceStructure(
-          this.configService,
-          ConfigServiceSchema,
-          'ConfigService'
-        ) as IConfigService;
+        return this.configService;
       },
     };
   }

@@ -6,7 +6,7 @@
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { ModuleGeneratorService } from '@/modules/core/dev/services/module-generator.service';
 import type { IModuleGeneratorOptions } from '@/modules/core/dev/types/manual';
 

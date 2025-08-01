@@ -20,7 +20,7 @@ import { setupRoutes as usersApiSetup } from '@/server/external/rest/api/users';
 import { setupRoutes as dashboardSetup } from '@/server/external/rest/dashboard';
 import { setupRoutes as terminalApiSetup } from '@/server/external/rest/api/terminal';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   IExpressLayer,
   IRouteContext,

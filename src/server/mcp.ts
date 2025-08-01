@@ -38,7 +38,7 @@ import {
 import { handleListRoots } from '@/server/mcp/core/handlers/roots-handlers';
 import { handleListTools, handleToolCall } from '@/server/mcp/core/handlers/tool-handlers';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import {
   type IMcpHandler,
   type ISessionInfo,

@@ -4,7 +4,7 @@
  * @module users/services
  */
 
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type { IUsersRow } from '@/modules/core/users/types/database.generated';
 import type {
   IUser,

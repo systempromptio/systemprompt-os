@@ -1,5 +1,5 @@
 // Auto-generated service schemas for logger module
-// Generated on: 2025-08-01T10:27:14.988Z
+// Generated on: 2025-08-01T13:49:51.724Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

@@ -18,8 +18,11 @@ import {
   LogOutput,
   LogSource,
   LoggerMode,
-} from '@/modules/core/logger/types/manual';
-// Database service interface to avoid direct service dependency
+} from '../types/manual';
+/*
+ * Generated types are available for future validation use
+ * Database service interface to avoid direct service dependency
+ */
 interface ILogDatabaseService {
   execute(sql: string, params?: unknown[]): Promise<void>;
 }
@@ -30,7 +33,7 @@ import {
   LoggerFileReadError,
   LoggerFileWriteError,
   LoggerInitializationError,
-} from '@/modules/core/logger/utils/errors';
+} from '../utils/errors';
 
 /**
  * Logger service implementation following singleton pattern.

@@ -8,15 +8,7 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-
-/**
- * Zod schema for CLI arguments validation.
- */
-const clearArgsSchema = z.object({
-  format: z.enum(['text', 'json']).default('text'),
-  type: z.enum(['events', 'subscriptions', 'all']).default('events'),
-  confirm: z.boolean().default(false)
-});
+import { type ClearArgs, cliSchemas } from '@/modules/core/events/utils/cli-validation';
 
 /**
  * Events module clear command implementation.
@@ -54,7 +46,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = clearArgsSchema.parse(context.args);
+      const validatedArgs: ClearArgs = cliSchemas.clear.parse(context.args);
 
       logger.debug(LogSource.MODULES, 'Events clear command executed', { args: validatedArgs });
 

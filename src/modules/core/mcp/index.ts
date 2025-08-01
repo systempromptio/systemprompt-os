@@ -1,137 +1,73 @@
-import { ModulesType } from "@/modules/core/modules/types/database.generated";
 /**
  * MCP module - Model Context Protocol integration for managing AI model contexts.
  * @file MCP module entry point.
  * @module modules/core/mcp
  */
 
-import type { IModule } from '@/modules/core/modules/types/manual';
-import { ModulesStatus } from "@/modules/core/modules/types/manual";
+import { BaseModule } from '@/modules/core/modules/base/BaseModule';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
   Prompt, Resource, Tool
 } from '@modelcontextprotocol/sdk/types.js';
-import type { IMCPModuleExports as IMCPModuleExportsType } from '@/modules/core/mcp/types/index';
+import type { IMCPModuleExports } from '@/modules/core/mcp/types/manual';
+import { MCPModuleExportsSchema } from '@/modules/core/mcp/types/mcp.service.generated';
+import { type ZodSchema } from 'zod';
 
 /**
- * MCP module implementation.
+ * MCP module implementation using BaseModule.
  */
-export class MCPModule implements IModule<IMCPModuleExportsType> {
-  public readonly name = 'mcp';
+export class MCPModule extends BaseModule<IMCPModuleExports> {
+  public readonly name = 'mcp' as const;
   public readonly type = ModulesType.CORE;
   public readonly version = '1.0.0';
   public readonly description = 'Model Context Protocol integration for managing AI model contexts';
-  public readonly dependencies = ['logger', 'database', 'modules'];
-  public status: ModulesStatus = ModulesStatus.PENDING;
+  public readonly dependencies = ['logger', 'database', 'modules'] as const;
   private mcpService!: MCPService;
-  private logger!: ILogger;
-  private initialized = false;
-  private started = false;
-  get exports(): IMCPModuleExportsType {
+
+  get exports(): IMCPModuleExports {
+    this.ensureInitialized();
     return {
-      service: (): MCPService => { return this.getService() },
+      service: (): MCPService => this.mcpService,
       resources: {
-        listResources: async (): Promise<Resource[]> => { return this.listResources() },
-        getResource: async (uri: string): Promise<Resource | null> => { return this.getResource(uri) },
+        listResources: async (): Promise<Resource[]> => this.listResources(),
+        getResource: async (uri: string): Promise<Resource | null> => this.getResource(uri),
       },
       prompts: {
-        listPrompts: async (): Promise<Prompt[]> => { return this.listPrompts() },
-        getPrompt: async (name: string): Promise<Prompt | null> => { return this.getPrompt(name) },
+        listPrompts: async (): Promise<Prompt[]> => this.listPrompts(),
+        getPrompt: async (name: string): Promise<Prompt | null> => this.getPrompt(name),
       },
       tools: {
-        listTools: async (): Promise<Tool[]> => { return this.listTools() },
-        getTool: async (name: string): Promise<Tool | null> => { return this.getTool(name) },
+        listTools: async (): Promise<Tool[]> => this.listTools(),
+        getTool: async (name: string): Promise<Tool | null> => this.getTool(name),
         executeTool: async (name: string, args: unknown): Promise<unknown> =>
-          { return await this.executeTool(name, args) },
+          await this.executeTool(name, args),
       },
     };
   }
 
   /**
-   * Initialize the MCP module.
+   * Get the Zod schema for this module's exports.
+   * @returns The Zod schema for validating module exports.
    */
-  async initialize(): Promise<void> {
-    if (this.initialized) {
-      throw new Error('MCP module already initialized');
-    }
+  protected override getExportsSchema(): ZodSchema {
+    return MCPModuleExportsSchema;
+  }
 
-    this.logger = LoggerService.getInstance();
+  /**
+   * Module-specific initialization logic.
+   */
+  protected async initializeModule(): Promise<void> {
     this.mcpService = MCPService.getInstance();
-
-    try {
-      await this.mcpService.initialize();
-      this.initialized = true;
-      this.logger.info(LogSource.MCP, 'MCP module initialized');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to initialize MCP module: ${errorMessage}`);
-    }
+    await this.mcpService.initialize();
   }
 
   /**
-   * Start the MCP module.
+   * Get the log source for this module.
    */
-  async start(): Promise<void> {
-    if (!this.initialized) {
-      throw new Error('MCP module not initialized');
-    }
-
-    if (this.started) {
-      throw new Error('MCP module already started');
-    }
-
-    this.status = ModulesStatus.RUNNING;
-    this.started = true;
-    this.logger.info(LogSource.MCP, 'MCP module started');
-  }
-
-  /**
-   * Stop the MCP module.
-   */
-  async stop(): Promise<void> {
-    if (this.started) {
-      this.status = ModulesStatus.STOPPED;
-      this.started = false;
-      this.logger.info(LogSource.MCP, 'MCP module stopped');
-    }
-  }
-
-  /**
-   * Health check for the MCP module.
-   * @returns Health status object.
-   */
-  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
-    if (!this.initialized) {
-      return {
-        healthy: false,
-        message: 'MCP module not initialized'
-      };
-    }
-    if (!this.started) {
-      return {
-        healthy: false,
-        message: 'MCP module not started'
-      };
-    }
-    return {
-      healthy: true,
-      message: 'MCP module is healthy'
-    };
-  }
-
-  /**
-   * Get the MCP service.
-   * @returns The MCP service instance.
-   * @throws Error if module not initialized.
-   */
-  getService(): MCPService {
-    if (!this.initialized) {
-      throw new Error('MCP module not initialized');
-    }
-    return this.mcpService;
+  protected override getLogSource(): LogSource {
+    return LogSource.MCP;
   }
 
   /**
@@ -162,7 +98,7 @@ export class MCPModule implements IModule<IMCPModuleExportsType> {
    */
   private getResource(uri: string): Resource | null {
     const resources = this.listResources();
-    return resources.find((resource): boolean => { return resource.uri === uri }) ?? null;
+    return resources.find((resource): boolean => resource.uri === uri) ?? null;
   }
 
   /**
@@ -180,7 +116,7 @@ export class MCPModule implements IModule<IMCPModuleExportsType> {
    */
   private getPrompt(name: string): Prompt | null {
     const prompts = this.listPrompts();
-    return prompts.find((prompt): boolean => { return prompt.name === name }) ?? null;
+    return prompts.find((prompt): boolean => prompt.name === name) ?? null;
   }
 
   /**
@@ -198,7 +134,7 @@ export class MCPModule implements IModule<IMCPModuleExportsType> {
    */
   private getTool(name: string): Tool | null {
     const tools = this.listTools();
-    return tools.find((tool): boolean => { return tool.name === name }) ?? null;
+    return tools.find((tool): boolean => tool.name === name) ?? null;
   }
 
   /**
@@ -209,7 +145,7 @@ export class MCPModule implements IModule<IMCPModuleExportsType> {
    * @throws Error when tool execution is not implemented.
    */
   private executeTool(name: string, args: unknown): unknown {
-    void args
+    void args;
     throw new Error(`Tool execution not implemented for: ${name}`);
   }
 }
@@ -233,39 +169,6 @@ export const initialize = async (): Promise<MCPModule> => {
 };
 
 /**
- * Gets the MCP module with type safety and validation.
- * @returns The MCP module with guaranteed typed exports.
- * @throws {Error} If MCP module is not available or missing required exports.
- */
-export function getMCPModule(): IModule<IMCPModuleExportsType> {
-  const { getModuleRegistry } = require('@/modules/loader');
-  const { ModuleName } = require('@/modules/types/index');
-
-  const registry = getModuleRegistry();
-  const mcpModule = registry.get(ModuleName.MCP);
-
-  if (!mcpModule.exports?.service || typeof mcpModule.exports.service !== 'function') {
-    throw new Error('MCP module missing required service export');
-  }
-
-  if (!mcpModule.exports?.resources || typeof mcpModule.exports.resources !== 'object') {
-    throw new Error('MCP module missing required resources export');
-  }
-
-  if (!mcpModule.exports?.prompts || typeof mcpModule.exports.prompts !== 'object') {
-    throw new Error('MCP module missing required prompts export');
-  }
-
-  if (!mcpModule.exports?.tools || typeof mcpModule.exports.tools !== 'object') {
-    throw new Error('MCP module missing required tools export');
-  }
-
-  return mcpModule as IModule<IMCPModuleExportsType>;
-}
-
-/**
  * Export the IMCPModuleExports type for use in other modules.
  */
-export type { IMCPModuleExportsType as IMCPModuleExports };
-
-// No type reexports - use autogenerated types directly from database.generated.ts
+export type { IMCPModuleExports };

@@ -8,7 +8,7 @@ import {
 } from 'fs';
 import { join } from 'path';
 import { generateKeyPairSync } from 'crypto';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Service for managing JWT signing keys.

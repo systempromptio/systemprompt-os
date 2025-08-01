@@ -7,7 +7,7 @@
 import {
  createHash, randomBytes, randomUUID
 } from 'crypto';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';

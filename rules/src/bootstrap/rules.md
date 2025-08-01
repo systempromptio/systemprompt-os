@@ -16,16 +16,26 @@ The bootstrap system is responsible for initializing SystemPrompt OS in a determ
 
 ### Simple Sequential Steps
 ```
-LOGGER → SCAN_MODULES → LOAD_IN_ORDER → HTTP_SERVER → READY
+LOGGER → MODULES_MODULE → DELEGATE_TO_MODULES_SERVICE → READY
 ```
 
 ### Step Definitions
 
-1. **LOGGER**: Initialize logger module first
-2. **SCAN_MODULES**: Scan `/src/modules/core/` for module.yaml files
-3. **LOAD_IN_ORDER**: Load modules in dependency order from module.yaml
-4. **HTTP_SERVER**: Setup Express app after all modules loaded
-5. **READY**: System fully operational
+1. **LOGGER**: Initialize logger module first using `createLoggerModuleForBootstrap()`
+2. **MODULES_MODULE**: Initialize the modules module which manages all other modules
+3. **DELEGATE_TO_MODULES_SERVICE**: Use modules module services to handle all subsequent module loading
+4. **READY**: System fully operational, `isReady = true`
+
+### Architectural Components
+
+The bootstrap leverages the modules module's comprehensive service architecture:
+
+- **CoreModuleLoaderService**: Handles loading and initialization of core system modules
+- **ModuleRegistryService**: Manages registration and lifecycle of all loaded modules
+- **ModuleLoaderService**: General module loading with dependency management
+- **ModulesModuleService**: Orchestrates all module operations
+
+This design eliminates duplication and ensures all module management logic is centralized in the modules module.
 
 ## Module Lifecycle
 
@@ -112,13 +122,13 @@ The bootstrap system MUST:
 ## File Structure
 
 ```
+src/bootstrap.ts           # Minimal Bootstrap class that delegates to modules services
 src/bootstrap/
-   index.ts                # Main Bootstrap class
-   module-loader.ts        # Simple module loading logic
-   dependency-resolver.ts  # Read module.yaml and sort by dependencies
-   types/
-       bootstrap.types.ts   # Bootstrap-specific types
+   shutdown-helper.ts      # Clean module shutdown logic
 ```
+
+Note: Module scanning and dependency resolution are handled by the modules module services,
+eliminating the need for duplicate helpers in bootstrap.
 
 ## Implementation Rules
 
@@ -149,22 +159,12 @@ src/bootstrap/
 ### 5. Shutdown Procedure
 ```typescript
 async shutdown(): Promise<void> {
-  // 1. Stop accepting new operations
-  this.status = BootstrapStatus.SHUTTING_DOWN;
-  
-  // 2. Stop modules in reverse dependency order
-  const modules = this.getDependencyOrder().reverse();
-  
-  // 3. Call stop() if method exists
-  for (const module of modules) {
-    if (typeof module.stop === 'function') {
-      await module.stop();
-    }
-  }
-  
-  // 4. Final cleanup
+  const logger = LoggerService.getInstance();
+  logger.info(LogSource.BOOTSTRAP, 'Shutting down system');
+  await shutdownAllModules(this.modules, logger);
   this.modules.clear();
-  this.status = BootstrapStatus.TERMINATED;
+  this.isReady = false;
+  logger.info(LogSource.BOOTSTRAP, 'Shutdown complete');
 }
 ```
 
@@ -187,53 +187,96 @@ async shutdown(): Promise<void> {
 ## Implementation Requirements
 
 ### Must Have
-1. **Simple Module Loading**: Read module.yaml, load in dependency order
-2. **Clear Logging**: Log each step of bootstrap process
-3. **Fail Fast**: Stop immediately on critical module failures
-4. **Clean Interface**: Simple Bootstrap class with minimal API
-5. **No Tech Debt**: No feature flags, migration code, or legacy support
+1. **Minimal Bootstrap**: Bootstrap only handles initial system startup (logger + modules module)
+2. **Leverage Module Services**: Use existing CoreModuleLoaderService and ModuleRegistryService
+3. **Clear Logging**: Log each step of bootstrap process  
+4. **Fail Fast**: Stop immediately on critical module failures
+5. **Clean Interface**: Simple Bootstrap class with minimal API
+6. **No Duplication**: Don't duplicate module management logic that exists in modules services
 
 ### Must Not Have
 1. **Event Systems**: No event emitters or complex observability
-2. **Multiple Phases**: Just sequential loading
-3. **Complex Lifecycle Managers**: Direct method calls are sufficient
-4. **Feature Flags**: No gradual migration or compatibility code
+2. **Multiple Phases**: Just sequential loading with simple boolean tracking
+3. **Complex JSDoc**: Keep comments minimal and focused
+4. **Verbose Logging**: Use simple log messages without category objects
 5. **Over-Engineering**: Keep it simple and maintainable
 
-## Example Module
+## Bootstrap Implementation Example
 
 ```typescript
-export const createModule = (): IModule<MyModuleExports> => {
-  return new MyModule();
-};
+export class Bootstrap {
+  private readonly options: IBootstrapOptions;
+  private modulesService?: IModulesModuleExports;
+  private isReady = false;
 
-class MyModule extends BaseModule<MyModuleExports> {
-  async initialize(): Promise<void> {
-    // Setup resources
-    await this.connectDatabase();
-    await this.loadConfiguration();
+  constructor(options: IBootstrapOptions = {}) {
+    this.options = options;
   }
-  
-  async start(): Promise<void> {
-    // Begin operations
-    await this.startWorkers();
-    await this.registerHandlers();
-  }
-  
-  async stop(): Promise<void> {
-    // Cleanup
-    await this.stopWorkers();
-    await this.disconnectDatabase();
-  }
-  
-  async health(): Promise<HealthStatus> {
-    return {
-      status: this.checkHealth() ? 'healthy' : 'unhealthy',
-      checks: {
-        database: await this.checkDatabase(),
-        workers: await this.checkWorkers()
+
+  async bootstrap(): Promise<Map<string, IModule>> {
+    try {
+      // 1. LOGGER - Initialize logger first (before modules service is available)
+      const loggerModule = await createLoggerModuleForBootstrap();
+      const logger = LoggerService.getInstance();
+      logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process');
+
+      // 2. MODULES_MODULE - Initialize the modules module manually
+      const modulesModule = await this.initializeModulesModule();
+      this.modulesService = modulesModule.exports;
+      
+      // 3. DELEGATE_TO_MODULES_SERVICE - Let modules service handle everything else
+      logger.info(LogSource.BOOTSTRAP, 'Delegating to modules service for core module loading');
+      
+      // Get the module registry from modules service
+      const moduleRegistry = ModuleRegistryService.getInstance();
+      
+      // Register our pre-loaded modules
+      moduleRegistry.register(loggerModule);
+      moduleRegistry.register(modulesModule);
+      
+      // Use modules service to scan and load remaining core modules
+      const scanner = this.modulesService.service();
+      const coreModules = await scanner.scanForModules({ 
+        path: './src/modules/core',
+        type: 'core' 
+      });
+      
+      // Load modules through the modules service
+      for (const moduleInfo of coreModules) {
+        if (moduleInfo.name !== 'logger' && moduleInfo.name !== 'modules') {
+          await moduleRegistry.loadAndInitialize(moduleInfo);
+        }
       }
-    };
+
+      // 4. READY - System operational
+      this.isReady = true;
+      const loadedModules = moduleRegistry.getAllModules();
+      logger.info(LogSource.BOOTSTRAP, \`Bootstrap completed - \${loadedModules.size} modules loaded\`);
+      return loadedModules;
+    } catch (error) {
+      this.handleBootstrapError(error);
+      throw error;
+    }
+  }
+
+  private async initializeModulesModule(): Promise<IModule> {
+    // Manual initialization of modules module since it manages all others
+    const modulePath = './src/modules/core/modules/index.ts';
+    const moduleImport = await import(modulePath);
+    const moduleInstance = moduleImport.createModule();
+    await moduleInstance.initialize();
+    await moduleInstance.start?.();
+    return moduleInstance;
+  }
+
+  private handleBootstrapError(error: unknown): void {
+    try {
+      LoggerService.getInstance().error(LogSource.BOOTSTRAP, 'Bootstrap failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    } catch {
+      console.error('Bootstrap failed:', error);
+    }
   }
 }
 ```

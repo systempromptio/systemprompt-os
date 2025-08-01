@@ -4,7 +4,7 @@
  * @module modules/core/logger/utils/logger-error-base
  */
 
-import type { LoggerErrorCodeEnum } from '@/modules/core/logger/types/index';
+import type { LoggerErrorCodeEnum } from '../types/manual';
 
 /**
  * Base error class for logger-related errors.
@@ -17,7 +17,8 @@ export class LoggerError extends Error {
    */
   public readonly code: LoggerErrorCodeEnum;
   public readonly statusCode?: number;
-  public override readonly cause?: Error;
+  public readonly cause?: Error;
+  public name: string;
 
   /**
    * Create a new LoggerError instance.

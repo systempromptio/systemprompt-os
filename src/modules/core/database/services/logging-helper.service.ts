@@ -1,4 +1,4 @@
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Helper service for logging operations.

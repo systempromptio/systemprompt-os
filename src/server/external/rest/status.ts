@@ -7,7 +7,7 @@
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import os from 'os';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 const logger = LoggerService.getInstance();
 

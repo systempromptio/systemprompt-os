@@ -13,9 +13,8 @@ import {
 } from '@/modules/core/cli/services/database-status.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
-  ISchemaVersion,
   StatusFormat,
 } from '@/modules/core/database/types/manual';
 import { z } from 'zod';
@@ -91,7 +90,7 @@ const handleStatusExecution = async (
 
       if (result.data.schemaVersions !== undefined && result.data.schemaVersions.length > 0) {
         cliOutput.section('Schema Versions');
-        result.data.schemaVersions.forEach((schema: ISchemaVersion) => {
+        result.data.schemaVersions.forEach((schema) => {
           cliOutput.info(`${schema.module}: ${schema.version}`);
         });
       }

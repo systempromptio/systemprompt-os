@@ -5,9 +5,9 @@
 
 import { promises as fs } from 'fs';
 import { join, resolve } from 'path';
-import type { ICoreModuleDefinition } from '@/types/bootstrap';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/manual';
+import type { ICoreModuleDefinition } from '../../types/bootstrap';
+import { LoggerService } from '../../modules/core/logger/services/logger.service';
+import { LogSource } from '../../modules/core/logger/types/manual';
 
 /**
  * Scanner for discovering core modules from the filesystem.
@@ -99,7 +99,7 @@ export class CoreModuleScanner {
 
       return {
         name: moduleName,
-        path: `./modules/core/${moduleName}/index.ts`,
+        path: join(modulePath, 'index.ts'),
         dependencies: metadata.dependencies || [],
         critical: metadata.critical ?? this.isCriticalModule(moduleName),
         description: metadata.description || `${moduleName} module`,

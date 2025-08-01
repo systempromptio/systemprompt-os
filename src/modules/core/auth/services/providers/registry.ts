@@ -3,8 +3,8 @@ import {
 } from "fs";
 import { extname, join } from "path";
 import { parse as parseYaml } from "yaml";
-import type { ILogger } from "@/modules/core/logger/types/index";
-import { LogSource } from "@/modules/core/logger/types/index";
+import type { ILogger } from "@/modules/core/logger/types/manual";
+import { LogSource } from "@/modules/core/logger/types/manual";
 import type {
   IDPConfig,
   IGenericOAuth2Config,

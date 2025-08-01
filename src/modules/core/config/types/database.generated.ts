@@ -1,10 +1,17 @@
 // Auto-generated database types for config module
-// Generated on: 2025-07-31T14:59:46.142Z
+// Generated on: 2025-08-01T13:49:49.827Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 
 // Enums generated from CHECK constraints
+export enum ConfigType {
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  JSON = 'json'
+}
+
 export enum McpServersTransport {
   STDIO = 'stdio',
   SSE = 'sse',
@@ -20,17 +27,19 @@ export enum McpServersStatus {
 }
 
 // Zod schemas for enums
+export const ConfigTypeSchema = z.nativeEnum(ConfigType);
 export const McpServersTransportSchema = z.nativeEnum(McpServersTransport);
 export const McpServersStatusSchema = z.nativeEnum(McpServersStatus);
 
 /**
- * Generated from database table: configs
+ * Generated from database table: config
  * Do not modify this file manually - it will be overwritten
  */
-export interface IConfigsRow {
-  id: number;
+export interface IConfigRow {
+  id: string;
   key: string;
   value: string;
+  type: ConfigType;
   description: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -41,7 +50,7 @@ export interface IConfigsRow {
  * Do not modify this file manually - it will be overwritten
  */
 export interface IMcpServersRow {
-  id: number;
+  id: string;
   name: string;
   command: string;
   args: string | null;
@@ -59,17 +68,18 @@ export interface IMcpServersRow {
 }
 
 // Zod schemas for database row validation
-export const ConfigsRowSchema = z.object({
-  id: z.number(),
+export const ConfigRowSchema = z.object({
+  id: z.string(),
   key: z.string(),
   value: z.string(),
+  type: z.nativeEnum(ConfigType),
   description: z.string().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
 });
 
 export const McpServersRowSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   command: z.string(),
   args: z.string().nullable(),
@@ -89,17 +99,17 @@ export const McpServersRowSchema = z.object({
 /**
  * Union type of all database row types in this module
  */
-export type ConfigDatabaseRow = IConfigsRow | IMcpServersRow;
+export type ConfigDatabaseRow = IConfigRow | IMcpServersRow;
 
 /**
  * Union Zod schema for all database row types in this module
  */
-export const ConfigDatabaseRowSchema = z.union([ConfigsRowSchema, McpServersRowSchema]);
+export const ConfigDatabaseRowSchema = z.union([ConfigRowSchema, McpServersRowSchema]);
 
 /**
  * Database table names for this module
  */
 export const CONFIG_TABLES = {
-  CONFIGS: 'configs',
+  CONFIG: 'config',
   MCP_SERVERS: 'mcp_servers',
 } as const;

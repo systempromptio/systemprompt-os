@@ -9,9 +9,9 @@ import type { IModule } from '@/modules/core/modules/types/manual';
 import { ModulesStatus } from "@/modules/core/modules/types/manual";
 import { SystemService } from '@/modules/core/system/services/system.service';
 import { UrlConfigService } from '@/modules/core/system/services/url-config.service';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type { ISystemModuleExports } from '@/modules/core/system/types/index';
 
 /**

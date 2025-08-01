@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type { IModule } from '@/modules/core/modules/types/manual';
 import { ModulesStatus } from '@/modules/core/modules/types/manual';
 import type {

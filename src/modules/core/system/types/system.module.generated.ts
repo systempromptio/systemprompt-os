@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for system module
-// Generated on: 2025-07-31T13:04:45.118Z
+// Generated on: 2025-08-01T13:49:53.117Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

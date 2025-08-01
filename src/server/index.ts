@@ -4,56 +4,42 @@
  * @module server
  */
 
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
-import { CONFIG } from '@/server/config';
-import { setupExternalEndpoints } from '@/server/external/setup';
-import { setupHealthEndpoints } from '@/server/health';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { getModuleRegistry } from '@/modules/core/modules/index';
-import { ModuleName } from '@/modules/types/module-names.types';
-import { UrlConfigService } from '@/modules/core/system/services/url-config.service';
+import { CONFIG } from './config';
+import { setupExternalEndpoints } from './external/setup';
+import { setupHealthEndpoints } from './health';
+import { LoggerService } from '../modules/core/logger/services/logger.service';
+import { LogSource } from '../modules/core/logger/types/manual';
+import { getModuleRegistry } from '../modules/core/modules/index';
+import { ModuleName } from '../modules/types/module-names.types';
+import { UrlConfigService } from '../modules/core/system/services/url-config.service';
+import { ServerCore } from './core/server';
+import { HttpProtocolHandler } from './protocols/http/http-protocol';
+import { McpProtocolHandlerV2 } from './protocols/mcp/mcp-protocol';
+import { ModuleBridge } from './integration/module-bridge';
+import { ServerEvents } from './core/types/events.types';
 import type { Server } from 'http';
 
 const logger = LoggerService.getInstance();
 
 /**
  * Creates and configures the Express application.
+ * For backward compatibility, but now creates an event-driven server and returns the Express app.
  * @returns Promise that resolves to Express application.
  */
-export const createApp = async function createApp(): Promise<express.Application> {
-  console.log('Creating Express app... UPDATED!!!');
-  const app = express();
-
-  app.get('/immediate-test', (_req, res) => {
-    res.json({ message: 'Immediate test route working' });
-  });
-
-  app.use((req, _res, next) => {
-    console.log(`[DEBUG] ${req.method} ${req.url}`);
-    next();
-  });
-
-  let registry;
-  try {
-    registry = getModuleRegistry();
-    console.log('Module registry obtained');
-  } catch (error) {
-    console.error('Error getting module registry:', error);
-    throw error;
-  }
-
-  const authModule = registry.get(ModuleName.AUTH);
-  if (authModule && 'start' in authModule && authModule.start !== null && authModule.start !== undefined) {
-    try {
-      await (authModule as any).start();
-      console.log('Auth module started successfully');
-    } catch (error) {
-      console.error('Failed to start auth module:', error);
-    }
-  }
-
+export const createApp = async function createApp(): Promise<Express> {
+  // Create the event-driven server core with port 0 (for testing)
+  const serverCore = new ServerCore({ port: 0 });
+  
+  // Register HTTP protocol handler
+  const httpHandler = new HttpProtocolHandler();
+  await serverCore.registerProtocol('http', httpHandler);
+  
+  // Get the Express app from HTTP handler
+  const app = (httpHandler as any).app as Express;
+  
+  // Configure CORS and middleware
   app.use(
     cors({
       origin: true,
@@ -72,24 +58,41 @@ export const createApp = async function createApp(): Promise<express.Application
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({
- extended: true,
-limit: '50mb'
-}));
+    extended: true,
+    limit: '50mb'
+  }));
 
+  // Start the auth module if available
+  try {
+    const registry = getModuleRegistry();
+    const authModule = registry.get(ModuleName.AUTH);
+    if (authModule && 'start' in authModule && authModule.start) {
+      await (authModule as any).start();
+      logger.info(LogSource.SERVER, 'Auth module started successfully');
+    }
+  } catch (error) {
+    logger.warn(LogSource.SERVER, 'Failed to start auth module:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
+  // Set up existing endpoints
   try {
     await setupExternalEndpoints(app);
   } catch (error) {
-    console.error('Error setting up external endpoints:', error);
-    throw error;
+    logger.error(LogSource.SERVER, 'Error setting up external endpoints:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
   setupHealthEndpoints(app);
 
+  // Add debug routes
   app.get('/test', (_req, res) => {
     res.json({
- status: 'ok',
-message: 'Test route working'
-});
+      status: 'ok',
+      message: 'Test route working'
+    });
   });
 
   app.get('/debug/routes', (_req, res) => {
@@ -97,20 +100,20 @@ message: 'Test route working'
     app._router.stack.forEach((middleware: any) => {
       if (middleware.route) {
         routes.push({
- path: middleware.route.path,
-methods: middleware.route.methods
-});
+          path: middleware.route.path,
+          methods: middleware.route.methods
+        });
       } else if (middleware.name === 'router') {
         routes.push({
- type: 'router',
-regexp: middleware.regexp.toString()
-});
+          type: 'router',
+          regexp: middleware.regexp.toString()
+        });
       }
     });
     res.json({
- routes,
-message: 'Available routes'
-});
+      routes,
+      message: 'Available routes'
+    });
   });
 
   return app;
@@ -124,13 +127,114 @@ message: 'Available routes'
 export const startServer = async function startServer(
   port?: number,
 ): Promise<Server> {
-  const app = await createApp();
   const serverPort = port ?? parseInt(CONFIG.PORT, 10);
+  
+  // Create the event-driven server core
+  const serverCore = new ServerCore({ port: serverPort });
+  
+  // Register protocol handlers
+  const httpHandler = new HttpProtocolHandler();
+  const mcpHandler = new McpProtocolHandlerV2();
+  
+  await serverCore.registerProtocol('http', httpHandler);
+  await serverCore.registerProtocol('mcp', mcpHandler);
+  
+  // Create module bridge for integrating existing modules
+  const moduleBridge = new ModuleBridge(serverCore.eventBus);
+  
+  // Get the Express app from HTTP handler for compatibility
+  const app = (httpHandler as any).app as Express;
+  
+  // Configure CORS and middleware
+  app.use(
+    cors({
+      origin: true,
+      credentials: true,
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Cache-Control',
+        'Accept',
+        'mcp-session-id',
+        'x-session-id',
+      ],
+      exposedHeaders: ['x-session-id', 'mcp-session-id'],
+    }),
+  );
+  
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({
+    extended: true,
+    limit: '50mb'
+  }));
+  
+  // Set up existing endpoints on the Express app from HTTP handler
+  try {
+    await setupExternalEndpoints(app);
+    logger.info(LogSource.SERVER, 'External endpoints configured');
+  } catch (error) {
+    logger.error(LogSource.SERVER, 'Failed to setup external endpoints:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+  
+  setupHealthEndpoints(app);
+  logger.info(LogSource.SERVER, 'Health endpoints configured');
+  
+  // Add compatibility routes for existing functionality
+  app.get('/test', (_req, res) => {
+    res.json({
+      status: 'ok',
+      message: 'Test route working',
+      server: 'event-driven'
+    });
+  });
 
+  app.get('/debug/routes', (_req, res) => {
+    const routes: any[] = [];
+    app._router.stack.forEach((middleware: any) => {
+      if (middleware.route) {
+        routes.push({
+          path: middleware.route.path,
+          methods: middleware.route.methods
+        });
+      } else if (middleware.name === 'router') {
+        routes.push({
+          type: 'router',
+          regexp: middleware.regexp.toString()
+        });
+      }
+    });
+    res.json({
+      routes,
+      message: 'Available routes',
+      server: 'event-driven'
+    });
+  });
+  
+  // Start the auth module if available
+  try {
+    const registry = getModuleRegistry();
+    const authModule = registry.get(ModuleName.AUTH);
+    if (authModule && 'start' in authModule && authModule.start) {
+      await (authModule as any).start();
+      logger.info(LogSource.SERVER, 'Auth module started successfully');
+    }
+  } catch (error) {
+    logger.warn(LogSource.SERVER, 'Failed to start auth module:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+  
+  // Initialize URL configuration
   const urlConfigService = UrlConfigService.getInstance();
   await urlConfigService.initialize();
-
-  const server = app.listen(serverPort, '0.0.0.0', async (): Promise<void> => {
+  
+  // Finalize routes after all routes have been added
+  (httpHandler as any).finalizeRoutes();
+  
+  // Set up event listener for server started
+  serverCore.eventBus.once(ServerEvents.STARTED, async () => {
     try {
       const urlConfig = await urlConfigService.getUrlConfig();
       const {baseUrl} = urlConfig;
@@ -154,8 +258,14 @@ export const startServer = async function startServer(
       logger.info(LogSource.SERVER, `📡 Local endpoint: http://localhost:${String(serverPort)}`);
     }
   });
-
-  return server;
+  
+  // Start the server
+  await serverCore.start();
+  
+  // Get the actual HTTP server instance for compatibility
+  const httpServer = (httpHandler as any).server as Server;
+  
+  return httpServer;
 };
 
 /**

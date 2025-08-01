@@ -22,7 +22,7 @@ import {
   type ITableColumn,
 } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Type guard to check if data has the expected summary structure.

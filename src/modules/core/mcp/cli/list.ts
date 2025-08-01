@@ -4,7 +4,7 @@
  * @module modules/core/mcp/cli/list
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

@@ -79,7 +79,7 @@ export const command: ICLICommand = {
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const validatedArgs = statusArgsSchema.parse(context.args);
+      const validatedArgs: StatusArgs = statusArgsSchema.parse(context.args);
       const logLevel = process.env.LOGLEVEL || 'info';
       const stats = await getLoggerStatistics();
 

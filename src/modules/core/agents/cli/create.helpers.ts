@@ -4,13 +4,13 @@
  * @module modules/core/agents/cli/create-helpers
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/manual';
-import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import type { ICLIContext } from '../../cli/types/manual';
+import { CliOutputService } from '../../cli/services/cli-output.service';
 import type {
-  IAgent,
-  IAgentCreateData
-} from '@/modules/core/agents/types/agents.module.generated';
-import type { AgentsType } from '@/modules/core/agents/types/database.generated';
+  IAgent
+} from '../types/agents.module.generated';
+import type { IAgentCreateDataExtended } from '../types/manual';
+import { AgentsStatus, type AgentsType } from '../types/database.generated';
 
 /**
  * Type guard to check if value is a record.
@@ -90,7 +90,7 @@ const convertToStringArray = (value: unknown): string[] => {
  * @param context - CLI context.
  * @returns Agent data transfer object.
  */
-export const buildAgentData = (context: ICLIContext): IAgentCreateData => {
+export const buildAgentData = (context: ICLIContext): IAgentCreateDataExtended => {
   const { args } = context;
   const cliOutput = CliOutputService.getInstance();
 
@@ -102,11 +102,18 @@ export const buildAgentData = (context: ICLIContext): IAgentCreateData => {
     process.exit(1);
   }
 
-  const agentData: IAgentCreateData = {
+  const agentData: IAgentCreateDataExtended = {
     name: String(args.name),
     description: String(args.description),
     instructions: String(args.instructions),
-    type: typeString
+    type: typeString,
+    status: AgentsStatus.STOPPED,
+    assigned_tasks: 0,
+    completed_tasks: 0,
+    failed_tasks: 0,
+    capabilities: [],
+    tools: [],
+    config: {}
   };
 
   if (typeof args.capabilities !== 'undefined' && args.capabilities !== null) {

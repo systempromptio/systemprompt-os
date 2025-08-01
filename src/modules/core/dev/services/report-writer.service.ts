@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { EventBusService } from '@/modules/core/events/services/events.service';
 import { DevEvents, type DevReportRequestEvent } from '@/modules/core/events/types/manual';
 

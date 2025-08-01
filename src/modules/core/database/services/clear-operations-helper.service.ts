@@ -1,5 +1,5 @@
 import type { IDatabaseConnection, IDatabaseService } from '@/modules/core/database/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 
 /**
  * Helper service for database clear operations.
@@ -58,13 +58,13 @@ export class ClearOperationsHelperService {
     let totalRowsCleared = 0;
     const failedTables: string[] = [];
 
-    await this.databaseService.transaction(async (conn: IDatabaseConnection): Promise<void> => {
+    await this.databaseService.transaction(async (conn: IDatabaseService): Promise<void> => {
       for (const table of tables) {
         try {
           const beforeCount = await conn.query<{ count: number }>(
             `SELECT COUNT(*) as count FROM \`${table.name}\``
           );
-          const rowsBefore = beforeCount.rows[0]?.count ?? 0;
+          const rowsBefore = beforeCount[0]?.count ?? 0;
 
           await conn.execute(`DELETE FROM \`${table.name}\``);
 

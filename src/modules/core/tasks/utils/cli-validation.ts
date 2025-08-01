@@ -16,27 +16,25 @@ const baseCliOptionsSchema = z.object({
   format: z.enum(['text', 'json']).default('text')
 });
 
-// Create command validation schema
-export const createTaskArgsSchema = TaskCreateDataSchema.extend({
-  // CLI-specific options
-  format: z.enum(['text', 'json']).default('text'),
-  // Handle CLI boolean strings
+// Create command validation schema - only CLI inputs, not all database fields
+export const createTaskArgsSchema = z.object({
+  // Required CLI inputs
   type: z.string().min(1, 'Task type is required'),
   module_id: z.string().min(1, 'Module ID is required'),
-  // Transform numeric strings from CLI
-  priority: z.coerce.number().optional()
-.default(0),
-  max_executions: z.coerce.number().positive()
-.optional()
-.default(3),
-  max_time: z.coerce.number().positive()
-.optional(),
-  // Handle CLI status enum
+  
+  // Optional CLI inputs
+  instructions: z.string().optional(),
+  priority: z.coerce.number().optional().default(0),
+  max_executions: z.coerce.number().positive().optional().default(3),
+  max_time: z.coerce.number().positive().optional(),
   status: TaskStatusSchema.optional().default('pending' as any),
-  // Handle progress validation
-  progress: z.coerce.number().min(0)
-.max(100)
-.optional()
+  progress: z.coerce.number().min(0).max(100).optional(),
+  assigned_agent_id: z.string().optional(),
+  scheduled_at: z.string().datetime().optional(),
+  created_by: z.string().optional(),
+  
+  // CLI-specific options
+  format: z.enum(['text', 'json']).default('text')
 });
 
 // Update command validation schema

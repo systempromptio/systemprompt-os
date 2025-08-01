@@ -5,7 +5,7 @@
  */
 
 import { TypeGenerationService } from '@/modules/core/dev/services/type-generation';
-import type { LogSource } from '@/modules/core/logger/types';
+import type { LogSource } from '@/modules/core/logger/types/manual';
 
 // Simple console logger implementation for standalone use
 class StandaloneLogger {

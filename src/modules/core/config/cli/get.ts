@@ -5,11 +5,11 @@
  */
 
 import { z } from 'zod';
-import { configModule } from '@/modules/core/config/index';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { ConfigService } from '../services/config.service';
+import type { ICLICommand, ICLIContext } from '../../cli/types/manual';
+import { LoggerService } from '../../logger/services/logger.service';
+import { LogSource } from '../../logger/types/manual';
+import { CliOutputService } from '../../cli/services/cli-output.service';
 
 // Zod schema for command arguments
 const getArgsSchema = z.object({
@@ -43,25 +43,28 @@ export const command: ICLICommand = {
     try {
       const validatedArgs = getArgsSchema.parse(context.args);
 
-      await configModule.initialize();
-      const configService = configModule.exports.service();
-      const value = await configService.get(validatedArgs.key);
+      const configService = ConfigService.getInstance();
+      await configService.initialize();
+      const config = await configService.getConfig(validatedArgs.key);
 
-      if (value === undefined || value === null) {
+      if (!config) {
         cliOutput.error(`Configuration key '${validatedArgs.key}' not found`);
         process.exit(1);
       }
 
       if (validatedArgs.format === 'json') {
-        cliOutput.json({
- key: validatedArgs.key,
-value
-});
-      } else if (typeof value === 'string') {
-          cliOutput.output(value);
-        } else {
-          cliOutput.output(JSON.stringify(value, null, 2));
-        }
+        cliOutput.json(config);
+      } else {
+        cliOutput.section('Configuration Details');
+        cliOutput.keyValue({
+          'Key': config.key,
+          'Value': config.value,
+          'Type': config.type,
+          'Description': config.description || 'N/A',
+          'Created': config.createdAt.toLocaleString(),
+          'Updated': config.updatedAt.toLocaleString()
+        });
+      }
 
       process.exit(0);
     } catch (error) {
@@ -72,7 +75,7 @@ value
         });
       } else {
         cliOutput.error('Failed to get configuration');
-        logger.error(LogSource.CLI, 'Failed to get configuration', {
+        logger.error(LogSource.CONFIG, 'Failed to get configuration', {
           error: error instanceof Error ? error : new Error(String(error))
         });
       }

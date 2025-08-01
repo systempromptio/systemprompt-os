@@ -7,8 +7,8 @@
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { glob } from 'glob';
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { DatabaseGenerator } from '@/modules/core/dev/services/type-generation/generators/database.generator';
 import { InterfaceGenerator } from '@/modules/core/dev/services/type-generation/generators/interface.generator';
 import { ZodSchemaGenerator } from '@/modules/core/dev/services/type-generation/generators/zod-schema.generator';

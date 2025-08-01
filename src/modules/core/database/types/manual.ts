@@ -413,21 +413,31 @@ export interface ISchemaFile {
 
 export interface IImportResult {
   success: boolean;
-  module: string;
-  tablesCreated: number;
-  imported?: number;
-  skipped?: number;
-  error?: string;
-  errors?: string[];
+  imported: string[];
+  skipped: string[];
+  errors: Array<{ file: string; error: string }>;
 }
 
 export interface ISQLParserService {
   parse(sql: string): { statements: ISqlStatement[]; errors: string[] };
+  parseSQLFile(sql: string, fileName?: string): ISqlParseResult;
+  categorizeStatements(statements: IParsedStatement[]): {
+    tables: IParsedStatement[];
+    indexes: IParsedStatement[];
+    triggers: IParsedStatement[];
+    dataStatements?: IParsedStatement[];
+    other: IParsedStatement[];
+  };
 }
 
 export interface IParsedStatement {
   type: 'CREATE_TABLE' | 'CREATE_INDEX' | 'INSERT' | 'UPDATE' | 'DELETE' | 'SELECT' | 'DROP_TABLE' | 'ALTER_TABLE';
-  sql: string;
+  sql?: string;
+  statement: string;
+  normalized?: string;
+  lineNumber?: number;
+  isValid: boolean;
+  error?: string;
   table?: string;
   dependencies?: string[];
 }
@@ -442,6 +452,12 @@ export interface IModuleSchema {
   name: string;
   tables: ISchemaTable[];
   version: string;
+  module?: string;
+  moduleName?: string;
+  schemaPath?: string;
+  sql?: string;
+  initPath?: string;
+  initSql?: string;
 }
 
 export interface IImportService {
@@ -457,7 +473,8 @@ export interface ISqlStatement {
 }
 
 export interface ISqlParseResult {
-  statements: ISqlStatement[];
+  statements: IParsedStatement[];
+  hasErrors: boolean;
   errors: Array<{
     line: number;
     message: string;

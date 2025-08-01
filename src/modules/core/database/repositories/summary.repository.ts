@@ -56,10 +56,13 @@ export class SummaryRepository {
       primaryKey: col.pk > 0,
     } });
 
+    const columnCount = columns.length;
+
     return {
       name: tableName,
       rowCount,
-      columnCount: columns.length,
+      columnCount,
+      rows: rowCount,
       columns: columnInfo,
     };
   }
@@ -97,10 +100,12 @@ export class SummaryRepository {
    */
   calculateSummaryStats(tableInfos: ITableInfo[]): ISummaryStats {
     const totalRows = tableInfos.reduce((sum, table) => { return sum + table.rowCount }, 0);
+    const totalColumns = tableInfos.reduce((sum, table) => { return sum + table.columnCount }, 0);
 
     return {
       totalTables: tableInfos.length,
       totalRows,
+      totalColumns,
       averageRowsPerTable: tableInfos.length > 0 ? Math.round(totalRows / tableInfos.length) : 0,
     };
   }

@@ -1,15 +1,11 @@
 // Auto-generated Zod schemas for webhooks module
-// Generated on: 2025-07-31T13:04:45.796Z
+// Generated on: 2025-08-01T13:49:54.163Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 
 // Webhook schema
 export const WebhookSchema = z.object({});
-
-export const WebhookCreateDataSchema = z.object({});
-
-export const WebhookUpdateDataSchema = z.object({});
 
 // Type inference from schemas
 export type Webhook = z.infer<typeof WebhookSchema>;

@@ -11,8 +11,8 @@ import type {
   IModuleGeneratorOptions,
   IModuleGeneratorService
 } from '@/modules/core/dev/types/manual';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**
@@ -343,9 +343,9 @@ export class ModuleGeneratorService implements IModuleGeneratorService {
 
 import type { IModule } from '@/modules/core/modules/types/manual';
 import { ModulesStatus } from "@/modules/core/modules/types/manual";
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { ${pascalName}Service } from '@/modules/${modulePrefix}/${options.name}/services/${options.name}.service';
 import type { I${pascalName}Service } from '@/modules/${modulePrefix}/${options.name}/types/index';
 
@@ -659,9 +659,9 @@ import type {
   Create${pascalName}Dto, 
   Update${pascalName}Dto 
 } from '@/modules/${modulePrefix}/${options.name}/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { ${pascalName}Repository } from '@/modules/${modulePrefix}/${options.name}/repositories/${options.name}.repository';
 import type { I${pascalName}Repository } from '@/modules/${modulePrefix}/${options.name}/types/index';
 import { ${pascalName}NotFoundError, ${pascalName}ValidationError } from '@/modules/${modulePrefix}/${options.name}/errors/index';
@@ -851,9 +851,9 @@ import type {
   Create${pascalName}Dto, 
   Update${pascalName}Dto 
 } from '@/modules/${modulePrefix}/${options.name}/types/index';
-import type { ILogger } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 ${needsDatabase ? `import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { DatabaseServiceAdapter } from '@/modules/core/database/adapters/database-service-adapter';
 import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';` : ''}

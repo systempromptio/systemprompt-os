@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { configModule } from '@/modules/core/config/index';
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 

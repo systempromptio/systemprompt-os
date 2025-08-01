@@ -7,7 +7,7 @@
 import { pathToFileURL } from 'url';
 import type { IModule } from '@/modules/core/modules/types/manual';
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 /**

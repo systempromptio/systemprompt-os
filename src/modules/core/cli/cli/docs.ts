@@ -50,7 +50,7 @@ export const command: CLICommand = {
         console.log(`✓ Documentation generated: ${outputPath}`);
       } else {
         console.log(`\n${documentation}`);
-        console.log(`\n✓ Generated documentation for ${commands.size} commands`);
+        console.log(`\n✓ Generated documentation for ${String(commands.size)} commands`);
       }
     } catch (error) {
       console.error('Error generating documentation:', error);

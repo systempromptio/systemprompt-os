@@ -8,8 +8,8 @@ import type {
   IDatabaseConnection,
   IPreparedStatement,
   ITransaction
-} from '@/modules/core/database/types/manual';
-import type { DatabaseService } from '@/modules/core/database/services/database.service';
+} from '../types/manual';
+import type { DatabaseService } from '../services/database.service';
 
 /**
  * Adapter class that wraps DatabaseService to implement DatabaseConnection interface.
@@ -80,9 +80,8 @@ export class DatabaseServiceAdapter implements IDatabaseConnection {
   async transaction<T>(handler: (tx: ITransaction) => Promise<T>): Promise<T> {
     return await this.databaseService.transaction(async (conn): Promise<T> => {
       const txAdapter: ITransaction = {
-        query: async <R = unknown>(sql: string, params?: unknown[]): Promise<{ rows: R[] }> => {
-          const result = await conn.query<R>(sql, params);
-          return { rows: result };
+        query: async <R = unknown>(sql: string, params?: unknown[]): Promise<R[]> => {
+          return await conn.query(sql, params) as R[];
         },
         execute: async (sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> => {
           return await conn.execute(sql, params);

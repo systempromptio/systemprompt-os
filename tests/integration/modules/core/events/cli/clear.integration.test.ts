@@ -2,7 +2,7 @@
  * Integration tests for events clear CLI command
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { execSync } from 'child_process';
 
 describe('events clear CLI command', () => {

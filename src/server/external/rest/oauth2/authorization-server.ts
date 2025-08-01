@@ -7,7 +7,7 @@
  */
 
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
-import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
+import type { IOAuth2ServerMetadataInternal } from '../../../../modules/core/auth/types/oauth2.types';
 
 /**
  * OAuth 2.0 Authorization Server Endpoint handler.

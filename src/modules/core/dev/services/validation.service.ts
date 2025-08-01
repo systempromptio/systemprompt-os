@@ -3,8 +3,8 @@
  * @module dev/services/validation
  */
 
-import type { ILogger } from '@/modules/core/logger/types';
-import { LogSource } from '@/modules/core/logger/types';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type {
  IValidator, ValidationOptions, ValidationResult
 } from '@/modules/core/dev/services/validation/types';

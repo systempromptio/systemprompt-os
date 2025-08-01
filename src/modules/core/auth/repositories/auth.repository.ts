@@ -5,7 +5,7 @@
  */
 
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import type { IAuthOauthIdentitiesRow } from '@/modules/core/auth/types/database.generated';
 
 /**

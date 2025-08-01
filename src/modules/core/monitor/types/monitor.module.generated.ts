@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for monitor module
-// Generated on: 2025-07-31T17:18:31.068Z
+// Generated on: 2025-08-01T13:49:52.426Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

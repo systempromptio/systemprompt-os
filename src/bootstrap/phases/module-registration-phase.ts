@@ -4,10 +4,10 @@
  * @module bootstrap/phases/module-registration
  */
 
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { CoreModuleType, ModuleRegistrationPhaseContext } from '@/types/bootstrap';
-import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
+import type { IModulesModuleExports } from '@/modules/core/modules/types/modules.service.generated';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
 import { ModuleName } from '@/modules/types/module-names.types';
 
@@ -104,7 +104,7 @@ const buildModuleMapForCli = (
 
   for (const coreModule of coreModules) {
     if (modules.has(coreModule.name)) {
-      const dirPath = coreModule.path.replace(/\/index\.(?:ts|js)$/u, '');
+      const dirPath = coreModule.path.replace(/\/index\.(?:ts|js)$/, '');
       moduleMap.set(coreModule.name, { path: dirPath });
     }
   }

@@ -5,8 +5,8 @@
  */
 
 import type { IDevProfilesRow, IDevSessionsRow } from '@/modules/core/dev/types/database.generated';
-import type { ILogger } from '@/modules/core/logger/types/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import type { ILogger } from '@/modules/core/logger/types/manual';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IDevProfileConfig, IDevSessionMetadata } from '@/modules/core/dev/types/manual';

@@ -13,7 +13,7 @@ import type { Response as ExpressResponse, Router } from 'express';
 import { DatabaseService } from '@/modules/core/database/index';
 import { getAuthModule } from '@/modules/core/auth/index';
 import { LoggerService } from '@/modules/core/logger/index';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import type { IAuthenticatedRequest } from '@/server/external/rest/types/config.types';
 
 const logger = LoggerService.getInstance();

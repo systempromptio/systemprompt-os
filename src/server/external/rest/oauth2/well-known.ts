@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response } from 'express';
-import type { IOAuth2ServerMetadataInternal } from '@/modules/core/auth/types/oauth2.types';
+import type { IOAuth2ServerMetadataInternal } from '../../../../modules/core/auth/types/oauth2.types';
 
 /**
  * OpenID Configuration interface (alias to OAuth2 Server Metadata)
