@@ -3,14 +3,14 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { TypecheckService } from '@/modules/core/dev/services/typecheck.service';
 import type { TypecheckResult } from '@/modules/core/dev/services/typecheck.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { DevEvents } from '@/modules/core/events/types/index';
+import { DevEvents } from '@/modules/core/events/types/manual';
 
 /**
  * Display typecheck results in a formatted table.
@@ -122,7 +122,21 @@ const executeTypecheck = async (context: ICLIContext): Promise<void> => {
     const result = await typecheckService.runTypecheck(target, { strict });
     const duration = Date.now() - startTime;
 
-    displayTypecheckResults(result, args, cliOutput);
+    if (args.format === 'json') {
+      const jsonResult = {
+        module,
+        target,
+        strict,
+        timestamp: new Date().toISOString(),
+        duration,
+        success: result.totalErrors === 0,
+        totalErrors: result.totalErrors,
+        files: result.files
+      };
+      cliOutput.json(jsonResult);
+    } else {
+      displayTypecheckResults(result, args, cliOutput);
+    }
 
     const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
     ReportWriterService.getInstance();
@@ -190,6 +204,14 @@ export const command: ICLICommand = {
       type: 'string',
       description: 'Maximum number of errors to display',
       default: '10'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
   execute: executeTypecheck

@@ -4,7 +4,7 @@
  * @module modules/core/users/cli/status
  */
 
-import type { ICLICommand } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -12,32 +12,60 @@ import { LogSource } from '@/modules/core/logger/types/index';
 
 export const command: ICLICommand = {
   description: 'Show users module status (enabled/healthy)',
-  execute: async (): Promise<void> => {
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
+    const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
     try {
       const usersService = UsersService.getInstance();
 
-      cliOutput.section('Users Module Status');
-
-      cliOutput.keyValue({
-        Module: 'users',
-        Enabled: '✓',
-        Healthy: '✓',
-        Service: 'UsersService initialized',
-      });
-
       const users = await usersService.listUsers();
+      const statusData = {
+        module: 'users',
+        status: {
+          enabled: true,
+          healthy: true,
+          service: 'UsersService initialized'
+        },
+        statistics: {
+          totalUsers: users.length,
+          userManagement: true,
+          authenticationSupport: true,
+          profileManagement: true
+        },
+        timestamp: new Date().toISOString()
+      };
 
-      cliOutput.section('User Statistics');
+      if (args.format === 'json') {
+        cliOutput.json(statusData);
+      } else {
+        cliOutput.section('Users Module Status');
+        cliOutput.keyValue({
+          Module: 'users',
+          Enabled: '✓',
+          Healthy: '✓',
+          Service: 'UsersService initialized',
+        });
 
-      cliOutput.keyValue({
-        'Total users': users.length,
-        'User management': '✓',
-        'Authentication support': '✓',
-        'Profile management': '✓',
-      });
+        cliOutput.section('User Statistics');
+        cliOutput.keyValue({
+          'Total users': users.length,
+          'User management': '✓',
+          'Authentication support': '✓',
+          'Profile management': '✓',
+        });
+      }
 
       process.exit(0);
     } catch (error) {

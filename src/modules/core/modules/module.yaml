@@ -15,6 +15,31 @@ cli:
   commands:
     - name: status
       description: Show module status (enabled/healthy)
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          choices: ['text', 'json']
+          default: text
+    - name: setup
+      description: Setup and maintain module database
+      options:
+        - name: action
+          type: string
+          description: Action to perform
+          choices: ['install', 'clean', 'update', 'validate']
+          required: true
+        - name: force
+          type: boolean
+          description: Force operation without confirmation
+          default: false
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          choices: ['text', 'json']
+          default: text
     - name: list
       description: List installed extensions and modules
       options:

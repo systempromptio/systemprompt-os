@@ -4,151 +4,93 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
-import { getTasksModule } from '@/modules/core/tasks';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { TaskService } from '@/modules/core/tasks/services/tasks.service';
 import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
-import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
+import { validateCliArgs } from '@/modules/core/tasks/utils/cli-validation';
 
 /**
- * Extracts and validates CLI arguments for task creation.
- * @param options - CLI context options.
- * @returns Parsed task parameters.
+ * Execute create command.
+ * @param context - CLI context.
+ * @returns Promise that resolves when task is created.
  */
-const extractTaskParameters = (options: CLIContext): {
-  type: string;
-  module_id: string;
-  instructions: string | null;
-  priority: number;
-  status: string;
-  max_executions: number;
-  format: string;
-} => {
-  const { args } = options;
-  const type = typeof args.type === 'string' ? args.type : '';
-
-  const { 'module-id': moduleIdKebab } = args;
-  const module_id = typeof moduleIdKebab === 'string' ? moduleIdKebab : '';
-
-  const { instructions: instructionsArg } = args;
-  const instructions = typeof instructionsArg === 'string' ? instructionsArg : null;
-
-  const priorityValue = Number(args.priority);
-  const priority = Number.isNaN(priorityValue) ? 0 : priorityValue;
-
-  const { status: statusArg } = args;
-  const status = typeof statusArg === 'string' ? statusArg : 'pending';
-
-  const maxExecutionsValue = Number(args['max-executions']);
-  const max_executions = Number.isNaN(maxExecutionsValue) ? 3 : maxExecutionsValue;
-
-  const format = typeof args.format === 'string' ? args.format : 'table';
-
-  return {
-    type,
-    module_id,
-    instructions,
-    priority,
-    status,
-    max_executions,
-    format
-  };
-};
-
-/**
- * Validates required task parameters.
- * @param type - Task type.
- * @param module_id - Module ID.
- */
-const validateRequiredParameters = (type: string, module_id: string): void => {
-  if (type.length === 0 || module_id.length === 0) {
-    process.stderr.write('Error: Task type and module-id are required\n');
-    process.exit(1);
-  }
-};
-
-/**
- * Validates task status against allowed values.
- * @param status - Status to validate.
- * @returns True if status is valid.
- */
-const validateStatus = (status: string): status is TaskStatus => {
-  const validStatuses = Object.values(TaskStatus);
-  const hasValidStatus = validStatuses.some(
-    (validStatus): boolean => { return String(validStatus) === status }
-  );
-
-  if (!hasValidStatus) {
-    process.stderr.write(`Error: Invalid status. Valid values are: ${validStatuses.join(', ')}\n`);
-    process.exit(1);
-  }
-
-  return hasValidStatus;
-};
-
-/**
- * Output task result.
- * @param task - Created task.
- * @param format - Output format.
- */
-const outputResult = (task: ITask, format: string): void => {
-  if (format === 'json') {
-    process.stdout.write(`${JSON.stringify(task, null, 2)}\n`);
-    return;
-  }
-
-  if ('type' in task && 'module_id' in task) {
-    process.stdout.write('\nTask added successfully!\n');
-    process.stdout.write(`ID: ${String(task.id)}\n`);
-    process.stdout.write(`Type: ${task.type}\n`);
-    process.stdout.write(`Module: ${task.module_id}\n`);
-    process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
-    process.stdout.write(`Priority: ${String(task.priority ?? 0)}\n`);
-    process.stdout.write(`Max Executions: ${String(task.max_executions ?? 3)}\n`);
-  } else {
-    process.stderr.write('Error: Invalid task data returned\n');
-    process.exit(1);
-  }
-};
-
-/**
- * Main execution function for task addition.
- * @param options - CLI context options.
- * @returns Promise that resolves when task is added.
- */
-const executeAddTask = async (options: CLIContext): Promise<void> => {
-  const params = extractTaskParameters(options);
-
-  validateRequiredParameters(params.type, params.module_id);
-
-  if (!validateStatus(params.status)) {
-    return
-  }
+const executeCreate = async (context: ICLIContext): Promise<void> => {
+  const cliOutput = CliOutputService.getInstance();
+  const logger = LoggerService.getInstance();
 
   try {
-    const tasksModule = getTasksModule();
-    const taskService = tasksModule.exports.service();
+    const validatedArgs = validateCliArgs('create', context.args, cliOutput);
+    if (!validatedArgs) {
+      process.exit(1);
+    }
 
-    const task = await taskService.addTask({
-      type: params.type,
-      module_id: params.module_id,
-      instructions: params.instructions,
-      priority: params.priority,
-      status: params.status,
-      max_executions: params.max_executions
-    });
+    const {
+      format,
+      type,
+      module_id,
+      instructions,
+      priority,
+      status,
+      max_executions,
+      max_time,
+      progress,
+      assigned_agent_id,
+      scheduled_at,
+      created_by
+    } = validatedArgs;
 
-    outputResult(task, params.format);
+    const taskService = TaskService.getInstance();
+
+    const taskData = {
+      type,
+      module_id,
+      instructions,
+      priority,
+      status,
+      max_executions,
+      max_time,
+      progress,
+      assigned_agent_id,
+      scheduled_at,
+      created_by
+    };
+
+    const task = await taskService.addTask(taskData);
+
+    if (format === 'json') {
+      cliOutput.json(task);
+    } else {
+      cliOutput.success('Task created successfully');
+      cliOutput.keyValue({
+        'ID': task.id,
+        'Type': task.type,
+        'Module': task.module_id,
+        'Status': task.status || 'pending',
+        'Priority': task.priority || 0,
+        'Max Executions': task.max_executions || 3,
+        ...task.instructions && { Instructions: task.instructions },
+        ...task.progress && { Progress: `${task.progress}%` },
+        ...task.assigned_agent_id && { 'Assigned Agent': task.assigned_agent_id },
+        'Created': task.created_at ? new Date(task.created_at).toLocaleString() : 'Now'
+      });
+    }
+
+    process.exit(0);
   } catch (error) {
-    process.stderr.write(`Error: ${String(error)}\n`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    cliOutput.error(`Error creating task: ${errorMessage}`);
+    logger.error(LogSource.TASKS, 'Create command failed', { error: error instanceof Error ? error : new Error(String(error)) });
     process.exit(1);
   }
 };
 
 /**
- * Tasks add command.
+ * Tasks create command.
  */
-export const create: CLICommand = {
-  name: 'create',
+export const command: ICLICommand = {
   description: 'Create a new task in the queue',
   options: [
     {
@@ -159,7 +101,7 @@ export const create: CLICommand = {
       required: true
     },
     {
-      name: 'module-id',
+      name: 'module_id',
       alias: 'm',
       type: 'string',
       description: 'Module ID',
@@ -187,21 +129,46 @@ export const create: CLICommand = {
       choices: Object.values(TaskStatus)
     },
     {
-      name: 'max-executions',
+      name: 'max_executions',
       type: 'number',
       description: 'Maximum number of execution attempts',
       default: 3
+    },
+    {
+      name: 'max_time',
+      type: 'number',
+      description: 'Maximum execution time in seconds'
+    },
+    {
+      name: 'progress',
+      type: 'number',
+      description: 'Initial progress (0-100)'
+    },
+    {
+      name: 'assigned_agent_id',
+      type: 'string',
+      description: 'Assigned agent ID'
+    },
+    {
+      name: 'scheduled_at',
+      type: 'string',
+      description: 'Schedule task for specific time (ISO 8601 format)'
+    },
+    {
+      name: 'created_by',
+      type: 'string',
+      description: 'Creator identifier'
     },
     {
       name: 'format',
       alias: 'f',
       type: 'string',
       description: 'Output format',
-      default: 'table',
-      choices: ['table', 'json']
+      default: 'text',
+      choices: ['text', 'json']
     }
   ],
-  execute: executeAddTask
+  execute: executeCreate
 };
 
-export default create;
+export default command;

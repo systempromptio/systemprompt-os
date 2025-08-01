@@ -1,10 +1,10 @@
 // Auto-generated service schemas for auth module
-// Generated on: 2025-08-01T09:40:02.486Z
+// Generated on: 2025-08-01T10:34:43.921Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 
 // Zod schema for AuthService
 export const AuthServiceSchema = z.object({
@@ -23,6 +23,9 @@ export const AuthServiceSchema = z.object({
   listSessions: z.function()
     .args(z.string())
     .returns(z.promise(z.array(z.string()))),
+  listProviders: z.function()
+    .args()
+    .returns(z.promise(z.unknown())),
 });
 
 // Zod schema for IAuthModuleExports

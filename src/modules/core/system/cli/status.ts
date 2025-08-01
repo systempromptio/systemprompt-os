@@ -4,7 +4,7 @@
  * @module modules/core/system/cli/status
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import { SystemService } from '@/modules/core/system/services/system.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

@@ -4,48 +4,101 @@
  * @module modules/core/modules/cli/status
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import { z } from 'zod';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
+import { ModulesModuleService } from '@/modules/core/modules/services/modules.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 
-export const command = {
+// Command arguments schema
+const statusArgsSchema = z.object({
+  format: z.enum(['text', 'json']).default('text'),
+});
+
+type StatusArgs = z.infer<typeof statusArgsSchema>;
+
+export const command: ICLICommand = {
   description: 'Show module status (enabled/healthy)',
-  execute: async (_context: ICLIContext): Promise<void> => {
+  options: [
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
     try {
+      const validatedArgs: StatusArgs = statusArgsSchema.parse(context.args);
+
       const moduleManager = ModuleManagerService.getInstance();
+      const modulesService = ModulesModuleService.getInstance();
+
       const modules = await moduleManager.getAllModules();
+      const healthCheck = await modulesService.healthCheck();
 
-      cliOutput.section('Modules Module Status');
+      const statusData = {
+        module: 'modules',
+        enabled: true,
+        healthy: healthCheck.healthy,
+        service: 'ModuleManagerService initialized',
+        message: healthCheck.message,
+        statistics: {
+          total: modules.length,
+          enabled: modules.filter(m => { return m.enabled }).length,
+          disabled: modules.filter(m => { return !m.enabled }).length,
+          core: modules.filter(m => { return m.type === 'core' }).length,
+          extension: modules.filter(m => { return m.type === ModulesType.EXTENSION }).length
+        },
+        timestamp: new Date().toISOString()
+      };
 
-      cliOutput.keyValue({
-        Module: 'modules',
-        Enabled: '✓',
-        Healthy: '✓',
-        Service: 'ModuleManagerService initialized',
-      });
+      if (validatedArgs.format === 'json') {
+        cliOutput.json(statusData);
+      } else {
+        cliOutput.section('Modules Module Status');
 
-      cliOutput.section('Module Statistics');
+        cliOutput.keyValue({
+          Module: 'modules',
+          Enabled: healthCheck.healthy ? '✓' : '✗',
+          Healthy: healthCheck.healthy ? '✓' : '✗',
+          Service: 'ModuleManagerService initialized',
+          Message: healthCheck.message || 'N/A'
+        });
 
-      cliOutput.keyValue({
-        'Total modules managed': modules.length,
-        'Enabled modules': modules.filter(m => { return m.enabled }).length,
-        'Disabled modules': modules.filter(m => { return !m.enabled }).length,
-        'Core modules': modules.filter(m => { return m.type === 'core' }).length,
-        'Extension modules': modules.filter(m => { return m.type === ModulesType.EXTENSION }).length,
-      });
+        cliOutput.section('Module Statistics');
+
+        cliOutput.keyValue({
+          'Total modules managed': statusData.statistics.total,
+          'Enabled modules': statusData.statistics.enabled,
+          'Disabled modules': statusData.statistics.disabled,
+          'Core modules': statusData.statistics.core,
+          'Extension modules': statusData.statistics.extension,
+        });
+      }
 
       process.exit(0);
     } catch (error) {
-      cliOutput.error('Error getting module status');
-      logger.error(LogSource.MODULES, 'Error getting module status', {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        cliOutput.error(`Error getting module status: ${errorMessage}`);
+        logger.error(LogSource.MODULES, 'Error getting module status', {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
       process.exit(1);
     }
   },

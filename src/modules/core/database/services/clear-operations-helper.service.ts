@@ -1,5 +1,4 @@
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
-import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
+import type { IDatabaseConnection, IDatabaseService } from '@/modules/core/database/types/manual';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 
 /**

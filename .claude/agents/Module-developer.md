@@ -18,13 +18,16 @@ Before starting module development, familiarize yourself with the module structu
 
 When developing a module, follow this iterative development cycle:
 
-### Status Monitoring
-Before starting development, check the module status:
+### Status Monitoring and Reporting
+Before starting development, document the BEFORE STATUS:
 ```bash
 cat /var/www/html/systemprompt-os/reports/src/modules/core/{{modulename}}/status
+./bin/systemprompt dev validate --module {{modulename}}
 ```
 
-Ensure that every iteration improves the module state.
+Document current state: validation errors, test failures, lint issues, completion status.
+
+After completing work, document the AFTER STATUS and provide a clear STATUS CHANGE report.
 
 After 3 iterations without improvement, or broken state. Abort. Report on the reason.
 
@@ -46,10 +49,14 @@ When no type or test errors remain:
 3. After every significant code change, return to Phase 1
 
 
-### Termination Conditions
+### Termination Conditions and Final Reporting
 - **Success Condition**: Continue the cycle while making progress on reducing linting errors
 - **Stop Condition**: After 3 attempts to reduce linting errors without success, stop development
-- **Completion**: All modules must be implemented following this process
+- **Final Report Required**: When stopping, provide:
+  - BEFORE STATUS: Initial module state when agent started
+  - AFTER STATUS: Final module state when agent completed/stopped
+  - STATUS CHANGE: Clear comparison showing progress made
+  - COMPLETION: All modules must be implemented following this process
 
 ## Best Practices
 

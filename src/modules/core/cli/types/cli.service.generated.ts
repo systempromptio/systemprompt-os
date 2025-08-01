@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 
 // Zod schema for CliService
 export const CliServiceSchema = z.object({

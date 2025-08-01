@@ -4,11 +4,7 @@
  * @module modules/core/config/cli/model
  */
 
-import {
-  getEnabledProviders,
-  getProvider,
-  providers
-} from '@/modules/core/config/providers';
+import { ProvidersService } from '@/modules/core/config/services/providers.service';
 import { GoogleGenAI } from '@google/genai';
 import { getLoggerService } from '@/modules/core/logger';
 import { LogSource } from '@/modules/core/logger/types';
@@ -89,7 +85,8 @@ const createTypedProvider = (provider: unknown): IProvider => {
  * @returns The validated provider or exits the process.
  */
 const validateProvider = (providerName: string): IProvider => {
-  const provider = getProvider(providerName);
+  const providersService = ProvidersService.getInstance();
+  const provider = providersService.getProvider(providerName);
 
   if (provider === null) {
     logger.error(LogSource.CLI, `Provider '${providerName}' not found.`);
@@ -201,7 +198,8 @@ const processProviderModels = (provider: IProvider): number => {
  */
 const getProvidersToCheck = (providerName?: string): IProvider[] => {
   if (providerName === undefined) {
-    const enabledProviders = getEnabledProviders().map((prov: unknown): IProvider => {
+    const providersService = ProvidersService.getInstance();
+    const enabledProviders = providersService.getEnabledProviders().map((prov: unknown): IProvider => {
       return createTypedProvider(prov);
     });
     if (enabledProviders.length === 0) {
@@ -211,6 +209,8 @@ const getProvidersToCheck = (providerName?: string): IProvider[] => {
     return enabledProviders;
   }
 
+  const providersService = ProvidersService.getInstance();
+  const providers = providersService.getProviders();
   const { [providerName]: providerData } = providers;
   if (providerData === undefined || !providerData.enabled) {
     logger.error(

@@ -3,319 +3,147 @@
  * @file Bootstrap module loader for SystemPrompt OS.
  * @module bootstrap
  */
-import type { Express } from 'express';
+import type { IModule } from './modules/core/modules/types/manual';
 import { CoreModuleScanner } from './bootstrap/helpers/module-scanner';
 import { DependencyResolver } from './bootstrap/helpers/dependency-resolver';
-import {
-  BootstrapPhaseEnum,
-  type CoreModuleType,
-  type GlobalConfiguration,
-  type HttpServerPhaseContext,
-  type IBootstrapOptions,
-  type ICoreModuleDefinition,
-} from './types/bootstrap';
-import type { IModule } from '@/modules/core/modules/types/index';
 import { shutdownAllModules } from './bootstrap/shutdown-helper';
-import { executeCoreModulesPhase } from './bootstrap/phases/core-modules-phase';
-import { executeHttpServerPhase } from './bootstrap/phases/http-server-phase';
-import { executeModuleDiscoveryPhase } from './bootstrap/phases/module-discovery-phase';
-import {
-  registerCliCommands,
-  registerCoreModulesInDatabase
-} from './bootstrap/phases/module-registration-phase';
-import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
-import { createLoggerModuleForBootstrap } from '@/modules/core/logger';
+// Simplified bootstrap - no phase executor needed
+import { LoggerService } from './modules/core/logger/services/logger.service';
+import { LogSource } from './modules/core/logger/types/manual';
+import { createLoggerModuleForBootstrap } from './modules/core/logger';
+import type {
+  CoreModuleType,
+  IBootstrapOptions,
+  ICoreModuleDefinition,
+} from './types/bootstrap';
 
 /**
  * Bootstrap class manages the initialization lifecycle of SystemPrompt OS.
- * Core modules are loaded sequentially to respect dependency order.
- * MCP servers use dynamic imports for lazy loading when enabled.
- * Extension modules are discovered and loaded based on configuration.
  */
 export class Bootstrap {
-  private readonly config: GlobalConfiguration;
   private readonly modules: Map<string, CoreModuleType> = new Map();
   private readonly options: IBootstrapOptions;
   private coreModules: ICoreModuleDefinition[] = [];
-  private currentPhase: BootstrapPhaseEnum = BootstrapPhaseEnum.INIT;
-  private mcpApp?: Express;
-  private readonly moduleScanner: CoreModuleScanner;
-  private readonly dependencyResolver: DependencyResolver;
-  private readonly useDynamicDiscovery: boolean = true; // Feature flag for gradual migration
+  private isReady = false;
+  private readonly moduleScanner = new CoreModuleScanner();
+  private readonly dependencyResolver = new DependencyResolver();
 
-  /**
-   * Creates a new Bootstrap instance.
-   * @param {IBootstrapOptions} bootstrapOptions - Bootstrap configuration options.
-   */
-  constructor(bootstrapOptions: IBootstrapOptions = {}) {
-    this.options = bootstrapOptions;
-    const {
- configPath, statePath, environment
-} = bootstrapOptions;
-    this.config = {
-      configPath: configPath ?? process.env.CONFIG_PATH ?? './config',
-      statePath: statePath ?? process.env.STATE_PATH ?? './state',
-      environment: environment ?? process.env.NODE_ENV ?? 'development',
-      modules: {},
-    };
-
-    this.moduleScanner = new CoreModuleScanner();
-    this.dependencyResolver = new DependencyResolver();
+  constructor(options: IBootstrapOptions = {}) {
+    this.options = options;
   }
 
   /**
-   * Main bootstrap method that orchestrates the entire initialization process.
-   * @returns {Promise<Map<string, IModule>>} Map of loaded modules.
-   * @throws {Error} If any critical phase fails.
+   * Main bootstrap method - simplified approach.
    */
   async bootstrap(): Promise<Map<string, IModule>> {
     try {
-      // Bootstrap started
       await this.loadLoggerModule();
-      await this.executeAllPhases();
+
       const logger = LoggerService.getInstance();
-      logger.info(LogSource.BOOTSTRAP, 'Bootstrap completed', {
-        totalModules: this.modules.size,
+      logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process', { category: 'startup' });
+      logger.info(LogSource.BOOTSTRAP, 'Discovering core modules', { category: 'discovery' });
+      const discoveredModules = await this.moduleScanner.scan();
+      this.coreModules = this.dependencyResolver.resolve(discoveredModules);
+      logger.info(LogSource.BOOTSTRAP, `Discovered ${this.coreModules.length} core modules`, {
+        modules: this.coreModules.map(m => { return m.name })
+      });
+
+      for (const module of this.coreModules) {
+        await this.loadCoreModule(module);
+      }
+
+      this.isReady = true;
+      logger.info(LogSource.BOOTSTRAP, `Bootstrap completed - ${this.modules.size} modules`, {
         category: 'startup'
       });
       return this.modules;
     } catch (error) {
-      const logger = LoggerService.getInstance();
-      logger.error(LogSource.BOOTSTRAP, 'Bootstrap failed', {
-        error: error instanceof Error ? error.message : String(error),
-        category: 'startup'
-      });
-      // Error already logged above
+      // Only try to log if logger is initialized
+      try {
+        const logger = LoggerService.getInstance();
+        if (this.modules.has('logger')) {
+          logger.error(LogSource.BOOTSTRAP, 'Bootstrap failed', {
+            error: error instanceof Error ? error.message : String(error),
+            category: 'startup'
+          });
+        }
+      } catch {
+        // If logger fails, just console.error
+        console.error('Bootstrap failed:', error instanceof Error ? error.message : String(error));
+      }
       throw error;
     }
   }
 
-  /**
-   * Get the current bootstrap phase.
-   * @returns {BootstrapPhaseEnum} Current phase.
-   */
-  getCurrentPhase(): BootstrapPhaseEnum {
-    return this.currentPhase;
+  getCurrentPhase(): string {
+    return this.isReady ? 'ready' : 'init';
   }
 
-  /**
-   * Get a specific module by name.
-   * @param {string} name - Module name.
-   * @returns {IModule | undefined} Module instance or undefined.
-   */
+  hasCompletedPhase(phase: string): boolean {
+    return this.isReady;
+  }
+
   getModule(name: string): IModule | undefined {
     return this.modules.get(name);
   }
 
-  /**
-   * Get all loaded modules.
-   * @returns {Map<string, IModule>} Map of all modules.
-   */
   getModules(): Map<string, IModule> {
     return new Map(this.modules);
   }
 
   /**
-   * Check if a specific phase has been completed.
-   * @param {BootstrapPhaseEnum} phase - Phase to check.
-   * @returns {boolean} True if phase is completed.
-   */
-  hasCompletedPhase(phase: BootstrapPhaseEnum): boolean {
-    const phaseOrder = [
-      BootstrapPhaseEnum.INIT,
-      BootstrapPhaseEnum.CORE_MODULES,
-      BootstrapPhaseEnum.HTTP_SERVER,
-      BootstrapPhaseEnum.MODULE_DISCOVERY,
-      BootstrapPhaseEnum.READY,
-    ];
-
-    const currentIndex = phaseOrder.indexOf(this.currentPhase);
-    const targetIndex = phaseOrder.indexOf(phase);
-
-    return currentIndex >= targetIndex;
-  }
-
-  /**
-   * Shutdown all modules in reverse order.
-   * @returns {Promise<void>} Promise that resolves when shutdown is complete.
+   * Shutdown all modules.
    */
   async shutdown(): Promise<void> {
     const logger = LoggerService.getInstance();
     logger.info(LogSource.BOOTSTRAP, 'Shutting down system', { category: 'shutdown' });
-
-    if (this.hasCompletedPhase(BootstrapPhaseEnum.MODULE_DISCOVERY)) {
-      const moduleDiscoveryLogger = LoggerService.getInstance();
-      moduleDiscoveryLogger.info(
-        LogSource.BOOTSTRAP,
-        'Shutting down autodiscovered modules',
-        { category: 'shutdown' }
-      );
-    }
-
     await shutdownAllModules(this.modules, logger);
-
     this.modules.clear();
-    this.setCurrentPhase(BootstrapPhaseEnum.INIT);
+    this.isReady = false;
     logger.info(LogSource.BOOTSTRAP, 'All modules shut down', { category: 'shutdown' });
   }
 
-  /**
-   * Execute all bootstrap phases in sequence.
-   */
-  private async executeAllPhases(): Promise<void> {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Starting bootstrap process', { category: 'startup' });
-
-    await this.executeCoreModulesPhase();
-
-    if (this.options.skipMcp !== true) {
-      await this.executeMcpServersPhase();
-    }
-
-    if (this.options.skipDiscovery !== true) {
-      await this.executeModuleDiscoveryPhase();
-    }
-
-    await this.executeRegistrationPhase();
-
-    this.setCurrentPhase(BootstrapPhaseEnum.READY);
-    logger.info(
-      LogSource.BOOTSTRAP,
-      `Bootstrap completed - ${this.modules.size.toString()} modules`,
-      { category: 'startup' }
-    );
-  }
-
-  /**
-   * Set the current bootstrap phase.
-   * @param {BootstrapPhaseEnum} phase - Phase to set.
-   */
-  private setCurrentPhase(phase: BootstrapPhaseEnum): void {
-    this.currentPhase = phase;
-    // Phase started: ${phase}
-  }
-
-  /**
-   * Discover core modules dynamically from the filesystem.
-   */
-  private async discoverCoreModules(): Promise<void> {
-    if (!this.useDynamicDiscovery) {
-      return
-    }
-
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Discovering core modules dynamically', { category: 'discovery' });
-
-    try {
-      const discoveredModules = await this.moduleScanner.scan();
-
-      this.dependencyResolver.validateDependencies(discoveredModules);
-
-      this.coreModules = this.dependencyResolver.resolve(discoveredModules);
-
-      logger.info(LogSource.BOOTSTRAP, `Discovered ${this.coreModules.length} core modules`, {
-        modules: this.coreModules.map(m => { return m.name })
-      });
-    } catch (error) {
-      logger.error(LogSource.BOOTSTRAP, 'Failed to discover core modules', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Phase 1: Load and initialize core modules.
-   */
-  private async executeCoreModulesPhase(): Promise<void> {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Starting core modules phase', { category: 'phase' });
-    this.setCurrentPhase(BootstrapPhaseEnum.CORE_MODULES);
-
-    await this.discoverCoreModules();
-
-    await executeCoreModulesPhase({
-      modules: this.modules,
-      coreModules: this.coreModules,
-      isCliMode: this.options.cliMode ?? false
-    });
-
-    logger.info(LogSource.BOOTSTRAP, 'Core modules phase completed', { category: 'phase' });
-    // Core modules phase completed
-  }
-
-  /**
-   * Phase 2: Setup MCP servers for communication.
-   */
-  private async executeMcpServersPhase(): Promise<void> {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Starting MCP servers phase', { category: 'phase' });
-    this.setCurrentPhase(BootstrapPhaseEnum.HTTP_SERVER);
-
-    const httpServerContext: HttpServerPhaseContext = {};
-    if (this.mcpApp !== undefined) {
-      const { mcpApp } = { mcpApp: this.mcpApp };
-      httpServerContext.mcpApp = mcpApp;
-    }
-    this.mcpApp = await executeHttpServerPhase(httpServerContext);
-
-    logger.info(LogSource.BOOTSTRAP, 'HTTP server phase completed', { category: 'phase' });
-    // HTTP server phase completed
-  }
-
-  /**
-   * Phase 3: Autodiscover and load extension modules.
-   */
-  private async executeModuleDiscoveryPhase(): Promise<void> {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Starting module discovery phase', { category: 'phase' });
-    this.setCurrentPhase(BootstrapPhaseEnum.MODULE_DISCOVERY);
-
-    await executeModuleDiscoveryPhase({
-      modules: this.modules,
-      config: this.config
-    });
-
-    logger.info(LogSource.BOOTSTRAP, 'Module discovery phase completed', { category: 'phase' });
-    // Module discovery phase completed
-  }
-
-  /**
-   * Phase 4: Register modules and CLI commands.
-   */
-  private async executeRegistrationPhase(): Promise<void> {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.BOOTSTRAP, 'Starting registration phase', { category: 'phase' });
-
-    await registerCoreModulesInDatabase({
-      modules: this.modules,
-      coreModules: this.coreModules
-    });
-
-    await registerCliCommands({
-      modules: this.modules,
-      coreModules: this.coreModules
-    });
-
-    logger.info(LogSource.BOOTSTRAP, 'Registration phase completed', { category: 'phase' });
-  }
-
-  /**
-   * Load and initialize the logger module first.
-   * This must be done before any other module loading.
-   * Uses direct instantiation during bootstrap to avoid circular dependencies.
-   */
   private async loadLoggerModule(): Promise<void> {
     const loggerModule = await createLoggerModuleForBootstrap();
     this.modules.set('logger', loggerModule);
+  }
+
+  /**
+   * Load a single core module by its definition.
+   * @param definition
+   */
+  private async loadCoreModule(definition: ICoreModuleDefinition): Promise<void> {
+    if (this.modules.has(definition.name)) {
+      return;
+    }
+
+    const logger = LoggerService.getInstance();
+    try {
+      logger.info(LogSource.BOOTSTRAP, `Loading module: ${definition.name}`, { category: 'module' });
+
+      const moduleImport = await import(definition.path);
+      const moduleInstance = moduleImport.createModule ? moduleImport.createModule() : moduleImport.default;
+
+      if (moduleInstance?.initialize) { await moduleInstance.initialize(); }
+      if (moduleInstance?.start) { await moduleInstance.start(); }
+
+      this.modules.set(definition.name, moduleInstance);
+      logger.info(LogSource.BOOTSTRAP, `Module loaded: ${definition.name}`, { category: 'module' });
+    } catch (error) {
+      logger.error(LogSource.BOOTSTRAP, `Failed to load module: ${definition.name}`, {
+        error: error instanceof Error ? error.message : String(error),
+        category: 'module'
+      });
+      if (definition.critical) {
+        throw error;
+      }
+    }
   }
 }
 
 /**
  * Factory function to create and run bootstrap.
- * @param {IBootstrapOptions} options - Bootstrap options.
- * @returns {Promise<Bootstrap>} Bootstrap instance.
+ * @param options
  */
 export const runBootstrap = async (options: IBootstrapOptions = {}): Promise<Bootstrap> => {
   const bootstrap = new Bootstrap(options);

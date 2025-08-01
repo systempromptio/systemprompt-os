@@ -1,4 +1,4 @@
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import { DatabaseQueryService } from '@/modules/core/cli/services/database-query.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
@@ -16,9 +16,10 @@ interface ISchemaData {
 
 /**
  * List installed schemas.
+ * @param format - Output format.
  * @returns Promise that resolves when complete.
  */
-const listSchemas = async (): Promise<void> => {
+const listSchemas = async (format: string = 'text'): Promise<void> => {
   const logger = LoggerService.getInstance();
   const cliOutput = CliOutputService.getInstance();
   const queryService = DatabaseQueryService.getInstance();
@@ -103,9 +104,10 @@ const parseInitParams = (context: ICLIContext): { force: boolean; module?: strin
 /**
  * Initialize database schemas.
  * @param context - CLI context.
+ * @param format
  * @returns Promise that resolves when complete.
  */
-const initSchemas = async (context: ICLIContext): Promise<void> => {
+const initSchemas = async (context: ICLIContext, format: string = 'text'): Promise<void> => {
   const logger = LoggerService.getInstance();
   const cliOutput = CliOutputService.getInstance();
   const queryService = DatabaseQueryService.getInstance();
@@ -159,9 +161,10 @@ success: false
 /**
  * Validate database schemas.
  * @param context - CLI context.
+ * @param format
  * @returns Promise that resolves when complete.
  */
-const validateSchemas = async (): Promise<void> => {
+const validateSchemas = async (format: string = 'text'): Promise<void> => {
   const logger = LoggerService.getInstance();
   const cliOutput = CliOutputService.getInstance();
   const queryService = DatabaseQueryService.getInstance();
@@ -264,7 +267,7 @@ const executeSchemaCommand = async (context: ICLIContext): Promise<void> => {
   const format = formatArg === 'json' ? 'json' : 'text';
 
   if (action == null || action === '') {
-    handleInvalidAction(action, cliOutput, logger);
+    handleInvalidAction(action, cliOutput, logger, format);
   }
 
   try {

@@ -5,7 +5,7 @@
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { MigrationService } from '@/modules/core/database/services/migration.service';
 import { SchemaService } from '@/modules/core/database/services/schema.service';
-import type { IMigration } from '@/modules/core/database/types/migration.types';
+import type { IMigration } from '@/modules/core/database/types/manual';
 
 export interface DatabaseServices {
   dbService: DatabaseService;

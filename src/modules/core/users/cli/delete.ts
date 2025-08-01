@@ -5,128 +5,116 @@
  */
 
 import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import { z } from 'zod';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import type { IUser } from '@/modules/core/users/types/users.module.generated';
 
-/**
- * Validates the user ID argument.
- * @param args - CLI arguments object.
- * @param cliOutput - CLI output service instance.
- * @returns Validated user ID.
- */
-const validateUserId = (args: Record<string, unknown>, cliOutput: CliOutputService): string => {
-  const { id } = args;
-  if (typeof id !== 'string' || id.trim() === '') {
-    cliOutput.error('User ID is required (--id)');
-    process.exit(1);
-  }
-  return id;
-};
-
-/**
- * Confirms deletion with force flag check.
- * @param args - CLI arguments object.
- * @param user - User to be deleted.
- * @param cliOutput - CLI output service instance.
- */
-const confirmDeletion = (
-  args: Record<string, unknown>,
-  user: IUser,
-  cliOutput: CliOutputService
-): void => {
-  const { force } = args;
-  if (typeof force !== 'boolean' || !force) {
-    cliOutput.section('Warning');
-    cliOutput.error(`This will permanently delete user: ${user.username} (${user.email})`);
-    cliOutput.info('Use --force flag to confirm deletion');
-    process.exit(1);
-  }
-};
-
-/**
- * Displays user information before deletion.
- * @param user - User to be deleted.
- * @param cliOutput - CLI output service instance.
- */
-const displayUserInfo = (user: IUser, cliOutput: CliOutputService): void => {
-  cliOutput.section('Deleting User');
-  cliOutput.keyValue({
-    ID: user.id,
-    Username: user.username,
-    Email: user.email
-  });
-};
-
-/**
- * Handles deletion errors.
- * @param error - The error that occurred.
- * @param cliOutput - CLI output service.
- * @param logger - Logger service.
- */
-const handleDeletionError = (
-  error: unknown,
-  cliOutput: CliOutputService,
-  logger: LoggerService
-): void => {
-  cliOutput.error('Error deleting user');
-  const logError = error instanceof Error ? error : new Error(String(error));
-  logger.error(LogSource.USERS, 'Error deleting user', { error: logError });
-  process.exit(1);
-};
-
-/**
- * Processes user deletion after validation.
- * @param deletionData - Object containing deletion parameters.
- * @param deletionData.userId - User ID to delete.
- * @param deletionData.args - CLI arguments.
- * @param deletionData.usersService - Users service instance.
- * @param deletionData.cliOutput - CLI output service.
- */
-const processUserDeletion = async (deletionData: {
-  userId: string;
-  args: Record<string, unknown>;
-  usersService: UsersService;
-  cliOutput: CliOutputService;
-}): Promise<void> => {
-  const {
- userId, args, usersService, cliOutput
-} = deletionData;
-  const user = await usersService.getUser(userId);
-  if (user === null) {
-    cliOutput.error(`User not found: ${userId}`);
-    process.exit(1);
-  }
-
-  confirmDeletion(args, user, cliOutput);
-  displayUserInfo(user, cliOutput);
-
-  await usersService.deleteUser(userId);
-  cliOutput.success('User deleted successfully');
-};
+// Delete command arguments schema
+const deleteUserArgsSchema = z.object({
+  id: z.string().uuid('Invalid user ID format'),
+  force: z.enum(['true', 'false']).transform(v => { return v === 'true' })
+.default('false'),
+  format: z.enum(['text', 'json']).default('text')
+});
 
 export const command: ICLICommand = {
   description: 'Delete a user',
+  options: [
+    {
+ name: 'id',
+type: 'string',
+description: 'User ID (UUID)',
+required: true
+},
+    {
+ name: 'force',
+type: 'string',
+description: 'Force deletion without confirmation',
+choices: ['true', 'false'],
+default: 'false'
+},
+    {
+ name: 'format',
+alias: 'f',
+type: 'string',
+choices: ['text', 'json'],
+default: 'text',
+description: 'Output format'
+}
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
     const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
     try {
-      const usersService = UsersService.getInstance();
-      const userId = validateUserId(args, cliOutput);
+      const validatedArgs = deleteUserArgsSchema.parse(args);
 
-      await processUserDeletion({
- userId,
-args,
-usersService,
-cliOutput
-});
+      const usersService = UsersService.getInstance();
+
+      const user = await usersService.getUser(validatedArgs.id);
+      if (!user) {
+        cliOutput.error(`User not found: ${validatedArgs.id}`);
+        process.exit(1);
+      }
+
+      if (!validatedArgs.force) {
+        if (validatedArgs.format === 'json') {
+          cliOutput.json({
+            error: 'Deletion requires confirmation',
+            message: 'Use --force true to confirm deletion',
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email
+            }
+          });
+        } else {
+          cliOutput.section('Warning');
+          cliOutput.error(`This will permanently delete user: ${user.username} (${user.email})`);
+          cliOutput.info('Use --force true to confirm deletion');
+        }
+        process.exit(1);
+      }
+
+      await usersService.deleteUser(validatedArgs.id);
+
+      if (validatedArgs.format === 'json') {
+        cliOutput.json({
+          success: true,
+          message: 'User deleted successfully',
+          deletedUser: {
+            id: user.id,
+            username: user.username,
+            email: user.email
+          }
+        });
+      } else {
+        cliOutput.success('User deleted successfully');
+        cliOutput.keyValue({
+          'Deleted User ID': user.id,
+          'Username': user.username,
+          'Email': user.email
+        });
+      }
+
       process.exit(0);
     } catch (error) {
-      handleDeletionError(error, cliOutput, logger);
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+        process.exit(1);
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      cliOutput.error(`Error deleting user: ${errorMessage}`);
+      logger.error(LogSource.USERS, 'Error deleting user', { error: error instanceof Error ? error : new Error(String(error)) });
+      process.exit(1);
     }
   },
 };

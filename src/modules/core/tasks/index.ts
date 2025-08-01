@@ -11,7 +11,7 @@ declare global {
   };
 }
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { TaskService } from '@/modules/core/tasks/services/tasks.service';
 import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
 import {

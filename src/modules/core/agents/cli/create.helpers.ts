@@ -4,7 +4,7 @@
  * @module modules/core/agents/cli/create-helpers
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import type {
   IAgent,

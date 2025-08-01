@@ -32,6 +32,12 @@ cli:
           type: string
           description: Maximum number of files to display
           default: '10'
+        - name: format
+          alias: F
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: 'text'
     - name: test
       description: Run tests for specific module/file/folder and display test coverage summary
       options:
@@ -62,6 +68,12 @@ cli:
           type: string
           description: Maximum number of test suites to display
           default: '10'
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: 'text'
     - name: create-module
       description: Create a new SystemPrompt OS module with complete boilerplate
       options:
@@ -106,6 +118,12 @@ cli:
           type: string
           description: Maximum number of errors to display
           default: '10'
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: 'text'
     - name: generate-types
       description: Generate comprehensive types for a module (database types, interfaces, Zod schemas, type guards)
       options:
@@ -126,6 +144,12 @@ cli:
           alias: t
           type: string
           description: Comma-separated list of types to generate (database,interfaces,schemas,service-schemas,type-guards,all)
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: ['text', 'json']
+          default: 'text'
     - name: validate
       description: Validate that a module is fully type-safe using generated types
       options:
@@ -134,6 +158,23 @@ cli:
           type: string
           description: Module name to validate
           required: true
+    - name: sync-rules
+      description: Sync generic rules to specific modules with placeholder replacement
+      options:
+        - name: module
+          alias: m
+          type: string
+          description: Module name to sync rules for (required unless using --all)
+        - name: all
+          alias: a
+          type: boolean
+          description: Sync rules for all modules
+          default: false
+        - name: force
+          alias: f
+          type: boolean
+          description: Force overwrite existing rules files
+          default: false
 
 database:
   schema: ./database/schema.sql

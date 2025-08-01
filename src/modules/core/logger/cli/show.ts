@@ -16,11 +16,18 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 // Zod schema for show logs arguments
 const showLogsArgsSchema = z.object({
   format: z.enum(['text', 'json']).default('text'),
-  limit: z.coerce.number().positive().max(1000).default(50),
+  limit: z.coerce.number().positive()
+.max(1000)
+.default(50),
   level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   module: z.string().optional(),
-  since: z.string().datetime().optional(),
-  pager: z.enum(['true', 'false']).transform(v => v === 'true').default('false')
+  since: z.string().datetime()
+.optional(),
+  pager: z.union([z.boolean(), z.enum(['true', 'false'])]).transform(v => {
+    if (typeof v === 'boolean') { return v; }
+    return v === 'true';
+  })
+.default(false)
 });
 
 type ShowLogsArgs = z.infer<typeof showLogsArgsSchema>;
@@ -63,7 +70,10 @@ const buildWhereConditions = (options: ShowLogsArgs): { conditions: string[]; pa
     params.push(options.since);
   }
 
-  return { conditions, params };
+  return {
+ conditions,
+params
+};
 };
 
 /**
@@ -83,10 +93,12 @@ const buildQuery = (options: ShowLogsArgs): { sql: string; params: unknown[] } =
     LIMIT ?
   `;
 
-  // Add limit parameter
   params.push(options.limit);
 
-  return { sql, params };
+  return {
+ sql,
+params
+};
 };
 
 /**
@@ -113,7 +125,6 @@ const handlePagerClose = (
  * @param resolve - Promise resolve function.
  */
 const handlePagerError = (content: string, resolve: () => void): void => {
-  // Fallback to stdout if pager fails
   process.stdout.write(content);
   resolve();
 };
@@ -229,7 +240,7 @@ export const command: ICLICommand = {
       const validatedArgs = showLogsArgsSchema.parse(context.args);
       const dbService = await getDatabaseService();
       const { sql, params } = buildQuery(validatedArgs);
-      
+
       const logs: ISystemLogsRow[] = await dbService.query<ISystemLogsRow>(sql, params);
 
       if (logs.length === 0) {
@@ -247,13 +258,12 @@ export const command: ICLICommand = {
       }
 
       if (validatedArgs.format === 'json') {
-        // Return full database objects
         cliOutput.json(logs);
       } else {
         const textOutput = formatTextOutput(logs);
         await displayTextOutput(textOutput, validatedArgs.pager, cliOutput);
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof z.ZodError) {

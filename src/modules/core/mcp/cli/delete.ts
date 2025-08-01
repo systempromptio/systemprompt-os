@@ -4,12 +4,12 @@
  * @module modules/core/mcp/cli/delete
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { cliSchemas, type DeleteMcpArgs } from '../utils/cli-validation';
+import { type DeleteMcpArgs, cliSchemas } from '@/modules/core/mcp/utils/cli-validation';
 
 export const command: ICLICommand = {
   description: 'Delete an MCP context',
@@ -42,21 +42,18 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
-      const validatedArgs = cliSchemas.delete.parse(context.args) as DeleteMcpArgs;
-      
+      const validatedArgs = cliSchemas.delete.parse(context.args);
+
       const service = MCPService.getInstance();
-      
-      // First, verify the context exists
+
       const contexts = await service.listContexts();
-      const contextToDelete = contexts.find(ctx => ctx.id === validatedArgs.id);
-      
+      const contextToDelete = contexts.find(ctx => { return ctx.id === validatedArgs.id });
+
       if (!contextToDelete) {
         cliOutput.error(`MCP context with ID '${validatedArgs.id}' not found`);
         process.exit(1);
       }
-      
-      // Perform deletion
+
       await service.deleteContext(validatedArgs.id);
 
       const deletionResult = {
@@ -71,11 +68,10 @@ export const command: ICLICommand = {
       } else {
         cliOutput.success(`Deleted MCP context: ${contextToDelete.name} (${validatedArgs.id})`);
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
-        // Handle Zod validation errors
         cliOutput.error('Invalid arguments:');
         (error as any).issues?.forEach((issue: any) => {
           cliOutput.error(`  ${issue.path.join('.')}: ${issue.message}`);

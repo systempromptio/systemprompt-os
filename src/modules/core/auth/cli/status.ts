@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/status
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type StatusArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type StatusArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 
 export const command: ICLICommand = {
   description: 'Show auth module status and health information',
@@ -28,14 +28,11 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments
       const validatedArgs: StatusArgs = cliSchemas.status.parse(context.args);
-      
-      // Get AuthService instance (respects module boundaries)
+
       const authService = AuthService.getInstance();
       await authService.initialize();
 
-      // Build status object
       const statusData = {
         module: 'auth',
         version: '2.0.0',
@@ -51,17 +48,16 @@ export const command: ICLICommand = {
         timestamp: new Date().toISOString()
       };
 
-      // Output based on format
       if (validatedArgs.format === 'json') {
         cliOutput.json(statusData);
       } else {
         cliOutput.section('Auth Module Status');
         cliOutput.keyValue({
-          'Module': statusData.module,
-          'Version': statusData.version,
-          'Status': statusData.status,
-          'Enabled': statusData.enabled ? '✓' : '✗',
-          'Healthy': statusData.healthy ? '✓' : '✗'
+          Module: statusData.module,
+          Version: statusData.version,
+          Status: statusData.status,
+          Enabled: statusData.enabled ? '✓' : '✗',
+          Healthy: statusData.healthy ? '✓' : '✗'
         });
 
         cliOutput.section('Components');
@@ -77,7 +73,6 @@ export const command: ICLICommand = {
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('ZodError')) {
         cliOutput.error('Invalid arguments:');
-        // Handle Zod errors properly
       } else {
         cliOutput.error('Failed to get auth module status');
         logger.error(LogSource.AUTH, "Status command error", { error: error instanceof Error ? error.message : String(error) });

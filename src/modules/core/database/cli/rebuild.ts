@@ -12,7 +12,7 @@ import {
   DatabaseRebuildService,
   type IRebuildParams
 } from '@/modules/core/cli/services/database-rebuild.service';
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 
 /**
  * Handle rebuild command execution.

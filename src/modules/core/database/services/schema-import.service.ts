@@ -8,9 +8,9 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'crypto';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IImportResult, ISchemaFile } from '@/modules/core/database/types/schema-import.types';
-
-import type { IDatabaseService, ISQLParserService } from '@/modules/core/database/types/schema-import.types';
+import type {
+ IDatabaseService, IImportResult, ISQLParserService, ISchemaFile, ISchemaImportResult
+} from '@/modules/core/database/types/manual';
 
 /**
  * Schema import service for managing database schemas.

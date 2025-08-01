@@ -5,7 +5,7 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { ISummaryStats, ITableInfo } from '@/modules/core/database/types/summary.types';
+import type { ISummaryStats, ITableInfo } from '@/modules/core/database/types/manual';
 
 /**
  * Summary repository for database operations.

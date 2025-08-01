@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 import { PermissionSchema } from './permissions.module.generated';
 
 // Zod schema for PermissionsService

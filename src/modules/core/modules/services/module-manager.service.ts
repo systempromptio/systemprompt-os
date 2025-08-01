@@ -11,7 +11,7 @@ import {
 import { join, resolve } from 'path';
 import { parse } from 'yaml';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IScannedModule } from "@/modules/core/modules/types/scanner.types";
+import type { IScannedModule } from "@/modules/core/modules/types/manual";
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 import type { ModuleManagerRepository } from
   '@/modules/core/modules/repositories/module-manager.repository';

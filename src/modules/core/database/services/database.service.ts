@@ -96,8 +96,7 @@ export class DatabaseService implements IDatabaseService {
    */
   public async query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
     const connection = await this.getConnection();
-    const result = await connection.query<T>(sql, params);
-    return result.rows;
+    return await connection.query<T>(sql, params);
   }
 
   /**
@@ -106,9 +105,9 @@ export class DatabaseService implements IDatabaseService {
    * @param params - Statement parameters.
    * @returns Promise that resolves when complete.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<any> {
+  public async execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
     const connection = await this.getConnection();
-    await connection.execute(sql, params);
+    return await connection.execute(sql, params);
   }
 
   /**
@@ -118,6 +117,9 @@ export class DatabaseService implements IDatabaseService {
    */
   public async prepare(sql: string): Promise<IPreparedStatement> {
     const connection = await this.getConnection();
+    if (!connection.prepare) {
+      throw new Error('Prepared statements not supported by this connection');
+    }
     return await connection.prepare(sql);
   }
 
@@ -136,35 +138,35 @@ export class DatabaseService implements IDatabaseService {
    * ```
    */
   public async transaction<T>(
-    handler: (conn: IDatabaseConnection) => Promise<T>
+    handler: (tx: IDatabaseService) => Promise<T>
   ): Promise<T> {
     const connection = await this.getConnection();
+    if (!connection.transaction) {
+      throw new Error('Transaction not supported by this connection');
+    }
     return await connection.transaction(async (tx: ITransaction): Promise<T> => {
-      const txConn: IDatabaseConnection = {
-        query: tx.query.bind(tx),
-        execute: tx.execute.bind(tx),
-        prepare: tx.prepare.bind(tx),
+      const txService: IDatabaseService = {
+        query: async <T>(sql: string, params?: unknown[]): Promise<T[]> => {
+          return await tx.query<T>(sql, params);
+        },
+        execute: async (sql: string, params?: unknown[]) => {
+          return await tx.execute(sql, params);
+        },
         transaction: async (): Promise<never> => {
           return await Promise.reject(new Error('Nested transactions not supported'));
         },
+        isConnected: async (): Promise<boolean> => {
+          return true
+        },
+        isInitialized: async (): Promise<boolean> => {
+          return true
+        },
         close: async (): Promise<void> => {
-          await Promise.resolve();
+          await Promise.resolve()
         }
       };
-      return await handler(txConn);
+      return await handler(txService);
     });
-  }
-
-  /**
-   * Disconnect from the database and cleanup resources.
-   * @returns {Promise<void>}
-   */
-  public async disconnect(): Promise<void> {
-    if (this.adapter !== null) {
-      await this.adapter.disconnect();
-      this.adapter = null;
-      this.connection = null;
-    }
   }
 
   /**
@@ -192,9 +194,9 @@ export class DatabaseService implements IDatabaseService {
 
   /**
    * Check if the database is currently connected.
-   * @returns {boolean} True if connected, false otherwise.
+   * @returns {Promise<boolean>} True if connected, false otherwise.
    */
-  public isConnected(): boolean {
+  public async isConnected(): Promise<boolean> {
     return this.adapter?.isConnected() ?? false;
   }
 
@@ -256,5 +258,28 @@ export class DatabaseService implements IDatabaseService {
         `Failed to connect to ${this.config.type} database`
       );
     }
+  }
+
+  /**
+   * Close the database connection.
+   * @returns {Promise<void>} Promise that resolves when closed.
+   */
+  public async close(): Promise<void> {
+    if (this.connection) {
+      await this.connection.close();
+      this.connection = null;
+    }
+    if (this.adapter) {
+      await this.adapter.disconnect();
+      this.adapter = null;
+    }
+  }
+
+  /**
+   * Disconnect from the database (alias for close).
+   * @returns {Promise<void>} Promise that resolves when disconnected.
+   */
+  public async disconnect(): Promise<void> {
+    await this.close();
   }
 }

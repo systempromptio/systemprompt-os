@@ -4,51 +4,12 @@
  * @module modules/core/tasks/cli
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import { getTasksModule } from '@/modules/core/tasks';
-import type { ITaskStatistics } from '@/modules/core/tasks/types/manual';
-
-/**
- * Display module status information.
- */
-const displayModuleStatus = (): void => {
-  process.stdout.write('\nTasks Module Status\n');
-  process.stdout.write('==================\n\n');
-  process.stdout.write('Module: tasks\n');
-  process.stdout.write('Enabled: ✓\n');
-  process.stdout.write('Healthy: ✓\n');
-  process.stdout.write('Service: TaskService initialized\n');
-};
-
-/**
- * Display queue statistics.
- * @param stats - Task statistics to display.
- */
-const displayQueueStatistics = (stats: ITaskStatistics): void => {
-  process.stdout.write('\nQueue Statistics\n');
-  process.stdout.write('================\n\n');
-  process.stdout.write(`Total tasks: ${String(stats.total)}\n`);
-  process.stdout.write(`Pending: ${String(stats.pending)}\n`);
-  process.stdout.write(`In Progress: ${String(stats.inProgress)}\n`);
-  process.stdout.write(`Completed: ${String(stats.completed)}\n`);
-  process.stdout.write(`Failed: ${String(stats.failed)}\n`);
-  process.stdout.write(`Cancelled: ${String(stats.cancelled)}\n`);
-};
-
-/**
- * Display JSON output format.
- * @param stats - Task statistics to display.
- */
-const displayJsonOutput = (stats: ITaskStatistics): void => {
-  process.stdout.write('\n');
-  process.stdout.write(JSON.stringify({
-    module: 'tasks',
-    enabled: true,
-    healthy: true,
-    statistics: stats
-  }, null, 2));
-  process.stdout.write('\n');
-};
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { TaskService } from '@/modules/core/tasks/services/tasks.service';
+import { type StatusArgs, validateCliArgs } from '@/modules/core/tasks/utils/cli-validation';
 
 /**
  * Execute status command.
@@ -56,33 +17,76 @@ const displayJsonOutput = (stats: ITaskStatistics): void => {
  * @returns Promise that resolves when status is displayed.
  */
 const executeStatus = async (context: ICLIContext): Promise<void> => {
-  try {
-    const tasksModule = getTasksModule();
-    const taskService = tasksModule.exports.service();
-    const rawStats = await taskService.getStatistics();
+  const cliOutput = CliOutputService.getInstance();
+  const logger = LoggerService.getInstance();
 
-    const stats: ITaskStatistics = {
-      total: rawStats.total,
-      pending: rawStats.pending,
-      inProgress: rawStats.inProgress,
-      completed: rawStats.completed,
-      failed: rawStats.failed,
-      cancelled: rawStats.cancelled,
-      tasksByType: rawStats.tasksByType,
-      ...rawStats.averageExecutionTime !== undefined && {
-        averageExecutionTime: rawStats.averageExecutionTime
+  try {
+    const validatedArgs = validateCliArgs('status', context.args, cliOutput);
+    if (!validatedArgs) {
+      process.exit(1);
+    }
+
+    const { format, detailed } = validatedArgs;
+
+    const taskService = TaskService.getInstance();
+    const stats = await taskService.getStatistics();
+
+    const statusData = {
+      module: 'tasks',
+      status: 'healthy',
+      healthy: true,
+      statistics: stats,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      ...detailed && {
+        config: {
+          maxConcurrentTasks: 5,
+          defaultRetryCount: 3,
+          taskTimeout: 300000,
+          pollInterval: 1000
+        }
       }
     };
 
-    displayModuleStatus();
-    displayQueueStatistics(stats);
+    if (format === 'json') {
+      cliOutput.json(statusData);
+    } else {
+      cliOutput.section('Tasks Module Status');
+      cliOutput.keyValue({
+        Module: 'tasks',
+        Status: '✓ Healthy',
+        Service: 'TaskService initialized',
+        Uptime: `${Math.floor(process.uptime())}s`
+      });
 
-    if (context.args.format === 'json') {
-      displayJsonOutput(stats);
+      cliOutput.section('Queue Statistics');
+      cliOutput.keyValue({
+        'Total Tasks': stats.total,
+        'Pending': stats.pending,
+        'In Progress': stats.inProgress,
+        'Completed': stats.completed,
+        'Failed': stats.failed,
+        'Cancelled': stats.cancelled
+      });
+
+      if (detailed && stats.tasksByType) {
+        cliOutput.section('Tasks by Type');
+        cliOutput.keyValue(stats.tasksByType);
+      }
+
+      if (detailed && stats.averageExecutionTime) {
+        cliOutput.section('Performance');
+        cliOutput.keyValue({
+          'Average Execution Time': `${stats.averageExecutionTime}ms`
+        });
+      }
     }
+
+    process.exit(0);
   } catch (error) {
-    process.stderr.write('❌ Error getting tasks status\n');
-    process.stderr.write(`Error: ${String(error)}\n`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    cliOutput.error(`Error getting tasks status: ${errorMessage}`);
+    logger.error(LogSource.TASKS, 'Status command failed', { error });
     process.exit(1);
   }
 };
@@ -90,8 +94,7 @@ const executeStatus = async (context: ICLIContext): Promise<void> => {
 /**
  * Tasks status command.
  */
-export const status: ICLICommand = {
-  name: 'status',
+export const command: ICLICommand = {
   description: 'Show task module status and queue statistics',
   options: [
     {
@@ -101,9 +104,16 @@ export const status: ICLICommand = {
       description: 'Output format',
       choices: ['text', 'json'],
       default: 'text'
+    },
+    {
+      name: 'detailed',
+      alias: 'd',
+      type: 'boolean',
+      description: 'Show detailed status information',
+      default: false
     }
   ],
   execute: executeStatus
 };
 
-export default status;
+export default command;

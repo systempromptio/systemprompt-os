@@ -5,7 +5,7 @@
  */
 
 import type { DatabaseService } from '@/modules/core/database/index';
-import type { IScannedModule } from "@/modules/core/modules/types/scanner.types";
+import type { IScannedModule } from "@/modules/core/modules/types/manual";
 import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
 
 /**

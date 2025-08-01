@@ -10,9 +10,9 @@ import { basename } from 'node:path';
 import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IExecutedMigration, IMigration } from '@/modules/core/database/types/migration.types';
-import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+import type {
+ IDatabaseConnection, IDatabaseService, IExecutedMigration, IMigration
+} from '@/modules/core/database/types/manual';
 
 /**
  * Database row type for migration records.

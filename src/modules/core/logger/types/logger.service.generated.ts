@@ -1,10 +1,10 @@
 // Auto-generated service schemas for logger module
-// Generated on: 2025-07-31T13:04:44.420Z
+// Generated on: 2025-08-01T10:27:14.988Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 
 // Zod schema for LoggerService
 export const LoggerServiceSchema = z.object({

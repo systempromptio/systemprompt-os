@@ -5,8 +5,8 @@ import { ModulesType } from "@/modules/core/modules/types/database.generated";
  * @module modules/core/system
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
+import type { IModule } from '@/modules/core/modules/types/manual';
+import { ModulesStatus } from "@/modules/core/modules/types/manual";
 import { SystemService } from '@/modules/core/system/services/system.service';
 import { UrlConfigService } from '@/modules/core/system/services/url-config.service';
 import type { ILogger } from '@/modules/core/logger/types/index';
@@ -165,6 +165,6 @@ export const getSystemModule = (): IModule<ISystemModuleExports> => {
 /**
  * Re-export ModulesStatus from modules/types to avoid conflicts.
  */
-export { ModulesStatus } from '@/modules/core/modules/types/database.generated';
+export { ModulesStatus } from '@/modules/core/modules/types/manual';
 
 export default SystemModule;

@@ -4,7 +4,7 @@
  * @module modules/core/users
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import {
   type IUsersModuleExports,

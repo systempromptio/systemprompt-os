@@ -4,7 +4,7 @@
  * @module modules/core/monitor/cli/status
  */
 
-import type { ICLICommand } from '@/modules/core/cli/types/index';
+import type { ICLICommand } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

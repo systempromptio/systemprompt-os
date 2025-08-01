@@ -5,41 +5,12 @@
  */
 
 import type { Express } from 'express';
-import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
+import type { IModulesModuleExports } from '@/modules/core/modules/types/modules.service.generated';
 import type { ICLIModuleExports } from '@/modules/core/cli/index';
-import type { IModule } from '@/modules/core/modules/types/index';
-import type { IDatabaseModuleExports } from '@/modules/core/database/types/database-module.types';
-import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger-module.types';
-import type { ILogger } from '@/modules/core/logger/types/index';
-
-/**
- * Module exports interface for the modules service.
- */
-export interface IModuleExports {
-  registerPreLoadedModule: (name: string, mod: CoreModuleType) => void;
-  loadCoreModule: (definition: ICoreModuleDefinition) => Promise<CoreModuleType>;
-  initializeCoreModule: (name: string) => Promise<void>;
-  startCoreModule: (name: string) => Promise<void>;
-}
-
-/**
- * Module import result interface for dynamic imports.
- */
-export interface IModuleImportResult {
-  createModule?: () => IModule;
-  default?: new () => IModule;
-}
-
-/**
- * Bootstrap phase enumeration.
- */
-export enum BootstrapPhaseEnum {
-  INIT = 'init',
-  CORE_MODULES = 'core_modules',
-  HTTP_SERVER = 'http_server',
-  MODULE_DISCOVERY = 'module_discovery',
-  READY = 'ready',
-}
+import type { IModule } from '@/modules/core/modules/types/manual';
+import type { IDatabaseModuleExports } from '@/modules/core/database/types/database.service.generated';
+import type { ILoggerModuleExports } from '@/modules/core/logger/types/logger.service.generated';
+import type { ILogger } from '@/modules/core/logger/types/manual';
 
 /**
  * Core module definition for bootstrap.
@@ -93,21 +64,6 @@ export type CoreModuleType =
   | IModule<IDatabaseModuleExports>
   | IModule<ILoggerModuleExports>
   | IModule;
-
-/**
- * Log category types for bootstrap operations.
- */
-export type LogCategory =
-  | 'startup'
-  | 'shutdown'
-  | 'modules'
-  | 'database'
-  | 'discovery'
-  | 'http'
-  | 'cli'
-  | 'error'
-  | 'logger'
-  | 'debug';
 
 /**
  * Context for module registration phase.

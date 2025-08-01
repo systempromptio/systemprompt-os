@@ -22,7 +22,7 @@ import type { DatabaseService } from '@/modules/core/database/services/database.
 import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
 import type { IAgentsModuleExports } from '@/modules/core/agents/types/agents.service.generated';
 import { AgentsStatus } from '@/modules/core/agents/types/database.generated';
-import { EventNames } from '@/modules/core/events/types/index';
+import { EventNames } from '@/modules/core/events/types/manual';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';
@@ -65,7 +65,7 @@ describe('Agents Module Integration Tests', () => {
     }
     
     try {
-      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
       ModulesModuleService.reset();
     } catch (error) {
       // Ignore

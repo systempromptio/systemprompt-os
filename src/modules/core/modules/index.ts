@@ -4,13 +4,12 @@
  * Factory methods and module access only - import types from ./types.
  */
 
-import { ModulesModuleService } from '@/modules/core/modules/services/modules-module.service';
+import { ModulesModuleService } from '@/modules/core/modules/services/modules.service';
 import { ModuleRegistryService } from '@/modules/core/modules/services/module-registry.service';
 import { ModuleSetupService } from '@/modules/core/modules/services/module-setup.service';
 import { ModuleName } from '@/modules/types/module-names.types';
-import type { IModulesModuleExports } from "@/modules/core/modules/types/modules-exports.types";
+import type { IModule, IModulesModuleExports } from "@/modules/core/modules/types/manual";
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { IModule } from '@/modules/core/modules/types';
 
 /**
  * Type guard to check if a module is the Modules module.

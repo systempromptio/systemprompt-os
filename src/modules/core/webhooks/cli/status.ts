@@ -4,7 +4,7 @@
  * @module modules/core/webhooks/cli/status
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { WebhookService } from '@/modules/core/webhooks/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';

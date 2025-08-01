@@ -7,10 +7,8 @@
 import type * as Database from 'better-sqlite3';
 import type {
   IDatabaseConnection,
-  IPreparedStatement,
   ITransaction
 } from '@/modules/core/database/types/manual';
-import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
 import { SqliteTransaction } from '@/modules/core/database/adapters/sqlite-transaction.adapter';
 
 /**
@@ -33,15 +31,11 @@ export class SqliteConnection implements IDatabaseConnection {
    * @param params - Optional parameters for the query.
    * @returns Query result with typed rows.
    */
-  public async query<T = unknown>(sql: string, params?: unknown[]): Promise<IQueryResult<T>> {
+  public async query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
     const stmt = this.db.prepare(sql);
     const queryParams = params ?? [];
     const rows = stmt.all(...queryParams);
-    const queryResult = {
-      rows: rows as T[],
-      rowCount: rows.length,
-    };
-    return queryResult;
+    return rows as T[];
   }
 
   /**
@@ -50,21 +44,30 @@ export class SqliteConnection implements IDatabaseConnection {
    * @param params - Optional parameters for the statement.
    * @returns Promise that resolves when complete.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<any> {
+  public async execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
     if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
-      return stmt.run(...params);
+      const result = stmt.run(...params);
+      return {
+ changes: result.changes,
+lastInsertRowid: Number(result.lastInsertRowid)
+};
     }
-      return this.db.exec(sql);
+    this.db.exec(sql);
+    return {
+ changes: 0,
+lastInsertRowid: 0
+};
   }
 
   /**
-   * Prepare a statement for repeated execution.
-   * @param sql - SQL statement to prepare.
-   * @returns Prepared statement instance.
+   * Runs a SQL statement and returns the result.
+   * @param sql - The SQL statement to run.
+   * @param params - Optional parameters for the statement.
+   * @returns A promise that resolves to the result.
    */
-  public async prepare(sql: string): Promise<IPreparedStatement> {
-    return new SqlitePreparedStatement(this.db.prepare(sql));
+  public async run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
+    return await this.execute(sql, params);
   }
 
   /**

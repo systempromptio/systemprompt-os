@@ -4,12 +4,12 @@
  * @module modules/core/mcp/cli/create
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { cliSchemas, type CreateMcpArgs } from '../utils/cli-validation';
+import { type CreateMcpArgs, cliSchemas } from '@/modules/core/mcp/utils/cli-validation';
 
 export const command: ICLICommand = {
   description: 'Create a new MCP context',
@@ -85,12 +85,10 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
-      const validatedArgs = cliSchemas.create.parse(context.args) as CreateMcpArgs;
-      
+      const validatedArgs = cliSchemas.create.parse(context.args);
+
       const service = MCPService.getInstance();
-      
-      // Create context data from validated arguments
+
       const contextData = {
         name: validatedArgs.name,
         model: validatedArgs.model,
@@ -103,7 +101,7 @@ export const command: ICLICommand = {
         stop_sequences: validatedArgs.stop_sequences || null,
         system_prompt: validatedArgs.system_prompt || null
       };
-      
+
       const newContext = await service.createContext(
         contextData.name,
         contextData.model,
@@ -120,7 +118,6 @@ export const command: ICLICommand = {
       );
 
       if (validatedArgs.format === 'json') {
-        // Return full database object
         cliOutput.json(newContext);
       } else {
         cliOutput.success('MCP context created successfully');
@@ -134,11 +131,10 @@ export const command: ICLICommand = {
           'Created': newContext.created_at ? new Date(newContext.created_at).toLocaleString() : 'N/A'
         });
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
-        // Handle Zod validation errors
         cliOutput.error('Invalid arguments:');
         (error as any).issues?.forEach((issue: any) => {
           cliOutput.error(`  ${issue.path.join('.')}: ${issue.message}`);

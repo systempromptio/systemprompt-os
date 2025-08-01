@@ -19,7 +19,7 @@ import {
 } from '@/modules/core/tasks/types/tasks.module.generated';
 import type { ITasksService } from '@/modules/core/tasks/types/tasks.service.generated';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { EventNames } from '@/modules/core/events/types/index';
+import { EventNames } from '@/modules/core/events/types/manual';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 
 /**

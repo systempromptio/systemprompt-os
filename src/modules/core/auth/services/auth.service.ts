@@ -10,13 +10,14 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { AuthRepository } from '@/modules/core/auth/repositories/auth.repository';
 import { SessionService } from '@/modules/core/auth/services/session.service';
 import { OAuthService } from '@/modules/core/auth/services/oauth.service';
+import { ProvidersService } from '@/modules/core/auth/services/providers.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
 import { type IAuthService } from '@/modules/core/auth/types/auth.service.generated';
 import {
   AuthEvents,
   type LoginFailedEvent,
   type LoginSuccessEvent
-} from '@/modules/core/events/types/index';
+} from '@/modules/core/events/types/manual';
 
 /**
  * Service for managing authentication.
@@ -26,6 +27,7 @@ export class AuthService implements IAuthService {
   private readonly repository: AuthRepository;
   private readonly sessionService: SessionService;
   private readonly oauthService: OAuthService;
+  private readonly providersService: ProvidersService;
   private readonly eventBus: EventBusService;
   private logger?: ILogger;
   private initialized = false;
@@ -37,6 +39,7 @@ export class AuthService implements IAuthService {
     this.repository = AuthRepository.getInstance();
     this.sessionService = SessionService.getInstance();
     this.oauthService = OAuthService.getInstance();
+    this.providersService = ProvidersService.getInstance();
     this.eventBus = EventBusService.getInstance();
   }
 
@@ -219,6 +222,36 @@ export class AuthService implements IAuthService {
 
     const sessions = await this.sessionService.getUserSessions(userId);
     return sessions.map(session => { return session.id });
+  }
+
+  /**
+   * List all configured OAuth providers.
+   * @returns Promise that resolves to array of provider information.
+   */
+  public async listProviders(): Promise<Array<{
+    id: string;
+    name: string;
+    type: string;
+    enabled: boolean;
+  }>> {
+    await this.ensureInitialized();
+
+    this.logger?.info(LogSource.AUTH, 'Listing OAuth providers');
+
+    try {
+      const providers = await this.providersService.getAllProviders();
+      return providers.map(provider => { return {
+        id: provider.id,
+        name: provider.name,
+        type: provider.type,
+        enabled: Boolean(provider.enabled)
+      } });
+    } catch (error) {
+      this.logger?.error(LogSource.AUTH, 'Failed to list providers', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return [];
+    }
   }
 
   /**

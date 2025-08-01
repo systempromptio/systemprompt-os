@@ -28,3 +28,87 @@ cli:
           type: number
           description: Number of recent events to show
           default: 10
+    - name: list
+      description: List recent events with optional filtering
+      handler: events:list
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
+        - name: limit
+          alias: l
+          type: number
+          description: Maximum number of events to return
+          default: 20
+        - name: eventName
+          alias: n
+          type: string
+          description: Filter by specific event name
+        - name: verbose
+          alias: v
+          type: boolean
+          description: Show full event data
+          default: false
+    - name: get
+      description: Get details of a specific event by ID
+      handler: events:get
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
+        - name: id
+          alias: i
+          type: string
+          description: Event ID
+          required: true
+    - name: emit
+      description: Emit an event for testing and debugging
+      handler: events:emit
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
+        - name: eventName
+          alias: n
+          type: string
+          description: Name of the event to emit
+          required: true
+        - name: data
+          alias: d
+          type: string
+          description: Event data as JSON string or plain text
+        - name: source
+          alias: s
+          type: string
+          description: Source module name
+          default: cli
+    - name: clear
+      description: Clear event history and/or subscriptions
+      handler: events:clear
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format
+          choices: [text, json]
+          default: text
+        - name: type
+          alias: t
+          type: string
+          description: What to clear
+          choices: [events, subscriptions, all]
+          default: events
+        - name: confirm
+          alias: y
+          type: boolean
+          description: Confirm the operation without prompting
+          default: false

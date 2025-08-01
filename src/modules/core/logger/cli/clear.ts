@@ -7,7 +7,7 @@
 
 import { createInterface } from 'readline';
 import { z } from 'zod';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/manual';
@@ -16,9 +16,18 @@ import { LogSource } from '@/modules/core/logger/types/manual';
 const clearLogsArgsSchema = z.object({
   format: z.enum(['text', 'json']).default('text'),
   level: z.enum(['debug', 'info', 'warn', 'error']).optional(),
-  olderThan: z.coerce.number().positive().optional(),
-  confirm: z.enum(['true', 'false']).transform(v => v === 'true').default('false'),
-  dryRun: z.enum(['true', 'false']).transform(v => v === 'true').default('false')
+  olderThan: z.coerce.number().positive()
+.optional(),
+  confirm: z.union([z.boolean(), z.enum(['true', 'false'])]).transform(v => {
+    if (typeof v === 'boolean') { return v; }
+    return v === 'true';
+  })
+.default(false),
+  dryRun: z.union([z.boolean(), z.enum(['true', 'false'])]).transform(v => {
+    if (typeof v === 'boolean') { return v; }
+    return v === 'true';
+  })
+.default(false)
 });
 
 type ClearLogsArgs = z.infer<typeof clearLogsArgsSchema>;
@@ -61,8 +70,8 @@ const addTimeCondition = (params: {
   descriptions: string[];
 }): void => {
   if (params.options.olderThan !== undefined) {
-    params.conditions.push('timestamp < datetime("now", "-" || ? || " days")');
-    params.queryParams.push(params.options.olderThan);
+    params.conditions.push("timestamp < datetime('now', ?)");
+    params.queryParams.push(`-${params.options.olderThan} days`);
     params.descriptions.push(`older than ${String(params.options.olderThan)} days`);
   }
 };
@@ -190,7 +199,7 @@ const handleDryRun = (params: {
   description: string;
   cliOutput: CliOutputService;
 }): void => {
-  if (params.options.dryRun === true) {
+  if (params.options.dryRun) {
     if (params.options.format === 'json') {
       params.cliOutput.json({
         operation: 'clear-logs',
@@ -238,7 +247,7 @@ const executeClearOperation = async (params: {
   logger: LoggerService;
   cliOutput: CliOutputService;
 }): Promise<void> => {
-  if (params.options.confirm !== true) {
+  if (!params.options.confirm) {
     const message = `Are you sure you want to delete ${String(params.logCount)} ${params.description}?`;
     const confirmed = await promptConfirmation(message);
     if (!confirmed) {
@@ -264,7 +273,7 @@ const executeClearOperation = async (params: {
       operation: 'clear-logs',
       success: true,
       deletedCount: params.logCount,
-      remainingCount: remainingCount,
+      remainingCount,
       description: params.description,
       timestamp: new Date().toISOString()
     });
@@ -276,7 +285,7 @@ const executeClearOperation = async (params: {
   params.logger.info(LogSource.LOGGER, 'Cleared logs successfully', {
     count: params.logCount,
     description: params.description,
-    remainingCount: remainingCount
+    remainingCount
   });
 };
 
@@ -331,7 +340,7 @@ const executeClearLogic = async (
     description
   } = buildClearQuery(options);
 
-  if (options.dryRun === true) {
+  if (options.dryRun) {
     handleDryRun({
       options,
       sql: clearSql,

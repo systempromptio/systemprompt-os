@@ -4,7 +4,7 @@
  * @module modules/core/dev
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import {

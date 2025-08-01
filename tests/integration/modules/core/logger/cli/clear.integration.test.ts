@@ -3,11 +3,11 @@
  * @file Logger clear CLI command integration tests.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { execSync } from 'child_process';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 describe('logger clear CLI command', () => {
   let dbService: DatabaseService;
@@ -187,7 +187,7 @@ describe('logger clear CLI command', () => {
         ['debug', 'Test log for deletion', 'test-clear', '{}']
       );
 
-      const result = execSync('./bin/systemprompt logger clear --level debug --module test-clear --confirm --format json', {
+      const result = execSync('./bin/systemprompt logger clear --level debug --confirm --format json', {
         encoding: 'utf-8',
         timeout: 10000
       });

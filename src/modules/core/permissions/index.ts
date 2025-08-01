@@ -4,7 +4,7 @@
  * @module modules/core/permissions
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { PermissionsService } from '@/modules/core/permissions/services/permissions.service';
 import {
   type IPermissionsModuleExports,

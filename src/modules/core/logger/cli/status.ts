@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/manual';
@@ -29,20 +29,17 @@ const getLoggerStatistics = async (): Promise<{
   try {
     const { DatabaseService } = await import('@/modules/core/database/services/database.service');
     const dbService = DatabaseService.getInstance();
-    
-    // Get total log count
+
     const totalResult = await dbService.query<{ count: number }>(
       'SELECT COUNT(*) as count FROM system_logs'
     );
     const totalLogs = totalResult[0]?.count ?? 0;
-    
-    // Get recent errors (last 24 hours)
+
     const errorResult = await dbService.query<{ count: number }>(
       "SELECT COUNT(*) as count FROM system_logs WHERE level = 'error' AND timestamp >= datetime('now', '-1 day')"
     );
     const recentErrors = errorResult[0]?.count ?? 0;
-    
-    // Get logs by level
+
     const levelResult = await dbService.query<{ level: string; count: number }>(
       'SELECT level, COUNT(*) as count FROM system_logs GROUP BY level'
     );
@@ -50,11 +47,18 @@ const getLoggerStatistics = async (): Promise<{
     levelResult.forEach(row => {
       logsByLevel[row.level] = row.count;
     });
-    
-    return { totalLogs, recentErrors, logsByLevel };
+
+    return {
+ totalLogs,
+recentErrors,
+logsByLevel
+};
   } catch (error) {
-    // Return default values if database query fails
-    return { totalLogs: 0, recentErrors: 0, logsByLevel: {} };
+    return {
+ totalLogs: 0,
+recentErrors: 0,
+logsByLevel: {}
+};
   }
 };
 
@@ -78,7 +82,7 @@ export const command: ICLICommand = {
       const validatedArgs = statusArgsSchema.parse(context.args);
       const logLevel = process.env.LOGLEVEL || 'info';
       const stats = await getLoggerStatistics();
-      
+
       if (validatedArgs.format === 'json') {
         cliOutput.json({
           module: 'logger',
@@ -89,7 +93,7 @@ export const command: ICLICommand = {
             uptime: process.uptime()
           },
           configuration: {
-            logLevel: logLevel,
+            logLevel,
             transports: ['console', 'file'],
             errorHandling: true
           },
@@ -117,7 +121,7 @@ export const command: ICLICommand = {
           'File transport': 'Enabled',
           'Error handling service': 'Enabled'
         });
-        
+
         cliOutput.section('Statistics');
         cliOutput.keyValue({
           'Total logs': String(stats.totalLogs),

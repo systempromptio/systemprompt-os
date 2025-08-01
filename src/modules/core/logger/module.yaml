@@ -26,6 +26,12 @@ cli:
   commands:
     - name: status
       description: Show logger module status (enabled/healthy)
+      options:
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          default: text
     - name: show
       description: Show recent logs from database
       options:
@@ -71,3 +77,8 @@ cli:
         - name: dry-run
           type: boolean
           description: Show what would be deleted without actually deleting
+        - name: format
+          alias: f
+          type: string
+          description: Output format (text, json)
+          default: text

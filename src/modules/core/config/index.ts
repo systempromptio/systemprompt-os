@@ -4,7 +4,7 @@
  * @module modules/core/config
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { ConfigService } from '@/modules/core/config/services/config.service';
 import {
   ConfigModuleExportsSchema,

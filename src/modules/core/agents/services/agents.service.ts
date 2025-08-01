@@ -19,7 +19,7 @@ import {
   type IAgentsRow
 } from '@/modules/core/agents/types/database.generated';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { EventNames } from '@/modules/core/events/types/index';
+import { EventNames } from '@/modules/core/events/types/manual';
 
 /**
  * Service for managing agents.

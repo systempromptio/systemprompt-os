@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/session-revoke
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type SessionRevokeArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type SessionRevokeArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -36,23 +36,19 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: SessionRevokeArgs = cliSchemas.sessionRevoke.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // Revoke session through service layer
+
       await authService.revokeSession(validatedArgs.sessionId);
-      
+
       const revocationData = {
         sessionId: validatedArgs.sessionId,
         status: 'revoked',
         revokedAt: new Date().toISOString()
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(revocationData);
       } else {
@@ -63,7 +59,7 @@ export const command: ICLICommand = {
           'Revoked At': revocationData.revokedAt
         });
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof z.ZodError) {

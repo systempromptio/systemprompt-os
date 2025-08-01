@@ -15,9 +15,9 @@ import type {
   UserCreateOAuthRequestEvent,
   UserDataRequestEvent,
   UserDataResponseEvent
-} from '@/modules/core/events/types/index';
+} from '@/modules/core/events/types/manual';
 
-import { UserEvents } from '@/modules/core/events/types/index';
+import { UserEvents } from '@/modules/core/events/types/manual';
 import { UsersStatus } from '@/modules/core/users/types/database.generated';
 import { EventBusService } from '@/modules/core/events/services/events.service';
 import { UsersRepository } from '@/modules/core/users/repositories/users.repository';

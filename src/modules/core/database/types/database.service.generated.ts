@@ -1,10 +1,10 @@
 // Auto-generated service schemas for database module
-// Generated on: 2025-07-31T13:04:43.707Z
+// Generated on: 2025-08-01T10:06:56.150Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 
 // Zod schema for DatabaseService
 export const DatabaseServiceSchema = z.object({

@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/session-validate
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type SessionValidateArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type SessionValidateArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -36,16 +36,13 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: SessionValidateArgs = cliSchemas.sessionValidate.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // Validate session through service layer
+
       const validationResult = await authService.validateSession(validatedArgs.sessionId);
-      
+
       const validationData = {
         sessionId: validatedArgs.sessionId,
         valid: validationResult.valid,
@@ -53,13 +50,12 @@ export const command: ICLICommand = {
         error: validationResult.error,
         validatedAt: new Date().toISOString()
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(validationData);
       } else {
         cliOutput.section('Session Validation Result');
-        
+
         if (validationResult.valid) {
           cliOutput.success('Session is valid');
           cliOutput.keyValue({
@@ -78,8 +74,7 @@ export const command: ICLICommand = {
           });
         }
       }
-      
-      // Exit with appropriate code based on validation result
+
       process.exit(validationResult.valid ? 0 : 1);
     } catch (error) {
       if (error instanceof z.ZodError) {

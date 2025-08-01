@@ -5,10 +5,10 @@
 
 import {
   type IModule, ModulesStatus, ModulesType
-} from '@/modules/core/modules/types/index';
+} from '@/modules/core/modules/types/manual';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { EventNames, type IEventsModuleExports } from '@/modules/core/events/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import { EventNamesObject, type IEventsModuleExports } from '@/modules/core/events/types/manual';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 // CLI commands are registered through the cliCommands getter
 import { command as statusCommand } from '@/modules/core/events/cli/status';
@@ -30,7 +30,7 @@ export class EventsModule implements IModule<IEventsModuleExports> {
   public get exports(): IEventsModuleExports {
     return {
       eventBus: this.eventBus,
-      EventNames
+      EventNames: EventNamesObject
     };
   }
   public get cliCommands() {
@@ -41,8 +41,6 @@ export class EventsModule implements IModule<IEventsModuleExports> {
    * @throws Error if already initialized or if initialization fails.
    */
   async initialize(): Promise<void> {
-    this.logger = LoggerService.getInstance();
-    this.eventBus = EventBusService.getInstance();
     if (this.initialized) {
       throw new Error('Events module already initialized');
     }

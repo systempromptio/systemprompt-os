@@ -195,7 +195,7 @@ export class AuthRepository {
   async getIUserById(userId: string): Promise<IAuthUser | null> {
     try {
       const { EventBusService } = await import('@/modules/core/events/services/events.service');
-      const { UserEvents } = await import('@/modules/core/events/types/index');
+      const { UserEvents } = await import('@/modules/core/events/types/manual');
       const eventBus = EventBusService.getInstance();
 
       return new Promise((resolve) => {

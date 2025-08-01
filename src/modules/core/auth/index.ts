@@ -4,7 +4,7 @@
  * @module modules/core/auth
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { AuthService } from '@/modules/core/auth/services/auth.service';
 import {
   AuthModuleExportsSchema,

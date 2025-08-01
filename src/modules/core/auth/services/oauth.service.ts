@@ -15,7 +15,7 @@ import {
   type UserDataRequestEvent,
   type UserDataResponseEvent,
   UserEvents
-} from '@/modules/core/events/types/index';
+} from '@/modules/core/events/types/manual';
 
 /**
  * Service for managing OAuth user operations.

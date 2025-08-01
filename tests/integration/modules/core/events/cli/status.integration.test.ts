@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import type { EventBusService } from '@/modules/core/events/services/events.service';
 import { createTestId } from '../../../../setup';
 import { join } from 'path';
 import { existsSync, mkdirSync, rmSync } from 'fs';

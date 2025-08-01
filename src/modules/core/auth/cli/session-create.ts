@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/session-create
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type SessionCreateArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type SessionCreateArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -36,16 +36,13 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: SessionCreateArgs = cliSchemas.sessionCreate.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // Create session through service layer
+
       const sessionId = await authService.createSession(validatedArgs.userId);
-      
+
       const sessionData = {
         sessionId,
         userId: validatedArgs.userId,
@@ -53,8 +50,7 @@ export const command: ICLICommand = {
         type: 'web',
         status: 'active'
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(sessionData);
       } else {
@@ -67,7 +63,7 @@ export const command: ICLICommand = {
           'Status': sessionData.status
         });
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof z.ZodError) {

@@ -7,7 +7,6 @@
 import type * as Database from 'better-sqlite3';
 import type {
   IPreparedStatement,
-  IQueryResult,
   ITransaction
 } from '@/modules/core/database/types/manual';
 import { SqlitePreparedStatement } from '@/modules/core/database/adapters/sqlite-prepared-statement.adapter';
@@ -32,15 +31,11 @@ export class SqliteTransaction implements ITransaction {
    * @param params - Optional parameters for the query.
    * @returns Query result with typed rows.
    */
-  public async query<T = unknown>(sql: string, params?: unknown[]): Promise<IQueryResult<T>> {
+  public async query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]> {
     const stmt = this.db.prepare(sql);
     const queryParams = params ?? [];
     const rows = stmt.all(...queryParams);
-    const queryResult = {
-      rows: rows as T[],
-      rowCount: rows.length,
-    };
-    return queryResult;
+    return rows as T[];
   }
 
   /**
@@ -49,13 +44,20 @@ export class SqliteTransaction implements ITransaction {
    * @param params - Optional parameters for the statement.
    * @returns Promise that resolves when complete.
    */
-  public async execute(sql: string, params?: unknown[]): Promise<void> {
+  public async execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
     if (params !== undefined && params.length > 0) {
       const stmt = this.db.prepare(sql);
-      stmt.run(...params);
-    } else {
-      this.db.exec(sql);
+      const result = stmt.run(...params);
+      return {
+ changes: result.changes,
+lastInsertRowid: Number(result.lastInsertRowid)
+};
     }
+      this.db.exec(sql);
+      return {
+ changes: 0,
+lastInsertRowid: 0
+};
   }
 
   /**

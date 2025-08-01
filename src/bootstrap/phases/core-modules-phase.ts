@@ -9,17 +9,17 @@
 // eslint-disable-next-line systemprompt-os/no-block-comments
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { pathToFileURL } from 'url';
 import type {
   CoreModuleType,
   CoreModulesPhaseContext,
   ICoreModuleDefinition,
-  IModuleImportResult,
 } from '@/types/bootstrap';
-import type { IModule } from '@/modules/core/modules/types';
-import type { IModulesModuleExports } from '@/modules/core/modules/types/modules-exports.types';
+import type {
+ IModule, IModulesModuleExports, ModuleExports
+} from '@/modules/core/modules/types/manual';
 import { ModuleName } from '@/modules/types/module-names.types';
 
 /**
@@ -29,14 +29,17 @@ import { ModuleName } from '@/modules/types/module-names.types';
  * @returns The module instance.
  * @throws Error when module doesn't export required functions.
  */
-const createModuleInstance = (moduleExports: IModuleImportResult, name: string): IModule => {
+const createModuleInstance = (moduleExports: ModuleExports, name: string): IModule => {
   if (typeof moduleExports.createModule === 'function') {
     return moduleExports.createModule();
   }
 
-  if (typeof moduleExports.default === 'function') {
-    const { default: ModuleConstructor } = moduleExports;
-    return new ModuleConstructor();
+  if (moduleExports.default !== undefined) {
+    const { default: defaultExport } = moduleExports;
+    if (typeof defaultExport === 'function') {
+      return defaultExport();
+    }
+    return defaultExport;
   }
 
   throw new Error(`Module ${name} must export createModule function or default constructor`);
@@ -56,7 +59,7 @@ const loadModuleDirectly = async (definition: ICoreModuleDefinition): Promise<IM
 
   try {
     const { href: resolvedPath } = new URL(path, pathToFileURL(`${process.cwd()}/`));
-    const moduleImports: IModuleImportResult = await import(resolvedPath);
+    const moduleImports: ModuleExports = await import(resolvedPath);
 
     const moduleInstance = createModuleInstance(moduleImports, name);
 

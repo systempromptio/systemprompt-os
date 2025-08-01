@@ -30,11 +30,14 @@ For each module, ensure the spawned agent completes ALL steps:
 - Ensure proper TypeScript typing and error handling
 - Maintain consistency with existing codebase patterns
 
-#### Integration Testing
+#### Integration Testing and Status Reporting
+- **BEFORE**: Document pre-agent module status (validation errors, test failures, lint issues)
 - Verify module integrates properly with existing system
 - Test CLI commands if module provides them
 - Ensure no breaking changes to other modules
 - Validate database migrations if applicable
+- **AFTER**: Document post-agent module status (all validations passing)
+- **REPORT**: Status change summary showing progress made
 
 ### 4. Progress Tracking Protocol
 
@@ -93,22 +96,30 @@ After ALL modules completed:
 - ✅ All CLI commands functional
 - ✅ System ready for production deployment
 
-## Example Agent Spawn Command
+## Example Agent Spawn Command with Status Reporting
 
 ```
 Task: Complete development and validation for the auth module
 
 Requirements:
-1. Check and follow rules in /var/www/html/systemprompt-os/rules/src/modules/core/auth/
-2. Implement all required functionality following existing patterns
-3. Ensure TypeScript compliance and proper error handling
-4. Run complete validation suite:
+1. BEFORE STATUS: Document current auth module state:
+   - Run ./bin/systemprompt dev validate auth (count errors)
+   - Test key functionality and note issues
+   - Document lint/type/test failures
+2. Check and follow rules in /var/www/html/systemprompt-os/rules/src/modules/core/auth/
+3. Implement all required functionality following existing patterns
+4. Ensure TypeScript compliance and proper error handling
+5. Run complete validation suite:
    - ./bin/systemprompt dev generate-types auth
    - ./bin/systemprompt dev validate auth
-5. Fix any issues until all validations pass
-6. Report back when module is fully complete and validated
+   - ./bin/systemprompt dev lint
+   - ./bin/systemprompt dev typecheck
+   - ./bin/systemprompt dev test
+6. Fix any issues until all validations pass
+7. AFTER STATUS: Document final auth module state (all validations passing)
+8. STATUS REPORT: "Auth module: [X errors, Y test failures] → All validations passing ✅"
 
-CRITICAL: Do not consider the task complete unless ALL validation commands pass without errors.
+CRITICAL: Report clear before/after status and ensure ALL validation commands pass.
 ```
 
 ## Critical Reminders

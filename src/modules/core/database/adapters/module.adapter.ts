@@ -21,13 +21,18 @@ interface IModulePreparedStatement {
   query<T = unknown>(params?: unknown[]): Promise<T[]>;
   execute(params?: unknown[]): Promise<IMutationResult>;
   finalize(): Promise<void>;
+  all<T = unknown>(...params: unknown[]): Promise<T[]>;
+  get<T = unknown>(...params: unknown[]): Promise<T | undefined>;
+  run(...params: unknown[]): Promise<IMutationResult>;
 }
 
 interface IModuleDatabaseAdapter {
   query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
   execute(sql: string, params?: unknown[]): Promise<IMutationResult>;
-  prepare(sql: string): Promise<IModulePreparedStatement>;
+  prepare(sql: string): IModulePreparedStatement;
   close(): Promise<void>;
+  exec(sql: string): Promise<void>;
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 /**
@@ -46,26 +51,38 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
   }
 
   /**
+   * Get the database connection.
+   * @returns The database connection.
+   */
+  public async getConnection(): Promise<IDatabaseConnection> {
+    return this.connection;
+  }
+
+  /**
    * Prepares a SQL statement for execution.
    * @param sql - The SQL statement to prepare.
    * @returns A prepared statement object.
    */
-  public prepare<T = IDatabaseRow>(sql: string): IModulePreparedStatement<T> {
+  public prepare(sql: string): IModulePreparedStatement {
     return {
-      all: async (...params: unknown[]): Promise<T[]> => {
+      all: async <T = unknown>(...params: unknown[]): Promise<T[]> => {
         const result = await this.connection.query<T>(sql, params);
-        return result.rows;
+        return result;
       },
-      get: async (...params: unknown[]): Promise<T | undefined> => {
+      get: async <T = unknown>(...params: unknown[]): Promise<T | undefined> => {
         const result = await this.connection.query<T>(sql, params);
-        return result.rows[0];
+        return result[0];
       },
       run: async (...params: unknown[]): Promise<IMutationResult> => {
-        await this.connection.execute(sql, params);
-        return {
-          changes: 1,
-          lastInsertRowid: 0
-        };
+        return await this.connection.execute(sql, params);
+      },
+      query: async <T = unknown>(params?: unknown[]): Promise<T[]> => {
+        return await this.connection.query<T>(sql, params);
+      },
+      execute: async (params?: unknown[]): Promise<IMutationResult> => {
+        return await this.connection.execute(sql, params);
+      },
+      finalize: async (): Promise<void> => {
       }
     };
   }
@@ -80,13 +97,12 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
 
   /**
    * Executes a function within a database transaction.
-   * @param fn - The function to execute.
+   * @param callback - The function to execute within the transaction.
    * @returns The result of the function.
    */
-  public async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return await this.connection.transaction(async (): Promise<T> => {
-      return await fn();
-    });
+  public async transaction<T>(callback: (tx: import('@/modules/core/database/types/manual').IDatabaseService) => Promise<T>): Promise<T> {
+    const dbService = DatabaseService.getInstance();
+    return await dbService.transaction(callback);
   }
 
   /**
@@ -96,8 +112,7 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @returns Promise resolving to array of results.
    */
   public async query<T = IDatabaseRow>(sql: string, params?: unknown[]): Promise<T[]> {
-    const result = await this.connection.query<T>(sql, params);
-    return result.rows;
+    return await this.connection.query<T>(sql, params);
   }
 
   /**
@@ -107,11 +122,15 @@ export class SqliteModuleAdapter implements IModuleDatabaseAdapter {
    * @returns Promise resolving to mutation result.
    */
   public async execute(sql: string, params?: unknown[]): Promise<IMutationResult> {
-    await this.connection.execute(sql, params);
-    return {
-      changes: 1,
-      lastInsertRowid: 0
-    };
+    return await this.connection.execute(sql, params);
+  }
+
+  /**
+   * Close the database connection.
+   * @returns Promise that resolves when connection is closed.
+   */
+  public async close(): Promise<void> {
+    await this.connection.close();
   }
 }
 

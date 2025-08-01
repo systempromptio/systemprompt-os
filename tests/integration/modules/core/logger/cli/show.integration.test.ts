@@ -3,11 +3,11 @@
  * @file Logger show CLI command integration tests.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types';
+import { LogSource } from '@/modules/core/logger/types/manual';
 
 describe('logger show CLI command', () => {
   let dbService: DatabaseService;

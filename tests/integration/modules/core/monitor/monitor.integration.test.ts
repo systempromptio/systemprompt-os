@@ -18,7 +18,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import type { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { IModule } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/manual';
 
 // Extended interface for lifecycle testing
 interface ILifecycleModule extends IModule {

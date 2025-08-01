@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesStatus, ModulesType } from '@/modules/core/modules/types/manual';
 
 /**
  * Schema for ModulesStatus enum.

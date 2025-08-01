@@ -5,7 +5,7 @@
  * @module modules/core/database/cli/clear
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import {
   DatabaseClearService,
   type IClearParams,

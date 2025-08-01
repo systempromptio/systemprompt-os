@@ -5,11 +5,10 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
-import type { EventBusService } from '@/modules/core/events/services/event-bus.service';
+import type { EventBusService } from '@/modules/core/events/services/events.service';
 import type { TaskService } from '@/modules/core/tasks/services/task.service';
 import type { AgentService } from '@/modules/core/agents/services/agent.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
-import { EventNames } from '@/modules/core/events/types/index';
 import { createTestId, waitForEvent } from '../../../setup';
 import type { ITask } from '@/modules/core/tasks/types/index';
 import type { IAgent } from '@/modules/core/agents/types/agent.types';
@@ -155,7 +154,7 @@ describe('Event Bus Communication Integration Test', () => {
       let taskCreatedEvent: any = null;
       
       // Listen for task created events
-      const unsubscribe = eventBus.on(EventNames.TASK_CREATED, (event) => {
+      const unsubscribe = eventBus.on('task.created', (event) => {
         taskCreatedEvent = event;
       });
       
@@ -186,7 +185,7 @@ describe('Event Bus Communication Integration Test', () => {
       let agentCreatedEvent: any = null;
       
       // Listen for agent created events
-      const unsubscribe = eventBus.on(EventNames.AGENT_CREATED, (event) => {
+      const unsubscribe = eventBus.on('agent.created', (event) => {
         agentCreatedEvent = event;
       });
       

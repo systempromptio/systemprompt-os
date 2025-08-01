@@ -128,6 +128,7 @@ export interface ISummaryStats {
   totalTables: number;
   totalRows: number;
   totalColumns: number;
+  averageRowsPerTable?: number;
   schemaVersion?: string;
 }
 
@@ -144,6 +145,14 @@ export interface ITableInfo {
 }
 
 /**
+ * Query result interface.
+ */
+export interface IQueryResult<T = unknown> {
+  rows: T[];
+  rowCount: number;
+}
+
+/**
  * Database connection interface.
  */
 export interface IDatabaseConnection {
@@ -151,17 +160,19 @@ export interface IDatabaseConnection {
   execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
   run(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
   close(): Promise<void>;
+  prepare?(sql: string): Promise<IPreparedStatement>;
+  transaction?<T>(callback: (tx: ITransaction) => Promise<T>): Promise<T>;
 }
 
 /**
  * Database adapter interface.
  */
 export interface IDatabaseAdapter {
-  connect(): Promise<IDatabaseConnection>;
+  connect(config: IDatabaseConfig): Promise<IDatabaseConnection>;
   disconnect(): Promise<void>;
   isConnected(): boolean;
-  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
-  execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
+  query?<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  execute?(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
 }
 
 /**
@@ -230,8 +241,9 @@ export interface IPreparedStatement {
  * Transaction interface.
  */
 export interface ITransaction {
-  query<T = unknown>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
   execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
+  prepare?(sql: string): Promise<IPreparedStatement>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
 }
@@ -308,6 +320,7 @@ export interface IMigration {
   version: string;
   filename: string;
   content: string;
+  sql?: string;
   checksum: string;
 }
 
@@ -316,6 +329,16 @@ export interface IMigrationResult {
   error?: string;
   executionTime?: number;
   affectedRows?: number;
+}
+
+export interface IExecutedMigration {
+  module: string;
+  version: string;
+  filename: string;
+  name: string;
+  checksum: string;
+  appliedAt: Date;
+  executedAt: Date;
 }
 
 export interface IMigrationOptions {
@@ -380,6 +403,51 @@ export interface ISchemaImportResult {
   warnings?: string[];
 }
 
+export interface ISchemaFile {
+  module: string;
+  path: string;
+  filepath: string;
+  content: string;
+  checksum: string;
+}
+
+export interface IImportResult {
+  success: boolean;
+  module: string;
+  tablesCreated: number;
+  imported?: number;
+  skipped?: number;
+  error?: string;
+  errors?: string[];
+}
+
+export interface ISQLParserService {
+  parse(sql: string): { statements: ISqlStatement[]; errors: string[] };
+}
+
+export interface IParsedStatement {
+  type: 'CREATE_TABLE' | 'CREATE_INDEX' | 'INSERT' | 'UPDATE' | 'DELETE' | 'SELECT' | 'DROP_TABLE' | 'ALTER_TABLE';
+  sql: string;
+  table?: string;
+  dependencies?: string[];
+}
+
+export interface IInstalledSchema {
+  module: string;
+  version: string;
+  installedAt: string;
+}
+
+export interface IModuleSchema {
+  name: string;
+  tables: ISchemaTable[];
+  version: string;
+}
+
+export interface IImportService {
+  importSchemas(files: ISchemaFile[]): Promise<IImportResult[]>;
+}
+
 // SQL Parser Types
 export interface ISqlStatement {
   type: 'CREATE_TABLE' | 'CREATE_INDEX' | 'INSERT' | 'UPDATE' | 'DELETE' | 'SELECT' | 'DROP_TABLE' | 'ALTER_TABLE';
@@ -412,6 +480,13 @@ export interface IModuleAdapter {
   isInitialized(): boolean;
 }
 
+export interface IModuleDatabaseAdapter {
+  getConnection(): Promise<IDatabaseConnection>;
+  query<T = unknown>(sql: string, params?: unknown[]): Promise<T[]>;
+  execute(sql: string, params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }>;
+  transaction<T>(callback: (tx: IDatabaseService) => Promise<T>): Promise<T>;
+}
+
 // Schema Service Types
 export interface ISchemaServiceConfig {
   schemaDirectory: string;
@@ -431,3 +506,12 @@ export interface ISummaryData {
   tables: ITableInfo[];
   timestamp: string;
 }
+
+// Database Status Types
+export interface ISchemaVersion {
+  module: string;
+  version: string;
+  appliedAt: Date;
+}
+
+export type StatusFormat = 'text' | 'json';

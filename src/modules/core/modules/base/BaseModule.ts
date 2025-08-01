@@ -4,15 +4,16 @@
  * @module modules/base
  */
 
-import type { ZodSchema } from 'zod';
-import { ZodError } from 'zod';
-import type {HealthStatus, ModulesType} from '@/modules/core/modules/types/index';
 import {
-  BaseModuleSchema,
+ ZodError, type ZodSchema, z
+} from 'zod';
+import type {HealthStatus} from '@/modules/core/modules/types/manual';
+import {
   type IModule,
   ModulesStatus,
+  ModulesType,
   createModuleSchema
-} from '@/modules/core/modules/types/index';
+} from '@/modules/core/modules/types/manual';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
@@ -119,7 +120,26 @@ export abstract class BaseModule<TExports = unknown> implements IModule<TExports
    */
   protected validateIModuleImplementation(): void {
     try {
-      BaseModuleSchema.parse(this);
+      const moduleWithoutExports = {
+        name: this.name,
+        version: this.version,
+        type: this.type,
+        dependencies: this.dependencies,
+        status: this.status,
+        initialize: this.initialize.bind(this)
+      };
+
+      const basicSchema = z.object({
+        name: z.string(),
+        version: z.string(),
+        type: z.nativeEnum(ModulesType),
+        dependencies: z.array(z.string()).readonly()
+.optional(),
+        status: z.nativeEnum(ModulesStatus),
+        initialize: z.function().returns(z.promise(z.void()))
+      });
+
+      basicSchema.parse(moduleWithoutExports);
       this.logger?.debug?.(this.getLogSource(), `${this.name} module IModule implementation validation passed`);
     } catch (error) {
       if (error instanceof ZodError) {

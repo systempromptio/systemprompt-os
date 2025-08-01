@@ -1,14 +1,14 @@
 /**
- * CLI validation utilities for MCP module
- * @file CLI validation utilities for MCP module
+ * CLI validation utilities for MCP module.
+ * @file CLI validation utilities for MCP module.
  * @module modules/core/mcp/utils/cli-validation
  */
 
 import { z } from 'zod';
-import { 
+import {
   McpCreateDataSchema,
-  McpUpdateDataSchema 
-} from '../types/mcp.module.generated';
+  McpUpdateDataSchema
+} from '@/modules/core/mcp/types/mcp.module.generated';
 
 // Base CLI options that all commands should have
 const baseCliOptionsSchema = z.object({
@@ -18,15 +18,15 @@ const baseCliOptionsSchema = z.object({
 // CLI-specific transformations for MCP
 const cliTransforms = {
   // String to boolean
-  boolean: z.enum(['true', 'false']).transform(v => v === 'true'),
-  
+  boolean: z.enum(['true', 'false']).transform(v => { return v === 'true' }),
+
   // String to number with validation
   number: z.coerce.number(),
   positiveNumber: z.coerce.number().positive(),
-  
+
   // Optional boolean with default
   optionalBoolean: z.enum(['true', 'false'])
-    .transform(v => v === 'true')
+    .transform(v => { return v === 'true' })
     .optional()
     .default('false'),
 };
@@ -39,41 +39,62 @@ export const cliSchemas = {
     model: z.string(),
     format: z.enum(['text', 'json']).default('text'),
     // Transform CLI numbers
-    max_tokens: z.coerce.number().positive().optional(),
-    temperature: z.coerce.number().min(0).max(2).optional(),
-    top_p: z.coerce.number().min(0).max(1).optional(),
-    frequency_penalty: z.coerce.number().min(-2).max(2).optional(),
-    presence_penalty: z.coerce.number().min(-2).max(2).optional(),
+    max_tokens: z.coerce.number().positive()
+.optional(),
+    temperature: z.coerce.number().min(0)
+.max(2)
+.optional(),
+    top_p: z.coerce.number().min(0)
+.max(1)
+.optional(),
+    frequency_penalty: z.coerce.number().min(-2)
+.max(2)
+.optional(),
+    presence_penalty: z.coerce.number().min(-2)
+.max(2)
+.optional(),
   }),
-  
+
   update: McpUpdateDataSchema.partial().extend({
     id: z.string().uuid('Invalid context ID format'),
     format: z.enum(['text', 'json']).default('text'),
     // Transform CLI numbers for update
-    max_tokens: z.coerce.number().positive().optional(),
-    temperature: z.coerce.number().min(0).max(2).optional(),
-    top_p: z.coerce.number().min(0).max(1).optional(),
-    frequency_penalty: z.coerce.number().min(-2).max(2).optional(),
-    presence_penalty: z.coerce.number().min(-2).max(2).optional(),
+    max_tokens: z.coerce.number().positive()
+.optional(),
+    temperature: z.coerce.number().min(0)
+.max(2)
+.optional(),
+    top_p: z.coerce.number().min(0)
+.max(1)
+.optional(),
+    frequency_penalty: z.coerce.number().min(-2)
+.max(2)
+.optional(),
+    presence_penalty: z.coerce.number().min(-2)
+.max(2)
+.optional(),
   }),
-  
+
   list: baseCliOptionsSchema.extend({
-    limit: z.coerce.number().positive().max(100).default(20),
-    page: z.coerce.number().positive().default(1),
+    limit: z.coerce.number().positive()
+.max(100)
+.default(20),
+    page: z.coerce.number().positive()
+.default(1),
     status: z.string().optional(),
   }),
-  
+
   get: z.object({
     id: z.string().uuid('Invalid context ID format'),
     format: z.enum(['text', 'json']).default('text'),
   }),
-  
+
   delete: z.object({
     id: z.string().uuid('Invalid context ID format'),
     format: z.enum(['text', 'json']).default('text'),
     confirm: cliTransforms.optionalBoolean,
   }),
-  
+
   status: baseCliOptionsSchema
 };
 

@@ -9,7 +9,7 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { AuthModule, getAuthModule, type IAuthModuleExports } from '@/modules/core/auth/index';
-import { ModulesStatus } from '@/modules/core/modules/types/database.generated';
+import { ModulesStatus } from '@/modules/core/modules/types/manual';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { DatabaseService } from '@/modules/core/database/services/database.service';

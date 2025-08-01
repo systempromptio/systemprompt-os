@@ -4,12 +4,12 @@
  * @module modules/core/mcp/cli/status
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { MCPService } from '@/modules/core/mcp/services/mcp.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { cliSchemas, type StatusMcpArgs } from '../utils/cli-validation';
+import { type StatusMcpArgs, cliSchemas } from '@/modules/core/mcp/utils/cli-validation';
 
 export const command: ICLICommand = {
   description: 'Show MCP module status (enabled/healthy)',
@@ -28,13 +28,11 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
-      const validatedArgs = cliSchemas.status.parse(context.args) as StatusMcpArgs;
-      
+      const validatedArgs = cliSchemas.status.parse(context.args);
+
       const mcpService = MCPService.getInstance();
       const contexts = await mcpService.listContexts();
-      
-      // Create status data object
+
       const statusData = {
         module: 'mcp',
         status: 'healthy',
@@ -62,11 +60,10 @@ export const command: ICLICommand = {
           'Session handling': '✓'
         });
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
-        // Handle Zod validation errors
         cliOutput.error('Invalid arguments:');
         (error as any).issues?.forEach((issue: any) => {
           cliOutput.error(`  ${issue.path.join('.')}: ${issue.message}`);

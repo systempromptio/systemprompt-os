@@ -17,7 +17,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Bootstrap } from '@/bootstrap';
 import { EventBusService } from '@/modules/core/events/services/event-bus.service';
-import { EventNames } from '@/modules/core/events/types/index';
+import { EventNames } from '@/modules/core/events/types/manual';
 import type { AgentsService } from '@/modules/core/agents/services/agents.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { IAgentsModuleExports } from '@/modules/core/agents/types/agents.service.generated';
@@ -71,7 +71,7 @@ describe('Agent-Task Integration Tests', () => {
     // Note: TaskService doesn't have a reset method like other services
     
     try {
-      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
       ModulesModuleService.reset();
     } catch (error) {
       // Ignore

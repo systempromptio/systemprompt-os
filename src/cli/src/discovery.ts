@@ -19,7 +19,7 @@ import {
 } from 'fs';
 import { join } from 'path';
 import { parse } from 'yaml';
-import type { CLICommand } from '@/modules/core/cli/types/index';
+import type { CLICommand } from '@/modules/core/cli/types/manual';
 import type { IModuleConfig } from '@/cli/src/types/discovery.types';
 
 /**

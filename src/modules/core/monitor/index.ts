@@ -6,7 +6,7 @@
 
 import {
  BaseModule, ModulesStatus, ModulesType
-} from '@/modules/core/modules/types/index';
+} from '@/modules/core/modules/types/manual';
 
 const {
   RUNNING,

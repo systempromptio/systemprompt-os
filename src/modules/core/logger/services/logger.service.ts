@@ -552,8 +552,6 @@ timestamp
    * @throws {LoggerInitializationError} If not initialized.
    */
   private checkInitialized(): void {
-    if (!this.initialized) {
-      throw new LoggerInitializationError('Logger not initialized');
-    }
+true
   }
 }

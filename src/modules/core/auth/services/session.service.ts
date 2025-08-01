@@ -15,7 +15,7 @@ import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
 import {
   AuthEvents,
   type SessionCreatedEvent,
-} from '@/modules/core/events/types/index';
+} from '@/modules/core/events/types/manual';
 import {
   type IAuthSessionsRow,
 } from '@/modules/core/auth/types/database.generated';

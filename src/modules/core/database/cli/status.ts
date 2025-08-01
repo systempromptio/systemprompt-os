@@ -6,7 +6,7 @@
  * @module modules/core/database/cli/status
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import {
   DatabaseStatusService,
   type IStatusParams,
@@ -17,7 +17,7 @@ import { LogSource } from '@/modules/core/logger/types/index';
 import type {
   ISchemaVersion,
   StatusFormat,
-} from '@/modules/core/cli/types/database-status.types';
+} from '@/modules/core/database/types/manual';
 import { z } from 'zod';
 
 /**
@@ -27,8 +27,6 @@ const statusArgsSchema = z.object({
   format: z.enum(['text', 'json']).default('text'),
   detailed: z.boolean().default(false),
 });
-
-type StatusArgs = z.infer<typeof statusArgsSchema>;
 
 /**
  * Handle status command execution.

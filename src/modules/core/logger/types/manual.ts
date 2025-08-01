@@ -1,13 +1,8 @@
-/**
- * Manual type definitions for logger module.
- * All non-generated types should be defined here.
+/*
+ * =================================
+ * Core Logger Types
+ * =================================
  */
-
-import type { LoggerService } from '../services/logger.service';
-
-// =================================
-// Core Logger Types
-// =================================
 
 /**
  * Log levels supported by the logger.
@@ -48,7 +43,8 @@ export enum LogSource {
   MONITOR = 'monitor',
   PERMISSIONS = 'permissions',
   USERS = 'users',
-  TASKS = 'tasks'
+  TASKS = 'tasks',
+  TEST = 'test'
 }
 
 /**
@@ -161,9 +157,9 @@ export interface ILogContext {
 }
 
 /**
- * Log entry structure.
+ * Log entry structure for in-memory processing.
  */
-export interface ILogEntry {
+export interface ILogEntryStructure {
     timestamp: string;
     level: string;
     message: string;
@@ -215,9 +211,11 @@ export interface IClearLogsOptions {
   dryRun?: boolean;
 }
 
-// =================================
-// Log Entry Types
-// =================================
+/*
+ * =================================
+ * Log Entry Types
+ * =================================
+ */
 
 /**
  * Represents a log entry from the database.
@@ -245,9 +243,11 @@ export interface IShowLogsOptions {
   format?: string;
 }
 
-// =================================
-// Error Handling Types
-// =================================
+/*
+ * =================================
+ * Error Handling Types
+ * =================================
+ */
 
 /**
  * Error severity levels mapped to LogLevelName
@@ -367,14 +367,16 @@ export interface IErrorHandlingConfig {
     sanitizePatterns?: RegExp[] | undefined;
 }
 
-// =================================
-// Module Export Types
-// =================================
+/*
+ * =================================
+ * Module Export Types
+ * =================================
+ */
 
 /**
  * Strongly typed exports interface for Logger module.
  */
 export interface ILoggerModuleExports {
   readonly service: () => ILogger;
-  readonly getInstance: () => LoggerService;
+  readonly getInstance: () => ILogger;
 }

@@ -2,7 +2,7 @@
  * Database migration CLI command.
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { type Migration, ensureDatabaseInitialized } from '@/modules/core/database/cli/utils';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -18,7 +18,7 @@ const migrateArgsSchema = z.object({
   "module": z.string().optional(),
 });
 
-type MigrateArgs = z.infer<typeof migrateArgsSchema>;
+// Type MigrateArgs = z.infer<typeof migrateArgsSchema>;
 
 /**
  * Database migrate command implementation.
@@ -193,7 +193,7 @@ success: false
       } else {
         cliOutput.error(`Error running migrations: ${errorMessage}`);
       }
-      logger.error(LogSource.DATABASE, 'Error running migrations', { error });
+      logger.error(LogSource.DATABASE, 'Error running migrations', { error: error instanceof Error ? error.message : String(error) });
       process.exit(1);
     }
   }

@@ -3,7 +3,7 @@ import { DatabaseService } from '@/modules/core/database/services/database.servi
 import { SchemaService } from '@/modules/core/database/services/schema.service';
 import { SchemaImportService } from '@/modules/core/database/services/schema-import.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IDatabaseConnection } from '@/modules/core/database/types/database.types';
+import type { IDatabaseConnection } from '@/modules/core/database/types/manual';
 
 /**
  * Helper service for database rebuild operations.

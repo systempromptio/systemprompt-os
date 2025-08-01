@@ -3,14 +3,14 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { TestService } from '@/modules/core/dev/services/test.service';
 import type { TestResult } from '@/modules/core/dev/services/test.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { DevEvents } from '@/modules/core/events/types/index';
+import { DevEvents } from '@/modules/core/events/types/manual';
 
 /**
  * Display test results in a formatted table.
@@ -142,7 +142,27 @@ const executeTest = async (context: ICLIContext): Promise<void> => {
     });
     const duration = Date.now() - startTime;
 
-    displayTestResults(result, args, cliOutput);
+    if (args.format === 'json') {
+      const jsonResult = {
+        module,
+        target,
+        testType,
+        timestamp: new Date().toISOString(),
+        duration,
+        success: result.success,
+        totalTests: result.totalTests,
+        passedTests: result.passedTests,
+        failedTests: result.failedTests,
+        totalTestSuites: result.totalTestSuites,
+        passedTestSuites: result.passedTestSuites,
+        failedTestSuites: result.failedTestSuites,
+        coverage: result.coverage,
+        suites: result.suites
+      };
+      cliOutput.json(jsonResult);
+    } else {
+      displayTestResults(result, args, cliOutput);
+    }
 
     const { ReportWriterService } = await import('@/modules/core/dev/services/report-writer.service');
     ReportWriterService.getInstance();
@@ -232,6 +252,14 @@ export const command: ICLICommand = {
       type: 'string',
       description: 'Maximum number of test suites to display',
       default: '10'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format',
+      choices: ['text', 'json'],
+      default: 'text'
     }
   ],
   execute: executeTest

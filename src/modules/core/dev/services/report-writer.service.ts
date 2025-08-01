@@ -7,7 +7,7 @@ import * as path from 'path';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { DevEvents, type DevReportRequestEvent } from '@/modules/core/events/types/index';
+import { DevEvents, type DevReportRequestEvent } from '@/modules/core/events/types/manual';
 
 export interface BaseReport {
   timestamp: string;

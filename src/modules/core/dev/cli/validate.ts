@@ -3,7 +3,7 @@
  * Checks that a module properly uses generated types and validates against schemas.
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

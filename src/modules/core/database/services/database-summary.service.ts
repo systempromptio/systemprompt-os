@@ -21,7 +21,7 @@ export type {
   ISummaryResult,
   ITableInfo,
   IDatabaseConnectionForSummary,
-} from '@/modules/core/database/types/index';
+} from '@/modules/core/database/types/manual';
 
 /**
  * Database summary utility class.

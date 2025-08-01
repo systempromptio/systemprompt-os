@@ -3,12 +3,13 @@
  */
 
 import { EventEmitter } from 'events';
-import type { IEventBus, IEventHandler } from '@/modules/core/events/types/manual';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { IEventHandler } from '@/modules/core/events/types/manual';
+import type { IEventBusService } from '@/modules/core/events/types/events.service.generated';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { EventsRepository } from '@/modules/core/events/repositories/events.repository';
 
-export class EventBusService implements IEventBus {
+export class EventBusService implements IEventBusService {
   private static instance: EventBusService | null = null;
   private readonly emitter: EventEmitter;
   private readonly logger: ILogger;
@@ -160,6 +161,110 @@ export class EventBusService implements IEventBus {
    */
   listenerCount(event: string): number {
     return this.emitter.listenerCount(event);
+  }
+
+  /**
+   * Get event statistics for CLI and monitoring.
+   */
+  async getEventStats(): Promise<{ total_events: number }> {
+    if (!this.repository) {
+      return { total_events: 0 };
+    }
+    return await this.repository.getEventStats();
+  }
+
+  /**
+   * Get recent events for CLI display.
+   * @param limit
+   */
+  async getRecentEvents(limit: number = 10): Promise<any[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return await this.repository.getRecentEvents(limit);
+  }
+
+  /**
+   * Get events by name for CLI filtering.
+   * @param eventName
+   * @param limit
+   */
+  async getEventsByName(eventName: string, limit: number = 10): Promise<any[]> {
+    if (!this.repository) {
+      return [];
+    }
+    return await this.repository.getEventsByName(eventName, limit);
+  }
+
+  /**
+   * Get a single event by ID for CLI display.
+   * @param eventId
+   */
+  async getEventById(eventId: string): Promise<any | null> {
+    if (!this.repository) {
+      return null;
+    }
+
+    const {db} = (this.repository as any);
+    if (db) {
+      const events = await db.query('SELECT * FROM events WHERE id = ?', [eventId]);
+      return events && events.length > 0 ? events[0] : null;
+    }
+    return null;
+  }
+
+  /**
+   * Get active subscriptions for CLI display.
+   */
+  async getActiveSubscriptions(): Promise<Array<{ event_name: string; subscriber_count: number }>> {
+    if (!this.repository) {
+      return [];
+    }
+    return await this.repository.getActiveSubscriptions();
+  }
+
+  /**
+   * Clear all events from storage (for CLI maintenance).
+   */
+  async clearEvents(): Promise<void> {
+    if (!this.repository) {
+      return;
+    }
+
+    const {db} = (this.repository as any);
+    if (db) {
+      await db.execute('DELETE FROM events');
+      this.logger.info(LogSource.MODULES, 'All events cleared from storage');
+    }
+  }
+
+  /**
+   * Clear all subscriptions from storage (for CLI maintenance).
+   */
+  async clearSubscriptions(): Promise<void> {
+    if (!this.repository) {
+      return;
+    }
+
+    const {db} = (this.repository as any);
+    if (db) {
+      await db.execute('DELETE FROM event_subscriptions');
+      this.logger.info(LogSource.MODULES, 'All subscriptions cleared from storage');
+    }
+  }
+
+  /**
+   * Get service status for CLI reporting.
+   */
+  getServiceStatus(): { healthy: boolean; uptime: string; listeners: number } {
+    const startTime = process.uptime();
+    const uptime = `${Math.floor(startTime / 60)}m ${Math.floor(startTime % 60)}s`;
+
+    return {
+      healthy: true,
+      uptime,
+      listeners: this.emitter.eventNames().length
+    };
   }
 
   /**

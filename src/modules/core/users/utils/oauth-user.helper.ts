@@ -8,7 +8,7 @@ import type { IUser } from '@/modules/core/users/types/users.module.generated';
 import {
   type UserCreateOAuthRequestEvent,
   type UserCreateOAuthResponseEvent
-} from '@/modules/core/events/types/index';
+} from '@/modules/core/events/types/manual';
 
 /**
  * User data response interface.

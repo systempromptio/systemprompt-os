@@ -3,7 +3,7 @@
  * @file Logger status CLI command integration tests.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 

@@ -106,7 +106,7 @@ export class ServiceSchemaGenerator {
   private generateImports(moduleName: string, entityName: string, usedSchemas: Set<string>, hasModuleSchemas: boolean): string {
     let imports = `import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
-import { ModulesType } from '@/modules/core/modules/types/index';
+import { ModulesType } from '@/modules/core/modules/types/manual';
 `;
 
     if (hasModuleSchemas && usedSchemas.size > 0) {

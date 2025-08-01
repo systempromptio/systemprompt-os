@@ -4,24 +4,24 @@
  * @module modules/core/auth/cli/index
  */
 
-import type { ICLICommand } from '@/modules/core/cli/types/index';
+import type { ICLICommand } from '@/modules/core/cli/types/manual';
 
 // Import all commands
-import { command as statusCommand } from './status';
-import { command as sessionCreateCommand } from './session-create';
-import { command as sessionListCommand } from './session-list';
-import { command as sessionValidateCommand } from './session-validate';
-import { command as sessionRevokeCommand } from './session-revoke';
-import { command as authenticateCommand } from './authenticate';
-import { command as providersListCommand } from './providers-list';
+import { command as statusCommand } from '@/modules/core/auth/cli/status';
+import { command as sessionCreateCommand } from '@/modules/core/auth/cli/session-create';
+import { command as sessionListCommand } from '@/modules/core/auth/cli/session-list';
+import { command as sessionValidateCommand } from '@/modules/core/auth/cli/session-validate';
+import { command as sessionRevokeCommand } from '@/modules/core/auth/cli/session-revoke';
+import { command as authenticateCommand } from '@/modules/core/auth/cli/authenticate';
+import { command as providersListCommand } from '@/modules/core/auth/cli/providers-list';
 
 export const commands: Record<string, ICLICommand> = {
-  status: statusCommand,
+  "status": statusCommand,
   'session:create': sessionCreateCommand,
   'session:list': sessionListCommand,
   'session:validate': sessionValidateCommand,
   'session:revoke': sessionRevokeCommand,
-  authenticate: authenticateCommand,
+  "authenticate": authenticateCommand,
   'providers:list': providersListCommand,
 };
 

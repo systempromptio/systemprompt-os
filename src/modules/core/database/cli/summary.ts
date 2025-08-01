@@ -10,7 +10,7 @@ import type {
   ICLIContext,
   ISummaryFormatCLI,
   ISummarySortByCLI,
-} from '@/modules/core/cli/types/index';
+} from '@/modules/core/cli/types/manual';
 import {
   DatabaseSummaryService,
   type ISummaryParams,

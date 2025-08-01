@@ -4,7 +4,7 @@
  * @module modules/types/module-getters
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
+import type { IModule } from '@/modules/core/modules/types/manual';
 import type { IMCPModuleExports } from '@/modules/core/mcp/types/index';
 
 /**

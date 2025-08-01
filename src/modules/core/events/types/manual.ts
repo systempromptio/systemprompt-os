@@ -1,10 +1,4 @@
 /**
- * Manual types for events module - minimally justified types that cannot be auto-generated.
- * JUSTIFICATION: Event payload types and interfaces need manual definition as they represent
- * domain-specific data structures that cross module boundaries and cannot be inferred from database schema.
- */
-
-/**
  * Event bus interface for inter-module communication.
  * JUSTIFICATION: Core event bus contract that other modules depend on.
  */
@@ -66,12 +60,52 @@ export const enum EventNames {
 }
 
 /**
+ * Runtime object version of EventNames for when const enum can't be used.
+ */
+export const EventNamesObject = {
+  // Task Events
+  TASK_CREATED: 'task.created',
+  TASK_ASSIGNED: 'task.assigned',
+  TASK_STARTED: 'task.started',
+  TASK_COMPLETED: 'task.completed',
+  TASK_FAILED: 'task.failed',
+  TASK_STATUS_CHANGED: 'task.status.changed',
+  TASK_UPDATED: 'task.updated',
+  TASK_CANCELLED: 'task.cancelled',
+
+  // Agent Events
+  AGENT_CREATED: 'agent.created',
+  AGENT_STARTED: 'agent.started',
+  AGENT_STOPPED: 'agent.stopped',
+  AGENT_AVAILABLE: 'agent.available',
+  AGENT_BUSY: 'agent.busy',
+  AGENT_IDLE: 'agent.idle',
+  AGENT_DELETED: 'agent.deleted',
+  AGENT_STATUS_CHANGED: 'agent.status.changed',
+
+  // User Events
+  USER_CREATED: 'user.created',
+  USER_UPDATED: 'user.updated',
+  USER_DELETED: 'user.deleted',
+  USER_STATUS_CHANGED: 'user.status.changed',
+
+  // Auth Events
+  LOGIN_SUCCESS: 'auth.login.success',
+  LOGIN_FAILED: 'auth.login.failed',
+  LOGOUT: 'auth.logout',
+  SESSION_CREATED: 'auth.session.created',
+  SESSION_EXPIRED: 'auth.session.expired',
+  TOKEN_CREATED: 'auth.token.created',
+  TOKEN_REVOKED: 'auth.token.revoked',
+} as const;
+
+/**
  * Events module exports interface.
  * JUSTIFICATION: Defines the contract that other modules can expect from the events module.
  */
 export interface IEventsModuleExports {
   eventBus: IEventBus;
-  EventNames: typeof EventNames;
+  EventNames: typeof EventNamesObject;
 }
 
 /**

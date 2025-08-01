@@ -1,5 +1,5 @@
 // Auto-generated database types for tasks module
-// Generated on: 2025-08-01T08:05:33.624Z
+// Generated on: 2025-08-01T11:04:30.776Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

@@ -5,7 +5,7 @@
  */
 
 import { configModule } from '@/modules/core/config/index';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import type { IMcpServerConfig } from '@/modules/core/config/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -36,7 +36,7 @@ const validateRequiredArgs = (
   serverCommand: string | undefined,
   cliOutput: CliOutputService
 ): boolean => {
-  if (!name || !serverCommand) {
+  if (name === undefined || name === '' || serverCommand === undefined || serverCommand === '') {
     cliOutput.error('Error: Both name and command are required.');
     cliOutput.info(
       'Usage: config add --name <server-name> '
@@ -83,7 +83,7 @@ const parseAndValidateEnv = (
   cliOutput: CliOutputService
 ): Record<string, string> | null => {
   const parsedEnv = parseJsonSafely(envString);
-  if (!parsedEnv || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
+  if (parsedEnv === null || parsedEnv === undefined || typeof parsedEnv !== 'object' || Array.isArray(parsedEnv)) {
     cliOutput.error('Error: --env must be a valid JSON object');
     return null;
   }

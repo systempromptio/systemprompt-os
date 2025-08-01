@@ -1,7 +1,7 @@
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { SchemaService } from '@/modules/core/database/services/schema.service';
 import { SchemaOperationsHelperService } from '@/modules/core/database/services/schema-operations-helper.service';
-import type { IInstalledSchema } from '@/modules/core/database/types/schema.types';
+import type { ISchemaVersion } from '@/modules/core/database/types/manual';
 
 /**
  * Helper service for schema listing and management operations.

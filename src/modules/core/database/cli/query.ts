@@ -14,7 +14,7 @@
  * - Many formatting issues that would benefit from Prettier configuration
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import {
   DatabaseQueryService,
   type OutputFormat

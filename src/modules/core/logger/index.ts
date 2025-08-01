@@ -1,4 +1,5 @@
 import { ModulesType } from "@/modules/core/modules/types/database.generated";
+import { ModulesStatus } from "@/modules/core/modules/types/manual";
 /**
  * Core logger module - provides system-wide logging.
  * @file Core logger module - provides system-wide logging.
@@ -7,7 +8,6 @@ import { ModulesType } from "@/modules/core/modules/types/database.generated";
 
 import { LoggerService as LoggerServiceClass } from '@/modules/core/logger/services/logger.service';
 import { LoggerInitializationError } from '@/modules/core/logger/utils/errors';
-import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
 import type { IModule } from '@/modules/core/modules/types';
 import {
   type ILogFiles,

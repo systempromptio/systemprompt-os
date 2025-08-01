@@ -4,218 +4,168 @@
  * @module modules/core/users/cli/update
  */
 
-import type {
-  ICLICommand,
-  ICLIContext
-} from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import { z } from 'zod';
 import { UsersService } from '@/modules/core/users/services/users.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { UsersStatus } from '@/modules/core/users/types/database.generated';
-import type {
-  IUser,
-  IUserUpdateData
+import {
+  type IUser,
+  UserUpdateDataSchema
 } from '@/modules/core/users/types/users.module.generated';
-import type {
-  IDisplayOptions,
-  IUpdateUserArgs
-} from '@/modules/core/users/types/manual';
+import { UsersStatusSchema } from '@/modules/core/users/types/database.generated';
 
-/**
- * Validates user ID argument.
- * @param args - CLI arguments.
- * @param cliOutput - CLI output service instance.
- * @returns The validated user ID.
- */
-const validateUserId = (
-  args: IUpdateUserArgs,
-  cliOutput: CliOutputService
-): string => {
-  if (
-    args.id === undefined
-    || typeof args.id !== 'string'
-    || args.id.trim() === ''
-  ) {
-    cliOutput.error('User ID is required (--id)');
-    process.exit(1);
-  }
-  return args.id;
-};
-
-/**
- * Validates and converts status argument.
- * @param status - Status string from CLI.
- * @param cliOutput - CLI output service instance.
- * @returns The validated status enum.
- */
-const validateStatus = (
-  status: string,
-  cliOutput: CliOutputService
-): UsersStatus => {
-  const validStatuses: UsersStatus[] = [
-    UsersStatus.ACTIVE,
-    UsersStatus.INACTIVE,
-    UsersStatus.SUSPENDED
-  ];
-
-  const matchedStatus = validStatuses.find((statusValue): boolean => {
-    return statusValue.toString() === status;
-  });
-  if (matchedStatus === undefined) {
-    cliOutput.error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-    process.exit(1);
-  }
-
-  return matchedStatus;
-};
-
-/**
- * Builds update data from CLI arguments.
- * @param args - CLI arguments.
- * @param cliOutput - CLI output service instance.
- * @returns The validated update data.
- */
-const buildUpdateData = (
-  args: IUpdateUserArgs,
-  cliOutput: CliOutputService
-): IUserUpdateData => {
-  const updateData: IUserUpdateData = {};
-  const { email, status } = args;
-
-  if (typeof email === 'string' && email.trim() !== '') {
-    updateData.email = email;
-  }
-
-  if (typeof status === 'string' && status.trim() !== '') {
-    updateData.status = validateStatus(status, cliOutput);
-  }
-
-  if (Object.keys(updateData).length === 0) {
-    cliOutput.error('No update data provided. Use --email or --status');
-    process.exit(1);
-  }
-
-  return updateData;
-};
-
-/**
- * Displays user information after update.
- * @param user - Updated user information.
- * @param options - Display options.
- * @param cliOutput - CLI output service instance.
- */
-const displayUserInfo = (
-  user: IUser,
-  options: IDisplayOptions,
-  cliOutput: CliOutputService
-): void => {
-  if (options.format === 'json') {
-    const logger = LoggerService.getInstance();
-    logger.info(LogSource.USERS, 'User data', { user });
-  } else {
-    cliOutput.keyValue({
-      "ID": user.id,
-      "Username": user.username,
-      "Email": user.email,
-      "Status": user.status,
-      'Updated At': user.updated_at ?? 'N/A'
-    });
-  }
-};
-
-/**
- * Validates and extracts CLI arguments.
- * @param contextArgs - Raw context arguments.
- * @returns Validated CLI arguments.
- */
-const extractArgs = (contextArgs: Record<string, unknown>): IUpdateUserArgs => {
-  const {
- id, email, status, format
-} = contextArgs;
-  const args: IUpdateUserArgs = {};
-
-  if (typeof id === 'string') {
-    args.id = id;
-  }
-  if (typeof email === 'string') {
-    args.email = email;
-  }
-  if (typeof status === 'string') {
-    args.status = status;
-  }
-  if (typeof format === 'string') {
-    args.format = format;
-  }
-
-  return args;
-};
-
-/**
- * Creates display options from format argument.
- * @param format - Format string from arguments.
- * @returns Display options object.
- */
-const createDisplayOptions = (format?: string): IDisplayOptions => {
-  const displayOptions: IDisplayOptions = {};
-  if (format !== undefined && format.trim() !== '') {
-    displayOptions.format = format;
-  }
-  return displayOptions;
-};
-
-/**
- * Handles user update errors.
- * @param error - The error that occurred.
- * @param cliOutput - CLI output service.
- * @param logger - Logger service.
- */
-const handleUpdateError = (
-  error: unknown,
-  cliOutput: CliOutputService,
-  logger: LoggerService
-): void => {
-  cliOutput.error('Error updating user');
-  const logError = error instanceof Error ? error : new Error(String(error));
-  logger.error(LogSource.USERS, 'Error updating user', { error: logError });
-  process.exit(1);
-};
-
-/**
- * Processes user update operation.
- * @param args - Validated CLI arguments.
- * @param usersService - Users service instance.
- * @param cliOutput - CLI output service.
- */
-const processUserUpdate = async (
-  args: IUpdateUserArgs,
-  usersService: UsersService,
-  cliOutput: CliOutputService
-): Promise<void> => {
-  const userId = validateUserId(args, cliOutput);
-  const updateData = buildUpdateData(args, cliOutput);
-
-  cliOutput.section('Updating User');
-  const user = await usersService.updateUser(userId, updateData);
-  cliOutput.success('User updated successfully');
-
-  const displayOptions = createDisplayOptions(args.format);
-  displayUserInfo(user, displayOptions, cliOutput);
-};
+// Update command arguments schema
+const updateUserArgsSchema = z.object({
+  id: z.string().uuid('Invalid user ID format'),
+  format: z.enum(['text', 'json']).default('text'),
+  // Optional update fields from the autogenerated schema
+  username: z.string().optional(),
+  email: z.string().email()
+.optional(),
+  display_name: z.string().nullable()
+.optional(),
+  avatar_url: z.string().url()
+.nullable()
+.optional(),
+  bio: z.string().nullable()
+.optional(),
+  timezone: z.string().nullable()
+.optional(),
+  language: z.string().nullable()
+.optional(),
+  status: UsersStatusSchema.optional(),
+  email_verified: z.enum(['true', 'false']).transform(v => { return v === 'true' })
+.optional(),
+  preferences: z.string().nullable()
+.optional(),
+  metadata: z.string().nullable()
+.optional()
+}).refine(data => {
+  const updateFields = Object.keys(data).filter(key => { return key !== 'id' && key !== 'format' && data[key] !== undefined });
+  return updateFields.length > 0;
+}, {
+  message: 'At least one field must be provided for update'
+});
 
 export const command: ICLICommand = {
   description: 'Update user information',
+  options: [
+    {
+ name: 'id',
+type: 'string',
+description: 'User ID (UUID)',
+required: true
+},
+    {
+ name: 'username',
+alias: 'u',
+type: 'string',
+description: 'Username'
+},
+    {
+ name: 'email',
+alias: 'e',
+type: 'string',
+description: 'Email address'
+},
+    {
+ name: 'display_name',
+alias: 'd',
+type: 'string',
+description: 'Display name'
+},
+    {
+ name: 'avatar_url',
+type: 'string',
+description: 'Avatar URL'
+},
+    {
+ name: 'bio',
+type: 'string',
+description: 'User bio'
+},
+    {
+ name: 'timezone',
+type: 'string',
+description: 'Timezone'
+},
+    {
+ name: 'language',
+type: 'string',
+description: 'Language'
+},
+    {
+ name: 'status',
+type: 'string',
+description: 'User status',
+choices: ['active', 'inactive', 'suspended']
+},
+    {
+ name: 'email_verified',
+type: 'string',
+description: 'Email verified status',
+choices: ['true', 'false']
+},
+    {
+ name: 'format',
+alias: 'f',
+type: 'string',
+choices: ['text', 'json'],
+default: 'text',
+description: 'Output format'
+}
+  ],
   execute: async (context: ICLIContext): Promise<void> => {
-    const args = extractArgs(context.args);
+    const { args } = context;
     const logger = LoggerService.getInstance();
     const cliOutput = CliOutputService.getInstance();
 
     try {
+      const validatedArgs = updateUserArgsSchema.parse(args);
+
       const usersService = UsersService.getInstance();
-      await processUserUpdate(args, usersService, cliOutput);
+
+      const {
+ id, format, ...updateData
+} = validatedArgs;
+
+      const cleanedUpdateData = Object.fromEntries(
+        Object.entries(updateData).filter(([_, value]) => { return value !== undefined })
+      );
+
+      const user = await usersService.updateUser(id, cleanedUpdateData);
+
+      if (format === 'json') {
+        cliOutput.json(user);
+      } else {
+        cliOutput.success('User updated successfully');
+        cliOutput.keyValue({
+          'ID': user.id,
+          'Username': user.username,
+          'Email': user.email,
+          'Display Name': user.display_name || 'N/A',
+          'Status': user.status,
+          'Email Verified': user.email_verified ? 'Yes' : 'No',
+          'Updated At': user.updated_at ? new Date(user.updated_at).toLocaleString() : 'N/A'
+        });
+      }
+
       process.exit(0);
     } catch (error) {
-      handleUpdateError(error, cliOutput, logger);
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+        process.exit(1);
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      cliOutput.error(`Error updating user: ${errorMessage}`);
+      logger.error(LogSource.USERS, 'Error updating user', { error: error instanceof Error ? error : new Error(String(error)) });
+      process.exit(1);
     }
   },
 };

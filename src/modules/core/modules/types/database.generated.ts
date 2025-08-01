@@ -1,5 +1,5 @@
 // Auto-generated database types for modules module
-// Generated on: 2025-07-31T13:04:44.786Z
+// Generated on: 2025-08-01T10:56:53.517Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -12,17 +12,6 @@ export enum ModulesType {
   DAEMON = 'daemon',
   PLUGIN = 'plugin',
   EXTENSION = 'extension'
-}
-
-export enum ModulesStatus {
-  PENDING = 'pending',
-  INITIALIZING = 'initializing',
-  RUNNING = 'running',
-  STOPPING = 'stopping',
-  STOPPED = 'stopped',
-  ERROR = 'error',
-  INSTALLED = 'installed',
-  LOADING = 'loading'
 }
 
 export enum ModulesHealthStatus {
@@ -43,7 +32,6 @@ export enum ModuleEventsEventType {
 
 // Zod schemas for enums
 export const ModulesTypeSchema = z.nativeEnum(ModulesType);
-export const ModulesStatusSchema = z.nativeEnum(ModulesStatus);
 export const ModulesHealthStatusSchema = z.nativeEnum(ModulesHealthStatus);
 export const ModuleEventsEventTypeSchema = z.nativeEnum(ModuleEventsEventType);
 
@@ -64,7 +52,7 @@ export interface IModulesRow {
   dependencies: string | null;
   config: string | null;
   metadata: string | null;
-  status: ModulesStatus | null;
+  status: string | null;
   last_error: string | null;
   discovered_at: string | null;
   last_started_at: string | null;
@@ -103,7 +91,7 @@ export const ModulesRowSchema = z.object({
   dependencies: z.string().nullable(),
   config: z.string().nullable(),
   metadata: z.string().nullable(),
-  status: z.nativeEnum(ModulesStatus).nullable(),
+  status: z.string().nullable(),
   last_error: z.string().nullable(),
   discovered_at: z.string().datetime().nullable(),
   last_started_at: z.string().datetime().nullable(),

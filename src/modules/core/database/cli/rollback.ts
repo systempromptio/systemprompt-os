@@ -5,10 +5,10 @@
  * @module modules/core/database/cli/rollback
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import { DatabaseService } from '@/modules/core/database/services/database.service';
 import { MigrationService } from '@/modules/core/database/services/migration.service';
-import type { IExecutedMigration } from '@/modules/core/database/types/migration.types';
+import type { IExecutedMigration } from '@/modules/core/database/types/manual';
 
 /**
  * Interface for rollback execution results.

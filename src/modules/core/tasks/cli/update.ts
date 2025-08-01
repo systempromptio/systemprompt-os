@@ -4,317 +4,94 @@
  * @module modules/core/tasks/cli
  */
 
-import type { CLICommand, CLIContext } from '@/modules/core/cli/types/index';
-import { getTasksModule } from '@/modules/core/tasks';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/index';
+import { TaskService } from '@/modules/core/tasks/services/tasks.service';
 import { TaskStatus } from '@/modules/core/tasks/types/database.generated';
-import type { ITask } from '@/modules/core/tasks/types/tasks.module.generated';
+import { type UpdateTaskArgs, validateCliArgs } from '@/modules/core/tasks/utils/cli-validation';
 
 /**
- * Extract and validate task ID from arguments.
- * @param args - CLI arguments.
- * @returns Task ID.
+ * Execute update command.
+ * @param context - CLI context.
+ * @returns Promise that resolves when task is updated.
  */
-const extractTaskId = (args: Record<string, unknown>): number => {
-  const { id } = args;
-  const taskId = Number(id);
-
-  if (Number.isNaN(taskId) || taskId <= 0) {
-    process.stderr.write('Error: Task ID is required and must be a positive number\n');
-    process.exit(1);
-  }
-
-  return taskId;
-};
-
-/**
- * Extract format from CLI arguments.
- * @param args - CLI arguments.
- * @returns Output format.
- */
-const extractFormat = (args: Record<string, unknown>): string => {
-  return typeof args.format === 'string' ? args.format : 'table';
-};
-
-/**
- * Validate and parse task status.
- * @param statusValue - Raw status value.
- * @returns Validated status string.
- */
-const parseStatus = (statusValue: unknown): string => {
-  if (typeof statusValue !== 'string') {
-    process.stderr.write('Error: Status must be a string\n');
-    process.exit(1);
-  }
-
-  const validStatuses: string[] = Object.values(TaskStatus);
-  if (!validStatuses.includes(statusValue)) {
-    const validOptions = validStatuses.join(', ');
-    process.stderr.write(`Error: Invalid status. Valid values are: ${validOptions}\n`);
-    process.exit(1);
-  }
-
-  return statusValue;
-};
-
-/**
- * Parse and validate instructions JSON.
- * @param instructionsValue - Raw instructions value.
- * @returns Parsed instructions.
- */
-const parseInstructions = (instructionsValue: unknown): unknown => {
-  if (typeof instructionsValue !== 'string') {
-    process.stderr.write('Error: Instructions must be a string\n');
-    process.exit(1);
-  }
+const executeUpdate = async (context: ICLIContext): Promise<void> => {
+  const cliOutput = CliOutputService.getInstance();
+  const logger = LoggerService.getInstance();
 
   try {
-    return JSON.parse(instructionsValue);
-  } catch {
-    process.stderr.write('Error: Instructions must be valid JSON\n');
-    process.exit(1);
-  }
-};
-
-/**
- * Add status update if provided.
- * @param args - CLI arguments.
- * @returns Status update object or empty object.
- */
-const addStatusUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const { status } = args;
-  if (status !== null && status !== undefined) {
-    return { status: parseStatus(status) };
-  }
-  return {};
-};
-
-/**
- * Add instructions update if provided.
- * @param args - CLI arguments.
- * @returns Instructions update object or empty object.
- */
-const addInstructionsUpdate = (
-  args: Record<string, unknown>
-): Record<string, unknown> => {
-  const { instructions } = args;
-  if (instructions !== null && instructions !== undefined) {
-    return { instructions: parseInstructions(instructions) };
-  }
-  return {};
-};
-
-/**
- * Add priority update if provided.
- * @param args - CLI arguments.
- * @returns Priority update object or empty object.
- */
-const addPriorityUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const { priority } = args;
-  if (priority !== null && priority !== undefined) {
-    return { priority };
-  }
-  return {};
-};
-
-/**
- * Add max executions update if provided.
- * @param args - CLI arguments.
- * @returns Max executions update object or empty object.
- */
-const addMaxExecutionsUpdate = (
-  args: Record<string, unknown>
-): Record<string, unknown> => {
-  const {
-    'max-executions': maxExecutionsKebab,
-    maxExecutions
-  } = args;
-
-  if (maxExecutionsKebab !== null && maxExecutionsKebab !== undefined) {
-    return { max_executions: maxExecutionsKebab };
-  }
-  if (maxExecutions !== null && maxExecutions !== undefined) {
-    return { max_executions: maxExecutions };
-  }
-  return {};
-};
-
-/**
- * Add max time update if provided.
- * @param args - CLI arguments.
- * @returns Max time update object or empty object.
- */
-const addMaxTimeUpdate = (
-  args: Record<string, unknown>
-): Record<string, unknown> => {
-  const {
-    'max-time': maxTimeKebab,
-    maxTime
-  } = args;
-
-  if (maxTimeKebab !== null && maxTimeKebab !== undefined) {
-    return { max_time: maxTimeKebab };
-  }
-  if (maxTime !== null && maxTime !== undefined) {
-    return { max_time: maxTime };
-  }
-  return {};
-};
-
-/**
- * Add result update if provided.
- * @param args - CLI arguments.
- * @returns Result update object or empty object.
- */
-const addResultUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const { result } = args;
-  if (result !== null && result !== undefined) {
-    return { result };
-  }
-  return {};
-};
-
-/**
- * Add error update if provided.
- * @param args - CLI arguments.
- * @returns Error update object or empty object.
- */
-const addErrorUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const { error } = args;
-  if (error !== null && error !== undefined) {
-    return { error };
-  }
-  return {};
-};
-
-/**
- * Add progress update if provided.
- * @param args - CLI arguments.
- * @returns Progress update object or empty object.
- */
-const addProgressUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const { progress } = args;
-  if (progress !== null && progress !== undefined) {
-    const progressNum = Number(progress);
-    if (Number.isNaN(progressNum) || progressNum < 0 || progressNum > 100) {
-      process.stderr.write('Error: Progress must be a number between 0 and 100\n');
+    const validatedArgs = validateCliArgs('update', context.args, cliOutput);
+    if (!validatedArgs) {
       process.exit(1);
     }
-    return { progress: progressNum };
-  }
-  return {};
-};
 
-/**
- * Add assigned agent ID update if provided.
- * @param args - CLI arguments.
- * @returns Assigned agent ID update object or empty object.
- */
-const addAssignedAgentIdUpdate = (args: Record<string, unknown>): Record<string, unknown> => {
-  const {
-    'assigned-agent-id': assignedAgentIdKebab,
-    assignedAgentId
-  } = args;
+    const {
+ id, format, ...updateFields
+} = validatedArgs;
 
-  if (assignedAgentIdKebab !== null && assignedAgentIdKebab !== undefined) {
-    return { assigned_agent_id: assignedAgentIdKebab };
-  }
-  if (assignedAgentId !== null && assignedAgentId !== undefined) {
-    return { assigned_agent_id: assignedAgentId };
-  }
-  return {};
-};
-
-/**
- * Build updates object from CLI arguments.
- * @param args - CLI arguments.
- * @returns Updates object.
- */
-const buildUpdates = (args: Record<string, unknown>): Record<string, unknown> => {
-  return {
-    ...addStatusUpdate(args),
-    ...addInstructionsUpdate(args),
-    ...addPriorityUpdate(args),
-    ...addMaxExecutionsUpdate(args),
-    ...addMaxTimeUpdate(args),
-    ...addResultUpdate(args),
-    ...addErrorUpdate(args),
-    ...addProgressUpdate(args),
-    ...addAssignedAgentIdUpdate(args)
-  };
-};
-
-/**
- * Extract update parameters from CLI context.
- * @param options - CLI context.
- * @returns Update parameters object.
- */
-const extractUpdateParams = (options: CLIContext): {
-  taskId: number;
-  format: string;
-  updates: Record<string, unknown>;
-} => {
-  const { args } = options;
-  const taskId = extractTaskId(args);
-  const format = extractFormat(args);
-  const updates = buildUpdates(args);
-
-  if (Object.keys(updates).length === 0) {
-    process.stderr.write('Error: No update fields provided\n');
-    process.exit(1);
-  }
-
-  return {
-    taskId,
-    format,
-    updates
-  };
-};
-
-/**
- * Output task update result.
- * @param task - Updated task object.
- * @param task.id - Task ID.
- * @param task.type - Task type.
- * @param task.status - Task status.
- * @param task.result - Task result.
- * @param format - Output format.
- */
-const outputResult = (task: ITask, format: string): void => {
-  if (format === 'json') {
-    process.stdout.write(`${JSON.stringify(task, null, 2)}\n`);
-    return;
-  }
-
-  if ('type' in task && 'module_id' in task) {
-    process.stdout.write('\nTask updated successfully!\n');
-    process.stdout.write(`ID: ${String(task.id)}\n`);
-    process.stdout.write(`Type: ${task.type}\n`);
-    process.stdout.write(`Status: ${String(task.status ?? 'pending')}\n`);
-
-    if (task.result !== null && task.result !== '') {
-      process.stdout.write(`Result: ${task.result}\n`);
+    const updates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updateFields)) {
+      if (value !== undefined) {
+        updates[key] = value;
+      }
     }
-  } else {
-    process.stderr.write('Error: Invalid task data returned\n');
-    process.exit(1);
-  }
-};
 
-/**
- * Execute the update command.
- * @param options - CLI context.
- * @returns Promise that resolves when update is complete.
- */
-const executeUpdate = async (options: CLIContext): Promise<void> => {
-  const params = extractUpdateParams(options);
+    if (Object.keys(updates).length === 0) {
+      cliOutput.error('No update fields provided. Specify at least one field to update.');
+      process.exit(1);
+    }
 
-  try {
-    const tasksModule = getTasksModule();
-    const taskService = tasksModule.exports.service();
-    const updatedTask = await taskService.updateTask(params.taskId, params.updates);
-    outputResult(updatedTask, params.format);
+    const taskService = TaskService.getInstance();
+
+    const existingTask = await taskService.getTaskById(id);
+    if (!existingTask) {
+      cliOutput.error(`Task ${id} not found`);
+      process.exit(1);
+    }
+
+    const updatedTask = await taskService.updateTask(id, updates);
+
+    if (format === 'json') {
+      cliOutput.json(updatedTask);
+    } else {
+      cliOutput.success('Task updated successfully');
+      cliOutput.keyValue({
+        ID: updatedTask.id,
+        Type: updatedTask.type,
+        Status: updatedTask.status || 'pending',
+        Priority: updatedTask.priority || 0,
+        Module: updatedTask.module_id,
+        Progress: updatedTask.progress ? `${updatedTask.progress}%` : 'N/A',
+        Executions: `${updatedTask.retry_count || 0}/${updatedTask.max_executions || 3}`,
+        ...updatedTask.assigned_agent_id && { 'Assigned Agent': updatedTask.assigned_agent_id },
+        ...updatedTask.max_time && { 'Max Time': `${updatedTask.max_time}s` },
+        Updated: updatedTask.updated_at ? new Date(updatedTask.updated_at).toLocaleString() : 'Now'
+      });
+
+      if (updatedTask.result) {
+        cliOutput.section('Result');
+        cliOutput.info(updatedTask.result);
+      }
+
+      if (updatedTask.error) {
+        cliOutput.section('Error');
+        cliOutput.error(updatedTask.error);
+      }
+
+      const updatedFields = Object.keys(updates).filter(key => { return key !== 'format' });
+      if (updatedFields.length > 0) {
+        cliOutput.section('Updated Fields');
+        cliOutput.info(`Updated: ${updatedFields.join(', ')}`);
+      }
+    }
+
+    process.exit(0);
   } catch (error) {
-    process.stderr.write(`Error: ${String(error)}\n`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    cliOutput.error(`Error updating task: ${errorMessage}`);
+    logger.error(LogSource.TASKS, 'Update command failed', { error: error instanceof Error ? error : new Error(String(error)) });
     process.exit(1);
   }
 };
@@ -322,28 +99,33 @@ const executeUpdate = async (options: CLIContext): Promise<void> => {
 /**
  * Tasks update command.
  */
-export const update: CLICommand = {
-  name: 'update',
-  description: 'Update an existing task',
+export const command: ICLICommand = {
+  description: 'Update an existing task with new values',
   options: [
     {
       name: 'id',
       alias: 'i',
       type: 'number',
-      description: 'Task ID',
+      description: 'Task ID to update',
       required: true
     },
     {
-      name: 'status',
-      alias: 's',
+      name: 'type',
+      alias: 't',
       type: 'string',
-      description: 'Task status (pending, in_progress, completed, failed, cancelled, stopped)'
+      description: 'Task type'
+    },
+    {
+      name: 'module_id',
+      alias: 'm',
+      type: 'string',
+      description: 'Module ID'
     },
     {
       name: 'instructions',
       alias: 'n',
       type: 'string',
-      description: 'Task instructions (JSON format)'
+      description: 'Task instructions (JSON string)'
     },
     {
       name: 'priority',
@@ -352,14 +134,25 @@ export const update: CLICommand = {
       description: 'Task priority'
     },
     {
-      name: 'max-executions',
-      alias: 'm',
-      type: 'number',
-      description: 'Maximum number of executions'
+      name: 'status',
+      alias: 's',
+      type: 'string',
+      description: 'Task status',
+      choices: Object.values(TaskStatus)
     },
     {
-      name: 'max-time',
-      alias: 't',
+      name: 'retry_count',
+      type: 'number',
+      description: 'Retry count'
+    },
+    {
+      name: 'max_executions',
+      alias: 'x',
+      type: 'number',
+      description: 'Maximum number of execution attempts'
+    },
+    {
+      name: 'max_time',
       type: 'number',
       description: 'Maximum execution time in seconds'
     },
@@ -382,20 +175,36 @@ export const update: CLICommand = {
       description: 'Task progress (0-100)'
     },
     {
-      name: 'assigned-agent-id',
+      name: 'assigned_agent_id',
       alias: 'a',
       type: 'string',
       description: 'Assigned agent ID'
     },
     {
+      name: 'scheduled_at',
+      type: 'string',
+      description: 'Schedule task for specific time (ISO 8601 format)'
+    },
+    {
+      name: 'completed_at',
+      type: 'string',
+      description: 'Task completion time (ISO 8601 format)'
+    },
+    {
+      name: 'created_by',
+      type: 'string',
+      description: 'Creator identifier'
+    },
+    {
       name: 'format',
       alias: 'f',
       type: 'string',
-      description: 'Output format (table or json)',
-      default: 'table'
+      description: 'Output format',
+      default: 'text',
+      choices: ['text', 'json']
     }
   ],
   execute: executeUpdate
 };
 
-export default update;
+export default command;

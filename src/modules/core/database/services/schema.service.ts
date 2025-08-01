@@ -10,7 +10,7 @@ import { dirname } from 'node:path';
 import { glob } from 'glob';
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
+import type { ISchemaModule, ISchemaVersion } from '@/modules/core/database/types/manual';
 
 /**
  * MCP content scanner interface.

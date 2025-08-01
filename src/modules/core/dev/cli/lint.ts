@@ -3,14 +3,14 @@
  */
 
 import { randomUUID } from 'crypto';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LintService } from '@/modules/core/dev/services/lint.service';
 import type { LintResult } from '@/modules/core/dev/services/lint.service';
 import { EventBusService } from '@/modules/core/events/services/events.service';
-import { DevEvents } from '@/modules/core/events/types/index';
+import { DevEvents } from '@/modules/core/events/types/manual';
 
 /**
  * Display lint results in a formatted table.
@@ -204,7 +204,7 @@ export const command: ICLICommand = {
     },
     {
       name: 'format',
-      alias: 'f',
+      alias: 'F',
       type: 'string',
       description: 'Output format',
       choices: ['text', 'json'],

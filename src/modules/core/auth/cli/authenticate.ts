@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/authenticate
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type AuthenticateArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type AuthenticateArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -43,16 +43,13 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: AuthenticateArgs = cliSchemas.authenticate.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // Authenticate through service layer
+
       const authResult = await authService.authenticate(validatedArgs.email, validatedArgs.password);
-      
+
       const authData = {
         success: authResult.success,
         userId: authResult.userId,
@@ -60,13 +57,12 @@ export const command: ICLICommand = {
         error: authResult.error,
         authenticatedAt: new Date().toISOString()
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(authData);
       } else {
         cliOutput.section('Authentication Result');
-        
+
         if (authResult.success) {
           cliOutput.success('Authentication successful');
           cliOutput.keyValue({
@@ -83,8 +79,7 @@ export const command: ICLICommand = {
           });
         }
       }
-      
-      // Exit with appropriate code based on authentication result
+
       process.exit(authResult.success ? 0 : 1);
     } catch (error) {
       if (error instanceof z.ZodError) {

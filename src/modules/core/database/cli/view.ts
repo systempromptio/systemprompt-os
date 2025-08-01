@@ -6,7 +6,7 @@
  * @module modules/core/database/cli/view
  */
 
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 import {
   DatabaseViewService,
   type IColumnInfo,

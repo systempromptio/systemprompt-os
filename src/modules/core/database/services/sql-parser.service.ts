@@ -6,7 +6,7 @@
 
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
-import type { IParseResult, IParsedStatement } from '@/modules/core/database/types/sql-parser.types';
+import type { ISqlParseResult, ISqlStatement } from '@/modules/core/database/types/manual';
 
 /**
  * SQL parser service for parsing and validating SQL statements.

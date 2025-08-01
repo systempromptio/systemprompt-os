@@ -4,9 +4,9 @@
  * @module database/repositories/database.repository
  */
 
-import type { IDatabaseConfig, IDatabaseConnection } from '@/modules/core/database/types/database.types';
-import type { IModuleSchema } from '@/modules/core/database/types/schema.types';
-import type { IMigration } from '@/modules/core/database/types/migration.types';
+import type {
+ IDatabaseConfig, IDatabaseConnection, IMigration, ISchemaModule
+} from '@/modules/core/database/types/manual';
 
 /**
  * Database repository interface.
@@ -25,10 +25,10 @@ export interface IDatabaseRepository {
  * Schema repository interface.
  */
 export interface ISchemaRepository {
-  discoverSchemas(baseDir: string): Promise<IModuleSchema[]>;
-  initializeSchemas(schemas: IModuleSchema[]): Promise<void>;
-  getSchema(module: string): IModuleSchema | undefined;
-  getAllSchemas(): Map<string, IModuleSchema>;
+  discoverSchemas(baseDir: string): Promise<ISchemaModule[]>;
+  initializeSchemas(schemas: ISchemaModule[]): Promise<void>;
+  getSchema(module: string): ISchemaModule | undefined;
+  getAllSchemas(): Map<string, ISchemaModule>;
   getInstalledSchemas(): Promise<Array<{ module: string; version: string; installedAt: string }>>;
 }
 

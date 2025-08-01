@@ -10,7 +10,7 @@ import type { CLIContext, CLIOption } from '@/modules/core/cli/types/manual';
 import type { CliService } from '@/modules/core/cli/services/cli.service';
 import type { Bootstrap } from '@/bootstrap';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import { LogSource } from '@/modules/core/logger/types/index';
+import { LogSource } from '@/modules/core/logger/types/manual';
 import { CliFormatterService } from '@/modules/core/cli/services/cli-formatter.service';
 
 /**

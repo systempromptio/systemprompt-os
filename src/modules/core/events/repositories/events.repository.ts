@@ -3,8 +3,8 @@
  */
 
 import { DatabaseService } from '@/modules/core/database/services/database.service';
-import type { IEventsRow, IEventSubscriptionsRow } from '@/modules/core/events/types/database.generated';
-import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
+import type { IEventSubscriptionsRow, IEventsRow } from '@/modules/core/events/types/database.generated';
+import { type ILogger, LogSource } from '@/modules/core/logger/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 
 export class EventsRepository {
@@ -27,10 +27,13 @@ export class EventsRepository {
 
   /**
    * Persist an event to the database.
+   * @param eventName
+   * @param eventData
+   * @param moduleSource
    */
   async createEvent(eventName: string, eventData: unknown, moduleSource?: string): Promise<IEventsRow> {
     try {
-      const result = await this.db.execute(
+      const result = await this.db.query<IEventsRow>(
         `INSERT INTO events (event_name, event_data, module_source) VALUES (?, ?, ?) RETURNING *`,
         [
           eventName,
@@ -43,10 +46,10 @@ export class EventsRepository {
         throw new Error('Failed to create event - no data returned');
       }
 
-      return result[0] as IEventsRow;
+      return result[0]!;
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to create event', { 
-        eventName, 
+      this.logger.error(LogSource.DATABASE, 'Failed to create event', {
+        eventName,
         moduleSource,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -56,6 +59,7 @@ export class EventsRepository {
 
   /**
    * Get recent events.
+   * @param limit
    */
   async getRecentEvents(limit: number = 10): Promise<IEventsRow[]> {
     try {
@@ -65,7 +69,7 @@ export class EventsRepository {
       );
       return result;
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to get recent events', { 
+      this.logger.error(LogSource.DATABASE, 'Failed to get recent events', {
         limit,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -75,6 +79,8 @@ export class EventsRepository {
 
   /**
    * Get events by name.
+   * @param eventName
+   * @param limit
    */
   async getEventsByName(eventName: string, limit: number = 10): Promise<IEventsRow[]> {
     try {
@@ -84,7 +90,7 @@ export class EventsRepository {
       );
       return result;
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to get events by name', { 
+      this.logger.error(LogSource.DATABASE, 'Failed to get events by name', {
         eventName,
         limit,
         error: error instanceof Error ? error.message : String(error)
@@ -95,14 +101,17 @@ export class EventsRepository {
 
   /**
    * Create event subscription record.
+   * @param eventName
+   * @param subscriberModule
+   * @param handlerName
    */
   async createSubscription(
-    eventName: string, 
-    subscriberModule: string, 
+    eventName: string,
+    subscriberModule: string,
     handlerName?: string
   ): Promise<IEventSubscriptionsRow> {
     try {
-      const result = await this.db.execute(
+      const result = await this.db.query<IEventSubscriptionsRow>(
         `INSERT INTO event_subscriptions (event_name, subscriber_module, handler_name) VALUES (?, ?, ?) RETURNING *`,
         [eventName, subscriberModule, handlerName]
       );
@@ -111,10 +120,10 @@ export class EventsRepository {
         throw new Error('Failed to create subscription - no data returned');
       }
 
-      return result[0] as IEventSubscriptionsRow;
+      return result[0]!;
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to create subscription', { 
-        eventName, 
+      this.logger.error(LogSource.DATABASE, 'Failed to create subscription', {
+        eventName,
         subscriberModule,
         handlerName,
         error: error instanceof Error ? error.message : String(error)
@@ -136,7 +145,7 @@ export class EventsRepository {
       );
       return result;
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to get active subscriptions', { 
+      this.logger.error(LogSource.DATABASE, 'Failed to get active subscriptions', {
         error: error instanceof Error ? error.message : String(error)
       });
       throw error;
@@ -145,6 +154,8 @@ export class EventsRepository {
 
   /**
    * Deactivate subscription.
+   * @param eventName
+   * @param subscriberModule
    */
   async deactivateSubscription(eventName: string, subscriberModule: string): Promise<void> {
     try {
@@ -153,8 +164,8 @@ export class EventsRepository {
         [eventName, subscriberModule]
       );
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to deactivate subscription', { 
-        eventName, 
+      this.logger.error(LogSource.DATABASE, 'Failed to deactivate subscription', {
+        eventName,
         subscriberModule,
         error: error instanceof Error ? error.message : String(error)
       });
@@ -172,7 +183,7 @@ export class EventsRepository {
       );
       return result[0] || { total_events: 0 };
     } catch (error) {
-      this.logger.error(LogSource.DATABASE, 'Failed to get event statistics', { 
+      this.logger.error(LogSource.DATABASE, 'Failed to get event statistics', {
         error: error instanceof Error ? error.message : String(error)
       });
       throw error;

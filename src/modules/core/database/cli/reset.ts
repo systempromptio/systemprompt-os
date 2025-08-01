@@ -12,7 +12,7 @@ import {
   DatabaseResetService,
   type IResetParams
 } from '@/modules/core/cli/services/database-reset.service';
-import type { ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLIContext } from '@/modules/core/cli/types/manual';
 
 /**
  * Handle reset command execution.

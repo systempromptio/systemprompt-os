@@ -3,12 +3,13 @@
  * @module server/health
  */
 
-import type { Express, Request, Response } from 'express';
+import type {
+ Express, Request, Response
+} from 'express';
 import { getModuleRegistry } from '@/modules/core/modules/index';
-import { ModulesStatus } from '@/modules/core/modules/types/index';
+import { ModulesStatus } from '@/modules/core/modules/types/manual';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { ModuleLifecycleManager } from '@/bootstrap/helpers/lifecycle-manager';
 
 const logger = LoggerService.getInstance();
 
@@ -45,13 +46,13 @@ function getSystemHealth(): SystemHealthStatus {
   const memUsage = process.memoryUsage();
   const totalMem = memUsage.heapTotal + memUsage.external;
   const usedMem = memUsage.heapUsed + memUsage.external;
-  
+
   return {
     uptime: process.uptime(),
     memory: {
-      used: Math.round(usedMem / 1024 / 1024), // MB
-      total: Math.round(totalMem / 1024 / 1024), // MB
-      percentage: Math.round((usedMem / totalMem) * 100)
+      used: Math.round(usedMem / 1024 / 1024),
+      total: Math.round(totalMem / 1024 / 1024),
+      percentage: Math.round(usedMem / totalMem * 100)
     },
     platform: process.platform,
     nodeVersion: process.version
@@ -65,21 +66,18 @@ function getSystemHealth(): SystemHealthStatus {
 async function checkModuleHealth(): Promise<Record<string, ModuleHealthStatus>> {
   const registry = getModuleRegistry();
   const modules = registry.getAll();
-  const lifecycleManager = new ModuleLifecycleManager();
   const healthStatuses: Record<string, ModuleHealthStatus> = {};
 
   for (const [name, module] of modules) {
     try {
-      // Use lifecycle manager to check health if available
-      if (module.health) {
-        const health = await lifecycleManager.checkHealth(module);
+      if (module.health && typeof module.health === 'function') {
+        const health = await module.health();
         healthStatuses[name] = {
           status: module.status,
-          healthy: health.healthy,
-          message: health.message
+          healthy: health.status === 'healthy',
+          message: health.message ?? undefined
         };
       } else {
-        // Fallback to status-based health check
         healthStatuses[name] = {
           status: module.status,
           healthy: module.status === ModulesStatus.RUNNING,
@@ -108,8 +106,8 @@ async function checkModuleHealth(): Promise<Record<string, ModuleHealthStatus>> 
  */
 async function handleBasicHealth(_req: Request, res: Response): Promise<void> {
   try {
-    const packageJson = require('../../../package.json');
-    
+    const packageJson = require('@/../package.json');
+
     const response: HealthCheckResponse = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -121,7 +119,7 @@ async function handleBasicHealth(_req: Request, res: Response): Promise<void> {
     logger.error(LogSource.SERVER, 'Basic health check failed', {
       error: error instanceof Error ? error : new Error(String(error))
     });
-    
+
     res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -138,24 +136,22 @@ async function handleBasicHealth(_req: Request, res: Response): Promise<void> {
  */
 async function handleDetailedHealth(_req: Request, res: Response): Promise<void> {
   try {
-    const packageJson = require('../../../package.json');
+    const packageJson = require('@/../package.json');
     const moduleHealth = await checkModuleHealth();
     const systemHealth = getSystemHealth();
-    
-    // Determine overall health status
-    const unhealthyModules = Object.values(moduleHealth).filter(m => !m.healthy);
+
+    const unhealthyModules = Object.values(moduleHealth).filter(m => { return !m.healthy });
     const criticalModules = ['logger', 'database', 'auth'];
-    const criticalUnhealthy = unhealthyModules.some(m => 
-      criticalModules.includes(Object.keys(moduleHealth).find(k => moduleHealth[k] === m) || '')
-    );
-    
+    const criticalUnhealthy = unhealthyModules.some(m =>
+      { return criticalModules.includes(Object.keys(moduleHealth).find(k => { return moduleHealth[k] === m }) || '') });
+
     let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     if (criticalUnhealthy) {
       overallStatus = 'unhealthy';
     } else if (unhealthyModules.length > 0) {
       overallStatus = 'degraded';
     }
-    
+
     const response: HealthCheckResponse = {
       status: overallStatus,
       timestamp: new Date().toISOString(),
@@ -164,15 +160,15 @@ async function handleDetailedHealth(_req: Request, res: Response): Promise<void>
       system: systemHealth
     };
 
-    const statusCode = overallStatus === 'healthy' ? 200 : 
-                      overallStatus === 'degraded' ? 200 : 503;
-    
+    const statusCode = overallStatus === 'healthy' ? 200
+                      : overallStatus === 'degraded' ? 200 : 503;
+
     res.status(statusCode).json(response);
   } catch (error) {
     logger.error(LogSource.SERVER, 'Detailed health check failed', {
       error: error instanceof Error ? error : new Error(String(error))
     });
-    
+
     res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -189,11 +185,19 @@ async function handleDetailedHealth(_req: Request, res: Response): Promise<void>
  */
 async function handleModuleHealth(req: Request, res: Response): Promise<void> {
   const { moduleName } = req.params;
-  
+
+  if (!moduleName) {
+    res.status(400).json({
+      error: 'Module name is required',
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
   try {
     const registry = getModuleRegistry();
     const module = registry.get(moduleName);
-    
+
     if (!module) {
       res.status(404).json({
         error: 'Module not found',
@@ -201,19 +205,22 @@ async function handleModuleHealth(req: Request, res: Response): Promise<void> {
       });
       return;
     }
-    
-    const lifecycleManager = new ModuleLifecycleManager();
+
     let health: { healthy: boolean; message?: string };
-    
-    if (module.health) {
-      health = await lifecycleManager.checkHealth(module);
+
+    if (module.health && typeof module.health === 'function') {
+      const healthResult = await module.health();
+      health = {
+        healthy: healthResult.status === 'healthy',
+        message: healthResult.message ?? undefined
+      };
     } else {
       health = {
         healthy: module.status === ModulesStatus.RUNNING,
         message: `Module status: ${module.status}`
       };
     }
-    
+
     res.status(health.healthy ? 200 : 503).json({
       module: moduleName,
       status: module.status,
@@ -225,7 +232,7 @@ async function handleModuleHealth(req: Request, res: Response): Promise<void> {
     logger.error(LogSource.SERVER, `Module health check failed for ${moduleName}`, {
       error: error instanceof Error ? error : new Error(String(error))
     });
-    
+
     res.status(503).json({
       module: moduleName,
       error: 'Health check failed',
@@ -241,14 +248,11 @@ async function handleModuleHealth(req: Request, res: Response): Promise<void> {
 export function setupHealthEndpoints(app: Express): void {
   logger.info(LogSource.SERVER, 'Setting up health endpoints');
 
-  // Basic health check - returns minimal info
   app.get('/health', handleBasicHealth);
-  
-  // Detailed health check - includes module and system info
+
   app.get('/health/detailed', handleDetailedHealth);
-  
-  // Module-specific health check
+
   app.get('/health/modules/:moduleName', handleModuleHealth);
-  
+
   logger.info(LogSource.SERVER, 'Health endpoints configured');
 }

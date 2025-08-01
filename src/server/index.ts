@@ -83,7 +83,6 @@ limit: '50mb'
     throw error;
   }
 
-  // Set up health check endpoints
   setupHealthEndpoints(app);
 
   app.get('/test', (_req, res) => {

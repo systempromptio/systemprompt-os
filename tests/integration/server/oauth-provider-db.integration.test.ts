@@ -43,7 +43,7 @@ describe.skip('OAuth Provider Database Integration - SKIP: Need to refactor for 
     }
     
     try {
-      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
       ModulesModuleService.reset();
     } catch (error) {
       // Ignore

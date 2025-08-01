@@ -12,15 +12,7 @@
  * @module modules/core/config/cli/provider
  */
 
-import {
-  disableProvider,
-  enableProvider,
-  getEnabledProviders,
-  getProvider,
-  providerRegistry,
-  providers,
-  setDefaultProvider
-} from '@/modules/core/config/providers';
+import { ProvidersService } from '@/modules/core/config/services/providers.service';
 import type {
   IGenerationConfig,
   IModelConfig,
@@ -155,13 +147,16 @@ const formatModelDetails = (model: IModelConfig): string => {
  */
 const displayProviderStatus = (output: IOutput): void => {
   output.log('\nProvider Status:');
+  const providersService = ProvidersService.getInstance();
+  const providers = providersService.getProviders();
   const providerKeys = Object.keys(providers);
   const totalProviders = providerKeys.length;
-  const enabledProviders = getEnabledProviders();
+  const enabledProviders = providersService.getEnabledProviders();
   const enabledCount = enabledProviders.length;
+  const registry = providersService.getProviderRegistry();
   output.log(`Total: ${String(totalProviders)}`);
   output.log(`Enabled: ${String(enabledCount)}`);
-  output.log(`Default: ${providerRegistry.defaultProvider}`);
+  output.log(`Default: ${registry.defaultProvider}`);
 };
 
 /**
@@ -170,24 +165,26 @@ const displayProviderStatus = (output: IOutput): void => {
  */
 const listProviders = async (options: ICommandOptions = {}): Promise<void> => {
   const output = getOutput();
+  const providersService = ProvidersService.getInstance();
+  const registry = providersService.getProviderRegistry();
   let providersToShow: IProviderWithVersion[];
 
   if (options.enabled === true) {
-    const enabledProviders = getEnabledProviders();
+    const enabledProviders = providersService.getEnabledProviders();
     providersToShow = enabledProviders as unknown as IProviderWithVersion[];
     if (providersToShow.length === 0) {
       output.log('No providers found.');
       return;
     }
   } else {
-    const allProviders = Object.values(providers);
+    const allProviders = Object.values(providersService.getProviders());
     providersToShow = allProviders as unknown as IProviderWithVersion[];
     output.log('AI Providers:');
   }
 
   for (const provider of providersToShow) {
     const status = provider.enabled ? '✓' : '✗';
-    const isDefault = provider.name === providerRegistry.defaultProvider;
+    const isDefault = provider.name === registry.defaultProvider;
     const defaultText = isDefault && provider.enabled ? ' (default)' : '';
 
     output.log(
@@ -234,7 +231,8 @@ const showProvider = async (options: ICommandOptions): Promise<void> => {
     process.exit(1);
   }
 
-  const providerResult = getProvider(name);
+  const providersService = ProvidersService.getInstance();
+  const providerResult = providersService.getProvider(name);
   const provider = providerResult as unknown as IProviderWithVersion | null;
 
   if (provider === null) {
@@ -268,7 +266,8 @@ const enableProviderCommand = async (
     process.exit(1);
   }
 
-  const providerResult = getProvider(name);
+  const providersService = ProvidersService.getInstance();
+  const providerResult = providersService.getProvider(name);
   const provider = providerResult as unknown as IProviderWithVersion | null;
 
   if (provider === null) {
@@ -282,7 +281,7 @@ const enableProviderCommand = async (
     return;
   }
 
-  const success = enableProvider(name);
+  const success = providersService.enableProvider(name);
   if (!success) {
     output.error(`Failed to enable provider '${name}'.`);
     process.exit(1);
@@ -303,7 +302,9 @@ const canDisableProvider = (
   name: string,
   output: IOutput
 ): boolean => {
-  if (name === providerRegistry.defaultProvider) {
+  const providersService = ProvidersService.getInstance();
+  const registry = providersService.getProviderRegistry();
+  if (name === registry.defaultProvider) {
     output.error(`Error: Cannot disable the default provider '${name}'.`);
     output.error(
       'Please set a different default provider first using '
@@ -312,7 +313,7 @@ const canDisableProvider = (
     return false;
   }
 
-  const enabledProviders = getEnabledProviders();
+  const enabledProviders = providersService.getEnabledProviders();
   if (enabledProviders.length === 1 && enabledProviders[0]?.name === name) {
     output.error(`Error: Cannot disable the last enabled provider '${name}'.`);
     output.error('At least one provider must remain enabled.');
@@ -337,7 +338,8 @@ const disableProviderCommand = async (
     process.exit(1);
   }
 
-  const providerResult = getProvider(name);
+  const providersService = ProvidersService.getInstance();
+  const providerResult = providersService.getProvider(name);
   const provider = providerResult as unknown as IProviderWithVersion | null;
 
   if (provider === null) {
@@ -354,7 +356,7 @@ const disableProviderCommand = async (
     return;
   }
 
-  const success = disableProvider(name);
+  const success = providersService.disableProvider(name);
   if (!success) {
     output.error(`Failed to disable provider '${name}'.`);
     process.exit(1);
@@ -362,7 +364,7 @@ const disableProviderCommand = async (
 
   output.log(`✓ Provider '${name}' has been disabled.`);
   output.log(
-    `Remaining enabled providers: ${providerRegistry.enabledProviders.join(', ')}`
+    `Remaining enabled providers: ${providersService.getProviderRegistry().enabledProviders.join(', ')}`
   );
 };
 
@@ -381,7 +383,8 @@ const setDefaultProviderCommand = async (
     process.exit(1);
   }
 
-  const providerResult = getProvider(name);
+  const providersService = ProvidersService.getInstance();
+  const providerResult = providersService.getProvider(name);
   const provider = providerResult as unknown as IProviderWithVersion | null;
 
   if (provider === null) {
@@ -395,13 +398,14 @@ const setDefaultProviderCommand = async (
     process.exit(1);
   }
 
-  if (name === providerRegistry.defaultProvider) {
+  const registry = providersService.getProviderRegistry();
+  if (name === registry.defaultProvider) {
     output.log(`Provider '${name}' is already the default.`);
     return;
   }
 
-  const { defaultProvider: previousDefault } = providerRegistry;
-  const success = setDefaultProvider(name);
+  const { defaultProvider: previousDefault } = registry;
+  const success = providersService.setDefaultProvider(name);
   if (!success) {
     output.error(`Failed to set '${name}' as default provider.`);
     process.exit(1);

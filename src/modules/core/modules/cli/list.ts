@@ -4,115 +4,132 @@
  * @module modules/core/modules/cli/list
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
-import type { IModulesRow } from '@/modules/core/modules/types/database.generated';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
+import { z } from 'zod';
 import { ModuleManagerService } from '@/modules/core/modules/services/module-manager.service';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
 
-/**
- * Helper function to display module information in text format.
- * @param filteredModules - Array of modules to display.
- * @param logger - Logger service instance.
- */
-const displayModulesAsText = (filteredModules: IModulesRow[]): void => {
-  console.log('\nInstalled Modules:');
-  console.log('═════════════════\n');
+// Command arguments schema
+const listArgsSchema = z.object({
+  type: z.enum(['all', 'core', 'extension', 'service', 'daemon', 'plugin']).default('all'),
+  format: z.enum(['text', 'json', 'table']).default('text'),
+});
 
-  if (filteredModules.length === 0) {
-    console.log('No modules found.');
-  } else {
-    filteredModules.forEach((moduleItem): void => {
-      console.log(`Name: ${String(moduleItem.name)}`);
-      console.log(`Type: ${String(moduleItem.type)}`);
-      console.log(`Version: ${String(moduleItem.version)}`);
-      console.log(`Status: ${moduleItem.enabled ? 'Enabled' : 'Disabled'}`);
-      console.log(`Path: ${String(moduleItem.path)}`);
-      console.log(`─────────────────`);
-    });
-  }
+type ListArgs = z.infer<typeof listArgsSchema>;
 
-  console.log(`\nTotal: ${String(filteredModules.length)} modules`);
-};
-
-/**
- * Check if value is a valid string.
- * @param value - Value to check.
- * @returns True if value is a string.
- */
-const isValidString = (value: unknown): value is string => {
-  return value !== undefined && value !== null && typeof value === 'string';
-};
-
-/**
- * Execute list modules functionality with type filtering.
- * @param config - Configuration object.
- * @param config.modules - All available modules.
- * @param config.typeFilter - Type filter to apply.
- * @param config.format - Output format (json or text).
- * @param config.logger - Logger service instance.
- */
-const executeListModules = (config: {
-  modules: IModulesRow[];
-  typeFilter: string;
-  format: string;
-  logger: LoggerService;
-}): void => {
-  const {
-    modules,
-    typeFilter,
-    format,
-    logger: _logger
-  } = config;
-  let filteredModules = modules;
-  if (typeFilter !== 'all') {
-    filteredModules = modules.filter((moduleItem): boolean => {
-      return String(moduleItem.type) === typeFilter;
-    });
-  }
-
-  if (format === 'json') {
-    console.log(JSON.stringify(filteredModules, null, 2));
-  } else {
-    displayModulesAsText(filteredModules);
-  }
-};
-
-const command: ICLICommand = {
+export const command: ICLICommand = {
   description: 'List installed extensions and modules',
-  async execute(context: ICLIContext): Promise<void> {
-    const { args } = context;
+  options: [
+    {
+      name: 'type',
+      alias: 't',
+      type: 'string',
+      description: 'Filter by type (all, core, extension, service, daemon, plugin)',
+      choices: ['all', 'core', 'extension', 'service', 'daemon', 'plugin'],
+      default: 'all'
+    },
+    {
+      name: 'format',
+      alias: 'f',
+      type: 'string',
+      description: 'Output format (text, json, table)',
+      choices: ['text', 'json', 'table'],
+      default: 'text'
+    }
+  ],
+  execute: async (context: ICLIContext): Promise<void> => {
     const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
 
     try {
+      const validatedArgs: ListArgs = listArgsSchema.parse(context.args);
+
       const moduleManager = ModuleManagerService.getInstance();
       const modules = await moduleManager.getAllModules();
 
-      const { type: typeValue, format: formatValue } = args;
+      let filteredModules = modules;
+      if (validatedArgs.type !== 'all') {
+        filteredModules = modules.filter((moduleItem) => {
+          return String(moduleItem.type) === validatedArgs.type;
+        });
+      }
 
-      const typeFilter = isValidString(typeValue) ? typeValue : 'all';
-      const format = isValidString(formatValue) ? formatValue : 'text';
+      if (validatedArgs.format === 'json') {
+        cliOutput.json(filteredModules);
+      } else if (validatedArgs.format === 'table') {
+        cliOutput.section('Installed Modules');
+        if (filteredModules.length === 0) {
+          cliOutput.info('No modules found.');
+        } else {
+          cliOutput.table(filteredModules, [
+            {
+ key: 'name',
+header: 'Name',
+width: 20
+},
+            {
+ key: 'type',
+header: 'Type',
+width: 12
+},
+            {
+ key: 'version',
+header: 'Version',
+width: 10
+},
+            {
+ key: 'enabled',
+header: 'Status',
+width: 10,
+format: (v) => { return v ? 'Enabled' : 'Disabled' }
+},
+            {
+ key: 'description',
+header: 'Description',
+width: 40
+}
+          ]);
+        }
+        cliOutput.info(`Total: ${filteredModules.length} modules`);
+      } else {
+        cliOutput.section('Installed Modules');
 
-      executeListModules({
-        modules,
-        typeFilter,
-        format,
-        logger
-      });
+        if (filteredModules.length === 0) {
+          cliOutput.info('No modules found.');
+        } else {
+          filteredModules.forEach((moduleItem) => {
+            cliOutput.keyValue({
+              Name: moduleItem.name,
+              Type: String(moduleItem.type),
+              Version: moduleItem.version,
+              Status: moduleItem.enabled ? 'Enabled' : 'Disabled',
+              Path: moduleItem.path,
+              Description: moduleItem.description || 'N/A'
+            });
+            cliOutput.info('─'.repeat(50));
+          });
+        }
 
-      setTimeout(() => {
-        process.exit(0);
-      }, 100);
+        cliOutput.info(`Total: ${filteredModules.length} modules`);
+      }
+
+      process.exit(0);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(LogSource.MODULES, `Error listing modules: ${errorMessage}`, {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      setTimeout(() => {
-        process.exit(1);
-      }, 100);
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        cliOutput.error(`Error listing modules: ${errorMessage}`);
+        logger.error(LogSource.MODULES, `Error listing modules: ${errorMessage}`, {
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+      process.exit(1);
     }
   },
 };
-
-export { command };

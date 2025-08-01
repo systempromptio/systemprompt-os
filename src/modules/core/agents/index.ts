@@ -4,7 +4,7 @@
  * @module modules/core/agents
  */
 
-import { BaseModule, ModulesType } from '@/modules/core/modules/types/index';
+import { BaseModule, ModulesType } from '@/modules/core/modules/types/manual';
 import { AgentsService } from '@/modules/core/agents/services/agents.service';
 import {
   AgentsModuleExportsSchema,

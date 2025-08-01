@@ -97,7 +97,7 @@ afterAll(async () => {
       (ModuleSetupService as any).instance = null;
     },
     async () => {
-      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
       ModulesModuleService.reset();
     }
   ];

@@ -40,7 +40,7 @@ describe('OAuth Provider Database Integration', () => {
     }
     
     try {
-      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules-module.service');
+      const { ModulesModuleService } = await import('@/modules/core/modules/services/modules.service');
       ModulesModuleService.reset();
     } catch (error) {
       // Ignore

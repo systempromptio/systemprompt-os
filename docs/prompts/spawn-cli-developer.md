@@ -42,13 +42,16 @@ Run ALL validation commands and ensure they pass:
 ./bin/systemprompt dev test
 ```
 
-#### CLI Integration Testing
+#### CLI Integration Testing and Status Reporting
+- **BEFORE**: Document pre-agent CLI status (commands working/broken, help text issues)
 - Test all CLI commands for the module
 - Verify command help text and documentation
 - Test error scenarios and edge cases
 - Ensure CLI commands integrate with module services
 - Validate output formatting and consistency
 - Test command chaining and composition
+- **AFTER**: Document post-agent CLI status (all commands working, help complete)
+- **REPORT**: Status change summary for the module's CLI
 
 ### 4. Progress Tracking Protocol
 
@@ -104,10 +107,13 @@ CRITICAL: Do not consider the task complete unless ALL validation commands pass 
 
 #### Success Reporting
 Wait for agent to report:
+- **BEFORE STATUS**: Initial CLI state (broken commands, missing help, validation errors)
 - All CLI commands implemented and tested
 - All validation commands executed successfully
 - CLI help documentation is complete and accurate
 - No errors or warnings remaining
+- **AFTER STATUS**: Final CLI state (all commands working, complete help, zero errors)
+- **STATUS CHANGE**: Clear before/after comparison showing progress
 - Module CLI ready for production use
 
 ### 6. Error Recovery Strategy
@@ -193,30 +199,34 @@ After ALL module CLIs completed:
 - Test CLI in different system states
 - Test CLI error recovery
 
-## Example Agent Spawn Command
+## Example Agent Spawn Command with Status Reporting
 
 ```
 Task: Complete CLI development and validation for the auth module
 
 Requirements:
-1. Check and follow CLI rules in /var/www/html/systemprompt-os/rules/src/modules/core/auth/cli/
-2. Implement all required CLI commands following existing patterns
-3. Ensure consistent argument parsing, validation, and error handling
-4. Test all CLI commands thoroughly:
+1. BEFORE STATUS: Document current auth CLI state:
+   - Test ./bin/systemprompt auth --help (working/broken?)
+   - Test key commands (status, authenticate, etc.)
+   - Note validation command results
+2. Check and follow CLI rules in /var/www/html/systemprompt-os/rules/src/modules/core/auth/cli/
+3. Implement all required CLI commands following existing patterns
+4. Ensure consistent argument parsing, validation, and error handling
+5. Test all CLI commands thoroughly:
    - ./bin/systemprompt auth --help
    - ./bin/systemprompt auth status
    - ./bin/systemprompt auth authenticate
    - All other auth commands and their help text
-5. Run complete validation suite:
+6. Run complete validation suite:
    - ./bin/systemprompt dev generate-types auth
    - ./bin/systemprompt dev validate auth
    - ./bin/systemprompt dev lint
    - ./bin/systemprompt dev typecheck
    - ./bin/systemprompt dev test
-6. Ensure CLI documentation is accurate and helpful
-7. Report back when auth CLI is fully complete and validated
+7. AFTER STATUS: Document final auth CLI state (all working, complete help)
+8. STATUS REPORT: "Auth CLI: [before issues] → All commands working ✅"
 
-CRITICAL: Do not consider the task complete unless ALL validation commands pass and all CLI commands work correctly.
+CRITICAL: Report clear before/after status and ensure ALL validation commands pass.
 ```
 
 ## Success Metrics

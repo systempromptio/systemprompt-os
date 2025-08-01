@@ -3,7 +3,7 @@
  * Generates comprehensive types for a module using the TypeGuardGeneratorService.
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { DevService } from '@/modules/core/dev/services/dev.service';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
@@ -88,13 +88,21 @@ export const command: ICLICommand = {
               module,
               types: ['all']
             });
-            results.push({ module, status: 'success', files: [`src/modules/core/${module}/types/database.generated.ts`, `src/modules/core/${module}/types/${module}.module.generated.ts`, `src/modules/core/${module}/types/${module}.service.generated.ts`] });
+            results.push({
+ module,
+status: 'success',
+files: [`src/modules/core/${module}/types/database.generated.ts`, `src/modules/core/${module}/types/${module}.module.generated.ts`, `src/modules/core/${module}/types/${module}.service.generated.ts`]
+});
             if (args.format !== 'json') {
               output.success(`  ✅ Generated types for ${module}`);
             }
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            results.push({ module, status: 'error', error: errorMessage });
+            results.push({
+ module,
+status: 'error',
+error: errorMessage
+});
             if (args.format !== 'json') {
               output.error(`  ❌ Failed to generate types for ${module}: ${errorMessage}`);
             }
@@ -102,7 +110,10 @@ export const command: ICLICommand = {
         }
 
         if (args.format === 'json') {
-          output.json({ modules: results, timestamp: new Date().toISOString() });
+          output.json({
+ modules: results,
+timestamp: new Date().toISOString()
+});
         } else {
           output.success('\n✅ Completed type generation for all modules');
         }
@@ -165,15 +176,13 @@ export const command: ICLICommand = {
 
       if (args.format === 'json') {
         output.json(result);
-      } else {
-        if (options.module) {
+      } else if (options.module) {
           output.success(`✅ Successfully generated types for '${options.module}' module`);
           output.info('Generated files:');
-          generatedFiles.forEach(file => output.info(`  • ${file}`));
+          generatedFiles.forEach(file => { output.info(`  • ${file}`); });
         } else {
           output.success(`✅ Successfully generated types for pattern`);
         }
-      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       output.error(`❌ Failed to generate types: ${errorMessage}`);

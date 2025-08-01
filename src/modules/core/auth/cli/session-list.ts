@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/session-list
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type SessionListArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type SessionListArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -50,50 +50,52 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: SessionListArgs = cliSchemas.sessionList.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // List sessions through service layer
+
       const sessionIds = await authService.listSessions(validatedArgs.userId);
-      
+
       const sessionsData = {
         userId: validatedArgs.userId,
-        sessions: sessionIds.map(id => ({
+        sessions: sessionIds.map(id => { return {
           sessionId: id,
-          status: 'active' // Service doesn't return full session data yet
-        })),
+          status: 'active'
+        } }),
         total: sessionIds.length,
         page: validatedArgs.page,
         limit: validatedArgs.limit
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(sessionsData);
       } else {
         cliOutput.section(`Sessions for User: ${validatedArgs.userId}`);
-        
+
         if (sessionIds.length === 0) {
           cliOutput.info('No active sessions found');
         } else {
-          const tableData = sessionIds.map(id => ({
+          const tableData = sessionIds.map(id => { return {
             'Session ID': id,
             'Status': 'Active'
-          }));
-          
+          } });
+
           cliOutput.table(tableData, [
-            { key: 'Session ID', header: 'Session ID' },
-            { key: 'Status', header: 'Status' }
+            {
+ key: 'Session ID',
+header: 'Session ID'
+},
+            {
+ key: 'Status',
+header: 'Status'
+}
           ]);
-          
+
           cliOutput.info(`Total: ${sessionIds.length} session(s)`);
         }
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof z.ZodError) {

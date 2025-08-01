@@ -35,6 +35,16 @@ export const usersCommands = {
       name: 'get',
       description: 'Get user information',
       handler: 'users:get'
+    },
+    {
+      name: 'update',
+      description: 'Update user information',
+      handler: 'users:update'
+    },
+    {
+      name: 'delete',
+      description: 'Delete a user',
+      handler: 'users:delete'
     }
   ]
 };

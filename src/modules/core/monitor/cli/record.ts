@@ -4,7 +4,7 @@
  * @module modules/core/monitor/cli/record
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { MonitorService } from '@/modules/core/monitor/services/monitor.service';
 import { MetricType } from '@/modules/core/monitor/types/database.generated';

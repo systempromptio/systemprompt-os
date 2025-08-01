@@ -8,7 +8,7 @@ import { type ILogger, LogSource } from '@/modules/core/logger/types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import type { DatabaseService } from '@/modules/core/database/services/database.service';
 import type { ICoreModuleDefinition } from '@/types/bootstrap';
-import type { IScannedModule } from '@/modules/core/modules/types/scanner.types';
+import type { IScannedModule } from '@/modules/core/modules/types/manual';
 import { ModulesType } from '@/modules/core/modules/types/database.generated';
 import { ModuleManagerRepository } from '@/modules/core/modules/repositories/module-manager.repository';
 import { CoreModuleScanner } from '@/bootstrap/helpers/module-scanner';

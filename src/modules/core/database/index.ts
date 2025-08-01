@@ -12,17 +12,13 @@ import { SchemaImportService } from '@/modules/core/database/services/schema-imp
 import { SQLParserService } from '@/modules/core/database/services/sql-parser.service';
 import { DatabaseCLIHandlerService } from '@/modules/core/database/services/cli-handler.service';
 import { type ILogger, LogSource } from '@/modules/core/logger/types/index';
-import type { IDatabaseConfig } from '@/modules/core/database/types/database.types';
-import type { IDatabaseService } from '@/modules/core/database/types/db-service.interface';
-import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/database.generated";
+import type { IDatabaseConfig, IDatabaseService } from '@/modules/core/database/types/manual';
+import { ModulesStatus, ModulesType } from "@/modules/core/modules/types/manual";
 import type { IModule } from '@/modules/core/modules/types';
 import { createModuleAdapter } from '@/modules/core/database/adapters/module.adapter';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
-import type {
-  IDatabaseAdapter,
-  IDatabaseModuleExports
-} from '@/modules/core/database/types/database-module.types';
-import type { IModuleDatabaseAdapter } from '@/modules/core/database/types/module-adapter.types';
+import type { IDatabaseModuleExports } from '@/modules/core/database/types/database.service.generated';
+import type { IDatabaseAdapter, IModuleDatabaseAdapter } from '@/modules/core/database/types/manual';
 
 /**
  * Type guard to check if a module is a Database module.
@@ -144,7 +140,8 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       pool: {
         min: parseInt(process.env.DB_POOL_MIN ?? DEFAULT_POOL_MIN, RADIX_BASE),
         max: parseInt(process.env.DB_POOL_MAX ?? DEFAULT_POOL_MAX, RADIX_BASE),
-        idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
+        acquireTimeoutMillis: parseInt(process.env.DB_ACQUIRE_TIMEOUT ?? '10000', RADIX_BASE),
+        idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
       },
     };
 
@@ -416,7 +413,8 @@ export const initialize = async (logger?: ILogger): Promise<void> => {
     pool: {
       min: parseInt(process.env.DB_POOL_MIN ?? DEFAULT_POOL_MIN, RADIX_BASE),
       max: parseInt(process.env.DB_POOL_MAX ?? DEFAULT_POOL_MAX, RADIX_BASE),
-      idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
+      acquireTimeoutMillis: parseInt(process.env.DB_ACQUIRE_TIMEOUT ?? '10000', RADIX_BASE),
+      idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT ?? DEFAULT_IDLE_TIMEOUT, RADIX_BASE),
     },
   };
 

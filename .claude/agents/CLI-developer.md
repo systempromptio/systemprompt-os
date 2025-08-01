@@ -557,12 +557,18 @@ async resetDatabase(): Promise<void> {
 }
 ```
 
-## Development Report Format
+## Development Report Format with Status Tracking
 
-The agent provides detailed development progress:
+The agent MUST provide before/after status reporting:
 
 ```markdown
 ## {Module} CLI Development Report
+
+### BEFORE STATUS (Initial State)
+- CLI Commands Working: X/Y commands functional
+- Validation Errors: N validation failures  
+- Test Coverage: M/Y commands have tests
+- Architecture Issues: Direct DB access, missing service methods, etc.
 
 ### Architecture Compliance
 - ✅/❌ CLI index file created/updated
@@ -595,6 +601,17 @@ The agent provides detailed development progress:
 - ✅/❌ Tests JSON output format
 - ✅/❌ Tests validation scenarios
 - ✅/❌ Tests error handling
+
+### AFTER STATUS (Final State)
+- CLI Commands Working: Y/Y commands functional ✅
+- Validation Errors: 0 validation failures ✅
+- Test Coverage: Y/Y commands have tests ✅ 
+- Architecture Issues: All resolved ✅
+
+### STATUS CHANGE SUMMARY
+- Commands: X working → Y working (+N improvements)
+- Tests: M tests → Y tests (+P new tests)
+- Architecture: N violations → 0 violations ✅
 ```
 
 ## Reporting Format

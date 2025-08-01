@@ -8,7 +8,7 @@ import { LoggingHelperService } from '@/modules/core/database/services/logging-h
 import { SchemaListHelperService } from '@/modules/core/database/services/schema-list-helper.service';
 import { InitHelperService } from '@/modules/core/database/services/init-helper.service';
 import { type ILogger } from '@/modules/core/logger/types/index';
-import type { IInstalledSchema } from '@/modules/core/database/types/schema.types';
+import type { ISchemaVersion } from '@/modules/core/database/types/manual';
 
 /**
  * CLI handler service for database commands.
@@ -41,10 +41,10 @@ export class DatabaseCLIHandlerService {
    * Handle status command.
    * @returns Status information.
    */
-  public handleStatus(): { connected: boolean; type: string; message: string } {
+  public async handleStatus(): Promise<{ connected: boolean; type: string; message: string }> {
     try {
       const db = DatabaseService.getInstance();
-      const isConnected = db.isConnected();
+      const isConnected = await db.isConnected();
       const dbType = db.getDatabaseType();
 
       return {
@@ -120,7 +120,7 @@ export class DatabaseCLIHandlerService {
   }): Promise<unknown> {
     try {
       const db = DatabaseService.getInstance();
-      if (!db.isConnected()) {
+      if (!await db.isConnected()) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -186,7 +186,7 @@ export class DatabaseCLIHandlerService {
   }): Promise<unknown> {
     try {
       const db = DatabaseService.getInstance();
-      if (!db.isConnected()) {
+      if (!await db.isConnected()) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -292,7 +292,7 @@ export class DatabaseCLIHandlerService {
   }): Promise<unknown> {
     try {
       const db = DatabaseService.getInstance();
-      if (!db.isConnected()) {
+      if (!await db.isConnected()) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -348,7 +348,7 @@ export class DatabaseCLIHandlerService {
   }): Promise<unknown> {
     try {
       const db = DatabaseService.getInstance();
-      if (!db.isConnected()) {
+      if (!await db.isConnected()) {
         return {
           success: false,
           message: 'Database is not connected'
@@ -405,7 +405,7 @@ export class DatabaseCLIHandlerService {
   public async listSchemas(): Promise<{
     success: boolean;
     message?: string;
-    data?: { schemas: IInstalledSchema[] };
+    data?: { schemas: ISchemaVersion[] };
   }> {
     return await SchemaListHelperService.listSchemas();
   }

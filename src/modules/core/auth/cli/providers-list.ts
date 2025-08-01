@@ -4,12 +4,12 @@
  * @module modules/core/auth/cli/providers-list
  */
 
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/index';
-import { AuthService } from '../services/auth.service';
-import { cliSchemas, type ProvidersListArgs } from '../utils/cli-validation';
+import { AuthService } from '@/modules/core/auth/services/auth.service';
+import { type ProvidersListArgs, cliSchemas } from '@/modules/core/auth/utils/cli-validation';
 import { z } from 'zod';
 
 export const command: ICLICommand = {
@@ -29,38 +29,58 @@ export const command: ICLICommand = {
     const logger = LoggerService.getInstance();
 
     try {
-      // Validate arguments with Zod
       const validatedArgs: ProvidersListArgs = cliSchemas.providersList.parse(context.args);
-      
-      // Get AuthService instance
+
       const authService = AuthService.getInstance();
       await authService.initialize();
-      
-      // Note: Since AuthService doesn't expose provider methods yet,
-      // we'll provide a placeholder response indicating the limitation
+
+      const providers = await authService.listProviders();
+
       const providersData = {
-        providers: [],
-        message: 'Provider management is currently handled internally by the auth module',
-        availableProviders: ['github', 'google'],
-        note: 'Direct provider listing through CLI is not yet available',
+        providers,
+        total: providers.length,
         timestamp: new Date().toISOString()
       };
-      
-      // Output based on format
+
       if (validatedArgs.format === 'json') {
         cliOutput.json(providersData);
       } else {
-        cliOutput.section('OAuth Provider Status');
-        cliOutput.info('Provider management is currently handled internally by the auth module.');
-        cliOutput.info('Available provider types: GitHub, Google');
-        cliOutput.info('Direct provider configuration through CLI is not yet available.');
-        
-        cliOutput.section('Next Steps');
-        cliOutput.info('• Provider configuration is managed through YAML files');
-        cliOutput.info('• OAuth flows are handled by the auth service');
-        cliOutput.info('• Provider instances are created at runtime');
+        cliOutput.section('OAuth Providers');
+
+        if (providers.length === 0) {
+          cliOutput.info('No OAuth providers are currently configured');
+          cliOutput.info('Providers can be configured through YAML files in the providers directory');
+        } else {
+          const tableData = providers.map(provider => { return {
+            'Provider ID': provider.id,
+            'Name': provider.name,
+            'Type': provider.type,
+            'Status': provider.enabled ? 'Enabled' : 'Disabled'
+          } });
+
+          cliOutput.table(tableData, [
+            {
+ key: 'Provider ID',
+header: 'Provider ID'
+},
+            {
+ key: 'Name',
+header: 'Name'
+},
+            {
+ key: 'Type',
+header: 'Type'
+},
+            {
+ key: 'Status',
+header: 'Status'
+}
+          ]);
+
+          cliOutput.info(`Total: ${providers.length} provider(s) configured`);
+        }
       }
-      
+
       process.exit(0);
     } catch (error) {
       if (error instanceof z.ZodError) {

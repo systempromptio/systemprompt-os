@@ -10,7 +10,7 @@ import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import * as yaml from 'yaml';
 import { configModule } from '@/modules/core/config/index';
-import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/index';
+import type { ICLICommand, ICLIContext } from '@/modules/core/cli/types/manual';
 import type {
   IConfigStructure,
   IProvidersConfig,

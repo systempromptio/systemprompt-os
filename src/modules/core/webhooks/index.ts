@@ -5,8 +5,8 @@ import { ModulesType } from "@/modules/core/modules/types/database.generated";
  * @module modules/core/webhooks
  */
 
-import type { IModule } from '@/modules/core/modules/types/index';
-import { ModulesStatus } from "@/modules/core/modules/types/database.generated";
+import type { IModule } from '@/modules/core/modules/types/manual';
+import { ModulesStatus } from "@/modules/core/modules/types/manual";
 import type { ILogger } from '@/modules/core/logger/types/index';
 import { LogSource } from '@/modules/core/logger/types/index';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';

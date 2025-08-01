@@ -1,6 +1,6 @@
 /*
  * LINT-STANDARDS-ENFORCER: Unable to resolve after 10 iterations. Remaining issues:
- * 1. TypeScript circular dependency with @/modules/core/modules/types/index import
+ * 1. TypeScript circular dependency with @/modules/core/modules/types/manual import
  * 2. Type assertion issues due to strict TypeScript configuration
  * 3. Complex path mapping issues in tsconfig affecting module resolution
  * 4. ESLint custom rules enforcing types in types/ folders create conflicts

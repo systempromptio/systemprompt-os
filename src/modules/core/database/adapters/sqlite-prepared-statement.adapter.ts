@@ -5,7 +5,7 @@
  */
 
 import type * as BetterSqlite3 from 'better-sqlite3';
-import type { IPreparedStatement, IQueryResult } from '@/modules/core/database/types/manual';
+import type { IPreparedStatement } from '@/modules/core/database/types/manual';
 
 /**
  * SQLite prepared statement implementation.
@@ -22,18 +22,28 @@ export class SqlitePreparedStatement implements IPreparedStatement {
   }
 
   /**
+   * Execute a query and return results.
+   * @param params - Optional parameters for the query.
+   * @returns Array of result rows.
+   */
+  public async query<T = unknown>(params?: unknown[]): Promise<T[]> {
+    const queryParams = params ?? [];
+    const result = this.stmt.all(...queryParams);
+    return result as T[];
+  }
+
+  /**
    * Execute the prepared statement and return results.
    * @param params - Optional parameters for the statement.
    * @returns Query result with rows and count.
    */
-  public async execute(params?: unknown[]): Promise<IQueryResult> {
+  public async execute(params?: unknown[]): Promise<{ changes: number; lastInsertRowid?: number }> {
     const queryParams = params ?? [];
-    const rows = this.stmt.all(...queryParams);
-    const queryResult = {
-      rows,
-      rowCount: rows.length,
-    };
-    return await Promise.resolve(queryResult);
+    const result = this.stmt.run(...queryParams);
+    return {
+ changes: result.changes,
+lastInsertRowid: Number(result.lastInsertRowid)
+};
   }
 
   /**

@@ -1,5 +1,5 @@
 import { SchemaService } from '@/modules/core/database/services/schema.service';
-import type { IInstalledSchema, IModuleSchema } from '@/modules/core/database/types/schema.types';
+import type { ISchemaModule, ISchemaVersion } from '@/modules/core/database/types/manual';
 
 /**
  * Helper service for schema operations.

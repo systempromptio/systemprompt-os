@@ -1,13 +1,10 @@
 /**
- * Logger module types index - re-exports all types
+ * Logger module types index - re-exports all types.
+ * This file temporarily re-exports from manual.ts for compatibility.
  */
 
 // Re-export all manual types
-export * from './manual';
+export * from '@/modules/core/logger/types/manual';
 
 // Re-export generated database types
-export * from './database.generated';
-
-// Re-export generated service types
-export * from './logger.service.generated';
-export * from './logger.module.generated';
+export * from '@/modules/core/logger/types/database.generated';
