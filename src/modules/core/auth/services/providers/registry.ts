@@ -11,10 +11,10 @@ import type {
   IIdentityProvider,
   IOIDCDiscoveryConfig
 } from '@/modules/core/auth/types/manual';
-import { GenericOAuth2Provider } from '@/modules/core/auth/providers/core/oauth2';
-import { GoogleProvider } from '@/modules/core/auth/providers/core/google';
-import { GitHubProvider } from '@/modules/core/auth/providers/core/github';
-import type { ProviderConfig } from '@/modules/core/auth/providers/types';
+import { GenericOAuth2Provider } from '@/modules/core/auth/services/providers/core/oauth2';
+import { GoogleProvider } from '@/modules/core/auth/services/providers/core/google';
+import { GitHubProvider } from '@/modules/core/auth/services/providers/core/github';
+import type { ProviderConfig } from '@/modules/core/auth/services/providers/types';
 
 /**
  * ProviderRegistry manages OAuth2/OIDC identity provider configurations.

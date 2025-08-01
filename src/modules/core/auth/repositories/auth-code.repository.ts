@@ -44,15 +44,15 @@ export class AuthCodeRepository {
       [
         authCode,
         authData.clientId,
-        authData.redirectUri,
-        authData.scope,
-        authData.userId ?? null,
-        authData.userEmail ?? null,
+        authData.redirect_uri,
+        authData.scopes ? authData.scopes.join(' ') : '',
+        authData.user_id ?? null,
+        null,
         authData.provider ?? null,
-        authData.providerTokens ? JSON.stringify(authData.providerTokens) : null,
+        null,
         authData.codeChallenge ?? null,
         authData.codeChallengeMethod ?? null,
-        authData.expiresAt.toISOString(),
+        authData.expires_at.toISOString(),
       ],
     );
 
@@ -80,13 +80,15 @@ export class AuthCodeRepository {
     }
 
     return {
+      code: row.code,
       clientId: row.client_id,
-      redirectUri: row.redirect_uri,
-      scope: row.scope,
-      ...row.user_id !== null && { userId: row.user_id },
+      redirect_uri: row.redirect_uri,
+      scopes: row.scope ? row.scope.split(' ') : [],
+      user_id: row.user_id || '',
+      provider: row.provider || '',
+      expires_at: new Date(row.expires_at),
       ...row.code_challenge !== null && { codeChallenge: row.code_challenge },
       ...row.code_challenge_method !== null && { codeChallengeMethod: row.code_challenge_method },
-      expiresAt: new Date(row.expires_at),
     };
   }
 

@@ -12,7 +12,7 @@ import { LogSource, getLoggerService } from '@/modules/core/logger/index';
  * @param authModule - Auth module instance.
  * @returns Command instance with token subcommands.
  */
-export function createTokenCommand(authModule: AuthModule): Command {
+export function createTokenCommand(_authModule: AuthModule): Command {
   const cmd = new Command('token')
     .description('Token management commands');
 

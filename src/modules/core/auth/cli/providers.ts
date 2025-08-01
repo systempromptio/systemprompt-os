@@ -6,7 +6,6 @@
  * @module modules/core/auth/cli/providers
  */
 
-import { getAuthModule } from '@/modules/core/auth/index';
 import type { IAuthCliTypes } from '@/modules/core/auth/types/manual';
 
 export const command = {

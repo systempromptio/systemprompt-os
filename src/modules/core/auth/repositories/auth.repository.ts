@@ -119,7 +119,7 @@ export class AuthRepository {
     provider_name?: string | null;
     provider_picture?: string | null;
   }): Promise<void> {
-    const db = this.database.getConnection();
+    const db = await this.database.getConnection();
     
     // Check if identity exists
     const existing = await db
@@ -169,7 +169,7 @@ export class AuthRepository {
    * @returns Promise that resolves to OAuth identity or null.
    */
   async getOAuthIdentity(userId: string, provider: string): Promise<IAuthOauthIdentitiesRow | null> {
-    const db = this.database.getConnection();
+    const db = await this.database.getConnection();
     
     const identity = await db
       .select('auth_oauth_identities', ['*'])

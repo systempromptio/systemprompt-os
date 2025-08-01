@@ -9,7 +9,7 @@ import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import {
   GenericOAuth2Provider,
   discoverOidcConfiguration
-} from '@/modules/core/auth/providers/core/oauth2';
+} from '@/modules/core/auth/services/providers/core/oauth2';
 import type {
   IDPConfig,
   IGenericOAuth2Config,

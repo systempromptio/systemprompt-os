@@ -389,7 +389,7 @@ export class GoogleProvider implements IIdentityProvider {
     const result: IIdpUserInfo = {
       id: googleUserInfo.id,
       email: googleUserInfo.email,
-      raw: googleUserInfo as Record<string, unknown>,
+      raw: googleUserInfo as unknown as Record<string, unknown>,
     };
 
     const {

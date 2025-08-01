@@ -7,7 +7,7 @@ import type {
   IGitHubConfig,
   IGitHubEmailData,
   IGitHubUserData,
-} from '@/modules/core/auth/providers/types/github.types';
+} from '@/modules/core/auth/services/providers/types/github.types';
 
 /**
  * GitHub OAuth2 provider implementation.
