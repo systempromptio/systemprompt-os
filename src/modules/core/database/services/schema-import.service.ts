@@ -180,10 +180,7 @@ export class SchemaImportService {
       return;
     }
 
-    await this.database.transaction(async (conn: {
-      execute(sql: string, params?: unknown[]): Promise<void>;
-      query<U>(sql: string, params?: unknown[]): Promise<U[]>;
-    }): Promise<void> => {
+    await this.database.transaction(async (conn: IDatabaseService): Promise<void> => {
       try {
         await conn.execute(schema.content);
       } catch (error) {

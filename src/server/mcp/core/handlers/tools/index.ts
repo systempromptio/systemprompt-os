@@ -11,3 +11,4 @@ export type {
 } from '@/server/mcp/core/handlers/tools/types';
 
 export { handleCheckStatus } from '@/server/mcp/core/handlers/tools/check-status';
+export { handleExecuteCli } from '@/server/mcp/core/handlers/tools/execute-cli';

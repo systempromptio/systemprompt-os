@@ -2,100 +2,99 @@
 
 ## Overview
 
-The MCP (Model Context Protocol) handler enables modules to expose tools, resources, and prompts via the MCP protocol. It manages MCP server instances, sessions, and translates between MCP requests and module events.
+The MCP (Model Context Protocol) handler provides HTTP access to MCP contexts. All MCP servers are HTTP streamable servers, differentiated only by contexts and permissions. The handler routes requests to appropriate contexts based on the `X-MCP-Context` header.
 
 ## Core Responsibilities
 
-1. **MCP Server Management**
-   - Create MCP server instances per module
-   - Manage server lifecycle
-   - Handle server registration/unregistration
+1. **Context-Based Routing**
+   - Route requests to appropriate context based on header
+   - Validate context permissions before processing
+   - Handle multi-context scenarios
 
 2. **Session Management**
-   - Create and track MCP sessions
+   - Create and track MCP sessions per context
    - Session timeout and cleanup
-   - Session-to-module mapping
+   - Context-aware session handling
 
-3. **Request Routing**
-   - Route MCP requests to appropriate modules
-   - Handle tool calls, resource reads, prompt requests
-   - Manage response formatting
+3. **Request Processing**
+   - Forward MCP requests to the MCP module
+   - MCP module uses SDK to handle actual execution
+   - Format responses according to MCP protocol
 
-4. **Protocol Translation**
-   - Convert MCP requests to module events
-   - Format module responses as MCP responses
-   - Handle streaming responses
+4. **HTTP Streamable Server**
+   - All contexts exposed via HTTP/SSE
+   - Support for streaming responses
+   - Handle long-running operations
 
 ## Architecture
 
 ```typescript
 export class McpProtocol implements IProtocolHandler {
-  private servers: Map<string, IMcpServerInstance>;
+  private contexts: Map<string, McpContext>;
   private sessions: Map<string, IMcpSession>;
-  private transport: StreamableHTTPServerTransport;
   
   async initialize(serverCore: IServerCore): Promise<void> {
-    this.listenForMcpRegistrations(serverCore.eventBus);
-    this.setupTransport();
+    // Get available contexts from MCP module
+    await this.loadContexts();
+    // Set up HTTP endpoints
+    this.registerEndpoints(serverCore.eventBus);
+  }
+  
+  async handleRequest(req: Request): Promise<Response> {
+    const contextName = req.headers['x-mcp-context'];
+    const context = await this.mcpModule.contexts.getByName(contextName);
+    
+    if (!context) {
+      return new Response('Context not found', { status: 404 });
+    }
+    
+    // Check permissions
+    const canAccess = await this.mcpModule.contexts.canAccess(
+      context.id,
+      req.user?.id,
+      req.user?.roles
+    );
+    
+    if (!canAccess) {
+      return new Response('Unauthorized', { status: 403 });
+    }
+    
+    // Forward to MCP module's SDK
+    const client = await this.mcpModule.sdk.getClient(context.id);
+    return await this.processWithSDK(client, req);
   }
 }
 ```
 
-## MCP Server Registration
+## Context Registration
 
-Modules register their MCP capabilities:
+Contexts are created via the MCP module, not directly registered:
 
 ```typescript
-interface IMcpRegistration {
-  moduleId: string;
+// Context creation via MCP module
+const context = await mcpModule.contexts.create('git-tools', {
+  description: 'Git operations context',
   capabilities: {
-    tools?: IMcpTool[];
-    resources?: IMcpResource[];
-    prompts?: IMcpPrompt[];
-    resourceTemplates?: IMcpResourceTemplate[];
-  };
-  metadata: {
-    name: string;
-    version: string;
-    description: string;
-  };
-}
-```
-
-### Registration Example
-```typescript
-// Module emits registration
-eventBus.emit(ServerEvents.REGISTER_MCP_SERVER, {
-  moduleId: 'git-tools',
-  capabilities: {
-    tools: [
-      {
-        name: 'git-commit',
-        description: 'Create a git commit',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            files: { type: 'array', items: { type: 'string' } }
-          }
-        }
-      }
-    ],
-    resources: [
-      {
-        uri: 'git://status',
-        name: 'Git Status',
-        description: 'Current git repository status'
-      }
-    ]
+    tools: ['git-commit', 'git-status', 'git-log'],
+    resources: ['git://status', 'git://log'],
+    prompts: []
   },
-  metadata: {
-    name: 'Git Tools',
-    version: '1.0.0',
-    description: 'Git operations via MCP'
+  permissions: {
+    roles: ['developer', 'admin'],
+    users: []
+  },
+  environment: {
+    GIT_AUTHOR_NAME: 'SystemPrompt',
+    GIT_AUTHOR_EMAIL: 'system@prompt.io'
   }
 });
 ```
+
+The MCP protocol handler then:
+1. Loads available contexts from MCP module
+2. Exposes each context at `/mcp` with header routing
+3. Enforces permissions per context
+4. Uses MCP SDK for actual protocol operations
 
 ## Request Handling
 

@@ -38,13 +38,12 @@ export class McpProtocolHandlerV2 implements IProtocolHandler {
         version: '1.0.0'
       }
     });
-
-    return true;
-  }
-
-  async start(): Promise<void> {
-    // Register MCP endpoints with HTTP handler via events
-    this.server!.eventBus.emit(ServerEvents.REGISTER_ENDPOINTS, {
+    
+    // Register CLI tools context
+    this.registerCliContext();
+    
+    // Register MCP endpoints with HTTP handler via events during initialization
+    server.eventBus.emit(ServerEvents.REGISTER_ENDPOINTS, {
       moduleId: 'mcp-protocol',
       endpoints: [
         {
@@ -65,11 +64,11 @@ export class McpProtocolHandlerV2 implements IProtocolHandler {
     });
     
     // Set up handlers
-    this.server!.eventBus.on('mcp.request', async (event) => {
+    server.eventBus.on('mcp.request', async (event) => {
       await this.handleMcpRequest(event);
     });
     
-    this.server!.eventBus.on('mcp.contexts', async (event) => {
+    server.eventBus.on('mcp.contexts', async (event) => {
       const contexts = Array.from(this.contexts.entries()).map(([name, ctx]) => ({
         name,
         metadata: ctx.metadata,
@@ -80,11 +79,60 @@ export class McpProtocolHandlerV2 implements IProtocolHandler {
         }
       }));
       
-      this.server!.eventBus.emit(`response.${event.requestId}`, {
+      server.eventBus.emit(`response.${event.requestId}`, {
         data: { contexts }
       });
     });
-    
+
+    return true;
+  }
+  
+  private registerCliContext(): void {
+    // Register the CLI tools context
+    this.contexts.set('cli', {
+      moduleId: 'mcp',
+      context: 'cli',
+      capabilities: {
+        tools: [
+          {
+            name: 'execute-cli',
+            description: 'Execute SystemPrompt OS CLI commands',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                module: {
+                  type: 'string',
+                  description: 'Module name (e.g., database, auth, dev)',
+                },
+                command: {
+                  type: 'string',
+                  description: 'Command name (e.g., status, list, migrate)',
+                },
+                args: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                  },
+                  description: 'Additional arguments for the command',
+                },
+                timeout: {
+                  type: 'number',
+                  description: 'Timeout in milliseconds (default: 30000)',
+                },
+              },
+            },
+          },
+        ],
+      },
+      metadata: {
+        name: 'SystemPrompt CLI Tools',
+        description: 'Execute SystemPrompt OS CLI commands via MCP',
+        version: '1.0.0',
+      },
+    });
+  }
+
+  async start(): Promise<void> {
     this.status = 'running';
   }
 

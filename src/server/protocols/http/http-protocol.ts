@@ -10,6 +10,7 @@ import type {
 } from 'express';
 import type { Server } from 'http';
 import { v4 as uuidv4 } from 'uuid';
+import { resolve } from 'path';
 import type {
  IProtocolHandler, IServerCore, ProtocolHealth, ServerStatus
 } from '../../core/types/server.types';
@@ -17,6 +18,7 @@ import type { RequestEvent } from '../../core/types/events.types';
 import { ServerEvents } from '../../core/types/events.types';
 import type { HttpEndpoint, HttpRequestContext } from './types/http.types';
 import { EndpointRegistry } from '../../integration/endpoint-registry';
+import { FrontendService } from '../../services/frontend.service';
 
 export class HttpProtocolHandler implements IProtocolHandler {
   public readonly name = 'http';
@@ -168,6 +170,84 @@ limit: '50mb'
 
   private setupRoutes(): void {
     if (!this.app || !this.server) { return; }
+
+    const frontendService = FrontendService.getInstance();
+    const frontendConfig = frontendService.getConfig();
+
+    // In development, proxy everything to Vite dev server for hot reload
+    if (frontendConfig.mode === 'development' && frontendConfig.enabled) {
+      // Proxy ALL requests to Vite dev server in development
+      this.app.use(async (req, res, next) => {
+        // Skip API routes
+        if (req.path.startsWith('/api') || req.path.startsWith('/debug') || req.path.includes('.well-known')) {
+          return next();
+        }
+        
+        try {
+          const viteUrl = `http://localhost:5173${req.originalUrl}`;
+          const response = await fetch(viteUrl);
+          
+          if (!response.ok) {
+            return next();
+          }
+          
+          const contentType = response.headers.get('content-type');
+          if (contentType) {
+            res.type(contentType);
+          }
+          
+          // For HTML, inject our API base URL
+          if (contentType?.includes('text/html')) {
+            let html = await response.text();
+            html = html.replace(
+              '</head>',
+              `<script>window.API_BASE_URL = 'http://localhost:3000';</script></head>`
+            );
+            res.send(html);
+          } else {
+            const content = await response.arrayBuffer();
+            res.send(Buffer.from(content));
+          }
+        } catch (error) {
+          // Fallback if Vite is not running
+          if (req.path === '/') {
+            res.send(`
+              <!DOCTYPE html>
+              <html><head><title>SystemPrompt OS</title></head>
+              <body style="font-family: monospace; background: #000; color: #f6933c; text-align: center; padding: 2rem;">
+                <h1>🤖 SystemPrompt OS</h1>
+                <p>Vite dev server not running. The frontend is being started...</p>
+                <p>Please refresh in a few seconds.</p>
+                <p><a href="/debug/headers" style="color: #f6933c;">Debug Headers</a> | <a href="/api/echo" style="color: #f6933c;">API Echo</a></p>
+              </body></html>
+            `);
+          } else {
+            next();
+          }
+        }
+      });
+    } else {
+      // Production mode - serve static files
+      this.app.use(express.static('dist/frontend', { 
+        index: false
+      }));
+
+      this.app.get('/', (req, res) => {
+        res.sendFile('index.html', { root: 'dist/frontend' }, (err) => {
+          if (err) {
+            res.send(`
+              <!DOCTYPE html>
+              <html><head><title>SystemPrompt OS</title></head>
+              <body style="font-family: monospace; background: #000; color: #f6933c; text-align: center; padding: 2rem;">
+                <h1>🤖 SystemPrompt OS</h1>
+                <p>Frontend build not found. Run <code>npm run build:frontend</code> to build the splash screen.</p>
+                <p><a href="/debug/headers" style="color: #f6933c;">Debug Headers</a> | <a href="/api/echo" style="color: #f6933c;">API Echo</a></p>
+              </body></html>
+            `);
+          }
+        });
+      });
+    }
 
     this.app.get('/debug/headers', (req, res) => {
       res.json({ headers: req.headers });

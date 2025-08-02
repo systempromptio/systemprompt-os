@@ -339,11 +339,11 @@ class McpProtocol {
 
 ### Multi-Context Benefits
 
-1. **Isolation**: Each module's MCP server is isolated
-2. **Security**: Different auth requirements per context
-3. **Scalability**: Contexts can be load-balanced separately
+1. **Isolation**: Each context has its own capability boundary
+2. **Security**: Permissions control who can access each context
+3. **Scalability**: All contexts served via HTTP streamable servers
 4. **Discovery**: Clients can list available contexts
-5. **Flexibility**: Modules can expose multiple contexts
+5. **Flexibility**: Contexts define what tools/resources are exposed
 
 ## Performance Considerations
 

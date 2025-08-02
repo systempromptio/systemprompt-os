@@ -253,7 +253,7 @@ export class DatabaseModule implements IModule<IDatabaseModuleExports> {
       const dbAdapter = this.createDatabaseAdapter(dbService);
 
       const schemaImport = SchemaImportService.initialize(
-        dbAdapter,
+        dbService,
         sqlParser,
         this.logger
       );

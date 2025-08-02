@@ -11,8 +11,10 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "start": "tsx src/index.ts",
-    "dev": "tsx watch src/index.ts",
+    "start": "PATH=\"/usr/local/opt/node@20/bin:$PATH\" tsx src/index.ts",
+    "dev": "PATH=\"/usr/local/opt/node@20/bin:$PATH\" tsx watch src/index.ts",
+    "build:frontend": "cd src/server/frontend && vite build",
+    "dev:frontend": "cd src/server/frontend && vite",
     "cli": "tsx src/modules/core/cli/cli/main.ts",
     "setup": "tsx scripts/setup.ts",
     "stop": "tsx scripts/stop-all.ts",
@@ -121,6 +123,7 @@
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
+    "vite": "^5.4.19",
     "vitest": "^2.0.0",
     "ws": "^8.18.3"
   },

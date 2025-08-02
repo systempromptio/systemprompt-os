@@ -1,0 +1,29 @@
+{
+  "name": "Default",
+  "description": "SystemPrompt OS default theme",
+  "version": "1.0.0",
+  "colors": {
+    "primary": "#f6933c",
+    "primaryDark": "#d47a2a",
+    "primaryLight": "#ffab5e",
+    "secondary": "#1a1a1a",
+    "background": "#0f0f0f",
+    "backgroundGradient": "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #2d2d2d 100%)",
+    "text": "#f6933c",
+    "textLight": "#ffab5e",
+    "textDark": "#d47a2a",
+    "success": "#4caf50",
+    "warning": "#ff9800",
+    "error": "#f44336",
+    "info": "#2196f3"
+  },
+  "fonts": {
+    "primary": "'Courier New', monospace",
+    "code": "'Fira Code', 'Courier New', monospace"
+  },
+  "animations": {
+    "glow": true,
+    "matrix": true,
+    "pulse": true
+  }
+}

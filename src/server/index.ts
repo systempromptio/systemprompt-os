@@ -11,6 +11,7 @@ import { HttpProtocolHandler } from './protocols/http/http-protocol';
 import { McpProtocolHandlerV2 } from './protocols/mcp/mcp-protocol';
 import { ModuleBridge } from './integration/module-bridge';
 import { ServerEvents } from './core/types/events.types';
+import { FrontendService } from './services/frontend.service';
 
 const logger = LoggerService.getInstance();
 
@@ -25,6 +26,11 @@ export const startServer = async function startServer(port: number = 3000): Prom
   // Create the event-driven server core
   const serverCore = new ServerCore({ port });
   
+  // Initialize and start frontend service
+  const frontendService = FrontendService.getInstance();
+  frontendService.initialize(serverCore.eventBus);
+  await frontendService.start();
+  
   // Register protocol handlers
   const httpHandler = new HttpProtocolHandler();
   const mcpHandler = new McpProtocolHandlerV2();
@@ -34,6 +40,9 @@ export const startServer = async function startServer(port: number = 3000): Prom
   
   // Create module bridge for dynamic endpoint registration
   new ModuleBridge(serverCore.eventBus);
+  
+  // Finalize HTTP routes after all endpoints are registered
+  httpHandler.finalizeRoutes();
   
   // Initialize URL configuration
   const urlConfigService = UrlConfigService.getInstance();

@@ -12,6 +12,7 @@ import { startServer } from './server/index';
 import { EXIT_FAILURE, EXIT_SUCCESS } from './constants/process.constants';
 import { type ILogger, LogSource } from './modules/core/logger/types/index';
 import { getLoggerService } from './modules/core/logger';
+import { FrontendService } from './server/services/frontend.service';
 
 /**
  * Bootstrap instance for shutdown handling.
@@ -25,6 +26,14 @@ let bootstrapInstance: Bootstrap | null = null;
  */
 const handleShutdown = async (server: Server, logger: ILogger): Promise<void> => {
   logger.info(LogSource.BOOTSTRAP, '📢 Shutdown signal received...');
+
+  // Stop frontend service if running
+  const frontendService = FrontendService.getInstance();
+  if (frontendService.isRunning()) {
+    logger.info(LogSource.BOOTSTRAP, 'Stopping frontend service...');
+    await frontendService.stop();
+    logger.info(LogSource.BOOTSTRAP, '✓ Frontend service stopped');
+  }
 
   await new Promise<void>((resolve): void => {
     server.close((): void => {

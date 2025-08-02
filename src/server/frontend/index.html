@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SystemPrompt OS</title>
+  
+  <!-- Theme CSS Variables -->
+  <style id="theme-root">
+    :root {
+      --color-primary: #f6933c;
+      --color-primaryDark: #d47a2a;
+      --color-primaryLight: #ffab5e;
+      --color-secondary: #1a1a1a;
+      --color-background: #0f0f0f;
+      --color-backgroundGradient: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #2d2d2d 100%);
+      --color-text: #f6933c;
+      --color-textLight: #ffab5e;
+      --color-textDark: #d47a2a;
+      --color-success: #4caf50;
+      --color-warning: #ff9800;
+      --color-error: #f44336;
+      --color-info: #2196f3;
+      --font-primary: 'Courier New', monospace;
+      --font-code: 'Fira Code', 'Courier New', monospace;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: var(--font-primary);
+      background: var(--color-background);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+    
+    #app {
+      min-height: 100vh;
+    }
+    
+    /* Loading state */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-size: 1.5rem;
+    }
+    
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(3, end) infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="loading">Initializing SystemPrompt OS</div>
+  </div>
+  
+  <script type="module" src="/main.ts"></script>
+</body>
+</html>
