@@ -282,11 +282,16 @@ export class MCPService {
       throw new Error(`Context ${contextId} not found`);
     }
     
-    // Create server with MCP SDK
+    // Create server with MCP SDK - use server_config if available
+    const serverInfo = context.server_config || {
+      name: context.name,
+      version: context.version
+    };
+    
     const server = new Server(
       {
-        name: context.name,
-        version: context.version
+        name: serverInfo.name || context.name,
+        version: serverInfo.version || context.version
       },
       {
         capabilities: {

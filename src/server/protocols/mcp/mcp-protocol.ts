@@ -12,7 +12,7 @@ import type { McpContext, McpSession } from './types/mcp.types';
 import type { IMCPModuleExports } from '@/modules/core/mcp/types/manual';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { getModuleRegistry } from '@/modules/core/modules/index';
-import { SDKStreamableHandler } from './sdk-streamable-handler';
+import { DirectSDKHandler } from './direct-sdk-handler';
 
 export class McpProtocolHandlerV2 implements IProtocolHandler {
   public readonly name = 'mcp';
@@ -22,7 +22,7 @@ export class McpProtocolHandlerV2 implements IProtocolHandler {
   private readonly sessions: Map<string, McpSession> = new Map();
   private mcpModule?: IMCPModuleExports;
   private mcpServers: Map<string, Server> = new Map();
-  private streamableHandler?: SDKStreamableHandler;
+  private streamableHandler?: DirectSDKHandler;
 
   async initialize(server: IServerCore): Promise<boolean> {
     this.server = server;
@@ -53,8 +53,8 @@ export class McpProtocolHandlerV2 implements IProtocolHandler {
       this.registerCliContext();
     }
     
-    // Initialize SDK-based StreamableHTTP handler
-    this.streamableHandler = new SDKStreamableHandler(server, this.contexts);
+    // Initialize Direct SDK handler
+    this.streamableHandler = new DirectSDKHandler(server, this.contexts);
     
     // Register MCP endpoints with HTTP handler via events during initialization
     server.eventBus.emit(ServerEvents.REGISTER_ENDPOINTS, {
