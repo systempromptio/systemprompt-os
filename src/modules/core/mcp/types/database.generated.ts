@@ -1,38 +1,17 @@
 // Auto-generated database types for mcp module
-// Generated on: 2025-08-02T11:28:23.699Z
+// Generated on: 2025-08-02T16:08:07.375Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
 
 // Enums generated from CHECK constraints
-export enum McpSessionsStatus {
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  ERROR = 'error'
-}
-
-export enum McpMessagesRole {
-  SYSTEM = 'system',
+export enum McpContextPermissionsPrincipalType {
   USER = 'user',
-  ASSISTANT = 'assistant'
-}
-
-export enum McpResourcesContentType {
-  TEXT = 'text',
-  BLOB = 'blob'
-}
-
-export enum McpPromptMessagesRole {
-  SYSTEM = 'system',
-  USER = 'user',
-  ASSISTANT = 'assistant'
+  ROLE = 'role'
 }
 
 // Zod schemas for enums
-export const McpSessionsStatusSchema = z.nativeEnum(McpSessionsStatus);
-export const McpMessagesRoleSchema = z.nativeEnum(McpMessagesRole);
-export const McpResourcesContentTypeSchema = z.nativeEnum(McpResourcesContentType);
-export const McpPromptMessagesRoleSchema = z.nativeEnum(McpPromptMessagesRole);
+export const McpContextPermissionsPrincipalTypeSchema = z.nativeEnum(McpContextPermissionsPrincipalType);
 
 /**
  * Generated from database table: mcp_contexts
@@ -41,49 +20,34 @@ export const McpPromptMessagesRoleSchema = z.nativeEnum(McpPromptMessagesRole);
 export interface IMcpContextsRow {
   id: string;
   name: string;
-  model: string;
   description: string | null;
-  max_tokens: number | null;
-  temperature: number | null;
-  top_p: number | null;
-  frequency_penalty: number | null;
-  presence_penalty: number | null;
-  stop_sequences: string | null;
-  system_prompt: string | null;
+  version: string | null;
+  server_config: string;
+  auth_config: string | null;
+  is_active: boolean | null;
+  created_by: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
 
 /**
- * Generated from database table: mcp_sessions
+ * Generated from database table: mcp_tools
  * Do not modify this file manually - it will be overwritten
  */
-export interface IMcpSessionsRow {
+export interface IMcpToolsRow {
   id: string;
   context_id: string;
-  status: McpSessionsStatus;
-  session_name: string | null;
-  user_id: string | null;
-  total_tokens: number | null;
-  total_cost: number | null;
-  started_at: string | null;
-  ended_at: string | null;
-}
-
-/**
- * Generated from database table: mcp_messages
- * Do not modify this file manually - it will be overwritten
- */
-export interface IMcpMessagesRow {
-  id: number;
-  session_id: string;
-  role: McpMessagesRole;
-  content: string;
-  token_count: number | null;
-  cost: number | null;
-  model_used: string | null;
-  processing_time_ms: number | null;
+  name: string;
+  description: string | null;
+  input_schema: string;
+  annotations: string | null;
+  required_permission: string | null;
+  required_role: string | null;
+  handler_type: string;
+  handler_config: string;
+  is_active: boolean | null;
   created_at: string | null;
+  updated_at: string | null;
 }
 
 /**
@@ -91,25 +55,20 @@ export interface IMcpMessagesRow {
  * Do not modify this file manually - it will be overwritten
  */
 export interface IMcpResourcesRow {
-  id: number;
+  id: string;
+  context_id: string;
   uri: string;
   name: string;
   description: string | null;
-  mime_type: string;
-  content_type: McpResourcesContentType;
+  mime_type: string | null;
+  annotations: string | null;
+  content_type: string;
   content: string | null;
-  blob_content: string | null;
-  size: number | null;
-  module_name: string;
-  file_path: string | null;
-  category: string | null;
-  tags: string | null;
-  author: string | null;
-  version: string | null;
-  checksum: string | null;
+  required_permission: string | null;
+  required_role: string | null;
+  is_active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
-  last_synced_at: string | null;
 }
 
 /**
@@ -117,190 +76,121 @@ export interface IMcpResourcesRow {
  * Do not modify this file manually - it will be overwritten
  */
 export interface IMcpPromptsRow {
-  id: number;
+  id: string;
+  context_id: string;
   name: string;
   description: string | null;
-  module_name: string;
-  file_path: string | null;
-  category: string | null;
-  tags: string | null;
-  author: string | null;
-  version: string | null;
+  arguments: string | null;
+  annotations: string | null;
+  template: string;
+  required_permission: string | null;
+  required_role: string | null;
+  is_active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
-  last_synced_at: string | null;
 }
 
 /**
- * Generated from database table: mcp_prompt_messages
+ * Generated from database table: mcp_context_permissions
  * Do not modify this file manually - it will be overwritten
  */
-export interface IMcpPromptMessagesRow {
-  id: number;
-  prompt_id: number;
-  role: McpPromptMessagesRole;
-  content: string;
-  message_order: number;
+export interface IMcpContextPermissionsRow {
+  id: string;
+  context_id: string;
+  principal_type: McpContextPermissionsPrincipalType;
+  principal_id: string;
+  permission: string;
   created_at: string | null;
-}
-
-/**
- * Generated from database table: mcp_prompt_arguments
- * Do not modify this file manually - it will be overwritten
- */
-export interface IMcpPromptArgumentsRow {
-  id: number;
-  prompt_id: number;
-  argument_name: string;
-  argument_description: string | null;
-  is_required: boolean | null;
-  argument_order: number;
-  created_at: string | null;
-}
-
-/**
- * Generated from database table: mcp_resource_templates
- * Do not modify this file manually - it will be overwritten
- */
-export interface IMcpResourceTemplatesRow {
-  id: number;
-  uri_template: string;
-  name: string;
-  description: string | null;
-  mime_type: string | null;
-  module_name: string;
-  created_at: string | null;
-  updated_at: string | null;
 }
 
 // Zod schemas for database row validation
 export const McpContextsRowSchema = z.object({
   id: z.string(),
   name: z.string(),
-  model: z.string(),
   description: z.string().nullable(),
-  max_tokens: z.number().nullable(),
-  temperature: z.number().nullable(),
-  top_p: z.number().nullable(),
-  frequency_penalty: z.number().nullable(),
-  presence_penalty: z.number().nullable(),
-  stop_sequences: z.string().nullable(),
-  system_prompt: z.string().nullable(),
+  version: z.string().nullable(),
+  server_config: z.string(),
+  auth_config: z.string().nullable(),
+  is_active: z.boolean().nullable(),
+  created_by: z.string().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
 });
 
-export const McpSessionsRowSchema = z.object({
+export const McpToolsRowSchema = z.object({
   id: z.string(),
   context_id: z.string(),
-  status: z.nativeEnum(McpSessionsStatus),
-  session_name: z.string().nullable(),
-  user_id: z.string().nullable(),
-  total_tokens: z.number().nullable(),
-  total_cost: z.number().nullable(),
-  started_at: z.string().datetime().nullable(),
-  ended_at: z.string().datetime().nullable(),
-});
-
-export const McpMessagesRowSchema = z.object({
-  id: z.number(),
-  session_id: z.string(),
-  role: z.nativeEnum(McpMessagesRole),
-  content: z.string(),
-  token_count: z.number().nullable(),
-  cost: z.number().nullable(),
-  model_used: z.string().nullable(),
-  processing_time_ms: z.number().nullable(),
+  name: z.string(),
+  description: z.string().nullable(),
+  input_schema: z.string(),
+  annotations: z.string().nullable(),
+  required_permission: z.string().nullable(),
+  required_role: z.string().nullable(),
+  handler_type: z.string(),
+  handler_config: z.string(),
+  is_active: z.boolean().nullable(),
   created_at: z.string().datetime().nullable(),
+  updated_at: z.string().datetime().nullable(),
 });
 
 export const McpResourcesRowSchema = z.object({
-  id: z.number(),
+  id: z.string(),
+  context_id: z.string(),
   uri: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  mime_type: z.string(),
-  content_type: z.nativeEnum(McpResourcesContentType),
+  mime_type: z.string().nullable(),
+  annotations: z.string().nullable(),
+  content_type: z.string(),
   content: z.string().nullable(),
-  blob_content: z.string().nullable(),
-  size: z.number().nullable(),
-  module_name: z.string(),
-  file_path: z.string().nullable(),
-  category: z.string().nullable(),
-  tags: z.string().nullable(),
-  author: z.string().nullable(),
-  version: z.string().nullable(),
-  checksum: z.string().nullable(),
+  required_permission: z.string().nullable(),
+  required_role: z.string().nullable(),
+  is_active: z.boolean().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
-  last_synced_at: z.string().datetime().nullable(),
 });
 
 export const McpPromptsRowSchema = z.object({
-  id: z.number(),
+  id: z.string(),
+  context_id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  module_name: z.string(),
-  file_path: z.string().nullable(),
-  category: z.string().nullable(),
-  tags: z.string().nullable(),
-  author: z.string().nullable(),
-  version: z.string().nullable(),
+  arguments: z.string().nullable(),
+  annotations: z.string().nullable(),
+  template: z.string(),
+  required_permission: z.string().nullable(),
+  required_role: z.string().nullable(),
+  is_active: z.boolean().nullable(),
   created_at: z.string().datetime().nullable(),
   updated_at: z.string().datetime().nullable(),
-  last_synced_at: z.string().datetime().nullable(),
 });
 
-export const McpPromptMessagesRowSchema = z.object({
-  id: z.number(),
-  prompt_id: z.number(),
-  role: z.nativeEnum(McpPromptMessagesRole),
-  content: z.string(),
-  message_order: z.number(),
+export const McpContextPermissionsRowSchema = z.object({
+  id: z.string(),
+  context_id: z.string(),
+  principal_type: z.nativeEnum(McpContextPermissionsPrincipalType),
+  principal_id: z.string(),
+  permission: z.string(),
   created_at: z.string().datetime().nullable(),
-});
-
-export const McpPromptArgumentsRowSchema = z.object({
-  id: z.number(),
-  prompt_id: z.number(),
-  argument_name: z.string(),
-  argument_description: z.string().nullable(),
-  is_required: z.boolean().nullable(),
-  argument_order: z.number(),
-  created_at: z.string().datetime().nullable(),
-});
-
-export const McpResourceTemplatesRowSchema = z.object({
-  id: z.number(),
-  uri_template: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  mime_type: z.string().nullable(),
-  module_name: z.string(),
-  created_at: z.string().datetime().nullable(),
-  updated_at: z.string().datetime().nullable(),
 });
 
 /**
  * Union type of all database row types in this module
  */
-export type McpDatabaseRow = IMcpContextsRow | IMcpSessionsRow | IMcpMessagesRow | IMcpResourcesRow | IMcpPromptsRow | IMcpPromptMessagesRow | IMcpPromptArgumentsRow | IMcpResourceTemplatesRow;
+export type McpDatabaseRow = IMcpContextsRow | IMcpToolsRow | IMcpResourcesRow | IMcpPromptsRow | IMcpContextPermissionsRow;
 
 /**
  * Union Zod schema for all database row types in this module
  */
-export const McpDatabaseRowSchema = z.union([McpContextsRowSchema, McpSessionsRowSchema, McpMessagesRowSchema, McpResourcesRowSchema, McpPromptsRowSchema, McpPromptMessagesRowSchema, McpPromptArgumentsRowSchema, McpResourceTemplatesRowSchema]);
+export const McpDatabaseRowSchema = z.union([McpContextsRowSchema, McpToolsRowSchema, McpResourcesRowSchema, McpPromptsRowSchema, McpContextPermissionsRowSchema]);
 
 /**
  * Database table names for this module
  */
 export const MCP_TABLES = {
   MCP_CONTEXTS: 'mcp_contexts',
-  MCP_SESSIONS: 'mcp_sessions',
-  MCP_MESSAGES: 'mcp_messages',
+  MCP_TOOLS: 'mcp_tools',
   MCP_RESOURCES: 'mcp_resources',
   MCP_PROMPTS: 'mcp_prompts',
-  MCP_PROMPT_MESSAGES: 'mcp_prompt_messages',
-  MCP_PROMPT_ARGUMENTS: 'mcp_prompt_arguments',
-  MCP_RESOURCE_TEMPLATES: 'mcp_resource_templates',
+  MCP_CONTEXT_PERMISSIONS: 'mcp_context_permissions',
 } as const;

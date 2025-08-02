@@ -6,10 +6,31 @@
 import type { 
   Tool, 
   Resource, 
-  Prompt, 
-  CallToolResult,
-  Server 
+  Prompt
 } from '@modelcontextprotocol/sdk/types.js';
+
+/**
+ * Prompt scan data for discovering prompts in modules
+ */
+export interface IPromptScanData {
+  name: string;
+  description?: string;
+  arguments?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+  }>;
+}
+
+/**
+ * Resource scan data for discovering resources in modules
+ */
+export interface IResourceScanData {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+}
 
 /**
  * MCP Context (Server) configuration
@@ -191,7 +212,9 @@ export interface IMCPModuleExports {
     create(contextId: string, tool: ICreateToolDto): Promise<IMCPTool>;
     update(id: string, tool: Partial<ICreateToolDto>): Promise<IMCPTool>;
     delete(id: string): Promise<void>;
-    list(contextId: string): Promise<IMCPTool[]>;
+    get(id: string): Promise<IMCPTool | null>;
+    listByContext(contextId: string): Promise<IMCPTool[]>;
+    getMcpTools(contextId: string): Promise<Tool[]>;
     listAsSDK(contextId: string): Promise<Tool[]>;
   };
   
@@ -200,9 +223,10 @@ export interface IMCPModuleExports {
     create(contextId: string, resource: ICreateResourceDto): Promise<IMCPResource>;
     update(id: string, resource: Partial<ICreateResourceDto>): Promise<IMCPResource>;
     delete(id: string): Promise<void>;
-    list(contextId: string): Promise<IMCPResource[]>;
+    get(id: string): Promise<IMCPResource | null>;
+    listByContext(contextId: string): Promise<IMCPResource[]>;
+    getMcpResources(contextId: string): Promise<Resource[]>;
     listAsSDK(contextId: string): Promise<Resource[]>;
-    read(contextId: string, uri: string): Promise<any>;
   };
   
   // Prompts management
@@ -210,22 +234,26 @@ export interface IMCPModuleExports {
     create(contextId: string, prompt: ICreatePromptDto): Promise<IMCPPrompt>;
     update(id: string, prompt: Partial<ICreatePromptDto>): Promise<IMCPPrompt>;
     delete(id: string): Promise<void>;
-    list(contextId: string): Promise<IMCPPrompt[]>;
+    get(id: string): Promise<IMCPPrompt | null>;
+    listByContext(contextId: string): Promise<IMCPPrompt[]>;
+    getMcpPrompts(contextId: string): Promise<Prompt[]>;
     listAsSDK(contextId: string): Promise<Prompt[]>;
-    get(contextId: string, name: string, args?: Record<string, any>): Promise<string>;
   };
   
   // Server creation (using MCP SDK)
   server: {
-    create(contextId: string): Promise<any>; // Returns MCP SDK Server
+    createFromContext(contextId: string): Promise<any>; // Returns MCP SDK Server
     getOrCreate(contextId: string): Promise<any>; // Returns MCP SDK Server
   };
   
   // Permissions
   permissions: {
-    grant(contextId: string, principalType: 'user' | 'role', principalId: string, permission: 'read' | 'write' | 'execute' | 'manage'): Promise<void>;
-    revoke(contextId: string, principalType: 'user' | 'role', principalId: string, permission: 'read' | 'write' | 'execute' | 'manage'): Promise<void>;
-    check(contextId: string, userId?: string, roleIds?: string[], permission?: 'read' | 'write' | 'execute' | 'manage'): Promise<boolean>;
-    list(contextId: string): Promise<IMCPContextPermission[]>;
+    grant(contextId: string, principalId: string, permission: string): Promise<IMCPContextPermission>;
+    revoke(contextId: string, principalId: string, permission: string): Promise<boolean>;
+    check(contextId: string, principalId: string, permission: string): Promise<boolean>;
+    listForContext(contextId: string): Promise<IMCPContextPermission[]>;
   };
+  
+  // Get repositories for direct access
+  getRepositories(): any;
 }

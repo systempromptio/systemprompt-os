@@ -6,36 +6,26 @@ author: SystemPrompt OS
 dependencies:
   - logger
   - database
-  - executors
+  - events
 enabled: true
 singleton: true
 
 cli:
   commands:
     - name: list
-      description: List all configured MCP contexts
+      description: List MCP contexts and their capabilities
       executor: cli/list
       options:
+        - name: context
+          alias: c
+          type: string
+          description: Context name to show details for
         - name: format
           alias: f
           type: string
-          description: Output format
-          default: text
-          choices: [text, json]
-        - name: limit
-          alias: l
-          type: number
-          description: Maximum number of contexts to return
-          default: 20
-        - name: page
-          alias: p
-          type: number
-          description: Page number for pagination
-          default: 1
-        - name: status
-          alias: s
-          type: string
-          description: Filter by status
+          description: Output format (table, json)
+          default: table
+          choices: [table, json]
     - name: create
       description: Create a new MCP context
       executor: cli/create
@@ -45,52 +35,48 @@ cli:
           type: string
           description: Context name
           required: true
-        - name: model
-          alias: m
-          type: string
-          description: Model to use
-          required: true
         - name: description
           alias: d
           type: string
           description: Context description
-        - name: max_tokens
-          type: number
-          description: Maximum tokens
-        - name: temperature
-          alias: t
-          type: number
-          description: Temperature (0.0-2.0)
-        - name: top_p
-          type: number
-          description: Top P (0.0-1.0)
-        - name: frequency_penalty
-          type: number
-          description: Frequency penalty (-2.0 to 2.0)
-        - name: presence_penalty
-          type: number
-          description: Presence penalty (-2.0 to 2.0)
-        - name: stop_sequences
+        - name: version
+          alias: v
           type: string
-          description: Stop sequences (comma-separated)
-        - name: system_prompt
-          alias: s
+          description: Context version
+          default: '1.0.0'
+        - name: auth
+          alias: a
           type: string
-          description: System prompt
-        - name: format
-          alias: f
-          type: string
-          description: Output format
-          default: text
-          choices: [text, json]
+          description: Authentication type (none, bearer, client)
+          default: none
+          choices: [none, bearer, client]
     - name: seed
-      description: Seed initial MCP data
+      description: Seed example MCP contexts with tools, resources, and prompts
       executor: cli/seed
       options:
         - name: force
           alias: f
           type: boolean
           description: Force re-seeding (will delete existing data)
+          default: false
+    - name: validate
+      description: Validate MCP contexts, tools, resources, and prompts
+      executor: cli/validate
+      options:
+        - name: context
+          alias: c
+          type: string
+          description: Context name to validate (validates all if not specified)
+        - name: type
+          alias: t
+          type: string
+          description: Type to validate (context, tools, resources, prompts, all)
+          default: all
+          choices: [context, tools, resources, prompts, all]
+        - name: fix
+          alias: f
+          type: boolean
+          description: Attempt to fix validation issues
           default: false
 
 exports:

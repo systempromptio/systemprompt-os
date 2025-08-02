@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for mcp module
-// Generated on: 2025-08-02T11:28:23.701Z
+// Generated on: 2025-08-02T16:08:07.376Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';
@@ -10,28 +10,22 @@ export const McpSchema = McpContextsRowSchema;
 
 export const McpCreateDataSchema = z.object({
   name: z.string(),
-  model: z.string(),
   description: z.string().nullable(),
-  max_tokens: z.number().nullable(),
-  temperature: z.number().nullable(),
-  top_p: z.number().nullable(),
-  frequency_penalty: z.number().nullable(),
-  presence_penalty: z.number().nullable(),
-  stop_sequences: z.string().nullable(),
-  system_prompt: z.string().nullable(),
+  version: z.string().nullable(),
+  server_config: z.string(),
+  auth_config: z.string().nullable(),
+  is_active: z.boolean().nullable(),
+  created_by: z.string().nullable(),
 });
 
 export const McpUpdateDataSchema = z.object({
   name: z.string().optional(),
-  model: z.string().optional(),
   description: z.string().nullable().optional(),
-  max_tokens: z.number().nullable().optional(),
-  temperature: z.number().nullable().optional(),
-  top_p: z.number().nullable().optional(),
-  frequency_penalty: z.number().nullable().optional(),
-  presence_penalty: z.number().nullable().optional(),
-  stop_sequences: z.string().nullable().optional(),
-  system_prompt: z.string().nullable().optional(),
+  version: z.string().nullable().optional(),
+  server_config: z.string().optional(),
+  auth_config: z.string().nullable().optional(),
+  is_active: z.boolean().nullable().optional(),
+  created_by: z.string().nullable().optional(),
 });
 
 // Type inference from schemas

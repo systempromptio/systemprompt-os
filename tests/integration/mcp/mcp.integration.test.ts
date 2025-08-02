@@ -581,8 +581,11 @@ describe('MCP Module Integration', () => {
       const seedCommand = cliCommands.find(cmd => cmd.name === 'seed');
       
       if (seedCommand && seedCommand.execute) {
-        await seedCommand.execute({ force: true }, {
-          module: seedModule,
+        await seedCommand.execute({
+          cwd: process.cwd(),
+          args: { force: true },
+          flags: {},
+          env: process.env as Record<string, string>,
           logger: LoggerService.getInstance() as any
         });
       }

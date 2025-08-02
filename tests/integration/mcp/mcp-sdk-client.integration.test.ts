@@ -334,10 +334,7 @@ describe('MCP SDK Client Integration', () => {
       // The actual result depends on tool implementation
     });
 
-    it.skip('should handle tool validation errors', async () => {
-      // SKIP: Tool argument validation is handled by the SDK server internally
-      // The current implementation allows empty arguments to pass through
-      // This would require implementing custom validation in the tool handlers
+    it('should handle tool validation errors', async () => {
       try {
         // Call with missing required argument
         await mcpClient.callTool({

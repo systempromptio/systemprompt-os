@@ -247,6 +247,7 @@ export class DirectSDKHandler {
           id: message.id
         };
         
+      case 'list_tools':
       case 'tools/list': {
         const listHandler = handlers.get('tools/list');
         if (listHandler) {
@@ -260,6 +261,7 @@ export class DirectSDKHandler {
         break;
       }
       
+      case 'call_tool':
       case 'tools/call': {
         const callHandler = handlers.get('tools/call');
         if (callHandler) {
@@ -273,6 +275,7 @@ export class DirectSDKHandler {
         break;
       }
       
+      case 'list_resources':
       case 'resources/list': {
         const listHandler = handlers.get('resources/list');
         if (listHandler) {
@@ -286,6 +289,7 @@ export class DirectSDKHandler {
         break;
       }
       
+      case 'read_resource':
       case 'resources/read': {
         const readHandler = handlers.get('resources/read');
         if (readHandler) {
@@ -299,6 +303,7 @@ export class DirectSDKHandler {
         break;
       }
       
+      case 'list_prompts':
       case 'prompts/list': {
         const listHandler = handlers.get('prompts/list');
         if (listHandler) {
@@ -312,6 +317,7 @@ export class DirectSDKHandler {
         break;
       }
       
+      case 'get_prompt':
       case 'prompts/get': {
         const getHandler = handlers.get('prompts/get');
         if (getHandler) {

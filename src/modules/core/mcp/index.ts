@@ -52,8 +52,9 @@ export class MCPModule extends BaseModule<IMCPModuleExports> {
       resources: z.any(),
       prompts: z.any(),
       server: z.any(),
-      permissions: z.any()
-    }) as z.ZodSchema<IMCPModuleExports>;
+      permissions: z.any(),
+      getRepositories: z.any()
+    }) as unknown as z.ZodSchema<IMCPModuleExports>;
   }
 
   get exports(): IMCPModuleExports {
@@ -184,7 +185,8 @@ export class MCPModule extends BaseModule<IMCPModuleExports> {
           });
         },
         revoke: async (contextId: string, principalId: string, permission: string) => {
-          return repos.permissions.revoke(contextId, principalId, permission);
+          await repos.permissions.revoke(contextId, principalId, permission);
+          return true;
         },
         check: async (contextId: string, principalId: string, permission: string) => {
           return repos.permissions.hasPermission(contextId, principalId, permission);
@@ -218,7 +220,7 @@ export class MCPModule extends BaseModule<IMCPModuleExports> {
   /**
    * Start the module operations.
    */
-  public async start(): Promise<void> {
+  public override async start(): Promise<void> {
     if (this.status === ModulesStatus.RUNNING) return;
     
     this.ensureInitialized();
@@ -235,7 +237,7 @@ export class MCPModule extends BaseModule<IMCPModuleExports> {
   /**
    * Stop the module operations.
    */
-  public async stop(): Promise<void> {
+  public override async stop(): Promise<void> {
     if (this.status === ModulesStatus.STOPPED) return;
     
     this.status = ModulesStatus.STOPPING;

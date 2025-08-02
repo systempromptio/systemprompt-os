@@ -3,11 +3,18 @@
  * Seeds initial MCP contexts, tools, resources, and prompts.
  */
 
-import type { ICliCommand } from '@/modules/core/cli/types/manual';
+import type { ICLIContext, ICLICommand } from '@/modules/core/cli/types/manual';
+import { LoggerService } from '@/modules/core/logger/services/logger.service';
+import { LogSource } from '@/modules/core/logger/types/manual';
+import { CliOutputService } from '@/modules/core/cli/services/cli-output.service';
 import type { IMCPModuleExports } from '../types/manual';
+import { z } from 'zod';
 
-export const seedCommand: ICliCommand = {
-  name: 'seed',
+const seedArgsSchema = z.object({
+  force: z.boolean().default(false),
+});
+
+export const command: ICLICommand = {
   description: 'Seed initial MCP contexts and tools',
   options: [
     {
@@ -15,32 +22,103 @@ export const seedCommand: ICliCommand = {
       alias: 'f',
       type: 'boolean',
       description: 'Force re-seeding (will delete existing data)',
-      defaultValue: false,
+      default: false,
     },
   ],
-  execute: async (args, context) => {
-    const mcpModule = context.module.exports as IMCPModuleExports;
-    const logger = context.logger;
-    
-    logger.info('Seeding MCP data...');
+  execute: async (context: ICLIContext) => {
+    const logger = LoggerService.getInstance();
+    const cliOutput = CliOutputService.getInstance();
     
     try {
-      // Check if CLI context already exists
-      let cliContext = await mcpModule.contexts.getByName('cli');
+      const validatedArgs = seedArgsSchema.parse(context.args);
       
-      if (cliContext && !args.force) {
-        logger.info('CLI context already exists. Use --force to re-seed.');
+      // Import the MCP module and get its service
+      const { MCPService } = await import('../services/mcp.service');
+      const mcpService = MCPService.getInstance();
+      
+      // Create mock module exports interface
+      const mcpExports: IMCPModuleExports = {
+        contexts: {
+          create: mcpService.createContext.bind(mcpService),
+          update: mcpService.updateContext.bind(mcpService),
+          delete: mcpService.deleteContext.bind(mcpService),
+          get: async (id: string) => mcpService.getRepositories().contexts.findById(id),
+          getByName: async (name: string) => mcpService.getRepositories().contexts.findByName(name),
+          list: async (options?: any) => mcpService.getRepositories().contexts.list(options)
+        },
+        tools: {
+          create: mcpService.createTool.bind(mcpService),
+          update: async (id: string, data: any) => mcpService.getRepositories().tools.update(id, data),
+          delete: async (id: string) => mcpService.getRepositories().tools.delete(id),
+          get: async (id: string) => mcpService.getRepositories().tools.findById(id),
+          listByContext: async (contextId: string) => mcpService.getRepositories().tools.findByContextId(contextId),
+          getMcpTools: mcpService.getToolsForContext.bind(mcpService),
+          listAsSDK: mcpService.getToolsForContext.bind(mcpService)
+        },
+        resources: {
+          create: mcpService.createResource.bind(mcpService),
+          update: async (id: string, data: any) => mcpService.getRepositories().resources.update(id, data),
+          delete: async (id: string) => mcpService.getRepositories().resources.delete(id),
+          get: async (id: string) => mcpService.getRepositories().resources.findById(id),
+          listByContext: async (contextId: string) => mcpService.getRepositories().resources.findByContextId(contextId),
+          getMcpResources: mcpService.getResourcesForContext.bind(mcpService),
+          listAsSDK: mcpService.getResourcesForContext.bind(mcpService)
+        },
+        prompts: {
+          create: mcpService.createPrompt.bind(mcpService),
+          update: async (id: string, data: any) => mcpService.getRepositories().prompts.update(id, data),
+          delete: async (id: string) => mcpService.getRepositories().prompts.delete(id),
+          get: async (id: string) => mcpService.getRepositories().prompts.findById(id),
+          listByContext: async (contextId: string) => mcpService.getRepositories().prompts.findByContextId(contextId),
+          getMcpPrompts: mcpService.getPromptsForContext.bind(mcpService),
+          listAsSDK: mcpService.getPromptsForContext.bind(mcpService)
+        },
+        server: {
+          createFromContext: mcpService.createServerFromContext.bind(mcpService),
+          getOrCreate: mcpService.getOrCreateServer.bind(mcpService)
+        },
+        permissions: {
+          grant: async (contextId: string, principalId: string, permission: string) => {
+            return mcpService.getRepositories().permissions.create({
+              context_id: contextId,
+              principal_id: principalId,
+              permission,
+              granted_at: new Date().toISOString()
+            });
+          },
+          revoke: async (contextId: string, principalId: string, permission: string) => {
+            await mcpService.getRepositories().permissions.revoke(contextId, principalId, permission);
+            return true;
+          },
+          check: async (contextId: string, principalId: string, permission: string) => {
+            return mcpService.getRepositories().permissions.hasPermission(contextId, principalId, permission);
+          },
+          listForContext: async (contextId: string) => {
+            return mcpService.getRepositories().permissions.findByContextId(contextId);
+          }
+        },
+        getRepositories: () => mcpService.getRepositories()
+      };
+    
+      
+      cliOutput.info('Seeding MCP data...');
+      
+      // Check if CLI context already exists
+      let cliContext = await mcpExports.contexts.getByName('cli');
+      
+      if (cliContext && !validatedArgs.force) {
+        cliOutput.info('CLI context already exists. Use --force to re-seed.');
         return;
       }
       
-      if (cliContext && args.force) {
-        logger.info('Deleting existing CLI context...');
-        await mcpModule.contexts.delete(cliContext.id);
+      if (cliContext && validatedArgs.force) {
+        cliOutput.info('Deleting existing CLI context...');
+        await mcpExports.contexts.delete(cliContext.id);
       }
       
       // Create CLI context
-      logger.info('Creating CLI context...');
-      cliContext = await mcpModule.contexts.create({
+      cliOutput.info('Creating CLI context...');
+      cliContext = await mcpExports.contexts.create({
         name: 'cli',
         description: 'SystemPrompt OS CLI tools context',
         version: '1.0.0',
@@ -48,14 +126,11 @@ export const seedCommand: ICliCommand = {
           name: 'SystemPrompt CLI Server',
           version: '1.0.0',
         },
-        auth_config: {
-          type: 'none',
-        },
       });
       
       // Create execute-cli tool
-      logger.info('Creating execute-cli tool...');
-      await mcpModule.tools.create(cliContext.id, {
+      cliOutput.info('Creating execute-cli tool...');
+      await mcpExports.tools.create(cliContext.id, {
         name: 'execute-cli',
         description: 'Execute SystemPrompt OS CLI commands',
         input_schema: {
@@ -91,8 +166,8 @@ export const seedCommand: ICliCommand = {
       });
       
       // Create system status tool
-      logger.info('Creating system-status tool...');
-      await mcpModule.tools.create(cliContext.id, {
+      cliOutput.info('Creating system-status tool...');
+      await mcpExports.tools.create(cliContext.id, {
         name: 'system-status',
         description: 'Get SystemPrompt OS system status',
         input_schema: {
@@ -106,44 +181,44 @@ export const seedCommand: ICliCommand = {
       });
       
       // Create system info resource
-      logger.info('Creating system-info resource...');
-      await mcpModule.resources.create(cliContext.id, {
+      cliOutput.info('Creating system-info resource...');
+      await mcpExports.resources.create(cliContext.id, {
         uri: 'system://info',
         name: 'System Information',
         description: 'SystemPrompt OS system information',
         mime_type: 'application/json',
         content_type: 'dynamic',
-        content: {
+        content: JSON.stringify({
           type: 'function',
           handler: 'system-info',
-        },
+        }),
       });
       
       // Create modules list resource
-      logger.info('Creating modules-list resource...');
-      await mcpModule.resources.create(cliContext.id, {
+      cliOutput.info('Creating modules-list resource...');
+      await mcpExports.resources.create(cliContext.id, {
         uri: 'system://modules',
         name: 'Modules List',
         description: 'List of loaded SystemPrompt OS modules',
         mime_type: 'application/json',
         content_type: 'dynamic',
-        content: {
+        content: JSON.stringify({
           type: 'function',
           handler: 'modules-list',
-        },
+        }),
       });
       
       // Create default context
-      logger.info('Creating default context...');
-      let defaultContext = await mcpModule.contexts.getByName('default');
+      cliOutput.info('Creating default context...');
+      let defaultContext = await mcpExports.contexts.getByName('default');
       
-      if (defaultContext && args.force) {
-        await mcpModule.contexts.delete(defaultContext.id);
+      if (defaultContext && validatedArgs.force) {
+        await mcpExports.contexts.delete(defaultContext.id);
         defaultContext = null;
       }
       
       if (!defaultContext) {
-        defaultContext = await mcpModule.contexts.create({
+        defaultContext = await mcpExports.contexts.create({
           name: 'default',
           description: 'Default MCP context with basic capabilities',
           version: '1.0.0',
@@ -154,7 +229,7 @@ export const seedCommand: ICliCommand = {
         });
         
         // Create a basic prompt
-        await mcpModule.prompts.create(defaultContext.id, {
+        await mcpExports.prompts.create(defaultContext.id, {
           name: 'greeting',
           description: 'Generate a greeting message',
           arguments: [
@@ -168,17 +243,38 @@ export const seedCommand: ICliCommand = {
         });
       }
       
-      logger.info('✅ MCP data seeded successfully!');
+      cliOutput.success('MCP data seeded successfully!');
       
       // List created contexts
-      const contexts = await mcpModule.contexts.list({ is_active: true });
-      logger.info(`Created ${contexts.length} contexts:`);
+      const contexts = await mcpExports.contexts.list({ is_active: true });
+      cliOutput.info(`Created ${contexts.length} contexts:`);
       for (const ctx of contexts) {
-        logger.info(`  - ${ctx.name} (${ctx.id})`);
+        cliOutput.info(`  - ${ctx.name} (${ctx.id})`);
       }
       
+      // Don't exit in test environment
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(0);
+      }
     } catch (error) {
-      logger.error('Failed to seed MCP data:', error);
+      if (error instanceof z.ZodError) {
+        cliOutput.error('Invalid arguments:');
+        error.errors.forEach(err => {
+          cliOutput.error(`  ${err.path.join('.')}: ${err.message}`);
+        });
+        if (process.env.NODE_ENV !== 'test') {
+          process.exit(1);
+        }
+        throw error;
+      }
+      
+      cliOutput.error('Failed to seed MCP data');
+      logger.error(LogSource.CLI, 'Failed to seed MCP data', {
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      if (process.env.NODE_ENV !== 'test') {
+        process.exit(1);
+      }
       throw error;
     }
   },

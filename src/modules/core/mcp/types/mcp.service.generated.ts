@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { createModuleSchema } from '@/modules/core/modules/schemas/module.schemas';
 import { ModulesType } from '@/modules/core/modules/types/manual';
-import { McpContextsRowSchema, McpSessionsRowSchema, McpMessagesRowSchema } from './database.generated';
+import { McpContextsRowSchema } from './database.generated';
 
 // Zod schema for MCPService
 export const MCPServiceSchema = z.object({
@@ -26,13 +26,13 @@ export const MCPServiceSchema = z.object({
     .returns(z.promise(z.void())),
   createSession: z.function()
     .args(z.string(), z.unknown().optional())
-    .returns(z.promise(McpSessionsRowSchema)),
+    .returns(z.promise(z.any())),
   addMessage: z.function()
     .args(z.string(), z.unknown(), z.string(), z.unknown().optional())
-    .returns(z.promise(McpMessagesRowSchema)),
+    .returns(z.promise(z.any())),
   getSessionMessages: z.function()
     .args(z.string())
-    .returns(z.promise(z.array(McpMessagesRowSchema))),
+    .returns(z.promise(z.array(z.any()))),
 });
 
 // Standard schemas for MCP interfaces

@@ -576,7 +576,7 @@ export class MCPPermissionRepository {
        WHERE context_id = ? AND principal_id = ? AND permission = ?`,
       [contextId, principalId, permission]
     );
-    return result[0].count > 0;
+    return (result[0] as any).count > 0;
   }
 
   async check(
@@ -614,7 +614,7 @@ export class MCPPermissionRepository {
       values
     );
     
-    return result[0].count > 0;
+    return (result[0] as any).count > 0;
   }
 
   async findByContextId(contextId: string): Promise<IMCPContextPermission[]> {
