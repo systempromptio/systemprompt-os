@@ -1,5 +1,5 @@
 // Auto-generated database types for mcp module
-// Generated on: 2025-08-01T13:52:43.088Z
+// Generated on: 2025-08-02T11:28:23.699Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

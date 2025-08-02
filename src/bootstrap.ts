@@ -245,7 +245,7 @@ export class Bootstrap {
       { name: 'tasks', deps: ['logger', 'database', 'events'] },
       { name: 'monitor', deps: ['logger', 'database'] },
       { name: 'webhooks', deps: ['logger', 'database', 'events'] },
-      { name: 'mcp', deps: ['logger', 'database'] },
+      { name: 'mcp', deps: ['logger', 'database', 'events'] },
       { name: 'dev', deps: ['logger', 'database'] }
     ];
 

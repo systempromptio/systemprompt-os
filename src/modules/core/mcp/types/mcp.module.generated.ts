@@ -1,5 +1,5 @@
 // Auto-generated Zod schemas for mcp module
-// Generated on: 2025-08-01T13:52:43.089Z
+// Generated on: 2025-08-02T11:28:23.701Z
 // Do not modify this file manually - it will be overwritten
 
 import { z } from 'zod';

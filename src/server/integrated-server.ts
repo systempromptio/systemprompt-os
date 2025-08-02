@@ -14,6 +14,7 @@ import { getModuleRegistry } from '@/modules/core/modules/index';
 import { ModuleName } from '@/modules/types/module-names.types';
 import { LoggerService } from '@/modules/core/logger/services/logger.service';
 import { LogSource } from '@/modules/core/logger/types/manual';
+import { MCPEventBridge } from './mcp/handlers/mcp-event-bridge';
 import type { Server } from 'http';
 import type { Application } from 'express';
 
@@ -39,6 +40,10 @@ export async function startIntegratedServer(port?: number): Promise<Server> {
   
   // Create module bridge for integrating existing modules
   const moduleBridge = new ModuleBridge(serverCore.eventBus);
+  
+  // Initialize MCP event bridge
+  const mcpEventBridge = MCPEventBridge.getInstance();
+  mcpEventBridge.initialize(serverCore.eventBus);
   
   // Set up module endpoint registration
   setupModuleEndpoints(serverCore, moduleBridge);
@@ -72,7 +77,7 @@ export async function startIntegratedServer(port?: number): Promise<Server> {
  */
 function setupModuleEndpoints(serverCore: ServerCore, moduleBridge: ModuleBridge): void {
   // Get the Express app from HTTP handler
-  const httpHandler = serverCore.getProtocol('http') as any;
+  const httpHandler = serverCore.getProtocolHandler('http') as any;
   const app = httpHandler.app as Application;
   
   if (!app) {

@@ -12,17 +12,9 @@ singleton: true
 
 cli:
   commands:
-    - name: status
-      description: Show MCP module status (enabled/healthy)
-      options:
-        - name: format
-          alias: f
-          type: string
-          description: Output format
-          default: text
-          choices: [text, json]
     - name: list
       description: List all configured MCP contexts
+      executor: cli/list
       options:
         - name: format
           alias: f
@@ -46,6 +38,7 @@ cli:
           description: Filter by status
     - name: create
       description: Create a new MCP context
+      executor: cli/create
       options:
         - name: name
           alias: n
@@ -90,24 +83,14 @@ cli:
           description: Output format
           default: text
           choices: [text, json]
-    - name: delete
-      description: Delete an MCP context
+    - name: seed
+      description: Seed initial MCP data
+      executor: cli/seed
       options:
-        - name: id
-          alias: i
-          type: string
-          description: Context ID to delete
-          required: true
-        - name: format
+        - name: force
           alias: f
-          type: string
-          description: Output format
-          default: text
-          choices: [text, json]
-        - name: confirm
-          alias: y
           type: boolean
-          description: Skip confirmation prompt
+          description: Force re-seeding (will delete existing data)
           default: false
 
 exports:

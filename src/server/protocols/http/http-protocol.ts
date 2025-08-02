@@ -151,6 +151,9 @@ limit: '50mb'
               ...endpoint,
               moduleId
             });
+            
+            // Actually register the route with Express
+            this.registerExpressRoute(endpoint, moduleId);
           } catch (error) {
             this.server!.eventBus.emit(ServerEvents.REGISTRATION_ERROR, {
               moduleId,
@@ -166,6 +169,98 @@ limit: '50mb'
       const { moduleId } = event;
       this.endpointRegistry!.unregisterModuleEndpoints(moduleId);
     });
+  }
+
+  private registerExpressRoute(endpoint: any, moduleId: string): void {
+    if (!this.app || !this.server) return;
+    
+    const method = endpoint.method.toLowerCase();
+    const path = endpoint.path;
+    const handler = endpoint.handler;
+    
+    // Create Express route handler that bridges to event system
+    const routeHandler = async (req: any, res: any) => {
+      const requestId = req.requestId || uuidv4();
+      
+      // Create event payload
+      const eventPayload = {
+        requestId,
+        method: req.method,
+        path: req.path,
+        headers: req.headers,
+        query: req.query,
+        body: req.body,
+        params: req.params,
+        auth: req.auth, // If authentication middleware adds this
+        // Include raw request/response for handlers that need them (like MCP streamable)
+        rawRequest: req,
+        rawResponse: res
+      };
+      
+      // For streamable endpoints that handle their own response, just emit and return
+      if (handler === 'mcp.streamable') {
+        this.server!.eventBus.emit(handler, eventPayload);
+        return;
+      }
+      
+      // Set up response listener for normal handlers
+      const responseHandler = (response: any) => {
+        if (response.error) {
+          res.status(response.error.statusCode || 500).json({
+            error: {
+              code: response.error.code,
+              message: response.error.message
+            }
+          });
+        } else {
+          res.status(200).json(response.data);
+        }
+      };
+      
+      // Listen for response once
+      this.server!.eventBus.once(`response.${requestId}`, responseHandler);
+      
+      // Emit the event for the handler
+      this.server!.eventBus.emit(handler, eventPayload);
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        this.server!.eventBus.off(`response.${requestId}`, responseHandler);
+        if (!res.headersSent) {
+          res.status(504).json({
+            error: {
+              code: 'TIMEOUT',
+              message: 'Request timeout'
+            }
+          });
+        }
+      }, 30000);
+    };
+    
+    // Register with Express based on method
+    switch (method) {
+      case 'get':
+        this.app.get(path, routeHandler);
+        break;
+      case 'post':
+        this.app.post(path, routeHandler);
+        break;
+      case 'put':
+        this.app.put(path, routeHandler);
+        break;
+      case 'patch':
+        this.app.patch(path, routeHandler);
+        break;
+      case 'delete':
+        this.app.delete(path, routeHandler);
+        break;
+      case 'all':
+        // Support all methods for endpoints that need it (like MCP)
+        this.app.all(path, routeHandler);
+        break;
+      default:
+        this.app.all(path, routeHandler);
+    }
   }
 
   private setupRoutes(): void {

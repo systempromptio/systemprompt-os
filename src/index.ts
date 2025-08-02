@@ -116,6 +116,31 @@ const main = async (): Promise<void> => {
     bootstrapInstance = await runBootstrap();
 
     const logger = getLoggerService();
+    
+    // Register CLI commands after modules are loaded
+    try {
+      const cliModule = bootstrapInstance.getModule('cli');
+      if (cliModule && cliModule.exports) {
+        const modules = bootstrapInstance.getModules();
+        const moduleMap = new Map<string, { path: string }>();
+        
+        // Build module map for CLI registration
+        for (const [name, module] of modules) {
+          // Use the module's actual path (relative to src/modules/core)
+          moduleMap.set(name, { 
+            path: `/Users/edward/systemprompt-os/src/modules/core/${name}` 
+          });
+        }
+        
+        // Register all module CLI commands
+        await (cliModule.exports as any).scanAndRegisterModuleCommands(moduleMap);
+        logger.info(LogSource.BOOTSTRAP, 'CLI commands registered');
+      }
+    } catch (error) {
+      logger.warn(LogSource.BOOTSTRAP, 'Failed to register CLI commands', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
     const server = await startServer();
 
     const shutdownHandler = createShutdownHandler(server, logger);
